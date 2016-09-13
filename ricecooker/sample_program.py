@@ -2,6 +2,8 @@ from ricecooker import raise_for_invalid_channel, guess_file_format, Channel, Vi
 from ricecooker.exceptions import UnknownContentKindError
 from fle_utils.constants import content_kinds, presets, languages, licenses
 
+# Command: python -m ricecooker createchannel <channel name> <description> <thumbnail.jpg> [--private]
+
 SAMPLE_TREE = [
     {
         "title": "Western Philosophy",
