@@ -1,20 +1,21 @@
 import uuid
 import hashlib
+import base64
 from fle_utils import constants
+from ricecooker.managers import ChannelManager
 
-def generate_uuid(name):
-    id5 = uuid.uuid5(uuid.NAMESPACE_DNS, name).hex
-    return uuid.uuid3(uuid.NAMESPACE_DNS, id5).hex
 
 class Channel:
-    def __init__(self, channel_id, domain=None, title=None):
+    def __init__(self, channel_id, domain=None, title=None, thumbnail=None):
         self.domain = domain
-        self.channel_id = generate_uuid(channel_id)
+        self.channel_id = self.generate_uuid(channel_id)
         self.title = title
+        self.thumbnail = self.encode_thumbnail(thumbnail)
         self.root = Topic(
-            id=self.channel_id,
-            title="root"
+            id=self.channel_id.hex,
+            title=self.title
         )
+        self.objects = ChannelManager(self, self.root)
 
     def to_json(self):
         return {
@@ -23,11 +24,15 @@ class Channel:
             "thumbnail": self.thumbnail,
         }
 
-def generate_content_id(domain, id):
-    return uuid.uuid5(domain, id)
+    def generate_uuid(self, name):
+        return uuid.uuid3(uuid.NAMESPACE_DNS, uuid.uuid5(uuid.NAMESPACE_DNS, name).hex)
 
-def generate_node_id(parent_id, content_id):
-    return uuid.uuid5(parent_id, content_id)
+    def encode_thumbnail(self, thumbnail):
+        if thumbnail is None:
+            return None
+        else:
+            with open(thumbnail, "rb") as image:
+                return base64.b64encode(image.read())
 
 class Node:
     def __init__(self, id, title, description, author):
@@ -36,28 +41,13 @@ class Node:
         self.description = description
         self.author = author
 
-    def guess_content_kind(self):
-        pass
-
     def to_json(self):
         pass
 
-    def set_ids(self, domain, parent):
-        self.content_id = generate_content_id(domain, self.id)
-        self.node_id = generate_node_id(parent.id, self.content_id)
+    def set_ids(self, domain, parent_id):
+        self.content_id = uuid.uuid5(domain, self.id)
+        self.node_id = uuid.uuid5(parent_id, self.content_id.hex)
 
-
-# def propagate_content_ids(channeltree):
-#     assert isinstance(channeltree, Channel)
-
-
-# def set_ids(root):
-#     children = channeltree.children
-
-#     for child in children:
-#         child.content_id = uuid(channel.domain_id, child.id)
-
-#     propagate_content_ids(channeltree)
 
 class Topic(Node):
     def __init__(self, id, title, description=None, author=None):
@@ -67,9 +57,10 @@ class Topic(Node):
 
 class Video(Node):
     default_preset = constants.FP_VIDEO_HIGH_RES
-    def __init__(self, id, title, author=None, description=None, transcode_to_lower_resolutions=False, derive_thumbnail=False):
+    def __init__(self, id, title, author=None, description=None, transcode_to_lower_resolutions=False, derive_thumbnail=False, license=None):
         self.transcode_to_lower_resolutions = transcode_to_lower_resolutions
         self.derive_thumbnail = derive_thumbnail
+        self.license = license
         self.kind = constants.CK_VIDEO
         super(Video, self).__init__(id, title, description, author)
 
@@ -81,18 +72,21 @@ class Video(Node):
 
 class Audio(Node):
     default_preset = constants.FP_AUDIO
-    def __init__(self, id, title, author=None, description=None):
+    def __init__(self, id, title, author=None, description=None, license=None):
         self.kind = constants.CK_AUDIO
+        self.license = license
         super(Audio, self).__init__(id, title, description, author)
 
 class Document(Node):
     default_preset = constants.FP_DOCUMENT
-    def __init__(self, id, title, author=None, description=None):
+    def __init__(self, id, title, author=None, description=None, license=None):
         self.kind = constants.CK_DOCUMENT
+        self.license = license
         super(Document, self).__init__(id, title, description, author)
 
 class Exercise(Node):
     default_preset = constants.FP_EXERCISE
-    def __init__(self, id, title, author=None, description=None):
+    def __init__(self, id, title, author=None, description=None, license=None):
         self.kind = constants.CK_EXERCISE
+        self.license = license
         super(Exercise, self).__init__(id, title, description, author)
