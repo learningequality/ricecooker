@@ -6,22 +6,25 @@ from ricecooker.managers import ChannelManager
 
 
 class Channel:
-    def __init__(self, channel_id, domain=None, title=None, thumbnail=None):
+    def __init__(self, channel_id, domain=None, title=None, thumbnail=None, description=None):
         self.domain = domain
-        self.channel_id = self.generate_uuid(channel_id)
+        self.id = self.generate_uuid(channel_id)
         self.title = title
         self.thumbnail = self.encode_thumbnail(thumbnail)
+        self.description = description
         self.root = Topic(
-            id=self.channel_id.hex,
+            id=self.id.hex,
             title=self.title
         )
         self.objects = ChannelManager(self, self.root)
 
     def to_json(self):
         return {
-            "id": self.channel_id,
-            "title": self.title,
+            "id": self.id,
+            "name": self.title,
+            "has_changed": True,
             "thumbnail": self.thumbnail,
+            "description": self.description,
         }
 
     def generate_uuid(self, name):
@@ -35,14 +38,28 @@ class Channel:
                 return base64.b64encode(image.read())
 
 class Node:
-    def __init__(self, id, title, description, author):
+    def __init__(self, id, title, description, author, license):
         self.id = id
         self.title = title
         self.description = description
         self.author = author
+        self.license = license
+        self.children = []
+        self.files = []
 
     def to_json(self):
-        pass
+        return {
+            "id": self.id,
+            "title": self.title,
+            "description": self.description,
+            "node_id": self.node_id.hex,
+            "content_id": self.content_id.hex,
+            "author": self.author,
+            "children": self.children,
+            "files" : self.files,
+            "kind": self.kind,
+            "license": self.license,
+        }
 
     def set_ids(self, domain, parent_id):
         self.content_id = uuid.uuid5(domain, self.id)
@@ -51,18 +68,16 @@ class Node:
 
 class Topic(Node):
     def __init__(self, id, title, description=None, author=None):
-        self.children = []
         self.kind = constants.CK_TOPIC
-        super(Topic, self).__init__(id, title, description, author)
+        super(Topic, self).__init__(id, title, description, author, None)
 
 class Video(Node):
     default_preset = constants.FP_VIDEO_HIGH_RES
     def __init__(self, id, title, author=None, description=None, transcode_to_lower_resolutions=False, derive_thumbnail=False, license=None):
         self.transcode_to_lower_resolutions = transcode_to_lower_resolutions
         self.derive_thumbnail = derive_thumbnail
-        self.license = license
         self.kind = constants.CK_VIDEO
-        super(Video, self).__init__(id, title, description, author)
+        super(Video, self).__init__(id, title, description, author, license)
 
     def derive_thumbnail(self):
         pass
@@ -74,19 +89,16 @@ class Audio(Node):
     default_preset = constants.FP_AUDIO
     def __init__(self, id, title, author=None, description=None, license=None):
         self.kind = constants.CK_AUDIO
-        self.license = license
-        super(Audio, self).__init__(id, title, description, author)
+        super(Audio, self).__init__(id, title, description, author, license)
 
 class Document(Node):
     default_preset = constants.FP_DOCUMENT
     def __init__(self, id, title, author=None, description=None, license=None):
         self.kind = constants.CK_DOCUMENT
-        self.license = license
-        super(Document, self).__init__(id, title, description, author)
+        super(Document, self).__init__(id, title, description, author, license)
 
 class Exercise(Node):
     default_preset = constants.FP_EXERCISE
     def __init__(self, id, title, author=None, description=None, license=None):
         self.kind = constants.CK_EXERCISE
-        self.license = license
-        super(Exercise, self).__init__(id, title, description, author)
+        super(Exercise, self).__init__(id, title, description, author, license)

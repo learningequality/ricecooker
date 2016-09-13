@@ -25,8 +25,8 @@ class ChannelManager:
 
     def calculate_channel_internal_metadata(self):
         self.channel._internal_domain = uuid.uuid5(uuid.NAMESPACE_DNS, self.channel.domain)
-        self.channel._internal_channel_id = uuid.uuid5(self.channel._internal_domain, self.channel.channel_id.hex)
-        self.root.set_ids(self.channel._internal_domain, self.channel.channel_id)
+        self.channel._internal_channel_id = uuid.uuid5(self.channel._internal_domain, self.channel.id.hex)
+        self.root.set_ids(self.channel._internal_domain, self.channel.id)
 
     def recurse_set_ids(self, node):
         if node.kind == constants.CK_TOPIC:

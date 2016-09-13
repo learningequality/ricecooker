@@ -1,6 +1,8 @@
 import pytest
 import uuid
+import tempfile
 from fle_utils import constants
+import base64
 from ricecooker.classes import *
 
 
@@ -38,12 +40,22 @@ def channel(channel_data):
 	)
 
 @pytest.fixture
+def channel_json(channel, channel_data, channel_uuid):
+    return {
+    	"name" : channel_data['title'],
+        "id" : channel_uuid,
+        "thumbnail" : channel.thumbnail,
+        "has_changed" : True,
+        "description" : channel.description,
+    }
+
+@pytest.fixture
 def root_content_id(channel, channel_internal_domain):
-	return uuid.uuid5(channel_internal_domain, channel.channel_id.hex)
+	return uuid.uuid5(channel_internal_domain, channel.id.hex)
 
 @pytest.fixture
 def root_node_id(channel, root_content_id):
-	return uuid.uuid5(channel.channel_id, root_content_id.hex)
+	return uuid.uuid5(channel.id, root_content_id.hex)
 
 
 
@@ -77,6 +89,22 @@ def topic(topic_data):
 		title=topic_data['title'],
 		author=topic_data['author']
 	)
+
+@pytest.fixture
+def topic_json(topic_data, topic_content_id, topic_node_id, exercise, audio, video):
+    return {
+        "id" : topic_data['id'],
+        "title": topic_data['title'],
+        "description": topic_data['description'],
+        "title": topic_data['title'],
+        "node_id": topic_node_id.hex,
+        "content_id": topic_content_id.hex,
+        "author": topic_data['author'],
+        "children": [exercise, audio, video],
+        "files": [],
+        "kind": constants.CK_TOPIC,
+        "license": None,
+    }
 
 
 
@@ -115,6 +143,21 @@ def video(video_data):
 		license=video_data['license'],
 	)
 
+@pytest.fixture
+def video_json(video_data, video_content_id, video_node_id):
+    return {
+        "id" : video_data['id'],
+        "title": video_data['title'],
+        "description": video_data['description'],
+        "node_id": video_node_id.hex,
+        "content_id": video_content_id.hex,
+        "author": video_data['author'],
+        "children": [],
+        "files": [],
+        "kind": constants.CK_VIDEO,
+        "license": video_data['license'],
+    }
+
 
 
 """ *********** AUDIO FIXTURES *********** """
@@ -149,6 +192,21 @@ def audio(audio_data):
 		author=audio_data['author'],
 		license=audio_data['license'],
 	)
+
+@pytest.fixture
+def audio_json(audio_data, audio_content_id, audio_node_id):
+    return {
+        "id" : audio_data['id'],
+        "title": audio_data['title'],
+        "description": audio_data['description'],
+        "node_id": audio_node_id.hex,
+        "content_id": audio_content_id.hex,
+        "author": audio_data['author'],
+        "children": [],
+        "files": [],
+        "kind": constants.CK_AUDIO,
+        "license": audio_data['license'],
+    }
 
 
 
@@ -185,6 +243,21 @@ def document(document_data):
 		license=document_data['license'],
 	)
 
+@pytest.fixture
+def document_json(document_data, document_content_id, document_node_id):
+    return {
+        "id" : document_data['id'],
+        "title": document_data['title'],
+        "description": document_data['description'],
+        "node_id": document_node_id.hex,
+        "content_id": document_content_id.hex,
+        "author": document_data['author'],
+        "children": [],
+        "files": [],
+        "kind": constants.CK_DOCUMENT,
+        "license": document_data['license'],
+    }
+
 
 
 """ *********** EXERCISE FIXTURES *********** """
@@ -220,6 +293,21 @@ def exercise(exercise_data):
 		license=exercise_data['license'],
 	)
 
+@pytest.fixture
+def exercise_json(exercise_data, exercise_content_id, exercise_node_id):
+    return {
+        "id" : exercise_data['id'],
+        "title": exercise_data['title'],
+        "description": exercise_data['description'],
+        "node_id": exercise_node_id.hex,
+        "content_id": exercise_content_id.hex,
+        "author": exercise_data['author'],
+        "children": [],
+        "files": [],
+        "kind": constants.CK_EXERCISE,
+        "license": exercise_data['license'],
+    }
+
 
 
 """ *********** TREE FIXTURES *********** """
@@ -243,7 +331,7 @@ def test_channel_created(channel):
 def test_channel_data(channel, channel_data, channel_uuid):
 	assert channel.domain == channel_data['domain']
 	assert channel.title == channel_data['title']
-	assert channel.channel_id == channel_uuid
+	assert channel.id == channel_uuid
 
 def test_channel_root(channel, root_content_id, root_node_id):
 	assert channel.root is not None
@@ -251,8 +339,11 @@ def test_channel_root(channel, root_content_id, root_node_id):
 	assert channel.root.content_id == root_content_id
 	assert channel.root.node_id == root_node_id
 
-def test_channel_to_json(channel, channel_data):
+def test_channel_thumbnail_encode(channel):
 	assert True
+
+def test_channel_to_json(channel, channel_json):
+	assert channel.to_json() == channel_json
 
 
 
@@ -271,8 +362,8 @@ def test_topic_ids(topic, tree_extracted_json, topic_content_id, topic_node_id):
 	assert topic.content_id == topic_content_id
 	assert topic.node_id == topic_node_id
 
-def test_topic_to_json(topic, topic_data):
-	assert True
+def test_topic_to_json(tree_extracted_json, topic, topic_json):
+	assert topic.to_json() == topic_json
 
 
 
@@ -301,8 +392,8 @@ def test_video_ids(video, tree_extracted_json, video_content_id, video_node_id):
 	assert video.content_id == video_content_id
 	assert video.node_id == video_node_id
 
-def test_video_to_json(video, video_data):
-	assert True
+def test_video_to_json(tree_extracted_json, video, video_json):
+	assert video.to_json() == video_json
 
 
 
@@ -325,8 +416,8 @@ def test_audio_ids(audio, tree_extracted_json, audio_content_id, audio_node_id):
 	assert audio.content_id == audio_content_id
 	assert audio.node_id == audio_node_id
 
-def test_audio_to_json(audio, audio_data):
-	assert True
+def test_audio_to_json(tree_extracted_json, audio, audio_json):
+	assert audio.to_json() == audio_json
 
 
 
@@ -349,8 +440,8 @@ def test_document_ids(document, tree_extracted_json, document_content_id, docume
 	assert document.content_id == document_content_id
 	assert document.node_id == document_node_id
 
-def test_document_to_json(document, document_data):
-	assert True
+def test_document_to_json(tree_extracted_json, document, document_json):
+	assert document.to_json() == document_json
 
 
 
@@ -373,5 +464,5 @@ def test_exercise_ids(exercise, tree_extracted_json, exercise_content_id, exerci
 	assert exercise.content_id == exercise_content_id
 	assert exercise.node_id == exercise_node_id
 
-def test_exercise_to_json(exercise, exercise_data):
-	assert True
+def test_exercise_to_json(tree_extracted_json, exercise, exercise_json):
+	assert exercise.to_json() == exercise_json
