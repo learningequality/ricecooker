@@ -2,8 +2,6 @@ import uuid
 import hashlib
 import base64
 from fle_utils import constants
-from ricecooker.managers import ChannelManager
-
 
 class Channel:
     def __init__(self, channel_id, domain=None, title=None, thumbnail=None, description=None):
@@ -12,13 +10,9 @@ class Channel:
         self.title = title
         self.thumbnail = self.encode_thumbnail(thumbnail)
         self.description = description
-        self.root = Topic(
-            id=self.id.hex,
-            title=self.title
-        )
-        self.objects = ChannelManager(self, self.root)
+        self._nodes = {'Topic': [], 'Video':[]}
 
-    def to_json(self):
+    def to_dict(self):
         return {
             "id": self.id,
             "name": self.title,
@@ -47,7 +41,7 @@ class Node:
         self.children = []
         self.files = []
 
-    def to_json(self):
+    def to_dict(self):
         return {
             "id": self.id,
             "title": self.title,

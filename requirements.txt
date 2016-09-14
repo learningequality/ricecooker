@@ -1,2 +1,3 @@
 https://github.com/learningequality/fle-utils/tarball/master#egg=fle_utils
 pytest
+requests

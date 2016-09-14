@@ -55,6 +55,7 @@ SAMPLE_TREE = [
                 "id": "418799",
                 "author": "Bradley Smoker",
                 "file": "https://archive.org/download/SmokedBrisketRecipe/smokedbrisketrecipebybradleysmoker.mp4",
+                "subtitle": "something.vtt",
                 "license": licenses.CC_BY,
             },
             {
