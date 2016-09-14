@@ -17,5 +17,9 @@ def createchannel(channel_metadata, content_metadata):
 
     tree = ChannelManager(channel, root)
     tree.build_tree(content_metadata)
+    file_diff = tree.get_file_diff()
+    tree.upload_files(file_diff)
+    # tree.upload_tree()
+
     print("Channel created with id: {0}".format(channel.id.hex))
     return channel

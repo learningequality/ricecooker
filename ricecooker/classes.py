@@ -14,7 +14,7 @@ class Channel:
 
     def to_dict(self):
         return {
-            "id": self.id,
+            "id": self.id.hex,
             "name": self.title,
             "has_changed": True,
             "thumbnail": self.thumbnail,

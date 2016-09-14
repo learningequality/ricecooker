@@ -6,7 +6,7 @@ import tempfile
 import shutil
 import os
 from fle_utils import constants
-from ricecooker import classes
+from ricecooker import classes, config
 from ricecooker.exceptions import InvalidFormatException
 
 class ChannelManager:
@@ -16,17 +16,9 @@ class ChannelManager:
         self.channel._internal_domain = uuid.uuid5(uuid.NAMESPACE_DNS, self.channel.domain)
         self.channel._internal_channel_id = uuid.uuid5(self.channel._internal_domain, self.channel.id.hex)
         self.root.set_ids(self.channel._internal_domain, self.channel.id)
-
-    def guess_content_kind(self, data):
-        if 'file' in data and len(data['file']) > 0:
-            data['file'] = [data['file']] if isinstance(data['file'], str) else data['file']
-            for f in data['file']:
-                ext = f.rsplit('/', 1)[-1].split(".")[-1].lower()
-                if ext in constants.CK_MAPPING:
-                    return constants.CK_MAPPING[ext]
-            raise InvalidFormatException("Invalid file type: Allowed formats are {0}".format([key for key, value in constants.CK_MAPPING.items()]))
-        else:
-            return constants.CK_TOPIC
+        self._nodes = []
+        self._files = []
+        self._file_mapping = {}
 
     def build_tree(self, content_metadata):
         print("Building tree...")
@@ -42,7 +34,20 @@ class ChannelManager:
             if 'file' in node:
                 files = [node['file']] if isinstance(node['file'], str) else node['file']
                 new_node.files = self.download_files(files)
+                self._files += new_node.files
+            self._nodes += [new_node]
             parent.children += [new_node]
+
+    def guess_content_kind(self, data):
+        if 'file' in data and len(data['file']) > 0:
+            data['file'] = [data['file']] if isinstance(data['file'], str) else data['file']
+            for f in data['file']:
+                ext = f.rsplit('/', 1)[-1].split(".")[-1].lower()
+                if ext in constants.CK_MAPPING:
+                    return constants.CK_MAPPING[ext]
+            raise InvalidFormatException("Invalid file type: Allowed formats are {0}".format([key for key, value in constants.CK_MAPPING.items()]))
+        else:
+            return constants.CK_TOPIC
 
     def _generate_node(self, node):
         kind = self.guess_content_kind(node)
@@ -103,9 +108,10 @@ class ChannelManager:
                     tempf.write(chunk)
 
                 hashstring = hash.hexdigest()
+                original_filename = f.split("/")[-1].split(".")[0]
                 filename = '{0}{ext}'.format(hashstring, ext=os.path.splitext(f)[-1])
-
                 hashes += [filename]
+                self._file_mapping.update({filename : original_filename})
 
                 tempf.seek(0)
 
@@ -113,7 +119,15 @@ class ChannelManager:
                     shutil.copyfileobj(tempf, destf)
         return hashes
 
-# catalog_all_leaf_nodes()
-# md5_files(tree)
-# cc_server_file_diff(tree)
-# upload_tree(tree)
+    def get_file_diff(self):
+        print("Getting file diff...")
+        file_diff_url = "http://127.0.0.1:8000/api/internal/file_diff"
+        response = requests.post(config.FILE_DIFF_URL, data=json.dumps(self._files))
+        return json.loads(response._content.decode("utf-8"))
+
+    def upload_files(self, file_list):
+        print("Uploading {0} file(s) to the content curation server...".format(len(file_list)))
+        for f in file_list:
+            with  open(f, 'rb') as file_obj:
+                response = requests.post(config.FILE_UPLOAD_URL, params=self._file_mapping[f], files={'file': file_obj})
+                response.raise_for_status()
