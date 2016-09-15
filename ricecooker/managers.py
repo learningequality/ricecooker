@@ -34,7 +34,6 @@ class ChannelManager:
             if 'file' in node:
                 files = [node['file']] if isinstance(node['file'], str) else node['file']
                 new_node.files = self.download_files(files)
-                self._files += new_node.files
             self._nodes += [new_node]
             parent.children += [new_node]
 
@@ -111,23 +110,35 @@ class ChannelManager:
                 original_filename = f.split("/")[-1].split(".")[0]
                 filename = '{0}{ext}'.format(hashstring, ext=os.path.splitext(f)[-1])
                 hashes += [filename]
-                self._file_mapping.update({filename : original_filename})
+                file_size = tempf.tell()
 
                 tempf.seek(0)
 
                 with open(filename, 'wb') as destf:
+                    self._file_mapping.update({filename : {'original_filename': original_filename, 'source_url': f, 'size': file_size}})
                     shutil.copyfileobj(tempf, destf)
         return hashes
 
     def get_file_diff(self):
         print("Getting file diff...")
         file_diff_url = "http://127.0.0.1:8000/api/internal/file_diff"
-        response = requests.post(config.FILE_DIFF_URL, data=json.dumps(self._files))
+        response = requests.post(config.FILE_DIFF_URL, data=json.dumps([key for key, value in self._file_mapping.items()]))
         return json.loads(response._content.decode("utf-8"))
 
     def upload_files(self, file_list):
         print("Uploading {0} file(s) to the content curation server...".format(len(file_list)))
         for f in file_list:
             with  open(f, 'rb') as file_obj:
-                response = requests.post(config.FILE_UPLOAD_URL, params=self._file_mapping[f], files={'file': file_obj})
+                response = requests.post(config.FILE_UPLOAD_URL, files={'file': file_obj})
                 response.raise_for_status()
+
+    def upload_tree(self):
+        print("Creating tree on the content curation server...")
+        payload = {
+            "channel_data":self.channel.to_dict(),
+            "content_data": [child.to_dict() for child in self.root.children],
+            "file_data": self._file_mapping,
+        }
+        response = requests.post(config.CREATE_CHANNEL_URL, data=json.dumps(payload))
+        response.raise_for_status()
+        return json.loads(response._content.decode("utf-8"))

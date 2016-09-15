@@ -10,15 +10,14 @@ class Channel:
         self.title = title
         self.thumbnail = self.encode_thumbnail(thumbnail)
         self.description = description
-        self._nodes = {'Topic': [], 'Video':[]}
 
     def to_dict(self):
         return {
             "id": self.id.hex,
             "name": self.title,
             "has_changed": True,
-            "thumbnail": self.thumbnail,
-            "description": self.description,
+            "thumbnail": self.thumbnail if self.description is not None else "",
+            "description": self.description if self.description is not None else "",
         }
 
     def generate_uuid(self, name):
@@ -45,11 +44,11 @@ class Node:
         return {
             "id": self.id,
             "title": self.title,
-            "description": self.description,
+            "description": self.description if self.description is not None else "",
             "node_id": self.node_id.hex,
             "content_id": self.content_id.hex,
-            "author": self.author,
-            "children": self.children,
+            "author": self.author if self.author is not None else "",
+            "children": [child_node.to_dict() for child_node in self.children],
             "files" : self.files,
             "kind": self.kind,
             "license": self.license,
