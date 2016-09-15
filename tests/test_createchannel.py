@@ -313,3 +313,4 @@ def exercise_json(exercise_data, exercise_content_id, exercise_node_id):
         "kind": constants.CK_EXERCISE,
         "license": exercise_data['license'],
     }
+

@@ -1,6 +1,10 @@
 import uuid
 import hashlib
 import base64
+import requests
+import zlib
+from PIL import Image
+from io import BytesIO
 from fle_utils import constants
 
 class Channel:
@@ -16,7 +20,7 @@ class Channel:
             "id": self.id.hex,
             "name": self.title,
             "has_changed": True,
-            "thumbnail": self.thumbnail if self.description is not None else "",
+            "thumbnail": self.thumbnail,
             "description": self.description if self.description is not None else "",
         }
 
@@ -27,8 +31,31 @@ class Channel:
         if thumbnail is None:
             return None
         else:
-            with open(thumbnail, "rb") as image:
-                return base64.b64encode(image.read())
+            img = Image.open(thumbnail)
+            width = 200
+            height = int((float(img.size[1])*float(width/float(img.size[0]))))
+            img.thumbnail((width,height), Image.ANTIALIAS)
+            bufferstream = BytesIO()
+            img.save(bufferstream, format="PNG")
+            return "data:image/png;base64," + base64.b64encode(bufferstream.getvalue()).decode('utf-8')
+
+            # with open(thumbnail, "rb") as image:
+            #     return base64.b64encode(image.read()).decode('utf-8')
+            # #
+
+            # bufferstream = BytesIO()
+            # r = requests.get(thumbnail, stream=True)
+            # if r.status_code == 200:
+            #     for chunk in r:
+            #         bufferstream.write(chunk)
+            # else:
+            #     with open(thumbnail, "rb") as image:
+            #         bufferstream.write(image.read())
+            # compressed_stream = zlib.compress(bufferstream.getvalue(), 9)
+            # encoded_stream = base64.b64encode(compressed_stream).decode('utf-8')
+            # with open(thumbnail, "rb") as image:
+            #     return base64.b64encode(image.read()).decode('utf-8')
+            #
 
 class Node:
     def __init__(self, id, title, description, author, license):

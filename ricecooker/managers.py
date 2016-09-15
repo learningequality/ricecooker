@@ -98,7 +98,7 @@ class ChannelManager:
         hashes = []
 
         for f in files:
-            print("\tDownloading {0}...".format(f))
+            print("\tDownloading {0}...".format(f.split('/')[-1]))
             r = requests.get(f, stream=True)
             r.raise_for_status()
             with tempfile.TemporaryFile() as tempf:
