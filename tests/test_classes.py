@@ -43,7 +43,7 @@ def channel(channel_data):
 def channel_json(channel, channel_data, channel_uuid):
     return {
     	"name" : channel_data['title'],
-        "id" : channel_uuid,
+        "id" : channel_uuid.hex,
         "thumbnail" : channel.thumbnail,
         "has_changed" : True,
         "description" : channel.description,
@@ -97,10 +97,10 @@ def topic_json(topic_data, topic_content_id, topic_node_id):
     return {
         "id" : topic_data['id'],
         "title": topic_data['title'],
-        "description": topic_data['description'],
+        "description": "",
         "node_id": topic_node_id.hex,
         "content_id": topic_content_id.hex,
-        "author": topic_data['author'],
+        "author": "",
         "files": [],
         "kind": constants.CK_TOPIC,
         "license": None,
@@ -148,10 +148,10 @@ def video_json(video_data, video_content_id, video_node_id):
     return {
         "id" : video_data['id'],
         "title": video_data['title'],
-        "description": video_data['description'],
+        "description": "",
         "node_id": video_node_id.hex,
         "content_id": video_content_id.hex,
-        "author": video_data['author'],
+        "author": "",
         "children": [],
         "files": [],
         "kind": constants.CK_VIDEO,
@@ -200,10 +200,10 @@ def audio_json(audio_data, audio_content_id, audio_node_id):
     return {
         "id" : audio_data['id'],
         "title": audio_data['title'],
-        "description": audio_data['description'],
+        "description": "",
         "node_id": audio_node_id.hex,
         "content_id": audio_content_id.hex,
-        "author": audio_data['author'],
+        "author": "",
         "children": [],
         "files": [],
         "kind": constants.CK_AUDIO,
@@ -252,10 +252,10 @@ def document_json(document_data, document_content_id, document_node_id):
     return {
         "id" : document_data['id'],
         "title": document_data['title'],
-        "description": document_data['description'],
+        "description": "",
         "node_id": document_node_id.hex,
         "content_id": document_content_id.hex,
-        "author": document_data['author'],
+        "author": "",
         "children": [],
         "files": [],
         "kind": constants.CK_DOCUMENT,
@@ -304,10 +304,10 @@ def exercise_json(exercise_data, exercise_content_id, exercise_node_id):
     return {
         "id" : exercise_data['id'],
         "title": exercise_data['title'],
-        "description": exercise_data['description'],
+        "description": "",
         "node_id": exercise_node_id.hex,
         "content_id": exercise_content_id.hex,
-        "author": exercise_data['author'],
+        "author": "",
         "children": [],
         "files": [],
         "kind": constants.CK_EXERCISE,
@@ -322,14 +322,14 @@ def test_channel_created(channel):
 
 def test_channel_data(channel, channel_data, channel_uuid):
 	assert channel.domain == channel_data['domain']
-	assert channel.title == channel_data['title']
+	assert channel.name == channel_data['title']
 	assert channel.id == channel_uuid
 
-def test_channel_thumbnail_encode(channel):
-	assert True
-
 def test_channel_to_dict(channel, channel_json):
-	assert channel.to_dict() == channel_json
+    assert channel.id.hex == channel_json['id']
+    assert channel.name == channel_json['name']
+    assert channel_json['description'] == None
+    assert channel_json['has_changed'] == True
 
 
 
@@ -351,10 +351,10 @@ def test_topic_ids(topic, topic_content_id, topic_node_id):
 def test_topic_to_dict(topic, topic_json):
     assert topic.id == topic_json['id']
     assert topic.title == topic_json['title']
-    assert topic.description == topic_json['description']
+    assert topic.description == None
     assert topic.node_id.hex == topic_json['node_id']
     assert topic.content_id.hex == topic_json['content_id']
-    assert topic.author == topic_json['author']
+    assert topic.author == None
     assert topic.files == topic_json['files']
     assert topic.kind == topic_json['kind']
     assert topic.license == topic_json['license']

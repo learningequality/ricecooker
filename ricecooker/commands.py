@@ -2,23 +2,32 @@ from fle_utils import constants
 from ricecooker.classes import *
 from ricecooker.managers import ChannelManager
 
-def createchannel(channel_metadata, content_metadata):
-    channel = Channel(
-        domain=channel_metadata['domain'],
-        channel_id=channel_metadata['channel_id'],
-        title=channel_metadata['title'],
-        description=channel_metadata['description'],
-        thumbnail= channel_metadata['thumbnail'],
-    )
-    root = Topic(
-        id=channel.id.hex,
-        title=channel_metadata['title']
-    )
+def uploadchannel(path, verbose=False):
+    exec(open(path).read(), globals())
 
-    tree = ChannelManager(channel, root)
-    tree.build_tree(content_metadata)
+    if verbose:
+        print("\n\n***** Starting channel build process *****")
+        print("Constructing channel...")
+    channel = construct_channel({})
+
+    if verbose:
+        print("Setting up initial channel structure...")
+    tree = ChannelManager(channel, verbose)
+
+    if verbose:
+        print("Processing content...")
+    tree.process_tree(channel)
+
+    if verbose:
+        print("Getting file diff...")
     file_diff = tree.get_file_diff()
+
+    if verbose:
+        print("Uploading {0} file(s) to the content curation server...".format(len(file_diff)))
     tree.upload_files(file_diff)
-    channel_id = tree.upload_tree()
-    print("Channel created with id: {0}".format(channel_id['new_channel']))
+
+    if verbose:
+        print("Creating tree on the content curation server...")
+    channel_link = tree.upload_tree()
+    print("DONE: Channel created at {0}".format(channel_link))
     return channel

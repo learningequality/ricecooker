@@ -314,3 +314,26 @@ def exercise_json(exercise_data, exercise_content_id, exercise_node_id):
         "license": exercise_data['license'],
     }
 
+
+
+""" TESTS """
+def test_build_tree():
+    assert True
+
+def test_guess_content_kind():
+    assert True
+
+def test_generate_node():
+    assert True
+
+def test_download_files():
+    assert True
+
+def test_get_file_diff():
+    assert True
+
+def test_upload_files():
+    assert True
+
+def test_upload_tree():
+    assert True
