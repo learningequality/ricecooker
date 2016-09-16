@@ -86,7 +86,7 @@ def _build_tree(node, sourcetree):
 
     for child_source_node in sourcetree:
         try:
-            kind = guess_content_kind(child_source_node)
+            kind = guess_content_kind(child_source_node.get("file"))
         except UnknownContentKindError:
             continue
 

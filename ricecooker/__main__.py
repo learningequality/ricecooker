@@ -12,9 +12,7 @@ Options:
 
 from fle_utils import constants
 from ricecooker.commands import uploadchannel
-from ricecooker.exceptions import FileNotFoundException
 from docopt import docopt
-import sys
 
 commands = ["uploadchannel"]
 
