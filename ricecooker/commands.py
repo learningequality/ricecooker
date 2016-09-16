@@ -28,7 +28,7 @@ def uploadchannel(path, verbose=False):
     file_diff = tree.get_file_diff() # Determine which files have not yet been uploaded to the CC server
 
     if verbose:
-        print("Uploading {0} file(s) to the content curation server...".format(len(file_diff)))
+        print("Uploading {0} new file(s) to the content curation server...".format(len(file_diff)))
     tree.upload_files(file_diff) # Upload new files to CC
 
     if verbose:
