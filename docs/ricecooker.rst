@@ -44,14 +44,6 @@ ricecooker.managers module
     :undoc-members:
     :show-inheritance:
 
-ricecooker.models module
-------------------------
-
-.. automodule:: ricecooker.models
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 ricecooker.sample_program module
 --------------------------------
 
