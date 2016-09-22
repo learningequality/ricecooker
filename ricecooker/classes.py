@@ -54,10 +54,10 @@ class Channel(TreeModel):
 
 
     def to_dict(self):
-    """ to_dict: puts data in format CC expects
-        Args: None
-        Returns: dict of channel data
-    """
+        """ to_dict: puts data in format CC expects
+            Args: None
+            Returns: dict of channel data
+        """
         return {
             "id": self.id.hex,
             "name": self.name,
@@ -69,11 +69,11 @@ class Channel(TreeModel):
 
 
     def encode_thumbnail(self, thumbnail):
-    """ encode_thumbnail: gets base64 encoding of thumbnail
-        Args:
-            thumbnail (str): file path or url to channel's thumbnail
-        Returns: base64 encoding of thumbnail
-    """
+        """ encode_thumbnail: gets base64 encoding of thumbnail
+            Args:
+                thumbnail (str): file path or url to channel's thumbnail
+            Returns: base64 encoding of thumbnail
+        """
         if thumbnail is None:
             return None
         else:
@@ -119,10 +119,10 @@ class Node(TreeModel):
 
 
     def to_dict(self):
-    """ to_dict: puts data in format CC expects
-        Args: None
-        Returns: dict of node's data
-    """
+        """ to_dict: puts data in format CC expects
+            Args: None
+            Returns: dict of node's data
+        """
         return {
             "id": self.id,
             "title": self.title,
@@ -137,12 +137,12 @@ class Node(TreeModel):
         }
 
     def set_ids(self, domain, parent_id):
-    """ set_ids: sets ids to be used in building tree
-        Args:
-            domain (uuid): uuid of channel domain
-            parent_id (uuid): parent node's node_id
-        Returns: None
-    """
+        """ set_ids: sets ids to be used in building tree
+            Args:
+                domain (uuid): uuid of channel domain
+                parent_id (uuid): parent node's node_id
+            Returns: None
+        """
         self.content_id = uuid.uuid5(domain, self.id)
         self.node_id = uuid.uuid5(parent_id, self.content_id.hex)
 
@@ -194,17 +194,17 @@ class Video(Node):
         super(Video, self).__init__(id, title, description, author, license, files)
 
     def derive_thumbnail(self):
-    """ derive_thumbnail: derive video's thumbnail
-        Args: None
-        Returns: None
-    """
+        """ derive_thumbnail: derive video's thumbnail
+            Args: None
+            Returns: None
+        """
         pass
 
     def transcode_to_lower_resolutions(self):
-    """ transcode_to_lower_resolutions: transcode video to lower resolution
-        Args: None
-        Returns: None
-    """
+        """ transcode_to_lower_resolutions: transcode video to lower resolution
+            Args: None
+            Returns: None
+        """
         pass
 
 
