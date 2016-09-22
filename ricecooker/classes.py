@@ -27,15 +27,18 @@ class TreeModel:
         self.children += [node]
 
 
-
-""" Channel: model to handle channel data
-    @param channel_id (string for unique channel id)
-    @param domain (domain of where data is from)
-    @param title (name of channel)
-    @param thumbnail (channel thumbnail string- can be file path or url)
-    @param description (description of channel)
-"""
 class Channel(TreeModel):
+    """ Model representing the channel you are creating
+
+        Used to store metadata on channel that is being created
+
+        Attributes:
+            channel_id (str): channel's unique id
+            domain (str): who is providing the content (e.g. learningequality.org)
+            title (str): name of channel
+            thumbnail (str): file path or url of channel's thumbnail
+            description (str): description of the channel
+    """
     def __init__(self, channel_id, domain=None, title=None, thumbnail=None, description=None):
         self.domain = domain
         self.id = uuid.uuid3(uuid.NAMESPACE_DNS, uuid.uuid5(uuid.NAMESPACE_DNS, channel_id).hex)
@@ -49,10 +52,12 @@ class Channel(TreeModel):
         self.node_id = uuid.uuid5(self.id, self.content_id.hex)
         super(Channel, self).__init__()
 
-    """ to_dict: puts data in format CC expects
-        @return dict of channel data
-    """
+
     def to_dict(self):
+    """ to_dict: puts data in format CC expects
+        Args: None
+        Returns: dict of channel data
+    """
         return {
             "id": self.id.hex,
             "name": self.name,
@@ -62,11 +67,13 @@ class Channel(TreeModel):
             "children": [child_node.to_dict() for child_node in self.children],
         }
 
-    """ encode_thumbnail: gets base64 encoding of thumbnail
-        @param thumbnail (string of thumbnail's file path or url)
-        @return base64 encoding of thumbnail
-    """
+
     def encode_thumbnail(self, thumbnail):
+    """ encode_thumbnail: gets base64 encoding of thumbnail
+        Args:
+            thumbnail (str): file path or url to channel's thumbnail
+        Returns: base64 encoding of thumbnail
+    """
         if thumbnail is None:
             return None
         else:
@@ -87,15 +94,19 @@ class Channel(TreeModel):
 
 
 
-""" Node: base model for different content node kinds
-    @param id (content's original id)
-    @param title (content's title)
-    @param description (content's description)
-    @param author (content's author)
-    @param license (content's license)
-    @param files (string or list of content's associated file(s))
-"""
 class Node(TreeModel):
+    """ Model representing the nodes in the channel's tree
+
+        Base model for different content node kinds (topic, video, exercise, etc.)
+
+        Attributes:
+            id (str): content's original id
+            title (str): content's title
+            description (str): description of content
+            author (str): who created the content
+            license (str): content's license (using constants from fle_utils)
+            files (str or list): content's associated file(s)
+    """
     def __init__(self, id, title, description, author, license, files):
         self.id = id
         self.title = title
@@ -106,10 +117,12 @@ class Node(TreeModel):
         self.files = [files] if isinstance(files, str) else files
         super(Node, self).__init__()
 
-    """ to_dict: puts data in format CC expects
-        @return dict of content data
-    """
+
     def to_dict(self):
+    """ to_dict: puts data in format CC expects
+        Args: None
+        Returns: dict of node's data
+    """
         return {
             "id": self.id,
             "title": self.title,
@@ -123,41 +136,52 @@ class Node(TreeModel):
             "license": self.license,
         }
 
-    """ set_ids: sets node's node_id and content_id
-        @param domain (uuid of channel domain)
-        @param parent_id (node's parent's node_id)
-    """
     def set_ids(self, domain, parent_id):
+    """ set_ids: sets ids to be used in building tree
+        Args:
+            domain (uuid): uuid of channel domain
+            parent_id (uuid): parent node's node_id
+        Returns: None
+    """
         self.content_id = uuid.uuid5(domain, self.id)
         self.node_id = uuid.uuid5(parent_id, self.content_id.hex)
 
 
-""" Topic: model for topic nodes
-    @param id (content's original id)
-    @param title (content's title)
-    @param description (content's description)
-    @param author (content's author)
-"""
+
 class Topic(Node):
+    """ Model representing channel topics
+
+        Topic nodes are used to add organization to the channel's content
+
+        Attributes:
+            id (str): content's original id
+            title (str): content's title
+            description (str): description of content
+            author (str): who created the content
+    """
     def __init__(self, id, title, description=None, author=None):
         self.kind = constants.CK_TOPIC
         super(Topic, self).__init__(id, title, description, author, None, [])
 
 
 
-""" Video: model for video nodes
-    @param id (content's original id)
-    @param title (content's title)
-    @param description (content's description)
-    @param author (content's author)
-    @param license (content's license)
-    @param transcode_to_lower_resolutions (indicates whether to extract lower resolution)
-    @param derive_thumbnail (indicates whether to derive thumbnail from video)
-    @param preset (default preset for files)
-    @param subtitle (subtitles for content)
-    @param files (string or list of content's associated file(s))
-"""
 class Video(Node):
+    """ Model representing videos in channel
+
+        Videos must be mp4 format
+
+        Attributes:
+            id (str): content's original id
+            title (str): content's title
+            author (str): who created the content
+            description (str): description of content
+            transcode_to_lower_resolutions (bool): indicates whether to extract lower resolution
+            derive_thumbnail (bool): indicates whether to derive thumbnail from video
+            preset (str): default preset for files
+            subtitle (str): path or url to file's subtitles
+            license (str): content's license (using constants from fle_utils)
+            files (str or list): content's associated file(s)
+    """
     default_preset = constants.FP_VIDEO_HIGH_RES
     def __init__(self, id, title, author=None, description=None, transcode_to_lower_resolutions=False, derive_thumbnail=False, license=None, subtitle=None, files=[], preset=None):
         if preset is not None:
@@ -170,60 +194,87 @@ class Video(Node):
         super(Video, self).__init__(id, title, description, author, license, files)
 
     def derive_thumbnail(self):
+    """ derive_thumbnail: derive video's thumbnail
+        Args: None
+        Returns: None
+    """
         pass
 
     def transcode_to_lower_resolutions(self):
+    """ transcode_to_lower_resolutions: transcode video to lower resolution
+        Args: None
+        Returns: None
+    """
         pass
 
-""" Audio: model for audio nodes
-    @param id (content's original id)
-    @param title (content's title)
-    @param description (content's description)
-    @param author (content's author)
-    @param license (content's license)
-    @param subtitle (subtitles for content)
-    @param files (string or list of content's associated file(s))
-"""
+
+
 class Audio(Node):
+    """ Model representing audio content in channel
+
+        Audio can be in either mp3 or wav format
+
+        Attributes:
+            id (str): content's original id
+            title (str): content's title
+            author (str): who created the content
+            description (str): description of content
+            subtitle (str): path or url to file's subtitles
+            license (str): content's license (using constants from fle_utils)
+            files (str or list): content's associated file(s)
+    """
     default_preset = constants.FP_AUDIO
     def __init__(self, id, title, author=None, description=None, license=None, subtitle=None, files=[]):
         self.kind = constants.CK_AUDIO
         super(Audio, self).__init__(id, title, description, author, license, files)
 
-""" Document: model for document nodes
-    @param id (content's original id)
-    @param title (content's title)
-    @param description (content's description)
-    @param author (content's author)
-    @param license (content's license)
-    @param files (string or list of content's associated file(s))
-"""
+
+
 class Document(Node):
+    """ Model representing documents in channel
+
+        Documents must be pdf format
+
+        Attributes:
+            id (str): content's original id
+            title (str): content's title
+            author (str): who created the content
+            description (str): description of content
+            license (str): content's license (using constants from fle_utils)
+            files (str or list): content's associated file(s)
+    """
     default_preset = constants.FP_DOCUMENT
     def __init__(self, id, title, author=None, description=None, license=None, files=[]):
         self.kind = constants.CK_DOCUMENT
         super(Document, self).__init__(id, title, description, author, license, files)
 
-""" Exercise: model for exercise nodes
-    @param id (content's original id)
-    @param title (content's title)
-    @param description (content's description)
-    @param author (content's author)
-    @param license (content's license)
-    @param files (string or list of content's associated file(s))
-"""
+
+
 class Exercise(Node):
+    """ Model representing exercises in channel
+
+        Exercises must be perseus format
+
+        Attributes:
+            id (str): content's original id
+            title (str): content's title
+            author (str): who created the content
+            description (str): description of content
+            license (str): content's license (using constants from fle_utils)
+            files (str or list): content's associated file(s)
+    """
     default_preset = constants.FP_EXERCISE
     def __init__(self, id, title, author=None, description=None, license=None, files=[]):
         self.kind = constants.CK_EXERCISE
         super(Exercise, self).__init__(id, title, description, author, license, files)
 
 
-""" guess_content_kind: determines what kind the content is
-    @param files (string or list of files associated with content)
-    @return string of kind
-"""
 def guess_content_kind(files):
+    """ guess_content_kind: determines what kind the content is
+        Args:
+            files (str or list): files associated with content
+        Returns: string indicating node's kind
+    """
     files = [files] if isinstance(files, str) else files
     if files is not None and len(files) > 0:
         for f in files:

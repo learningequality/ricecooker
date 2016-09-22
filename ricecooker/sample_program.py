@@ -35,7 +35,7 @@ SAMPLE_TREE = [
                         "title": "02 - Preface to the Second Edition",
                         "id": "aaaa4d",
                         "author": "Immanuel Kant",
-                        "file": "http://www.wavsource.com/snds_2016-08-21_1204101428963685/movies/aladdin/aladdin_cant_believe.wav",
+                        "file": "https://ia801406.us.archive.org/13/items/alice_in_wonderland_librivox/wonderland_ch_01.mp3",
                         "author": "Immanuel Kant",
                         "license": constants.L_PD,
                     }

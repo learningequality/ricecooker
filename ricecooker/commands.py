@@ -2,12 +2,13 @@ from fle_utils import constants
 from ricecooker.classes import *
 from ricecooker.managers import ChannelManager
 
-""" uploadchannel: command to create tree on content curation server
-    @param path (string path to file containing channel data)
-    @param verbose (boolean to determine whether to print process)
-    @return link to access newly created channel
-"""
 def uploadchannel(path, verbose=False):
+    """ guess_content_kind: determines what kind the content is
+        Args:
+            path (str): path to file containing channel data
+            verbose (bool): indicates whether to print process
+        Returns: (str) link to access newly created channel
+    """
     exec(open(path).read(), globals())
 
     if verbose:
