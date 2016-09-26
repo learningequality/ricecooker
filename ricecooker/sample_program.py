@@ -1,6 +1,6 @@
 from ricecooker.classes import Channel, Video, Audio, Document, Topic, guess_content_kind
 from ricecooker.exceptions import UnknownContentKindError, raise_for_invalid_channel
-from fle_utils import constants
+from le_utils import constants
 
 SAMPLE_TREE = [
     {

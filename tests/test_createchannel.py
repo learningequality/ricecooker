@@ -1,7 +1,7 @@
 import pytest
 import uuid
 import tempfile
-from fle_utils import constants
+from le_utils import constants
 import base64
 from ricecooker.classes import *
 

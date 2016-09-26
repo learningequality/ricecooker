@@ -1,4 +1,4 @@
-from fle_utils import constants
+from le_utils import constants
 from ricecooker.classes import *
 from ricecooker.managers import ChannelManager
 

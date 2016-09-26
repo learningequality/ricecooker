@@ -6,8 +6,23 @@ import validators
 import tempfile
 from PIL import Image
 from io import BytesIO
-from fle_utils import constants
+from le_utils import constants
 
+def guess_content_kind(files):
+    """ guess_content_kind: determines what kind the content is
+        Args:
+            files (str or list): files associated with content
+        Returns: string indicating node's kind
+    """
+    files = [files] if isinstance(files, str) else files
+    if files is not None and len(files) > 0:
+        for f in files:
+            ext = f.rsplit('/', 1)[-1].split(".")[-1].lower()
+            if ext in constants.CK_MAPPING:
+                return constants.CK_MAPPING[ext]
+        raise InvalidFormatException("Invalid file type: Allowed formats are {0}".format([key for key, value in constants.CK_MAPPING.items()]))
+    else:
+        return constants.CK_TOPIC
 
 """ TreeModel: model to handle structure of channel """
 class TreeModel:
@@ -54,10 +69,10 @@ class Channel(TreeModel):
 
 
     def to_dict(self):
-    """ to_dict: puts data in format CC expects
-        Args: None
-        Returns: dict of channel data
-    """
+        """ to_dict: puts data in format CC expects
+            Args: None
+            Returns: dict of channel data
+        """
         return {
             "id": self.id.hex,
             "name": self.name,
@@ -69,11 +84,11 @@ class Channel(TreeModel):
 
 
     def encode_thumbnail(self, thumbnail):
-    """ encode_thumbnail: gets base64 encoding of thumbnail
-        Args:
-            thumbnail (str): file path or url to channel's thumbnail
-        Returns: base64 encoding of thumbnail
-    """
+        """ encode_thumbnail: gets base64 encoding of thumbnail
+            Args:
+                thumbnail (str): file path or url to channel's thumbnail
+            Returns: base64 encoding of thumbnail
+        """
         if thumbnail is None:
             return None
         else:
@@ -119,10 +134,10 @@ class Node(TreeModel):
 
 
     def to_dict(self):
-    """ to_dict: puts data in format CC expects
-        Args: None
-        Returns: dict of node's data
-    """
+        """ to_dict: puts data in format CC expects
+            Args: None
+            Returns: dict of node's data
+        """
         return {
             "id": self.id,
             "title": self.title,
@@ -137,12 +152,12 @@ class Node(TreeModel):
         }
 
     def set_ids(self, domain, parent_id):
-    """ set_ids: sets ids to be used in building tree
-        Args:
-            domain (uuid): uuid of channel domain
-            parent_id (uuid): parent node's node_id
-        Returns: None
-    """
+        """ set_ids: sets ids to be used in building tree
+            Args:
+                domain (uuid): uuid of channel domain
+                parent_id (uuid): parent node's node_id
+            Returns: None
+        """
         self.content_id = uuid.uuid5(domain, self.id)
         self.node_id = uuid.uuid5(parent_id, self.content_id.hex)
 
@@ -194,17 +209,17 @@ class Video(Node):
         super(Video, self).__init__(id, title, description, author, license, files)
 
     def derive_thumbnail(self):
-    """ derive_thumbnail: derive video's thumbnail
-        Args: None
-        Returns: None
-    """
+        """ derive_thumbnail: derive video's thumbnail
+            Args: None
+            Returns: None
+        """
         pass
 
     def transcode_to_lower_resolutions(self):
-    """ transcode_to_lower_resolutions: transcode video to lower resolution
-        Args: None
-        Returns: None
-    """
+        """ transcode_to_lower_resolutions: transcode video to lower resolution
+            Args: None
+            Returns: None
+        """
         pass
 
 
@@ -253,7 +268,8 @@ class Document(Node):
 class Exercise(Node):
     """ Model representing exercises in channel
 
-        Exercises must be perseus format
+        Exercises are sets of questions to assess learners'
+        understanding of the content
 
         Attributes:
             id (str): content's original id
@@ -264,23 +280,117 @@ class Exercise(Node):
             files (str or list): content's associated file(s)
     """
     default_preset = constants.FP_EXERCISE
-    def __init__(self, id, title, author=None, description=None, license=None, files=[]):
+    def __init__(self, id, title, author=None, description=None, license=None, files=[], exercise_data={}, images=[], questions=[]):
         self.kind = constants.CK_EXERCISE
+        self.exercise_data = exercise_data
+        self.images = images
+        self.questions = questions
         super(Exercise, self).__init__(id, title, description, author, license, files)
 
+class PerseusExercise(Exercise):
+    """ Model representing exercises in channel
 
-def guess_content_kind(files):
-    """ guess_content_kind: determines what kind the content is
-        Args:
-            files (str or list): files associated with content
-        Returns: string indicating node's kind
+        Exercises that are in perseus format
+
+        Attributes:
+            id (str): content's original id
+            title (str): content's title
+            author (str): who created the content
+            description (str): description of content
+            license (str): content's license (using constants from fle_utils)
+            files (str or list): content's associated file(s)
     """
-    files = [files] if isinstance(files, str) else files
-    if files is not None and len(files) > 0:
-        for f in files:
-            ext = f.rsplit('/', 1)[-1].split(".")[-1].lower()
-            if ext in constants.CK_MAPPING:
-                return constants.CK_MAPPING[ext]
-        raise InvalidFormatException("Invalid file type: Allowed formats are {0}".format([key for key, value in constants.CK_MAPPING.items()]))
-    else:
-        return constants.CK_TOPIC
+    default_preset = constants.FP_EXERCISE
+    def __init__(self, id, title, author=None, description=None, license=None, files=[], exercise_data={}, images=[], questions=[]):
+        super(PerseusExercise, self).__init__(id, title, description, author, license, files, exercise_data, images, questions)
+
+class BaseQuestion:
+    """ Base model representing exercise questions
+
+        Questions are used to assess learner's understanding
+
+        Attributes:
+            id (str): question's unique id
+            question (str): question text
+            answers ([{'answer':str, 'correct':bool, 'hint':str}]): answers to question
+            hint (str): optional hint on how to answer question
+            images ([str]): list of paths to images in question
+    """
+    def __init__(self, id, question, answers=[], hint="", images=[]):
+        self.question = question
+        self.answers = answers
+        self.hint = hint
+        self.images = images
+
+    def to_dict(self):
+        """ to_dict: puts data in format CC expects
+            Args: None
+            Returns: dict of node's data
+        """
+        return {
+            "assessment_id": self.id,
+            "type": self.type,
+            "question": self.question if self.question is not None else "",
+            "help_text": self.hint,
+            "answers": self.answers,
+            "order": self.order,
+        }
+
+    def add_answer(self, answer_text="", correct=False, hint=""):
+        pass
+
+class MultipleChoiceQuestion(BaseQuestion):
+    """ Model representing multiple choice questions
+
+        Multiple choice questions have a selection of answers for
+        the learner to select. There can be multiple answers for
+        a question (e.g. Which of the following are prime numbers?
+        A. 1, B. 2, C. 3, D. 4)
+
+        Attributes:
+            id (str): question's unique id
+            question (str): question text
+            answers ([{'answer':str, 'correct':bool, 'hint':str}]): answers to question
+            hint (str): optional hint on how to answer question
+            images ([str]): list of paths to images in question
+    """
+    def __init__(self, id, question, answers=[], hint="", images=[]):
+        super(MultipleChoiceQuestion, self).__init__(id, question, answers, hint, images)
+
+    def add_answer(self, answer_text, correct=True, hint=""):
+        pass
+
+class FreeResponseQuestion(BaseQuestion):
+    """ Model representing free response questions
+
+        Free response questions are open-ended questions
+        that have no set answer (e.g. Prove that the sum of
+        every triangle's angles is 360 degrees.)
+
+        Attributes:
+            id (str): question's unique id
+            question (str): question text
+            hint (str): optional hint on how to answer question
+            images ([str]): list of paths to images in question
+    """
+    def __init__(self, id, question, hint="", images=[]):
+        super(FreeResponseQuestion, self).__init__(id, question, [], hint, images)
+
+class InputQuestion(BaseQuestion):
+    """ Model representing input questions
+
+        Input questions are questions that have a text
+        or number answer (e.g. What is 2+2? ____)
+
+        Attributes:
+            id (str): question's unique id
+            question (str): question text
+            answers ([{'answer':str, 'hint':str}]): answers to question
+            hint (str): optional hint on how to answer question
+            images ([str]): list of paths to images in question
+    """
+    def __init__(self, id, question, answers=[], hint="", images=[]):
+        super(InputQuestion, self).__init__(id, question, answers, hint, images)
+
+    def add_answer(self, answer_text, correct=True, hint=""):
+        pass
