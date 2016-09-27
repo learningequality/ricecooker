@@ -3,10 +3,12 @@ import hashlib
 import base64
 import requests
 import validators
+import json
 import tempfile
 from PIL import Image
 from io import BytesIO
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
+from ricecooker.exceptions import UnknownQuestionTypeError
 
 def guess_content_kind(files, questions=[]):
     """ guess_content_kind: determines what kind the content is
@@ -15,13 +17,14 @@ def guess_content_kind(files, questions=[]):
         Returns: string indicating node's kind
     """
     files = [files] if isinstance(files, str) else files
+    questions=[questions] if isinstance(questions, str) else questions
     if files is not None and len(files) > 0:
         for f in files:
             ext = f.rsplit('/', 1)[-1].split(".")[-1].lower()
             if ext in content_kinds.MAPPING:
                 return content_kinds.MAPPING[ext]
         raise InvalidFormatException("Invalid file type: Allowed formats are {0}".format([key for key, value in content_kinds.MAPPING.items()]))
-    elif len(questions) > 0:
+    elif questions is not None and len(questions) > 0:
         return content_kinds.EXERCISE
     else:
         return content_kinds.TOPIC
@@ -124,7 +127,7 @@ class Node(TreeModel):
             license (str): content's license (using constants from fle_utils)
             files (str or list): content's associated file(s)
     """
-    def __init__(self, id, title, description, author, license, files):
+    def __init__(self, id, title, description, author, license=None, files=[], questions=[]):
         self.id = id
         self.title = title
         self.description = description
@@ -132,6 +135,7 @@ class Node(TreeModel):
         self.license = license
         self.children = []
         self.files = [files] if isinstance(files, str) else files
+        self.questions=questions
         super(Node, self).__init__()
 
 
@@ -151,6 +155,7 @@ class Node(TreeModel):
             "files" : self.files,
             "kind": self.kind,
             "license": self.license,
+            "questions": self.questions,
         }
 
     def set_ids(self, domain, parent_id):
@@ -178,7 +183,7 @@ class Topic(Node):
     """
     def __init__(self, id, title, description=None, author=None):
         self.kind = content_kinds.TOPIC
-        super(Topic, self).__init__(id, title, description, author, None, [])
+        super(Topic, self).__init__(id, title, description, author)
 
 
 
@@ -286,11 +291,52 @@ class Exercise(Node):
         self.kind = content_kinds.EXERCISE
         self.exercise_data = exercise_data
         self.images = images
-        self.questions = questions
-        super(Exercise, self).__init__(id, title, description, author, license, files)
+        self.questions = self.parse_questions(questions)
+        files = [] if files is None else files
+        super(Exercise, self).__init__(id, title, description, author, license, files, self.questions)
 
-    def add_question(self):
-        pass
+    def parse_questions(self, questions):
+        question_list = []
+        for question in questions:
+            question_type = question.get("type")
+            if question_type == exercises.MULTIPLE_SELECTION:
+                new_question = MultipleSelectQuestion(
+                    id=question['id'],
+                    question=question['question'],
+                    answers=question['answers'],
+                    hint=question['hint'],
+                    images=question['images'],
+                )
+                question_list += [new_question.to_dict()]
+            elif question_type == exercises.SINGLE_SELECTION:
+                new_question = SingleSelectQuestion(
+                    id=question['id'],
+                    question=question['question'],
+                    answers=question['answers'],
+                    hint=question['hint'],
+                    images=question['images'],
+                )
+                question_list += [new_question.to_dict()]
+            elif question_type == exercises.FREE_RESPONSE:
+                new_question = FreeResponseQuestion(
+                    id=question['id'],
+                    question=question['question'],
+                    hint=question['hint'],
+                    images=question['images'],
+                )
+                question_list += [new_question.to_dict()]
+            elif question_type == exercises.INPUT_QUESTION:
+                new_question = InputQuestion(
+                    id=question['id'],
+                    question=question['question'],
+                    answers=question['answers'],
+                    hint=question['hint'],
+                    images=question['images'],
+                )
+                question_list += [new_question.to_dict()]
+            else:
+                raise UnknownQuestionTypeError("Unrecognized question type '{0}': accepted types are {1}".format(question_type, [key for key, value in exercises.question_choices]))
+        return question_list
 
 class PerseusExercise(Exercise):
     """ Model representing exercises in channel
@@ -325,9 +371,10 @@ class BaseQuestion:
     def __init__(self, id, question, question_type, answers=[], hint="", images=[]):
         self.question = question
         self.question_type = question_type
-        self.answers = answers
+        self.answers = self.parse_answers(answers)
         self.hint = hint
         self.images = images
+        self.id = uuid.uuid5(uuid.NAMESPACE_DNS, id)
 
     def to_dict(self):
         """ to_dict: puts data in format CC expects
@@ -335,16 +382,22 @@ class BaseQuestion:
             Returns: dict of node's data
         """
         return {
-            "assessment_id": self.id,
+            "assessment_id": self.id.hex,
             "type": self.question_type,
-            "question": self.question if self.question is not None else "",
-            "help_text": self.hint,
-            "answers": self.answers,
-            "order": self.order,
+            "question": self.question,
+            "help_text": self.hint if self.hint is not None else "",
+            "answers": json.dumps(self.answers),
         }
 
-    def add_answer(self, answer_text="", hint="", correct=False):
-        pass
+    def parse_answers(self, answers):
+        answer_list = []
+        for answer in answers:
+            answer_list += [{
+                "help_text": answer["hint"] if "hint" in answer else "",
+                "answer": answer["answer"],
+                "correct": True if "correct" not in answer or answer["correct"] else False,
+            }]
+        return answer_list
 
 class MultipleSelectQuestion(BaseQuestion):
     """ Model representing multiple select questions
@@ -363,10 +416,7 @@ class MultipleSelectQuestion(BaseQuestion):
     """
     question_type=exercises.MULTIPLE_SELECTION
     def __init__(self, id, question, answers=[], hint="", images=[]):
-        super(MultipleChoiceQuestion, self).__init__(id, question, self.question_type, answers, hint, images)
-
-    def add_answer(self, answer_text, hint="", correct=True):
-        pass
+        super(MultipleSelectQuestion, self).__init__(id, question, self.question_type, answers, hint, images)
 
 class SingleSelectQuestion(BaseQuestion):
     """ Model representing single select questions
@@ -384,10 +434,7 @@ class SingleSelectQuestion(BaseQuestion):
     """
     question_type=exercises.SINGLE_SELECTION
     def __init__(self, id, question, answers=[], hint="", images=[]):
-        super(MultipleChoiceQuestion, self).__init__(id, question, self.question_type, answers, hint, images)
-
-    def add_answer(self, answer_text, hint="", correct=True):
-        pass
+        super(SingleSelectQuestion, self).__init__(id, question, self.question_type, answers, hint, images)
 
 class FreeResponseQuestion(BaseQuestion):
     """ Model representing free response questions
@@ -422,6 +469,3 @@ class InputQuestion(BaseQuestion):
     question_type=exercises.INPUT_QUESTION
     def __init__(self, id, question, answers=[], hint="", images=[]):
         super(InputQuestion, self).__init__(id, question, self.question_type, answers, hint, images)
-
-    def add_answer(self, answer_text, hint="", correct=True):
-        pass
