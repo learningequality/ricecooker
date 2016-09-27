@@ -13,7 +13,7 @@ SAMPLE_TREE = [
                 "id": "ffda92",
                 "author": "Aristotle",
                 "description": "The Nicomachean Ethics is the name normally given to ...",
-                # "file": ["https://archive.org/download/petersethics00arisrich/petersethics00arisrich.pdf"],
+                "file": ["https://archive.org/download/petersethics00arisrich/petersethics00arisrich.pdf"],
                 "license": licenses.PUBLIC_DOMAIN,
             },
             {
@@ -26,7 +26,7 @@ SAMPLE_TREE = [
                         "title": "01 - The Critique of Pure Reason",
                         "id": "8326cc",
                         "related_to": ["aaaa4d"],
-                        # "file": "https://archive.org/download/critique_pure_reason_0709_librivox/critique_of_pure_reason_01_kant.mp3",
+                        "file": "https://archive.org/download/critique_pure_reason_0709_librivox/critique_of_pure_reason_01_kant.mp3",
                         # "subtitle": "https://archive.org/download/critique_pure_reason_0709_librivox/critique_of_pure_reason_01_kant.vtt",
                         "author": "Immanuel Kant",
                         "license": licenses.PUBLIC_DOMAIN,
@@ -52,7 +52,7 @@ SAMPLE_TREE = [
                 "title": "Smoked Brisket Recipe",
                 "id": "418799",
                 "author": "Bradley Smoker",
-                # "file": "https://archive.org/download/SmokedBrisketRecipe/smokedbrisketrecipebybradleysmoker.mp4",
+                "file": "https://archive.org/download/SmokedBrisketRecipe/smokedbrisketrecipebybradleysmoker.mp4",
                 "subtitle": "something.vtt",
                 "license": licenses.CC_BY,
             },
@@ -61,7 +61,7 @@ SAMPLE_TREE = [
                 "id": "6cafe2",
                 "author": "Revision 3",
                 "description": "Basic garlic bread recipe.",
-                # "file": "https://archive.org/download/Food_Mob_Bites_10/foodmob--bites--0010--garlicbread--hd720p30.h264.mp4",
+                "file": "https://archive.org/download/Food_Mob_Bites_10/foodmob--bites--0010--garlicbread--hd720p30.h264.mp4",
                 "license": licenses.CC_BY_NC_SA,
             },
             {
@@ -69,6 +69,7 @@ SAMPLE_TREE = [
                 "id": "6cafe1",
                 "description": "Test how well you know your recipes",
                 "license": licenses.CC_BY_NC_SA,
+                "mastery_model": exercises.NUM_CORRECT_IN_A_ROW_10,
                 "questions": [
                     {
                         "id": "eeeee",
@@ -207,6 +208,7 @@ def _build_tree(node, sourcetree):
                 author=child_source_node.get("author"),
                 description=child_source_node.get("description"),
                 files=child_source_node.get("file"),
+                exercise_data={'mastery_model': child_source_node.get("mastery_model")},
                 license=child_source_node.get("license"),
                 questions=child_source_node.get("questions"),
             )

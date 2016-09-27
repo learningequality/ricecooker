@@ -127,7 +127,7 @@ class Node(TreeModel):
             license (str): content's license (using constants from fle_utils)
             files (str or list): content's associated file(s)
     """
-    def __init__(self, id, title, description, author, license=None, files=[], questions=[]):
+    def __init__(self, id, title, description, author, license=None, files=[], questions=[], extra_fields={}):
         self.id = id
         self.title = title
         self.description = description
@@ -136,6 +136,7 @@ class Node(TreeModel):
         self.children = []
         self.files = [files] if isinstance(files, str) else files
         self.questions=questions
+        self.extra_fields = extra_fields
         super(Node, self).__init__()
 
 
@@ -156,6 +157,7 @@ class Node(TreeModel):
             "kind": self.kind,
             "license": self.license,
             "questions": self.questions,
+            "extra_fields": json.dumps(self.extra_fields),
         }
 
     def set_ids(self, domain, parent_id):
@@ -289,11 +291,10 @@ class Exercise(Node):
     default_preset = format_presets.EXERCISE
     def __init__(self, id, title, author=None, description=None, license=None, files=[], exercise_data={}, images=[], questions=[]):
         self.kind = content_kinds.EXERCISE
-        self.exercise_data = exercise_data
         self.images = images
         self.questions = self.parse_questions(questions)
         files = [] if files is None else files
-        super(Exercise, self).__init__(id, title, description, author, license, files, self.questions)
+        super(Exercise, self).__init__(id, title, description, author, license, files, self.questions, exercise_data)
 
     def parse_questions(self, questions):
         question_list = []
