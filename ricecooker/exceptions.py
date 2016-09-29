@@ -22,5 +22,8 @@ class UnknownQuestionTypeError(Exception):
     def __init__(self,*args,**kwargs):
         Exception.__init__(self,*args,**kwargs)
 
+class InvalidInputAnswerException(Exception):
+    def __init__(self,*args,**kwargs):
+        Exception.__init__(self,*args,**kwargs)
 def raise_for_invalid_channel(channel):
 	pass
