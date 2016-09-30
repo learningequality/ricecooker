@@ -11,16 +11,14 @@ Options:
 """
 
 from ricecooker.commands import uploadchannel
+from ricecooker import config
 from docopt import docopt
-
-PRODUCTION_DOMAIN = "http://unicefcontentcuration.learningequality.org"
-DEBUG_DOMAIN = "127.0.0.1:8000"
 
 commands = ["uploadchannel"]
 
 if __name__ == '__main__':
     arguments = docopt(__doc__)
-    domain = PRODUCTION_DOMAIN
+    domain = config.PRODUCTION_DOMAIN
     if arguments["--debug"]:
-    	domain = DEBUG_DOMAIN
+    	domain = config.DEBUG_DOMAIN
     uploadchannel(arguments["<file_path>"], domain, verbose=arguments["-v"])

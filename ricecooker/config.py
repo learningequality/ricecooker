@@ -1,3 +1,6 @@
+PRODUCTION_DOMAIN = "unicefcontentcuration.learningequality.org"
+DEBUG_DOMAIN = "127.0.0.1:8000"
+
 FILE_DIFF_URL = "http://{domain}/api/internal/file_diff"
 FILE_UPLOAD_URL = "http://{domain}/api/internal/file_upload"
 CREATE_CHANNEL_URL = "http://{domain}/api/internal/create_channel"
