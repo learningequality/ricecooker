@@ -23,9 +23,9 @@ setup(
     version='0.1.0',
     description="API for adding content to content curation server",
     long_description=readme + '\n\n' + history,
-    author="Jordan Yoshihara",
-    author_email='jordanyoshihara@gmail.com',
-    url='https://github.com/jayoshih/ricecooker',
+    author="Learning Equality",
+    author_email='dev@learningequality.org',
+    url='https://github.com/learningequality/ricecooker',
     packages=[
         'ricecooker',
     ],
