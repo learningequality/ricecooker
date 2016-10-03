@@ -425,7 +425,7 @@ class InputQuestion(BaseQuestion):
     """
     def __init__(self, id, question, answers, hint="", images=None):
         try:
-            answers = [self.create_answer(float(answer)) for answer in answers]
+            answers = [self.create_answer(answer) for answer in answers]
             super(InputQuestion, self).__init__(id, question, exercises.INPUT_QUESTION, answers, hint, images)
         except ValueError as e:
             raise InvalidInputAnswerException(e)
