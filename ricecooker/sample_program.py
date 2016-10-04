@@ -13,7 +13,7 @@ SAMPLE_TREE = [
                 "id": "ffda92",
                 "author": "Aristotle",
                 "description": "The Nicomachean Ethics is the name normally given to ...",
-                "file": ["https://archive.org/download/petersethics00arisrich/petersethics00arisrich.pdf"],
+                # "file": ["https://archive.org/download/petersethics00arisrich/petersethics00arisrich.pdf"],
                 "license": licenses.PUBLIC_DOMAIN,
             },
             {
@@ -35,7 +35,7 @@ SAMPLE_TREE = [
                         "title": "02 - Preface to the Second Edition",
                         "id": "aaaa4d",
                         "author": "Immanuel Kant",
-                        "file": "https://ia801406.us.archive.org/13/items/alice_in_wonderland_librivox/wonderland_ch_01.mp3",
+                        # "file": "https://ia801406.us.archive.org/13/items/alice_in_wonderland_librivox/wonderland_ch_01.mp3",
                         "author": "Immanuel Kant",
                         "license": licenses.PUBLIC_DOMAIN,
                     }
@@ -52,7 +52,7 @@ SAMPLE_TREE = [
                 "title": "Smoked Brisket Recipe",
                 "id": "418799",
                 "author": "Bradley Smoker",
-                "file": "https://archive.org/download/SmokedBrisketRecipe/smokedbrisketrecipebybradleysmoker.mp4",
+                # "file": "https://archive.org/download/SmokedBrisketRecipe/smokedbrisketrecipebybradleysmoker.mp4",
                 "subtitle": "something.vtt",
                 "license": licenses.CC_BY,
             },
@@ -61,7 +61,7 @@ SAMPLE_TREE = [
                 "id": "6cafe2",
                 "author": "Revision 3",
                 "description": "Basic garlic bread recipe.",
-                "file": "https://archive.org/download/Food_Mob_Bites_10/foodmob--bites--0010--garlicbread--hd720p30.h264.mp4",
+                # "file": "https://archive.org/download/Food_Mob_Bites_10/foodmob--bites--0010--garlicbread--hd720p30.h264.mp4",
                 "license": licenses.CC_BY_NC_SA,
             },
             {
