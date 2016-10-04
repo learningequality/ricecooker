@@ -15,7 +15,7 @@ SAMPLE_TREE = [
                 "id": "ffda92",
                 "author": "Aristotle",
                 "description": "The Nicomachean Ethics is the name normally given to ...",
-                "file": ["https://archive.org/download/petersethics00arisrich/petersethics00arisrich.pdf"],
+                # "file": ["https://archive.org/download/petersethics00arisrich/petersethics00arisrich.pdf"],
                 "license": licenses.PUBLIC_DOMAIN,
             },
             {
@@ -37,7 +37,7 @@ SAMPLE_TREE = [
                         "title": "02 - Preface to the Second Edition",
                         "id": "aaaa4d",
                         "author": "Immanuel Kant",
-                        "file": "https://ia801406.us.archive.org/13/items/alice_in_wonderland_librivox/wonderland_ch_01.mp3",
+                        # "file": "https://ia801406.us.archive.org/13/items/alice_in_wonderland_librivox/wonderland_ch_01.mp3",
                         "author": "Immanuel Kant",
                         "license": licenses.PUBLIC_DOMAIN,
                     }
@@ -54,7 +54,7 @@ SAMPLE_TREE = [
                 "title": "Smoked Brisket Recipe",
                 "id": "418799",
                 "author": "Bradley Smoker",
-                "file": "https://archive.org/download/SmokedBrisketRecipe/smokedbrisketrecipebybradleysmoker.mp4",
+                # "file": "https://archive.org/download/SmokedBrisketRecipe/smokedbrisketrecipebybradleysmoker.mp4",
                 "subtitle": "something.vtt",
                 "license": licenses.CC_BY,
             },
@@ -63,7 +63,7 @@ SAMPLE_TREE = [
                 "id": "6cafe2",
                 "author": "Revision 3",
                 "description": "Basic garlic bread recipe.",
-                "file": "https://archive.org/download/Food_Mob_Bites_10/foodmob--bites--0010--garlicbread--hd720p30.h264.mp4",
+                # "file": "https://archive.org/download/Food_Mob_Bites_10/foodmob--bites--0010--garlicbread--hd720p30.h264.mp4",
                 "license": licenses.CC_BY_NC_SA,
             },
             {
@@ -75,10 +75,10 @@ SAMPLE_TREE = [
                 "questions": [
                     {
                         "id": "eeeee",
-                        "question": "Which rice is your favorite? {{pic1}}\n{{pic2}}",
+                        "question": "Which rice is your favorite? {pic1}\n{pic2}",
                         "type":exercises.MULTIPLE_SELECTION,
-                        "correct_answers": ["White rice {{ pic3 }}", "Brown rice", "Sushi rice"],
-                        "all_answers": ["White rice {{ pic3 }}", "Quinoa","Brown rice"],
+                        "correct_answers": ["White rice {pic3}", "Brown rice", "Sushi rice"],
+                        "all_answers": ["White rice {pic3}", "Quinoa","Brown rice"],
                         "hint": "",
                         "images":{
                             "pic1": "http://images.wisegeek.com/cooked-jasmine-rice-in-a-bowl-with-chopsticks.jpg",
@@ -88,7 +88,7 @@ SAMPLE_TREE = [
                     },
                     {
                         "id": "bbbbb",
-                        "question": "Which rice is the crunchiest?{{  rice}}",
+                        "question": "Which rice is the crunchiest?{rice}",
                         "type":exercises.SINGLE_SELECTION,
                         "correct_answer": "Rice Krispies",
                         "all_answers": ["White rice", "Brown rice", "Rice Krispies"],
@@ -103,11 +103,11 @@ SAMPLE_TREE = [
                         "type":exercises.FREE_RESPONSE,
                         "answers": [],
                         "hint": "",
-                        "images": [],
+                        "images": None,
                     },
                     {
                         "id": "aaaaa",
-                        "question": "How many minutes does it take to cook rice? {{rice}}",
+                        "question": "How many minutes does it take to cook rice? {rice}",
                         "type":exercises.INPUT_QUESTION,
                         "answers": ["20", "20.5", "19.5"],
                         "hint": "Takes roughly same amount of time to install kolibri on Windows machine",

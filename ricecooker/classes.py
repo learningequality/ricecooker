@@ -5,12 +5,45 @@ import requests
 import validators
 import json
 import tempfile
+import shutil
+import os
 from PIL import Image
 from io import BytesIO
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
 from ricecooker.exceptions import UnknownQuestionTypeError, InvalidInputAnswerException
 
-def guess_content_kind(files, questions=[]):
+placeholder = '(${{aronsface}}/{0})'
+
+def download_file(path, extension=None):
+    """ download_file: downloads files to local storage
+        @param files (list of files to download)
+        @return list of file hashes and extensions
+    """
+    hash = hashlib.md5()
+    # Try to access file
+    r = requests.get(path, stream=True)
+    r.raise_for_status()
+
+    # Write file to temporary file
+    with tempfile.TemporaryFile() as tempf:
+        for chunk in r:
+            hash.update(chunk)
+            tempf.write(chunk)
+
+        # Get file metadata (hashed filename, original filename, size)
+        hashstring = hash.hexdigest()
+        original_filename = path.split("/")[-1].split(".")[0]
+        filename = '{0}{ext}'.format(hashstring, ext=os.path.splitext(path)[-1] if extension is None else extension)
+        file_size = tempf.tell()
+        tempf.seek(0)
+
+        # Write file to local storage
+        with open(filename, 'wb') as destf:
+            shutil.copyfileobj(tempf, destf)
+
+    return filename, original_filename, path, file_size
+
+def guess_content_kind(files, questions=None):
     """ guess_content_kind: determines what kind the content is
         Args:
             files (str or list): files associated with content
@@ -127,16 +160,16 @@ class Node(TreeModel):
             license (str): content's license (using constants from fle_utils)
             files (str or list): content's associated file(s)
     """
-    def __init__(self, id, title, description, author, license=None, files=[], questions=[], extra_fields={}):
+    def __init__(self, id, title, description, author=None, license=None, files=None, questions=None, extra_fields=None):
         self.id = id
         self.title = title
         self.description = description
         self.author = author
         self.license = license
         self.children = []
-        self.files = [files] if isinstance(files, str) else files
-        self.questions=questions
-        self.extra_fields = extra_fields
+        self.files = [] if files is None else [files] if isinstance(files, str) else files
+        self.questions = [] if questions is None else questions
+        self.extra_fields = {} if extra_fields is None else extra_fields
         super(Node, self).__init__()
 
 
@@ -206,7 +239,7 @@ class Video(Node):
             files (str or list): content's associated file(s)
     """
     default_preset = format_presets.VIDEO_HIGH_RES
-    def __init__(self, id, title, author=None, description=None, transcode_to_lower_resolutions=False, derive_thumbnail=False, license=None, subtitle=None, files=[], preset=None):
+    def __init__(self, id, title, author=None, description=None, transcode_to_lower_resolutions=False, derive_thumbnail=False, license=None, subtitle=None, files=None, preset=None):
         if preset is not None:
             self.default_preset = preset
         if transcode_to_lower_resolutions:
@@ -247,7 +280,7 @@ class Audio(Node):
             files (str or list): content's associated file(s)
     """
     default_preset = format_presets.AUDIO
-    def __init__(self, id, title, author=None, description=None, license=None, subtitle=None, files=[]):
+    def __init__(self, id, title, author=None, description=None, license=None, subtitle=None, files=None):
         self.kind = content_kinds.AUDIO
         super(Audio, self).__init__(id, title, description, author, license, files)
 
@@ -267,7 +300,7 @@ class Document(Node):
             files (str or list): content's associated file(s)
     """
     default_preset = format_presets.DOCUMENT
-    def __init__(self, id, title, author=None, description=None, license=None, files=[]):
+    def __init__(self, id, title, author=None, description=None, license=None, files=None):
         self.kind = content_kinds.DOCUMENT
         super(Document, self).__init__(id, title, description, author, license, files)
 
@@ -291,14 +324,42 @@ class Exercise(Node):
     def __init__(self, id, title, author=None, description=None, license=None, files=None, exercise_data=None):
         self.kind = content_kinds.EXERCISE
         self.questions = []
+
         files = [] if files is None else files
         exercise_data = {} if exercise_data is None else exercise_data
         super(Exercise, self).__init__(id, title, description, author, license, files, self.questions, exercise_data)
 
     def add_question(self, question):
-        self.questions += [question.to_dict()]
+        self.questions += [question]
 
-class PerseusExercise(Exercise):
+    def get_all_files(self):
+        files = {}
+        file_list = []
+        for question in self.questions:
+            files.update(question._file_mapping)
+            file_list += question.files
+        return files, file_list
+
+    def to_dict(self):
+        """ to_dict: puts data in format CC expects
+            Args: None
+            Returns: dict of node's data
+        """
+        return {
+            "title": self.title,
+            "description": self.description if self.description is not None else "",
+            "node_id": self.node_id.hex,
+            "content_id": self.content_id.hex,
+            "author": self.author if self.author is not None else "",
+            "children": [child_node.to_dict() for child_node in self.children],
+            "files" : self.get_all_files()[1],
+            "kind": self.kind,
+            "license": self.license,
+            "questions": [question.to_dict() for question in self.questions],
+            "extra_fields": json.dumps(self.extra_fields),
+        }
+
+class PerseusExercise(Node):
     """ Model representing exercises in channel
 
         Exercises that are in perseus format
@@ -333,13 +394,10 @@ class BaseQuestion:
         self.question_type = question_type
         self.answers = answers
         self.hint = hint
-
+        self._file_mapping = {}
+        self.files = []
+        self.images = {} if images is None else self.download_images(images)
         self.id = uuid.uuid5(uuid.NAMESPACE_DNS, id)
-
-    def process_images(self, images):
-        for key, path in images:
-            print("KEY:", key, " PATH:", path)
-        return images
 
     def to_dict(self):
         """ to_dict: puts data in format CC expects
@@ -351,11 +409,19 @@ class BaseQuestion:
             "type": self.question_type,
             "question": self.map_images(self.question),
             "help_text": self.hint if self.hint is not None else "",
-            "answers": json.dumps(self.answers),
+            "answers": json.dumps([{"answer": self.map_images(answer['answer']), "correct":answer['correct']} for answer in self.answers]),
         }
 
     def create_answer(self, answer, correct=True):
-        return {"answer": self.map_images(answer), "correct":correct}
+        return {"answer": answer, "correct":correct}
+
+    def download_images(self, images):
+        for key in images:
+            filename, original_filename, path, file_size = download_file(images[key], '.{}'.format(file_formats.PNG))
+            images[key] = placeholder.format(filename)
+            self.files += [filename]
+            self._file_mapping.update({filename : {'original_filename': original_filename, 'source_url': path, 'size': file_size, 'preset': False}})
+        return images
 
     def map_images(self, text):
         try:
@@ -381,11 +447,10 @@ class MultipleSelectQuestion(BaseQuestion):
     """
 
     def __init__(self, id, question, correct_answers, all_answers, hint="", images=None):
-        self.images = {} if images is None else self.process_images(images)
         set_all_answers = set(all_answers)
         all_answers += [answer for answer in correct_answers if answer not in set_all_answers]
         answers = [self.create_answer(answer, answer in correct_answers) for answer in all_answers]
-        super(MultipleSelectQuestion, self).__init__(id, question, exercises.MULTIPLE_SELECTION, answers, hint, self.images)
+        super(MultipleSelectQuestion, self).__init__(id, question, exercises.MULTIPLE_SELECTION, answers, hint, images)
 
 class SingleSelectQuestion(BaseQuestion):
     """ Model representing single select questions
@@ -402,11 +467,10 @@ class SingleSelectQuestion(BaseQuestion):
             images ({key:str, ...}): a dict mapping image placeholder names to path to image
     """
     def __init__(self, id, question, correct_answer, all_answers, hint="", images=None):
-        self.images = {} if images is None else self.process_images(images)
         if correct_answer not in all_answers:
             all_answers += [correct_answer]
         answers = [self.create_answer(answer, answer==correct_answer) for answer in all_answers]
-        super(SingleSelectQuestion, self).__init__(id, question, exercises.SINGLE_SELECTION, answers, hint, self.images)
+        super(SingleSelectQuestion, self).__init__(id, question, exercises.SINGLE_SELECTION, answers, hint, images)
 
 class FreeResponseQuestion(BaseQuestion):
     """ Model representing free response questions
@@ -422,8 +486,7 @@ class FreeResponseQuestion(BaseQuestion):
             images ({key:str, ...}): a dict mapping image placeholder names to path to image
     """
     def __init__(self, id, question, hint="", images=None):
-        self.images = {} if images is None else self.process_images(images)
-        super(FreeResponseQuestion, self).__init__(id, question, exercises.FREE_RESPONSE, [], hint, self.images)
+        super(FreeResponseQuestion, self).__init__(id, question, exercises.FREE_RESPONSE, [], hint, images)
 
 class InputQuestion(BaseQuestion):
     """ Model representing input questions
@@ -439,6 +502,5 @@ class InputQuestion(BaseQuestion):
             images ({key:str, ...}): a dict mapping image placeholder names to path to image
     """
     def __init__(self, id, question, answers, hint="", images=None):
-        self.images = {} if images is None else self.process_images(images)
         answers = [self.create_answer(answer) for answer in answers]
-        super(InputQuestion, self).__init__(id, question, exercises.INPUT_QUESTION, answers, hint, self.images)
+        super(InputQuestion, self).__init__(id, question, exercises.INPUT_QUESTION, answers, hint, images)
