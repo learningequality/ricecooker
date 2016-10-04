@@ -13,9 +13,10 @@ from ricecooker.exceptions import InvalidFormatException
     @param verbose (boolean indicating whether to print statements)
 """
 class ChannelManager:
-    def __init__(self, channel, verbose=False):
+    def __init__(self, channel, domain, verbose=False):
         self.channel = channel # Channel to process
         self.verbose = verbose # Determines whether to print process
+        self.domain = domain # Domain to upload channel to
         self._file_mapping = {} # Used to keep track of files and their respective metadata
 
 
@@ -75,7 +76,7 @@ class ChannelManager:
         @return list of files that are not on content curation server
     """
     def get_file_diff(self):
-        response = requests.post(config.file_diff_url(), data=json.dumps([key for key, value in self._file_mapping.items()]))
+        response = requests.post(config.file_diff_url(self.domain), data=json.dumps([key for key, value in self._file_mapping.items()]))
         return json.loads(response._content.decode("utf-8"))
 
 
@@ -86,7 +87,7 @@ class ChannelManager:
     def upload_files(self, file_list):
         for f in file_list:
             with  open(f, 'rb') as file_obj:
-                response = requests.post(config.file_upload_url(), files={'file': file_obj})
+                response = requests.post(config.file_upload_url(self.domain), files={'file': file_obj})
                 response.raise_for_status()
 
 
@@ -99,7 +100,7 @@ class ChannelManager:
             "content_data": [child.to_dict() for child in self.channel.children],
             "file_data": self._file_mapping,
         }
-        response = requests.post(config.create_channel_url(), data=json.dumps(payload))
+        response = requests.post(config.create_channel_url(self.domain), data=json.dumps(payload))
         response.raise_for_status()
         new_channel = json.loads(response._content.decode("utf-8"))
-        return config.open_channel_url(new_channel['invite_id'], new_channel['new_channel'])
+        return config.open_channel_url(new_channel['invite_id'], new_channel['new_channel'], self.domain)

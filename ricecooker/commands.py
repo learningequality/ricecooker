@@ -1,7 +1,7 @@
 from ricecooker.classes import *
 from ricecooker.managers import ChannelManager
 
-def uploadchannel(path, verbose=False):
+def uploadchannel(path, domain, verbose=False):
     """ guess_content_kind: determines what kind the content is
         Args:
             path (str): path to file containing channel data
@@ -17,7 +17,7 @@ def uploadchannel(path, verbose=False):
 
     if verbose:
         print("Setting up initial channel structure...")
-    tree = ChannelManager(channel, verbose) # Create channel manager with channel data
+    tree = ChannelManager(channel, domain, verbose) # Create channel manager with channel data
 
     if verbose:
         print("Processing content...")
