@@ -88,12 +88,14 @@ SAMPLE_TREE = [
                     },
                     {
                         "id": "bbbbb",
-                        "question": "Which rice is the crunchiest?",
+                        "question": "Which rice is the crunchiest?{{  rice}}",
                         "type":exercises.SINGLE_SELECTION,
                         "correct_answer": "Rice Krispies",
                         "all_answers": ["White rice", "Brown rice", "Rice Krispies"],
                         "hint": "Has rice in it",
-                        "images": [],
+                        "images":{
+                            "rice": "http://www.riceoutlook.com/wp-content/uploads/2016/07/Taiwan-rice.jpg",
+                        },
                     },
                     {
                         "id": "ccccc",
@@ -105,11 +107,13 @@ SAMPLE_TREE = [
                     },
                     {
                         "id": "aaaaa",
-                        "question": "How many minutes does it take to cook rice?",
+                        "question": "How many minutes does it take to cook rice? {{rice}}",
                         "type":exercises.INPUT_QUESTION,
-                        "answers": [20, "20.5", 19.5],
+                        "answers": ["20", "20.5", "19.5"],
                         "hint": "Takes roughly same amount of time to install kolibri on Windows machine",
-                        "images": [],
+                        "images":{
+                            "rice": "https://upload.wikimedia.org/wikipedia/commons/5/5e/Jeera-rice.JPG",
+                        },
                     },
                 ],
             },

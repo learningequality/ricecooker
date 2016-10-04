@@ -326,15 +326,20 @@ class BaseQuestion:
             question_type (str): what kind of question is this
             answers ([{'answer':str, 'correct':bool, 'hint':str}]): answers to question
             hint (str): optional hint on how to answer question
-            images ([str]): list of paths to images in question
+            images ({key:str, ...}): a dict mapping image placeholder names to path to image
     """
     def __init__(self, id, question, question_type, answers, hint="", images=None):
         self.question = question
         self.question_type = question_type
         self.answers = answers
         self.hint = hint
-        self.images = [] if images is None else images
+
         self.id = uuid.uuid5(uuid.NAMESPACE_DNS, id)
+
+    def process_images(self, images):
+        for key, path in images:
+            print("KEY:", key, " PATH:", path)
+        return images
 
     def to_dict(self):
         """ to_dict: puts data in format CC expects
@@ -344,13 +349,20 @@ class BaseQuestion:
         return {
             "assessment_id": self.id.hex,
             "type": self.question_type,
-            "question": self.question,
+            "question": self.map_images(self.question),
             "help_text": self.hint if self.hint is not None else "",
             "answers": json.dumps(self.answers),
         }
 
     def create_answer(self, answer, correct=True):
-        return {"answer": answer, "correct":correct}
+        return {"answer": self.map_images(answer), "correct":correct}
+
+    def map_images(self, text):
+        try:
+            mapping = self.images if self.images is not None else {}
+            return text.format(**mapping)
+        except KeyError:
+            raise ObjectDoesNotExist("Missing key from images: {}".format(mapping))
 
 class MultipleSelectQuestion(BaseQuestion):
     """ Model representing multiple select questions
@@ -365,14 +377,15 @@ class MultipleSelectQuestion(BaseQuestion):
             question (str): question text
             answers ([{'answer':str, 'correct':bool, 'hint':str}]): answers to question
             hint (str): optional hint on how to answer question
-            images ([str]): list of paths to images in question
+            images ({key:str, ...}): a dict mapping image placeholder names to path to image
     """
 
     def __init__(self, id, question, correct_answers, all_answers, hint="", images=None):
+        self.images = {} if images is None else self.process_images(images)
         set_all_answers = set(all_answers)
         all_answers += [answer for answer in correct_answers if answer not in set_all_answers]
         answers = [self.create_answer(answer, answer in correct_answers) for answer in all_answers]
-        super(MultipleSelectQuestion, self).__init__(id, question, exercises.MULTIPLE_SELECTION, answers, hint, images)
+        super(MultipleSelectQuestion, self).__init__(id, question, exercises.MULTIPLE_SELECTION, answers, hint, self.images)
 
 class SingleSelectQuestion(BaseQuestion):
     """ Model representing single select questions
@@ -386,13 +399,14 @@ class SingleSelectQuestion(BaseQuestion):
             question (str): question text
             answers ([{'answer':str, 'correct':bool, 'hint':str}]): answers to question
             hint (str): optional hint on how to answer question
-            images ([str]): list of paths to images in question
+            images ({key:str, ...}): a dict mapping image placeholder names to path to image
     """
     def __init__(self, id, question, correct_answer, all_answers, hint="", images=None):
+        self.images = {} if images is None else self.process_images(images)
         if correct_answer not in all_answers:
             all_answers += [correct_answer]
         answers = [self.create_answer(answer, answer==correct_answer) for answer in all_answers]
-        super(SingleSelectQuestion, self).__init__(id, question, exercises.SINGLE_SELECTION, answers, hint, images)
+        super(SingleSelectQuestion, self).__init__(id, question, exercises.SINGLE_SELECTION, answers, hint, self.images)
 
 class FreeResponseQuestion(BaseQuestion):
     """ Model representing free response questions
@@ -405,15 +419,16 @@ class FreeResponseQuestion(BaseQuestion):
             id (str): question's unique id
             question (str): question text
             hint (str): optional hint on how to answer question
-            images ([str]): list of paths to images in question
+            images ({key:str, ...}): a dict mapping image placeholder names to path to image
     """
     def __init__(self, id, question, hint="", images=None):
-        super(FreeResponseQuestion, self).__init__(id, question, exercises.FREE_RESPONSE, [], hint, images)
+        self.images = {} if images is None else self.process_images(images)
+        super(FreeResponseQuestion, self).__init__(id, question, exercises.FREE_RESPONSE, [], hint, self.images)
 
 class InputQuestion(BaseQuestion):
     """ Model representing input questions
 
-        Input questions are questions that have one or more numerical
+        Input questions are questions that have one or more
         answers (e.g. Name a factor of 10. ____)
 
         Attributes:
@@ -421,11 +436,9 @@ class InputQuestion(BaseQuestion):
             question (str): question text
             answers ([{'answer':str, 'hint':str}]): answers to question
             hint (str): optional hint on how to answer question
-            images ([str]): list of paths to images in question
+            images ({key:str, ...}): a dict mapping image placeholder names to path to image
     """
     def __init__(self, id, question, answers, hint="", images=None):
-        try:
-            answers = [self.create_answer(float(answer)) for answer in answers]
-            super(InputQuestion, self).__init__(id, question, exercises.INPUT_QUESTION, answers, hint, images)
-        except ValueError as e:
-            raise InvalidInputAnswerException(e)
+        self.images = {} if images is None else self.process_images(images)
+        answers = [self.create_answer(answer) for answer in answers]
+        super(InputQuestion, self).__init__(id, question, exercises.INPUT_QUESTION, answers, hint, self.images)
