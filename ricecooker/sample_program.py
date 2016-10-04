@@ -1,6 +1,6 @@
 from ricecooker.classes import Channel, Video, Audio, Document, Topic, guess_content_kind
 from ricecooker.exceptions import UnknownContentKindError, raise_for_invalid_channel
-from fle_utils import constants
+from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
 
 SAMPLE_TREE = [
     {
@@ -14,7 +14,7 @@ SAMPLE_TREE = [
                 "author": "Aristotle",
                 "description": "The Nicomachean Ethics is the name normally given to ...",
                 "file": ["https://archive.org/download/petersethics00arisrich/petersethics00arisrich.pdf"],
-                "license": constants.L_PD,
+                "license": licenses.PUBLIC_DOMAIN,
             },
             {
 
@@ -27,9 +27,9 @@ SAMPLE_TREE = [
                         "id": "8326cc",
                         "related_to": ["aaaa4d"],
                         "file": "https://archive.org/download/critique_pure_reason_0709_librivox/critique_of_pure_reason_01_kant.mp3",
-                        "subtitle": "https://archive.org/download/critique_pure_reason_0709_librivox/critique_of_pure_reason_01_kant.vtt",
+                        # "subtitle": "https://archive.org/download/critique_pure_reason_0709_librivox/critique_of_pure_reason_01_kant.vtt",
                         "author": "Immanuel Kant",
-                        "license": constants.L_PD,
+                        "license": licenses.PUBLIC_DOMAIN,
                     },
                     {
                         "title": "02 - Preface to the Second Edition",
@@ -37,7 +37,7 @@ SAMPLE_TREE = [
                         "author": "Immanuel Kant",
                         "file": "https://ia801406.us.archive.org/13/items/alice_in_wonderland_librivox/wonderland_ch_01.mp3",
                         "author": "Immanuel Kant",
-                        "license": constants.L_PD,
+                        "license": licenses.PUBLIC_DOMAIN,
                     }
                 ]
             },
@@ -54,7 +54,7 @@ SAMPLE_TREE = [
                 "author": "Bradley Smoker",
                 "file": "https://archive.org/download/SmokedBrisketRecipe/smokedbrisketrecipebybradleysmoker.mp4",
                 "subtitle": "something.vtt",
-                "license": constants.L_CC_BY,
+                "license": licenses.CC_BY,
             },
             {
                 "title": "Food Mob Bites 10: Garlic Bread",
@@ -62,7 +62,60 @@ SAMPLE_TREE = [
                 "author": "Revision 3",
                 "description": "Basic garlic bread recipe.",
                 "file": "https://archive.org/download/Food_Mob_Bites_10/foodmob--bites--0010--garlicbread--hd720p30.h264.mp4",
-                "license": constants.L_CC_BY_NC_SA,
+                "license": licenses.CC_BY_NC_SA,
+            },
+            {
+                "title": "Recipe Exercise",
+                "id": "6cafe1",
+                "description": "Test how well you know your recipes",
+                "license": licenses.CC_BY_NC_SA,
+                "mastery_model": exercises.NUM_CORRECT_IN_A_ROW_10,
+                "questions": [
+                    {
+                        "id": "eeeee",
+                        "question": "Which of these are proteins?",
+                        "type":exercises.MULTIPLE_SELECTION,
+                        "answers": [
+                            {"answer": "Eggs", "correct": True},
+                            {"answer": "Tofu", "correct": True},
+                            {"answer": "Meat", "correct": True},
+                            {"answer": "Beans", "correct": True},
+                            {"answer": "Rice", "correct": False},
+                        ],
+                        "hint": "",
+                        "images": [],
+                    },
+                    {
+                        "id": "bbbbb",
+                        "question": "Of the following, which rice is healthiest?",
+                        "type":exercises.SINGLE_SELECTION,
+                        "answers": [
+                            {"answer": "White Rice", "correct": False},
+                            {"answer": "Brown Rice", "correct": True},
+                            {"answer": "Rice Krispies", "correct": False},
+                        ],
+                        "hint": "",
+                        "images": [],
+                    },
+                    {
+                        "id": "ccccc",
+                        "question": "Why a rice cooker?",
+                        "type":exercises.FREE_RESPONSE,
+                        "answers": [],
+                        "hint": "",
+                        "images": [],
+                    },
+                    {
+                        "id": "aaaaa",
+                        "question": "What can you make with a rice cooker?",
+                        "type":exercises.INPUT_QUESTION,
+                        "answers": [
+                            {"answer": "rice"},
+                        ],
+                        "hint": "... really?",
+                        "images": [],
+                    },
+                ],
             },
         ]
     },
@@ -86,11 +139,11 @@ def _build_tree(node, sourcetree):
 
     for child_source_node in sourcetree:
         try:
-            kind = guess_content_kind(child_source_node.get("file"))
+            kind = guess_content_kind(child_source_node.get("file"), child_source_node.get("questions"))
         except UnknownContentKindError:
             continue
 
-        if kind == constants.CK_TOPIC:
+        if kind == content_kinds.TOPIC:
             child_node = Topic(
                 id=child_source_node["id"],
                 title=child_source_node["title"],
@@ -103,7 +156,7 @@ def _build_tree(node, sourcetree):
 
             _build_tree(child_node, source_tree_children)
 
-        elif kind == constants.CK_VIDEO:
+        elif kind == content_kinds.VIDEO:
 
             child_node = Video(
                 id=child_source_node["id"],
@@ -114,7 +167,7 @@ def _build_tree(node, sourcetree):
                 license=child_source_node.get("license"),
 
                 # video-specific data
-                preset=constants.FP_VIDEO_HIGH_RES,
+                preset=format_presets.VIDEO_HIGH_RES,
                 transcode_to_lower_resolutions=True,
                 derive_thumbnail=True,
 
@@ -123,7 +176,7 @@ def _build_tree(node, sourcetree):
             )
             node.add_child(child_node)
 
-        elif kind == constants.CK_AUDIO:
+        elif kind == content_kinds.AUDIO:
             child_node = Audio(
                 id=child_source_node["id"],
                 title=child_source_node["title"],
@@ -137,7 +190,7 @@ def _build_tree(node, sourcetree):
             )
             node.add_child(child_node)
 
-        elif kind == constants.CK_DOCUMENT:
+        elif kind == content_kinds.DOCUMENT:
             child_node = Document(
                 id=child_source_node["id"],
                 title=child_source_node["title"],
@@ -145,6 +198,19 @@ def _build_tree(node, sourcetree):
                 description=child_source_node.get("description"),
                 files=child_source_node.get("file"),
                 license=child_source_node.get("license"),
+            )
+            node.add_child(child_node)
+
+        elif kind == content_kinds.EXERCISE:
+            child_node = Exercise(
+                id=child_source_node["id"],
+                title=child_source_node["title"],
+                author=child_source_node.get("author"),
+                description=child_source_node.get("description"),
+                files=child_source_node.get("file"),
+                exercise_data={'mastery_model': child_source_node.get("mastery_model")},
+                license=child_source_node.get("license"),
+                questions=child_source_node.get("questions"),
             )
             node.add_child(child_node)
 

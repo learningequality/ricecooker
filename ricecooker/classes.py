@@ -3,11 +3,31 @@ import hashlib
 import base64
 import requests
 import validators
+import json
 import tempfile
 from PIL import Image
 from io import BytesIO
-from fle_utils import constants
+from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
+from ricecooker.exceptions import UnknownQuestionTypeError
 
+def guess_content_kind(files, questions=[]):
+    """ guess_content_kind: determines what kind the content is
+        Args:
+            files (str or list): files associated with content
+        Returns: string indicating node's kind
+    """
+    files = [files] if isinstance(files, str) else files
+    questions=[questions] if isinstance(questions, str) else questions
+    if files is not None and len(files) > 0:
+        for f in files:
+            ext = f.rsplit('/', 1)[-1].split(".")[-1].lower()
+            if ext in content_kinds.MAPPING:
+                return content_kinds.MAPPING[ext]
+        raise InvalidFormatException("Invalid file type: Allowed formats are {0}".format([key for key, value in content_kinds.MAPPING.items()]))
+    elif questions is not None and len(questions) > 0:
+        return content_kinds.EXERCISE
+    else:
+        return content_kinds.TOPIC
 
 """ TreeModel: model to handle structure of channel """
 class TreeModel:
@@ -107,7 +127,7 @@ class Node(TreeModel):
             license (str): content's license (using constants from fle_utils)
             files (str or list): content's associated file(s)
     """
-    def __init__(self, id, title, description, author, license, files):
+    def __init__(self, id, title, description, author, license=None, files=[], questions=[], extra_fields={}):
         self.id = id
         self.title = title
         self.description = description
@@ -115,6 +135,8 @@ class Node(TreeModel):
         self.license = license
         self.children = []
         self.files = [files] if isinstance(files, str) else files
+        self.questions=questions
+        self.extra_fields = extra_fields
         super(Node, self).__init__()
 
 
@@ -134,6 +156,8 @@ class Node(TreeModel):
             "files" : self.files,
             "kind": self.kind,
             "license": self.license,
+            "questions": self.questions,
+            "extra_fields": json.dumps(self.extra_fields),
         }
 
     def set_ids(self, domain, parent_id):
@@ -160,8 +184,8 @@ class Topic(Node):
             author (str): who created the content
     """
     def __init__(self, id, title, description=None, author=None):
-        self.kind = constants.CK_TOPIC
-        super(Topic, self).__init__(id, title, description, author, None, [])
+        self.kind = content_kinds.TOPIC
+        super(Topic, self).__init__(id, title, description, author)
 
 
 
@@ -182,7 +206,7 @@ class Video(Node):
             license (str): content's license (using constants from fle_utils)
             files (str or list): content's associated file(s)
     """
-    default_preset = constants.FP_VIDEO_HIGH_RES
+    default_preset = format_presets.VIDEO_HIGH_RES
     def __init__(self, id, title, author=None, description=None, transcode_to_lower_resolutions=False, derive_thumbnail=False, license=None, subtitle=None, files=[], preset=None):
         if preset is not None:
             self.default_preset = preset
@@ -190,7 +214,7 @@ class Video(Node):
             self.transcode_to_lower_resolutions()
         if derive_thumbnail:
             self.derive_thumbnail()
-        self.kind = constants.CK_VIDEO
+        self.kind = content_kinds.VIDEO
         super(Video, self).__init__(id, title, description, author, license, files)
 
     def derive_thumbnail(self):
@@ -223,9 +247,9 @@ class Audio(Node):
             license (str): content's license (using constants from fle_utils)
             files (str or list): content's associated file(s)
     """
-    default_preset = constants.FP_AUDIO
+    default_preset = format_presets.AUDIO
     def __init__(self, id, title, author=None, description=None, license=None, subtitle=None, files=[]):
-        self.kind = constants.CK_AUDIO
+        self.kind = content_kinds.AUDIO
         super(Audio, self).__init__(id, title, description, author, license, files)
 
 
@@ -243,9 +267,9 @@ class Document(Node):
             license (str): content's license (using constants from fle_utils)
             files (str or list): content's associated file(s)
     """
-    default_preset = constants.FP_DOCUMENT
+    default_preset = format_presets.DOCUMENT
     def __init__(self, id, title, author=None, description=None, license=None, files=[]):
-        self.kind = constants.CK_DOCUMENT
+        self.kind = content_kinds.DOCUMENT
         super(Document, self).__init__(id, title, description, author, license, files)
 
 
@@ -253,7 +277,8 @@ class Document(Node):
 class Exercise(Node):
     """ Model representing exercises in channel
 
-        Exercises must be perseus format
+        Exercises are sets of questions to assess learners'
+        understanding of the content
 
         Attributes:
             id (str): content's original id
@@ -263,24 +288,185 @@ class Exercise(Node):
             license (str): content's license (using constants from fle_utils)
             files (str or list): content's associated file(s)
     """
-    default_preset = constants.FP_EXERCISE
-    def __init__(self, id, title, author=None, description=None, license=None, files=[]):
-        self.kind = constants.CK_EXERCISE
-        super(Exercise, self).__init__(id, title, description, author, license, files)
+    default_preset = format_presets.EXERCISE
+    def __init__(self, id, title, author=None, description=None, license=None, files=[], exercise_data={}, images=[], questions=[]):
+        self.kind = content_kinds.EXERCISE
+        self.images = images
+        self.questions = self.parse_questions(questions)
+        files = [] if files is None else files
+        super(Exercise, self).__init__(id, title, description, author, license, files, self.questions, exercise_data)
 
+    def parse_questions(self, questions):
+        question_list = []
+        for question in questions:
+            question_type = question.get("type")
+            if question_type == exercises.MULTIPLE_SELECTION:
+                new_question = MultipleSelectQuestion(
+                    id=question['id'],
+                    question=question['question'],
+                    answers=question['answers'],
+                    hint=question['hint'],
+                    images=question['images'],
+                )
+                question_list += [new_question.to_dict()]
+            elif question_type == exercises.SINGLE_SELECTION:
+                new_question = SingleSelectQuestion(
+                    id=question['id'],
+                    question=question['question'],
+                    answers=question['answers'],
+                    hint=question['hint'],
+                    images=question['images'],
+                )
+                question_list += [new_question.to_dict()]
+            elif question_type == exercises.FREE_RESPONSE:
+                new_question = FreeResponseQuestion(
+                    id=question['id'],
+                    question=question['question'],
+                    hint=question['hint'],
+                    images=question['images'],
+                )
+                question_list += [new_question.to_dict()]
+            elif question_type == exercises.INPUT_QUESTION:
+                new_question = InputQuestion(
+                    id=question['id'],
+                    question=question['question'],
+                    answers=question['answers'],
+                    hint=question['hint'],
+                    images=question['images'],
+                )
+                question_list += [new_question.to_dict()]
+            else:
+                raise UnknownQuestionTypeError("Unrecognized question type '{0}': accepted types are {1}".format(question_type, [key for key, value in exercises.question_choices]))
+        return question_list
 
-def guess_content_kind(files):
-    """ guess_content_kind: determines what kind the content is
-        Args:
-            files (str or list): files associated with content
-        Returns: string indicating node's kind
+class PerseusExercise(Exercise):
+    """ Model representing exercises in channel
+
+        Exercises that are in perseus format
+
+        Attributes:
+            id (str): content's original id
+            title (str): content's title
+            author (str): who created the content
+            description (str): description of content
+            license (str): content's license (using constants from fle_utils)
+            files (str or list): content's associated file(s)
     """
-    files = [files] if isinstance(files, str) else files
-    if files is not None and len(files) > 0:
-        for f in files:
-            ext = f.rsplit('/', 1)[-1].split(".")[-1].lower()
-            if ext in constants.CK_MAPPING:
-                return constants.CK_MAPPING[ext]
-        raise InvalidFormatException("Invalid file type: Allowed formats are {0}".format([key for key, value in constants.CK_MAPPING.items()]))
-    else:
-        return constants.CK_TOPIC
+    default_preset = format_presets.EXERCISE
+    def __init__(self, id, title, author=None, description=None, license=None, files=[], exercise_data={}, images=[], questions=[]):
+        super(PerseusExercise, self).__init__(id, title, description, author, license, files, exercise_data, images, questions)
+
+class BaseQuestion:
+    """ Base model representing exercise questions
+
+        Questions are used to assess learner's understanding
+
+        Attributes:
+            id (str): question's unique id
+            question (str): question text
+            question_type (str): what kind of question is this
+            answers ([{'answer':str, 'correct':bool, 'hint':str}]): answers to question
+            hint (str): optional hint on how to answer question
+            images ([str]): list of paths to images in question
+    """
+    def __init__(self, id, question, question_type, answers=[], hint="", images=[]):
+        self.question = question
+        self.question_type = question_type
+        self.answers = self.parse_answers(answers)
+        self.hint = hint
+        self.images = images
+        self.id = uuid.uuid5(uuid.NAMESPACE_DNS, id)
+
+    def to_dict(self):
+        """ to_dict: puts data in format CC expects
+            Args: None
+            Returns: dict of node's data
+        """
+        return {
+            "assessment_id": self.id.hex,
+            "type": self.question_type,
+            "question": self.question,
+            "help_text": self.hint if self.hint is not None else "",
+            "answers": json.dumps(self.answers),
+        }
+
+    def parse_answers(self, answers):
+        answer_list = []
+        for answer in answers:
+            answer_list += [{
+                "help_text": answer["hint"] if "hint" in answer else "",
+                "answer": answer["answer"],
+                "correct": True if "correct" not in answer or answer["correct"] else False,
+            }]
+        return answer_list
+
+class MultipleSelectQuestion(BaseQuestion):
+    """ Model representing multiple select questions
+
+        Multiple select questions have a set of answers for
+        the learner to select. There can be multiple answers for
+        a question (e.g. Which of the following are prime numbers?
+        A. 1, B. 2, C. 3, D. 4)
+
+        Attributes:
+            id (str): question's unique id
+            question (str): question text
+            answers ([{'answer':str, 'correct':bool, 'hint':str}]): answers to question
+            hint (str): optional hint on how to answer question
+            images ([str]): list of paths to images in question
+    """
+    question_type=exercises.MULTIPLE_SELECTION
+    def __init__(self, id, question, answers=[], hint="", images=[]):
+        super(MultipleSelectQuestion, self).__init__(id, question, self.question_type, answers, hint, images)
+
+class SingleSelectQuestion(BaseQuestion):
+    """ Model representing single select questions
+
+        Single select questions have a set of answers for
+        with only one correct answer. (e.g. How many degrees are in a right angle?
+        A. 45, B. 90, C. 180, D. None of the above)
+
+        Attributes:
+            id (str): question's unique id
+            question (str): question text
+            answers ([{'answer':str, 'correct':bool, 'hint':str}]): answers to question
+            hint (str): optional hint on how to answer question
+            images ([str]): list of paths to images in question
+    """
+    question_type=exercises.SINGLE_SELECTION
+    def __init__(self, id, question, answers=[], hint="", images=[]):
+        super(SingleSelectQuestion, self).__init__(id, question, self.question_type, answers, hint, images)
+
+class FreeResponseQuestion(BaseQuestion):
+    """ Model representing free response questions
+
+        Free response questions are open-ended questions
+        that have no set answer (e.g. Prove that the sum of
+        every triangle's angles is 360 degrees.)
+
+        Attributes:
+            id (str): question's unique id
+            question (str): question text
+            hint (str): optional hint on how to answer question
+            images ([str]): list of paths to images in question
+    """
+    question_type=exercises.FREE_RESPONSE
+    def __init__(self, id, question, hint="", images=[]):
+        super(FreeResponseQuestion, self).__init__(id, question, self.question_type, [], hint, images)
+
+class InputQuestion(BaseQuestion):
+    """ Model representing input questions
+
+        Input questions are questions that have one or more text
+        or number answers (e.g. What is 2+2? ____)
+
+        Attributes:
+            id (str): question's unique id
+            question (str): question text
+            answers ([{'answer':str, 'hint':str}]): answers to question
+            hint (str): optional hint on how to answer question
+            images ([str]): list of paths to images in question
+    """
+    question_type=exercises.INPUT_QUESTION
+    def __init__(self, id, question, answers=[], hint="", images=[]):
+        super(InputQuestion, self).__init__(id, question, self.question_type, answers, hint, images)

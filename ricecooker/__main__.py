@@ -10,7 +10,6 @@ Options:
   -r       make report
 """
 
-from fle_utils import constants
 from ricecooker.commands import uploadchannel
 from docopt import docopt
 

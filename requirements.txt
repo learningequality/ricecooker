@@ -1,6 +1,6 @@
-https://github.com/learningequality/fle-utils/tarball/master#egg=fle_utils
 pytest==3.0.2
 requests==2.11.1
 pillow==3.3.1
 docopt==0.6.2
+le-utils==0.0.8
 validators

@@ -5,7 +5,6 @@ import requests
 import tempfile
 import shutil
 import os
-from fle_utils import constants
 from ricecooker import classes, config
 from ricecooker.exceptions import InvalidFormatException
 
