@@ -5,9 +5,9 @@ Credits
 Development Lead
 ----------------
 
-* Jordan Yoshihara <jordanyoshihara@gmail.com>
+* Jordan Yoshihara <jordan@learningequality.org>
 
 Contributors
 ------------
 
-None yet. Why not be the first?
+* Aron Asor <aron@learningequality.org>
