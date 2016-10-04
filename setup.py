@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
+import ricecooker
 from setuptools import setup
 
 with open('README.rst') as readme_file:
     readme = readme_file.read()
 
-with open('HISTORY.rst') as history_file:
+with open('docs/history.rst') as history_file:
     history = history_file.read()
 
 requirements = [
@@ -20,7 +20,7 @@ test_requirements = [
 
 setup(
     name='ricecooker',
-    version='0.1.0',
+    version=ricecooker.__version__,
     description="API for adding content to content curation server",
     long_description=readme + '\n\n' + history,
     author="Learning Equality",

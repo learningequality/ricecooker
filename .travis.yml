@@ -20,10 +20,10 @@ script: tox -e ${TOXENV}
 deploy:
   provider: pypi
   distributions: sdist bdist_wheel
-  user: jayoshih
+  user: learningequality
   password:
     secure: PLEASE_REPLACE_ME
   on:
     tags: true
-    repo: jayoshih/ricecooker
+    repo: learningequality/ricecooker
     condition: $TOXENV == py27
