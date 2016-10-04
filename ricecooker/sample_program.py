@@ -2,6 +2,8 @@ from ricecooker.classes import Channel, Video, Audio, Document, Topic, guess_con
 from ricecooker.exceptions import UnknownContentKindError, UnknownQuestionTypeError, raise_for_invalid_channel
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
 
+placeholder="(${aronsface}/{0})"
+
 SAMPLE_TREE = [
     {
         "title": "Western Philosophy",
@@ -73,12 +75,16 @@ SAMPLE_TREE = [
                 "questions": [
                     {
                         "id": "eeeee",
-                        "question": "Which rice is your favorite?",
+                        "question": "Which rice is your favorite? {{pic1}}\n{{pic2}}",
                         "type":exercises.MULTIPLE_SELECTION,
-                        "correct_answers": ["White rice", "Brown rice", "Sushi rice"],
-                        "all_answers": ["White rice", "Quinoa","Brown rice"],
+                        "correct_answers": ["White rice {{ pic3 }}", "Brown rice", "Sushi rice"],
+                        "all_answers": ["White rice {{ pic3 }}", "Quinoa","Brown rice"],
                         "hint": "",
-                        "images": ["file://blah/somewhere.jpg"],
+                        "images":{
+                            "pic1": "http://images.wisegeek.com/cooked-jasmine-rice-in-a-bowl-with-chopsticks.jpg",
+                            "pic2": "http://discovermagazine.com/~/media/Images/Issues/2014/JanFeb/golden-rice.jpg",
+                            "pic3": "http://i2.cdn.turner.com/cnnnext/dam/assets/150327114100-06-rice-stock-super-169.jpg",
+                        },
                     },
                     {
                         "id": "bbbbb",
