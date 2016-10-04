@@ -1,5 +1,5 @@
 from ricecooker.classes import Channel, Video, Audio, Document, Topic, guess_content_kind
-from ricecooker.exceptions import UnknownContentKindError, raise_for_invalid_channel
+from ricecooker.exceptions import UnknownContentKindError, UnknownQuestionTypeError, raise_for_invalid_channel
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
 
 SAMPLE_TREE = [
@@ -69,32 +69,24 @@ SAMPLE_TREE = [
                 "id": "6cafe1",
                 "description": "Test how well you know your recipes",
                 "license": licenses.CC_BY_NC_SA,
-                "mastery_model": exercises.NUM_CORRECT_IN_A_ROW_10,
+                "mastery_model": exercises.SKILL_CHECK,
                 "questions": [
                     {
                         "id": "eeeee",
-                        "question": "Which of these are proteins?",
+                        "question": "Which rice is your favorite?",
                         "type":exercises.MULTIPLE_SELECTION,
-                        "answers": [
-                            {"answer": "Eggs", "correct": True},
-                            {"answer": "Tofu", "correct": True},
-                            {"answer": "Meat", "correct": True},
-                            {"answer": "Beans", "correct": True},
-                            {"answer": "Rice", "correct": False},
-                        ],
+                        "correct_answers": ["White rice", "Brown rice", "Sushi rice"],
+                        "all_answers": ["White rice", "Quinoa","Brown rice"],
                         "hint": "",
-                        "images": [],
+                        "images": ["file://blah/somewhere.jpg"],
                     },
                     {
                         "id": "bbbbb",
-                        "question": "Of the following, which rice is healthiest?",
+                        "question": "Which rice is the crunchiest?",
                         "type":exercises.SINGLE_SELECTION,
-                        "answers": [
-                            {"answer": "White Rice", "correct": False},
-                            {"answer": "Brown Rice", "correct": True},
-                            {"answer": "Rice Krispies", "correct": False},
-                        ],
-                        "hint": "",
+                        "correct_answer": "Rice Krispies",
+                        "all_answers": ["White rice", "Brown rice", "Rice Krispies"],
+                        "hint": "Has rice in it",
                         "images": [],
                     },
                     {
@@ -107,12 +99,10 @@ SAMPLE_TREE = [
                     },
                     {
                         "id": "aaaaa",
-                        "question": "What can you make with a rice cooker?",
+                        "question": "How many minutes does it take to cook rice?",
                         "type":exercises.INPUT_QUESTION,
-                        "answers": [
-                            {"answer": "rice"},
-                        ],
-                        "hint": "... really?",
+                        "answers": [20, "20.5", 19.5],
+                        "hint": "Takes roughly same amount of time to install kolibri on Windows machine",
                         "images": [],
                     },
                 ],
@@ -208,13 +198,53 @@ def _build_tree(node, sourcetree):
                 author=child_source_node.get("author"),
                 description=child_source_node.get("description"),
                 files=child_source_node.get("file"),
-                exercise_data={'mastery_model': child_source_node.get("mastery_model")},
+                exercise_data={'mastery_model': child_source_node.get("mastery_model"), 'randomize': True},
                 license=child_source_node.get("license"),
-                questions=child_source_node.get("questions"),
             )
+            for q in child_source_node.get("questions"):
+                question = create_question(q)
+                child_node.add_question(question)
             node.add_child(child_node)
 
         else:                   # unknown content file format
             continue
 
     return node
+
+def create_question(raw_question):
+
+    if raw_question["type"] == exercises.MULTIPLE_SELECTION:
+        return MultipleSelectQuestion(
+            id=raw_question["id"],
+            question=raw_question["question"],
+            correct_answers=raw_question["correct_answers"],
+            all_answers=raw_question["all_answers"],
+            hint=raw_question["hint"],
+            images=raw_question["images"],
+        )
+    if raw_question["type"] == exercises.SINGLE_SELECTION:
+        return SingleSelectQuestion(
+            id=raw_question["id"],
+            question=raw_question["question"],
+            correct_answer=raw_question["correct_answer"],
+            all_answers=raw_question["all_answers"],
+            hint=raw_question["hint"],
+            images=raw_question["images"],
+        )
+    if raw_question["type"] == exercises.INPUT_QUESTION:
+        return InputQuestion(
+            id=raw_question["id"],
+            question=raw_question["question"],
+            answers=raw_question["answers"],
+            hint=raw_question["hint"],
+            images=raw_question["images"],
+        )
+    if raw_question["type"] == exercises.FREE_RESPONSE:
+        return FreeResponseQuestion(
+            id=raw_question["id"],
+            question=raw_question["question"],
+            hint=raw_question["hint"],
+            images=raw_question["images"],
+        )
+    else:
+        raise UnknownQuestionTypeError("Unrecognized question type '{0}': accepted types are {1}".format(raw_question["type"], [key for key, value in exercises.question_choices]))

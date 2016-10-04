@@ -8,7 +8,7 @@ import tempfile
 from PIL import Image
 from io import BytesIO
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
-from ricecooker.exceptions import UnknownQuestionTypeError
+from ricecooker.exceptions import UnknownQuestionTypeError, InvalidInputAnswerException
 
 def guess_content_kind(files, questions=[]):
     """ guess_content_kind: determines what kind the content is
@@ -146,7 +146,6 @@ class Node(TreeModel):
             Returns: dict of node's data
         """
         return {
-            "id": self.id,
             "title": self.title,
             "description": self.description if self.description is not None else "",
             "node_id": self.node_id.hex,
@@ -289,55 +288,15 @@ class Exercise(Node):
             files (str or list): content's associated file(s)
     """
     default_preset = format_presets.EXERCISE
-    def __init__(self, id, title, author=None, description=None, license=None, files=[], exercise_data={}, images=[], questions=[]):
+    def __init__(self, id, title, author=None, description=None, license=None, files=None, exercise_data=None):
         self.kind = content_kinds.EXERCISE
-        self.images = images
-        self.questions = self.parse_questions(questions)
+        self.questions = []
         files = [] if files is None else files
+        exercise_data = {} if exercise_data is None else exercise_data
         super(Exercise, self).__init__(id, title, description, author, license, files, self.questions, exercise_data)
 
-    def parse_questions(self, questions):
-        question_list = []
-        for question in questions:
-            question_type = question.get("type")
-            if question_type == exercises.MULTIPLE_SELECTION:
-                new_question = MultipleSelectQuestion(
-                    id=question['id'],
-                    question=question['question'],
-                    answers=question['answers'],
-                    hint=question['hint'],
-                    images=question['images'],
-                )
-                question_list += [new_question.to_dict()]
-            elif question_type == exercises.SINGLE_SELECTION:
-                new_question = SingleSelectQuestion(
-                    id=question['id'],
-                    question=question['question'],
-                    answers=question['answers'],
-                    hint=question['hint'],
-                    images=question['images'],
-                )
-                question_list += [new_question.to_dict()]
-            elif question_type == exercises.FREE_RESPONSE:
-                new_question = FreeResponseQuestion(
-                    id=question['id'],
-                    question=question['question'],
-                    hint=question['hint'],
-                    images=question['images'],
-                )
-                question_list += [new_question.to_dict()]
-            elif question_type == exercises.INPUT_QUESTION:
-                new_question = InputQuestion(
-                    id=question['id'],
-                    question=question['question'],
-                    answers=question['answers'],
-                    hint=question['hint'],
-                    images=question['images'],
-                )
-                question_list += [new_question.to_dict()]
-            else:
-                raise UnknownQuestionTypeError("Unrecognized question type '{0}': accepted types are {1}".format(question_type, [key for key, value in exercises.question_choices]))
-        return question_list
+    def add_question(self, question):
+        self.questions += [question.to_dict()]
 
 class PerseusExercise(Exercise):
     """ Model representing exercises in channel
@@ -353,8 +312,8 @@ class PerseusExercise(Exercise):
             files (str or list): content's associated file(s)
     """
     default_preset = format_presets.EXERCISE
-    def __init__(self, id, title, author=None, description=None, license=None, files=[], exercise_data={}, images=[], questions=[]):
-        super(PerseusExercise, self).__init__(id, title, description, author, license, files, exercise_data, images, questions)
+    def __init__(self, id, title, author=None, description=None, license=None, files=None, exercise_data=None):
+        super(PerseusExercise, self).__init__(id, title, description, author, license, files, exercise_data)
 
 class BaseQuestion:
     """ Base model representing exercise questions
@@ -369,12 +328,12 @@ class BaseQuestion:
             hint (str): optional hint on how to answer question
             images ([str]): list of paths to images in question
     """
-    def __init__(self, id, question, question_type, answers=[], hint="", images=[]):
+    def __init__(self, id, question, question_type, answers, hint="", images=None):
         self.question = question
         self.question_type = question_type
-        self.answers = self.parse_answers(answers)
+        self.answers = answers
         self.hint = hint
-        self.images = images
+        self.images = [] if images is None else images
         self.id = uuid.uuid5(uuid.NAMESPACE_DNS, id)
 
     def to_dict(self):
@@ -390,15 +349,8 @@ class BaseQuestion:
             "answers": json.dumps(self.answers),
         }
 
-    def parse_answers(self, answers):
-        answer_list = []
-        for answer in answers:
-            answer_list += [{
-                "help_text": answer["hint"] if "hint" in answer else "",
-                "answer": answer["answer"],
-                "correct": True if "correct" not in answer or answer["correct"] else False,
-            }]
-        return answer_list
+    def create_answer(self, answer, correct=True):
+        return {"answer": answer, "correct":correct}
 
 class MultipleSelectQuestion(BaseQuestion):
     """ Model representing multiple select questions
@@ -415,9 +367,12 @@ class MultipleSelectQuestion(BaseQuestion):
             hint (str): optional hint on how to answer question
             images ([str]): list of paths to images in question
     """
-    question_type=exercises.MULTIPLE_SELECTION
-    def __init__(self, id, question, answers=[], hint="", images=[]):
-        super(MultipleSelectQuestion, self).__init__(id, question, self.question_type, answers, hint, images)
+
+    def __init__(self, id, question, correct_answers, all_answers, hint="", images=None):
+        set_all_answers = set(all_answers)
+        all_answers += [answer for answer in correct_answers if answer not in set_all_answers]
+        answers = [self.create_answer(answer, answer in correct_answers) for answer in all_answers]
+        super(MultipleSelectQuestion, self).__init__(id, question, exercises.MULTIPLE_SELECTION, answers, hint, images)
 
 class SingleSelectQuestion(BaseQuestion):
     """ Model representing single select questions
@@ -433,9 +388,11 @@ class SingleSelectQuestion(BaseQuestion):
             hint (str): optional hint on how to answer question
             images ([str]): list of paths to images in question
     """
-    question_type=exercises.SINGLE_SELECTION
-    def __init__(self, id, question, answers=[], hint="", images=[]):
-        super(SingleSelectQuestion, self).__init__(id, question, self.question_type, answers, hint, images)
+    def __init__(self, id, question, correct_answer, all_answers, hint="", images=None):
+        if correct_answer not in all_answers:
+            all_answers += [correct_answer]
+        answers = [self.create_answer(answer, answer==correct_answer) for answer in all_answers]
+        super(SingleSelectQuestion, self).__init__(id, question, exercises.SINGLE_SELECTION, answers, hint, images)
 
 class FreeResponseQuestion(BaseQuestion):
     """ Model representing free response questions
@@ -450,15 +407,14 @@ class FreeResponseQuestion(BaseQuestion):
             hint (str): optional hint on how to answer question
             images ([str]): list of paths to images in question
     """
-    question_type=exercises.FREE_RESPONSE
-    def __init__(self, id, question, hint="", images=[]):
-        super(FreeResponseQuestion, self).__init__(id, question, self.question_type, [], hint, images)
+    def __init__(self, id, question, hint="", images=None):
+        super(FreeResponseQuestion, self).__init__(id, question, exercises.FREE_RESPONSE, [], hint, images)
 
 class InputQuestion(BaseQuestion):
     """ Model representing input questions
 
-        Input questions are questions that have one or more text
-        or number answers (e.g. What is 2+2? ____)
+        Input questions are questions that have one or more numerical
+        answers (e.g. Name a factor of 10. ____)
 
         Attributes:
             id (str): question's unique id
@@ -467,6 +423,9 @@ class InputQuestion(BaseQuestion):
             hint (str): optional hint on how to answer question
             images ([str]): list of paths to images in question
     """
-    question_type=exercises.INPUT_QUESTION
-    def __init__(self, id, question, answers=[], hint="", images=[]):
-        super(InputQuestion, self).__init__(id, question, self.question_type, answers, hint, images)
+    def __init__(self, id, question, answers, hint="", images=None):
+        try:
+            answers = [self.create_answer(float(answer)) for answer in answers]
+            super(InputQuestion, self).__init__(id, question, exercises.INPUT_QUESTION, answers, hint, images)
+        except ValueError as e:
+            raise InvalidInputAnswerException(e)
