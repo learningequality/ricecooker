@@ -350,7 +350,7 @@ class BaseQuestion:
         }
 
     def create_answer(self, answer, correct=True):
-        return {"answer": answer, "correct":correct}
+        return {"answer": str(answer), "correct":correct}
 
 class MultipleSelectQuestion(BaseQuestion):
     """ Model representing multiple select questions

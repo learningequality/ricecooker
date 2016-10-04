@@ -1,4 +1,4 @@
-PRODUCTION_DOMAIN = " 192.237.249.85"
+PRODUCTION_DOMAIN = "contentworkshop.learningequality.org"
 DEBUG_DOMAIN = "127.0.0.1:8000"
 
 FILE_DIFF_URL = "http://{domain}/api/internal/file_diff"
