@@ -1,8 +1,14 @@
-from ricecooker.classes import Channel, Video, Audio, Document, Topic, guess_content_kind
+from ricecooker.classes.nodes import Channel, Video, Audio, Document, Topic, Exercise, guess_content_kind
+from ricecooker.classes.questions import PerseusQuestion, MultipleSelectQuestion, SingleSelectQuestion, FreeResponseQuestion, InputQuestion
 from ricecooker.exceptions import UnknownContentKindError, UnknownQuestionTypeError, raise_for_invalid_channel
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
 
-placeholder="(${aronsface}/{0})"
+SAMPLE_PERSEUS = '{"answerArea":{"chi2Table":false,"periodicTable":false,"tTable":false,"zTable":false,"calculator":false},' + \
+'"hints":[{"widgets":{},"images":{},"content":"Hint #1","replace":false},{"widgets":{},"images":{},"content":"Hint #2","replace":false}],' +\
+'"question":{"widgets":{"radio 1":{"type":"radio","alignment":"default","graded":true,"static":false,' +\
+'"options":{"deselectEnabled":false,"multipleSelect":false,"choices":[{"correct":true,"content":"Yes"},{"correct":false,"content":"No"}],' +\
+'"displayCount":null,"hasNoneOfTheAbove":false,"randomize":false,"onePerLine":true},"version":{"minor":0,"major":1}}},"images":{},' +\
+'"content":"Do you like rice?\\n\\n({ricegrain}/https://upload.wikimedia.org/wikipedia/commons/a/a1/2014_uncooked_Thai_glutinous_rice.jpg)\\n\\n[[\\u2603 radio 1]]"},"itemDataVersion":{"minor":1,"major":0}}'
 
 SAMPLE_TREE = [
     {
@@ -15,7 +21,7 @@ SAMPLE_TREE = [
                 "id": "ffda92",
                 "author": "Aristotle",
                 "description": "The Nicomachean Ethics is the name normally given to ...",
-                # "file": ["https://archive.org/download/petersethics00arisrich/petersethics00arisrich.pdf"],
+                "file": ["https://archive.org/download/petersethics00arisrich/petersethics00arisrich.pdf"],
                 "license": licenses.PUBLIC_DOMAIN,
             },
             {
@@ -37,7 +43,7 @@ SAMPLE_TREE = [
                         "title": "02 - Preface to the Second Edition",
                         "id": "aaaa4d",
                         "author": "Immanuel Kant",
-                        # "file": "https://ia801406.us.archive.org/13/items/alice_in_wonderland_librivox/wonderland_ch_01.mp3",
+                        "file": "https://ia801406.us.archive.org/13/items/alice_in_wonderland_librivox/wonderland_ch_01.mp3",
                         "author": "Immanuel Kant",
                         "license": licenses.PUBLIC_DOMAIN,
                     }
@@ -54,7 +60,7 @@ SAMPLE_TREE = [
                 "title": "Smoked Brisket Recipe",
                 "id": "418799",
                 "author": "Bradley Smoker",
-                # "file": "https://archive.org/download/SmokedBrisketRecipe/smokedbrisketrecipebybradleysmoker.mp4",
+                "file": "https://archive.org/download/SmokedBrisketRecipe/smokedbrisketrecipebybradleysmoker.mp4",
                 "subtitle": "something.vtt",
                 "license": licenses.CC_BY,
             },
@@ -63,7 +69,7 @@ SAMPLE_TREE = [
                 "id": "6cafe2",
                 "author": "Revision 3",
                 "description": "Basic garlic bread recipe.",
-                # "file": "https://archive.org/download/Food_Mob_Bites_10/foodmob--bites--0010--garlicbread--hd720p30.h264.mp4",
+                "file": "https://archive.org/download/Food_Mob_Bites_10/foodmob--bites--0010--garlicbread--hd720p30.h264.mp4",
                 "license": licenses.CC_BY_NC_SA,
             },
             {
@@ -75,7 +81,7 @@ SAMPLE_TREE = [
                 "questions": [
                     {
                         "id": "eeeee",
-                        "question": "Which rice is your favorite? {pic1}\n{pic2}",
+                        "question": "Which rice is your favorite? {pic1}\\n{pic2}",
                         "type":exercises.MULTIPLE_SELECTION,
                         "correct_answers": ["White rice {pic3}", "Brown rice", "Sushi rice"],
                         "all_answers": ["White rice {pic3}", "Quinoa","Brown rice"],
@@ -115,6 +121,14 @@ SAMPLE_TREE = [
                             "rice": "https://upload.wikimedia.org/wikipedia/commons/5/5e/Jeera-rice.JPG",
                         },
                     },
+                    {
+                        "id": "ddddd",
+                        "type":exercises.PERSEUS_QUESTION,
+                        "item_data":SAMPLE_PERSEUS,
+                        "images":{
+                            "({ricegrain}/https://upload.wikimedia.org/wikipedia/commons/a/a1/2014_uncooked_Thai_glutinous_rice.jpg)": "https://upload.wikimedia.org/wikipedia/commons/a/a1/2014_uncooked_Thai_glutinous_rice.jpg",
+                        },
+                    },
                 ],
             },
         ]
@@ -131,6 +145,14 @@ def construct_channel(args):
     )
     _build_tree(channel, SAMPLE_TREE)
     raise_for_invalid_channel(channel)
+
+    # import pickle
+    # with open('./ricecooker/KA_tree.pickle', 'rb') as handler:
+    #     channel = pickle.loads(handler.read())
+    #     channel.children = channel.children[0].children
+    #     channel.children = channel.children[0].children
+    #     print(channel.size())
+
 
     return channel
 
@@ -254,6 +276,12 @@ def create_question(raw_question):
             id=raw_question["id"],
             question=raw_question["question"],
             hint=raw_question["hint"],
+            images=raw_question["images"],
+        )
+    if raw_question["type"] == exercises.PERSEUS_QUESTION:
+        return PerseusQuestion(
+            id=raw_question["id"],
+            raw_data=raw_question["item_data"],
             images=raw_question["images"],
         )
     else:

@@ -5,7 +5,8 @@ import requests
 import tempfile
 import shutil
 import os
-from ricecooker import classes, config
+from ricecooker import config
+from ricecooker.classes import nodes
 from ricecooker.exceptions import InvalidFormatException
 
 """ ChannelManager: used to process channel and communicate to content curation server
@@ -26,15 +27,14 @@ class ChannelManager:
         @return None
     """
     def process_tree(self, node, parent=None):
-        if not isinstance(node, classes.Channel):
+        if not isinstance(node, nodes.Channel):
             node.set_ids(self.channel._internal_domain, parent.node_id)
             node.files = self.download_files(node.files)
 
-            if isinstance(node, classes.Exercise):
+            if isinstance(node, nodes.Exercise):
                 mapping, file_list = node.get_all_files()
                 self._file_mapping.update(mapping)
                 node.files += file_list
-                print(node.files)
 
         for child_node in node.children:
             self.process_tree(child_node, node)
@@ -49,7 +49,7 @@ class ChannelManager:
             if self.verbose:
                 print("\tDownloading {0}...".format(f.split('/')[-1]))
 
-            filename, original_filename, source_url, file_size = classes.download_file(f)
+            filename, original_filename, source_url, file_size = nodes.download_file(f)
             hashes += [filename]
             self._file_mapping.update({filename : {'original_filename': original_filename, 'source_url': source_url, 'size': file_size, 'preset': True}})
         return hashes
@@ -60,6 +60,7 @@ class ChannelManager:
     """
     def get_file_diff(self):
         response = requests.post(config.file_diff_url(self.domain), data=json.dumps([key for key, value in self._file_mapping.items()]))
+        response.raise_for_status()
         return json.loads(response._content.decode("utf-8"))
 
 
@@ -69,7 +70,7 @@ class ChannelManager:
     """
     def upload_files(self, file_list):
         for f in file_list:
-            with  open(f, 'rb') as file_obj:
+            with  open(config.get_storage_path(f), 'rb') as file_obj:
                 response = requests.post(config.file_upload_url(self.domain), files={'file': file_obj})
                 response.raise_for_status()
 
