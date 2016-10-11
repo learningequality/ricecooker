@@ -6,7 +6,7 @@ from ricecooker.exceptions import UnknownQuestionTypeError, InvalidInputAnswerEx
 
 def download_image(path):
     filename, original_filename, path, file_size = download_file(path, '.{}'.format(file_formats.PNG))
-    return exercises.IMG_FORMAT.format(filename), filename, original_filename, path, file_size
+    return '![]' + exercises.IMG_FORMAT.format(filename), filename, original_filename, path, file_size
 
 class BaseQuestion:
     """ Base model representing exercise questions
@@ -25,12 +25,13 @@ class BaseQuestion:
         self.question = question
         self.question_type = question_type
         self.answers = answers if answers is not None else []
-        self.hint = hint if hint is not None else []
+        self.hint = [] if hint is None else [hint] if isinstance(hint,str) else hint
         self._file_mapping = {}
         self.files = []
         self.raw_data = raw_data
         self.images = {} if images is None else self.download_images(images)
         self.id = uuid.uuid5(uuid.NAMESPACE_DNS, id)
+        print(json.dumps([{"answer": self.map_images(answer['answer']), "correct":answer['correct']} for answer in self.answers], ensure_ascii=False).encode('utf-8'))
 
     def to_dict(self):
         """ to_dict: puts data in format CC expects
@@ -42,7 +43,7 @@ class BaseQuestion:
             "type": self.question_type,
             "question": self.map_images(self.question),
             "hint": self.hint if self.hint is not None else "",
-            "answers": json.dumps([{"answer": self.map_images(answer['answer']), "correct":answer['correct']} for answer in self.answers]),
+            "answers": json.dumps([{"answer": self.map_images(answer['answer']), "correct":answer['correct']} for answer in self.answers], ensure_ascii=False),
             "raw_data": self.raw_data,
         }
 
@@ -79,8 +80,6 @@ class PerseusQuestion(BaseQuestion):
 
     def __init__(self, id, raw_data, images=None):
         raw_data = raw_data if isinstance(raw_data, str) else json.dumps(raw_data)
-        raw_data = raw_data.replace('\\"', "\"").replace("\\'", "\"") # normalize any quotation marks that already exist
-        raw_data = raw_data.replace('\"', '\\"')
         super(PerseusQuestion, self).__init__(id, "", exercises.PERSEUS_QUESTION, [], [], images, raw_data)
 
     def download_images(self, images):

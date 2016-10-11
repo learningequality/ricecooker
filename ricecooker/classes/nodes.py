@@ -7,27 +7,25 @@ import json
 import tempfile
 import shutil
 import os
+from requests_file import FileAdapter
 from io import BytesIO
 from PIL import Image
 from ricecooker import config
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
-
-def download_image(path):
-    filename, original_filename, path, file_size = download_file(path, '.{}'.format(file_formats.PNG))
-    return exercises.IMG_FORMAT.format(filename), filename, original_filename, path, file_size
 
 def download_file(path, extension=None):
     """ download_file: downloads files to local storage
         @param files (list of files to download)
         @return list of file hashes and extensions
     """
+    s = requests.Session()
+    s.mount('file://', FileAdapter())
     hash = hashlib.md5()
-    # Try to access file
-    r = requests.get(path, stream=True)
-    r.raise_for_status()
 
     # Write file to temporary file
     with tempfile.TemporaryFile() as tempf:
+        r = s.get(path, stream=True)
+        r.raise_for_status()
         for chunk in r:
             hash.update(chunk)
             tempf.write(chunk)
@@ -87,8 +85,8 @@ class TreeModel:
             total += child.count()
         return total
 
-    def print_tree(self, indent=0):
-        print("{indent}{title} ({kind}): {count} descendants".format(indent="\t" * indent, title=self.title, kind=self.__class__.__name__, count=self.count()))
+    def print_tree(self, indent=1):
+        print("{indent}{title} ({kind}): {count} descendants".format(indent="  " * indent, title=self.title, kind=self.__class__.__name__, count=self.count()))
         for child in self.children:
             child.print_tree(indent + 1)
 

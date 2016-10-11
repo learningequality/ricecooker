@@ -69,7 +69,7 @@ SAMPLE_TREE = [
                 "id": "6cafe2",
                 "author": "Revision 3",
                 "description": "Basic garlic bread recipe.",
-                "file": "https://archive.org/download/Food_Mob_Bites_10/foodmob--bites--0010--garlicbread--hd720p30.h264.mp4",
+                "file": "file:///C:/Users/Jordan/Documents/Documents/College/199 RESEARCH/Winter 2015/Fostering Improved Learning in Math.pdf",
                 "license": licenses.CC_BY_NC_SA,
             },
             {
@@ -81,13 +81,13 @@ SAMPLE_TREE = [
                 "questions": [
                     {
                         "id": "eeeee",
-                        "question": "Which rice is your favorite? {pic1}\\n{pic2}",
+                        "question": "Which rice is your favorite? {pic1}\n{pic2}",
                         "type":exercises.MULTIPLE_SELECTION,
                         "correct_answers": ["White rice {pic3}", "Brown rice", "Sushi rice"],
                         "all_answers": ["White rice {pic3}", "Quinoa","Brown rice"],
                         "hint": "",
                         "images":{
-                            "pic1": "http://images.wisegeek.com/cooked-jasmine-rice-in-a-bowl-with-chopsticks.jpg",
+                            "pic1": "file:///C:/Users/Jordan/Pictures/11881000_10207589179957262_1956307727_n.jpg",
                             "pic2": "http://discovermagazine.com/~/media/Images/Issues/2014/JanFeb/golden-rice.jpg",
                             "pic3": "http://i2.cdn.turner.com/cnnnext/dam/assets/150327114100-06-rice-stock-super-169.jpg",
                         },
@@ -152,7 +152,6 @@ def construct_channel(args):
     #     channel.children = channel.children[0].children
     #     channel.children = channel.children[0].children
     #     print(channel.size())
-    channel.print_tree()
 
     return channel
 
