@@ -81,11 +81,16 @@ class TreeModel:
     def add_child(self, node):
         self.children += [node]
 
-    def size(self):
+    def count(self):
         total = len(self.children)
         for child in self.children:
-            total += child.size()
+            total += child.count()
         return total
+
+    def print_tree(self, indent=0):
+        print("{indent}{title} ({kind}): {count} descendants".format(indent="\t" * indent, title=self.title, kind=self.__class__.__name__, count=self.count()))
+        for child in self.children:
+            child.print_tree(indent + 1)
 
 
 class Channel(TreeModel):
@@ -103,7 +108,7 @@ class Channel(TreeModel):
     def __init__(self, channel_id, domain=None, title=None, thumbnail=None, description=None):
         self.domain = domain
         self.id = uuid.uuid3(uuid.NAMESPACE_DNS, uuid.uuid5(uuid.NAMESPACE_DNS, channel_id).hex)
-        self.name = title
+        self.title = title
         self.thumbnail = self.encode_thumbnail(thumbnail)
         self.description = description
 
@@ -121,7 +126,7 @@ class Channel(TreeModel):
         """
         return {
             "id": self.id.hex,
-            "name": self.name,
+            "name": self.title,
             "has_changed": True,
             "thumbnail": self.thumbnail,
             "description": self.description if self.description is not None else "",

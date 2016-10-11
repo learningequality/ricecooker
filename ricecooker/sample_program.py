@@ -152,7 +152,7 @@ def construct_channel(args):
     #     channel.children = channel.children[0].children
     #     channel.children = channel.children[0].children
     #     print(channel.size())
-
+    channel.print_tree()
 
     return channel
 
