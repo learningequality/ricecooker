@@ -90,7 +90,6 @@ class PerseusQuestion(BaseQuestion):
             self.files += [filename]
             self._file_mapping.update({filename : {'original_filename': original_filename, 'source_url': path, 'size': file_size, 'preset': False}})
             self.raw_data = self.raw_data.replace(key, formatted_name)
-            print(self.raw_data)
         return images
 
 class MultipleSelectQuestion(BaseQuestion):
