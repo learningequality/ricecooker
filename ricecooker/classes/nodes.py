@@ -7,7 +7,6 @@ import json
 import tempfile
 import shutil
 import os
-from requests_file import FileAdapter
 from io import BytesIO
 from PIL import Image
 from ricecooker import config
@@ -22,13 +21,11 @@ def download_file(path, extension=None):
         @param files (list of files to download)
         @return list of file hashes and extensions
     """
-    s = requests.Session()
-    s.mount('file://', FileAdapter())
     hash = hashlib.md5()
 
     # Write file to temporary file
     with tempfile.TemporaryFile() as tempf:
-        r = s.get(path, stream=True)
+        r = config.SESSION.get(path, stream=True)
         r.raise_for_status()
         for chunk in r:
             hash.update(chunk)

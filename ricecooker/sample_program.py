@@ -79,7 +79,7 @@ SAMPLE_TREE = [
                 "id": "6cafe1",
                 "description": "Test how well you know your recipes",
                 "license": licenses.CC_BY_NC_SA,
-                "mastery_model": exercises.SKILL_CHECK,
+                "mastery_model": exercises.M_OF_N,
                 "questions": [
                     {
                         "id": "eeeee",
@@ -87,7 +87,6 @@ SAMPLE_TREE = [
                         "type":exercises.MULTIPLE_SELECTION,
                         "correct_answers": ["White rice {pic3}", "Brown rice", "Sushi rice"],
                         "all_answers": ["White rice {pic3}", "Quinoa","Brown rice"],
-                        "hint": "",
                         "images":{
                             "pic1": "file:///C:/Users/Jordan/Pictures/11881000_10207589179957262_1956307727_n.jpg",
                             "pic2": "http://discovermagazine.com/~/media/Images/Issues/2014/JanFeb/golden-rice.jpg",
@@ -100,7 +99,7 @@ SAMPLE_TREE = [
                         "type":exercises.SINGLE_SELECTION,
                         "correct_answer": "Rice Krispies",
                         "all_answers": ["White rice", "Brown rice", "Rice Krispies"],
-                        "hint": "Has rice in it",
+                        "hints": "Has rice in it",
                         "images":{
                             "rice": "http://www.riceoutlook.com/wp-content/uploads/2016/07/Taiwan-rice.jpg",
                         },
@@ -110,17 +109,17 @@ SAMPLE_TREE = [
                         "question": "Why a rice cooker?",
                         "type":exercises.FREE_RESPONSE,
                         "answers": [],
-                        "hint": "",
                         "images": None,
                     },
                     {
                         "id": "aaaaa",
                         "question": "How many minutes does it take to cook rice? {rice}",
                         "type":exercises.INPUT_QUESTION,
-                        "answers": ["20", "20.5", "19.5"],
-                        "hint": "Takes roughly same amount of time to install kolibri on Windows machine",
+                        "answers": ["20", "25", "15"],
+                        "hints": ["Takes roughly same amount of time to install kolibri on Windows machine", "Does this help?\n{timer}"],
                         "images":{
                             "rice": "https://upload.wikimedia.org/wikipedia/commons/5/5e/Jeera-rice.JPG",
+                            "timer": "http://www.aroma-housewares.com/images/rice101/delay_timer_1.jpg",
                         },
                     },
                     {
@@ -234,7 +233,7 @@ def _build_tree(node, sourcetree):
                 author=child_source_node.get("author"),
                 description=child_source_node.get("description"),
                 files=child_source_node.get("file"),
-                exercise_data={'mastery_model': child_source_node.get("mastery_model"), 'randomize': True},
+                exercise_data={'mastery_model': child_source_node.get("mastery_model"), 'randomize': True, 'm': 3, 'n': 5},
                 license=child_source_node.get("license"),
                 thumbnail=child_source_node.get("thumbnail"),
             )
@@ -256,7 +255,7 @@ def create_question(raw_question):
             question=raw_question["question"],
             correct_answers=raw_question["correct_answers"],
             all_answers=raw_question["all_answers"],
-            hint=raw_question["hint"],
+            hints=raw_question.get("hints"),
             images=raw_question["images"],
         )
     if raw_question["type"] == exercises.SINGLE_SELECTION:
@@ -265,7 +264,7 @@ def create_question(raw_question):
             question=raw_question["question"],
             correct_answer=raw_question["correct_answer"],
             all_answers=raw_question["all_answers"],
-            hint=raw_question["hint"],
+            hints=raw_question.get("hints"),
             images=raw_question["images"],
         )
     if raw_question["type"] == exercises.INPUT_QUESTION:
@@ -273,14 +272,14 @@ def create_question(raw_question):
             id=raw_question["id"],
             question=raw_question["question"],
             answers=raw_question["answers"],
-            hint=raw_question["hint"],
+            hints=raw_question.get("hints"),
             images=raw_question["images"],
         )
     if raw_question["type"] == exercises.FREE_RESPONSE:
         return FreeResponseQuestion(
             id=raw_question["id"],
             question=raw_question["question"],
-            hint=raw_question["hint"],
+            hints=raw_question.get("hints"),
             images=raw_question["images"],
         )
     if raw_question["type"] == exercises.PERSEUS_QUESTION:
