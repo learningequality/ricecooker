@@ -1,12 +1,8 @@
 import uuid
 import json
-from ricecooker.classes.nodes import download_file
+from ricecooker.classes.nodes import download_image
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
 from ricecooker.exceptions import UnknownQuestionTypeError, InvalidInputAnswerException
-
-def download_image(path):
-    filename, original_filename, path, file_size = download_file(path, '.{}'.format(file_formats.PNG))
-    return '![]' + exercises.IMG_FORMAT.format(filename), filename, original_filename, path, file_size
 
 class BaseQuestion:
     """ Base model representing exercise questions
@@ -31,7 +27,6 @@ class BaseQuestion:
         self.raw_data = raw_data
         self.images = {} if images is None else self.download_images(images)
         self.id = uuid.uuid5(uuid.NAMESPACE_DNS, id)
-        print(json.dumps([{"answer": self.map_images(answer['answer']), "correct":answer['correct']} for answer in self.answers], ensure_ascii=False).encode('utf-8'))
 
     def to_dict(self):
         """ to_dict: puts data in format CC expects

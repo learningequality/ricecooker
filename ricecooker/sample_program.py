@@ -63,6 +63,7 @@ SAMPLE_TREE = [
                 "file": "https://archive.org/download/SmokedBrisketRecipe/smokedbrisketrecipebybradleysmoker.mp4",
                 "subtitle": "something.vtt",
                 "license": licenses.CC_BY,
+                "thumbnail" : "https://www.kingsford.com/wp-content/uploads/2014/12/kfd-howtosmokebrisket-Brisket5_0267-1024x621.jpg",
             },
             {
                 "title": "Food Mob Bites 10: Garlic Bread",
@@ -71,6 +72,7 @@ SAMPLE_TREE = [
                 "description": "Basic garlic bread recipe.",
                 "file": "file:///C:/Users/Jordan/Documents/Documents/College/199 RESEARCH/Winter 2015/Fostering Improved Learning in Math.pdf",
                 "license": licenses.CC_BY_NC_SA,
+                "thumbnail":"http://foodnetwork.sndimg.com/content/dam/images/food/fullset/2015/5/28/2/TM1A14F_Garlic-Bread_s4x3.jpg",
             },
             {
                 "title": "Recipe Exercise",
@@ -190,10 +192,11 @@ def _build_tree(node, sourcetree):
                 # video-specific data
                 preset=format_presets.VIDEO_HIGH_RES,
                 transcode_to_lower_resolutions=True,
-                derive_thumbnail=True,
+                derive_thumbnail=False,
 
                 # audio and video shared data
                 subtitle=child_source_node.get("subtitle"),
+                thumbnail=child_source_node.get("thumbnail"),
             )
             node.add_child(child_node)
 
@@ -208,6 +211,7 @@ def _build_tree(node, sourcetree):
 
                 # audio and video shared data
                 subtitle=child_source_node.get("subtitle"),
+                thumbnail=child_source_node.get("thumbnail"),
             )
             node.add_child(child_node)
 
@@ -219,6 +223,7 @@ def _build_tree(node, sourcetree):
                 description=child_source_node.get("description"),
                 files=child_source_node.get("file"),
                 license=child_source_node.get("license"),
+                thumbnail=child_source_node.get("thumbnail"),
             )
             node.add_child(child_node)
 
@@ -231,6 +236,7 @@ def _build_tree(node, sourcetree):
                 files=child_source_node.get("file"),
                 exercise_data={'mastery_model': child_source_node.get("mastery_model"), 'randomize': True},
                 license=child_source_node.get("license"),
+                thumbnail=child_source_node.get("thumbnail"),
             )
             for q in child_source_node.get("questions"):
                 question = create_question(q)

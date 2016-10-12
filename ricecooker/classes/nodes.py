@@ -13,6 +13,10 @@ from PIL import Image
 from ricecooker import config
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
 
+def download_image(path):
+    filename, original_filename, path, file_size = download_file(path, '.{}'.format(file_formats.PNG))
+    return '![]' + exercises.IMG_FORMAT.format(filename), filename, original_filename, path, file_size
+
 def download_file(path, extension=None):
     """ download_file: downloads files to local storage
         @param files (list of files to download)
@@ -171,16 +175,21 @@ class Node(TreeModel):
             license (str): content's license (using constants from fle_utils)
             files (str or list): content's associated file(s)
     """
-    def __init__(self, id, title, description, author=None, license=None, files=None, questions=None, extra_fields=None):
-        self.id = id
-        self.title = title
-        self.description = description
-        self.author = author
-        self.license = license
-        self.children = []
-        self.files = [] if files is None else [files] if isinstance(files, str) else files
-        self.questions = [] if questions is None else questions
-        self.extra_fields = {} if extra_fields is None else extra_fields
+    def __init__(self, *args, **kwargs):
+        self.id = args[0]
+        self.title = args[1]
+        self.description = "" if 'description' not in kwargs else kwargs['description']
+        self.author = kwargs['author']
+        self.license = None if 'license' not in kwargs else kwargs['license']
+
+        files = [] if 'files' not in kwargs else kwargs['files']
+        self.files = [files] if isinstance(files, str) else files
+        if 'thumbnail' in kwargs and kwargs['thumbnail'] is not None:
+            self.files.append(kwargs['thumbnail'])
+
+        self.questions = [] if 'questions' not in kwargs else kwargs['questions']
+        self.extra_fields = {} if 'extra_fields' not in kwargs else kwargs['extra_fields']
+
         super(Node, self).__init__()
 
 
@@ -226,9 +235,9 @@ class Topic(Node):
             description (str): description of content
             author (str): who created the content
     """
-    def __init__(self, id, title, description=None, author=None):
+    def __init__(self, id, title, description="", author=None):
         self.kind = content_kinds.TOPIC
-        super(Topic, self).__init__(id, title, description, author)
+        super(Topic, self).__init__(id, title, description=description, author=author)
 
 
 
@@ -250,15 +259,15 @@ class Video(Node):
             files (str or list): content's associated file(s)
     """
     default_preset = format_presets.VIDEO_HIGH_RES
-    def __init__(self, id, title, author=None, description=None, transcode_to_lower_resolutions=False, derive_thumbnail=False, license=None, subtitle=None, files=None, preset=None):
+    def __init__(self, id, title, author=None, description=None, transcode_to_lower_resolutions=False, derive_thumbnail=False, license=None, subtitle=None, files=None, preset=None, thumbnail=None):
         if preset is not None:
             self.default_preset = preset
         if transcode_to_lower_resolutions:
             self.transcode_to_lower_resolutions()
         if derive_thumbnail:
-            self.derive_thumbnail()
+            thumbnail = self.derive_thumbnail()
         self.kind = content_kinds.VIDEO
-        super(Video, self).__init__(id, title, description, author, license, files)
+        super(Video, self).__init__(id, title, description=description, author=author, license=license, files=files, thumbnail=thumbnail)
 
     def derive_thumbnail(self):
         """ derive_thumbnail: derive video's thumbnail
@@ -291,9 +300,9 @@ class Audio(Node):
             files (str or list): content's associated file(s)
     """
     default_preset = format_presets.AUDIO
-    def __init__(self, id, title, author=None, description=None, license=None, subtitle=None, files=None):
+    def __init__(self, id, title, author=None, description="", license=None, subtitle=None, files=None, thumbnail=None):
         self.kind = content_kinds.AUDIO
-        super(Audio, self).__init__(id, title, description, author, license, files)
+        super(Audio, self).__init__(id, title, description=description, author=author, license=license, files=files, thumbnail=thumbnail)
 
 
 
@@ -311,9 +320,9 @@ class Document(Node):
             files (str or list): content's associated file(s)
     """
     default_preset = format_presets.DOCUMENT
-    def __init__(self, id, title, author=None, description=None, license=None, files=None):
+    def __init__(self, id, title, author=None, description=None, license=None, files=None, thumbnail=None):
         self.kind = content_kinds.DOCUMENT
-        super(Document, self).__init__(id, title, description, author, license, files)
+        super(Document, self).__init__(id, title, description=description, author=author, license=license, files=files, thumbnail=thumbnail)
 
 
 
@@ -332,13 +341,13 @@ class Exercise(Node):
             files (str or list): content's associated file(s)
     """
     default_preset = format_presets.EXERCISE
-    def __init__(self, id, title, author=None, description=None, license=None, files=None, exercise_data=None):
+    def __init__(self, id, title, author=None, description=None, license=None, files=None, exercise_data=None, thumbnail=None):
         self.kind = content_kinds.EXERCISE
         self.questions = []
 
         files = [] if files is None else files
         exercise_data = {} if exercise_data is None else exercise_data
-        super(Exercise, self).__init__(id, title, description, author, license, files, self.questions, exercise_data)
+        super(Exercise, self).__init__(id, title, description=description, author=author, license=license, files=files, questions=self.questions, extra_fields=exercise_data,thumbnail=thumbnail)
 
     def add_question(self, question):
         self.questions += [question]
