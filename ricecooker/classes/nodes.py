@@ -87,9 +87,12 @@ class TreeModel:
         return total
 
     def print_tree(self, indent=1):
-        print("{indent}{title} ({kind}): {count} descendants".format(indent="   " * indent, title=self.title, kind=self.__class__.__name__, count=self.count()))
+        print("{indent}{data}".format(indent="   " * indent, data=str(self)))
         for child in self.children:
             child.print_tree(indent + 1)
+
+    def __str__(self):
+        pass
 
 
 class Channel(TreeModel):
@@ -157,6 +160,10 @@ class Channel(TreeModel):
             img.save(bufferstream, format="PNG")
             return "data:image/png;base64," + base64.b64encode(bufferstream.getvalue()).decode('utf-8')
 
+    def __str__(self):
+        count = self.count()
+        metadata = "{0} {1}".format(count, "descendant" if count == 1 else "descendants")
+        return "{title} ({kind}): {metadata}".format(title=self.title, kind=self.__class__.__name__, metadata=metadata)
 
 
 class Node(TreeModel):
@@ -236,6 +243,10 @@ class Topic(Node):
         self.kind = content_kinds.TOPIC
         super(Topic, self).__init__(id, title, description=description, author=author)
 
+    def __str__(self):
+        count = self.count()
+        metadata = "{0} {1}".format(count, "descendant" if count == 1 else "descendants")
+        return "{title} ({kind}): {metadata}".format(title=self.title, kind=self.__class__.__name__, metadata=metadata)
 
 
 class Video(Node):
@@ -280,6 +291,9 @@ class Video(Node):
         """
         pass
 
+    def __str__(self):
+        metadata = "{0} {1}".format(len(self.files), "file" if len(self.files) == 1 else "files")
+        return "{title} ({kind}): {metadata}".format(title=self.title, kind=self.__class__.__name__, metadata=metadata)
 
 
 class Audio(Node):
@@ -301,7 +315,9 @@ class Audio(Node):
         self.kind = content_kinds.AUDIO
         super(Audio, self).__init__(id, title, description=description, author=author, license=license, files=files, thumbnail=thumbnail)
 
-
+    def __str__(self):
+        metadata = "{0} {1}".format(len(self.files), "file" if len(self.files) == 1 else "files")
+        return "{title} ({kind}): {metadata}".format(title=self.title, kind=self.__class__.__name__, metadata=metadata)
 
 class Document(Node):
     """ Model representing documents in channel
@@ -321,7 +337,9 @@ class Document(Node):
         self.kind = content_kinds.DOCUMENT
         super(Document, self).__init__(id, title, description=description, author=author, license=license, files=files, thumbnail=thumbnail)
 
-
+    def __str__(self):
+        metadata = "{0} {1}".format(len(self.files), "file" if len(self.files) == 1 else "files")
+        return "{title} ({kind}): {metadata}".format(title=self.title, kind=self.__class__.__name__, metadata=metadata)
 
 class Exercise(Node):
     """ Model representing exercises in channel
@@ -375,3 +393,7 @@ class Exercise(Node):
             "questions": [question.to_dict() for question in self.questions],
             "extra_fields": json.dumps(self.extra_fields),
         }
+
+    def __str__(self):
+        metadata = "{0} {1}".format(len(self.questions), "question" if len(self.questions) == 1 else "questions")
+        return "{title} ({kind}): {metadata}".format(title=self.title, kind=self.__class__.__name__, metadata=metadata)
