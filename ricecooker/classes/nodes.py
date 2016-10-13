@@ -87,7 +87,7 @@ class TreeModel:
         return total
 
     def print_tree(self, indent=1):
-        print("{indent}{title} ({kind}): {count} descendants".format(indent="  " * indent, title=self.title, kind=self.__class__.__name__, count=self.count()))
+        print("{indent}{title} ({kind}): {count} descendants".format(indent="   " * indent, title=self.title, kind=self.__class__.__name__, count=self.count()))
         for child in self.children:
             child.print_tree(indent + 1)
 

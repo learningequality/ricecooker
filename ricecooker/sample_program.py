@@ -72,7 +72,7 @@ SAMPLE_TREE = [
                 "description": "Basic garlic bread recipe.",
                 "file": "file:///C:/Users/Jordan/Documents/Documents/College/199 RESEARCH/Winter 2015/Fostering Improved Learning in Math.pdf",
                 "license": licenses.CC_BY_NC_SA,
-                "thumbnail":"http://foodnetwork.sndimg.com/content/dam/images/food/fullset/2015/5/28/2/TM1A14F_Garlic-Bread_s4x3.jpg",
+                "thumbnail":"https://cdn.kastatic.org/googleusercontent/4hbrDZGnw8OZKYo17pK-cA00doPXlaO_P_Gj8XGBZ5wYZZ6krD-4STwQ1b0nwY6jpLKB5dDBJEt2brKXdNW0dT0I",
             },
             {
                 "title": "Recipe Exercise",

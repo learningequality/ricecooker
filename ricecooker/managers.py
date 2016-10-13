@@ -8,6 +8,7 @@ import os
 from ricecooker import config
 from ricecooker.classes import nodes
 from ricecooker.exceptions import InvalidFormatException
+from le_utils.constants import file_formats
 
 """ ChannelManager: used to process channel and communicate to content curation server
     @param channel (Channel to process)
@@ -45,11 +46,17 @@ class ChannelManager:
     """
     def download_files(self,files):
         hashes = [] # list of downloaded files (format:[{hash}.{ext}, {hash}.{ext}...]
+        all_file_extensions = [key for key, value in file_formats.choices]
         for f in files:
+            file_data = f.split('/')[-1]
             if self.verbose:
-                print("\tDownloading {0}...".format(f.split('/')[-1]))
+                print("\tDownloading {0}...".format(file_data))
 
-            filename, original_filename, source_url, file_size = nodes.download_file(f)
+            extension = None
+            if file_data.split(".")[-1] not in all_file_extensions:
+                extension = '.{}'.format(file_formats.PNG)
+
+            filename, original_filename, source_url, file_size = nodes.download_file(f, extension=extension)
             hashes += [filename]
             self._file_mapping.update({filename : {'original_filename': original_filename, 'source_url': source_url, 'size': file_size, 'preset': True}})
         return hashes
