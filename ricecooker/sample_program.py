@@ -8,7 +8,7 @@ SAMPLE_PERSEUS = '{"answerArea":{"chi2Table":false,"periodicTable":false,"tTable
 '"question":{"widgets":{"radio 1":{"type":"radio","alignment":"default","graded":true,"static":false,' +\
 '"options":{"deselectEnabled":false,"multipleSelect":false,"choices":[{"correct":true,"content":"Yes"},{"correct":false,"content":"No"}],' +\
 '"displayCount":null,"hasNoneOfTheAbove":false,"randomize":false,"onePerLine":true},"version":{"minor":0,"major":1}}},"images":{},' +\
-'"content":"Do you like rice?\\n\\n({ricegrain}/https://upload.wikimedia.org/wikipedia/commons/a/a1/2014_uncooked_Thai_glutinous_rice.jpg)\\n\\n[[\\u2603 radio 1]]"},"itemDataVersion":{"minor":1,"major":0}}'
+'"content":"Do you like rice?\\n\\n![](web+graphie:file:///C:/Users/Jordan/contentcuration-dump/test)\\n\\n[[\\u2603 radio 1]]"},"itemDataVersion":{"minor":1,"major":0}}'
 
 SAMPLE_TREE = [
     {
@@ -80,29 +80,22 @@ SAMPLE_TREE = [
                 "description": "Test how well you know your recipes",
                 "license": licenses.CC_BY_NC_SA,
                 "mastery_model": exercises.M_OF_N,
+                "thumbnail":"https://cdn.kastatic.org/googleusercontent/4hbrDZGnw8OZKYo17pK-cA00doPXlaO_P_Gj8XGBZ5wYZZ6krD-4STwQ1b0nwY6jpLKB5dDBJEt2brKXdNW0dT0I",
                 "questions": [
                     {
                         "id": "eeeee",
-                        "question": "Which rice is your favorite? {pic1}\n{pic2}",
+                        "question": "Which rice is your favorite? ![](file:///C:/Users/Jordan/Pictures/11881000_10207589179957262_1956307727_n.jpg)\n![](http://discovermagazine.com/~/media/Images/Issues/2014/JanFeb/golden-rice.jpg)",
                         "type":exercises.MULTIPLE_SELECTION,
-                        "correct_answers": ["White rice {pic3}", "Brown rice", "Sushi rice"],
-                        "all_answers": ["White rice {pic3}", "Quinoa","Brown rice"],
-                        "images":{
-                            "pic1": "file:///C:/Users/Jordan/Pictures/11881000_10207589179957262_1956307727_n.jpg",
-                            "pic2": "http://discovermagazine.com/~/media/Images/Issues/2014/JanFeb/golden-rice.jpg",
-                            "pic3": "http://i2.cdn.turner.com/cnnnext/dam/assets/150327114100-06-rice-stock-super-169.jpg",
-                        },
+                        "correct_answers": ["White rice ![](http://i2.cdn.turner.com/cnnnext/dam/assets/150327114100-06-rice-stock-super-169.jpg)", "Brown rice", "Sushi rice"],
+                        "all_answers": ["White rice ![](http://i2.cdn.turner.com/cnnnext/dam/assets/150327114100-06-rice-stock-super-169.jpg)", "Quinoa","Brown rice"],
                     },
                     {
                         "id": "bbbbb",
-                        "question": "Which rice is the crunchiest?{rice}",
+                        "question": "Which rice is the crunchiest?![](http://www.riceoutlook.com/wp-content/uploads/2016/07/Taiwan-rice.jpg)",
                         "type":exercises.SINGLE_SELECTION,
                         "correct_answer": "Rice Krispies",
                         "all_answers": ["White rice", "Brown rice", "Rice Krispies"],
                         "hints": "Has rice in it",
-                        "images":{
-                            "rice": "http://www.riceoutlook.com/wp-content/uploads/2016/07/Taiwan-rice.jpg",
-                        },
                     },
                     {
                         "id": "ccccc",
@@ -113,22 +106,15 @@ SAMPLE_TREE = [
                     },
                     {
                         "id": "aaaaa",
-                        "question": "How many minutes does it take to cook rice? {rice}",
+                        "question": "How many minutes does it take to cook rice? ![](https://upload.wikimedia.org/wikipedia/commons/5/5e/Jeera-rice.JPG)",
                         "type":exercises.INPUT_QUESTION,
                         "answers": ["20", "25", "15"],
-                        "hints": ["Takes roughly same amount of time to install kolibri on Windows machine", "Does this help?\n{timer}"],
-                        "images":{
-                            "rice": "https://upload.wikimedia.org/wikipedia/commons/5/5e/Jeera-rice.JPG",
-                            "timer": "http://www.aroma-housewares.com/images/rice101/delay_timer_1.jpg",
-                        },
+                        "hints": ["Takes roughly same amount of time to install kolibri on Windows machine", "Does this help?\n![](http://www.aroma-housewares.com/images/rice101/delay_timer_1.jpg)"],
                     },
                     {
                         "id": "ddddd",
                         "type":exercises.PERSEUS_QUESTION,
                         "item_data":SAMPLE_PERSEUS,
-                        "images":{
-                            "({ricegrain}/https://upload.wikimedia.org/wikipedia/commons/a/a1/2014_uncooked_Thai_glutinous_rice.jpg)": "https://upload.wikimedia.org/wikipedia/commons/a/a1/2014_uncooked_Thai_glutinous_rice.jpg",
-                        },
                     },
                 ],
             },
@@ -256,7 +242,6 @@ def create_question(raw_question):
             correct_answers=raw_question["correct_answers"],
             all_answers=raw_question["all_answers"],
             hints=raw_question.get("hints"),
-            images=raw_question["images"],
         )
     if raw_question["type"] == exercises.SINGLE_SELECTION:
         return SingleSelectQuestion(
@@ -265,7 +250,6 @@ def create_question(raw_question):
             correct_answer=raw_question["correct_answer"],
             all_answers=raw_question["all_answers"],
             hints=raw_question.get("hints"),
-            images=raw_question["images"],
         )
     if raw_question["type"] == exercises.INPUT_QUESTION:
         return InputQuestion(
@@ -273,20 +257,17 @@ def create_question(raw_question):
             question=raw_question["question"],
             answers=raw_question["answers"],
             hints=raw_question.get("hints"),
-            images=raw_question["images"],
         )
     if raw_question["type"] == exercises.FREE_RESPONSE:
         return FreeResponseQuestion(
             id=raw_question["id"],
             question=raw_question["question"],
             hints=raw_question.get("hints"),
-            images=raw_question["images"],
         )
     if raw_question["type"] == exercises.PERSEUS_QUESTION:
         return PerseusQuestion(
             id=raw_question["id"],
             raw_data=raw_question["item_data"],
-            images=raw_question["images"],
         )
     else:
         raise UnknownQuestionTypeError("Unrecognized question type '{0}': accepted types are {1}".format(raw_question["type"], [key for key, value in exercises.question_choices]))

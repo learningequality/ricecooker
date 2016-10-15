@@ -1,8 +1,11 @@
 import uuid
 import json
-from ricecooker.classes.nodes import download_image
+import re
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
 from ricecooker.exceptions import UnknownQuestionTypeError, InvalidInputAnswerException, MissingKeyException
+
+WEB_GRAPHIE_URL_REGEX = r'web\+graphie:([^\)]+)'
+FILE_REGEX = r'!\[([^\]]+)?\]\(([^\)]+)\)'
 
 class BaseQuestion:
     """ Base model representing exercise questions
@@ -17,15 +20,12 @@ class BaseQuestion:
             hints (str or [str]): optional hints on how to answer question
             images ({key:str, ...}): a dict mapping image placeholder names to path to image
     """
-    def __init__(self, id, question, question_type, answers=None, hints=None, images=None, raw_data=""):
+    def __init__(self, id, question, question_type, answers=None, hints=None, raw_data=""):
         self.question = question
         self.question_type = question_type
         self.answers = answers if answers is not None else []
         self.hints = [] if hints is None else [hints] if isinstance(hints,str) else hints
-        self._file_mapping = {}
-        self.files = []
         self.raw_data = raw_data
-        self.images = {} if images is None else self.download_images(images)
         self.id = uuid.uuid5(uuid.NAMESPACE_DNS, id)
 
     def to_dict(self):
@@ -36,29 +36,61 @@ class BaseQuestion:
         return {
             "assessment_id": self.id.hex,
             "type": self.question_type,
-            "question": self.map_images(self.question),
-            "hints": json.dumps([{"hint":self.map_images(h)} for h in self.hints], ensure_ascii=False),
-            "answers": json.dumps([{"answer": self.map_images(answer['answer']), "correct":answer['correct']} for answer in self.answers], ensure_ascii=False),
+            "question": self.question,
+            "hints": json.dumps(self.hints, ensure_ascii=False),
+            "answers": json.dumps(self.answers, ensure_ascii=False),
             "raw_data": self.raw_data,
         }
 
     def create_answer(self, answer, correct=True):
         return {"answer": str(answer), "correct":correct}
 
-    def download_images(self, images):
-        for key in images:
-            formatted_name, filename, original_filename, path, file_size = download_image(images[key])
-            images[key] = formatted_name
-            self.files += [filename]
-            self._file_mapping.update({filename : {'original_filename': original_filename, 'source_url': path, 'size': file_size, 'preset': False}})
-        return images
+    def process_question(self, downloader):
+        # Process question
+        self.question, question_files = self.set_images(self.question, downloader)
 
-    def map_images(self, text):
-        try:
-            mapping = self.images if self.images is not None else {}
-            return text.format(**mapping)
-        except KeyError:
-            raise MissingKeyException("Missing key from images: {} (use double braces for text if not an image)".format(mapping))
+        # Process answers
+        answers = []
+        answer_files = []
+        for answer in self.answers:
+            processed_string, afiles = self.set_images(answer['answer'], downloader)
+            answers += [{"answer": processed_string, "correct":answer['correct']}]
+            answer_files += afiles
+        self.answers = answers
+
+        # Process hints
+        hints = []
+        hint_files = []
+        for hint in self.hints:
+            processed_string, hfiles = self.set_images(hint, downloader)
+            hints += [{"hint":processed_string}]
+            hint_files += hfiles
+        self.hints = hints
+
+        # Process raw data
+        self.raw_data, data_files = self.set_images(self.raw_data, downloader)
+
+        # Return all files
+        return question_files + answer_files + hint_files + data_files
+
+    def set_images(self, text, downloader):
+        file_list = []
+        processed_string = text
+        reg = re.compile(FILE_REGEX, flags=re.IGNORECASE)
+        graphie_reg = re.compile(WEB_GRAPHIE_URL_REGEX, flags=re.IGNORECASE)
+        matches = reg.findall(processed_string)
+        for match in matches:
+            graphie_match = graphie_reg.match(match[1])
+            if graphie_match is not None:
+                link = graphie_match.group().replace("web+graphie:", "")
+                filename, svg_filename, json_filename = downloader.download_graphie(link)
+                processed_string = processed_string.replace(link, exercises.CONTENT_STORAGE_FORMAT.format(filename))
+                file_list += [svg_filename, json_filename]
+            else:
+                filename = downloader.download_file(match[1], preset=format_presets.EXERCISE_IMAGE)
+                processed_string = processed_string.replace(match[1], exercises.CONTENT_STORAGE_FORMAT.format(filename))
+                file_list += [filename]
+        return processed_string, file_list
 
 class PerseusQuestion(BaseQuestion):
     """ Model representing perseus questions
@@ -73,18 +105,10 @@ class PerseusQuestion(BaseQuestion):
             images ({key:str, ...}): a dict mapping image string to replace to path to image
     """
 
-    def __init__(self, id, raw_data, images=None):
+    def __init__(self, id, raw_data):
         raw_data = raw_data if isinstance(raw_data, str) else json.dumps(raw_data)
-        super(PerseusQuestion, self).__init__(id, "", exercises.PERSEUS_QUESTION, [], [], images, raw_data)
+        super(PerseusQuestion, self).__init__(id, "", exercises.PERSEUS_QUESTION, [], [], raw_data)
 
-    def download_images(self, images):
-        for key in images:
-            formatted_name, filename, original_filename, path, file_size = download_image(images[key])
-            images[key] = formatted_name
-            self.files += [filename]
-            self._file_mapping.update({filename : {'original_filename': original_filename, 'source_url': path, 'size': file_size, 'preset': False}})
-            self.raw_data = self.raw_data.replace(key, formatted_name)
-        return images
 
 class MultipleSelectQuestion(BaseQuestion):
     """ Model representing multiple select questions
@@ -102,11 +126,11 @@ class MultipleSelectQuestion(BaseQuestion):
             images ({key:str, ...}): a dict mapping image placeholder names to path to image
     """
 
-    def __init__(self, id, question, correct_answers, all_answers, hints="", images=None):
+    def __init__(self, id, question, correct_answers, all_answers, hints=""):
         set_all_answers = set(all_answers)
         all_answers += [answer for answer in correct_answers if answer not in set_all_answers]
         answers = [self.create_answer(answer, answer in correct_answers) for answer in all_answers]
-        super(MultipleSelectQuestion, self).__init__(id, question, exercises.MULTIPLE_SELECTION, answers, hints, images)
+        super(MultipleSelectQuestion, self).__init__(id, question, exercises.MULTIPLE_SELECTION, answers, hints)
 
 class SingleSelectQuestion(BaseQuestion):
     """ Model representing single select questions
@@ -122,11 +146,11 @@ class SingleSelectQuestion(BaseQuestion):
             hint (str): optional hint on how to answer question
             images ({key:str, ...}): a dict mapping image placeholder names to path to image
     """
-    def __init__(self, id, question, correct_answer, all_answers, hints="", images=None):
+    def __init__(self, id, question, correct_answer, all_answers, hints=""):
         if correct_answer not in all_answers:
             all_answers += [correct_answer]
         answers = [self.create_answer(answer, answer==correct_answer) for answer in all_answers]
-        super(SingleSelectQuestion, self).__init__(id, question, exercises.SINGLE_SELECTION, answers, hints, images)
+        super(SingleSelectQuestion, self).__init__(id, question, exercises.SINGLE_SELECTION, answers, hints)
 
 class FreeResponseQuestion(BaseQuestion):
     """ Model representing free response questions
@@ -141,8 +165,8 @@ class FreeResponseQuestion(BaseQuestion):
             hint (str): optional hint on how to answer question
             images ({key:str, ...}): a dict mapping image placeholder names to path to image
     """
-    def __init__(self, id, question, hints="", images=None):
-        super(FreeResponseQuestion, self).__init__(id, question, exercises.FREE_RESPONSE, [], hints, images)
+    def __init__(self, id, question, hints=""):
+        super(FreeResponseQuestion, self).__init__(id, question, exercises.FREE_RESPONSE, [], hints)
 
 class InputQuestion(BaseQuestion):
     """ Model representing input questions
@@ -157,6 +181,6 @@ class InputQuestion(BaseQuestion):
             hint (str): optional hint on how to answer question
             images ({key:str, ...}): a dict mapping image placeholder names to path to image
     """
-    def __init__(self, id, question, answers, hints="", images=None):
+    def __init__(self, id, question, answers, hints=""):
         answers = [self.create_answer(answer) for answer in answers]
-        super(InputQuestion, self).__init__(id, question, exercises.INPUT_QUESTION, answers, hints, images)
+        super(InputQuestion, self).__init__(id, question, exercises.INPUT_QUESTION, answers, hints)

@@ -1,6 +1,5 @@
 import os
 import requests
-from requests_file import FileAdapter
 
 PRODUCTION_DOMAIN = "https://contentworkshop.learningequality.org"
 DEBUG_DOMAIN = "http://127.0.0.1:8000"
@@ -12,8 +11,6 @@ OPEN_CHANNEL_URL = "{domain}/open_channel/{invitation_id}/{channel_id}"
 
 STORAGE_DIRECTORY = "storage/"
 
-SESSION = requests.Session()
-SESSION.mount('file://', FileAdapter())
 
 def get_storage_path(filename):
 	return os.path.join(STORAGE_DIRECTORY, filename)

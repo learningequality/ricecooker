@@ -1,48 +1,9 @@
 import uuid
-import hashlib
-import base64
-import requests
-import validators
 import json
-import tempfile
-import shutil
-import os
-from io import BytesIO
-from PIL import Image
-from ricecooker import config
+from ricecooker.managers import DownloadManager
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
 
-def download_image(path):
-    filename, original_filename, path, file_size = download_file(path, '.{}'.format(file_formats.PNG))
-    return '![]' + exercises.IMG_FORMAT.format(filename), filename, original_filename, path, file_size
-
-def download_file(path, extension=None):
-    """ download_file: downloads files to local storage
-        @param files (list of files to download)
-        @return list of file hashes and extensions
-    """
-    hash = hashlib.md5()
-
-    # Write file to temporary file
-    with tempfile.TemporaryFile() as tempf:
-        r = config.SESSION.get(path, stream=True)
-        r.raise_for_status()
-        for chunk in r:
-            hash.update(chunk)
-            tempf.write(chunk)
-
-        # Get file metadata (hashed filename, original filename, size)
-        hashstring = hash.hexdigest()
-        original_filename = path.split("/")[-1].split(".")[0]
-        filename = '{0}{ext}'.format(hashstring, ext=os.path.splitext(path)[-1] if extension is None else extension)
-        file_size = tempf.tell()
-        tempf.seek(0)
-
-        # Write file to local storage
-        with open(config.get_storage_path(filename), 'wb') as destf:
-            shutil.copyfileobj(tempf, destf)
-
-    return filename, original_filename, path, file_size
+downloader = DownloadManager()
 
 def guess_content_kind(files, questions=None):
     """ guess_content_kind: determines what kind the content is
@@ -111,7 +72,7 @@ class Channel(TreeModel):
         self.domain = domain
         self.id = uuid.uuid3(uuid.NAMESPACE_DNS, uuid.uuid5(uuid.NAMESPACE_DNS, channel_id).hex)
         self.title = title
-        self.thumbnail = self.encode_thumbnail(thumbnail)
+        self.thumbnail = downloader.encode_thumbnail(thumbnail)
         self.description = description
 
         # Add data to be used in next steps
@@ -134,31 +95,6 @@ class Channel(TreeModel):
             "description": self.description if self.description is not None else "",
             "children": [child_node.to_dict() for child_node in self.children],
         }
-
-
-    def encode_thumbnail(self, thumbnail):
-        """ encode_thumbnail: gets base64 encoding of thumbnail
-            Args:
-                thumbnail (str): file path or url to channel's thumbnail
-            Returns: base64 encoding of thumbnail
-        """
-        if thumbnail is None:
-            return None
-        else:
-            if validators.url(thumbnail):
-                r = requests.get(thumbnail, stream=True)
-                if r.status_code == 200:
-                    thumbnail = tempfile.TemporaryFile()
-                    for chunk in r:
-                        thumbnail.write(chunk)
-
-            img = Image.open(thumbnail)
-            width = 200
-            height = int((float(img.size[1])*float(width/float(img.size[0]))))
-            img.thumbnail((width,height), Image.ANTIALIAS)
-            bufferstream = BytesIO()
-            img.save(bufferstream, format="PNG")
-            return "data:image/png;base64," + base64.b64encode(bufferstream.getvalue()).decode('utf-8')
 
     def __str__(self):
         count = self.count()
@@ -367,13 +303,9 @@ class Exercise(Node):
     def add_question(self, question):
         self.questions += [question]
 
-    def get_all_files(self):
-        files = {}
-        file_list = []
+    def process_questions(self, downloader):
         for question in self.questions:
-            files.update(question._file_mapping)
-            file_list += question.files
-        return files, file_list
+            self.files += question.process_question(downloader)
 
     def to_dict(self):
         """ to_dict: puts data in format CC expects
@@ -387,7 +319,7 @@ class Exercise(Node):
             "content_id": self.content_id.hex,
             "author": self.author if self.author is not None else "",
             "children": [child_node.to_dict() for child_node in self.children],
-            "files" : self.get_all_files()[1],
+            "files" : self.files,
             "kind": self.kind,
             "license": self.license,
             "questions": [question.to_dict() for question in self.questions],
