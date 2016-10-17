@@ -1,3 +1,4 @@
+import webbrowser
 from ricecooker.classes import *
 from ricecooker.managers import ChannelManager
 
@@ -38,4 +39,5 @@ def uploadchannel(path, domain, verbose=False):
     channel_link = tree.upload_tree() # Create tree
 
     print("DONE: Channel created at {0}".format(channel_link))
+    webbrowser.open_new_tab(channel_link)
     return channel_link
