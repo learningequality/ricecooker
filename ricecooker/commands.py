@@ -14,6 +14,8 @@ def uploadchannel(path, domain, verbose=False):
         print("\n\n***** Starting channel build process *****")
         print("Constructing channel...")
     channel = construct_channel({}) # Create channel (using method from imported file)
+    if verbose:
+        channel.print_tree()
 
     if verbose:
         print("Setting up initial channel structure...")

@@ -1,10 +1,19 @@
-PRODUCTION_DOMAIN = "contentworkshop.learningequality.org"
-DEBUG_DOMAIN = "127.0.0.1:8000"
+import os
+import requests
 
-FILE_DIFF_URL = "http://{domain}/api/internal/file_diff"
-FILE_UPLOAD_URL = "http://{domain}/api/internal/file_upload"
-CREATE_CHANNEL_URL = "http://{domain}/api/internal/create_channel"
-OPEN_CHANNEL_URL = "http://{domain}/open_channel/{invitation_id}/{channel_id}"
+PRODUCTION_DOMAIN = "https://contentworkshop.learningequality.org"
+DEBUG_DOMAIN = "http://127.0.0.1:8000"
+
+FILE_DIFF_URL = "{domain}/api/internal/file_diff"
+FILE_UPLOAD_URL = "{domain}/api/internal/file_upload"
+CREATE_CHANNEL_URL = "{domain}/api/internal/create_channel"
+OPEN_CHANNEL_URL = "{domain}/open_channel/{invitation_id}/{channel_id}"
+
+STORAGE_DIRECTORY = "storage/"
+
+
+def get_storage_path(filename):
+	return os.path.join(STORAGE_DIRECTORY, filename)
 
 def file_diff_url(domain):
 	return FILE_DIFF_URL.format(domain=domain)
