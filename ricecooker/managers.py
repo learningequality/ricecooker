@@ -54,8 +54,8 @@ class DownloadManager:
         hash = self.get_hash(rjson, hash)
 
         # Download files
-        svg_filename = self.download_file(svg_path, hash, '.{}'.format(file_formats.SVG), format_presets.EXERCISE_GRAPHIE)
-        json_filename = self.download_file(json_path, hash, '-data.{}'.format(file_formats.JSON), format_presets.EXERCISE_GRAPHIE)
+        svg_filename = self.download_file(svg_path, hash, '.{}'.format(file_formats.SVG), format_presets.EXERCISE_GRAPHIE, True)
+        json_filename = self.download_file(json_path, hash, '-data.{}'.format(file_formats.JSON), format_presets.EXERCISE_GRAPHIE, True)
 
         return hash.hexdigest(), svg_filename, json_filename
 
@@ -69,7 +69,7 @@ class DownloadManager:
         return self.download_file(path)
 
 
-    def download_file(self, path, hash=None, default_ext='.{}'.format(file_formats.PNG), preset=None):
+    def download_file(self, path, hash=None, default_ext='.{}'.format(file_formats.PNG), preset=None, force_ext=False):
         """ download_file: downloads files to local storage
             @param files (list of files to download)
             @return list of file hashes and extensions
@@ -79,7 +79,7 @@ class DownloadManager:
 
         # Get extension of file or default if none found
         extension = path.split(".")[-1].lower()
-        if extension not in self.all_file_extensions:
+        if force_ext or extension not in self.all_file_extensions:
             extension = default_ext
         else:
             extension = "." + extension

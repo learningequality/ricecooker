@@ -118,17 +118,17 @@ class Node(TreeModel):
     def __init__(self, *args, **kwargs):
         self.id = args[0]
         self.title = args[1]
-        self.description = "" if 'description' not in kwargs else kwargs['description']
-        self.author = kwargs['author']
-        self.license = None if 'license' not in kwargs else kwargs['license']
+        self.description = kwargs.get('description', '')
+        self.author = kwargs.get('author', '')
+        self.license = kwargs.get('license')
 
-        files = [] if 'files' not in kwargs else kwargs['files']
+        files = kwargs.get('files', [])
         self.files = [files] if isinstance(files, str) else files
-        if 'thumbnail' in kwargs and kwargs['thumbnail'] is not None:
-            self.files.append(kwargs['thumbnail'])
+        if kwargs.get('thumbnail') is not None:
+            self.files.append(kwargs.get('thumbnail'))
 
-        self.questions = [] if 'questions' not in kwargs else kwargs['questions']
-        self.extra_fields = {} if 'extra_fields' not in kwargs else kwargs['extra_fields']
+        self.questions = kwargs.get('questions', [])
+        self.extra_fields = kwargs.get('extra_fields', {})
 
         super(Node, self).__init__()
 
@@ -140,10 +140,10 @@ class Node(TreeModel):
         """
         return {
             "title": self.title,
-            "description": self.description if self.description is not None else "",
+            "description": self.description,
             "node_id": self.node_id.hex,
             "content_id": self.content_id.hex,
-            "author": self.author if self.author is not None else "",
+            "author": self.author,
             "children": [child_node.to_dict() for child_node in self.children],
             "files" : self.files,
             "kind": self.kind,
@@ -295,9 +295,6 @@ class Exercise(Node):
     def __init__(self, id, title, author=None, description=None, license=None, files=None, exercise_data=None, thumbnail=None):
         self.kind = content_kinds.EXERCISE
         self.questions = []
-
-        files = [] if files is None else files
-        exercise_data = {} if exercise_data is None else exercise_data
         super(Exercise, self).__init__(id, title, description=description, author=author, license=license, files=files, questions=self.questions, extra_fields=exercise_data,thumbnail=thumbnail)
 
     def add_question(self, question):
@@ -314,10 +311,10 @@ class Exercise(Node):
         """
         return {
             "title": self.title,
-            "description": self.description if self.description is not None else "",
+            "description": self.description,
             "node_id": self.node_id.hex,
             "content_id": self.content_id.hex,
-            "author": self.author if self.author is not None else "",
+            "author": self.author,
             "children": [child_node.to_dict() for child_node in self.children],
             "files" : self.files,
             "kind": self.kind,
