@@ -294,7 +294,6 @@ class Exercise(Node):
     def __init__(self, id, title, author="", description="", license=None, files=None, exercise_data=None, thumbnail=None):
         self.kind = content_kinds.EXERCISE
         self.questions = []
-
         files = [] if files is None else files
         exercise_data = {} if exercise_data is None else exercise_data
         super(Exercise, self).__init__(id, title, description=description, author=author, license=license, files=files, questions=self.questions, extra_fields=exercise_data,thumbnail=thumbnail)
