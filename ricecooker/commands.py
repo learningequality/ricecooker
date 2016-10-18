@@ -1,4 +1,7 @@
-from ricecooker.classes import *
+import os
+import webbrowser
+from ricecooker.config import STORAGE_DIRECTORY
+from ricecooker.classes import nodes, questions
 from ricecooker.managers import ChannelManager
 
 def uploadchannel(path, domain, verbose=False):
@@ -14,6 +17,12 @@ def uploadchannel(path, domain, verbose=False):
         print("\n\n***** Starting channel build process *****")
         print("Constructing channel...")
     channel = construct_channel({}) # Create channel (using method from imported file)
+
+    if not os.path.exists(STORAGE_DIRECTORY):
+        os.makedirs(STORAGE_DIRECTORY)
+
+    if verbose:
+        channel.print_tree()
 
     if verbose:
         print("Setting up initial channel structure...")
@@ -36,4 +45,5 @@ def uploadchannel(path, domain, verbose=False):
     channel_link = tree.upload_tree() # Create tree
 
     print("DONE: Channel created at {0}".format(channel_link))
+    webbrowser.open_new_tab(channel_link)
     return channel_link
