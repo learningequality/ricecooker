@@ -295,7 +295,7 @@ class Exercise(Node):
         self.kind = content_kinds.EXERCISE
         self.questions = []
         files = [] if files is None else files
-        exercise_data = {} if exercise_data is None else exercise_data
+        exercise_data = {'mastery_model': exercises.M_OF_N, 'randomize': True, 'm': 3, 'n': 5} if exercise_data is None else exercise_data
         super(Exercise, self).__init__(id, title, description=description, author=author, license=license, files=files, questions=self.questions, extra_fields=exercise_data,thumbnail=thumbnail)
 
     def add_question(self, question):

@@ -121,7 +121,8 @@ class MultipleSelectQuestion(BaseQuestion):
         Attributes:
             id (str): question's unique id
             question (str): question text
-            answers ([{'answer':str, 'correct':bool, 'hint':str}]): answers to question
+            correct_answers ([str]): list of correct answers
+            all_answers ([str]): list of all possible answers
             hint (str): optional hint on how to answer question
             images ({key:str, ...}): a dict mapping image placeholder names to path to image
     """
@@ -142,7 +143,8 @@ class SingleSelectQuestion(BaseQuestion):
         Attributes:
             id (str): question's unique id
             question (str): question text
-            answers ([{'answer':str, 'correct':bool, 'hint':str}]): answers to question
+            correct_answer (str): correct answer
+            all_answers ([str]): list of all possible answers
             hint (str): optional hint on how to answer question
             images ({key:str, ...}): a dict mapping image placeholder names to path to image
     """

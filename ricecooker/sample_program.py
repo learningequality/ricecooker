@@ -70,7 +70,7 @@ SAMPLE_TREE = [
                 "id": "6cafe2",
                 "author": "Revision 3",
                 "description": "Basic garlic bread recipe.",
-                "file": "file:///C:/Users/Jordan/Documents/Documents/College/199 RESEARCH/Winter 2015/Fostering Improved Learning in Math.pdf",
+                "file": "https://archive.org/download/Food_Mob_Bites_10/foodmob--bites--0010--garlicbread--hd720p30.h264.mp4",
                 "license": licenses.CC_BY_NC_SA,
                 "thumbnail":"https://cdn.kastatic.org/googleusercontent/4hbrDZGnw8OZKYo17pK-cA00doPXlaO_P_Gj8XGBZ5wYZZ6krD-4STwQ1b0nwY6jpLKB5dDBJEt2brKXdNW0dT0I",
             },
@@ -132,13 +132,6 @@ def construct_channel(args):
     )
     _build_tree(channel, SAMPLE_TREE)
     raise_for_invalid_channel(channel)
-
-    # import pickle
-    # with open('./ricecooker/KA_tree.pickle', 'rb') as handler:
-    #     channel = pickle.loads(handler.read())
-    #     channel.children = channel.children[0].children
-    #     channel.children = channel.children[0].children
-    #     print(channel.size())
 
     return channel
 
