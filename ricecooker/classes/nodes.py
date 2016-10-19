@@ -89,10 +89,10 @@ class Node:
             Args: None
             Returns: boolean indicating if node is valid
         """
-        assert self.id is not None
-        assert isinstance(self.title, str)
-        assert isinstance(self.description, str) or self.description is None
-        assert isinstance(self.children, list)
+        assert self.id is not None, "Assumption Failed: Node must have an id"
+        assert isinstance(self.title, str), "Assumption Failed: Node title is not a string"
+        assert isinstance(self.description, str) or self.description is None, "Assumption Failed: Node description is not a string"
+        assert isinstance(self.children, list), "Assumption Failed: Node children is not a list"
         return True
 
 
