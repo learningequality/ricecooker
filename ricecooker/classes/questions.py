@@ -1,8 +1,10 @@
+# Question models for exercises
+
 import uuid
 import json
 import re
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
-from ricecooker.exceptions import UnknownQuestionTypeError, InvalidInputAnswerException, MissingKeyException
+from ricecooker.exceptions import UnknownQuestionTypeError, InvalidQuestionException
 
 WEB_GRAPHIE_URL_REGEX = r'web\+graphie:([^\)]+)'
 FILE_REGEX = r'!\[([^\]]+)?\]\(([^\)]+)\)'
@@ -16,9 +18,9 @@ class BaseQuestion:
             id (str): question's unique id
             question (str): question text
             question_type (str): what kind of question is this
-            answers ([{'answer':str, 'correct':bool, 'hint':str}]): answers to question
+            answers ([{'answer':str, 'correct':bool}]): answers to question
             hints (str or [str]): optional hints on how to answer question
-            images ({key:str, ...}): a dict mapping image placeholder names to path to image
+            raw_data (str): raw data for perseus file
     """
     def __init__(self, id, question, question_type, answers=None, hints=None, raw_data=""):
         self.question = question
@@ -43,9 +45,20 @@ class BaseQuestion:
         }
 
     def create_answer(self, answer, correct=True):
+        """ create_answer: Put answer in standard format
+            Args:
+                answer (str): text of answer
+                correct (bool): indicates if answer is correct
+            Returns: dict of formatted answer
+        """
         return {"answer": str(answer), "correct":correct}
 
     def process_question(self, downloader):
+        """ process_question: Parse data that needs to have image strings processed
+            Args:
+                downloader (DownloadManager): download manager to download images
+            Returns: list of all downloaded files
+        """
         # Process question
         self.question, question_files = self.set_images(self.question, downloader)
 
@@ -74,6 +87,13 @@ class BaseQuestion:
         return question_files + answer_files + hint_files + data_files
 
     def set_images(self, text, downloader):
+        """ set_images: Replace image strings with downloaded image checksums
+            Args:
+                text (str): text to parse for image strings
+                downloader (DownloadManager): download manager to download images
+            Returns:string with checksums in place of image strings and
+                list of files that were downloaded from string
+        """
         file_list = []
         processed_string = text
         reg = re.compile(FILE_REGEX, flags=re.IGNORECASE)
@@ -92,6 +112,22 @@ class BaseQuestion:
                 file_list += [filename]
         return processed_string, file_list
 
+    def validate(self):
+        """ validate: Makes sure question is valid
+            Args: None
+            Returns: boolean indicating if question is valid
+        """
+        assert self.id is not None
+        assert isinstance(self.question, str) or self.question is None
+        assert isinstance(self.question_type, str)
+        assert isinstance(self.answers, list)
+        assert isinstance(self.hints, list)
+        for a in self.answers:
+            assert isinstance(a, str)
+        for h in self.hints:
+            assert isinstance(h, str)
+        return True
+
 class PerseusQuestion(BaseQuestion):
     """ Model representing perseus questions
 
@@ -108,6 +144,20 @@ class PerseusQuestion(BaseQuestion):
     def __init__(self, id, raw_data):
         raw_data = raw_data if isinstance(raw_data, str) else json.dumps(raw_data)
         super(PerseusQuestion, self).__init__(id, "", exercises.PERSEUS_QUESTION, [], [], raw_data)
+
+    def validate(self):
+        """ validate: Makes sure perseus question is valid
+            Args: None
+            Returns: boolean indicating if perseus question is valid
+        """
+        try:
+            assert self.question == ""
+            assert self.question_type == exercises.PERSEUS_QUESTION
+            assert self.answers == []
+            assert self.hints == []
+            return super(PerseusQuestion, self).validate()
+        except AssertionError as ae:
+            raise InvalidQuestionException("Invalid question: (perseus file) - {0}".format(ae))
 
 
 class MultipleSelectQuestion(BaseQuestion):
@@ -127,11 +177,32 @@ class MultipleSelectQuestion(BaseQuestion):
             images ({key:str, ...}): a dict mapping image placeholder names to path to image
     """
 
-    def __init__(self, id, question, correct_answers, all_answers, hints=""):
+    def __init__(self, id, question, correct_answers, all_answers, hints=None):
+        hints = [] if hints is None else hints
+
+        # Put answers into standard format
         set_all_answers = set(all_answers)
         all_answers += [answer for answer in correct_answers if answer not in set_all_answers]
         answers = [self.create_answer(answer, answer in correct_answers) for answer in all_answers]
         super(MultipleSelectQuestion, self).__init__(id, question, exercises.MULTIPLE_SELECTION, answers, hints)
+
+    def validate(self):
+        """ validate: Makes sure multiple selection question is valid
+            Args: None
+            Returns: boolean indicating if multiple selection question is valid
+        """
+        try:
+            assert self.question_type == exercises.MULTIPLE_SELECTION
+            assert len(self.answers) > 0
+            for a in self.answers:
+                assert 'answer' in a and isinstance(a['answer'], str)
+                assert 'correct' in a and isinstance(a['correct'], bool)
+            for h in self.hints:
+                assert isinstance(h, str)
+            return super(MultipleSelectQuestion, self).validate()
+        except AssertionError as ae:
+            raise InvalidQuestionException("Invalid question: {0} - {1}".format(self.question, ae))
+
 
 class SingleSelectQuestion(BaseQuestion):
     """ Model representing single select questions
@@ -146,13 +217,36 @@ class SingleSelectQuestion(BaseQuestion):
             correct_answer (str): correct answer
             all_answers ([str]): list of all possible answers
             hint (str): optional hint on how to answer question
-            images ({key:str, ...}): a dict mapping image placeholder names to path to image
     """
-    def __init__(self, id, question, correct_answer, all_answers, hints=""):
+    def __init__(self, id, question, correct_answer, all_answers, hints=None):
+        hints = [] if hints is None else hints
+
+        # Put answers into standard format
         if correct_answer not in all_answers:
             all_answers += [correct_answer]
         answers = [self.create_answer(answer, answer==correct_answer) for answer in all_answers]
         super(SingleSelectQuestion, self).__init__(id, question, exercises.SINGLE_SELECTION, answers, hints)
+
+    def validate(self):
+        """ validate: Makes sure single selection question is valid
+            Args: None
+            Returns: boolean indicating if single selection question is valid
+        """
+        try:
+            assert self.question_type == exercises.SINGLE_SELECTION
+            assert len(self.answers) > 0
+            correct_answers = 0
+            for a in self.answers:
+                assert 'answer' in a and isinstance(a['answer'], str)
+                assert 'correct' in a and isinstance(a['correct'], bool)
+                correct_answers += 1 if a['correct'] else 0
+            assert correct_answers == 1
+            for h in self.hints:
+                assert isinstance(h, str)
+            return super(SingleSelectQuestion, self).validate()
+        except AssertionError as ae:
+            raise InvalidQuestionException("Invalid question: {0} - {1}".format(self.question, ae))
+
 
 class FreeResponseQuestion(BaseQuestion):
     """ Model representing free response questions
@@ -165,10 +259,25 @@ class FreeResponseQuestion(BaseQuestion):
             id (str): question's unique id
             question (str): question text
             hint (str): optional hint on how to answer question
-            images ({key:str, ...}): a dict mapping image placeholder names to path to image
     """
-    def __init__(self, id, question, hints=""):
+    def __init__(self, id, question, hints=None):
+        hints = [] if hints is None else hints
         super(FreeResponseQuestion, self).__init__(id, question, exercises.FREE_RESPONSE, [], hints)
+
+    def validate(self):
+        """ validate: Makes sure free response question is valid
+            Args: None
+            Returns: boolean indicating if free response question is valid
+        """
+        try:
+            assert self.question_type == exercises.FREE_RESPONSE
+            for h in self.hints:
+                assert isinstance(h, str)
+            assert self.answers == []
+            return super(FreeResponseQuestion, self).validate()
+        except AssertionError as ae:
+            raise InvalidQuestionException("Invalid question: {0} - {1}".format(self.question, ae))
+
 
 class InputQuestion(BaseQuestion):
     """ Model representing input questions
@@ -183,6 +292,23 @@ class InputQuestion(BaseQuestion):
             hint (str): optional hint on how to answer question
             images ({key:str, ...}): a dict mapping image placeholder names to path to image
     """
-    def __init__(self, id, question, answers, hints=""):
+    def __init__(self, id, question, answers, hints=None):
+        hints = [] if hints is None else hints
         answers = [self.create_answer(answer) for answer in answers]
         super(InputQuestion, self).__init__(id, question, exercises.INPUT_QUESTION, answers, hints)
+
+    def validate(self):
+        """ validate: Makes sure input question is valid
+            Args: None
+            Returns: boolean indicating if input question is valid
+        """
+        try:
+            assert self.question_type == exercises.INPUT_QUESTION
+            assert len(self.answers) > 0
+            for a in self.answers:
+                assert 'answer' in a and isinstance(a['answer'], str)
+            for h in self.hints:
+                assert isinstance(h, str)
+            return super(InputQuestion, self).validate()
+        except AssertionError as ae:
+            raise InvalidQuestionException("Invalid question: {0} - {1}".format(self.question, ae))
