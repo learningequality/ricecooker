@@ -19,6 +19,7 @@ commands = ["uploadchannel"]
 if __name__ == '__main__':
     arguments = docopt(__doc__)
     domain = config.PRODUCTION_DOMAIN
+    print(arguments)
     if arguments["--debug"]:
     	domain = config.DEBUG_DOMAIN
     uploadchannel(arguments["<file_path>"], domain, verbose=arguments["-v"])

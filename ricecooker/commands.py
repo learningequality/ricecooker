@@ -31,6 +31,11 @@ def uploadchannel(path, domain, verbose=False):
         print("Setting up initial channel structure...")
     tree = ChannelManager(channel, domain, verbose)
 
+    # Make sure channel structure is valid
+    if verbose:
+        print("Validating channel structure...")
+    tree.validate()
+
     # Fill in values necessary for next steps
     if verbose:
         print("Processing content...")
@@ -63,9 +68,10 @@ def prompt_open(channel_link):
         Returns: None
     """
     openNow = input("Would you like to open your channel now? [y/n]:").lower()
-    if openNow == "y":
+    if openNow.startswith("y"):
+        print("Opening channel...")
         webbrowser.open_new_tab(channel_link)
-    elif openNow == "n":
+    elif openNow.startswith("n"):
         return
     else:
         prompt_open(channel_link)

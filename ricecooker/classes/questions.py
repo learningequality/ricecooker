@@ -123,7 +123,7 @@ class BaseQuestion:
         assert isinstance(self.answers, list)
         assert isinstance(self.hints, list)
         for a in self.answers:
-            assert isinstance(a, str)
+            assert isinstance(a, dict)
         for h in self.hints:
             assert isinstance(h, str)
         return True
@@ -157,7 +157,7 @@ class PerseusQuestion(BaseQuestion):
             assert self.hints == []
             return super(PerseusQuestion, self).validate()
         except AssertionError as ae:
-            raise InvalidQuestionException("Invalid question: (perseus file) - {0}".format(ae))
+            raise InvalidQuestionException("Invalid question: {0}".format(self.__dict__))
 
 
 class MultipleSelectQuestion(BaseQuestion):
@@ -201,7 +201,7 @@ class MultipleSelectQuestion(BaseQuestion):
                 assert isinstance(h, str)
             return super(MultipleSelectQuestion, self).validate()
         except AssertionError as ae:
-            raise InvalidQuestionException("Invalid question: {0} - {1}".format(self.question, ae))
+            raise InvalidQuestionException("Invalid question: {0}".format(self.__dict__))
 
 
 class SingleSelectQuestion(BaseQuestion):
@@ -245,7 +245,7 @@ class SingleSelectQuestion(BaseQuestion):
                 assert isinstance(h, str)
             return super(SingleSelectQuestion, self).validate()
         except AssertionError as ae:
-            raise InvalidQuestionException("Invalid question: {0} - {1}".format(self.question, ae))
+            raise InvalidQuestionException("Invalid question: {0}".format(self.__dict__))
 
 
 class FreeResponseQuestion(BaseQuestion):
@@ -276,7 +276,7 @@ class FreeResponseQuestion(BaseQuestion):
             assert self.answers == []
             return super(FreeResponseQuestion, self).validate()
         except AssertionError as ae:
-            raise InvalidQuestionException("Invalid question: {0} - {1}".format(self.question, ae))
+            raise InvalidQuestionException("Invalid question: {0}".format(self.__dict__))
 
 
 class InputQuestion(BaseQuestion):
@@ -311,4 +311,4 @@ class InputQuestion(BaseQuestion):
                 assert isinstance(h, str)
             return super(InputQuestion, self).validate()
         except AssertionError as ae:
-            raise InvalidQuestionException("Invalid question: {0} - {1}".format(self.question, ae))
+            raise InvalidQuestionException("Invalid question: {0}".format(self.__dict__))

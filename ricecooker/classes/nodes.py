@@ -92,7 +92,6 @@ class Node:
         assert self.id is not None
         assert isinstance(self.title, str)
         assert isinstance(self.description, str) or self.description is None
-        assert isinstance(self.thumbnail, str) or self.thumbnail is None
         assert isinstance(self.children, list)
         return True
 
@@ -152,8 +151,8 @@ class Channel(Node):
             Returns: boolean indicating if channel is valid
         """
         try:
-            assert isinstance(self.channel_id, str)
             assert isinstance(self.domain, str)
+            assert isinstance(self.thumbnail, str) or self.thumbnail is None
             return super(Channel, self).validate()
         except AssertionError as ae:
             raise InvalidNodeException("Invalid node: {0} - {1}".format(self.title, ae))
@@ -190,7 +189,7 @@ class ContentNode(Node):
         # Set any possible exercise data to standard format
         self.questions = kwargs.get('questions') or []
         self.extra_fields = kwargs.get('extra_fields') or {}
-        super(Node, self).__init__()
+        super(ContentNode, self).__init__()
 
     def __str__(self):
         count = self.count()
@@ -271,7 +270,7 @@ class Topic(ContentNode):
             assert self.extra_fields == {}
             return super(Topic, self).validate()
         except AssertionError as ae:
-            raise InvalidNodeException("Invalid node: {0} - {1}".format(self.title, ae))
+            raise InvalidNodeException("Invalid node: {0} - {1}".format(self.title, self.__dict__))
 
 
 class Video(ContentNode):
@@ -340,12 +339,12 @@ class Video(ContentNode):
             # Check if there are any .mp4 files
             files_valid = False
             for f in self.files:
-                files_valid = files_valid || file_formats.MP4 in f
+                files_valid = files_valid or file_formats.MP4 in f
             assert files_valid
 
             return super(Video, self).validate()
         except AssertionError as ae:
-            raise InvalidNodeException("Invalid node: {0} - {1}".format(self.title, ae))
+            raise InvalidNodeException("Invalid node: {0} - {1}".format(self.title, self.__dict__))
 
 
 class Audio(ContentNode):
@@ -386,12 +385,12 @@ class Audio(ContentNode):
             # Check if there are any .mp3 or .wav files
             files_valid = False
             for f in self.files:
-                files_valid = files_valid || file_formats.MP3  in f || file_formats.WAV  in f
+                files_valid = files_valid or file_formats.MP3  in f or file_formats.WAV  in f
             assert files_valid
 
             return super(Audio, self).validate()
         except AssertionError as ae:
-            raise InvalidNodeException("Invalid node: {0} - {1}".format(self.title, ae))
+            raise InvalidNodeException("Invalid node: {0} - {1}".format(self.title, self.__dict__))
 
 
 class Document(ContentNode):
@@ -430,12 +429,12 @@ class Document(ContentNode):
             # Check if there are any .pdf files
             files_valid = False
             for f in self.files:
-                files_valid = files_valid || file_formats.PDF
+                files_valid = files_valid or file_formats.PDF
             assert files_valid
 
             return super(Document, self).validate()
         except AssertionError as ae:
-            raise InvalidNodeException("Invalid node: {0} - {1}".format(self.title, ae))
+            raise InvalidNodeException("Invalid node: {0} - {1}".format(self.title, self.__dict__))
 
 
 class Exercise(ContentNode):
@@ -515,15 +514,15 @@ class Exercise(ContentNode):
             # Check if there are any .perseus files
             files_valid = len(self.files) == 0
             for f in self.files:
-                files_valid = files_valid || file_formats.PERSEUS
+                files_valid = files_valid or file_formats.PERSEUS
             assert files_valid
 
             # Check if questions are correct
-            questions_valid = len(self.questions) == 0
+            questions_valid = True
             for q in self.questions:
-                questions_valid = questions_valid && q.validate()
+                questions_valid = questions_valid and q.validate()
             assert questions_valid
 
             return super(Exercise, self).validate()
         except AssertionError as ae:
-            raise InvalidNodeException("Invalid node: {0} - {1}".format(self.title, ae))
+            raise InvalidNodeException("Invalid node: {0} - {1}".format(self.title, self.__dict__))

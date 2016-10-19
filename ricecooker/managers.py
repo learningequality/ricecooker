@@ -8,6 +8,7 @@ from requests_file import FileAdapter
 import tempfile
 import shutil
 import os
+import sys
 from io import BytesIO
 from PIL import Image
 import validators
@@ -218,6 +219,13 @@ class ChannelManager:
         self.domain = domain # Domain to upload channel to
         self.downloader = DownloadManager(verbose)
 
+    def validate(self):
+        """ validate: checks if tree structure is valid
+            Args: None
+            Returns: boolean indicating if tree is valid
+        """
+        return self.channel.test_tree()
+
     def process_tree(self, node, parent=None):
         """ process_tree: sets ids and processes files
             Args:
@@ -256,10 +264,14 @@ class ChannelManager:
             Args: file_list (str): list of files to upload
             Returns: None
         """
+        counter = 0
         for f in file_list:
             with  open(config.get_storage_path(f), 'rb') as file_obj:
                 response = requests.post(config.file_upload_url(self.domain), files={'file': file_obj})
                 response.raise_for_status()
+                counter += 1
+                if self.verbose:
+                    print("\tUploaded {0} ({count}/{total}) ".format(f, count=counter, total=len(file_list)))
 
     def upload_tree(self):
         """ upload_files: sends processed channel data to server to create tree
