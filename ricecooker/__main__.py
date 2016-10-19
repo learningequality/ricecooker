@@ -2,6 +2,7 @@
 
 Arguments:
   file_path        Path to file with channel data
+  [OPTIONS]        Extra arguments to add to command line (e.g. key='field')
 
 Options:
   -h --help
