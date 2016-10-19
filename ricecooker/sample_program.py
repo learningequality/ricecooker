@@ -122,7 +122,7 @@ SAMPLE_TREE = [
     },
 ]
 
-def construct_channel(args):
+def construct_channel(**kwargs):
 
     channel = Channel(
         domain="learningequality.org",

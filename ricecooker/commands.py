@@ -4,7 +4,7 @@ from ricecooker.config import STORAGE_DIRECTORY
 from ricecooker.classes import nodes, questions
 from ricecooker.managers import ChannelManager
 
-def uploadchannel(path, domain, verbose=False):
+def uploadchannel(path, domain, verbose=False, **kwargs):
     """ uploadchannel: Upload channel to Kolibri Studio server
         Args:
             path (str): path to file containing channel data
@@ -19,7 +19,7 @@ def uploadchannel(path, domain, verbose=False):
     if verbose:
         print("\n\n***** Starting channel build process *****")
         print("Constructing channel...")
-    channel = construct_channel({})
+    channel = construct_channel(**kwargs)
 
     # Make storage directory for downloaded files if it doesn't already exist
     if not os.path.exists(STORAGE_DIRECTORY):
