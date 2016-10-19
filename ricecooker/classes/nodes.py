@@ -230,11 +230,11 @@ class ContentNode(Node):
             Args: None
             Returns: boolean indicating if content node is valid
         """
-        assert isinstance(self.author, str)
-        assert isinstance(self.license, str) or self.license is None
-        assert isinstance(self.files, list)
-        assert isinstance(self.questions, list)
-        assert isinstance(self.extra_fields, dict)
+        assert isinstance(self.author, str) , "Assumption Failed: Author is not a string"
+        assert isinstance(self.license, str) or self.license is None, "Assumption Failed: License is not a string or empty"
+        assert isinstance(self.files, list), "Assumption Failed: Files is not a list"
+        assert isinstance(self.questions, list), "Assumption Failed: Questions is not a list"
+        assert isinstance(self.extra_fields, dict), "Assumption Failed: Extra fields is not a dict"
         return super(ContentNode, self).validate()
 
 
@@ -264,10 +264,10 @@ class Topic(ContentNode):
             Returns: boolean indicating if topic is valid
         """
         try:
-            assert self.kind == content_kinds.TOPIC
-            assert self.questions == []
-            assert self.files == []
-            assert self.extra_fields == {}
+            assert self.kind == content_kinds.TOPIC, "Assumption Failed: Node is supposed to be a topic"
+            assert self.questions == [], "Assumption Failed: Topic nodes should not have questions"
+            assert self.files == [], "Assumption Failed: Topic nodes should not have files"
+            assert self.extra_fields == {}, "Assumption Failed: Node should have empty extra_fields"
             return super(Topic, self).validate()
         except AssertionError as ae:
             raise InvalidNodeException("Invalid node: {0} - {1}".format(self.title, self.__dict__))
@@ -332,15 +332,15 @@ class Video(ContentNode):
             Returns: boolean indicating if video is valid
         """
         try:
-            assert self.kind == content_kinds.VIDEO
-            assert self.questions == []
-            assert len(self.files) > 0
+            assert self.kind == content_kinds.VIDEO, "Assumption Failed: Node should be a video"
+            assert self.questions == [], "Assumption Failed: Video should not have questions"
+            assert len(self.files) > 0, "Assumption Failed: Video must have at least one video file"
 
             # Check if there are any .mp4 files
             files_valid = False
             for f in self.files:
                 files_valid = files_valid or file_formats.MP4 in f
-            assert files_valid
+            assert files_valid , "Assumption Failed: Video should have at least one .mp4 file"
 
             return super(Video, self).validate()
         except AssertionError as ae:
@@ -378,15 +378,15 @@ class Audio(ContentNode):
             Returns: boolean indicating if audio is valid
         """
         try:
-            assert self.kind == content_kinds.AUDIO
-            assert self.questions == []
-            assert len(self.files) > 0
+            assert self.kind == content_kinds.AUDIO, "Assumption Failed: Node should be audio"
+            assert self.questions == [], "Assumption Failed: Audio should not have questions"
+            assert len(self.files) > 0, "Assumption Failed: Audio should have at least one file"
 
             # Check if there are any .mp3 or .wav files
             files_valid = False
             for f in self.files:
                 files_valid = files_valid or file_formats.MP3  in f or file_formats.WAV  in f
-            assert files_valid
+            assert files_valid, "Assumption Failed: Audio should have at least one .mp3 or .wav file"
 
             return super(Audio, self).validate()
         except AssertionError as ae:
@@ -422,15 +422,15 @@ class Document(ContentNode):
             Returns: boolean indicating if document is valid
         """
         try:
-            assert self.kind == content_kinds.DOCUMENT
-            assert self.questions == []
-            assert len(self.files) > 0
+            assert self.kind == content_kinds.DOCUMENT, "Assumption Failed: Node should be a document"
+            assert self.questions == [], "Assumption Failed: Document should not have questions"
+            assert len(self.files) > 0, "Assumption Failed: Document should have at least one file"
 
             # Check if there are any .pdf files
             files_valid = False
             for f in self.files:
                 files_valid = files_valid or file_formats.PDF
-            assert files_valid
+            assert files_valid, "Assumption Failed: Document should have at least one .pdf file"
 
             return super(Document, self).validate()
         except AssertionError as ae:
@@ -507,21 +507,21 @@ class Exercise(ContentNode):
             Returns: boolean indicating if exercise is valid
         """
         try:
-            assert self.kind == content_kinds.EXERCISE
-            assert len(self.files) > 0 or len(self.questions) > 0
-            assert "mastery_model" in self.extra_fields
+            assert self.kind == content_kinds.EXERCISE, "Assumption Failed: Node should be an exercise"
+            assert len(self.files) > 0 or len(self.questions) > 0, "Assumption Failed: Exercise should have at least one question or .perseus file"
+            assert "mastery_model" in self.extra_fields, "Assumption Failed: Exercise must have a mastery model in extra_fields"
 
             # Check if there are any .perseus files
             files_valid = len(self.files) == 0
             for f in self.files:
                 files_valid = files_valid or file_formats.PERSEUS
-            assert files_valid
+            assert files_valid , "Assumption Failed: Exercise does not have a .perseus file attached"
 
             # Check if questions are correct
             questions_valid = True
             for q in self.questions:
                 questions_valid = questions_valid and q.validate()
-            assert questions_valid
+            assert questions_valid, "Assumption Failed: Exercise does not have a question"
 
             return super(Exercise, self).validate()
         except AssertionError as ae:
