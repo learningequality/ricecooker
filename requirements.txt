@@ -1,8 +1,0 @@
-Click>=6.0
-pytest>=3.0.2
-requests>=2.11.1
-pillow>=3.3.1
-docopt>=0.6.2
-le_utils==0.0.9rc7
-validators
-requests_file

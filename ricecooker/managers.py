@@ -4,17 +4,19 @@ import uuid
 import hashlib
 import json
 import requests
-from requests_file import FileAdapter
+import validators
+import base64
 import tempfile
 import shutil
 import os
 import sys
+import requests
+from requests_file import FileAdapter
+from requests.exceptions import MissingSchema
 from io import BytesIO
 from PIL import Image
-import validators
-import base64
 from ricecooker import config
-from ricecooker.exceptions import InvalidFormatException
+from ricecooker.exceptions import InvalidFormatException, FileNotFoundException
 from le_utils.constants import file_formats, exercises, format_presets
 
 WEB_GRAPHIE_URL_REGEX = r'web\+graphie:([^\)]+)'
@@ -61,20 +63,41 @@ class DownloadManager:
             Args: path (str): path to .svg and .json files
             Returns: the combined hash of graphie files and their filenames
         """
+        # Handle if path has already been processed
+        if exercises.CONTENT_STORAGE_PLACEHOLDER in path:
+            filename = os.path.split(path)[-1]
+            return filename, filename + ".svg", filename + "-data.json"
+
         # Initialize paths and hash
         hash = hashlib.md5()
         svg_path = path + ".svg"
         json_path = path + "-data.json"
 
         # Get svg hash
-        rsvg = self.session.get(svg_path, stream=True)
-        rsvg.raise_for_status()
-        hash = self.get_hash(rsvg, hash)
+        try:
+            rsvg = self.session.get(svg_path, stream=True)
+            rsvg.raise_for_status()
+            hash = self.get_hash(rsvg, hash)
+        except MissingSchema:
+            try:
+                with open(svg_path, 'rb') as fsvg:
+                    hash = self.get_hash(iter(lambda: fsvg.read(4096), b""), hash)
+            except FileNotFoundError:
+                raise FileNotFoundException("Could not find file at location {0}".format(svg_path))
+
 
         # Combine svg hash with json hash
-        rjson = self.session.get(json_path, stream=True)
-        rjson.raise_for_status()
-        hash = self.get_hash(rjson, hash)
+        try:
+            rjson = self.session.get(json_path, stream=True)
+            rjson.raise_for_status()
+            hash = self.get_hash(rjson, hash)
+        except MissingSchema:
+            # Try opening path as relative file path
+            try:
+                with open(json_path, 'rb') as fjson:
+                    hash = self.get_hash(iter(lambda: fjson.read(4096), b""), hash)
+            except FileNotFoundError:
+                raise FileNotFoundException("Could not find file at location {0}".format(json_path))
 
         # Download files
         svg_filename = self.download_file(svg_path, hash, '.{}'.format(file_formats.SVG), format_presets.EXERCISE_GRAPHIE, True)
@@ -112,9 +135,9 @@ class DownloadManager:
                 force_ext (bool): force manager to use default extension (optional)
             Returns: filename of downloaded file
         """
-        # Access path
-        r = self.session.get(path, stream=True)
-        r.raise_for_status()
+        # Handle if path has already been processed
+        if exercises.CONTENT_STORAGE_PLACEHOLDER in path:
+            return os.path.split(path)[-1]
 
         # Get extension of file or default if none found
         extension = path.split(".")[-1].lower()
@@ -125,16 +148,31 @@ class DownloadManager:
 
         # Write file to temporary file
         with tempfile.TemporaryFile() as tempf:
-            # If a hash was not provided, generate hash during write process
-            if hash is None:
-                hash = hashlib.md5()
-                for chunk in r:
-                    hash.update(chunk)
-                    tempf.write(chunk)
-            # Otherwise, just write the file
-            else:
-               for chunk in r:
-                    tempf.write(chunk)
+            # Access path
+            try:
+                r = self.session.get(path, stream=True)
+                r.raise_for_status()
+
+                # If a hash was not provided, generate hash during write process
+                if hash is None:
+                    hash = hashlib.md5()
+                    for chunk in r:
+                        hash.update(chunk)
+                        tempf.write(chunk)
+                # Otherwise, just write the file
+                else:
+                   for chunk in r:
+                        tempf.write(chunk)
+
+            except MissingSchema:
+                try:
+                    # If path is a local file path, try to open the file
+                    with open(path, 'rb') as fobj:
+                        if hash is None:
+                            hash = self.get_hash(iter(lambda: fobj.read(4096), b""), hashlib.md5())
+                        tempf.write(fobj.read())
+                except FileNotFoundError:
+                    raise FileNotFoundException("Could not find file at location {0}".format(path))
 
             # Get file metadata (hashed filename, original filename, size)
             hashstring = hash.hexdigest()
