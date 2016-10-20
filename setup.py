@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import ricecooker
-from setuptools import setup
+from pip.req import parse_requirements
+from setuptools import setup, find_packages
+
+install_reqs = parse_requirements('requirements.txt')
 
 with open('README.rst') as readme_file:
     readme = readme_file.read()
@@ -9,10 +12,7 @@ with open('README.rst') as readme_file:
 with open('docs/history.rst') as history_file:
     history = history_file.read()
 
-requirements = [
-    'Click>=6.0',
-    # TODO: put package requirements here
-]
+requirements = [str(ir.req) for ir in install_reqs]
 
 test_requirements = [
     # TODO: put package test requirements here
@@ -26,9 +26,7 @@ setup(
     author="Learning Equality",
     author_email='dev@learningequality.org',
     url='https://github.com/learningequality/ricecooker',
-    packages=[
-        'ricecooker',
-    ],
+    packages=find_packages(),
     package_dir={'ricecooker':
                  'ricecooker'},
     entry_points={
