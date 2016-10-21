@@ -12,7 +12,7 @@ import os
 import sys
 import requests
 from requests_file import FileAdapter
-from requests.exceptions import MissingSchema
+from requests.exceptions import MissingSchema, HTTPError, ConnectionError, InvalidURL, InvalidSchema
 from io import BytesIO
 from PIL import Image
 from ricecooker import config
@@ -41,6 +41,7 @@ class DownloadManager:
         self.session = requests.Session()
         self.session.mount('file://', FileAdapter())
         self.files = []
+        self.failed_files = []
         self._file_mapping = {} # Used to keep track of files and their respective metadata
         self.verbose = verbose
 
@@ -58,52 +59,74 @@ class DownloadManager:
         """
         return self._file_mapping
 
-    def download_graphie(self, path):
+    def has_failed_files(self):
+        """ has_failed_files: check if any files have failed
+            Args: None
+            Returns: boolean indicating if files have failed
+        """
+        return len(self.failed_files) > 0
+
+    def print_failed(self):
+        """ print_failed: print out files that have failed downloading
+            Args: None
+            Returns: None
+        """
+        print("   The following files could not be accessed:")
+        for f in self.failed_files:
+            print("\t{id}: {path}".format(id=f[1], path=f[0]))
+
+    def download_graphie(self, path, title):
         """ download_graphie: download a web+graphie file
             Args: path (str): path to .svg and .json files
             Returns: the combined hash of graphie files and their filenames
         """
-        # Handle if path has already been processed
-        if exercises.CONTENT_STORAGE_PLACEHOLDER in path:
-            filename = os.path.split(path)[-1]
-            return filename, filename + ".svg", filename + "-data.json"
-
-        # Initialize paths and hash
-        hash = hashlib.md5()
-        svg_path = path + ".svg"
-        json_path = path + "-data.json"
-
-        # Get svg hash
         try:
-            rsvg = self.session.get(svg_path, stream=True)
-            rsvg.raise_for_status()
-            hash = self.get_hash(rsvg, hash)
-        except MissingSchema:
+            # Handle if path has already been processed
+            if exercises.CONTENT_STORAGE_PLACEHOLDER in path:
+                filename = os.path.split(path)[-1]
+                return filename, filename + ".svg", filename + "-data.json"
+
+            # Initialize paths and hash
+            hash = hashlib.md5()
+            svg_path = path + ".svg"
+            json_path = path + "-data.json"
+
+            # Get svg hash
             try:
+                rsvg = self.session.get(svg_path, stream=True)
+                rsvg.raise_for_status()
+                hash = self.get_hash(rsvg, hash)
+            except MissingSchema:
                 with open(svg_path, 'rb') as fsvg:
                     hash = self.get_hash(iter(lambda: fsvg.read(4096), b""), hash)
-            except FileNotFoundError:
-                raise FileNotFoundException("Could not find file at location {0}".format(svg_path))
 
 
-        # Combine svg hash with json hash
-        try:
-            rjson = self.session.get(json_path, stream=True)
-            rjson.raise_for_status()
-            hash = self.get_hash(rjson, hash)
-        except MissingSchema:
-            # Try opening path as relative file path
+            # Combine svg hash with json hash
             try:
+                rjson = self.session.get(json_path, stream=True)
+                rjson.raise_for_status()
+                hash = self.get_hash(rjson, hash)
+            except MissingSchema:
+                # Try opening path as relative file path
                 with open(json_path, 'rb') as fjson:
                     hash = self.get_hash(iter(lambda: fjson.read(4096), b""), hash)
-            except FileNotFoundError:
-                raise FileNotFoundException("Could not find file at location {0}".format(json_path))
 
-        # Download files
-        svg_filename = self.download_file(svg_path, hash, '.{}'.format(file_formats.SVG), format_presets.EXERCISE_GRAPHIE, True)
-        json_filename = self.download_file(json_path, hash, '-data.{}'.format(file_formats.JSON), format_presets.EXERCISE_GRAPHIE, True)
+            # Download files
+            svg_result = self.download_file(svg_path, title, hash, default_ext='.{}'.format(file_formats.SVG), preset=format_presets.EXERCISE_GRAPHIE, force_ext=True)
+            if not svg_result:
+                raise FileNotFoundError("Could not access file: {0}".format(svg_path))
+            svg_filename = svg_result
 
-        return hash.hexdigest(), svg_filename, json_filename
+            json_result = self.download_file(json_path, title, hash, default_ext='-data.{}'.format(file_formats.JSON), preset=format_presets.EXERCISE_GRAPHIE, force_ext=True)
+            if not json_result:
+                raise FileNotFoundError("Could not access file: {0}".format(json_path))
+            json_filename = json_result
+
+            return hash.hexdigest(), svg_filename, json_filename
+        # Catch errors related to reading file path and handle silently
+        except (HTTPError, FileNotFoundError, ConnectionError, InvalidURL, InvalidSchema, IOError):
+            self.failed_files += [(path,title)]
+            return False;
 
     def get_hash(self, request, hash_to_update):
         """ get_hash: generate hash of file
@@ -116,16 +139,7 @@ class DownloadManager:
             hash_to_update.update(chunk)
         return hash_to_update
 
-
-    def download_image(self, path):
-        """ download_image: downloads image from path
-            Args: path (str): local path or url to image file
-            Returns: filename of downloaded file
-        """
-        return self.download_file(path)
-
-
-    def download_file(self, path, hash=None, default_ext='.{}'.format(file_formats.PNG), preset=None, force_ext=False):
+    def download_file(self, path, title, hash=None, default_ext=None, preset=None, force_ext=False):
         """ download_file: downloads file from path
             Args:
                 path (str): local path or url to file to download
@@ -135,80 +149,89 @@ class DownloadManager:
                 force_ext (bool): force manager to use default extension (optional)
             Returns: filename of downloaded file
         """
-        # Handle if path has already been processed
-        if exercises.CONTENT_STORAGE_PLACEHOLDER in path:
-            return os.path.split(path)[-1]
+        try:
+            # Handle if path has already been processed
+            if exercises.CONTENT_STORAGE_PLACEHOLDER in path:
+                return os.path.split(path)[-1]
 
-        # Get extension of file or default if none found
-        extension = path.split(".")[-1].lower()
-        if force_ext or extension not in self.all_file_extensions:
-            extension = default_ext
-        else:
-            extension = "." + extension
-
-        # Write file to temporary file
-        with tempfile.TemporaryFile() as tempf:
-            # Access path
-            try:
-                r = self.session.get(path, stream=True)
-                r.raise_for_status()
-
-                # If a hash was not provided, generate hash during write process
-                if hash is None:
-                    hash = hashlib.md5()
-                    for chunk in r:
-                        hash.update(chunk)
-                        tempf.write(chunk)
-                # Otherwise, just write the file
+            # Get extension of file or default if none found
+            file_components = path.split("/")[-1].split(".")
+            original_filename = file_components[0]
+            extension = file_components[-1].lower()
+            if force_ext or extension not in self.all_file_extensions:
+                if default_ext is not None:
+                    extension = default_ext
                 else:
-                   for chunk in r:
-                        tempf.write(chunk)
+                    raise FileNotFoundError("No extension found: {}".format(path))
+            else:
+                extension = "." + extension
 
-            except MissingSchema:
+            # Write file to temporary file
+            with tempfile.TemporaryFile() as tempf:
                 try:
+                    # Access path
+                    r = self.session.get(path, stream=True)
+                    r.raise_for_status()
+
+                    # If a hash was not provided, generate hash during write process
+                    # Otherwise, just write the file
+                    if hash is None:
+                        hash = hashlib.md5()
+                        for chunk in r:
+                            hash.update(chunk)
+                            tempf.write(chunk)
+                    else:
+                       for chunk in r:
+                            tempf.write(chunk)
+
+                except MissingSchema:
                     # If path is a local file path, try to open the file
                     with open(path, 'rb') as fobj:
                         if hash is None:
                             hash = self.get_hash(iter(lambda: fobj.read(4096), b""), hashlib.md5())
                         tempf.write(fobj.read())
-                except FileNotFoundError:
-                    raise FileNotFoundException("Could not find file at location {0}".format(path))
 
-            # Get file metadata (hashed filename, original filename, size)
-            hashstring = hash.hexdigest()
-            original_filename = path.split("/")[-1].split(".")[0]
-            filename = '{0}{ext}'.format(hashstring, ext=extension)
-            file_size = tempf.tell()
-            tempf.seek(0)
+                # Get file metadata (hashed filename, original filename, size)
+                hashstring = hash.hexdigest()
+                filename = '{0}{ext}'.format(hashstring, ext=extension)
+                file_size = tempf.tell()
+                tempf.seek(0)
 
-            # Keep track of downloaded file
-            self.files += [filename]
-            self._file_mapping.update({filename : {
-                'original_filename': original_filename,
-                'source_url': path,
-                'size': file_size,
-                'preset':preset,
-            }})
+                # Keep track of downloaded file
+                self.files += [filename]
+                self._file_mapping.update({filename : {
+                    'original_filename': original_filename,
+                    'source_url': path,
+                    'size': file_size,
+                    'preset':preset,
+                }})
 
-            # Write file to local storage
-            with open(config.get_storage_path(filename), 'wb') as destf:
-                shutil.copyfileobj(tempf, destf)
+                # Write file to local storage
+                with open(config.get_storage_path(filename), 'wb') as destf:
+                    shutil.copyfileobj(tempf, destf)
 
-            if self.verbose:
-                print("\tDownloaded '{0}' to {1}".format(original_filename, filename))
+                if self.verbose:
+                    print("\tDownloaded '{0}' to {1}".format(original_filename, filename))
+            return filename
+        # Catch errors related to reading file path and handle silently
+        except (HTTPError, FileNotFoundError, ConnectionError, InvalidURL, InvalidSchema, IOError):
+            self.failed_files += [(path,title)]
+            return False;
 
-        return filename
 
-
-    def download_files(self,files):
+    def download_files(self,files, title, default_ext=None):
         """ download_files: download list of files
-            Args: files ([str]): list of file paths or urls to download
+            Args:
+                files ([str]): list of file paths or urls to download
+                title (str): name of node in case of error
             Returns: list of downloaded filenames
         """
         file_list = []
         for f in files:
             file_data = f.split('/')[-1]
-            file_list += [self.download_file(f)]
+            result = self.download_file(f, title, default_ext=default_ext)
+            if result:
+                file_list += [result]
         return file_list
 
     def encode_thumbnail(self, thumbnail):
@@ -276,17 +299,25 @@ class ChannelManager:
         # If node is not a channel, set ids and download files
         if not isinstance(node, nodes.Channel):
             node.set_ids(self.channel._internal_domain, parent.node_id)
-            node.files = self.downloader.download_files(node.files)
+            node.files = self.downloader.download_files(node.files, "Node {}".format(node.original_id))
+            if node.thumbnail is not None:
+                self.downloader.download_files([node.thumbnail], "Node {}".format(node.original_id), default_ext=".{}".format(file_formats.PNG))
 
             # If node is an exercise, process images for exercise
             if isinstance(node, nodes.Exercise):
                 if self.verbose:
-                    print("  *** Processing images for exercise: {}".format(node.title))
+                    print("\t*** Processing images for exercise: {}".format(node.title))
                 node.process_questions(self.downloader)
 
         # Process node's children
         for child_node in node.children:
             self.process_tree(child_node, node)
+
+    def check_for_files_failed(self):
+        if self.downloader.has_failed_files():
+            self.downloader.print_failed()
+        else:
+            print("   All files were successfully downloaded")
 
     def get_file_diff(self):
         """ get_file_diff: retrieves list of files that do not exist on content curation server
