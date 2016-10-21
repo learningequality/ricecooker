@@ -301,7 +301,9 @@ class ChannelManager:
             node.set_ids(self.channel._internal_domain, parent.node_id)
             node.files = self.downloader.download_files(node.files, "Node {}".format(node.original_id))
             if node.thumbnail is not None:
-                self.downloader.download_files([node.thumbnail], "Node {}".format(node.original_id), default_ext=".{}".format(file_formats.PNG))
+                result = self.downloader.download_files([node.thumbnail], "Node {}".format(node.original_id), default_ext=".{}".format(file_formats.PNG))
+                if result:
+                    node.files += result
 
             # If node is an exercise, process images for exercise
             if isinstance(node, nodes.Exercise):
