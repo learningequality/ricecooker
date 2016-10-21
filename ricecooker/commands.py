@@ -40,6 +40,7 @@ def uploadchannel(path, domain, verbose=False, **kwargs):
     if verbose:
         print("Processing content...")
     tree.process_tree(channel)
+    tree.check_for_files_failed()
 
     # Determine which files have not yet been uploaded to the CC server
     if verbose:

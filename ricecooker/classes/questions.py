@@ -28,6 +28,7 @@ class BaseQuestion:
         self.answers = answers if answers is not None else []
         self.hints = [] if hints is None else [hints] if isinstance(hints,str) else hints
         self.raw_data = raw_data
+        self.original_id=id
         self.id = uuid.uuid5(uuid.NAMESPACE_DNS, id)
 
     def to_dict(self):
@@ -105,11 +106,17 @@ class BaseQuestion:
             graphie_match = graphie_reg.match(match[1])
             if graphie_match is not None:
                 link = graphie_match.group().replace("web+graphie:", "")
-                filename, svg_filename, json_filename = downloader.download_graphie(link)
+                graphie_result = downloader.download_graphie(link, "Question {0}".format(self.original_id))
+                if not graphie_result:
+                    return "", []
+                filename, svg_filename, json_filename =graphie_result
                 processed_string = processed_string.replace(link, exercises.CONTENT_STORAGE_FORMAT.format(filename))
                 file_list += [svg_filename, json_filename]
             else:
-                filename = downloader.download_file(match[1], preset=format_presets.EXERCISE_IMAGE)
+                file_result = downloader.download_file(match[1], "Question {0}".format(self.original_id), preset=format_presets.EXERCISE_IMAGE, default_ext=".{}".format(file_formats.PNG))
+                if not file_result:
+                    return "", []
+                filename = file_result
                 processed_string = processed_string.replace(match[1], exercises.CONTENT_STORAGE_FORMAT.format(filename))
                 file_list += [filename]
         return processed_string, file_list
@@ -225,11 +232,17 @@ class PerseusQuestion(BaseQuestion):
         # Otherwise, download like other files
         if graphie_match is not None:
             link = graphie_match.group().replace("web+graphie:", "")
-            filename, svg_filename, json_filename = downloader.download_graphie(link)
+            graphie_result = downloader.download_graphie(link, "Question {0}".format(self.original_id))
+            if not graphie_result:
+                return "", []
+            filename, svg_filename, json_filename = graphie_result
             text = text.replace(link, exercises.CONTENT_STORAGE_FORMAT.format(filename))
             file_list += [svg_filename, json_filename]
         else:
-            filename = downloader.download_file(text, preset=format_presets.EXERCISE_IMAGE)
+            result = downloader.download_file(text, "Question {0}".format(self.original_id), preset=format_presets.EXERCISE_IMAGE, default_ext=".{}".format(file_formats.PNG))
+            if not result:
+                return "", []
+            filename = result
             text = text.replace(text, exercises.CONTENT_STORAGE_FORMAT.format(filename))
             file_list += [filename]
         return text, file_list
