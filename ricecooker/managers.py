@@ -10,6 +10,7 @@ import tempfile
 import shutil
 import os
 import sys
+import filecmp
 import requests
 from requests_file import FileAdapter
 from requests.exceptions import MissingSchema, HTTPError, ConnectionError, InvalidURL, InvalidSchema
@@ -150,12 +151,19 @@ class DownloadManager:
                 force_ext (bool): force manager to use default extension (optional)
             Returns: filename of downloaded file
         """
-        if self.verbose:
-            print("\tStarting download for {}".format(path))
         try:
-            # Handle if path has already been processed
-            if exercises.CONTENT_STORAGE_PLACEHOLDER in path:
-                return os.path.split(path)[-1]
+            if self.verbose:
+                print("\tDownloading {}".format(path))
+
+            # Generate hash if none exist
+            if hash is None:
+                try:
+                    r = self.session.get(path, stream=True)
+                    r.raise_for_status()
+                    hash = self.get_hash(r, hashlib.md5())
+                except MissingSchema:
+                    with open(path, 'rb') as fobj:
+                        hash = self.get_hash(iter(lambda: fobj.read(4096), b""), hashlib.md5())
 
             # Get extension of file or default if none found
             file_components = path.split("/")[-1].split(".")
@@ -168,6 +176,18 @@ class DownloadManager:
                     raise FileNotFoundError("No extension found: {}".format(path))
             else:
                 extension = "." + extension
+            filename = '{0}{ext}'.format(hash.hexdigest(), ext=extension)
+
+
+            # If file already exists, skip it
+            if not self.update and os.path.isfile(config.get_storage_path(filename)):
+                if self.verbose:
+                    print("\t--- {0} already exists (add '-u' flag to update)".format(filename))
+                return False
+            # Handle if path has already been processed
+            elif exercises.CONTENT_STORAGE_PLACEHOLDER in path:
+                return os.path.split(path)[-1]
+
 
             # Write file to temporary file
             with tempfile.TemporaryFile() as tempf:
@@ -176,27 +196,16 @@ class DownloadManager:
                     r = self.session.get(path, stream=True)
                     r.raise_for_status()
 
-                    # If a hash was not provided, generate hash during write process
-                    # Otherwise, just write the file
-                    if hash is None:
-                        hash = hashlib.md5()
-                        for chunk in r:
-                            hash.update(chunk)
-                            tempf.write(chunk)
-                    else:
-                       for chunk in r:
-                            tempf.write(chunk)
+                    # Write to file (generate hash if none provided)
+                    for chunk in r:
+                        tempf.write(chunk)
 
                 except MissingSchema:
-                    # If path is a local file path, try to open the file
+                    # If path is a local file path, try to open the file (generate hash if none provided)
                     with open(path, 'rb') as fobj:
-                        if hash is None:
-                            hash = self.get_hash(iter(lambda: fobj.read(4096), b""), hashlib.md5())
                         tempf.write(fobj.read())
 
                 # Get file metadata (hashed filename, original filename, size)
-                hashstring = hash.hexdigest()
-                filename = '{0}{ext}'.format(hashstring, ext=extension)
                 file_size = tempf.tell()
                 tempf.seek(0)
 
@@ -214,7 +223,7 @@ class DownloadManager:
                     shutil.copyfileobj(tempf, destf)
 
                 if self.verbose:
-                    print("\tDownloaded '{0}' to {1}".format(original_filename, filename))
+                    print("\t--- Downloaded '{0}' to {1}".format(original_filename, filename))
             return filename
         # Catch errors related to reading file path and handle silently
         except (HTTPError, FileNotFoundError, ConnectionError, InvalidURL, InvalidSchema, IOError):
