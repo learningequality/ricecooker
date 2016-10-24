@@ -3,6 +3,7 @@
 import uuid
 import json
 import re
+import copy
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
 from ricecooker.exceptions import UnknownQuestionTypeError, InvalidQuestionException
 
@@ -178,21 +179,23 @@ class PerseusQuestion(BaseQuestion):
         image_data = json.loads(self.raw_data)
 
         # Process question
-        if 'question' in image_data:
+        if 'question' in image_data and 'images' in image_data['question']:
             image_data['question']['images'], qfiles = self.process_image_field(image_data['question'], downloader)
             image_files += qfiles
 
         # Process hints
         if 'hints' in image_data:
             for hint in image_data['hints']:
-                hint['images'], hfiles = self.process_image_field(hint, downloader)
-                image_files += hfiles
+                if 'images' in hint:
+                    hint['images'], hfiles = self.process_image_field(hint, downloader)
+                    image_files += hfiles
 
         # Process answers
         if 'answers' in image_data:
             for answer in image_data['answers']:
-                answer['images'], afiles = self.process_image_field(answer, downloader)
-                image_files += afiles
+                if 'images' in answer:
+                    answer['images'], afiles = self.process_image_field(answer, downloader)
+                    image_files += afiles
 
         # Process raw data
         self.raw_data = json.dumps(image_data)
@@ -209,7 +212,8 @@ class PerseusQuestion(BaseQuestion):
             Returns: list of all downloaded files
         """
         files = []
-        new_data = data['images']
+
+        new_data = copy.deepcopy(data['images'])
         for k, v in data['images'].items():
             new_key, fs = self.set_image(k, downloader)
             files += fs
