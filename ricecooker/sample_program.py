@@ -105,6 +105,23 @@ SAMPLE_TREE = [
                     },
                 ],
             },
+            {
+                "title": "Rice Exercise 2",
+                "id": "6cafe1",
+                "description": "Test how well you know your rice",
+                "license": licenses.CC_BY_NC_SA,
+                "mastery_model": exercises.M_OF_N,
+                "thumbnail":"http://www.publicdomainpictures.net/pictures/110000/nahled/bowl-of-rice.jpg",
+                "questions": [
+                    {
+                        "id": "ccccc",
+                        "question": "What makes rice so good?",
+                        "type":exercises.FREE_RESPONSE,
+                        "answers": [],
+                        "images": None,
+                    },
+                ],
+            },
         ]
     },
 ]

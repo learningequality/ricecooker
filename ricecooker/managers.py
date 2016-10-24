@@ -36,7 +36,7 @@ class DownloadManager:
     # All accepted file extensions
     all_file_extensions = [key for key, value in file_formats.choices]
 
-    def __init__(self, verbose=False):
+    def __init__(self, verbose=False, update=False):
         # Mount file:// to allow local path requests
         self.session = requests.Session()
         self.session.mount('file://', FileAdapter())
@@ -44,6 +44,7 @@ class DownloadManager:
         self.failed_files = []
         self._file_mapping = {} # Used to keep track of files and their respective metadata
         self.verbose = verbose
+        self.update = update
 
     def get_files(self):
         """ get_files: get files downloaded by download manager
@@ -149,6 +150,8 @@ class DownloadManager:
                 force_ext (bool): force manager to use default extension (optional)
             Returns: filename of downloaded file
         """
+        if self.verbose:
+            print("\tStarting download for {}".format(path))
         try:
             # Handle if path has already been processed
             if exercises.CONTENT_STORAGE_PLACEHOLDER in path:
@@ -274,11 +277,12 @@ class ChannelManager:
             downloader (DownloadManager): download manager for handling files
             verbose (bool): indicates whether to print what manager is doing (optional)
     """
-    def __init__(self, channel, domain, verbose=False):
+    def __init__(self, channel, domain, verbose=False, update=False):
         self.channel = channel # Channel to process
         self.verbose = verbose # Determines whether to print process
         self.domain = domain # Domain to upload channel to
-        self.downloader = DownloadManager(verbose)
+        self.update = update # Download all files if true
+        self.downloader = DownloadManager(verbose, update)
 
     def validate(self):
         """ validate: checks if tree structure is valid

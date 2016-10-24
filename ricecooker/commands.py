@@ -4,7 +4,7 @@ from ricecooker.config import STORAGE_DIRECTORY
 from ricecooker.classes import nodes, questions
 from ricecooker.managers import ChannelManager
 
-def uploadchannel(path, domain, verbose=False, **kwargs):
+def uploadchannel(path, domain, verbose=False, update=False, **kwargs):
     """ uploadchannel: Upload channel to Kolibri Studio server
         Args:
             path (str): path to file containing channel data
@@ -29,7 +29,7 @@ def uploadchannel(path, domain, verbose=False, **kwargs):
     if verbose:
         channel.print_tree()
         print("Setting up initial channel structure...")
-    tree = ChannelManager(channel, domain, verbose)
+    tree = ChannelManager(channel, domain, verbose, update)
 
     # Make sure channel structure is valid
     if verbose:
