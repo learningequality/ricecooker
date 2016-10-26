@@ -100,6 +100,9 @@ A sample program has been created [here](https://github.com/learningequality/ric
 	Once you have created the appropriate question model, add it to an exercise model with `<exercise-node>.add_question(<question>)`
 
 * Running the Rice Cooker
-	Run `python -m ricecooker uploadchannel [-v] "<path-to-py-file>" [--debug]`
+	Run `python -m ricecooker uploadchannel [-uv] "<path-to-py-file>" [--debug] [--resume] [[OPTIONS] ...]`
 	- -v (verbose) will print what the rice cooker is doing
+	- -u (update) will force the ricecooker to redownload all files
 	- --debug will send data to localhost if you have Kolibri Studio running locally
+	- --resume will resume your previous rice cooking session
+	- [OPTIONS] any additional keyword arguments you would like to pass to your construct_channel method

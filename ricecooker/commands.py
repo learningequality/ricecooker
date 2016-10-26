@@ -39,12 +39,22 @@ def uploadchannel(path, domain, verbose=False, update=False, resume=False, **kwa
     # Download files if they haven't been downloaded already
     if progress_manager.get_status_val() < Status.FILES_DOWNLOADED.value:
         process_tree_files(tree, verbose, progress_manager)
+    else:
+        tree.downloader.files = progress_manager.files_downloaded
+        tree.downloader.failed_files = progress_manager.files_failed
+        tree.downloader._file_mapping = progress_manager.file_mapping
 
     # Get file diff if it hasn't been generated already
     if progress_manager.get_status_val() < Status.FILE_DIFF.value:
         file_diff = get_file_diff(tree, verbose, progress_manager)
     else:
         file_diff = progress_manager.file_diff
+
+    # Set which files have already been uploaded
+    tree.uploaded_files = progress_manager.files_uploaded
+
+    if progress_manager.get_status_val() < Status.FILES_UPLOADED.value:
+        upload_files(tree, file_diff, verbose, progress_manager)
 
     # Upload files if they haven't been uploaded already
     if progress_manager.get_status_val() < Status.FILES_UPLOADED.value:
@@ -116,7 +126,7 @@ def upload_files(tree, file_diff, verbose, progress_manager):
     # Upload new files to CC
     if verbose:
         print("Uploading {0} new file(s) to the content curation server...".format(len(file_diff)))
-    tree.upload_files(file_diff)
+    tree.upload_files(file_diff, progress_manager)
     progress_manager.set_uploaded(file_diff)
 
 def create_tree(tree, verbose, progress_manager):

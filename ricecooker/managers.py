@@ -303,6 +303,7 @@ class ChannelManager:
         self.domain = domain # Domain to upload channel to
         self.update = update # Download all files if true
         self.downloader = DownloadManager(verbose, update)
+        self.uploaded_files=[]
 
     def validate(self):
         """ validate: checks if tree structure is valid
@@ -337,9 +338,8 @@ class ChannelManager:
         """
         from ricecooker.classes import nodes
 
-        # If node is not a channel, set ids and download files
+        # If node is not a channel, download files
         if not isinstance(node, nodes.Channel):
-            node.set_ids(self.channel._internal_domain, parent.node_id)
             node.files = self.downloader.download_files(node.files, "Node {}".format(node.original_id))
             if node.thumbnail is not None:
                 result = self.downloader.download_files([node.thumbnail], "Node {}".format(node.original_id), default_ext=".{}".format(file_formats.PNG))
@@ -371,19 +371,22 @@ class ChannelManager:
         response.raise_for_status()
         return json.loads(response._content.decode("utf-8"))
 
-    def upload_files(self, file_list):
+    def upload_files(self, file_list, progress_manager):
         """ upload_files: uploads files to server
             Args: file_list (str): list of files to upload
             Returns: None
         """
         counter = 0
-        for f in file_list:
+        files_to_upload = list(set(file_list) - set(self.uploaded_files)) # In case restoring from previous session
+        for f in files_to_upload:
             with  open(config.get_storage_path(f), 'rb') as file_obj:
                 response = requests.post(config.file_upload_url(self.domain), files={'file': file_obj})
                 response.raise_for_status()
+                self.uploaded_files += [f]
+                progress_manager.set_uploading(self.uploaded_files)
                 counter += 1
                 if self.verbose:
-                    print("\tUploaded {0} ({count}/{total}) ".format(f, count=counter, total=len(file_list)))
+                    print("\tUploaded {0} ({count}/{total}) ".format(f, count=counter, total=len(files_to_upload)))
 
     def upload_tree(self):
         """ upload_files: sends processed channel data to server to create tree
@@ -406,18 +409,16 @@ class Status(Enum):
     TREE_CREATED = 2
     FILES_DOWNLOADED = 3
     FILE_DIFF = 4
-    FILES_UPLOADED = 5
-    CHANNEL_CREATED = 6
-    DONE = 7
+    UPLOADING_FILES = 5
+    FILES_UPLOADED = 6
+    CHANNEL_CREATED = 7
+    DONE = 8
 
 class RestoreManager:
     """ Manager for handling resuming rice cooking process
 
         Attributes:
-            channel (Channel): channel that manager is handling
-            domain (str): server domain to create channel on
-            downloader (DownloadManager): download manager for handling files
-            verbose (bool): indicates whether to print what manager is doing (optional)
+            restore_path (str): path to .pickle file to store progress
     """
     def __init__(self, restore_path):
         self.restore_path = restore_path
@@ -469,6 +470,11 @@ class RestoreManager:
     def set_diff(self, file_diff):
         self.status = Status.FILE_DIFF
         self.file_diff = file_diff
+        self.record_progress()
+
+    def set_uploading(self, files_uploaded):
+        self.status = Status.UPLOADING_FILES
+        self.files_uploaded = files_uploaded
         self.record_progress()
 
     def set_uploaded(self, files_uploaded):
