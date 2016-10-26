@@ -4,7 +4,7 @@ from ricecooker.config import STORAGE_DIRECTORY
 from ricecooker.classes import nodes, questions
 from ricecooker.managers import ChannelManager, RestoreManager, Status
 
-def uploadchannel(path, domain, verbose=False, update=False, resume=False, **kwargs):
+def uploadchannel(path, domain, verbose=False, update=False, resume=False, reset=False, **kwargs):
     """ uploadchannel: Upload channel to Kolibri Studio server
         Args:
             path (str): path to file containing channel data
@@ -17,12 +17,15 @@ def uploadchannel(path, domain, verbose=False, update=False, resume=False, **kwa
 
     # Set up progress tracker
     progress_manager = RestoreManager("restore.pickle")
-    if resume and os.path.isfile("restore.pickle"):
-        if verbose:
-            print("Resuming your last session...")
-        progress_manager = progress_manager.load_progress()
-    else:
+    if reset or not os.path.isfile("restore.pickle"):
         progress_manager.record_progress()
+    else:
+        if resume or prompt_resume():
+            if verbose:
+                print("Resuming your last session...")
+            progress_manager = progress_manager.load_progress()
+        else:
+            progress_manager.record_progress()
 
     # Construct channel if it hasn't been constructed already
     if progress_manager.get_status_val() < Status.CHANNEL_CONSTRUCTED.value:
@@ -71,6 +74,19 @@ def uploadchannel(path, domain, verbose=False, update=False, resume=False, **kwa
     prompt_open(channel_link)
     progress_manager.set_done()
     return channel_link
+
+def prompt_resume():
+    """ prompt_resume: Prompt user to resume last session if one exists
+        Args: None
+        Returns: None
+    """
+    openNow = input("Previous session detected. Would you like to resume your previous session? [y/n]:").lower()
+    if openNow.startswith("y"):
+        return True
+    elif openNow.startswith("n"):
+        return False
+    else:
+        return prompt_resume()
 
 def run_construct_channel(path, verbose, progress_manager, kwargs):
     # Read in file to access create_channel method
