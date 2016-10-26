@@ -198,7 +198,7 @@ class PerseusQuestion(BaseQuestion):
                     image_files += afiles
 
         # Process raw data
-        self.raw_data = json.dumps(image_data)
+        self.raw_data = json.dumps(image_data, ensure_ascii=False)
         self.raw_data, data_files = super(PerseusQuestion, self).set_images(self.raw_data, downloader)
 
         # Return all files

@@ -8,10 +8,12 @@ import validators
 import base64
 import tempfile
 import shutil
+import pickle
 import os
 import sys
 import filecmp
 import requests
+from enum import Enum
 from requests_file import FileAdapter
 from requests.exceptions import MissingSchema, HTTPError, ConnectionError, InvalidURL, InvalidSchema
 from io import BytesIO
@@ -102,7 +104,6 @@ class DownloadManager:
                 with open(svg_path, 'rb') as fsvg:
                     hash = self.get_hash(iter(lambda: fsvg.read(4096), b""), hash)
 
-
             # Combine svg hash with json hash
             try:
                 rjson = self.session.get(json_path, stream=True)
@@ -152,6 +153,10 @@ class DownloadManager:
             Returns: filename of downloaded file
         """
         try:
+            # Handle if path has already been processed
+            if exercises.CONTENT_STORAGE_PLACEHOLDER in path:
+                return os.path.split(path)[-1]
+
             if self.verbose:
                 print("\tDownloading {}".format(path))
 
@@ -183,11 +188,17 @@ class DownloadManager:
             if not self.update and os.path.isfile(config.get_storage_path(filename)):
                 if self.verbose:
                     print("\t--- {0} already exists (add '-u' flag to update)".format(filename))
-                return False
-            # Handle if path has already been processed
-            elif exercises.CONTENT_STORAGE_PLACEHOLDER in path:
-                return os.path.split(path)[-1]
 
+                # Keep track of downloaded file
+                self.files += [filename]
+                self._file_mapping.update({filename : {
+                    'original_filename': original_filename,
+                    'source_url': path,
+                    'size': os.path.getsize(config.get_storage_path(filename)),
+                    'preset':preset,
+                }})
+
+                return filename
 
             # Write file to temporary file
             with tempfile.TemporaryFile() as tempf:
@@ -300,8 +311,25 @@ class ChannelManager:
         """
         return self.channel.test_tree()
 
+    def set_relationship(self, node, parent=None):
+        """ set_relationship: sets ids
+            Args:
+                node (Node): node to process
+                parent (Node): parent of node being processed
+            Returns: None
+        """
+        from ricecooker.classes import nodes
+
+        # If node is not a channel, set ids and download files
+        if not isinstance(node, nodes.Channel):
+            node.set_ids(self.channel._internal_domain, parent.node_id)
+
+        # Process node's children
+        for child_node in node.children:
+            self.set_relationship(child_node, node)
+
     def process_tree(self, node, parent=None):
-        """ process_tree: sets ids and processes files
+        """ process_tree: processes files
             Args:
                 node (Node): node to process
                 parent (Node): parent of node being processed
@@ -371,3 +399,85 @@ class ChannelManager:
         response.raise_for_status()
         new_channel = json.loads(response._content.decode("utf-8"))
         return config.open_channel_url(new_channel['invite_id'], new_channel['new_channel'], self.domain)
+
+class Status(Enum):
+    INITIAL = "started_ricecooker"
+    CHANNEL_CONSTRUCTED = "channel_constructed"
+    TREE_CREATED = "tree_created"
+    FILES_DOWNLOADED = "files_downloaded"
+    FILE_DIFF = "file_diff_created"
+    FILES_UPLOADED = "files_uploaded"
+    CHANNEL_CREATED = "channel_created"
+    DONE = "done"
+
+class RestoreManager:
+    """ Manager for handling resuming rice cooking process
+
+        Attributes:
+            channel (Channel): channel that manager is handling
+            domain (str): server domain to create channel on
+            downloader (DownloadManager): download manager for handling files
+            verbose (bool): indicates whether to print what manager is doing (optional)
+    """
+    def __init__(self, restore_path):
+        self.restore_path = restore_path
+        self.channel = None
+        self.tree = None # Tree to process
+        self.files_downloaded = [] # Determines whether to print process
+        self.file_mapping = {} # Domain to upload channel to
+        self.files_failed = [] # Download all files if true
+        self.file_diff = []
+        self.files_uploaded = []
+        self.channel_link = None
+        self.status = Status.INITIAL
+
+    def record_progress(self):
+        with open(self.restore_path, 'wb') as handle:
+            pickle.dump(self, handle)
+
+    def load_progress(self):
+        with open('restore.pickle', 'rb') as handle:
+            manager = pickle.load(handle)
+            if isinstance(manager, RestoreManager):
+                return manager
+            else:
+                return self
+
+    def get_status(self):
+        return self.status
+
+    def set_channel(self, channel):
+        self.status = Status.CHANNEL_CONSTRUCTED
+        self.channel = channel
+        self.record_progress()
+
+    def set_tree(self, tree):
+        self.status = Status.TREE_CREATED
+        self.tree = tree
+        self.record_progress()
+
+    def set_files(self, files_downloaded, file_mapping, files_failed):
+        self.status = Status.FILES_DOWNLOADED
+        self.files_downloaded = files_downloaded
+        self.file_mapping = file_mapping
+        self.files_failed = files_failed
+        self.record_progress()
+
+    def set_diff(self, file_diff):
+        self.status = Status.FILE_DIFF
+        self.file_diff = file_diff
+        self.record_progress()
+
+    def set_uploaded(self, files_uploaded):
+        self.status = Status.FILES_UPLOADED
+        self.files_uploaded = files_uploaded
+        self.record_progress()
+
+    def set_channel_created(self, channel_link):
+        self.status = Status.CHANNEL_CREATED
+        self.channel_link = channel_link
+        self.record_progress()
+
+    def set_done(self):
+        self.status = Status.DONE
+        self.record_progress()
