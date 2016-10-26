@@ -401,14 +401,14 @@ class ChannelManager:
         return config.open_channel_url(new_channel['invite_id'], new_channel['new_channel'], self.domain)
 
 class Status(Enum):
-    INITIAL = "started_ricecooker"
-    CHANNEL_CONSTRUCTED = "channel_constructed"
-    TREE_CREATED = "tree_created"
-    FILES_DOWNLOADED = "files_downloaded"
-    FILE_DIFF = "file_diff_created"
-    FILES_UPLOADED = "files_uploaded"
-    CHANNEL_CREATED = "channel_created"
-    DONE = "done"
+    INITIAL = 0
+    CHANNEL_CONSTRUCTED = 1
+    TREE_CREATED = 2
+    FILES_DOWNLOADED = 3
+    FILE_DIFF = 4
+    FILES_UPLOADED = 5
+    CHANNEL_CREATED = 6
+    DONE = 7
 
 class RestoreManager:
     """ Manager for handling resuming rice cooking process
@@ -436,7 +436,7 @@ class RestoreManager:
             pickle.dump(self, handle)
 
     def load_progress(self):
-        with open('restore.pickle', 'rb') as handle:
+        with open(self.restore_path, 'rb') as handle:
             manager = pickle.load(handle)
             if isinstance(manager, RestoreManager):
                 return manager
@@ -445,6 +445,9 @@ class RestoreManager:
 
     def get_status(self):
         return self.status
+
+    def get_status_val(self):
+        return self.status.value
 
     def set_channel(self, channel):
         self.status = Status.CHANNEL_CONSTRUCTED
