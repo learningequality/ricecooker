@@ -27,18 +27,26 @@ STORAGE_DIRECTORY = "storage/"
 RESTORE_DIRECTORY = "restore/"
 
 def get_storage_path(filename):
-	""" get_storage_path: returns path to storage directory for downloading content
-        Args: filename (str): Name of file to store
-        Returns: string path to file
-    """
-	return os.path.join(STORAGE_DIRECTORY, filename)
-
-def get_restore_path(filename):
     """ get_storage_path: returns path to storage directory for downloading content
         Args: filename (str): Name of file to store
         Returns: string path to file
     """
-    return os.path.join(RESTORE_DIRECTORY, filename)
+    # Make storage directory for downloaded files if it doesn't already exist
+    if not os.path.exists(STORAGE_DIRECTORY) :
+        os.makedirs(STORAGE_DIRECTORY)
+
+    return os.path.join(STORAGE_DIRECTORY, filename)
+
+def get_restore_path(filename, debug):
+    """ get_storage_path: returns path to storage directory for downloading content
+        Args: filename (str): Name of file to store
+        Returns: string path to file
+    """
+    path = os.path.join(RESTORE_DIRECTORY, "local" if debug else "production")
+    # Make storage directory for restore files if it doesn't already exist
+    if not os.path.exists(path):
+        os.makedirs(path)
+    return os.path.join(path, filename + '.pickle')
 
 def file_diff_url(domain):
 	""" file_diff_url: returns url to get file diff

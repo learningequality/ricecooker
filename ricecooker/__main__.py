@@ -19,16 +19,13 @@ Options:
 from ricecooker.commands import uploadchannel
 from ricecooker import config
 from ricecooker.exceptions import InvalidUsageException
-from ricecooker.managers import RESTORE_POINT_MAPPING
+from ricecooker.managers import Status
 from docopt import docopt
 
 commands = ["uploadchannel"]
 
 if __name__ == '__main__':
     arguments = docopt(__doc__)
-    domain = config.PRODUCTION_DOMAIN
-    if arguments["--debug"]:
-      domain = config.DEBUG_DOMAIN
 
     kwargs = {}
     for arg in arguments['OPTIONS']:
@@ -39,9 +36,8 @@ if __name__ == '__main__':
         raise InvalidUsageException("Invalid kwarg '{0}' found: Must format as [key]=[value] (no whitespace)".format(arg))
 
     step = arguments['--step']
-    all_steps = [key for key, value in RESTORE_POINT_MAPPING.items()]
-
+    all_steps = [s.name for s in Status]
     if step.upper() not in all_steps:
-      raise InvalidUsageException("Invalid step '{0}': Must use one of these steps {1}".format(step, all_steps))
+      raise InvalidUsageException("Invalid step '{0}': Valid steps are {1}".format(step, all_steps))
 
-    uploadchannel(arguments["<file_path>"], domain, verbose=arguments["-v"], update=arguments["-u"], resume=arguments['--resume'], reset=arguments['--reset'], step=step, **kwargs)
+    uploadchannel(arguments["<file_path>"], arguments["--debug"], verbose=arguments["-v"], update=arguments["-u"], resume=arguments['--resume'], reset=arguments['--reset'], step=step, **kwargs)

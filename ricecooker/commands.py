@@ -1,25 +1,27 @@
 import os
 import webbrowser
-from ricecooker.config import STORAGE_DIRECTORY, RESTORE_DIRECTORY
+from ricecooker import config
 from ricecooker.classes import nodes, questions
 from ricecooker.managers import ChannelManager, RestoreManager, Status
 
-def uploadchannel(path, domain, verbose=False, update=False, resume=False, reset=False, step=None, **kwargs):
+def uploadchannel(path, debug, verbose=False, update=False, resume=False, reset=False, step=None, **kwargs):
     """ uploadchannel: Upload channel to Kolibri Studio server
         Args:
             path (str): path to file containing channel data
-            domain (str): domain to upload to
+            debug (bool): determine which domain to upload to
             verbose (bool): indicates whether to print process (optional)
         Returns: (str) link to access newly created channel
     """
+
+    domain = config.PRODUCTION_DOMAIN
+    if debug:
+      domain = config.DEBUG_DOMAIN
+
     if verbose:
         print("\n\n***** Starting channel build process *****")
-    # Make storage directory for downloaded files if it doesn't already exist
-    if not os.path.exists(STORAGE_DIRECTORY):
-        os.makedirs(STORAGE_DIRECTORY)
 
     # Set up progress tracker
-    progress_manager = RestoreManager()
+    progress_manager = RestoreManager(debug)
     if reset or not progress_manager.check_for_session():
         progress_manager.init_session()
     else:

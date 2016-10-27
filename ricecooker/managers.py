@@ -19,7 +19,7 @@ from requests.exceptions import MissingSchema, HTTPError, ConnectionError, Inval
 from io import BytesIO
 from PIL import Image
 from ricecooker import config
-from ricecooker.exceptions import InvalidFormatException, FileNotFoundException, StepNotReachedException
+from ricecooker.exceptions import InvalidFormatException, FileNotFoundException
 from le_utils.constants import file_formats, exercises, format_presets
 
 WEB_GRAPHIE_URL_REGEX = r'web\+graphie:([^\)]+)'
@@ -389,7 +389,6 @@ class ChannelManager:
                     response = requests.post(config.file_upload_url(self.domain), files={'file': file_obj})
                     response.raise_for_status()
                     self.uploaded_files += [f]
-                    progress_manager.set_uploading(self.uploaded_files)
                     counter += 1
                     if self.verbose:
                         print("\tUploaded {0} ({count}/{total}) ".format(f, count=counter, total=len(files_to_upload)))
@@ -412,7 +411,6 @@ class ChannelManager:
         return config.open_channel_url(new_channel['invite_id'], new_channel['new_channel'], self.domain)
 
 class Status(Enum):
-    LAST=-1
     INIT = 0
     CONSTRUCT_CHANNEL = 1
     CREATE_TREE = 2
@@ -423,20 +421,8 @@ class Status(Enum):
     UPLOAD_FILES = 7
     UPLOAD_CHANNEL = 8
     DONE = 9
+    LAST=10
 
-RESTORE_POINT_MAPPING = {
-    Status.INIT.name : "init.pickle",
-    Status.CONSTRUCT_CHANNEL.name : "construct_channel.pickle",
-    Status.CREATE_TREE.name : "create_tree.pickle",
-    Status.DOWNLOAD_FILES.name : "download_files.pickle",
-    Status.GET_FILE_DIFF.name : "get_file_diff.pickle",
-    Status.START_UPLOAD.name : "start_upload.pickle",
-    Status.UPLOADING_FILES.name : "uploading_files.pickle",
-    Status.UPLOAD_FILES.name : "upload_files.pickle",
-    Status.UPLOAD_CHANNEL.name : "upload_channel.pickle",
-    Status.DONE.name : "done.pickle",
-    Status.LAST.name : "restore.pickle",
-}
 
 class RestoreManager:
     """ Manager for handling resuming rice cooking process
@@ -445,9 +431,8 @@ class RestoreManager:
             restore_path (str): path to .pickle file to store progress
     """
 
-    LAST_RESTORE = "restore.pickle"
-
-    def __init__(self):
+    def __init__(self, debug):
+        self.debug = debug
         self.channel = None
         self.tree = None # Tree to process
         self.files_downloaded = [] # Determines whether to print process
@@ -458,33 +443,32 @@ class RestoreManager:
         self.channel_link = None
         self.status = Status.INIT
 
-        # Make storage directory for restore files if it doesn't already exist
-        if not os.path.exists(config.RESTORE_DIRECTORY):
-            os.makedirs(config.RESTORE_DIRECTORY)
+    def check_for_session(self, status=None):
+        status = Status.LAST if status is None else status
+        return os.path.isfile(self.get_restore_path(status)) and os.path.getsize(self.get_restore_path(status)) > 0
 
-    def check_for_session(self):
-        return os.path.isfile(config.get_restore_path(self.LAST_RESTORE)) and os.path.getsize(config.get_restore_path(self.LAST_RESTORE)) > 0
-
-    def get_restore_path(self):
-        return config.get_restore_path(RESTORE_POINT_MAPPING[self.get_status().name])
+    def get_restore_path(self, status=None):
+        status = self.get_status() if status is None else status
+        return config.get_restore_path(status.name.lower(), self.debug)
 
     def record_progress(self):
-        with open(config.get_restore_path(self.LAST_RESTORE), 'wb') as handle, open(self.get_restore_path(), 'wb') as step_handle:
+        with open(self.get_restore_path(Status.LAST), 'wb') as handle, open(self.get_restore_path(), 'wb') as step_handle:
             pickle.dump(self, handle)
             pickle.dump(self, step_handle)
 
     def load_progress(self, resume_step):
-        progress_path = config.get_restore_path(RESTORE_POINT_MAPPING[resume_step])
-        if not os.path.isfile(progress_path):
-            raise StepNotReachedException("Rice cooker has not reached step {0}".format(resume_step))
+        resume_step = Status[resume_step]
 
         # If progress is corrupted, revert to step before
-        while os.path.getsize(progress_path) == 0:
-            last_step = Status[resume_step] - 1
+        while not self.check_for_session(resume_step):
+            print("Ricecooker has not reached {0} status. Reverting to earlier step...".format(resume_step.name))
             # All files are corrupted, restart process
-            if last_step < 0:
+            if resume_step.value - 1 < 0:
+                self.init_session()
                 return self
-            progress_path = config.get_restore_path(RESTORE_POINT_MAPPING[Status(last_step).name])
+            resume_step = Status(resume_step.value - 1)
+            progress_path = self.get_restore_path(resume_step)
+        print("Starting from status {0}".format(resume_step.name))
 
         with open(progress_path, 'rb') as handle:
             manager = pickle.load(handle)
@@ -500,6 +484,10 @@ class RestoreManager:
         return self.status.value
 
     def init_session(self):
+        for status in Status:
+            path = self.get_restore_path(status)
+            if os.path.isfile(path):
+                os.remove(path)
         self.record_progress()
         self.status = Status.CONSTRUCT_CHANNEL # Set status to next step
         self.record_progress()
@@ -546,3 +534,4 @@ class RestoreManager:
     def set_done(self):
         self.status = Status.DONE
         self.record_progress()
+        os.remove(self.get_restore_path(Status.LAST))
