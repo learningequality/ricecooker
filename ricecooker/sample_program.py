@@ -24,16 +24,15 @@ SAMPLE_TREE = [
                 "license": licenses.PUBLIC_DOMAIN,
             },
             {
-
                 "title": "Rice History",
                 "id": "6ef99c",
                 "description": "Discover the history of rice",
                 "children": [
                     {
-                        "title": "Rice Farming",
+                        "title": "The History of Japanese Rice",
                         "id": "418799",
-                        "author": "Public Media, inc",
-                        "file": "https://ia802601.us.archive.org/11/items/ricefarmersinthailand/ricefarmersinthailand.mp4",
+                        "author": "Sandra Lopez-Richter",
+                        "file": "https://ia601301.us.archive.org/31/items/The_History_of_Japanese_Rice_Lopez-Richter/The_History_of_Japanese_Rice_Lopez-Richter.pdf",
                         "license": licenses.CC_BY,
                         "thumbnail" : "http://res.freestockphotos.biz/pictures/17/17321-a-bowl-of-rice-with-chopsticks-pv.jpg",
                     },
@@ -57,7 +56,7 @@ SAMPLE_TREE = [
             },
             {
                 "title": "Rice Exercise",
-                "id": "6cafe1",
+                "id": "6cafe3",
                 "description": "Test how well you know your rice",
                 "license": licenses.CC_BY_NC_SA,
                 "mastery_model": exercises.M_OF_N,
@@ -74,9 +73,9 @@ SAMPLE_TREE = [
                         "id": "bbbbb",
                         "question": "Which rice is the crunchiest?",
                         "type":exercises.SINGLE_SELECTION,
-                        "correct_answer": "Rice Krispies",
-                        "all_answers": ["White rice", "Brown rice", "Rice Krispies"],
-                        "hints": "Has rice in it",
+                        "correct_answer": "Rice Krispies \n![](https://upload.wikimedia.org/wikipedia/commons/c/cd/RKTsquares.jpg)",
+                        "all_answers": ["White rice \n![](https://upload.wikimedia.org/wikipedia/commons/4/4b/Thai_jasmine_rice_uncooked.jpg)", "Brown rice \n![](https://c2.staticflickr.com/4/3159/2889140143_b99fd8dd4c_z.jpg?zz=1)", "Rice Krispies \n![](https://upload.wikimedia.org/wikipedia/commons/c/cd/RKTsquares.jpg)"],
+                        "hints": "It's delicious",
                     },
                     {
                         "id": "ccccc",
@@ -97,28 +96,46 @@ SAMPLE_TREE = [
                         "type":exercises.PERSEUS_QUESTION,
                         "item_data":SAMPLE_PERSEUS,
                     },
-                    {
-                        "id": "11111",
-                        "question": "<h3 id='rainbow'><b>RICE COOKING!!!</b></h3><script type='text/javascript'><!-- setInterval(function() {$('#rainbow').css('color', '#'+((1<<24)*Math.random()|0).toString(16));}, 300); --></script>",
-                        "type":exercises.FREE_RESPONSE,
-                        # "hints": ["You've been hit <script type='text/javascript'><!-- alert(\"IT'S A TRAP!\"); --></script>"],
-                    },
                 ],
             },
             {
                 "title": "Rice Exercise 2",
-                "id": "6cafe1",
+                "id": "6cafe4",
                 "description": "Test how well you know your rice",
                 "license": licenses.CC_BY_NC_SA,
                 "mastery_model": exercises.M_OF_N,
-                "thumbnail":"http://www.publicdomainpictures.net/pictures/110000/nahled/bowl-of-rice.jpg",
+                "thumbnail":"https://c1.staticflickr.com/5/4021/4302326650_b11f0f0aaf_b.jpg",
+                "questions": [
+                    {
+                        "id": "11111",
+                        "question": "<h3 id='rainbow'><b>RICE COOKING!!!</b></h3><script type='text/javascript'><!-- setInterval(function() {$('#rainbow').css('color', '#'+((1<<24)*Math.random()|0).toString(16));}, 300); --></script>",
+                        "type":exercises.SINGLE_SELECTION,
+                        "all_answers": ["Rice, Rice, Baby!"],
+                        "correct_answer": "Rice, Rice, Baby!",
+                    },
+                ],
+            },
+            {
+                "title": "The Everyday Rice Cooker: Soups, Sides, Grains, Mains, and More",
+                "id": "aaaa5d",
+                "file": "https://ia601300.us.archive.org/13/items/RiceCookerery/DianePhillips-RiceCooker.mp3",
+                "license": licenses.PUBLIC_DOMAIN,
+                "author": "Diane Phillips",
+            },
+            {
+                "title": "Rice Exercise 3",
+                "id": "6cafe5",
+                "description": "Test how well you know your rice",
+                "license": licenses.CC_BY_NC_SA,
+                "mastery_model": exercises.M_OF_N,
+                "thumbnail":"https://upload.wikimedia.org/wikipedia/commons/b/b7/Rice_p1160004.jpg",
                 "questions": [
                     {
                         "id": "ccccc",
-                        "question": "What makes rice so good?",
-                        "type":exercises.FREE_RESPONSE,
-                        "answers": [],
-                        "images": None,
+                        "question": "Why? ![](http://agrointel.ro/wp-content/uploads/2015/04/orezul-auriu.jpg)",
+                        "type":exercises.SINGLE_SELECTION,
+                        "all_answers": ["Yes", "No", "Rice!"],
+                        "correct_answer": "Rice!",
                     },
                 ],
             },
@@ -130,7 +147,7 @@ def construct_channel(**kwargs):
 
     channel = Channel(
         domain="learningequality.org",
-        channel_id="sample-rice-channel",
+        channel_id="sample-ricecooker-channel",
         title="Sample Ricecooker Channel",
         thumbnail="https://upload.wikimedia.org/wikipedia/commons/4/48/Electronic_rice_cooker_with_scoop.jpg",
     )

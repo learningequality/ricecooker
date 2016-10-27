@@ -286,8 +286,6 @@ class DownloadManager:
             img.save(bufferstream, format="PNG")
             return "data:image/png;base64," + base64.b64encode(bufferstream.getvalue()).decode('utf-8')
 
-
-
 class ChannelManager:
     """ Manager for handling channel tree structure and communicating to server
 
@@ -367,9 +365,14 @@ class ChannelManager:
             Args: None
             Returns: list of files that are not on server
         """
-        response = requests.post(config.file_diff_url(self.domain), data=json.dumps(self.downloader.get_files()))
-        response.raise_for_status()
-        return json.loads(response._content.decode("utf-8"))
+        files_to_diff = self.downloader.get_files()
+        file_diff_result = []
+        chunks = [files_to_diff[x:x+10000] for x in range(0, len(files_to_diff), 10000)]
+        for chunk in chunks:
+            response = requests.post(config.file_diff_url(self.domain), data=json.dumps(chunk))
+            response.raise_for_status()
+            file_diff_result += json.loads(response._content.decode("utf-8"))
+        return file_diff_result
 
     def upload_files(self, file_list, progress_manager):
         """ upload_files: uploads files to server
@@ -378,15 +381,19 @@ class ChannelManager:
         """
         counter = 0
         files_to_upload = list(set(file_list) - set(self.uploaded_files)) # In case restoring from previous session
-        for f in files_to_upload:
-            with  open(config.get_storage_path(f), 'rb') as file_obj:
-                response = requests.post(config.file_upload_url(self.domain), files={'file': file_obj})
-                response.raise_for_status()
-                self.uploaded_files += [f]
-                progress_manager.set_uploading(self.uploaded_files)
-                counter += 1
-                if self.verbose:
-                    print("\tUploaded {0} ({count}/{total}) ".format(f, count=counter, total=len(files_to_upload)))
+        if self.verbose:
+            print("Uploading {0} new file(s) to the content curation server...".format(len(files_to_upload)))
+        try:
+            for f in files_to_upload:
+                with  open(config.get_storage_path(f), 'rb') as file_obj:
+                    response = requests.post(config.file_upload_url(self.domain), files={'file': file_obj})
+                    response.raise_for_status()
+                    self.uploaded_files += [f]
+                    counter += 1
+                    if self.verbose:
+                        print("\tUploaded {0} ({count}/{total}) ".format(f, count=counter, total=len(files_to_upload)))
+        finally:
+            progress_manager.set_uploading(self.uploaded_files)
 
     def upload_tree(self):
         """ upload_files: sends processed channel data to server to create tree
@@ -404,15 +411,18 @@ class ChannelManager:
         return config.open_channel_url(new_channel['invite_id'], new_channel['new_channel'], self.domain)
 
 class Status(Enum):
-    INITIAL = 0
-    CHANNEL_CONSTRUCTED = 1
-    TREE_CREATED = 2
-    FILES_DOWNLOADED = 3
-    FILE_DIFF = 4
-    UPLOADING_FILES = 5
-    FILES_UPLOADED = 6
-    CHANNEL_CREATED = 7
-    DONE = 8
+    INIT = 0
+    CONSTRUCT_CHANNEL = 1
+    CREATE_TREE = 2
+    DOWNLOAD_FILES = 3
+    GET_FILE_DIFF = 4
+    START_UPLOAD = 5
+    UPLOADING_FILES = 6
+    UPLOAD_FILES = 7
+    UPLOAD_CHANNEL = 8
+    DONE = 9
+    LAST=10
+
 
 class RestoreManager:
     """ Manager for handling resuming rice cooking process
@@ -420,8 +430,9 @@ class RestoreManager:
         Attributes:
             restore_path (str): path to .pickle file to store progress
     """
-    def __init__(self, restore_path):
-        self.restore_path = restore_path
+
+    def __init__(self, debug):
+        self.debug = debug
         self.channel = None
         self.tree = None # Tree to process
         self.files_downloaded = [] # Determines whether to print process
@@ -430,14 +441,36 @@ class RestoreManager:
         self.file_diff = []
         self.files_uploaded = []
         self.channel_link = None
-        self.status = Status.INITIAL
+        self.status = Status.INIT
+
+    def check_for_session(self, status=None):
+        status = Status.LAST if status is None else status
+        return os.path.isfile(self.get_restore_path(status)) and os.path.getsize(self.get_restore_path(status)) > 0
+
+    def get_restore_path(self, status=None):
+        status = self.get_status() if status is None else status
+        return config.get_restore_path(status.name.lower(), self.debug)
 
     def record_progress(self):
-        with open(self.restore_path, 'wb') as handle:
+        with open(self.get_restore_path(Status.LAST), 'wb') as handle, open(self.get_restore_path(), 'wb') as step_handle:
             pickle.dump(self, handle)
+            pickle.dump(self, step_handle)
 
-    def load_progress(self):
-        with open(self.restore_path, 'rb') as handle:
+    def load_progress(self, resume_step):
+        resume_step = Status[resume_step]
+
+        # If progress is corrupted, revert to step before
+        while not self.check_for_session(resume_step):
+            print("Ricecooker has not reached {0} status. Reverting to earlier step...".format(resume_step.name))
+            # All files are corrupted, restart process
+            if resume_step.value - 1 < 0:
+                self.init_session()
+                return self
+            resume_step = Status(resume_step.value - 1)
+            progress_path = self.get_restore_path(resume_step)
+        print("Starting from status {0}".format(resume_step.name))
+
+        with open(progress_path, 'rb') as handle:
             manager = pickle.load(handle)
             if isinstance(manager, RestoreManager):
                 return manager
@@ -450,25 +483,34 @@ class RestoreManager:
     def get_status_val(self):
         return self.status.value
 
+    def init_session(self):
+        for status in Status:
+            path = self.get_restore_path(status)
+            if os.path.isfile(path):
+                os.remove(path)
+        self.record_progress()
+        self.status = Status.CONSTRUCT_CHANNEL # Set status to next step
+        self.record_progress()
+
     def set_channel(self, channel):
-        self.status = Status.CHANNEL_CONSTRUCTED
+        self.status = Status.CREATE_TREE # Set status to next step
         self.channel = channel
         self.record_progress()
 
     def set_tree(self, tree):
-        self.status = Status.TREE_CREATED
+        self.status = Status.DOWNLOAD_FILES # Set status to next step
         self.tree = tree
         self.record_progress()
 
     def set_files(self, files_downloaded, file_mapping, files_failed):
-        self.status = Status.FILES_DOWNLOADED
+        self.status = Status.GET_FILE_DIFF # Set status to next step
         self.files_downloaded = files_downloaded
         self.file_mapping = file_mapping
         self.files_failed = files_failed
         self.record_progress()
 
     def set_diff(self, file_diff):
-        self.status = Status.FILE_DIFF
+        self.status = Status.START_UPLOAD # Set status to next step
         self.file_diff = file_diff
         self.record_progress()
 
@@ -478,15 +520,18 @@ class RestoreManager:
         self.record_progress()
 
     def set_uploaded(self, files_uploaded):
-        self.status = Status.FILES_UPLOADED
+        self.status = Status.UPLOAD_FILES
         self.files_uploaded = files_uploaded
+        self.record_progress()
+        self.status = Status.UPLOAD_CHANNEL # Set status to next step
         self.record_progress()
 
     def set_channel_created(self, channel_link):
-        self.status = Status.CHANNEL_CREATED
+        self.status = Status.DONE
         self.channel_link = channel_link
         self.record_progress()
 
     def set_done(self):
         self.status = Status.DONE
         self.record_progress()
+        os.remove(self.get_restore_path(Status.LAST))

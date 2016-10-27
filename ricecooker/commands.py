@@ -1,52 +1,57 @@
 import os
 import requests
 import webbrowser
-from ricecooker.config import STORAGE_DIRECTORY, authentication_url
+from ricecooker import config
 from ricecooker.classes import nodes, questions
 from ricecooker.managers import ChannelManager, RestoreManager, Status
 
-def uploadchannel(path, domain, verbose=False, update=False, resume=False, reset=False, token=None, **kwargs):
+def uploadchannel(path, debug, verbose=False, update=False, resume=False, reset=False, step=None,token=None, **kwargs):
     """ uploadchannel: Upload channel to Kolibri Studio server
         Args:
             path (str): path to file containing channel data
-            domain (str): domain to upload to
+            debug (bool): determine which domain to upload to
             verbose (bool): indicates whether to print process (optional)
         Returns: (str) link to access newly created channel
     """
-    # if token:
-    #     response = requests.post(authentication_url(domain), headers={"Authorization": "Token 9cab57ce6ee3b275afd7d1893f448a31da68f3a7"})
-    #     response.raise_for_status()
-    #     import pdb; pdb.set_trace()
+    if token:
+        response = requests.post(config.authentication_url(domain), headers={"Authorization": "Token 9cab57ce6ee3b275afd7d1893f448a31da68f3a7"})
+        response.raise_for_status()
+        import pdb; pdb.set_trace()
+
+    domain = config.PRODUCTION_DOMAIN
+    if debug:
+      domain = config.DEBUG_DOMAIN
+
 
     if verbose:
         print("\n\n***** Starting channel build process *****")
 
     # Set up progress tracker
-    progress_manager = RestoreManager("restore.pickle")
-    if reset or not os.path.isfile("restore.pickle"):
-        progress_manager.record_progress()
+    progress_manager = RestoreManager(debug)
+    if reset or not progress_manager.check_for_session():
+        progress_manager.init_session()
     else:
         if resume or prompt_resume():
             if verbose:
                 print("Resuming your last session...")
-            progress_manager = progress_manager.load_progress()
+            progress_manager = progress_manager.load_progress(step.upper())
         else:
-            progress_manager.record_progress()
+            progress_manager.init_session()
 
     # Construct channel if it hasn't been constructed already
-    if progress_manager.get_status_val() < Status.CHANNEL_CONSTRUCTED.value:
+    if progress_manager.get_status_val() <= Status.CONSTRUCT_CHANNEL.value:
         channel = run_construct_channel(path, verbose, progress_manager, kwargs)
     else:
         channel = progress_manager.channel
 
     # Set initial tree if it hasn't been set already
-    if progress_manager.get_status_val() < Status.TREE_CREATED.value:
+    if progress_manager.get_status_val() <= Status.CREATE_TREE.value:
         tree = create_initial_tree(channel, domain, verbose, update, progress_manager)
     else:
         tree = progress_manager.tree
 
     # Download files if they haven't been downloaded already
-    if progress_manager.get_status_val() < Status.FILES_DOWNLOADED.value:
+    if progress_manager.get_status_val() <= Status.DOWNLOAD_FILES.value:
         process_tree_files(tree, verbose, progress_manager)
     else:
         tree.downloader.files = progress_manager.files_downloaded
@@ -54,7 +59,7 @@ def uploadchannel(path, domain, verbose=False, update=False, resume=False, reset
         tree.downloader._file_mapping = progress_manager.file_mapping
 
     # Get file diff if it hasn't been generated already
-    if progress_manager.get_status_val() < Status.FILE_DIFF.value:
+    if progress_manager.get_status_val() <= Status.GET_FILE_DIFF.value:
         file_diff = get_file_diff(tree, verbose, progress_manager)
     else:
         file_diff = progress_manager.file_diff
@@ -62,15 +67,12 @@ def uploadchannel(path, domain, verbose=False, update=False, resume=False, reset
     # Set which files have already been uploaded
     tree.uploaded_files = progress_manager.files_uploaded
 
-    if progress_manager.get_status_val() < Status.FILES_UPLOADED.value:
-        upload_files(tree, file_diff, verbose, progress_manager)
-
     # Upload files if they haven't been uploaded already
-    if progress_manager.get_status_val() < Status.FILES_UPLOADED.value:
+    if progress_manager.get_status_val() <= Status.START_UPLOAD.value:
         upload_files(tree, file_diff, verbose, progress_manager)
 
     # Create channel on Kolibri Studio if it hasn't been created already
-    if progress_manager.get_status_val() < Status.CHANNEL_CREATED.value:
+    if progress_manager.get_status_val() <= Status.UPLOAD_CHANNEL.value:
         channel_link = create_tree(tree, verbose, progress_manager)
     else:
         channel_link = progress_manager.channel_link
@@ -106,9 +108,6 @@ def run_construct_channel(path, verbose, progress_manager, kwargs):
     return channel
 
 def create_initial_tree(channel, domain, verbose, update, progress_manager):
-    # Make storage directory for downloaded files if it doesn't already exist
-    if not os.path.exists(STORAGE_DIRECTORY):
-        os.makedirs(STORAGE_DIRECTORY)
 
     # Create channel manager with channel data
     if verbose:
@@ -146,8 +145,6 @@ def get_file_diff(tree, verbose, progress_manager):
 
 def upload_files(tree, file_diff, verbose, progress_manager):
     # Upload new files to CC
-    if verbose:
-        print("Uploading {0} new file(s) to the content curation server...".format(len(file_diff)))
     tree.upload_files(file_diff, progress_manager)
     progress_manager.set_uploaded(file_diff)
 

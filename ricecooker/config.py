@@ -26,12 +26,20 @@ OPEN_CHANNEL_URL = "{domain}/open_channel/{invitation_id}/{channel_id}"
 # Folder to store downloaded files
 STORAGE_DIRECTORY = "storage/"
 
+# Folder to store downloaded files
+RESTORE_DIRECTORY = "restore/"
+
 def get_storage_path(filename):
     """ get_storage_path: returns path to storage directory for downloading content
         Args: filename (str): Name of file to store
         Returns: string path to file
     """
+    # Make storage directory for downloaded files if it doesn't already exist
+    if not os.path.exists(STORAGE_DIRECTORY) :
+        os.makedirs(STORAGE_DIRECTORY)
+
     return os.path.join(STORAGE_DIRECTORY, filename)
+
 
 def authentication_url(domain):
     """ authentication_url: returns url to login to Kolibri Studio
@@ -39,6 +47,19 @@ def authentication_url(domain):
         Returns: string url to authenticate_user_internal endpoint
     """
     return AUTHENTICATION_URL.format(domain=domain)
+
+
+def get_restore_path(filename, debug):
+    """ get_storage_path: returns path to storage directory for downloading content
+        Args: filename (str): Name of file to store
+        Returns: string path to file
+    """
+    path = os.path.join(RESTORE_DIRECTORY, "local" if debug else "production")
+    # Make storage directory for restore files if it doesn't already exist
+    if not os.path.exists(path):
+        os.makedirs(path)
+    return os.path.join(path, filename + '.pickle')
+
 
 def file_diff_url(domain):
     """ file_diff_url: returns url to get file diff
