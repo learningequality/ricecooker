@@ -1,10 +1,11 @@
 import os
+import requests
 import webbrowser
-from ricecooker.config import STORAGE_DIRECTORY
+from ricecooker.config import STORAGE_DIRECTORY, authentication_url
 from ricecooker.classes import nodes, questions
 from ricecooker.managers import ChannelManager, RestoreManager, Status
 
-def uploadchannel(path, domain, verbose=False, update=False, resume=False, reset=False, **kwargs):
+def uploadchannel(path, domain, verbose=False, update=False, resume=False, reset=False, token=None, **kwargs):
     """ uploadchannel: Upload channel to Kolibri Studio server
         Args:
             path (str): path to file containing channel data
@@ -12,6 +13,11 @@ def uploadchannel(path, domain, verbose=False, update=False, resume=False, reset
             verbose (bool): indicates whether to print process (optional)
         Returns: (str) link to access newly created channel
     """
+    # if token:
+    #     response = requests.post(authentication_url(domain), headers={"Authorization": "Token 9cab57ce6ee3b275afd7d1893f448a31da68f3a7"})
+    #     response.raise_for_status()
+    #     import pdb; pdb.set_trace()
+
     if verbose:
         print("\n\n***** Starting channel build process *****")
 
