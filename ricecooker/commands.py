@@ -1,10 +1,10 @@
 import os
 import webbrowser
-from ricecooker.config import STORAGE_DIRECTORY
+from ricecooker.config import STORAGE_DIRECTORY, RESTORE_DIRECTORY
 from ricecooker.classes import nodes, questions
 from ricecooker.managers import ChannelManager, RestoreManager, Status
 
-def uploadchannel(path, domain, verbose=False, update=False, resume=False, reset=False, **kwargs):
+def uploadchannel(path, domain, verbose=False, update=False, resume=False, reset=False, step=None, **kwargs):
     """ uploadchannel: Upload channel to Kolibri Studio server
         Args:
             path (str): path to file containing channel data
@@ -14,33 +14,36 @@ def uploadchannel(path, domain, verbose=False, update=False, resume=False, reset
     """
     if verbose:
         print("\n\n***** Starting channel build process *****")
+    # Make storage directory for downloaded files if it doesn't already exist
+    if not os.path.exists(STORAGE_DIRECTORY):
+        os.makedirs(STORAGE_DIRECTORY)
 
     # Set up progress tracker
-    progress_manager = RestoreManager("restore.pickle")
-    if reset or not os.path.isfile("restore.pickle"):
-        progress_manager.record_progress()
+    progress_manager = RestoreManager()
+    if reset or not progress_manager.check_for_session():
+        progress_manager.init_session()
     else:
         if resume or prompt_resume():
             if verbose:
                 print("Resuming your last session...")
-            progress_manager = progress_manager.load_progress()
+            progress_manager = progress_manager.load_progress(step.upper())
         else:
-            progress_manager.record_progress()
+            progress_manager.init_session()
 
     # Construct channel if it hasn't been constructed already
-    if progress_manager.get_status_val() < Status.CHANNEL_CONSTRUCTED.value:
+    if progress_manager.get_status_val() <= Status.CONSTRUCT_CHANNEL.value:
         channel = run_construct_channel(path, verbose, progress_manager, kwargs)
     else:
         channel = progress_manager.channel
 
     # Set initial tree if it hasn't been set already
-    if progress_manager.get_status_val() < Status.TREE_CREATED.value:
+    if progress_manager.get_status_val() <= Status.CREATE_TREE.value:
         tree = create_initial_tree(channel, domain, verbose, update, progress_manager)
     else:
         tree = progress_manager.tree
 
     # Download files if they haven't been downloaded already
-    if progress_manager.get_status_val() < Status.FILES_DOWNLOADED.value:
+    if progress_manager.get_status_val() <= Status.DOWNLOAD_FILES.value:
         process_tree_files(tree, verbose, progress_manager)
     else:
         tree.downloader.files = progress_manager.files_downloaded
@@ -48,7 +51,7 @@ def uploadchannel(path, domain, verbose=False, update=False, resume=False, reset
         tree.downloader._file_mapping = progress_manager.file_mapping
 
     # Get file diff if it hasn't been generated already
-    if progress_manager.get_status_val() < Status.FILE_DIFF.value:
+    if progress_manager.get_status_val() <= Status.GET_FILE_DIFF.value:
         file_diff = get_file_diff(tree, verbose, progress_manager)
     else:
         file_diff = progress_manager.file_diff
@@ -57,11 +60,11 @@ def uploadchannel(path, domain, verbose=False, update=False, resume=False, reset
     tree.uploaded_files = progress_manager.files_uploaded
 
     # Upload files if they haven't been uploaded already
-    if progress_manager.get_status_val() < Status.FILES_UPLOADED.value:
+    if progress_manager.get_status_val() <= Status.START_UPLOAD.value:
         upload_files(tree, file_diff, verbose, progress_manager)
 
     # Create channel on Kolibri Studio if it hasn't been created already
-    if progress_manager.get_status_val() < Status.CHANNEL_CREATED.value:
+    if progress_manager.get_status_val() <= Status.UPLOAD_CHANNEL.value:
         channel_link = create_tree(tree, verbose, progress_manager)
     else:
         channel_link = progress_manager.channel_link
@@ -97,9 +100,6 @@ def run_construct_channel(path, verbose, progress_manager, kwargs):
     return channel
 
 def create_initial_tree(channel, domain, verbose, update, progress_manager):
-    # Make storage directory for downloaded files if it doesn't already exist
-    if not os.path.exists(STORAGE_DIRECTORY):
-        os.makedirs(STORAGE_DIRECTORY)
 
     # Create channel manager with channel data
     if verbose:

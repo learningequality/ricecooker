@@ -23,12 +23,22 @@ OPEN_CHANNEL_URL = "{domain}/open_channel/{invitation_id}/{channel_id}"
 # Folder to store downloaded files
 STORAGE_DIRECTORY = "storage/"
 
+# Folder to store downloaded files
+RESTORE_DIRECTORY = "restore/"
+
 def get_storage_path(filename):
 	""" get_storage_path: returns path to storage directory for downloading content
         Args: filename (str): Name of file to store
         Returns: string path to file
     """
 	return os.path.join(STORAGE_DIRECTORY, filename)
+
+def get_restore_path(filename):
+    """ get_storage_path: returns path to storage directory for downloading content
+        Args: filename (str): Name of file to store
+        Returns: string path to file
+    """
+    return os.path.join(RESTORE_DIRECTORY, filename)
 
 def file_diff_url(domain):
 	""" file_diff_url: returns url to get file diff

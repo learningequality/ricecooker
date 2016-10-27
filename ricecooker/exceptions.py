@@ -40,5 +40,10 @@ class InvalidQuestionException(Exception):
     def __init__(self,*args,**kwargs):
         Exception.__init__(self,*args,**kwargs)
 
+class StepNotReachedException(Exception):
+    """ StepNotReachedException: raised when user tries to load progress from step that hasn't been executed """
+    def __init__(self,*args,**kwargs):
+        Exception.__init__(self,*args,**kwargs)
+
 def raise_for_invalid_channel(channel):
 	pass
