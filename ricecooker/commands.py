@@ -4,9 +4,7 @@ from ricecooker.config import STORAGE_DIRECTORY
 from ricecooker.classes import nodes, questions
 from ricecooker.managers import ChannelManager, RestoreManager, Status
 
-
-
-def uploadchannel(path, domain, verbose=False, update=False, resume=False, **kwargs):
+def uploadchannel(path, domain, verbose=False, update=False, resume=False, reset=False, **kwargs):
     """ uploadchannel: Upload channel to Kolibri Studio server
         Args:
             path (str): path to file containing channel data
@@ -14,27 +12,81 @@ def uploadchannel(path, domain, verbose=False, update=False, resume=False, **kwa
             verbose (bool): indicates whether to print process (optional)
         Returns: (str) link to access newly created channel
     """
+    if verbose:
+        print("\n\n***** Starting channel build process *****")
+
     # Set up progress tracker
     progress_manager = RestoreManager("restore.pickle")
-    if resume:
-        progress_manager = progress_manager.load_progress()
-    else:
+    if reset or not os.path.isfile("restore.pickle"):
         progress_manager.record_progress()
+    else:
+        if resume or prompt_resume():
+            if verbose:
+                print("Resuming your last session...")
+            progress_manager = progress_manager.load_progress()
+        else:
+            progress_manager.record_progress()
 
-    channel = run_construct_channel(path, verbose, progress_manager, kwargs)
+    # Construct channel if it hasn't been constructed already
+    if progress_manager.get_status_val() < Status.CHANNEL_CONSTRUCTED.value:
+        channel = run_construct_channel(path, verbose, progress_manager, kwargs)
+    else:
+        channel = progress_manager.channel
 
-    tree = create_initial_tree(channel, domain, verbose, update, progress_manager)
+    # Set initial tree if it hasn't been set already
+    if progress_manager.get_status_val() < Status.TREE_CREATED.value:
+        tree = create_initial_tree(channel, domain, verbose, update, progress_manager)
+    else:
+        tree = progress_manager.tree
 
-    process_tree_files(tree, verbose, progress_manager)
+    # Download files if they haven't been downloaded already
+    if progress_manager.get_status_val() < Status.FILES_DOWNLOADED.value:
+        process_tree_files(tree, verbose, progress_manager)
+    else:
+        tree.downloader.files = progress_manager.files_downloaded
+        tree.downloader.failed_files = progress_manager.files_failed
+        tree.downloader._file_mapping = progress_manager.file_mapping
 
-    file_diff = get_file_diff(tree, verbose, progress_manager)
+    # Get file diff if it hasn't been generated already
+    if progress_manager.get_status_val() < Status.FILE_DIFF.value:
+        file_diff = get_file_diff(tree, verbose, progress_manager)
+    else:
+        file_diff = progress_manager.file_diff
 
-    upload_files(tree, file_diff, verbose, progress_manager)
+    # Set which files have already been uploaded
+    tree.uploaded_files = progress_manager.files_uploaded
 
-    channel_link = create_tree(tree, verbose, progress_manager)
+    if progress_manager.get_status_val() < Status.FILES_UPLOADED.value:
+        upload_files(tree, file_diff, verbose, progress_manager)
 
-    handle_channel_link(channel_link, progress_manager)
+    # Upload files if they haven't been uploaded already
+    if progress_manager.get_status_val() < Status.FILES_UPLOADED.value:
+        upload_files(tree, file_diff, verbose, progress_manager)
 
+    # Create channel on Kolibri Studio if it hasn't been created already
+    if progress_manager.get_status_val() < Status.CHANNEL_CREATED.value:
+        channel_link = create_tree(tree, verbose, progress_manager)
+    else:
+        channel_link = progress_manager.channel_link
+
+    # Open link on web browser (if specified) and return new link
+    print("DONE: Channel created at {0}".format(channel_link))
+    prompt_open(channel_link)
+    progress_manager.set_done()
+    return channel_link
+
+def prompt_resume():
+    """ prompt_resume: Prompt user to resume last session if one exists
+        Args: None
+        Returns: None
+    """
+    openNow = input("Previous session detected. Would you like to resume your previous session? [y/n]:").lower()
+    if openNow.startswith("y"):
+        return True
+    elif openNow.startswith("n"):
+        return False
+    else:
+        return prompt_resume()
 
 def run_construct_channel(path, verbose, progress_manager, kwargs):
     # Read in file to access create_channel method
@@ -42,7 +94,6 @@ def run_construct_channel(path, verbose, progress_manager, kwargs):
 
     # Create channel (using method from imported file)
     if verbose:
-        print("\n\n***** Starting channel build process *****")
         print("Constructing channel...")
     channel = construct_channel(**kwargs)
     progress_manager.set_channel(channel)
@@ -91,7 +142,7 @@ def upload_files(tree, file_diff, verbose, progress_manager):
     # Upload new files to CC
     if verbose:
         print("Uploading {0} new file(s) to the content curation server...".format(len(file_diff)))
-    tree.upload_files(file_diff)
+    tree.upload_files(file_diff, progress_manager)
     progress_manager.set_uploaded(file_diff)
 
 def create_tree(tree, verbose, progress_manager):
@@ -101,12 +152,6 @@ def create_tree(tree, verbose, progress_manager):
     channel_link = tree.upload_tree()
     progress_manager.set_channel_created(channel_link)
     return channel_link
-
-def handle_channel_link(channel_link, progress_manager):
-    # Open link on web browser (if specified) and return new link
-    print("DONE: Channel created at {0}".format(channel_link))
-    prompt_open(channel_link)
-    progress_manager.set_done()
 
 def prompt_open(channel_link):
     """ prompt_open: Prompt user to open web browser
