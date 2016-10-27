@@ -371,7 +371,7 @@ class ChannelManager:
         file_diff_result = []
         chunks = [files_to_diff[x:x+10000] for x in range(0, len(files_to_diff), 10000)]
         for chunk in chunks:
-            response = requests.post(config.file_diff_url(self.domain), data=json.dumps(self.downloader.get_files()))
+            response = requests.post(config.file_diff_url(self.domain), data=json.dumps(chunk))
             response.raise_for_status()
             file_diff_result += json.loads(response._content.decode("utf-8"))
         return file_diff_result
@@ -383,6 +383,8 @@ class ChannelManager:
         """
         counter = 0
         files_to_upload = list(set(file_list) - set(self.uploaded_files)) # In case restoring from previous session
+        if self.verbose:
+            print("Uploading {0} new file(s) to the content curation server...".format(len(files_to_upload)))
         for f in files_to_upload:
             with  open(config.get_storage_path(f), 'rb') as file_obj:
                 response = requests.post(config.file_upload_url(self.domain), files={'file': file_obj})
