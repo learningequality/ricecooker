@@ -367,9 +367,14 @@ class ChannelManager:
             Args: None
             Returns: list of files that are not on server
         """
-        response = requests.post(config.file_diff_url(self.domain), data=json.dumps(self.downloader.get_files()))
-        response.raise_for_status()
-        return json.loads(response._content.decode("utf-8"))
+        files_to_diff = self.downloader.get_files()
+        file_diff_result = []
+        chunks = [files_to_diff[x:x+10000] for x in range(0, len(files_to_diff), 10000)]
+        for chunk in chunks:
+            response = requests.post(config.file_diff_url(self.domain), data=json.dumps(self.downloader.get_files()))
+            response.raise_for_status()
+            file_diff_result += json.loads(response._content.decode("utf-8"))
+        return file_diff_result
 
     def upload_files(self, file_list, progress_manager):
         """ upload_files: uploads files to server
