@@ -39,7 +39,7 @@ class DownloadManager:
     # All accepted file extensions
     all_file_extensions = [key for key, value in file_formats.choices]
 
-    def __init__(self, verbose=False, update=False):
+    def __init__(self, verbose=False):
         # Mount file:// to allow local path requests
         self.session = requests.Session()
         self.session.mount('file://', FileAdapter())
@@ -47,7 +47,6 @@ class DownloadManager:
         self.failed_files = []
         self._file_mapping = {} # Used to keep track of files and their respective metadata
         self.verbose = verbose
-        self.update = update
 
     def get_files(self):
         """ get_files: get files downloaded by download manager
@@ -185,7 +184,7 @@ class DownloadManager:
 
 
             # If file already exists, skip it
-            if not self.update and os.path.isfile(config.get_storage_path(filename)):
+            if os.path.isfile(config.get_storage_path(filename)):
                 if self.verbose:
                     print("\t--- {0} already exists (add '-u' flag to update)".format(filename))
 
@@ -295,12 +294,11 @@ class ChannelManager:
             downloader (DownloadManager): download manager for handling files
             verbose (bool): indicates whether to print what manager is doing (optional)
     """
-    def __init__(self, channel, domain, verbose=False, update=False):
+    def __init__(self, channel, domain, verbose=False):
         self.channel = channel # Channel to process
         self.verbose = verbose # Determines whether to print process
         self.domain = domain # Domain to upload channel to
-        self.update = update # Download all files if true
-        self.downloader = DownloadManager(verbose, update)
+        self.downloader = DownloadManager(verbose)
         self.uploaded_files=[]
 
     def validate(self):
@@ -360,7 +358,7 @@ class ChannelManager:
         else:
             print("   All files were successfully downloaded")
 
-    def get_file_diff(self):
+    def get_file_diff(self, token):
         """ get_file_diff: retrieves list of files that do not exist on content curation server
             Args: None
             Returns: list of files that are not on server
@@ -369,12 +367,12 @@ class ChannelManager:
         file_diff_result = []
         chunks = [files_to_diff[x:x+10000] for x in range(0, len(files_to_diff), 10000)]
         for chunk in chunks:
-            response = requests.post(config.file_diff_url(self.domain), data=json.dumps(chunk))
+            response = requests.post(config.file_diff_url(self.domain),  headers={"Authorization": "Token {0}".format(token)}, data=json.dumps(chunk))
             response.raise_for_status()
             file_diff_result += json.loads(response._content.decode("utf-8"))
         return file_diff_result
 
-    def upload_files(self, file_list, progress_manager):
+    def upload_files(self, file_list, progress_manager, token):
         """ upload_files: uploads files to server
             Args: file_list (str): list of files to upload
             Returns: None
@@ -382,11 +380,11 @@ class ChannelManager:
         counter = 0
         files_to_upload = list(set(file_list) - set(self.uploaded_files)) # In case restoring from previous session
         if self.verbose:
-            print("Uploading {0} new file(s) to the content curation server...".format(len(files_to_upload)))
+            print("Uploading {0} new file(s) to Kolibri Studio...".format(len(files_to_upload)))
         try:
             for f in files_to_upload:
                 with  open(config.get_storage_path(f), 'rb') as file_obj:
-                    response = requests.post(config.file_upload_url(self.domain), files={'file': file_obj})
+                    response = requests.post(config.file_upload_url(self.domain),  headers={"Authorization": "Token {0}".format(token)}, files={'file': file_obj})
                     response.raise_for_status()
                     self.uploaded_files += [f]
                     counter += 1
@@ -395,7 +393,7 @@ class ChannelManager:
         finally:
             progress_manager.set_uploading(self.uploaded_files)
 
-    def upload_tree(self):
+    def upload_tree(self, token):
         """ upload_files: sends processed channel data to server to create tree
             Args: None
             Returns: link to uploadedchannel
@@ -405,10 +403,10 @@ class ChannelManager:
             "content_data": [child.to_dict() for child in self.channel.children],
             "file_data": self.downloader._file_mapping,
         }
-        response = requests.post(config.create_channel_url(self.domain), data=json.dumps(payload))
+        response = requests.post(config.create_channel_url(self.domain), headers={"Authorization": "Token {0}".format(token)}, data=json.dumps(payload))
         response.raise_for_status()
         new_channel = json.loads(response._content.decode("utf-8"))
-        return config.open_channel_url(new_channel['invite_id'], new_channel['new_channel'], self.domain)
+        return config.open_channel_url(new_channel['new_channel'], self.domain, token)
 
 class Status(Enum):
     INIT = 0
@@ -458,6 +456,7 @@ class RestoreManager:
 
     def load_progress(self, resume_step):
         resume_step = Status[resume_step]
+        progress_path = self.get_restore_path(resume_step)
 
         # If progress is corrupted, revert to step before
         while not self.check_for_session(resume_step):

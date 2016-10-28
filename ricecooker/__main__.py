@@ -1,10 +1,9 @@
-"""Usage: ricecooker uploadchannel [-hvqru] <file_path> [--resume [--step=<step>] | --reset] [--token=<t>] [--debug] [[OPTIONS] ...]
+"""Usage: ricecooker uploadchannel [-hvqr] <file_path> [--resume [--step=<step>] | --reset] [--token=<t>] [--debug] [[OPTIONS] ...]
 
 Arguments:
   file_path        Path to file with channel data
-  -u               Update all files (download all files again)
   --debug          Run ricecooker against debug server (localhost:8000) rather than contentworkshop
-  --token=<t>      Authorization token (can be token or path to file with token) [default: 0]
+  --token=<t>      Authorization token (can be token or path to file with token) [default: #]
   --resume         Resume from ricecooker step (cannot be used with --reset flag)
   --step=<step>    Step to resume progress from (must be used with --resume flag) [default: last]
   --reset          Restart session, overwriting previous session (cannot be used with --resume flag)
@@ -43,7 +42,6 @@ if __name__ == '__main__':
     uploadchannel(arguments["<file_path>"],
                   arguments["--debug"],
                   verbose=arguments["-v"],
-                  update=arguments["-u"],
                   resume=arguments['--resume'],
                   reset=arguments['--reset'],
                   token=arguments['--token'],

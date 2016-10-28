@@ -21,7 +21,7 @@ FILE_UPLOAD_URL = "{domain}/api/internal/file_upload"
 CREATE_CHANNEL_URL = "{domain}/api/internal/create_channel"
 
 # URL to return after channel is created
-OPEN_CHANNEL_URL = "{domain}/open_channel/{invitation_id}/{channel_id}"
+OPEN_CHANNEL_URL = "{domain}/channels/{channel_id}/edit"
 
 # Folder to store downloaded files
 STORAGE_DIRECTORY = "storage/"
@@ -82,7 +82,7 @@ def create_channel_url(domain):
     """
     return CREATE_CHANNEL_URL.format(domain=domain)
 
-def open_channel_url(invitation, channel, domain):
+def open_channel_url(channel, domain, token):
     """ open_channel_url: returns url to uploaded channel
         Args:
             invitation (str): invitation id to get editing access
@@ -90,4 +90,4 @@ def open_channel_url(invitation, channel, domain):
             domain (str): server where channel was created
         Returns: string url to open channel
     """
-    return OPEN_CHANNEL_URL.format(domain=domain, invitation_id=invitation, channel_id=channel)
+    return OPEN_CHANNEL_URL.format(token=token, domain=domain, channel_id=channel)

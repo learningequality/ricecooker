@@ -1,11 +1,14 @@
 import os
+import sys
 import requests
+import json
 import webbrowser
 from ricecooker import config
 from ricecooker.classes import nodes, questions
+from requests.exceptions import HTTPError
 from ricecooker.managers import ChannelManager, RestoreManager, Status
 
-def uploadchannel(path, debug, verbose=False, update=False, resume=False, reset=False, step=None,token=None, **kwargs):
+def uploadchannel(path, debug, verbose=False, resume=False, reset=False, step=None, token="#", **kwargs):
     """ uploadchannel: Upload channel to Kolibri Studio server
         Args:
             path (str): path to file containing channel data
@@ -13,22 +16,36 @@ def uploadchannel(path, debug, verbose=False, update=False, resume=False, reset=
             verbose (bool): indicates whether to print process (optional)
         Returns: (str) link to access newly created channel
     """
-    if token:
-        response = requests.post(config.authentication_url(domain), headers={"Authorization": "Token 9cab57ce6ee3b275afd7d1893f448a31da68f3a7"})
-        response.raise_for_status()
-        import pdb; pdb.set_trace()
-
+    # Get domain to upload to
     domain = config.PRODUCTION_DOMAIN
     if debug:
       domain = config.DEBUG_DOMAIN
 
+    if os.path.isfile(token):
+        with open(token, 'rb') as t:
+            token=t.read().decode("utf-8")
+
+    # Authenticate user
+    if token != "#":
+        try:
+            response = requests.post(config.authentication_url(domain), headers={"Authorization": "Token {0}".format(token)})
+            response.raise_for_status()
+            user=json.loads(response._content.decode("utf-8"))
+            token = user['token']
+            if verbose:
+                print("Logged in with username {0}".format(user['username']))
+        except HTTPError:
+            print("Invalid token: Credentials not found")
+            sys.exit()
+    else:
+        token = prompt_token(domain)
 
     if verbose:
         print("\n\n***** Starting channel build process *****")
 
     # Set up progress tracker
     progress_manager = RestoreManager(debug)
-    if reset or not progress_manager.check_for_session():
+    if (reset or not progress_manager.check_for_session()) and step.upper() != Status.DONE.name:
         progress_manager.init_session()
     else:
         if resume or prompt_resume():
@@ -46,7 +63,7 @@ def uploadchannel(path, debug, verbose=False, update=False, resume=False, reset=
 
     # Set initial tree if it hasn't been set already
     if progress_manager.get_status_val() <= Status.CREATE_TREE.value:
-        tree = create_initial_tree(channel, domain, verbose, update, progress_manager)
+        tree = create_initial_tree(channel, domain, verbose, progress_manager)
     else:
         tree = progress_manager.tree
 
@@ -60,7 +77,7 @@ def uploadchannel(path, debug, verbose=False, update=False, resume=False, reset=
 
     # Get file diff if it hasn't been generated already
     if progress_manager.get_status_val() <= Status.GET_FILE_DIFF.value:
-        file_diff = get_file_diff(tree, verbose, progress_manager)
+        file_diff = get_file_diff(tree, verbose, progress_manager, token)
     else:
         file_diff = progress_manager.file_diff
 
@@ -69,11 +86,11 @@ def uploadchannel(path, debug, verbose=False, update=False, resume=False, reset=
 
     # Upload files if they haven't been uploaded already
     if progress_manager.get_status_val() <= Status.START_UPLOAD.value:
-        upload_files(tree, file_diff, verbose, progress_manager)
+        upload_files(tree, file_diff, verbose, progress_manager, token)
 
     # Create channel on Kolibri Studio if it hasn't been created already
     if progress_manager.get_status_val() <= Status.UPLOAD_CHANNEL.value:
-        channel_link = create_tree(tree, verbose, progress_manager)
+        channel_link = create_tree(tree, verbose, progress_manager, token)
     else:
         channel_link = progress_manager.channel_link
 
@@ -82,6 +99,19 @@ def uploadchannel(path, debug, verbose=False, update=False, resume=False, reset=
     prompt_open(channel_link)
     progress_manager.set_done()
     return channel_link
+
+def prompt_token(domain):
+    token = input("Enter authentication token ('q' to quit):").lower()
+    if token == 'q':
+        sys.exit()
+    else:
+        try:
+            response = requests.post(config.authentication_url(domain), headers={"Authorization": "Token {0}".format(token)})
+            response.raise_for_status()
+            return response
+        except HTTPError:
+            print("Invalid token. Please login to {0}/settings/tokens to retrieve your authorization token.".format(domain))
+            prompt_token(domain)
 
 def prompt_resume():
     """ prompt_resume: Prompt user to resume last session if one exists
@@ -107,12 +137,12 @@ def run_construct_channel(path, verbose, progress_manager, kwargs):
     progress_manager.set_channel(channel)
     return channel
 
-def create_initial_tree(channel, domain, verbose, update, progress_manager):
+def create_initial_tree(channel, domain, verbose, progress_manager):
 
     # Create channel manager with channel data
     if verbose:
         print("Setting up initial channel structure...")
-    tree = ChannelManager(channel, domain, verbose, update)
+    tree = ChannelManager(channel, domain, verbose)
 
     # Create channel manager with channel data
     if verbose:
@@ -135,24 +165,24 @@ def process_tree_files(tree, verbose, progress_manager):
     tree.check_for_files_failed()
     progress_manager.set_files(tree.downloader.get_files(), tree.downloader.get_file_mapping(), tree.downloader.failed_files)
 
-def get_file_diff(tree, verbose, progress_manager):
+def get_file_diff(tree, verbose, progress_manager, token):
     # Determine which files have not yet been uploaded to the CC server
     if verbose:
-        print("Getting file diff...")
-    file_diff = tree.get_file_diff()
+        print("Checking if files exist on Kolibri Studio...")
+    file_diff = tree.get_file_diff(token)
     progress_manager.set_diff(file_diff)
     return file_diff
 
-def upload_files(tree, file_diff, verbose, progress_manager):
+def upload_files(tree, file_diff, verbose, progress_manager, token):
     # Upload new files to CC
-    tree.upload_files(file_diff, progress_manager)
+    tree.upload_files(file_diff, progress_manager, token)
     progress_manager.set_uploaded(file_diff)
 
-def create_tree(tree, verbose, progress_manager):
+def create_tree(tree, verbose, progress_manager, token):
     # Create tree
     if verbose:
-        print("Creating tree on the content curation server...")
-    channel_link = tree.upload_tree()
+        print("Creating tree on Kolibri Studio...")
+    channel_link = tree.upload_tree(token)
     progress_manager.set_channel_created(channel_link)
     return channel_link
 
