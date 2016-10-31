@@ -458,6 +458,7 @@ class RestoreManager:
 
     def load_progress(self, resume_step):
         resume_step = Status[resume_step]
+        progress_path = self.get_restore_path(resume_step)
 
         # If progress is corrupted, revert to step before
         while not self.check_for_session(resume_step):

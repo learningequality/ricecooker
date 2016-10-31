@@ -23,7 +23,7 @@ OPEN_CHANNEL_URL = "{domain}/open_channel/{invitation_id}/{channel_id}"
 # Folder to store downloaded files
 STORAGE_DIRECTORY = "storage/"
 
-# Folder to store downloaded files
+# Folder to store progress tracking information
 RESTORE_DIRECTORY = "restore/"
 
 def get_storage_path(filename):
@@ -38,8 +38,10 @@ def get_storage_path(filename):
     return os.path.join(STORAGE_DIRECTORY, filename)
 
 def get_restore_path(filename, debug):
-    """ get_storage_path: returns path to storage directory for downloading content
-        Args: filename (str): Name of file to store
+    """ get_restore_path: returns path to directory for restoration points
+        Args:
+            filename (str): Name of file to store
+            debug (bool): Determines how to store restoration points
         Returns: string path to file
     """
     path = os.path.join(RESTORE_DIRECTORY, "local" if debug else "production")

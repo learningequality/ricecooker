@@ -4,7 +4,7 @@ from ricecooker import config
 from ricecooker.classes import nodes, questions
 from ricecooker.managers import ChannelManager, RestoreManager, Status
 
-def uploadchannel(path, debug, verbose=False, update=False, resume=False, reset=False, step=None, **kwargs):
+def uploadchannel(path, debug, verbose=False, update=False, resume=False, reset=False, step=Status.LAST.name, **kwargs):
     """ uploadchannel: Upload channel to Kolibri Studio server
         Args:
             path (str): path to file containing channel data
@@ -28,6 +28,7 @@ def uploadchannel(path, debug, verbose=False, update=False, resume=False, reset=
         if resume or prompt_resume():
             if verbose:
                 print("Resuming your last session...")
+            step = Status.LAST.name if step is None else step
             progress_manager = progress_manager.load_progress(step.upper())
         else:
             progress_manager.init_session()
