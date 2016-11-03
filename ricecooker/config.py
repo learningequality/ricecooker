@@ -1,6 +1,7 @@
 # Settings for rice cooker
 
 import os
+import json
 
 # Domain for uploading to production server
 PRODUCTION_DOMAIN = "https://contentworkshop.learningequality.org"
@@ -48,15 +49,18 @@ def authentication_url(domain):
     """
     return AUTHENTICATION_URL.format(domain=domain)
 
-def init_file_mapping_store(debug):
+def init_file_mapping_store():
     # Create file mapping json if it doesn't exist
-    path = os.path.join(RESTORE_DIRECTORY, "local" if debug else "production")
-    file_mapping_path = "{path}/file_restore.json".format(path=path)
-    if not os.path.isfile(file_mapping_path):
-        open(file_mapping_path, 'a').close()
+    path = os.path.join(RESTORE_DIRECTORY, "file_restore.json")
+    if not os.path.isfile(path):
+        open(path, 'a').close()
 
-def get_file_store(debug):
-    return "{path}/file_restore.json".format(path=os.path.join(RESTORE_DIRECTORY, "local" if debug else "production"))
+def get_file_store():
+    return os.path.join(RESTORE_DIRECTORY, "file_restore.json")
+
+def set_file_store(file_store):
+    with open(get_file_store(), 'w') as storeobj:
+        json.dump(file_store, storeobj)
 
 def get_restore_path(filename, debug):
     """ get_restore_path: returns path to directory for restoration points

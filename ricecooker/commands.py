@@ -22,7 +22,7 @@ def uploadchannel(path, debug, verbose=False, update=False, resume=False, reset=
     if debug:
       domain = config.DEBUG_DOMAIN
 
-    config.init_file_mapping_store(debug)
+    config.init_file_mapping_store()
 
     if os.path.isfile(token):
         with open(token, 'rb') as t:
@@ -67,7 +67,7 @@ def uploadchannel(path, debug, verbose=False, update=False, resume=False, reset=
 
     # Set initial tree if it hasn't been set already
     if progress_manager.get_status_val() <= Status.CREATE_TREE.value:
-        tree = create_initial_tree(channel, domain, verbose, update, progress_manager, config.get_file_store(debug))
+        tree = create_initial_tree(channel, domain, verbose, update, progress_manager, config.get_file_store())
     else:
         tree = progress_manager.tree
 
@@ -167,6 +167,7 @@ def process_tree_files(tree, verbose, progress_manager):
         print("Processing content...")
     tree.process_tree(tree.channel)
     tree.check_for_files_failed()
+    config.set_file_store(tree.downloader.file_store)
     progress_manager.set_files(tree.downloader.get_files(), tree.downloader.get_file_mapping(), tree.downloader.failed_files)
 
 def get_file_diff(tree, verbose, progress_manager, token):

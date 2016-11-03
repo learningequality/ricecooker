@@ -116,6 +116,7 @@ class Channel(Node):
         self.description = "" if description is None else description
 
         # # Encode thumbnail to base64
+        self.thumbnail = ""
         # downloader = DownloadManager()
         # self.thumbnail = downloader.encode_thumbnail(thumbnail)
 
