@@ -115,9 +115,10 @@ class Channel(Node):
         self.title = title
         self.description = "" if description is None else description
 
-        # Encode thumbnail to base64
-        downloader = DownloadManager()
-        self.thumbnail = downloader.encode_thumbnail(thumbnail)
+        # # Encode thumbnail to base64
+        self.thumbnail = ""
+        # downloader = DownloadManager()
+        # self.thumbnail = downloader.encode_thumbnail(thumbnail)
 
         # Add data to be used in next steps
         self._internal_domain = uuid.uuid5(uuid.NAMESPACE_DNS, self.domain)

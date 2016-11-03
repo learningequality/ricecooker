@@ -1,6 +1,7 @@
 # Settings for rice cooker
 
 import os
+import json
 
 # Domain for uploading to production server
 PRODUCTION_DOMAIN = "https://contentworkshop.learningequality.org"
@@ -36,6 +37,19 @@ def get_storage_path(filename):
         os.makedirs(STORAGE_DIRECTORY)
 
     return os.path.join(STORAGE_DIRECTORY, filename)
+
+def init_file_mapping_store():
+    # Create file mapping json if it doesn't exist
+    path = os.path.join(RESTORE_DIRECTORY, "file_restore.json")
+    if not os.path.isfile(path):
+        open(path, 'a').close()
+
+def get_file_store():
+    return os.path.join(RESTORE_DIRECTORY, "file_restore.json")
+
+def set_file_store(file_store):
+    with open(get_file_store(), 'w') as storeobj:
+        json.dump(file_store, storeobj)
 
 def get_restore_path(filename, debug):
     """ get_restore_path: returns path to directory for restoration points
