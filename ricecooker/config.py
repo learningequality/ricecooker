@@ -1,6 +1,7 @@
 # Settings for rice cooker
 
 import os
+import json
 
 # Domain for uploading to production server
 PRODUCTION_DOMAIN = "https://contentworkshop.learningequality.org"
@@ -26,7 +27,7 @@ OPEN_CHANNEL_URL = "{domain}/channels/{channel_id}/edit"
 # Folder to store downloaded files
 STORAGE_DIRECTORY = "storage/"
 
-# Folder to store downloaded files
+# Folder to store progress tracking information
 RESTORE_DIRECTORY = "restore/"
 
 def get_storage_path(filename):
@@ -48,16 +49,31 @@ def authentication_url(domain):
     """
     return AUTHENTICATION_URL.format(domain=domain)
 
+def init_file_mapping_store():
+    # Create file mapping json if it doesn't exist
+    path = os.path.join(RESTORE_DIRECTORY, "file_restore.json")
+    if not os.path.isfile(path):
+        open(path, 'a').close()
+
+def get_file_store():
+    return os.path.join(RESTORE_DIRECTORY, "file_restore.json")
+
+def set_file_store(file_store):
+    with open(get_file_store(), 'w') as storeobj:
+        json.dump(file_store, storeobj)
 
 def get_restore_path(filename, debug):
-    """ get_storage_path: returns path to storage directory for downloading content
-        Args: filename (str): Name of file to store
+    """ get_restore_path: returns path to directory for restoration points
+        Args:
+            filename (str): Name of file to store
+            debug (bool): Determines how to store restoration points
         Returns: string path to file
     """
     path = os.path.join(RESTORE_DIRECTORY, "local" if debug else "production")
     # Make storage directory for restore files if it doesn't already exist
     if not os.path.exists(path):
         os.makedirs(path)
+
     return os.path.join(path, filename + '.pickle')
 
 

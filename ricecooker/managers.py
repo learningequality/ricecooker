@@ -39,10 +39,16 @@ class DownloadManager:
     # All accepted file extensions
     all_file_extensions = [key for key, value in file_formats.choices]
 
-    def __init__(self, verbose=False):
+    def __init__(self, file_store, verbose=False, update=False):
         # Mount file:// to allow local path requests
         self.session = requests.Session()
         self.session.mount('file://', FileAdapter())
+        self.update = update
+        self.file_store = {}
+        if os.stat(file_store).st_size > 0:
+            with open(file_store, 'r') as jsonobj:
+                self.file_store = json.load(jsonobj)
+        print(self.file_store)
         self.files = []
         self.failed_files = []
         self._file_mapping = {} # Used to keep track of files and their respective metadata
@@ -156,6 +162,13 @@ class DownloadManager:
             if exercises.CONTENT_STORAGE_PLACEHOLDER in path:
                 return os.path.split(path)[-1]
 
+            if not self.update and path in self.file_store:
+                data = self.file_store[path]
+                if self.verbose:
+                    print("\tFile {0} already exists (add '-u' flag to update)".format(data['filename']))
+                self.track_file(data['filename'], data['size'],  data['preset'])
+                return data['filename']
+
             if self.verbose:
                 print("\tDownloading {}".format(path))
 
@@ -186,17 +199,10 @@ class DownloadManager:
             # If file already exists, skip it
             if os.path.isfile(config.get_storage_path(filename)):
                 if self.verbose:
-                    print("\t--- {0} already exists (add '-u' flag to update)".format(filename))
+                    print("\t--- No changes detected on {0}".format(filename))
 
                 # Keep track of downloaded file
-                self.files += [filename]
-                self._file_mapping.update({filename : {
-                    'original_filename': original_filename,
-                    'source_url': path,
-                    'size': os.path.getsize(config.get_storage_path(filename)),
-                    'preset':preset,
-                }})
-
+                self.track_file(filename, os.path.getsize(config.get_storage_path(filename)), preset, path)
                 return filename
 
             # Write file to temporary file
@@ -220,13 +226,7 @@ class DownloadManager:
                 tempf.seek(0)
 
                 # Keep track of downloaded file
-                self.files += [filename]
-                self._file_mapping.update({filename : {
-                    'original_filename': original_filename,
-                    'source_url': path,
-                    'size': file_size,
-                    'preset':preset,
-                }})
+                self.track_file(filename, file_size, preset, path)
 
                 # Write file to local storage
                 with open(config.get_storage_path(filename), 'wb') as destf:
@@ -239,6 +239,21 @@ class DownloadManager:
         except (HTTPError, FileNotFoundError, ConnectionError, InvalidURL, InvalidSchema, IOError):
             self.failed_files += [(path,title)]
             return False;
+
+    def track_file(self, filename, file_size, preset, path=None):
+        self.files += [filename]
+        file_data = {filename : {
+            'size': file_size,
+            'preset':preset,
+        }}
+        self._file_mapping.update(file_data)
+
+        if path is not None:
+            self.file_store.update({path:{
+                'filename' : filename,
+                'size': file_size,
+                'preset':preset,
+            }})
 
 
     def download_files(self,files, title, default_ext=None):
@@ -294,11 +309,11 @@ class ChannelManager:
             downloader (DownloadManager): download manager for handling files
             verbose (bool): indicates whether to print what manager is doing (optional)
     """
-    def __init__(self, channel, domain, verbose=False):
+    def __init__(self, channel, domain, file_store, verbose=False, update=False):
         self.channel = channel # Channel to process
         self.verbose = verbose # Determines whether to print process
         self.domain = domain # Domain to upload channel to
-        self.downloader = DownloadManager(verbose)
+        self.downloader = DownloadManager(file_store, verbose, update)
         self.uploaded_files=[]
 
     def validate(self):

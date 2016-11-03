@@ -8,7 +8,8 @@ from ricecooker.classes import nodes, questions
 from requests.exceptions import HTTPError
 from ricecooker.managers import ChannelManager, RestoreManager, Status
 
-def uploadchannel(path, debug, verbose=False, resume=False, reset=False, step=None, token="#", **kwargs):
+def uploadchannel(path, debug, verbose=False, update=False, resume=False, reset=False, step=Status.LAST.name, token="#", **kwargs):
+
     """ uploadchannel: Upload channel to Kolibri Studio server
         Args:
             path (str): path to file containing channel data
@@ -20,6 +21,8 @@ def uploadchannel(path, debug, verbose=False, resume=False, reset=False, step=No
     domain = config.PRODUCTION_DOMAIN
     if debug:
       domain = config.DEBUG_DOMAIN
+
+    config.init_file_mapping_store()
 
     if os.path.isfile(token):
         with open(token, 'rb') as t:
@@ -51,6 +54,7 @@ def uploadchannel(path, debug, verbose=False, resume=False, reset=False, step=No
         if resume or prompt_resume():
             if verbose:
                 print("Resuming your last session...")
+            step = Status.LAST.name if step is None else step
             progress_manager = progress_manager.load_progress(step.upper())
         else:
             progress_manager.init_session()
@@ -63,7 +67,7 @@ def uploadchannel(path, debug, verbose=False, resume=False, reset=False, step=No
 
     # Set initial tree if it hasn't been set already
     if progress_manager.get_status_val() <= Status.CREATE_TREE.value:
-        tree = create_initial_tree(channel, domain, verbose, progress_manager)
+        tree = create_initial_tree(channel, domain, verbose, update, progress_manager, config.get_file_store())
     else:
         tree = progress_manager.tree
 
@@ -85,7 +89,7 @@ def uploadchannel(path, debug, verbose=False, resume=False, reset=False, step=No
     tree.uploaded_files = progress_manager.files_uploaded
 
     # Upload files if they haven't been uploaded already
-    if progress_manager.get_status_val() <= Status.START_UPLOAD.value:
+    if progress_manager.get_status_val() <= Status.UPLOADING_FILES.value:
         upload_files(tree, file_diff, verbose, progress_manager, token)
 
     # Create channel on Kolibri Studio if it hasn't been created already
@@ -137,12 +141,12 @@ def run_construct_channel(path, verbose, progress_manager, kwargs):
     progress_manager.set_channel(channel)
     return channel
 
-def create_initial_tree(channel, domain, verbose, progress_manager):
+def create_initial_tree(channel, domain, verbose, update, progress_manager, file_store):
 
     # Create channel manager with channel data
     if verbose:
         print("Setting up initial channel structure...")
-    tree = ChannelManager(channel, domain, verbose)
+    tree = ChannelManager(channel, domain, file_store, verbose, update)
 
     # Create channel manager with channel data
     if verbose:
@@ -163,6 +167,7 @@ def process_tree_files(tree, verbose, progress_manager):
         print("Processing content...")
     tree.process_tree(tree.channel)
     tree.check_for_files_failed()
+    config.set_file_store(tree.downloader.file_store)
     progress_manager.set_files(tree.downloader.get_files(), tree.downloader.get_file_mapping(), tree.downloader.failed_files)
 
 def get_file_diff(tree, verbose, progress_manager, token):

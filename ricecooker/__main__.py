@@ -1,4 +1,4 @@
-"""Usage: ricecooker uploadchannel [-hvqr] <file_path> [--resume [--step=<step>] | --reset] [--token=<t>] [--debug] [[OPTIONS] ...]
+"""Usage: ricecooker uploadchannel [-huv] <file_path> [--resume [--step=<step>] | --reset] [--token=<t>] [--debug] [[OPTIONS] ...]
 
 Arguments:
   file_path        Path to file with channel data
@@ -12,8 +12,7 @@ Arguments:
 Options:
   -h --help
   -v       verbose mode
-  -q       quiet mode
-  -r       make report
+  -u       check files for updates
 """
 
 from ricecooker.commands import uploadchannel
@@ -42,6 +41,7 @@ if __name__ == '__main__':
     uploadchannel(arguments["<file_path>"],
                   arguments["--debug"],
                   verbose=arguments["-v"],
+                  update=arguments['-u'],
                   resume=arguments['--resume'],
                   reset=arguments['--reset'],
                   token=arguments['--token'],
