@@ -192,8 +192,6 @@ class DownloadManager:
                 # Keep track of downloaded file
                 self.files += [filename]
                 self._file_mapping.update({filename : {
-                    'original_filename': original_filename,
-                    'source_url': path,
                     'size': os.path.getsize(config.get_storage_path(filename)),
                     'preset':preset,
                 }})
@@ -223,8 +221,6 @@ class DownloadManager:
                 # Keep track of downloaded file
                 self.files += [filename]
                 self._file_mapping.update({filename : {
-                    'original_filename': original_filename,
-                    'source_url': path,
                     'size': file_size,
                     'preset':preset,
                 }})

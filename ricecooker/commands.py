@@ -63,7 +63,7 @@ def uploadchannel(path, debug, verbose=False, update=False, resume=False, reset=
     tree.uploaded_files = progress_manager.files_uploaded
 
     # Upload files if they haven't been uploaded already
-    if progress_manager.get_status_val() <= Status.START_UPLOAD.value:
+    if progress_manager.get_status_val() <= Status.UPLOADING_FILES.value:
         upload_files(tree, file_diff, verbose, progress_manager)
 
     # Create channel on Kolibri Studio if it hasn't been created already
