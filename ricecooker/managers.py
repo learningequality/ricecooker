@@ -39,10 +39,15 @@ class DownloadManager:
     # All accepted file extensions
     all_file_extensions = [key for key, value in file_formats.choices]
 
-    def __init__(self, verbose=False):
+    def __init__(self, file_store, verbose=False, update=False):
         # Mount file:// to allow local path requests
         self.session = requests.Session()
         self.session.mount('file://', FileAdapter())
+        self.update = update
+        self.file_store = {}
+        if os.stat(file_store).st_size > 0:
+            with open(file_store, 'r') as jsonobj:
+                self.file_store = json.load(jsonobj)
         self.files = []
         self.failed_files = []
         self._file_mapping = {} # Used to keep track of files and their respective metadata
@@ -156,6 +161,9 @@ class DownloadManager:
             if exercises.CONTENT_STORAGE_PLACEHOLDER in path:
                 return os.path.split(path)[-1]
 
+            if not self.update:
+                pass
+
             if self.verbose:
                 print("\tDownloading {}".format(path))
 
@@ -191,8 +199,6 @@ class DownloadManager:
                 # Keep track of downloaded file
                 self.files += [filename]
                 self._file_mapping.update({filename : {
-                    'original_filename': original_filename,
-                    'source_url': path,
                     'size': os.path.getsize(config.get_storage_path(filename)),
                     'preset':preset,
                 }})
@@ -222,8 +228,6 @@ class DownloadManager:
                 # Keep track of downloaded file
                 self.files += [filename]
                 self._file_mapping.update({filename : {
-                    'original_filename': original_filename,
-                    'source_url': path,
                     'size': file_size,
                     'preset':preset,
                 }})
@@ -294,11 +298,11 @@ class ChannelManager:
             downloader (DownloadManager): download manager for handling files
             verbose (bool): indicates whether to print what manager is doing (optional)
     """
-    def __init__(self, channel, domain, verbose=False):
+    def __init__(self, channel, domain, file_store, verbose=False, update=False):
         self.channel = channel # Channel to process
         self.verbose = verbose # Determines whether to print process
         self.domain = domain # Domain to upload channel to
-        self.downloader = DownloadManager(verbose)
+        self.downloader = DownloadManager(file_store, verbose, update)
         self.uploaded_files=[]
 
     def validate(self):

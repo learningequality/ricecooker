@@ -26,7 +26,7 @@ OPEN_CHANNEL_URL = "{domain}/channels/{channel_id}/edit"
 # Folder to store downloaded files
 STORAGE_DIRECTORY = "storage/"
 
-# Folder to store downloaded files
+# Folder to store progress tracking information
 RESTORE_DIRECTORY = "restore/"
 
 def get_storage_path(filename):
@@ -48,16 +48,28 @@ def authentication_url(domain):
     """
     return AUTHENTICATION_URL.format(domain=domain)
 
+def init_file_mapping_store(debug):
+    # Create file mapping json if it doesn't exist
+    path = os.path.join(RESTORE_DIRECTORY, "local" if debug else "production")
+    file_mapping_path = "{path}/file_restore.json".format(path=path)
+    if not os.path.isfile(file_mapping_path):
+        open(file_mapping_path, 'a').close()
+
+def get_file_store(debug):
+    return "{path}/file_restore.json".format(path=os.path.join(RESTORE_DIRECTORY, "local" if debug else "production"))
 
 def get_restore_path(filename, debug):
-    """ get_storage_path: returns path to storage directory for downloading content
-        Args: filename (str): Name of file to store
+    """ get_restore_path: returns path to directory for restoration points
+        Args:
+            filename (str): Name of file to store
+            debug (bool): Determines how to store restoration points
         Returns: string path to file
     """
     path = os.path.join(RESTORE_DIRECTORY, "local" if debug else "production")
     # Make storage directory for restore files if it doesn't already exist
     if not os.path.exists(path):
         os.makedirs(path)
+
     return os.path.join(path, filename + '.pickle')
 
 
