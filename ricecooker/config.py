@@ -18,6 +18,10 @@ FILE_UPLOAD_URL = "{domain}/api/internal/file_upload"
 # URL for creating channel on server
 CREATE_CHANNEL_URL = "{domain}/api/internal/create_channel"
 
+ADD_NODES_URL = "{domain}/api/internal/add_nodes"
+
+FINISH_CHANNEL_URL = "{domain}/api/internal/finish_channel"
+
 # URL to return after channel is created
 OPEN_CHANNEL_URL = "{domain}/open_channel/{invitation_id}/{channel_id}"
 
@@ -84,6 +88,20 @@ def create_channel_url(domain):
         Returns: string url to create_channel endpoint
     """
 	return CREATE_CHANNEL_URL.format(domain=domain)
+
+def add_nodes_url(domain):
+    """ create_channel_url: returns url to create channel
+        Args: domain (str): domain to create channel on
+        Returns: string url to create_channel endpoint
+    """
+    return ADD_NODES_URL.format(domain=domain)
+
+def finish_channel_url(domain):
+    """ create_channel_url: returns url to create channel
+        Args: domain (str): domain to create channel on
+        Returns: string url to create_channel endpoint
+    """
+    return FINISH_CHANNEL_URL.format(domain=domain)
 
 def open_channel_url(invitation, channel, domain):
 	""" open_channel_url: returns url to uploaded channel

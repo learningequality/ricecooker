@@ -143,7 +143,6 @@ class Channel(Node):
             "has_changed": True,
             "thumbnail": self.thumbnail,
             "description": self.description if self.description is not None else "",
-            "children": [child_node.to_dict() for child_node in self.children],
         }
 
     def validate(self):
@@ -208,7 +207,6 @@ class ContentNode(Node):
             "node_id": self.node_id.hex,
             "content_id": self.content_id.hex,
             "author": self.author,
-            "children": [child_node.to_dict() for child_node in self.children],
             "files" : self.files,
             "kind": self.kind,
             "license": self.license,
@@ -494,7 +492,6 @@ class Exercise(ContentNode):
             "node_id": self.node_id.hex,
             "content_id": self.content_id.hex,
             "author": self.author,
-            "children": [child_node.to_dict() for child_node in self.children],
             "files" : self.files,
             "kind": self.kind,
             "license": self.license,

@@ -167,7 +167,7 @@ class DownloadManager:
                 if self.verbose:
                     print("\tFile {0} already exists (add '-u' flag to update)".format(data['filename']))
                 self.track_file(data['filename'], data['size'],  data['preset'])
-                return data['filename']
+                return self._file_mapping[data['filename']]
 
             if self.verbose:
                 print("\tDownloading {}".format(path))
@@ -197,13 +197,13 @@ class DownloadManager:
 
 
             # If file already exists, skip it
-            if not self.update and os.path.isfile(config.get_storage_path(filename)):
+            if os.path.isfile(config.get_storage_path(filename)):
                 if self.verbose:
                     print("\t--- No changes detected on {0}".format(filename))
 
                 # Keep track of downloaded file
                 self.track_file(filename, os.path.getsize(config.get_storage_path(filename)), preset, path)
-                return filename
+                return self._file_mapping[filename]
 
             # Write file to temporary file
             with tempfile.TemporaryFile() as tempf:
@@ -234,7 +234,7 @@ class DownloadManager:
 
                 if self.verbose:
                     print("\t--- Downloaded '{0}' to {1}".format(original_filename, filename))
-            return filename
+            return self._file_mapping[filename]
         # Catch errors related to reading file path and handle silently
         except (HTTPError, FileNotFoundError, ConnectionError, InvalidURL, InvalidSchema, IOError):
             self.failed_files += [(path,title)]
@@ -243,8 +243,11 @@ class DownloadManager:
     def track_file(self, filename, file_size, preset, path=None):
         self.files += [filename]
         file_data = {filename : {
+            'source_url': '',
+            'original_filename': 'file',
             'size': file_size,
             'preset':preset,
+            'filename':filename,
         }}
         self._file_mapping.update(file_data)
 
@@ -363,6 +366,7 @@ class ChannelManager:
                 if self.verbose:
                     print("\t*** Processing images for exercise: {}".format(node.title))
                 node.process_questions(self.downloader)
+                import pdb; pdb.set_trace()
 
         # Process node's children
         for child_node in node.children:
@@ -414,12 +418,46 @@ class ChannelManager:
             Args: None
             Returns: link to uploadedchannel
         """
+        root, channel_id = self.add_channel()
+        self.add_nodes(root, self.channel.children)
+        return self.finish_channel(channel_id)
+
+    def add_channel(self):
+        """ upload_files: sends processed channel data to server to create tree
+            Args: None
+            Returns: link to uploadedchannel
+        """
         payload = {
             "channel_data":self.channel.to_dict(),
-            "content_data": [child.to_dict() for child in self.channel.children],
-            "file_data": self.downloader._file_mapping,
         }
         response = requests.post(config.create_channel_url(self.domain), data=json.dumps(payload))
+        response.raise_for_status()
+        new_channel = json.loads(response._content.decode("utf-8"))
+        return new_channel['root'], new_channel['channel_id']
+
+    def add_nodes(self, root_id, children):
+        payload = {
+            'root_id': root_id,
+            'content_data': [child.to_dict() for child in children]
+        }
+        response = requests.post(config.add_nodes_url(self.domain), data=json.dumps(payload))
+        response.raise_for_status()
+
+        response_json = json.loads(response._content.decode("utf-8"))
+        # import pdb; pdb.set_trace()
+
+        for child in children:
+            self.add_nodes(response_json['root_ids'][child.node_id.hex], child.children)
+
+    def finish_channel(self, channel_id):
+        """ upload_files: sends processed channel data to server to create tree
+            Args: None
+            Returns: link to uploadedchannel
+        """
+        payload = {
+            "channel_id":channel_id,
+        }
+        response = requests.post(config.finish_channel_url(self.domain), data=json.dumps(payload))
         response.raise_for_status()
         new_channel = json.loads(response._content.decode("utf-8"))
         return config.open_channel_url(new_channel['invite_id'], new_channel['new_channel'], self.domain)

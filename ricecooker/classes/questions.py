@@ -118,7 +118,7 @@ class BaseQuestion:
                 if not file_result:
                     return "", []
                 filename = file_result
-                processed_string = processed_string.replace(match[1], exercises.CONTENT_STORAGE_FORMAT.format(filename))
+                processed_string = processed_string.replace(match[1], exercises.CONTENT_STORAGE_FORMAT.format(filename['filename']))
                 file_list += [filename]
         return processed_string, file_list
 
@@ -247,7 +247,7 @@ class PerseusQuestion(BaseQuestion):
             if not result:
                 return "", []
             filename = result
-            text = text.replace(text, exercises.CONTENT_STORAGE_FORMAT.format(filename))
+            text = text.replace(text, exercises.CONTENT_STORAGE_FORMAT.format(filename['filename']))
             file_list += [filename]
         return text, file_list
 
