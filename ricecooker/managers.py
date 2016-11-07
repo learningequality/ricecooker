@@ -100,24 +100,34 @@ class DownloadManager:
             svg_path = path + ".svg"
             json_path = path + "-data.json"
 
-            # Get svg hash
-            try:
-                rsvg = self.session.get(svg_path, stream=True)
-                rsvg.raise_for_status()
-                hash = self.get_hash(rsvg, hash)
-            except MissingSchema:
-                with open(svg_path, 'rb') as fsvg:
-                    hash = self.get_hash(iter(lambda: fsvg.read(4096), b""), hash)
+            with tempfile.TemporaryFile('temp.graphie', 'wb') as tempf:
+                # Write svg
+                try:
+                    rsvg = self.session.get(svg_path, stream=True)
+                    rsvg.raise_for_status()
+                    # Write to file (generate hash if none provided)
+                    for chunk in rsvg:
+                        tempf.write(chunk)
+                except MissingSchema:
+                    with open(svg_path, 'rb') as fsvg:
+                        tempf.write(fsvg.read())
 
-            # Combine svg hash with json hash
-            try:
-                rjson = self.session.get(json_path, stream=True)
-                rjson.raise_for_status()
-                hash = self.get_hash(rjson, hash)
-            except MissingSchema:
-                # Try opening path as relative file path
-                with open(json_path, 'rb') as fjson:
-                    hash = self.get_hash(iter(lambda: fjson.read(4096), b""), hash)
+                tempf.write()
+
+                # Write json file
+                try:
+                    rjson = self.session.get(json_path, stream=True)
+                    rjson.raise_for_status()
+                    for chunk in rjson:
+                        tempf.write(chunk)
+                except MissingSchema:
+                    # Try opening path as relative file path
+                    with open(json_path, 'rb') as fjson:
+                        hash = self.get_hash(iter(lambda: fjson.read(4096), b""), hash)
+
+
+
+
 
             # Download files
             svg_result = self.download_file(svg_path, title, hash, default_ext='.{}'.format(file_formats.SVG), preset=format_presets.EXERCISE_GRAPHIE, force_ext=True)
