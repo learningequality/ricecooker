@@ -48,7 +48,6 @@ class DownloadManager:
         if os.stat(file_store).st_size > 0:
             with open(file_store, 'r') as jsonobj:
                 self.file_store = json.load(jsonobj)
-        print(self.file_store)
         self.files = []
         self.failed_files = []
         self._file_mapping = {} # Used to keep track of files and their respective metadata
@@ -382,7 +381,7 @@ class ChannelManager:
         file_diff_result = []
         chunks = [files_to_diff[x:x+10000] for x in range(0, len(files_to_diff), 10000)]
         for chunk in chunks:
-            response = requests.post(config.file_diff_url(self.domain),  headers={"Authorization": "Token {0}".format(token)}, data=json.dumps(chunk))
+            response = requests.post(config.file_diff_url(self.domain),  data=json.dumps(chunk))
             response.raise_for_status()
             file_diff_result += json.loads(response._content.decode("utf-8"))
         return file_diff_result
@@ -399,7 +398,7 @@ class ChannelManager:
         try:
             for f in files_to_upload:
                 with  open(config.get_storage_path(f), 'rb') as file_obj:
-                    response = requests.post(config.file_upload_url(self.domain),  headers={"Authorization": "Token {0}".format(token)}, files={'file': file_obj})
+                    response = requests.post(config.file_upload_url(self.domain), files={'file': file_obj})
                     response.raise_for_status()
                     self.uploaded_files += [f]
                     counter += 1
@@ -418,7 +417,7 @@ class ChannelManager:
             "content_data": [child.to_dict() for child in self.channel.children],
             "file_data": self.downloader._file_mapping,
         }
-        response = requests.post(config.create_channel_url(self.domain), headers={"Authorization": "Token {0}".format(token)}, data=json.dumps(payload))
+        response = requests.post(config.create_channel_url(self.domain), data=json.dumps(payload))
         response.raise_for_status()
         new_channel = json.loads(response._content.decode("utf-8"))
         return config.open_channel_url(new_channel['new_channel'], self.domain, token)

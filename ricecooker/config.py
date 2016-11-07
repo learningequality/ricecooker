@@ -49,7 +49,11 @@ def authentication_url(domain):
     """
     return AUTHENTICATION_URL.format(domain=domain)
 
-def init_file_mapping_store():
+def init_file_mapping_store(debug):
+    path = os.path.join(RESTORE_DIRECTORY, "local" if debug else "production")
+    # Make storage directory for restore files if it doesn't already exist
+    if not os.path.exists(path):
+        os.makedirs(path)
     # Create file mapping json if it doesn't exist
     path = os.path.join(RESTORE_DIRECTORY, "file_restore.json")
     if not os.path.isfile(path):
@@ -70,10 +74,6 @@ def get_restore_path(filename, debug):
         Returns: string path to file
     """
     path = os.path.join(RESTORE_DIRECTORY, "local" if debug else "production")
-    # Make storage directory for restore files if it doesn't already exist
-    if not os.path.exists(path):
-        os.makedirs(path)
-
     return os.path.join(path, filename + '.pickle')
 
 
