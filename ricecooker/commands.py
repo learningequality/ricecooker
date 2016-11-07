@@ -21,7 +21,6 @@ def uploadchannel(path, debug, verbose=False, update=False, resume=False, reset=
     domain = config.PRODUCTION_DOMAIN
     if debug:
       domain = config.DEBUG_DOMAIN
-
     config.init_file_mapping_store(debug)
 
     if verbose:

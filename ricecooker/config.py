@@ -54,6 +54,7 @@ def init_file_mapping_store(debug):
     # Make storage directory for restore files if it doesn't already exist
     if not os.path.exists(path):
         os.makedirs(path)
+
     # Create file mapping json if it doesn't exist
     path = os.path.join(RESTORE_DIRECTORY, "file_restore.json")
     if not os.path.isfile(path):
