@@ -17,7 +17,7 @@ def uploadchannel(path, debug, verbose=False, update=False, resume=False, reset=
     if debug:
       domain = config.DEBUG_DOMAIN
 
-    config.init_file_mapping_store()
+    config.init_file_mapping_store(debug)
 
     if verbose:
         print("\n\n***** Starting channel build process *****")
