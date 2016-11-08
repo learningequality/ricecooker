@@ -52,7 +52,6 @@ class DownloadManager:
         self.failed_files = []
         self._file_mapping = {} # Used to keep track of files and their respective metadata
         self.verbose = verbose
-        self.update = update
 
     def get_files(self):
         """ get_files: get files downloaded by download manager
@@ -209,6 +208,7 @@ class DownloadManager:
                 self.track_file(filename, os.path.getsize(config.get_storage_path(filename)), preset, path_name, original_filename)
                 return self._file_mapping[filename]
 
+
             # Write file to temporary file
             with tempfile.TemporaryFile() as tempf:
                 try:
@@ -316,6 +316,7 @@ class ChannelManager:
         self.verbose = verbose # Determines whether to print process
         self.domain = domain # Domain to upload channel to
         self.update = update # Download all files if true
+
         self.downloader = DownloadManager(file_store, verbose, update)
         self.uploaded_files=[]
 
@@ -376,7 +377,7 @@ class ChannelManager:
         else:
             print("   All files were successfully downloaded")
 
-    def get_file_diff(self):
+    def get_file_diff(self, token):
         """ get_file_diff: retrieves list of files that do not exist on content curation server
             Args: None
             Returns: list of files that are not on server
@@ -385,12 +386,12 @@ class ChannelManager:
         file_diff_result = []
         chunks = [files_to_diff[x:x+10000] for x in range(0, len(files_to_diff), 10000)]
         for chunk in chunks:
-            response = requests.post(config.file_diff_url(self.domain), data=json.dumps(chunk))
+            response = requests.post(config.file_diff_url(self.domain),  data=json.dumps(chunk))
             response.raise_for_status()
             file_diff_result += json.loads(response._content.decode("utf-8"))
         return file_diff_result
 
-    def upload_files(self, file_list, progress_manager):
+    def upload_files(self, file_list, progress_manager, token):
         """ upload_files: uploads files to server
             Args: file_list (str): list of files to upload
             Returns: None
@@ -398,7 +399,7 @@ class ChannelManager:
         counter = 0
         files_to_upload = list(set(file_list) - set(self.uploaded_files)) # In case restoring from previous session
         if self.verbose:
-            print("Uploading {0} new file(s) to the content curation server...".format(len(files_to_upload)))
+            print("Uploading {0} new file(s) to Kolibri Studio...".format(len(files_to_upload)))
         try:
             for f in files_to_upload:
                 with  open(config.get_storage_path(f), 'rb') as file_obj:
@@ -411,7 +412,7 @@ class ChannelManager:
         finally:
             progress_manager.set_uploading(self.uploaded_files)
 
-    def upload_tree(self):
+    def upload_tree(self, token):
         """ upload_files: sends processed channel data to server to create tree
             Args: None
             Returns: link to uploadedchannel

@@ -1,9 +1,9 @@
-"""Usage: ricecooker uploadchannel [-hvqru] <file_path> [--resume [--step=<step>] | --reset] [--debug] [[OPTIONS] ...]
+"""Usage: ricecooker uploadchannel [-huv] <file_path> [--resume [--step=<step>] | --reset] [--token=<t>] [--debug] [[OPTIONS] ...]
 
 Arguments:
   file_path        Path to file with channel data
-  -u               Update all files (download all files again)
   --debug          Run ricecooker against debug server (localhost:8000) rather than contentworkshop
+  --token=<t>      Authorization token (can be token or path to file with token) [default: #]
   --resume         Resume from ricecooker step (cannot be used with --reset flag)
   --step=<step>    Step to resume progress from (must be used with --resume flag) [default: last]
   --reset          Restart session, overwriting previous session (cannot be used with --resume flag)
@@ -12,8 +12,7 @@ Arguments:
 Options:
   -h --help
   -v       verbose mode
-  -q       quiet mode
-  -r       make report
+  -u       check files for updates
 """
 
 from ricecooker.commands import uploadchannel
@@ -26,7 +25,6 @@ commands = ["uploadchannel"]
 
 if __name__ == '__main__':
     arguments = docopt(__doc__)
-
     kwargs = {}
     for arg in arguments['OPTIONS']:
       try:
@@ -40,4 +38,12 @@ if __name__ == '__main__':
     if step.upper() not in all_steps:
       raise InvalidUsageException("Invalid step '{0}': Valid steps are {1}".format(step, all_steps))
 
-    uploadchannel(arguments["<file_path>"], arguments["--debug"], verbose=arguments["-v"], update=arguments["-u"], resume=arguments['--resume'], reset=arguments['--reset'], step=step, **kwargs)
+    uploadchannel(arguments["<file_path>"],
+                  arguments["--debug"],
+                  verbose=arguments["-v"],
+                  update=arguments['-u'],
+                  resume=arguments['--resume'],
+                  reset=arguments['--reset'],
+                  token=arguments['--token'],
+                  step=step,
+                  **kwargs)
