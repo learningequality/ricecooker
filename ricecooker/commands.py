@@ -25,6 +25,21 @@ def uploadchannel(path, debug, verbose=False, update=False, resume=False, reset=
 
     config.init_file_mapping_store(debug)
 
+    # Authenticate user
+    if token != "#":
+        try:
+            response = requests.post(config.authentication_url(domain), headers={"Authorization": "Token {0}".format(token)})
+            response.raise_for_status()
+            user=json.loads(response._content.decode("utf-8"))
+            token = user['token']
+            if verbose:
+                print("Logged in with username {0}".format(user['username']))
+        except HTTPError:
+            print("Invalid token: Credentials not found")
+            sys.exit()
+    else:
+        token = prompt_token(domain)
+
     if verbose:
         print("\n\n***** Starting channel build process *****")
 

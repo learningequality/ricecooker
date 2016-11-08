@@ -386,7 +386,7 @@ class ChannelManager:
         file_diff_result = []
         chunks = [files_to_diff[x:x+10000] for x in range(0, len(files_to_diff), 10000)]
         for chunk in chunks:
-            response = requests.post(config.file_diff_url(self.domain),  data=json.dumps(chunk))
+            response = requests.post(config.file_diff_url(self.domain), headers={"Authorization": "Token {0}".format(token)}, data=json.dumps(chunk))
             response.raise_for_status()
             file_diff_result += json.loads(response._content.decode("utf-8"))
         return file_diff_result
@@ -403,7 +403,7 @@ class ChannelManager:
         try:
             for f in files_to_upload:
                 with  open(config.get_storage_path(f), 'rb') as file_obj:
-                    response = requests.post(config.file_upload_url(self.domain), files={'file': file_obj})
+                    response = requests.post(config.file_upload_url(self.domain), headers={"Authorization": "Token {0}".format(token)},  files={'file': file_obj})
                     response.raise_for_status()
                     self.uploaded_files += [f]
                     counter += 1
@@ -417,11 +417,11 @@ class ChannelManager:
             Args: None
             Returns: link to uploadedchannel
         """
-        root, channel_id = self.add_channel()
-        self.add_nodes(root, self.channel.children)
-        return self.finish_channel(channel_id)
+        root, channel_id = self.add_channel(token)
+        self.add_nodes(root, self.channel.children, token)
+        return self.finish_channel(channel_id, token)
 
-    def add_channel(self):
+    def add_channel(self, token):
         """ upload_files: sends processed channel data to server to create tree
             Args: None
             Returns: link to uploadedchannel
@@ -429,26 +429,25 @@ class ChannelManager:
         payload = {
             "channel_data":self.channel.to_dict(),
         }
-        response = requests.post(config.create_channel_url(self.domain), data=json.dumps(payload))
+        response = requests.post(config.create_channel_url(self.domain), headers={"Authorization": "Token {0}".format(token)}, data=json.dumps(payload))
         response.raise_for_status()
         new_channel = json.loads(response._content.decode("utf-8"))
         return new_channel['root'], new_channel['channel_id']
 
-    def add_nodes(self, root_id, children):
+    def add_nodes(self, root_id, children, token):
         payload = {
             'root_id': root_id,
             'content_data': [child.to_dict() for child in children]
         }
-        response = requests.post(config.add_nodes_url(self.domain), data=json.dumps(payload))
+        response = requests.post(config.add_nodes_url(self.domain), headers={"Authorization": "Token {0}".format(token)}, data=json.dumps(payload))
         response.raise_for_status()
 
         response_json = json.loads(response._content.decode("utf-8"))
-        # import pdb; pdb.set_trace()
 
         for child in children:
-            self.add_nodes(response_json['root_ids'][child.node_id.hex], child.children)
+            self.add_nodes(response_json['root_ids'][child.node_id.hex], child.children, token)
 
-    def finish_channel(self, channel_id):
+    def finish_channel(self, channel_id, token):
         """ upload_files: sends processed channel data to server to create tree
             Args: None
             Returns: link to uploadedchannel
@@ -456,10 +455,10 @@ class ChannelManager:
         payload = {
             "channel_id":channel_id,
         }
-        response = requests.post(config.finish_channel_url(self.domain), data=json.dumps(payload))
+        response = requests.post(config.finish_channel_url(self.domain), headers={"Authorization": "Token {0}".format(token)}, data=json.dumps(payload))
         response.raise_for_status()
         new_channel = json.loads(response._content.decode("utf-8"))
-        return config.open_channel_url(new_channel['invite_id'], new_channel['new_channel'], self.domain)
+        return config.open_channel_url(new_channel['new_channel'], self.domain)
 
 class Status(Enum):
     INIT = 0

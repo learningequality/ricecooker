@@ -26,7 +26,7 @@ ADD_NODES_URL = "{domain}/api/internal/add_nodes"
 FINISH_CHANNEL_URL = "{domain}/api/internal/finish_channel"
 
 # URL to return after channel is created
-OPEN_CHANNEL_URL = "{domain}/open_channel/{invitation_id}/{channel_id}"
+OPEN_CHANNEL_URL = "{domain}/channels/{channel_id}/edit"
 
 # Folder to store downloaded files
 STORAGE_DIRECTORY = "storage/"
@@ -115,7 +115,7 @@ def finish_channel_url(domain):
     """
     return FINISH_CHANNEL_URL.format(domain=domain)
 
-def open_channel_url(invitation, channel, domain):
+def open_channel_url(channel, domain):
     """ open_channel_url: returns url to uploaded channel
         Args:
             invitation (str): invitation id to get editing access
@@ -123,4 +123,4 @@ def open_channel_url(invitation, channel, domain):
             domain (str): server where channel was created
         Returns: string url to open channel
     """
-    return OPEN_CHANNEL_URL.format(domain=domain, invitation_id=invitation, channel_id=channel)
+    return OPEN_CHANNEL_URL.format(domain=domain, channel_id=channel)
