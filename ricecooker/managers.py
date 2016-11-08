@@ -89,113 +89,108 @@ class DownloadManager:
             Args: path (str): path to .svg and .json files
             Returns: the combined hash of graphie files and their filenames
         """
+        # Handle if path has already been processed
+        if exercises.CONTENT_STORAGE_PLACEHOLDER in path:
+            filename = os.path.split(path)[-1]
+            return filename, filename + ".svg", filename + "-data.json"
+
+        # Initialize paths and hash
+        svg_path = path + ".svg"
+        json_path = path + "-data.json"
+        path_name = svg_path + ' & ' + json_path
+
+        if self.check_downloaded_file(path_name):
+            return self.track_existing_file(path_name)
+
+        with tempfile.TemporaryFile(delete=False) as tempf:
+            # Write graphie file
+            self.write_to_graphie_file(svg_path, tempf)
+            tempf.write(bytes(exercises.GRAPHIE_DELIMITER, 'UTF-8'))
+            self.write_to_graphie_file(json_path, tempf)
+            tempf.seek(0)
+
+            graphie_result = self.download_file(
+                tempf.name,
+                title,
+                default_ext='.{}'.format(file_formats.GRAPHIE),
+                preset=format_presets.EXERCISE_GRAPHIE,
+                force_ext=True,
+                path_name=path_name,
+                original_filename=path.split("/")[-1].split(".")[0]
+            )
+            if not graphie_result:
+                raise FileNotFoundError("Could not access file: {0}".format(tempf.name))
+
+        return graphie_result
+
+    def write_to_graphie_file(self, path, tempf):
         try:
-            # Handle if path has already been processed
-            if exercises.CONTENT_STORAGE_PLACEHOLDER in path:
-                filename = os.path.split(path)[-1]
-                return filename, filename + ".svg", filename + "-data.json"
+            r = self.session.get(path, stream=True)
+            r.raise_for_status()
+            for chunk in r:
+                tempf.write(chunk)
+        except (MissingSchema, InvalidSchema):
+            # Try opening path as relative file path
+            with open(path, 'rb') as file_obj:
+                tempf.write(file_obj.read())
 
-            # Initialize paths and hash
-            hash = hashlib.md5()
-            svg_path = path + ".svg"
-            json_path = path + "-data.json"
-
-            with tempfile.TemporaryFile('temp.graphie', 'wb') as tempf:
-                # Write svg
-                try:
-                    rsvg = self.session.get(svg_path, stream=True)
-                    rsvg.raise_for_status()
-                    # Write to file (generate hash if none provided)
-                    for chunk in rsvg:
-                        tempf.write(chunk)
-                except MissingSchema:
-                    with open(svg_path, 'rb') as fsvg:
-                        tempf.write(fsvg.read())
-
-                tempf.write()
-
-                # Write json file
-                try:
-                    rjson = self.session.get(json_path, stream=True)
-                    rjson.raise_for_status()
-                    for chunk in rjson:
-                        tempf.write(chunk)
-                except MissingSchema:
-                    # Try opening path as relative file path
-                    with open(json_path, 'rb') as fjson:
-                        hash = self.get_hash(iter(lambda: fjson.read(4096), b""), hash)
-
-
-
-
-
-            # Download files
-            svg_result = self.download_file(svg_path, title, hash, default_ext='.{}'.format(file_formats.SVG), preset=format_presets.EXERCISE_GRAPHIE, force_ext=True)
-            if not svg_result:
-                raise FileNotFoundError("Could not access file: {0}".format(svg_path))
-            svg_filename = svg_result
-
-            json_result = self.download_file(json_path, title, hash, default_ext='-data.{}'.format(file_formats.JSON), preset=format_presets.EXERCISE_GRAPHIE, force_ext=True)
-            if not json_result:
-                raise FileNotFoundError("Could not access file: {0}".format(json_path))
-            json_filename = json_result
-
-            return hash.hexdigest(), svg_filename, json_filename
-        # Catch errors related to reading file path and handle silently
-        except (HTTPError, FileNotFoundError, ConnectionError, InvalidURL, InvalidSchema, IOError):
-            self.failed_files += [(path,title)]
-            return False;
-
-    def get_hash(self, request, hash_to_update):
+    def get_hash(self, path):
         """ get_hash: generate hash of file
             Args:
                 request (request): requested file
                 hash_to_update (hash): hash to update based on file
             Returns: updated hash
         """
-        for chunk in request:
-            hash_to_update.update(chunk)
+        hash_to_update = hashlib.md5()
+        try:
+            r = self.session.get(path, stream=True)
+            r.raise_for_status()
+            for chunk in r:
+                hash_to_update.update(chunk)
+        except (MissingSchema, InvalidSchema):
+            with open(path, 'rb') as fobj:
+                for chunk in iter(lambda: fobj.read(4096), b""):
+                    hash_to_update.update(chunk)
+
         return hash_to_update
 
-    def download_file(self, path, title, hash=None, default_ext=None, preset=None, force_ext=False):
+    def check_downloaded_file(self, path):
+        return not self.update and path in self.file_store
+
+    def track_existing_file(self, path):
+        data = self.file_store[path]
+        if self.verbose:
+            print("\tFile {0} already exists (add '-u' flag to update)".format(data['filename']))
+        self.track_file(data['filename'], data['size'],  data['preset'])
+        return self._file_mapping[data['filename']]
+
+    def download_file(self, path, title, default_ext=None, preset=None, force_ext=False, path_name=None, original_filename='file'):
         """ download_file: downloads file from path
             Args:
                 path (str): local path or url to file to download
-                hash (hash): hash to use for filename (optional)
                 default_ext (str): extension to use if none given (optional)
                 preset (str): preset to use (optional)
                 force_ext (bool): force manager to use default extension (optional)
             Returns: filename of downloaded file
         """
         try:
+            path_name = path if path_name is None else path_name
             # Handle if path has already been processed
             if exercises.CONTENT_STORAGE_PLACEHOLDER in path:
                 return os.path.split(path)[-1]
 
-            if not self.update and path in self.file_store:
-                data = self.file_store[path]
-                if self.verbose:
-                    print("\tFile {0} already exists (add '-u' flag to update)".format(data['filename']))
-                self.track_file(data['filename'], data['size'],  data['preset'])
-                return self._file_mapping[data['filename']]
+            if self.check_downloaded_file(path_name):
+                return self.track_existing_file(path_name)
 
             if self.verbose:
-                print("\tDownloading {}".format(path))
+                print("\tDownloading {}".format(path_name))
 
-            # Generate hash if none exist
-            if hash is None:
-                try:
-                    r = self.session.get(path, stream=True)
-                    r.raise_for_status()
-                    hash = self.get_hash(r, hashlib.md5())
-                except MissingSchema:
-                    with open(path, 'rb') as fobj:
-                        hash = self.get_hash(iter(lambda: fobj.read(4096), b""), hashlib.md5())
+            hash=self.get_hash(path)
 
             # Get extension of file or default if none found
             file_components = path.split("/")[-1].split(".")
-            original_filename = file_components[0]
             extension = file_components[-1].lower()
+
             if force_ext or extension not in self.all_file_extensions:
                 if default_ext is not None:
                     extension = default_ext
@@ -205,14 +200,13 @@ class DownloadManager:
                 extension = "." + extension
             filename = '{0}{ext}'.format(hash.hexdigest(), ext=extension)
 
-
             # If file already exists, skip it
             if os.path.isfile(config.get_storage_path(filename)):
                 if self.verbose:
                     print("\t--- No changes detected on {0}".format(filename))
 
                 # Keep track of downloaded file
-                self.track_file(filename, os.path.getsize(config.get_storage_path(filename)), preset, path)
+                self.track_file(filename, os.path.getsize(config.get_storage_path(filename)), preset, path_name, original_filename)
                 return self._file_mapping[filename]
 
             # Write file to temporary file
@@ -226,7 +220,7 @@ class DownloadManager:
                     for chunk in r:
                         tempf.write(chunk)
 
-                except MissingSchema:
+                except (MissingSchema, InvalidSchema):
                     # If path is a local file path, try to open the file (generate hash if none provided)
                     with open(path, 'rb') as fobj:
                         tempf.write(fobj.read())
@@ -236,7 +230,7 @@ class DownloadManager:
                 tempf.seek(0)
 
                 # Keep track of downloaded file
-                self.track_file(filename, file_size, preset, path)
+                self.track_file(filename, file_size, preset, path_name, original_filename)
 
                 # Write file to local storage
                 with open(config.get_storage_path(filename), 'wb') as destf:
@@ -250,23 +244,18 @@ class DownloadManager:
             self.failed_files += [(path,title)]
             return False;
 
-    def track_file(self, filename, file_size, preset, path=None):
+    def track_file(self, filename, file_size, preset, path=None, original_filename='file'):
         self.files += [filename]
-        file_data = {filename : {
-            'source_url': '',
-            'original_filename': 'file',
+        file_data = {
             'size': file_size,
             'preset':preset,
             'filename':filename,
-        }}
-        self._file_mapping.update(file_data)
+            'original_filename':original_filename,
+        }
+        self._file_mapping.update({filename : file_data})
 
         if path is not None:
-            self.file_store.update({path:{
-                'filename' : filename,
-                'size': file_size,
-                'preset':preset,
-            }})
+            self.file_store.update({path:file_data})
 
 
     def download_files(self,files, title, default_ext=None):
@@ -376,7 +365,6 @@ class ChannelManager:
                 if self.verbose:
                     print("\t*** Processing images for exercise: {}".format(node.title))
                 node.process_questions(self.downloader)
-                import pdb; pdb.set_trace()
 
         # Process node's children
         for child_node in node.children:

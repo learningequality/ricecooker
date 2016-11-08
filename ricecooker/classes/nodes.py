@@ -479,7 +479,7 @@ class Exercise(ContentNode):
             Returns: None
         """
         for question in self.questions:
-            self.files += question.process_question(downloader)
+            question.process_question(downloader)
 
     def to_dict(self):
         """ to_dict: puts data in format CC expects
