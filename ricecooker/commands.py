@@ -8,7 +8,7 @@ from ricecooker.classes import nodes, questions
 from requests.exceptions import HTTPError
 from ricecooker.managers import ChannelManager, RestoreManager, Status
 
-def uploadchannel(path, debug, verbose=False, update=False, resume=False, reset=False, step=Status.LAST.name, token="#", **kwargs):
+def uploadchannel(path, debug, verbose=False, update=False, resume=False, reset=False, step=Status.LAST.name, token="#", prompt=False, **kwargs):
 
     """ uploadchannel: Upload channel to Kolibri Studio server
         Args:
@@ -97,7 +97,8 @@ def uploadchannel(path, debug, verbose=False, update=False, resume=False, reset=
 
     # Open link on web browser (if specified) and return new link
     print("DONE: Channel created at {0}".format(channel_link))
-    prompt_open(channel_link)
+    if prompt:
+        prompt_open(channel_link)
     progress_manager.set_done()
     return channel_link
 

@@ -29,21 +29,22 @@ FINISH_CHANNEL_URL = "{domain}/api/internal/finish_channel"
 OPEN_CHANNEL_URL = "{domain}/channels/{channel_id}/edit"
 
 # Folder to store downloaded files
-STORAGE_DIRECTORY = "storage/"
+STORAGE_DIRECTORY = "storage"
 
 # Folder to store progress tracking information
-RESTORE_DIRECTORY = "restore/"
+RESTORE_DIRECTORY = "restore"
 
 def get_storage_path(filename):
     """ get_storage_path: returns path to storage directory for downloading content
         Args: filename (str): Name of file to store
         Returns: string path to file
     """
+    directory = os.path.join(STORAGE_DIRECTORY, filename[0], filename[1])
     # Make storage directory for downloaded files if it doesn't already exist
-    if not os.path.exists(STORAGE_DIRECTORY) :
-        os.makedirs(STORAGE_DIRECTORY)
+    if not os.path.exists(directory) :
+        os.makedirs(directory)
 
-    return os.path.join(STORAGE_DIRECTORY, filename)
+    return os.path.join(directory, filename)
 
 def authentication_url(domain):
     """ authentication_url: returns url to login to Kolibri Studio

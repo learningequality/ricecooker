@@ -1,4 +1,4 @@
-"""Usage: ricecooker uploadchannel [-huv] <file_path> [--resume [--step=<step>] | --reset] [--token=<t>] [--debug] [[OPTIONS] ...]
+"""Usage: ricecooker uploadchannel [-huv] <file_path> [--resume [--step=<step>] | --reset] [--token=<t>] [--debug] [--prompt] [[OPTIONS] ...]
 
 Arguments:
   file_path        Path to file with channel data
@@ -46,4 +46,5 @@ if __name__ == '__main__':
                   reset=arguments['--reset'],
                   token=arguments['--token'],
                   step=step,
+                  prompt=arguments['--prompt'],
                   **kwargs)

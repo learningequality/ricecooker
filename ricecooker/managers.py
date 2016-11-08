@@ -88,39 +88,44 @@ class DownloadManager:
             Args: path (str): path to .svg and .json files
             Returns: the combined hash of graphie files and their filenames
         """
-        # Handle if path has already been processed
-        if exercises.CONTENT_STORAGE_PLACEHOLDER in path:
-            filename = os.path.split(path)[-1]
-            return filename, filename + ".svg", filename + "-data.json"
+        try:
+            # Handle if path has already been processed
+            if exercises.CONTENT_STORAGE_PLACEHOLDER in path:
+                filename = os.path.split(path)[-1]
+                return filename, filename + ".svg", filename + "-data.json"
 
-        # Initialize paths and hash
-        svg_path = path + ".svg"
-        json_path = path + "-data.json"
-        path_name = svg_path + ' & ' + json_path
+            # Initialize paths and hash
+            svg_path = path + ".svg"
+            json_path = path + "-data.json"
+            path_name = svg_path + ' & ' + json_path
 
-        if self.check_downloaded_file(path_name):
-            return self.track_existing_file(path_name)
+            if self.check_downloaded_file(path_name):
+                return self.track_existing_file(path_name)
 
-        with tempfile.TemporaryFile(delete=False) as tempf:
-            # Write graphie file
-            self.write_to_graphie_file(svg_path, tempf)
-            tempf.write(bytes(exercises.GRAPHIE_DELIMITER, 'UTF-8'))
-            self.write_to_graphie_file(json_path, tempf)
-            tempf.seek(0)
+            with tempfile.TemporaryFile(delete=False) as tempf:
+                # Write graphie file
+                self.write_to_graphie_file(svg_path, tempf)
+                tempf.write(bytes(exercises.GRAPHIE_DELIMITER, 'UTF-8'))
+                self.write_to_graphie_file(json_path, tempf)
+                tempf.seek(0)
 
-            graphie_result = self.download_file(
-                tempf.name,
-                title,
-                default_ext='.{}'.format(file_formats.GRAPHIE),
-                preset=format_presets.EXERCISE_GRAPHIE,
-                force_ext=True,
-                path_name=path_name,
-                original_filename=path.split("/")[-1].split(".")[0]
-            )
-            if not graphie_result:
-                raise FileNotFoundError("Could not access file: {0}".format(tempf.name))
+                graphie_result = self.download_file(
+                    tempf.name,
+                    title,
+                    default_ext='.{}'.format(file_formats.GRAPHIE),
+                    preset=format_presets.EXERCISE_GRAPHIE,
+                    force_ext=True,
+                    path_name=path_name,
+                    original_filename=path.split("/")[-1].split(".")[0]
+                )
+                if not graphie_result:
+                    raise FileNotFoundError("Could not access file: {0}".format(tempf.name))
 
-        return graphie_result
+            return graphie_result
+        # Catch errors related to reading file path and handle silently
+        except (HTTPError, FileNotFoundError, ConnectionError, InvalidURL, InvalidSchema, IOError):
+            self.failed_files += [(path,title)]
+            return False;
 
     def write_to_graphie_file(self, path, tempf):
         try:
