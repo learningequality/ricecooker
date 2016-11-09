@@ -21,29 +21,35 @@ FILE_UPLOAD_URL = "{domain}/api/internal/file_upload"
 # URL for creating channel on server
 CREATE_CHANNEL_URL = "{domain}/api/internal/create_channel"
 
+# URL for adding nodes to channel
 ADD_NODES_URL = "{domain}/api/internal/add_nodes"
 
+# URL for making final changes to channel
 FINISH_CHANNEL_URL = "{domain}/api/internal/finish_channel"
 
 # URL to return after channel is created
 OPEN_CHANNEL_URL = "{domain}/channels/{channel_id}/edit"
 
+# URL for publishing channel
+PUBLISH_CHANNEL_URL = "{domain}/api/internal/publish_channel"
+
 # Folder to store downloaded files
-STORAGE_DIRECTORY = "storage/"
+STORAGE_DIRECTORY = "storage"
 
 # Folder to store progress tracking information
-RESTORE_DIRECTORY = "restore/"
+RESTORE_DIRECTORY = "restore"
 
 def get_storage_path(filename):
     """ get_storage_path: returns path to storage directory for downloading content
         Args: filename (str): Name of file to store
         Returns: string path to file
     """
+    directory = os.path.join(STORAGE_DIRECTORY, filename[0], filename[1])
     # Make storage directory for downloaded files if it doesn't already exist
-    if not os.path.exists(STORAGE_DIRECTORY) :
-        os.makedirs(STORAGE_DIRECTORY)
+    if not os.path.exists(directory) :
+        os.makedirs(directory)
 
-    return os.path.join(STORAGE_DIRECTORY, filename)
+    return os.path.join(directory, filename)
 
 def authentication_url(domain):
     """ authentication_url: returns url to login to Kolibri Studio
@@ -53,19 +59,32 @@ def authentication_url(domain):
     return AUTHENTICATION_URL.format(domain=domain)
 
 def init_file_mapping_store(debug):
-    path = os.path.join(RESTORE_DIRECTORY, "local" if debug else "production")
+    """ init_file_mapping_store: creates log to keep track of downloaded files
+        Args: debug (bool): determines where to store progress information
+        Returns: None
+    """
     # Make storage directory for restore files if it doesn't already exist
+    path = os.path.join(RESTORE_DIRECTORY, "local" if debug else "production")
     if not os.path.exists(path):
         os.makedirs(path)
+
     # Create file mapping json if it doesn't exist
     path = os.path.join(RESTORE_DIRECTORY, "file_restore.json")
     if not os.path.isfile(path):
         open(path, 'a').close()
 
 def get_file_store():
+    """ get_file_store: returns path to list of downloaded files
+        Args: None
+        Returns: string path to list of downloaded files
+    """
     return os.path.join(RESTORE_DIRECTORY, "file_restore.json")
 
 def set_file_store(file_store):
+    """ set_file_store: saves list of downloaded files
+        Args: file_store ([{path: {size:number, preset:str, filename:str, original_filename:str}}]): list of downloaded files in json format
+        Returns: None
+    """
     with open(get_file_store(), 'w') as storeobj:
         json.dump(file_store, storeobj)
 
@@ -102,25 +121,32 @@ def create_channel_url(domain):
     return CREATE_CHANNEL_URL.format(domain=domain)
 
 def add_nodes_url(domain):
-    """ create_channel_url: returns url to create channel
+    """ add_nodes_url: returns url to add nodes to channel
         Args: domain (str): domain to create channel on
-        Returns: string url to create_channel endpoint
+        Returns: string url to add_nodes endpoint
     """
     return ADD_NODES_URL.format(domain=domain)
 
 def finish_channel_url(domain):
-    """ create_channel_url: returns url to create channel
+    """ finish_channel_url: returns url to finish uploading a channel
         Args: domain (str): domain to create channel on
-        Returns: string url to create_channel endpoint
+        Returns: string url to finish_channel endpoint
     """
     return FINISH_CHANNEL_URL.format(domain=domain)
 
 def open_channel_url(channel, domain):
     """ open_channel_url: returns url to uploaded channel
         Args:
-            invitation (str): invitation id to get editing access
             channel (str): channel id of uploaded channel
             domain (str): server where channel was created
         Returns: string url to open channel
     """
     return OPEN_CHANNEL_URL.format(domain=domain, channel_id=channel)
+
+def publish_channel_url(domain):
+    """ open_channel_url: returns url to publish channel
+        Args:
+            domain (str): server where channel was created
+        Returns: string url to publish channel
+    """
+    return PUBLISH_CHANNEL_URL.format(domain=domain)

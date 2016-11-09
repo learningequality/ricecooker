@@ -34,6 +34,7 @@ class DownloadManager:
             files ([str]): files that have been downloaded by download manager
             _file_mapping ([{'filename':{...}]): map from filename to file metadata
             verbose (bool): indicates whether to print what manager is doing (optional)
+            update (bool): indicates whether to read from file paths again
     """
 
     # All accepted file extensions
@@ -97,41 +98,62 @@ class DownloadManager:
         svg_path = path + ".svg"
         json_path = path + "-data.json"
         path_name = svg_path + ' & ' + json_path
+        hash = hashlib.md5()
+        delimiter = bytes(exercises.GRAPHIE_DELIMITER, 'UTF-8')
 
         if self.check_downloaded_file(path_name):
             return self.track_existing_file(path_name)
 
-        with tempfile.TemporaryFile(delete=False) as tempf:
+        try:
             # Write graphie file
-            self.write_to_graphie_file(svg_path, tempf)
-            tempf.write(bytes(exercises.GRAPHIE_DELIMITER, 'UTF-8'))
-            self.write_to_graphie_file(json_path, tempf)
-            tempf.seek(0)
+            with tempfile.TemporaryFile() as tempf:
+                original_filename = path.split("/")[-1].split(".")[0]
+                if self.verbose:
+                    print("\tDownloading graphie {}".format(original_filename))
+                self.write_to_graphie_file(svg_path, tempf, hash)
+                tempf.write(delimiter)
+                hash.update(delimiter)
+                self.write_to_graphie_file(json_path, tempf, hash)
+                file_size = tempf.tell()
+                tempf.seek(0)
+                filename = '{0}.{ext}'.format(hash.hexdigest(), ext=file_formats.GRAPHIE)
 
-            graphie_result = self.download_file(
-                tempf.name,
-                title,
-                default_ext='.{}'.format(file_formats.GRAPHIE),
-                preset=format_presets.EXERCISE_GRAPHIE,
-                force_ext=True,
-                path_name=path_name,
-                original_filename=path.split("/")[-1].split(".")[0]
-            )
-            if not graphie_result:
-                raise FileNotFoundError("Could not access file: {0}".format(tempf.name))
+                # If file already exists, skip it
+                if os.path.isfile(config.get_storage_path(filename)):
+                    if self.verbose:
+                        print("\t--- No changes detected on {0}".format(filename))
+                    # Keep track of downloaded file
+                    self.track_file(filename, file_size, format_presets.EXERCISE_GRAPHIE, path_name, original_filename)
+                    return self._file_mapping[filename]
 
-        return graphie_result
+                # Write file to local storage
+                with open(config.get_storage_path(filename), 'wb') as destf:
+                    shutil.copyfileobj(tempf, destf)
 
-    def write_to_graphie_file(self, path, tempf):
+                # Keep track of downloaded file
+                self.track_file(filename, file_size, format_presets.EXERCISE_GRAPHIE, path_name, original_filename)
+                if self.verbose:
+                    print("\t--- Downloaded {}".format(filename))
+                return self._file_mapping[filename]
+
+        # Catch errors related to reading file path and handle silently
+        except (HTTPError, FileNotFoundError, ConnectionError, InvalidURL, InvalidSchema, IOError):
+            self.failed_files += [(path,title)]
+            return False;
+
+    def write_to_graphie_file(self, path, tempf, hash):
         try:
             r = self.session.get(path, stream=True)
             r.raise_for_status()
             for chunk in r:
                 tempf.write(chunk)
+                hash.update(chunk)
         except (MissingSchema, InvalidSchema):
             # Try opening path as relative file path
             with open(path, 'rb') as file_obj:
-                tempf.write(file_obj.read())
+                for chunk in iter(lambda: file_obj.read(4096), b""):
+                    hash.update(chunk)
+                    tempf.write(chunk)
 
     def get_hash(self, path):
         """ get_hash: generate hash of file
@@ -163,20 +185,19 @@ class DownloadManager:
         self.track_file(data['filename'], data['size'],  data['preset'])
         return self._file_mapping[data['filename']]
 
-    def download_file(self, path, title, default_ext=None, preset=None, force_ext=False, path_name=None, original_filename='file'):
+    def download_file(self, path, title, default_ext=None, preset=None, path_name=None, original_filename='file'):
         """ download_file: downloads file from path
             Args:
                 path (str): local path or url to file to download
                 default_ext (str): extension to use if none given (optional)
                 preset (str): preset to use (optional)
-                force_ext (bool): force manager to use default extension (optional)
             Returns: filename of downloaded file
         """
         try:
             path_name = path if path_name is None else path_name
             # Handle if path has already been processed
             if exercises.CONTENT_STORAGE_PLACEHOLDER in path:
-                return os.path.split(path)[-1]
+                return self._file_mapping[os.path.split(path)[-1]]
 
             if self.check_downloaded_file(path_name):
                 return self.track_existing_file(path_name)
@@ -187,17 +208,14 @@ class DownloadManager:
             hash=self.get_hash(path)
 
             # Get extension of file or default if none found
-            file_components = path.split("/")[-1].split(".")
-            extension = file_components[-1].lower()
-
-            if force_ext or extension not in self.all_file_extensions:
+            extension = os.path.splitext(path)[1][1:].lower()
+            if extension not in self.all_file_extensions:
                 if default_ext is not None:
                     extension = default_ext
                 else:
                     raise FileNotFoundError("No extension found: {}".format(path))
-            else:
-                extension = "." + extension
-            filename = '{0}{ext}'.format(hash.hexdigest(), ext=extension)
+
+            filename = '{0}.{ext}'.format(hash.hexdigest(), ext=extension)
 
             # If file already exists, skip it
             if os.path.isfile(config.get_storage_path(filename)):
@@ -205,9 +223,8 @@ class DownloadManager:
                     print("\t--- No changes detected on {0}".format(filename))
 
                 # Keep track of downloaded file
-                self.track_file(filename, os.path.getsize(config.get_storage_path(filename)), preset, path_name, original_filename)
+                self.track_file(filename, os.path.getsize(config.get_storage_path(filename)), preset, path_name)
                 return self._file_mapping[filename]
-
 
             # Write file to temporary file
             with tempfile.TemporaryFile() as tempf:
@@ -229,22 +246,22 @@ class DownloadManager:
                 file_size = tempf.tell()
                 tempf.seek(0)
 
-                # Keep track of downloaded file
-                self.track_file(filename, file_size, preset, path_name, original_filename)
-
                 # Write file to local storage
                 with open(config.get_storage_path(filename), 'wb') as destf:
                     shutil.copyfileobj(tempf, destf)
 
+                # Keep track of downloaded file
+                self.track_file(filename, file_size, preset, path_name)
                 if self.verbose:
-                    print("\t--- Downloaded '{0}' to {1}".format(original_filename, filename))
-            return self._file_mapping[filename]
+                    print("\t--- Downloaded {}".format(filename))
+                return self._file_mapping[filename]
+
         # Catch errors related to reading file path and handle silently
         except (HTTPError, FileNotFoundError, ConnectionError, InvalidURL, InvalidSchema, IOError):
             self.failed_files += [(path,title)]
             return False;
 
-    def track_file(self, filename, file_size, preset, path=None, original_filename='file'):
+    def track_file(self, filename, file_size, preset, path=None, original_filename='[File]'):
         self.files += [filename]
         file_data = {
             'size': file_size,
@@ -354,10 +371,15 @@ class ChannelManager:
         from ricecooker.classes import nodes
 
         # If node is not a channel, download files
-        if not isinstance(node, nodes.Channel):
+        if isinstance(node, nodes.Channel):
+            if node.thumbnail is not None and node.thumbnail != "":
+                file_data = self.downloader.download_file(node.thumbnail, "Channel Thumbnail", default_ext=file_formats.PNG)
+                if file_data:
+                    node.thumbnail = file_data['filename']
+        else:
             node.files = self.downloader.download_files(node.files, "Node {}".format(node.original_id))
             if node.thumbnail is not None:
-                result = self.downloader.download_files([node.thumbnail], "Node {}".format(node.original_id), default_ext=".{}".format(file_formats.PNG))
+                result = self.downloader.download_files([node.thumbnail], "Node {}".format(node.original_id), default_ext=file_formats.PNG)
                 if result:
                     node.files += result
 
@@ -419,7 +441,7 @@ class ChannelManager:
         """
         root, channel_id = self.add_channel(token)
         self.add_nodes(root, self.channel.children, token)
-        return self.finish_channel(channel_id, token)
+        return self.commit_channel(channel_id, token)
 
     def add_channel(self, token):
         """ upload_files: sends processed channel data to server to create tree
@@ -447,8 +469,8 @@ class ChannelManager:
         for child in children:
             self.add_nodes(response_json['root_ids'][child.node_id.hex], child.children, token)
 
-    def finish_channel(self, channel_id, token):
-        """ upload_files: sends processed channel data to server to create tree
+    def commit_channel(self, channel_id, token):
+        """ commit_channel: commits channel to Kolibri Studio
             Args: None
             Returns: link to uploadedchannel
         """
@@ -458,7 +480,18 @@ class ChannelManager:
         response = requests.post(config.finish_channel_url(self.domain), headers={"Authorization": "Token {0}".format(token)}, data=json.dumps(payload))
         response.raise_for_status()
         new_channel = json.loads(response._content.decode("utf-8"))
-        return config.open_channel_url(new_channel['new_channel'], self.domain)
+        return channel_id, config.open_channel_url(new_channel['new_channel'], self.domain)
+
+    def publish(self, channel_id, token):
+        """ publish: publishes tree to Kolibri
+            Args: None
+            Returns: link to uploadedchannel
+        """
+        payload = {
+            "channel_id":channel_id,
+        }
+        response = requests.post(config.publish_channel_url(self.domain), headers={"Authorization": "Token {0}".format(token)}, data=json.dumps(payload))
+        response.raise_for_status()
 
 class Status(Enum):
     INIT = 0
@@ -468,10 +501,10 @@ class Status(Enum):
     GET_FILE_DIFF = 4
     START_UPLOAD = 5
     UPLOADING_FILES = 6
-    UPLOAD_FILES = 7
-    UPLOAD_CHANNEL = 8
+    UPLOAD_CHANNEL = 7
+    PUBLISH_CHANNEL = 8
     DONE = 9
-    LAST=10
+    LAST = 10
 
 
 class RestoreManager:
@@ -491,6 +524,7 @@ class RestoreManager:
         self.file_diff = []
         self.files_uploaded = []
         self.channel_link = None
+        self.channel_id = None
         self.status = Status.INIT
 
     def check_for_session(self, status=None):
@@ -571,15 +605,18 @@ class RestoreManager:
         self.record_progress()
 
     def set_uploaded(self, files_uploaded):
-        self.status = Status.UPLOAD_FILES
         self.files_uploaded = files_uploaded
-        self.record_progress()
         self.status = Status.UPLOAD_CHANNEL # Set status to next step
         self.record_progress()
 
-    def set_channel_created(self, channel_link):
-        self.status = Status.DONE
+    def set_channel_created(self, channel_link, channel_id):
+        self.status = Status.PUBLISH_CHANNEL
         self.channel_link = channel_link
+        self.channel_id = channel_id
+        self.record_progress()
+
+    def set_published(self):
+        self.status = Status.DONE
         self.record_progress()
 
     def set_done(self):

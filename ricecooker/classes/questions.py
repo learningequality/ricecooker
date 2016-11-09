@@ -111,7 +111,7 @@ class BaseQuestion:
         return processed_string, file_list
 
     def set_image(self, text, downloader):
-        """ set_images: Replace image strings with downloaded image checksums
+        """ set_image: Replace image string with downloaded image checksum
             Args:
                 text (str): text to parse for image strings
                 downloader (DownloadManager): download manager to download images
@@ -129,7 +129,7 @@ class BaseQuestion:
             text = graphie_match.group().replace("web+graphie:", "")
             result = downloader.download_graphie(text, title)
         else:
-            result = downloader.download_file(text, title, preset=format_presets.EXERCISE_IMAGE, default_ext=".{}".format(file_formats.PNG))
+            result = downloader.download_file(text, title, preset=format_presets.EXERCISE_IMAGE, default_ext=file_formats.PNG)
         if not result:
             return "", []
         replacement = result['filename']
