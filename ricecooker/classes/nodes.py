@@ -66,7 +66,7 @@ class Node:
 
     def print_tree(self, indent=1):
         """ print_tree: prints out structure of tree
-            Args: indent (int): What level of indentation to start printing at
+            Args: indent (int): What level of indentation at which to start printing
             Returns: None
         """
         print("{indent}{data}".format(indent="   " * indent, data=str(self)))

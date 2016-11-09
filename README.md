@@ -38,6 +38,7 @@ A sample program has been created [here](https://github.com/learningequality/ric
 	        domain="learningequality.org",
 	        channel_id="rice-channel",
 	        title="Rice Channel",
+	        thumbnail="http://path/to/some/image.png"
 	    )
 	    _build_tree(channel, <source tree>) 	# see sample_program.py for example build_tree function
 
@@ -100,9 +101,15 @@ A sample program has been created [here](https://github.com/learningequality/ric
 	Once you have created the appropriate question model, add it to an exercise model with `<exercise-node>.add_question(<question>)`
 
 * Running the Rice Cooker
-	Run `python -m ricecooker uploadchannel [-uv] "<path-to-py-file>" [--debug] [--resume] [[OPTIONS] ...]`
+	Run `python -m ricecooker uploadchannel [-huv] "<path-to-py-file>" [--debug] [--token=<token>] [--resume [--step=<step>] | --reset] [--prompt] [--publish]  [[OPTIONS] ...]`
+	- -h (help) will print how to use the rice cooker
 	- -v (verbose) will print what the rice cooker is doing
 	- -u (update) will force the ricecooker to redownload all files
 	- --debug will send data to localhost if you have Kolibri Studio running locally
+	- --token will authorize you to create your channel (found under Kolibri Studio settings page)
 	- --resume will resume your previous rice cooking session
+	- --step will specify at which step to resume your session
+	- --reset will automatically start the rice cooker from the beginning
+	- --prompt will prompt you to open your channel once it's been uploaded
+	- --publish will automatically publish your channel once it's been uploaded
 	- [OPTIONS] any additional keyword arguments you would like to pass to your construct_channel method

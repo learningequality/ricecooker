@@ -22,7 +22,10 @@ from ricecooker import config
 from ricecooker.exceptions import InvalidFormatException, FileNotFoundException
 from le_utils.constants import file_formats, exercises, format_presets
 
+# Regex to parse for web+graphie prefix
 WEB_GRAPHIE_URL_REGEX = r'web\+graphie:([^\)]+)'
+
+# Regex to extract image paths
 FILE_REGEX = r'!\[([^\]]+)?\]\(([^\)]+)\)'
 
 class DownloadManager:
@@ -86,8 +89,10 @@ class DownloadManager:
 
     def download_graphie(self, path, title):
         """ download_graphie: download a web+graphie file
-            Args: path (str): path to .svg and .json files
-            Returns: the combined hash of graphie files and their filenames
+            Args:
+                path (str): path to .svg and .json files
+                title (str): node to print if download fails
+            Returns: file data for .graphie file (combination of svg and json files)
         """
         # Handle if path has already been processed
         if exercises.CONTENT_STORAGE_PLACEHOLDER in path:
@@ -101,19 +106,24 @@ class DownloadManager:
         hash = hashlib.md5()
         delimiter = bytes(exercises.GRAPHIE_DELIMITER, 'UTF-8')
 
+        # Track file if it's already in the downloaded file list
         if self.check_downloaded_file(path_name):
             return self.track_existing_file(path_name)
 
         try:
-            # Write graphie file
+            # Create graphie file combining svg and json files
             with tempfile.TemporaryFile() as tempf:
-                original_filename = path.split("/")[-1].split(".")[0]
                 if self.verbose:
                     print("\tDownloading graphie {}".format(original_filename))
+
+                # Write to graphie file
                 self.write_to_graphie_file(svg_path, tempf, hash)
                 tempf.write(delimiter)
                 hash.update(delimiter)
                 self.write_to_graphie_file(json_path, tempf, hash)
+
+                # Extract file metadata
+                original_filename = path.split("/")[-1].split(".")[0]
                 file_size = tempf.tell()
                 tempf.seek(0)
                 filename = '{0}.{ext}'.format(hash.hexdigest(), ext=file_formats.GRAPHIE)
@@ -142,6 +152,13 @@ class DownloadManager:
             return False;
 
     def write_to_graphie_file(self, path, tempf, hash):
+        """ write_to_graphie_file: write from path to graphie file
+            Args:
+                path (str): path to file to read from
+                tempf (TemporaryFile): file to write to
+                hash (md5): hash to update during write process
+            Returns: None
+        """
         try:
             r = self.session.get(path, stream=True)
             r.raise_for_status()
@@ -158,9 +175,8 @@ class DownloadManager:
     def get_hash(self, path):
         """ get_hash: generate hash of file
             Args:
-                request (request): requested file
-                hash_to_update (hash): hash to update based on file
-            Returns: updated hash
+                path (str): url or path to file to get hash from
+            Returns: md5 hash of file
         """
         hash_to_update = hashlib.md5()
         try:
@@ -176,34 +192,44 @@ class DownloadManager:
         return hash_to_update
 
     def check_downloaded_file(self, path):
+        """ check_downloaded_file: determine if file has been downloaded before
+            Args:
+                path (str): url or path to file to check
+            Returns: boolean indicating if the file has been downloaded before
+        """
         return not self.update and path in self.file_store
 
     def track_existing_file(self, path):
+        """ track_existing_file: add file to mapping if already downloaded
+            Args:
+                path (str): url or path to file to track
+            Returns: file data for tracked file
+        """
         data = self.file_store[path]
         if self.verbose:
             print("\tFile {0} already exists (add '-u' flag to update)".format(data['filename']))
         self.track_file(data['filename'], data['size'],  data['preset'])
         return self._file_mapping[data['filename']]
 
-    def download_file(self, path, title, default_ext=None, preset=None, path_name=None, original_filename='file'):
+    def download_file(self, path, title, default_ext=None, preset=None):
         """ download_file: downloads file from path
             Args:
                 path (str): local path or url to file to download
+                title (str): node to print if download fails
                 default_ext (str): extension to use if none given (optional)
                 preset (str): preset to use (optional)
             Returns: filename of downloaded file
         """
         try:
-            path_name = path if path_name is None else path_name
             # Handle if path has already been processed
             if exercises.CONTENT_STORAGE_PLACEHOLDER in path:
                 return self._file_mapping[os.path.split(path)[-1]]
 
-            if self.check_downloaded_file(path_name):
-                return self.track_existing_file(path_name)
+            if self.check_downloaded_file(path):
+                return self.track_existing_file(path)
 
             if self.verbose:
-                print("\tDownloading {}".format(path_name))
+                print("\tDownloading {}".format(path))
 
             hash=self.get_hash(path)
 
@@ -223,7 +249,7 @@ class DownloadManager:
                     print("\t--- No changes detected on {0}".format(filename))
 
                 # Keep track of downloaded file
-                self.track_file(filename, os.path.getsize(config.get_storage_path(filename)), preset, path_name)
+                self.track_file(filename, os.path.getsize(config.get_storage_path(filename)), preset, path)
                 return self._file_mapping[filename]
 
             # Write file to temporary file
@@ -251,7 +277,7 @@ class DownloadManager:
                     shutil.copyfileobj(tempf, destf)
 
                 # Keep track of downloaded file
-                self.track_file(filename, file_size, preset, path_name)
+                self.track_file(filename, file_size, preset, path)
                 if self.verbose:
                     print("\t--- Downloaded {}".format(filename))
                 return self._file_mapping[filename]
@@ -262,12 +288,21 @@ class DownloadManager:
             return False;
 
     def track_file(self, filename, file_size, preset, path=None, original_filename='[File]'):
+        """ track_file: record which file has been downloaded along with metadata
+            Args:
+                filename (str): name of file to track
+                file_size (int): size of file
+                preset (str): preset to assign to file
+                path (str): source path of file (optional)
+                original_filename (str): file's original name (optional)
+            Returns: None
+        """
         self.files += [filename]
         file_data = {
-            'size': file_size,
-            'preset':preset,
-            'filename':filename,
-            'original_filename':original_filename,
+            'size' : file_size,
+            'preset' : preset,
+            'filename' : filename,
+            'original_filename' : original_filename,
         }
         self._file_mapping.update({filename : file_data})
 
@@ -280,6 +315,7 @@ class DownloadManager:
             Args:
                 files ([str]): list of file paths or urls to download
                 title (str): name of node in case of error
+                default_ext (str): extension to use if none is provided (optional)
             Returns: list of downloaded filenames
         """
         file_list = []
@@ -290,34 +326,6 @@ class DownloadManager:
                 file_list += [result]
         return file_list
 
-    def encode_thumbnail(self, thumbnail):
-        """ encode_thumbnail: gets base64 encoding of thumbnail
-            Args:
-                thumbnail (str): file path or url to channel's thumbnail
-            Returns: base64 encoding of thumbnail
-        """
-        if thumbnail is None:
-            return None
-        else:
-            # Check if thumbanil path is valid
-            if validators.url(thumbnail):
-                r = self.session.get(thumbnail, stream=True)
-                if r.status_code == 200:
-                    # Write thumbnail to temporary file
-                    thumbnail = tempfile.TemporaryFile()
-                    for chunk in r:
-                        thumbnail.write(chunk)
-
-            # Open image and resize accordingly
-            img = Image.open(thumbnail)
-            width = 200
-            height = int((float(img.size[1])*float(width/float(img.size[0]))))
-            img.thumbnail((width,height), Image.ANTIALIAS)
-
-            # Write image to bytes for encoding
-            bufferstream = BytesIO()
-            img.save(bufferstream, format="PNG")
-            return "data:image/png;base64," + base64.b64encode(bufferstream.getvalue()).decode('utf-8')
 
 class ChannelManager:
     """ Manager for handling channel tree structure and communicating to server
@@ -394,6 +402,10 @@ class ChannelManager:
             self.process_tree(child_node, node)
 
     def check_for_files_failed(self):
+        """ check_for_files_failed: print any files that failed during download process
+            Args: None
+            Returns: None
+        """
         if self.downloader.has_failed_files():
             self.downloader.print_failed()
         else:
@@ -401,7 +413,7 @@ class ChannelManager:
 
     def get_file_diff(self, token):
         """ get_file_diff: retrieves list of files that do not exist on content curation server
-            Args: None
+            Args: token (str): authentication token
             Returns: list of files that are not on server
         """
         files_to_diff = self.downloader.get_files()
@@ -415,7 +427,10 @@ class ChannelManager:
 
     def upload_files(self, file_list, progress_manager, token):
         """ upload_files: uploads files to server
-            Args: file_list (str): list of files to upload
+            Args:
+                file_list (str): list of files to upload
+                progress_manager (RestoreManager): manager to keep track of progress
+                token (str): authentication token
             Returns: None
         """
         counter = 0
@@ -436,16 +451,17 @@ class ChannelManager:
 
     def upload_tree(self, token):
         """ upload_files: sends processed channel data to server to create tree
-            Args: None
+            Args: token (str): authentication token
             Returns: link to uploadedchannel
         """
         root, channel_id = self.add_channel(token)
         self.add_nodes(root, self.channel.children, token)
-        return self.commit_channel(channel_id, token)
+        channel_id, channel_link = self.commit_channel(channel_id, token)
+        return channel_id, channel_link
 
     def add_channel(self, token):
-        """ upload_files: sends processed channel data to server to create tree
-            Args: None
+        """ add_channel: sends processed channel data to server to create tree
+            Args: token (str): authentication token
             Returns: link to uploadedchannel
         """
         payload = {
@@ -457,6 +473,13 @@ class ChannelManager:
         return new_channel['root'], new_channel['channel_id']
 
     def add_nodes(self, root_id, children, token):
+        """ add_nodes: adds processed nodes to tree
+            Args:
+                root_id (str): id of parent node on Kolibri Studio
+                children ([Node]): nodes to publish
+                token (str): authentication token
+            Returns: link to uploadedchannel
+        """
         payload = {
             'root_id': root_id,
             'content_data': [child.to_dict() for child in children]
@@ -471,8 +494,10 @@ class ChannelManager:
 
     def commit_channel(self, channel_id, token):
         """ commit_channel: commits channel to Kolibri Studio
-            Args: None
-            Returns: link to uploadedchannel
+            Args:
+                channel_id (str): channel's id on Kolibri Studio
+                token (str): authentication token
+            Returns: channel id and link to uploadedchannel
         """
         payload = {
             "channel_id":channel_id,
@@ -480,12 +505,15 @@ class ChannelManager:
         response = requests.post(config.finish_channel_url(self.domain), headers={"Authorization": "Token {0}".format(token)}, data=json.dumps(payload))
         response.raise_for_status()
         new_channel = json.loads(response._content.decode("utf-8"))
-        return channel_id, config.open_channel_url(new_channel['new_channel'], self.domain)
+        channel_link = config.open_channel_url(new_channel['new_channel'], self.domain)
+        return channel_id, channel_link
 
     def publish(self, channel_id, token):
         """ publish: publishes tree to Kolibri
-            Args: None
-            Returns: link to uploadedchannel
+            Args:
+                channel_id (str): channel's id on Kolibri Studio
+                token (str): authentication token
+            Returns: None
         """
         payload = {
             "channel_id":channel_id,
@@ -493,7 +521,23 @@ class ChannelManager:
         response = requests.post(config.publish_channel_url(self.domain), headers={"Authorization": "Token {0}".format(token)}, data=json.dumps(payload))
         response.raise_for_status()
 
+
 class Status(Enum):
+    """ Enum containing all statuses Ricecooker can have
+
+        Steps:
+            INIT: Ricecooker process has been started
+            CONSTRUCT_CHANNEL: Ricecooker is ready to call sushi chef's construct_channel method
+            CREATE_TREE: Ricecooker is ready to create relationships between nodes
+            DOWNLOAD_FILES: Ricecooker is ready to start downloading files
+            GET_FILE_DIFF: Ricecooker is ready to get file diff from Kolibri Studio
+            START_UPLOAD: Ricecooker is ready to start uploading files to Kolibri Studio
+            UPLOADING_FILES: Ricecooker is in the middle of uploading files
+            UPLOAD_CHANNEL: Ricecooker is ready to upload the channel to Kolibri Studio
+            PUBLISH_CHANNEL: Ricecooker is ready to publish the channel to Kolibri
+            DONE: Ricecooker is done
+            LAST: Place where Ricecooker left off
+    """
     INIT = 0
     CONSTRUCT_CHANNEL = 1
     CREATE_TREE = 2
@@ -512,15 +556,26 @@ class RestoreManager:
 
         Attributes:
             restore_path (str): path to .pickle file to store progress
+            debug (bool): determines which server is having progress tracked
+            channel (Channel): channel Ricecooker is creating
+            tree (ChannelManager): manager Ricecooker is using
+            files_downloaded ([str]): list of files that have been downloaded
+            file_mapping ({filename:...}): filenames mapped to metadata
+            files_failed ([str]): list of files that failed to download
+            file_diff ([str]): list of files that don't exist on Kolibri Studio
+            files_uploaded ([str]): list of files that have been successfully uploaded
+            channel_link (str): link to uploaded channel
+            channel_id (str): id of channel that has been uploaded
+            status (str): status of Ricecooker
     """
 
     def __init__(self, debug):
         self.debug = debug
         self.channel = None
-        self.tree = None # Tree to process
-        self.files_downloaded = [] # Determines whether to print process
-        self.file_mapping = {} # Domain to upload channel to
-        self.files_failed = [] # Download all files if true
+        self.tree = None
+        self.files_downloaded = []
+        self.file_mapping = {}
+        self.files_failed = []
         self.file_diff = []
         self.files_uploaded = []
         self.channel_link = None
@@ -528,26 +583,44 @@ class RestoreManager:
         self.status = Status.INIT
 
     def check_for_session(self, status=None):
+        """ check_for_session: see if session is in progress
+            Args:
+                status (str): step to check if last session reached (optional)
+            Returns: boolean indicating if session exists
+        """
         status = Status.LAST if status is None else status
         return os.path.isfile(self.get_restore_path(status)) and os.path.getsize(self.get_restore_path(status)) > 0
 
     def get_restore_path(self, status=None):
+        """ get_restore_path: get path to restoration file
+            Args:
+                status (str): step to get restore file (optional)
+            Returns: string path to restoration file
+        """
         status = self.get_status() if status is None else status
         return config.get_restore_path(status.name.lower(), self.debug)
 
     def record_progress(self):
+        """ record_progress: save progress to respective restoration file
+            Args: None
+            Returns: None
+        """
         with open(self.get_restore_path(Status.LAST), 'wb') as handle, open(self.get_restore_path(), 'wb') as step_handle:
             pickle.dump(self, handle)
             pickle.dump(self, step_handle)
 
     def load_progress(self, resume_step):
+        """ load_progress: loads progress from restoration file
+            Args: resume_step (str): step at which to resume session
+            Returns: manager with progress from step
+        """
         resume_step = Status[resume_step]
         progress_path = self.get_restore_path(resume_step)
 
         # If progress is corrupted, revert to step before
         while not self.check_for_session(resume_step):
             print("Ricecooker has not reached {0} status. Reverting to earlier step...".format(resume_step.name))
-            # All files are corrupted, restart process
+            # All files are corrupted or absent, restart process
             if resume_step.value - 1 < 0:
                 self.init_session()
                 return self
@@ -555,6 +628,7 @@ class RestoreManager:
             progress_path = self.get_restore_path(resume_step)
         print("Starting from status {0}".format(resume_step.name))
 
+        # Load manager
         with open(progress_path, 'rb') as handle:
             manager = pickle.load(handle)
             if isinstance(manager, RestoreManager):
@@ -563,31 +637,60 @@ class RestoreManager:
                 return self
 
     def get_status(self):
+        """ get_status: retrieves current status of Ricecooker
+            Args: None
+            Returns: string status of Ricecooker
+        """
         return self.status
 
     def get_status_val(self):
+        """ get_status_val: retrieves value of status of Ricecooker
+            Args: None
+            Returns: number value of status of Ricecooker
+        """
         return self.status.value
 
     def init_session(self):
+        """ init_session: sets session to beginning status
+            Args: None
+            Returns: None
+        """
+        # Clear out previous session's restoration files
         for status in Status:
             path = self.get_restore_path(status)
             if os.path.isfile(path):
                 os.remove(path)
+
         self.record_progress()
         self.status = Status.CONSTRUCT_CHANNEL # Set status to next step
         self.record_progress()
 
     def set_channel(self, channel):
+        """ set_channel: records progress from constructed channel
+            Args: channel (Channel): channel Ricecooker is creating
+            Returns: None
+        """
         self.status = Status.CREATE_TREE # Set status to next step
         self.channel = channel
         self.record_progress()
 
     def set_tree(self, tree):
+        """ set_channel: records progress from creating the tree
+            Args: tree (ChannelManager): manager Ricecooker is using
+            Returns: None
+        """
         self.status = Status.DOWNLOAD_FILES # Set status to next step
         self.tree = tree
         self.record_progress()
 
     def set_files(self, files_downloaded, file_mapping, files_failed):
+        """ set_files: records progress from downloading files
+            Args:
+                files_downloaded ([str]): list of files that have been downloaded
+                file_mapping ({filename:...}): filenames mapped to metadata
+                files_failed ([str]): list of files that failed to download
+            Returns: None
+        """
         self.status = Status.GET_FILE_DIFF # Set status to next step
         self.files_downloaded = files_downloaded
         self.file_mapping = file_mapping
@@ -595,31 +698,60 @@ class RestoreManager:
         self.record_progress()
 
     def set_diff(self, file_diff):
+        """ set_diff: records progress from getting file diff
+            Args: file_diff ([str]): list of files that don't exist on Kolibri Studio
+            Returns: None
+        """
         self.status = Status.START_UPLOAD # Set status to next step
         self.file_diff = file_diff
         self.record_progress()
 
     def set_uploading(self, files_uploaded):
+        """ set_uploading: records progress during uploading files
+            Args: files_uploaded ([str]): list of files that have been successfully uploaded
+            Returns: None
+        """
         self.status = Status.UPLOADING_FILES
         self.files_uploaded = files_uploaded
         self.record_progress()
 
     def set_uploaded(self, files_uploaded):
+        """ set_uploaded: records progress after uploading files
+            Args: files_uploaded ([str]): list of files that have been successfully uploaded
+            Returns: None
+        """
         self.files_uploaded = files_uploaded
         self.status = Status.UPLOAD_CHANNEL # Set status to next step
         self.record_progress()
 
+            status (str): status of Ricecooker
     def set_channel_created(self, channel_link, channel_id):
+        """ set_channel_created: records progress after creating channel on Kolibri Studio
+            Args:
+                channel_link (str): link to uploaded channel
+                channel_id (str): id of channel that has been uploaded
+            Returns: None
+        """
         self.status = Status.PUBLISH_CHANNEL
         self.channel_link = channel_link
         self.channel_id = channel_id
         self.record_progress()
 
     def set_published(self):
+        """ set_published: records progress after channel has been published
+            Args: None
+            Returns: None
+        """
         self.status = Status.DONE
         self.record_progress()
 
     def set_done(self):
+        """ set_done: records progress after Ricecooker process has been completed
+            Args: None
+            Returns: None
+        """
         self.status = Status.DONE
         self.record_progress()
+
+        # Delete restoration point for last step to indicate process has been completed
         os.remove(self.get_restore_path(Status.LAST))
