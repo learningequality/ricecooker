@@ -724,7 +724,6 @@ class RestoreManager:
         self.status = Status.UPLOAD_CHANNEL # Set status to next step
         self.record_progress()
 
-            status (str): status of Ricecooker
     def set_channel_created(self, channel_link, channel_id):
         """ set_channel_created: records progress after creating channel on Kolibri Studio
             Args:
