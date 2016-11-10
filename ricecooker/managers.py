@@ -455,7 +455,7 @@ class ChannelManager:
             Returns: link to uploadedchannel
         """
         root, channel_id = self.add_channel(token)
-        self.add_nodes(root, self.channel.children, token)
+        self.add_nodes(root, self.channel, token)
         channel_id, channel_link = self.commit_channel(channel_id, token)
         return channel_id, channel_link
 
@@ -472,25 +472,28 @@ class ChannelManager:
         new_channel = json.loads(response._content.decode("utf-8"))
         return new_channel['root'], new_channel['channel_id']
 
-    def add_nodes(self, root_id, children, token):
+    def add_nodes(self, root_id, current_node, token, indent=1):
         """ add_nodes: adds processed nodes to tree
             Args:
                 root_id (str): id of parent node on Kolibri Studio
-                children ([Node]): nodes to publish
+                current_node (Node): node to publish children
                 token (str): authentication token
+                indent (int): level of indentation for printing
             Returns: link to uploadedchannel
         """
+        if self.verbose:
+            print("{0}Adding {count} children to {title}".format("   " * indent, count = len(current_node.children), title = current_node.title))
         payload = {
             'root_id': root_id,
-            'content_data': [child.to_dict() for child in children]
+            'content_data': [child.to_dict() for child in current_node.children]
         }
         response = requests.post(config.add_nodes_url(self.domain), headers={"Authorization": "Token {0}".format(token)}, data=json.dumps(payload))
         response.raise_for_status()
 
         response_json = json.loads(response._content.decode("utf-8"))
 
-        for child in children:
-            self.add_nodes(response_json['root_ids'][child.node_id.hex], child.children, token)
+        for child in current_node.children:
+            self.add_nodes(response_json['root_ids'][child.node_id.hex], child, token, indent + 1)
 
     def commit_channel(self, channel_id, token):
         """ commit_channel: commits channel to Kolibri Studio
