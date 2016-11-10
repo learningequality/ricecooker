@@ -456,17 +456,35 @@ class ChannelManager:
         """
         root, channel_id = self.add_channel(token)
         self.add_nodes(root, self.channel, token)
-        self.print_failed()
+        if self.check_failed():
+            self.failed_node_builds = []
+            self.reattempt_failed(token)
+            self.check_failed()
         channel_id, channel_link = self.commit_channel(channel_id, token)
         return channel_id, channel_link
 
-    def print_failed(self):
+    def reattempt_failed(self, token):
+        for node in self.failed_node_builds:
+            if self.verbose:
+                print("Reattempting {0}".format(str(node[1])))
+            for f in node[1].files:
+                # Attempt to upload file
+                with  open(config.get_storage_path(f['filename']), 'rb') as file_obj:
+                    response = requests.post(config.file_upload_url(self.domain), headers={"Authorization": "Token {0}".format(token)},  files={'file': file_obj})
+                    response.raise_for_status()
+                    self.uploaded_files += [f['filename']]
+            # Attempt to create node
+            self.add_nodes(node[0], node[1], token)
+
+    def check_failed(self):
         if len(self.failed_node_builds) > 0:
             print("The following nodes could not be created:")
             for node in self.failed_node_builds:
-                print("\t{}".format(str(node)))
+                print("\t{}".format(str(node[1])))
+            return True
         elif self.verbose:
             print("All nodes were created successfully.")
+        return False
 
     def add_channel(self, token):
         """ add_channel: sends processed channel data to server to create tree
@@ -501,7 +519,7 @@ class ChannelManager:
         }
         response = requests.post(config.add_nodes_url(self.domain), headers={"Authorization": "Token {0}".format(token)}, data=json.dumps(payload))
         if response.status_code != 200:
-            self.failed_node_builds += [current_node]
+            self.failed_node_builds += [(root_id, current_node)]
         else:
             response_json = json.loads(response._content.decode("utf-8"))
 
