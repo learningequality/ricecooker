@@ -418,7 +418,7 @@ class ChannelManager:
         """
         files_to_diff = self.downloader.get_files()
         file_diff_result = []
-        chunks = [files_to_diff[x:x+10000] for x in range(0, len(files_to_diff), 10000)]
+        chunks = [files_to_diff[x:x+1000] for x in range(0, len(files_to_diff), 1000)]
         for chunk in chunks:
             response = requests.post(config.file_diff_url(self.domain), headers={"Authorization": "Token {0}".format(token)}, data=json.dumps(chunk))
             response.raise_for_status()
