@@ -464,6 +464,8 @@ class ChannelManager:
             Args: token (str): authentication token
             Returns: link to uploadedchannel
         """
+        if self.verbose:
+            print("   Creating channel {0}".format(self.channel.title))
         payload = {
             "channel_data":self.channel.to_dict(),
         }
@@ -482,7 +484,7 @@ class ChannelManager:
             Returns: link to uploadedchannel
         """
         if self.verbose:
-            print("{0}Adding {count} children to {title}".format("   " * indent, count = len(current_node.children), title = current_node.title))
+            print("{indent}Processing {data}".format(indent="   " * indent, data=str(current_node)))
         payload = {
             'root_id': root_id,
             'content_data': [child.to_dict() for child in current_node.children]
