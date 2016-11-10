@@ -4,7 +4,7 @@ import os
 import json
 
 # Domain for uploading to production server
-PRODUCTION_DOMAIN = "https://contentworkshop.learningequality.org"
+PRODUCTION_DOMAIN = "http://192.237.249.85"
 
 # Domain for uploading to local machine
 DEBUG_DOMAIN = "http://127.0.0.1:8000"
@@ -141,6 +141,8 @@ def open_channel_url(channel, domain):
             domain (str): server where channel was created
         Returns: string url to open channel
     """
+    if domain == PRODUCTION_DOMAIN:
+        domain = "https://contentworkshop.learningequality.org"
     return OPEN_CHANNEL_URL.format(domain=domain, channel_id=channel)
 
 def publish_channel_url(domain):
