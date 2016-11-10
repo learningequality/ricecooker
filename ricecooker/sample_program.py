@@ -8,7 +8,7 @@ SAMPLE_PERSEUS = '{"answerArea":{"chi2Table":false,"periodicTable":false,"tTable
 '"question":{"widgets":{"radio 1":{"type":"radio","alignment":"default","graded":true,"static":false,' +\
 '"options":{"deselectEnabled":false,"multipleSelect":false,"choices":[{"correct":true,"content":"Yes"},{"correct":false,"content":"No"}],' +\
 '"displayCount":null,"hasNoneOfTheAbove":false,"randomize":false,"onePerLine":true},"version":{"minor":0,"major":1}}},"images":{"web+graphie:C:/users/jordan/contentcuration-dump/0a0c0f1a1a40226d8d227a07dd143f8c08a4b8a5": {}},' +\
-'"content":"Do you like rice?\\n\\n![](web+graphie:C:/users/jordan/contentcuration-dump/0a0c0f1a1a40226d8d227a07dd143f8c08a4b8a5)\\n\\n[[\\u2603 radio 1]]"},"itemDataVersion":{"minor":1,"major":0}}'
+'"content":"Do you like rice?\\\"\\n\\n![](web+graphie:C:/users/jordan/contentcuration-dump/0a0c0f1a1a40226d8d227a07dd143f8c08a4b8a5)\\n\\n[[\\u2603 radio 1]]"},"itemDataVersion":{"minor":1,"major":0}}'
 
 SAMPLE_TREE = [
     {
@@ -99,47 +99,47 @@ SAMPLE_TREE = [
                     },
                 ],
             },
-            {
-                "title": "Rice Exercise 2",
-                "id": "6cafe4",
-                "description": "Test how well you know your rice",
-                "license": licenses.CC_BY_NC_SA,
-                "mastery_model": exercises.M_OF_N,
-                "thumbnail":"https://c1.staticflickr.com/5/4021/4302326650_b11f0f0aaf_b.jpg",
-                "questions": [
-                    {
-                        "id": "11111",
-                        "question": "<h3 id='rainbow'><b>RICE COOKING!!!</b></h3><script type='text/javascript'><!-- setInterval(function() {$('#rainbow').css('color', '#'+((1<<24)*Math.random()|0).toString(16));}, 300); --></script>",
-                        "type":exercises.SINGLE_SELECTION,
-                        "all_answers": ["Rice, Rice, Baby!"],
-                        "correct_answer": "Rice, Rice, Baby!",
-                    },
-                ],
-            },
-            {
-                "title": "The Everyday Rice Cooker: Soups, Sides, Grains, Mains, and More",
-                "id": "aaaa5d",
-                "file": "https://ia601300.us.archive.org/13/items/RiceCookerery/DianePhillips-RiceCooker.mp3",
-                "license": licenses.PUBLIC_DOMAIN,
-                "author": "Diane Phillips",
-            },
-            {
-                "title": "Rice Exercise 3",
-                "id": "6cafe5",
-                "description": "Test how well you know your rice",
-                "license": licenses.CC_BY_NC_SA,
-                "mastery_model": exercises.M_OF_N,
-                "thumbnail":"https://upload.wikimedia.org/wikipedia/commons/b/b7/Rice_p1160004.jpg",
-                "questions": [
-                    {
-                        "id": "ccccc",
-                        "question": "Why? ![](http://agrointel.ro/wp-content/uploads/2015/04/orezul-auriu.jpg)",
-                        "type":exercises.SINGLE_SELECTION,
-                        "all_answers": ["Yes", "No", "Rice!"],
-                        "correct_answer": "Rice!",
-                    },
-                ],
-            },
+            # {
+            #     "title": "Rice Exercise 2",
+            #     "id": "6cafe4",
+            #     "description": "Test how well you know your rice",
+            #     "license": licenses.CC_BY_NC_SA,
+            #     "mastery_model": exercises.M_OF_N,
+            #     "thumbnail":"https://c1.staticflickr.com/5/4021/4302326650_b11f0f0aaf_b.jpg",
+            #     "questions": [
+            #         {
+            #             "id": "11111",
+            #             "question": "<h3 id='rainbow'><b>RICE COOKING!!!</b></h3><script type='text/javascript'><!-- setInterval(function() {$('#rainbow').css('color', '#'+((1<<24)*Math.random()|0).toString(16));}, 300); --></script>",
+            #             "type":exercises.SINGLE_SELECTION,
+            #             "all_answers": ["Rice, Rice, Baby!"],
+            #             "correct_answer": "Rice, Rice, Baby!",
+            #         },
+            #     ],
+            # },
+            # {
+            #     "title": "The Everyday Rice Cooker: Soups, Sides, Grains, Mains, and More",
+            #     "id": "aaaa5d",
+            #     "file": "https://ia601300.us.archive.org/13/items/RiceCookerery/DianePhillips-RiceCooker.mp3",
+            #     "license": licenses.PUBLIC_DOMAIN,
+            #     "author": "Diane Phillips",
+            # },
+            # {
+            #     "title": "Rice Exercise 3",
+            #     "id": "6cafe5",
+            #     "description": "Test how well you know your rice",
+            #     "license": licenses.CC_BY_NC_SA,
+            #     "mastery_model": exercises.M_OF_N,
+            #     "thumbnail":"https://upload.wikimedia.org/wikipedia/commons/b/b7/Rice_p1160004.jpg",
+            #     "questions": [
+            #         {
+            #             "id": "ccccc",
+            #             "question": "Why? ![](http://agrointel.ro/wp-content/uploads/2015/04/orezul-auriu.jpg)",
+            #             "type":exercises.SINGLE_SELECTION,
+            #             "all_answers": ["Yes", "No", "Rice!"],
+            #             "correct_answer": "Rice!",
+            #         },
+            #     ],
+            # },
         ]
     },
 ]

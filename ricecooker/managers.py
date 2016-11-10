@@ -104,6 +104,7 @@ class DownloadManager:
         json_path = path + "-data.json"
         path_name = svg_path + ' & ' + json_path
         hash = hashlib.md5()
+        original_filename = path.split("/")[-1].split(".")[0]
         delimiter = bytes(exercises.GRAPHIE_DELIMITER, 'UTF-8')
 
         # Track file if it's already in the downloaded file list
@@ -123,7 +124,6 @@ class DownloadManager:
                 self.write_to_graphie_file(json_path, tempf, hash)
 
                 # Extract file metadata
-                original_filename = path.split("/")[-1].split(".")[0]
                 file_size = tempf.tell()
                 tempf.seek(0)
                 filename = '{0}.{ext}'.format(hash.hexdigest(), ext=file_formats.GRAPHIE)

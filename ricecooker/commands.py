@@ -11,9 +11,17 @@ from ricecooker.managers import ChannelManager, RestoreManager, Status
 def uploadchannel(path, debug, verbose=False, update=False, resume=False, reset=False, step=Status.LAST.name, token="#", prompt=False, publish=False, **kwargs):
     """ uploadchannel: Upload channel to Kolibri Studio server
         Args:
-            path (str): path to file containing channel data
+            path (str): path to file containing construct_channel method
             debug (bool): determine which domain to upload to
             verbose (bool): indicates whether to print process (optional)
+            update (bool): indicates whether to re-download files (optional)
+            resume (bool): indicates whether to resume last session automatically (optional)
+            step (str): step to resume process from (optional)
+            reset (bool): indicates whether to start session from beginning automatically (optional)
+            token (str): authorization token (optional)
+            prompt (bool): indicates whether to prompt user to open channel when done (optional)
+            publish (bool): indicates whether to automatically publish channel (optional)
+            kwargs (dict): keyword arguments to pass to sushi chef (optional)
         Returns: (str) link to access newly created channel
     """
     # Get domain to upload to
@@ -22,10 +30,11 @@ def uploadchannel(path, debug, verbose=False, update=False, resume=False, reset=
       domain = config.DEBUG_DOMAIN
     config.init_file_mapping_store(debug)
 
-    config.init_file_mapping_store(debug)
-
     # Authenticate user
     if token != "#":
+        if os.path.isfile(token):
+            with open(token, 'r') as fobj:
+                token = fobj.read()
         try:
             response = requests.post(config.authentication_url(domain), headers={"Authorization": "Token {0}".format(token)})
             response.raise_for_status()
@@ -117,7 +126,7 @@ def prompt_token(domain):
         try:
             response = requests.post(config.authentication_url(domain), headers={"Authorization": "Token {0}".format(token)})
             response.raise_for_status()
-            return response
+            return token
         except HTTPError:
             print("Invalid token. Please login to {0}/settings/tokens to retrieve your authorization token.".format(domain))
             prompt_token(domain)

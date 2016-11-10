@@ -122,19 +122,19 @@ class BaseQuestion:
         graphie_reg = re.compile(WEB_GRAPHIE_URL_REGEX, flags=re.IGNORECASE)
         graphie_match = graphie_reg.match(text)
         result=None
+        replacement = None
         title="Question {0}".format(self.original_id)
         # If it is a web+graphie, download svg and json files,
         # Otherwise, download like other files
         if graphie_match is not None:
             text = graphie_match.group().replace("web+graphie:", "")
             result = downloader.download_graphie(text, title)
+            replacement = result['original_filename'] if result else ""
         else:
             result = downloader.download_file(text, title, preset=format_presets.EXERCISE_IMAGE, default_ext=file_formats.PNG)
+            replacement = result['filename'] if result else ""
         if not result:
             return "", []
-        replacement = result['filename']
-        if graphie_match is not None:
-            replacement = result['original_filename']
         text = text.replace(text, exercises.CONTENT_STORAGE_FORMAT.format(replacement))
         return text, [result]
 
