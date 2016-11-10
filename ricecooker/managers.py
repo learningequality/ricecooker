@@ -208,7 +208,7 @@ class DownloadManager:
         data = self.file_store[path]
         if self.verbose:
             print("\tFile {0} already exists (add '-u' flag to update)".format(data['filename']))
-        self.track_file(data['filename'], data['size'],  data['preset'])
+        self.track_file(data['filename'], data['size'],  data['preset'], original_filename=data['original_filename'])
         return self._file_mapping[data['filename']]
 
     def download_file(self, path, title, default_ext=None, preset=None):
@@ -344,6 +344,7 @@ class ChannelManager:
 
         self.downloader = DownloadManager(file_store, verbose, update)
         self.uploaded_files=[]
+        self.failed_node_builds=[]
 
     def validate(self):
         """ validate: checks if tree structure is valid
@@ -382,8 +383,7 @@ class ChannelManager:
         if isinstance(node, nodes.Channel):
             if node.thumbnail is not None and node.thumbnail != "":
                 file_data = self.downloader.download_file(node.thumbnail, "Channel Thumbnail", default_ext=file_formats.PNG)
-                if file_data:
-                    node.thumbnail = file_data['filename']
+                node.thumbnail = file_data['filename'] if file_data else ""
         else:
             node.files = self.downloader.download_files(node.files, "Node {}".format(node.original_id))
             if node.thumbnail is not None:
@@ -456,8 +456,17 @@ class ChannelManager:
         """
         root, channel_id = self.add_channel(token)
         self.add_nodes(root, self.channel, token)
+        self.print_failed()
         channel_id, channel_link = self.commit_channel(channel_id, token)
         return channel_id, channel_link
+
+    def print_failed(self):
+        if len(self.failed_node_builds) > 0:
+            print("The following nodes could not be created:")
+            for node in self.failed_node_builds:
+                print("\t{}".format(str(node)))
+        elif self.verbose:
+            print("All nodes were created successfully.")
 
     def add_channel(self, token):
         """ add_channel: sends processed channel data to server to create tree
@@ -472,6 +481,7 @@ class ChannelManager:
         response = requests.post(config.create_channel_url(self.domain), headers={"Authorization": "Token {0}".format(token)}, data=json.dumps(payload))
         response.raise_for_status()
         new_channel = json.loads(response._content.decode("utf-8"))
+
         return new_channel['root'], new_channel['channel_id']
 
     def add_nodes(self, root_id, current_node, token, indent=1):
@@ -490,12 +500,13 @@ class ChannelManager:
             'content_data': [child.to_dict() for child in current_node.children]
         }
         response = requests.post(config.add_nodes_url(self.domain), headers={"Authorization": "Token {0}".format(token)}, data=json.dumps(payload))
-        response.raise_for_status()
+        if response.status_code != 200:
+            self.failed_node_builds += [current_node]
+        else:
+            response_json = json.loads(response._content.decode("utf-8"))
 
-        response_json = json.loads(response._content.decode("utf-8"))
-
-        for child in current_node.children:
-            self.add_nodes(response_json['root_ids'][child.node_id.hex], child, token, indent + 1)
+            for child in current_node.children:
+                self.add_nodes(response_json['root_ids'][child.node_id.hex], child, token, indent + 1)
 
     def commit_channel(self, channel_id, token):
         """ commit_channel: commits channel to Kolibri Studio

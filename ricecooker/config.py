@@ -4,7 +4,7 @@ import os
 import json
 
 # Domain for uploading to production server
-PRODUCTION_DOMAIN = "http://192.237.249.85"
+PRODUCTION_DOMAIN = "http://192.237.249.85:80"
 
 # Domain for uploading to local machine
 DEBUG_DOMAIN = "http://127.0.0.1:8000"

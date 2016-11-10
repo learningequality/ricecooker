@@ -135,7 +135,6 @@ class Channel(Node):
         return {
             "id": self.id.hex,
             "name": self.title,
-            "has_changed": True,
             "thumbnail": self.thumbnail,
             "description": self.description[:400] if self.description is not None else "",
         }
