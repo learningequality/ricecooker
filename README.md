@@ -16,7 +16,7 @@ A framework for creating channels on [Kolibri Studio](https://contentworkshop.le
 
 A sample program has been created [here](https://github.com/learningequality/ricecooker/blob/master/ricecooker/sample_program.py)
 
-####Initializing the Channel
+* **Initializing the Channel**
 
 	In order for the rice cooker to run properly, you must include a `create_channel` method in your target py file
 	that returns a Channel model. This function will be responsible for building a tree based on `ricecooker.classes`.
@@ -47,7 +47,7 @@ A sample program has been created [here](https://github.com/learningequality/ric
     ```
 
 
-####Building the Tree
+* **Building the Tree**
 
 	Once your channel is created, you can start adding content. To do this, you will need to convert your data to
 	the rice cooker's models. Here are the model types that are available to you:
@@ -73,7 +73,7 @@ A sample program has been created [here](https://github.com/learningequality/ric
     Once you have created the model, add it to a parent node with `<parent-node>.add_child(<child-node>)`
 
 
-####Adding Exercises
+* **Adding Exercises**
 
 	Exercises are special model kinds that have questions used for assessment. In order to set the criteria
 	for completing exercises, you must set `exercise_data` to equal a dict containing a mastery_model field
@@ -104,7 +104,7 @@ A sample program has been created [here](https://github.com/learningequality/ric
 
 	Once you have created the appropriate question model, add it to an exercise model with `<exercise-node>.add_question(<question>)`
 
-####Running the Rice Cooker
+* **Running the Rice Cooker**
 
 	Run `python -m ricecooker uploadchannel [-huv] "<path-to-py-file>" [--debug] [--token=<token>] [--resume [--step=<step>] | --reset] [--prompt] [--publish]  [[OPTIONS] ...]`
 	- -h (help) will print how to use the rice cooker
