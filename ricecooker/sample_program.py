@@ -150,7 +150,7 @@ def construct_channel(**kwargs):
         domain="learningequality.org",
         channel_id="sample-ricecooker-channel",
         title="Sample Ricecooker Channel",
-        thumbnail="https://upload.wikimedia.org/wikipedia/commons/4/48/Electronic_rice_cooker_with_scoop.jpg",
+        thumbnail="https://upload.wikimedia.org/wikipedia/commons/thumb/9/94/Oryza_sativa_of_Kadavoor.jpg/220px-Oryza_sativa_of_Kadavoor.jpg",
     )
     _build_tree(channel, SAMPLE_TREE)
     raise_for_invalid_channel(channel)

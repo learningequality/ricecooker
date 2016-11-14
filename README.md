@@ -92,9 +92,10 @@ A sample program has been created [here](https://github.com/learningequality/ric
 	- InputQuestion: questions that have text-based answers (e.g. fill in the blank)
 	- FreeResponseQuestion: questions that require subjective answers (ungraded)
 
-	To set the correct answer(s) for input questions, you must provide an array of all of the accepted answers (`answers`).
-	For multiple selection and single selection questions, you must provide  a list of all of the possible choices as well
-	as an array of the correct answers (`all_answers` and `correct_answer(s)` respectively).
+	To set the correct answer(s) for input questions, you must provide an array of all of the accepted answers (`answers` ([str])).
+	For multiple selection questions, you must provide a list of all of the possible choices as well as an array of the correct
+	answers (`all_answers` ([str]) and `correct_answers` ([str]) respectively). For single selection questions, you must provide
+	a list of all possible choices as well as the correct answer (`all_answers`([str]) and `correct_answer` (str) respectively).
 
 	To add images to a question's question, answers, or hints, format the image path with `'![](<path/to/some/file.png>)'`
 
