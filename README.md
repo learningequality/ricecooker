@@ -23,11 +23,11 @@ A sample program has been created [here](https://github.com/learningequality/ric
 
 	Start by importing `Channel` from `ricecooker.classes.nodes` and create a Channel model. The Channel model has
 	the following fields:
-        - channel_id (str): _channel's unique id_
-        - domain (str): _who is providing the content (e.g. learningequality.org)_
-        - title (str): _name of channel_
-        - description (str): _description of the channel (optional)_
-        - thumbnail (str): _local path or url to image file (optional)_
+        - channel_id (str): channel's unique id
+        - domain (str): who is providing the content (e.g. learningequality.org)
+        - title (str): name of channel
+        - description (str): description of the channel (optional)
+        - thumbnail (str): local path or url to image file (optional)
 
 	For example:
 	```
@@ -52,11 +52,11 @@ A sample program has been created [here](https://github.com/learningequality/ric
 	Once your channel is created, you can start adding content. To do this, you will need to convert your data to
 	the rice cooker's models. Here are the model types that are available to you:
 
-	- Topic: _folders to add hierarchy to the channel's content_
-    - Video: _mp4_
-    - Audio: _mp3 or wav_
-    - Document: _pdf_
-    - Exercise: _assessment-based content with questions_
+	- Topic: folders to add hierarchy to the channel's content
+    - Video: mp4
+    - Audio: mp3 or wav
+    - Document: pdf
+    - Exercise: assessment-based content with questions
 
     The `ricecooker.classes.nodes` module has the function `guess_content_kind`, which takes in a file or list of
     files as well as a list of questions (if available) and determines what model best suits those files
@@ -89,11 +89,11 @@ A sample program has been created [here](https://github.com/learningequality/ric
 	To add a question to your exercise, you must first create a question model from `ricecooker.classes.questions`.
 	Your program is responsible for determining which question type to create. Here are the available question types:
 
-	- PerseusQuestion: _special question type for pre-formatted perseus questions_
-	- MultipleSelectQuestion: _questions that have multiple correct answers (e.g. check all that apply)_
-	- SingleSelectQuestion: _questions that only have one right answer (e.g. radio button questions)_
-	- InputQuestion: _questions that have text-based answers (e.g. fill in the blank)_
-	- FreeResponseQuestion: _questions that require subjective answers (ungraded)_
+	- PerseusQuestion: special question type for pre-formatted perseus questions
+	- MultipleSelectQuestion: questions that have multiple correct answers (e.g. check all that apply)
+	- SingleSelectQuestion: questions that only have one right answer (e.g. radio button questions)
+	- InputQuestion: questions that have text-based answers (e.g. fill in the blank)
+	- FreeResponseQuestion: questions that require subjective answers (ungraded)
 
 	To set the correct answer(s) for input questions, you must provide an array of all of the accepted answers (`answers [str]`).
 	For multiple selection questions, you must provide a list of all of the possible choices as well as an array of the correct
