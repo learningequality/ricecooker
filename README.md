@@ -23,6 +23,7 @@ A sample program has been created [here](https://github.com/learningequality/ric
 
 	Start by importing `Channel` from `ricecooker.classes.nodes` and create a Channel model. The Channel model has
 	the following fields:
+
         - channel_id (str): channel's unique id
         - domain (str): who is providing the content (e.g. learningequality.org)
         - title (str): name of channel
