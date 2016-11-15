@@ -260,6 +260,7 @@ class MultipleSelectQuestion(BaseQuestion):
         set_all_answers = set(all_answers)
         all_answers += [answer for answer in correct_answers if answer not in set_all_answers]
         answers = [self.create_answer(answer, answer in correct_answers) for answer in all_answers]
+        answers = [self.create_answer('No answers provided.')] if len(answers) == 0 else answers
         super(MultipleSelectQuestion, self).__init__(id, question, exercises.MULTIPLE_SELECTION, answers, hints)
 
     def validate(self):
@@ -301,6 +302,7 @@ class SingleSelectQuestion(BaseQuestion):
         if correct_answer not in all_answers:
             all_answers += [correct_answer]
         answers = [self.create_answer(answer, answer==correct_answer) for answer in all_answers]
+        answers = [self.create_answer('No answers provided.')] if len(answers) == 0 else answers
         super(SingleSelectQuestion, self).__init__(id, question, exercises.SINGLE_SELECTION, answers, hints)
 
     def validate(self):
@@ -371,6 +373,7 @@ class InputQuestion(BaseQuestion):
     def __init__(self, id, question, answers, hints=None):
         hints = [] if hints is None else hints
         answers = [self.create_answer(answer) for answer in answers]
+        answers = [self.create_answer('No answers provided.')] if len(answers) == 0 else answers
         super(InputQuestion, self).__init__(id, question, exercises.INPUT_QUESTION, answers, hints)
 
     def validate(self):
