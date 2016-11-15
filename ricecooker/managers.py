@@ -419,10 +419,16 @@ class ChannelManager:
         files_to_diff = self.downloader.get_files()
         file_diff_result = []
         chunks = [files_to_diff[x:x+1000] for x in range(0, len(files_to_diff), 1000)]
+        file_count = 0
+        total_count = len(files_to_diff)
         for chunk in chunks:
             response = requests.post(config.file_diff_url(self.domain), headers={"Authorization": "Token {0}".format(token)}, data=json.dumps(chunk))
             response.raise_for_status()
             file_diff_result += json.loads(response._content.decode("utf-8"))
+            file_count += len(chunk)
+            if self.verbose:
+                print("\tGot file diff for {0} out of {1} files".format(file_count, total_count))
+
         return file_diff_result
 
     def upload_files(self, file_list, progress_manager, token):
