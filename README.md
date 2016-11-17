@@ -107,11 +107,12 @@ A sample program has been created [here](https://github.com/learningequality/ric
 
 * **Running the Rice Cooker**
 
-	Run `python -m ricecooker uploadchannel [-huv] "<path-to-py-file>" [--debug] [--token=<token>] [--resume [--step=<step>] | --reset] [--prompt] [--publish]  [[OPTIONS] ...]`
+	Run `python -m ricecooker uploadchannel [-huv] "<path-to-py-file>" [--debug] [--warn] [--token=<token>] [--resume [--step=<step>] | --reset] [--prompt] [--publish]  [[OPTIONS] ...]`
 	- -h (help) will print how to use the rice cooker
 	- -v (verbose) will print what the rice cooker is doing
 	- -u (update) will force the ricecooker to redownload all files
 	- --debug will send data to localhost if you have Kolibri Studio running locally
+	- --warn will print out warnings during rice cooking session
 	- --token will authorize you to create your channel (found under Kolibri Studio settings page)
 	- --resume will resume your previous rice cooking session
 	- --step will specify at which step to resume your session
