@@ -83,9 +83,9 @@ class DownloadManager:
             Args: None
             Returns: None
         """
-        print("   The following files could not be accessed:")
+        sys.stderr.write("\n   The following files could not be accessed:")
         for f in self.failed_files:
-            print("\t{id}: {path}".format(id=f[1], path=f[0]))
+            sys.stderr.write("\n\t{id}: {path}".format(id=f[1], path=f[0]))
 
     def download_graphie(self, path, title):
         """ download_graphie: download a web+graphie file
@@ -115,7 +115,7 @@ class DownloadManager:
             # Create graphie file combining svg and json files
             with tempfile.TemporaryFile() as tempf:
                 if self.verbose:
-                    print("\tDownloading graphie {}".format(original_filename))
+                    sys.stderr.write("\n\tDownloading graphie {}".format(original_filename))
 
                 # Write to graphie file
                 self.write_to_graphie_file(svg_path, tempf, hash)
@@ -131,7 +131,7 @@ class DownloadManager:
                 # If file already exists, skip it
                 if os.path.isfile(config.get_storage_path(filename)):
                     if self.verbose:
-                        print("\t--- No changes detected on {0}".format(filename))
+                        sys.stderr.write("\n\t--- No changes detected on {0}".format(filename))
                     # Keep track of downloaded file
                     self.track_file(filename, file_size, format_presets.EXERCISE_GRAPHIE, path_name, original_filename)
                     return self._file_mapping[filename]
@@ -143,7 +143,7 @@ class DownloadManager:
                 # Keep track of downloaded file
                 self.track_file(filename, file_size, format_presets.EXERCISE_GRAPHIE, path_name, original_filename)
                 if self.verbose:
-                    print("\t--- Downloaded {}".format(filename))
+                    sys.stderr.write("\n\t--- Downloaded {}".format(filename))
                 return self._file_mapping[filename]
 
         # Catch errors related to reading file path and handle silently
@@ -207,7 +207,7 @@ class DownloadManager:
         """
         data = self.file_store[path]
         if self.verbose:
-            print("\tFile {0} already exists (add '-u' flag to update)".format(data['filename']))
+            sys.stderr.write("\n\tFile {0} already exists (add '-u' flag to update)".format(data['filename']))
         self.track_file(data['filename'], data['size'],  data['preset'], original_filename=data['original_filename'])
         return self._file_mapping[data['filename']]
 
@@ -229,7 +229,7 @@ class DownloadManager:
                 return self.track_existing_file(path)
 
             if self.verbose:
-                print("\tDownloading {}".format(path))
+                sys.stderr.write("\n\tDownloading {}".format(path))
 
             hash=self.get_hash(path)
 
@@ -246,7 +246,7 @@ class DownloadManager:
             # If file already exists, skip it
             if os.path.isfile(config.get_storage_path(filename)):
                 if self.verbose:
-                    print("\t--- No changes detected on {0}".format(filename))
+                    sys.stderr.write("\n\t--- No changes detected on {0}".format(filename))
 
                 # Keep track of downloaded file
                 self.track_file(filename, os.path.getsize(config.get_storage_path(filename)), preset, path)
@@ -279,7 +279,7 @@ class DownloadManager:
                 # Keep track of downloaded file
                 self.track_file(filename, file_size, preset, path)
                 if self.verbose:
-                    print("\t--- Downloaded {}".format(filename))
+                    sys.stderr.write("\n\t--- Downloaded {}".format(filename))
                 return self._file_mapping[filename]
 
         # Catch errors related to reading file path and handle silently
@@ -394,22 +394,27 @@ class ChannelManager:
             # If node is an exercise, process images for exercise
             if isinstance(node, nodes.Exercise):
                 if self.verbose:
-                    print("\t*** Processing images for exercise: {}".format(node.title))
+                    sys.stderr.write("\n\t*** Processing images for exercise: {}".format(node.title))
                 node.process_questions(self.downloader)
+                if self.verbose:
+                    sys.stderr.write("\n\t*** Images for {} have been processed".format(node.title))
 
         # Process node's children
         for child_node in node.children:
             self.process_tree(child_node, node)
 
-    def check_for_files_failed(self):
+    def check_for_files_failed(self, warning):
         """ check_for_files_failed: print any files that failed during download process
             Args: None
             Returns: None
         """
         if self.downloader.has_failed_files():
-            self.downloader.print_failed()
+            if warning:
+                self.downloader.print_failed()
+            else:
+                sys.stderr.write("\n   {} file(s) have failed to download".format(len(self.downloader.failed_files)))
         else:
-            print("   All files were successfully downloaded")
+            sys.stderr.write("\n   All files were successfully downloaded")
 
     def get_file_diff(self, token):
         """ get_file_diff: retrieves list of files that do not exist on content curation server
@@ -427,7 +432,7 @@ class ChannelManager:
             file_diff_result += json.loads(response._content.decode("utf-8"))
             file_count += len(chunk)
             if self.verbose:
-                print("\tGot file diff for {0} out of {1} files".format(file_count, total_count))
+                sys.stderr.write("\n\tGot file diff for {0} out of {1} files".format(file_count, total_count))
 
         return file_diff_result
 
@@ -442,7 +447,7 @@ class ChannelManager:
         counter = 0
         files_to_upload = list(set(file_list) - set(self.uploaded_files)) # In case restoring from previous session
         if self.verbose:
-            print("Uploading {0} new file(s) to Kolibri Studio...".format(len(files_to_upload)))
+            sys.stderr.write("\nUploading {0} new file(s) to Kolibri Studio...".format(len(files_to_upload)))
         try:
             for f in files_to_upload:
                 with  open(config.get_storage_path(f), 'rb') as file_obj:
@@ -451,28 +456,28 @@ class ChannelManager:
                     self.uploaded_files += [f]
                     counter += 1
                     if self.verbose:
-                        print("\tUploaded {0} ({count}/{total}) ".format(f, count=counter, total=len(files_to_upload)))
+                        sys.stderr.write("\n\tUploaded {0} ({count}/{total}) ".format(f, count=counter, total=len(files_to_upload)))
         finally:
             progress_manager.set_uploading(self.uploaded_files)
 
-    def upload_tree(self, token):
+    def upload_tree(self, token, warning):
         """ upload_files: sends processed channel data to server to create tree
             Args: token (str): authentication token
             Returns: link to uploadedchannel
         """
         root, channel_id = self.add_channel(token)
         self.add_nodes(root, self.channel, token)
-        if self.check_failed():
+        if self.check_failed(warning):
             self.failed_node_builds = []
             self.reattempt_failed(token)
-            self.check_failed()
+            self.check_failed(warning)
         channel_id, channel_link = self.commit_channel(channel_id, token)
         return channel_id, channel_link
 
     def reattempt_failed(self, token):
         for node in self.failed_node_builds:
             if self.verbose:
-                print("Reattempting {0}".format(str(node[1])))
+                sys.stderr.write("\n\tReattempting {0}".format(str(node[1])))
             for f in node[1].files:
                 # Attempt to upload file
                 with  open(config.get_storage_path(f['filename']), 'rb') as file_obj:
@@ -482,14 +487,17 @@ class ChannelManager:
             # Attempt to create node
             self.add_nodes(node[0], node[1], token)
 
-    def check_failed(self):
+    def check_failed(self, warning):
         if len(self.failed_node_builds) > 0:
-            print("The following nodes could not be created:")
-            for node in self.failed_node_builds:
-                print("\t{}".format(str(node[1])))
+            if warning:
+                sys.stderr.write("\nThe following nodes have one or more descendants that could not be created:")
+                for node in self.failed_node_builds:
+                    sys.stderr.write("\n\t{}".format(str(node[1])))
+            else:
+                sys.stderr.write("\nFailed to create descendants for {} node(s).".format(len(self.failed_node_builds)))
             return True
         elif self.verbose:
-            print("All nodes were created successfully.")
+            sys.stderr.write("\n   All nodes were created successfully.")
         return False
 
     def add_channel(self, token):
@@ -498,7 +506,7 @@ class ChannelManager:
             Returns: link to uploadedchannel
         """
         if self.verbose:
-            print("   Creating channel {0}".format(self.channel.title))
+            sys.stderr.write("\n   Creating channel {0}".format(self.channel.title))
         payload = {
             "channel_data":self.channel.to_dict(),
         }
@@ -518,7 +526,7 @@ class ChannelManager:
             Returns: link to uploadedchannel
         """
         if self.verbose:
-            print("{indent}Processing {data}".format(indent="   " * indent, data=str(current_node)))
+            sys.stderr.write("\n{indent}Processing {title} ({kind})".format(indent="   " * indent, title=current_node.title, kind=current_node.__class__.__name__))
         payload = {
             'root_id': root_id,
             'content_data': [child.to_dict() for child in current_node.children]
@@ -659,14 +667,14 @@ class RestoreManager:
 
         # If progress is corrupted, revert to step before
         while not self.check_for_session(resume_step):
-            print("Ricecooker has not reached {0} status. Reverting to earlier step...".format(resume_step.name))
+            sys.stderr.write("\nRicecooker has not reached {0} status. Reverting to earlier step...".format(resume_step.name))
             # All files are corrupted or absent, restart process
             if resume_step.value - 1 < 0:
                 self.init_session()
                 return self
             resume_step = Status(resume_step.value - 1)
             progress_path = self.get_restore_path(resume_step)
-        print("Starting from status {0}".format(resume_step.name))
+        sys.stderr.write("\nStarting from status {0}".format(resume_step.name))
 
         # Load manager
         with open(progress_path, 'rb') as handle:

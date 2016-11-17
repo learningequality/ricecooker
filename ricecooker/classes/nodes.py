@@ -2,6 +2,7 @@
 
 import uuid
 import json
+import sys
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
 from ricecooker.exceptions import InvalidNodeException, InvalidFormatException
 
@@ -69,7 +70,7 @@ class Node:
             Args: indent (int): What level of indentation at which to start printing
             Returns: None
         """
-        print("{indent}{data}".format(indent="   " * indent, data=str(self)))
+        sys.stderr.write("\n{indent}{data}".format(indent="   " * indent, data=str(self)))
         for child in self.children:
             child.print_tree(indent + 1)
 

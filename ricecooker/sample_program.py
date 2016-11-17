@@ -109,7 +109,7 @@ SAMPLE_TREE = [
                 "questions": [
                     {
                         "id": "11111",
-                        "question": "<h3 id='rainbow'><b>RICE COOKING!!!</b></h3><script type='text/javascript'><!-- setInterval(function() {$('#rainbow').css('color', '#'+((1<<24)*Math.random()|0).toString(16));}, 300); --></script>",
+                        "question": "<h3 id=\"rainbow\" style=\"font-weight:bold\">RICE COOKING!!!</h3><script type='text/javascript'><!-- setInterval(function() {$('#rainbow').css('color', '#'+((1<<24)*Math.random()|0).toString(16));}, 300); --></script>",
                         "type":exercises.SINGLE_SELECTION,
                         "all_answers": ["Rice, Rice, Baby!"],
                         "correct_answer": "Rice, Rice, Baby!",
@@ -150,7 +150,7 @@ def construct_channel(**kwargs):
         domain="learningequality.org",
         channel_id="sample-ricecooker-channel",
         title="Sample Ricecooker Channel",
-        thumbnail="https://upload.wikimedia.org/wikipedia/commons/thumb/9/94/Oryza_sativa_of_Kadavoor.jpg/220px-Oryza_sativa_of_Kadavoor.jpg",
+        thumbnail="https://upload.wikimedia.org/wikipedia/commons/thumb/5/50/Banaue_Philippines_Banaue-Rice-Terraces-01.jpg/640px-Banaue_Philippines_Banaue-Rice-Terraces-01.jpg",
     )
     _build_tree(channel, SAMPLE_TREE)
     raise_for_invalid_channel(channel)
