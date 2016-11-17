@@ -36,18 +36,15 @@ class DownloadManager:
             all_file_extensions ([str]): all accepted file extensions
             files ([str]): files that have been downloaded by download manager
             _file_mapping ([{'filename':{...}]): map from filename to file metadata
-            verbose (bool): indicates whether to print what manager is doing (optional)
-            update (bool): indicates whether to read from file paths again
     """
 
     # All accepted file extensions
     all_file_extensions = [key for key, value in file_formats.choices]
 
-    def __init__(self, file_store, verbose=False, update=False):
+    def __init__(self, file_store):
         # Mount file:// to allow local path requests
         self.session = requests.Session()
         self.session.mount('file://', FileAdapter())
-        self.update = update
         self.file_store = {}
         if os.stat(file_store).st_size > 0:
             with open(file_store, 'r') as jsonobj:
@@ -55,7 +52,6 @@ class DownloadManager:
         self.files = []
         self.failed_files = []
         self._file_mapping = {} # Used to keep track of files and their respective metadata
-        self.verbose = verbose
 
     def get_files(self):
         """ get_files: get files downloaded by download manager
@@ -83,7 +79,7 @@ class DownloadManager:
             Args: None
             Returns: None
         """
-        sys.stderr.write("\n   The following files could not be accessed:")
+        sys.stderr.write("\n   WARNING: The following files could not be accessed:")
         for f in self.failed_files:
             sys.stderr.write("\n\t{id}: {path}".format(id=f[1], path=f[0]))
 
@@ -114,7 +110,7 @@ class DownloadManager:
         try:
             # Create graphie file combining svg and json files
             with tempfile.TemporaryFile() as tempf:
-                if self.verbose:
+                if config.VERBOSE:
                     sys.stderr.write("\n\tDownloading graphie {}".format(original_filename))
 
                 # Write to graphie file
@@ -130,7 +126,7 @@ class DownloadManager:
 
                 # If file already exists, skip it
                 if os.path.isfile(config.get_storage_path(filename)):
-                    if self.verbose:
+                    if config.VERBOSE:
                         sys.stderr.write("\n\t--- No changes detected on {0}".format(filename))
                     # Keep track of downloaded file
                     self.track_file(filename, file_size, format_presets.EXERCISE_GRAPHIE, path_name, original_filename)
@@ -142,7 +138,7 @@ class DownloadManager:
 
                 # Keep track of downloaded file
                 self.track_file(filename, file_size, format_presets.EXERCISE_GRAPHIE, path_name, original_filename)
-                if self.verbose:
+                if config.VERBOSE:
                     sys.stderr.write("\n\t--- Downloaded {}".format(filename))
                 return self._file_mapping[filename]
 
@@ -197,7 +193,7 @@ class DownloadManager:
                 path (str): url or path to file to check
             Returns: boolean indicating if the file has been downloaded before
         """
-        return not self.update and path in self.file_store
+        return not config.UPDATE and path in self.file_store
 
     def track_existing_file(self, path):
         """ track_existing_file: add file to mapping if already downloaded
@@ -206,7 +202,7 @@ class DownloadManager:
             Returns: file data for tracked file
         """
         data = self.file_store[path]
-        if self.verbose:
+        if config.VERBOSE:
             sys.stderr.write("\n\tFile {0} already exists (add '-u' flag to update)".format(data['filename']))
         self.track_file(data['filename'], data['size'],  data['preset'], original_filename=data['original_filename'])
         return self._file_mapping[data['filename']]
@@ -228,7 +224,7 @@ class DownloadManager:
             if self.check_downloaded_file(path):
                 return self.track_existing_file(path)
 
-            if self.verbose:
+            if config.VERBOSE:
                 sys.stderr.write("\n\tDownloading {}".format(path))
 
             hash=self.get_hash(path)
@@ -245,7 +241,7 @@ class DownloadManager:
 
             # If file already exists, skip it
             if os.path.isfile(config.get_storage_path(filename)):
-                if self.verbose:
+                if config.VERBOSE:
                     sys.stderr.write("\n\t--- No changes detected on {0}".format(filename))
 
                 # Keep track of downloaded file
@@ -278,7 +274,7 @@ class DownloadManager:
 
                 # Keep track of downloaded file
                 self.track_file(filename, file_size, preset, path)
-                if self.verbose:
+                if config.VERBOSE:
                     sys.stderr.write("\n\t--- Downloaded {}".format(filename))
                 return self._file_mapping[filename]
 
@@ -332,17 +328,11 @@ class ChannelManager:
 
         Attributes:
             channel (Channel): channel that manager is handling
-            domain (str): server domain to create channel on
             downloader (DownloadManager): download manager for handling files
-            verbose (bool): indicates whether to print what manager is doing (optional)
     """
-    def __init__(self, channel, domain, file_store, verbose=False, update=False):
+    def __init__(self, channel, file_store):
         self.channel = channel # Channel to process
-        self.verbose = verbose # Determines whether to print process
-        self.domain = domain # Domain to upload channel to
-        self.update = update # Download all files if true
-
-        self.downloader = DownloadManager(file_store, verbose, update)
+        self.downloader = DownloadManager(file_store)
         self.uploaded_files=[]
         self.failed_node_builds=[]
 
@@ -393,32 +383,32 @@ class ChannelManager:
 
             # If node is an exercise, process images for exercise
             if isinstance(node, nodes.Exercise):
-                if self.verbose:
+                if config.VERBOSE:
                     sys.stderr.write("\n\t*** Processing images for exercise: {}".format(node.title))
                 node.process_questions(self.downloader)
-                if self.verbose:
+                if config.VERBOSE:
                     sys.stderr.write("\n\t*** Images for {} have been processed".format(node.title))
 
         # Process node's children
         for child_node in node.children:
             self.process_tree(child_node, node)
 
-    def check_for_files_failed(self, warning):
+    def check_for_files_failed(self):
         """ check_for_files_failed: print any files that failed during download process
             Args: None
             Returns: None
         """
         if self.downloader.has_failed_files():
-            if warning:
+            if config.WARNING:
                 self.downloader.print_failed()
             else:
                 sys.stderr.write("\n   {} file(s) have failed to download".format(len(self.downloader.failed_files)))
         else:
             sys.stderr.write("\n   All files were successfully downloaded")
 
-    def get_file_diff(self, token):
+    def get_file_diff(self):
         """ get_file_diff: retrieves list of files that do not exist on content curation server
-            Args: token (str): authentication token
+            Args: None
             Returns: list of files that are not on server
         """
         files_to_diff = self.downloader.get_files()
@@ -427,146 +417,142 @@ class ChannelManager:
         file_count = 0
         total_count = len(files_to_diff)
         for chunk in chunks:
-            response = requests.post(config.file_diff_url(self.domain), headers={"Authorization": "Token {0}".format(token)}, data=json.dumps(chunk))
+            response = requests.post(config.file_diff_url(), headers={"Authorization": "Token {0}".format(config.TOKEN)}, data=json.dumps(chunk))
             response.raise_for_status()
             file_diff_result += json.loads(response._content.decode("utf-8"))
             file_count += len(chunk)
-            if self.verbose:
+            if config.VERBOSE:
                 sys.stderr.write("\n\tGot file diff for {0} out of {1} files".format(file_count, total_count))
 
         return file_diff_result
 
-    def upload_files(self, file_list, progress_manager, token):
+    def upload_files(self, file_list, progress_manager):
         """ upload_files: uploads files to server
             Args:
                 file_list (str): list of files to upload
                 progress_manager (RestoreManager): manager to keep track of progress
-                token (str): authentication token
             Returns: None
         """
         counter = 0
         files_to_upload = list(set(file_list) - set(self.uploaded_files)) # In case restoring from previous session
-        if self.verbose:
+        if config.VERBOSE:
             sys.stderr.write("\nUploading {0} new file(s) to Kolibri Studio...".format(len(files_to_upload)))
         try:
             for f in files_to_upload:
                 with  open(config.get_storage_path(f), 'rb') as file_obj:
-                    response = requests.post(config.file_upload_url(self.domain), headers={"Authorization": "Token {0}".format(token)},  files={'file': file_obj})
+                    response = requests.post(config.file_upload_url(), headers={"Authorization": "Token {0}".format(config.TOKEN)},  files={'file': file_obj})
                     response.raise_for_status()
                     self.uploaded_files += [f]
                     counter += 1
-                    if self.verbose:
+                    if config.VERBOSE:
                         sys.stderr.write("\n\tUploaded {0} ({count}/{total}) ".format(f, count=counter, total=len(files_to_upload)))
         finally:
             progress_manager.set_uploading(self.uploaded_files)
 
-    def upload_tree(self, token, warning):
+    def upload_tree(self):
         """ upload_files: sends processed channel data to server to create tree
-            Args: token (str): authentication token
+            Args: None
             Returns: link to uploadedchannel
         """
-        root, channel_id = self.add_channel(token)
-        self.add_nodes(root, self.channel, token)
-        if self.check_failed(warning):
+        root, channel_id = self.add_channel()
+        self.add_nodes(root, self.channel)
+        if self.check_failed():
             self.failed_node_builds = []
-            self.reattempt_failed(token)
-            self.check_failed(warning)
-        channel_id, channel_link = self.commit_channel(channel_id, token)
+            self.reattempt_failed()
+            self.check_failed()
+        channel_id, channel_link = self.commit_channel(channel_id)
         return channel_id, channel_link
 
-    def reattempt_failed(self, token):
+    def reattempt_failed(self):
         for node in self.failed_node_builds:
-            if self.verbose:
+            if config.VERBOSE:
                 sys.stderr.write("\n\tReattempting {0}".format(str(node[1])))
             for f in node[1].files:
                 # Attempt to upload file
                 with  open(config.get_storage_path(f['filename']), 'rb') as file_obj:
-                    response = requests.post(config.file_upload_url(self.domain), headers={"Authorization": "Token {0}".format(token)},  files={'file': file_obj})
+                    response = requests.post(config.file_upload_url(), headers={"Authorization": "Token {0}".format(config.TOKEN)},  files={'file': file_obj})
                     response.raise_for_status()
                     self.uploaded_files += [f['filename']]
             # Attempt to create node
-            self.add_nodes(node[0], node[1], token)
+            self.add_nodes(node[0], node[1])
 
-    def check_failed(self, warning):
+    def check_failed(self):
         if len(self.failed_node_builds) > 0:
-            if warning:
-                sys.stderr.write("\nThe following nodes have one or more descendants that could not be created:")
+            if config.WARNING:
+                sys.stderr.write("\nWARNING: The following nodes have one or more descendants that could not be created:")
                 for node in self.failed_node_builds:
                     sys.stderr.write("\n\t{}".format(str(node[1])))
             else:
                 sys.stderr.write("\nFailed to create descendants for {} node(s).".format(len(self.failed_node_builds)))
             return True
-        elif self.verbose:
+        elif config.VERBOSE:
             sys.stderr.write("\n   All nodes were created successfully.")
         return False
 
-    def add_channel(self, token):
+    def add_channel(self):
         """ add_channel: sends processed channel data to server to create tree
-            Args: token (str): authentication token
+            Args: None
             Returns: link to uploadedchannel
         """
-        if self.verbose:
+        if config.VERBOSE:
             sys.stderr.write("\n   Creating channel {0}".format(self.channel.title))
         payload = {
             "channel_data":self.channel.to_dict(),
         }
-        response = requests.post(config.create_channel_url(self.domain), headers={"Authorization": "Token {0}".format(token)}, data=json.dumps(payload))
+        response = requests.post(config.create_channel_url(), headers={"Authorization": "Token {0}".format(config.TOKEN)}, data=json.dumps(payload))
         response.raise_for_status()
         new_channel = json.loads(response._content.decode("utf-8"))
 
         return new_channel['root'], new_channel['channel_id']
 
-    def add_nodes(self, root_id, current_node, token, indent=1):
+    def add_nodes(self, root_id, current_node, indent=1):
         """ add_nodes: adds processed nodes to tree
             Args:
                 root_id (str): id of parent node on Kolibri Studio
                 current_node (Node): node to publish children
-                token (str): authentication token
                 indent (int): level of indentation for printing
             Returns: link to uploadedchannel
         """
-        if self.verbose:
+        if config.VERBOSE:
             sys.stderr.write("\n{indent}Processing {title} ({kind})".format(indent="   " * indent, title=current_node.title, kind=current_node.__class__.__name__))
         payload = {
             'root_id': root_id,
             'content_data': [child.to_dict() for child in current_node.children]
         }
-        response = requests.post(config.add_nodes_url(self.domain), headers={"Authorization": "Token {0}".format(token)}, data=json.dumps(payload))
+        response = requests.post(config.add_nodes_url(), headers={"Authorization": "Token {0}".format(config.TOKEN)}, data=json.dumps(payload))
         if response.status_code != 200:
             self.failed_node_builds += [(root_id, current_node)]
         else:
             response_json = json.loads(response._content.decode("utf-8"))
 
             for child in current_node.children:
-                self.add_nodes(response_json['root_ids'][child.node_id.hex], child, token, indent + 1)
+                self.add_nodes(response_json['root_ids'][child.node_id.hex], child, indent + 1)
 
-    def commit_channel(self, channel_id, token):
+    def commit_channel(self, channel_id):
         """ commit_channel: commits channel to Kolibri Studio
             Args:
                 channel_id (str): channel's id on Kolibri Studio
-                token (str): authentication token
             Returns: channel id and link to uploadedchannel
         """
         payload = {
             "channel_id":channel_id,
         }
-        response = requests.post(config.finish_channel_url(self.domain), headers={"Authorization": "Token {0}".format(token)}, data=json.dumps(payload))
+        response = requests.post(config.finish_channel_url(), headers={"Authorization": "Token {0}".format(config.TOKEN)}, data=json.dumps(payload))
         response.raise_for_status()
         new_channel = json.loads(response._content.decode("utf-8"))
-        channel_link = config.open_channel_url(new_channel['new_channel'], self.domain)
+        channel_link = config.open_channel_url(new_channel['new_channel'])
         return channel_id, channel_link
 
-    def publish(self, channel_id, token):
+    def publish(self, channel_id):
         """ publish: publishes tree to Kolibri
             Args:
                 channel_id (str): channel's id on Kolibri Studio
-                token (str): authentication token
             Returns: None
         """
         payload = {
             "channel_id":channel_id,
         }
-        response = requests.post(config.publish_channel_url(self.domain), headers={"Authorization": "Token {0}".format(token)}, data=json.dumps(payload))
+        response = requests.post(config.publish_channel_url(), headers={"Authorization": "Token {0}".format(config.TOKEN)}, data=json.dumps(payload))
         response.raise_for_status()
 
 
@@ -604,7 +590,6 @@ class RestoreManager:
 
         Attributes:
             restore_path (str): path to .pickle file to store progress
-            debug (bool): determines which server is having progress tracked
             channel (Channel): channel Ricecooker is creating
             tree (ChannelManager): manager Ricecooker is using
             files_downloaded ([str]): list of files that have been downloaded
@@ -617,8 +602,7 @@ class RestoreManager:
             status (str): status of Ricecooker
     """
 
-    def __init__(self, debug):
-        self.debug = debug
+    def __init__(self):
         self.channel = None
         self.tree = None
         self.files_downloaded = []
@@ -646,7 +630,7 @@ class RestoreManager:
             Returns: string path to restoration file
         """
         status = self.get_status() if status is None else status
-        return config.get_restore_path(status.name.lower(), self.debug)
+        return config.get_restore_path(status.name.lower())
 
     def record_progress(self):
         """ record_progress: save progress to respective restoration file

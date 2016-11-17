@@ -8,7 +8,7 @@ SAMPLE_PERSEUS = '{"answerArea":{"chi2Table":false,"periodicTable":false,"tTable
 '"question":{"widgets":{"radio 1":{"type":"radio","alignment":"default","graded":true,"static":false,' +\
 '"options":{"deselectEnabled":false,"multipleSelect":false,"choices":[{"correct":true,"content":"Yes"},{"correct":false,"content":"No"}],' +\
 '"displayCount":null,"hasNoneOfTheAbove":false,"randomize":false,"onePerLine":true},"version":{"minor":0,"major":1}}},"images":{"web+graphie:C:/users/jordan/contentcuration-dump/0a0c0f1a1a40226d8d227a07dd143f8c08a4b8a5": {}},' +\
-'"content":"Do you like rice?\\\"\\n\\n![](web+graphie:C:/users/jordan/contentcuration-dump/0a0c0f1a1a40226d8d227a07dd143f8c08a4b8a5)\\n\\n[[\\u2603 radio 1]]"},"itemDataVersion":{"minor":1,"major":0}}'
+'"content":"Do you like rice?\\\"\\n\\n![](web+graphie:C:/users/jordan/codump/0a0c0f1a1a40226d8d227a07dd143f8c08a4b8a5)\\n\\n[[\\u2603 radio 1]]"},"itemDataVersion":{"minor":1,"major":0}}'
 
 SAMPLE_TREE = [
     {
@@ -67,15 +67,15 @@ SAMPLE_TREE = [
                         "id": "eeeee",
                         "question": "Which rice is your favorite? ![](http://discovermagazine.com/~/media/Images/Issues/2014/JanFeb/golden-rice.jpg)",
                         "type":exercises.MULTIPLE_SELECTION,
-                        "correct_answers": ["White rice", "Brown rice", "Sushi rice"],
-                        "all_answers": ["White rice", "Quinoa","Brown rice"],
+                        "correct_answers": [],
+                        "all_answers": [],
                     },
                     {
                         "id": "bbbbb",
                         "question": "Which rice is the crunchiest?",
                         "type":exercises.SINGLE_SELECTION,
-                        "correct_answer": "Rice Krispies \n![](https://upload.wikimedia.org/wikipedia/commons/c/cd/RKTsquares.jpg)",
-                        "all_answers": ["White rice \n![](https://upload.wikimedia.org/wikipedia/commons/4/4b/Thai_jasmine_rice_uncooked.jpg)", "Brown rice \n![](https://c2.staticflickr.com/4/3159/2889140143_b99fd8dd4c_z.jpg?zz=1)", "Rice Krispies \n![](https://upload.wikimedia.org/wikipedia/commons/c/cd/RKTsquares.jpg)"],
+                        "correct_answer":"",
+                        "all_answers": [],
                         "hints": "It's delicious",
                     },
                     {
@@ -89,7 +89,7 @@ SAMPLE_TREE = [
                         "id": "aaaaa",
                         "question": "How many minutes does it take to cook rice? ![](https://upload.wikimedia.org/wikipedia/commons/5/5e/Jeera-rice.JPG)",
                         "type":exercises.INPUT_QUESTION,
-                        "answers": ["20", "25", "15"],
+                        "answers": [],
                         "hints": ["Takes roughly same amount of time to install kolibri on Windows machine", "Does this help?\n![](http://www.aroma-housewares.com/images/rice101/delay_timer_1.jpg)"],
                     },
                     {

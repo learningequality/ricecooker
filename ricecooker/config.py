@@ -3,11 +3,22 @@
 import os
 import json
 
-# Domain for uploading to production server
-PRODUCTION_DOMAIN = "https://contentworkshop.learningequality.org"
+WARNING = False
+UPDATE = False
+VERBOSE = False
+TOKEN = "#"
 
-# Domain for uploading to local machine
+# Domain and file store location for uploading to production server
+PRODUCTION_DOMAIN = "https://contentworkshop.learningequality.org"
+PRODUCTION_FILE_STORE_LOCATION = "production"
+
+# Domain and file store location for uploading to local machine
 DEBUG_DOMAIN = "http://127.0.0.1:8000"
+DEBUG_FILE_STORE_LOCATION = "local"
+
+# Domain and file store location to use durring session
+DOMAIN = PRODUCTION_DOMAIN
+FILE_STORE_LOCATION = PRODUCTION_FILE_STORE_LOCATION
 
 # URL for authenticating user on Kolibri Studio
 AUTHENTICATION_URL = "{domain}/api/internal/authenticate_user_internal"
@@ -51,20 +62,20 @@ def get_storage_path(filename):
 
     return os.path.join(directory, filename)
 
-def authentication_url(domain):
+def authentication_url():
     """ authentication_url: returns url to login to Kolibri Studio
-        Args: domain (str): domain to log in
+        Args: None
         Returns: string url to authenticate_user_internal endpoint
     """
-    return AUTHENTICATION_URL.format(domain=domain)
+    return AUTHENTICATION_URL.format(domain=DOMAIN)
 
-def init_file_mapping_store(debug):
+def init_file_mapping_store():
     """ init_file_mapping_store: creates log to keep track of downloaded files
-        Args: debug (bool): determines where to store progress information
+        Args: None
         Returns: None
     """
     # Make storage directory for restore files if it doesn't already exist
-    path = os.path.join(RESTORE_DIRECTORY, "local" if debug else "production")
+    path = os.path.join(RESTORE_DIRECTORY, FILE_STORE_LOCATION)
     if not os.path.exists(path):
         os.makedirs(path)
 
@@ -88,67 +99,62 @@ def set_file_store(file_store):
     with open(get_file_store(), 'w') as storeobj:
         json.dump(file_store, storeobj)
 
-def get_restore_path(filename, debug):
+def get_restore_path(filename):
     """ get_restore_path: returns path to directory for restoration points
         Args:
             filename (str): Name of file to store
-            debug (bool): Determines how to store restoration points
         Returns: string path to file
     """
-    path = os.path.join(RESTORE_DIRECTORY, "local" if debug else "production")
+    path = os.path.join(RESTORE_DIRECTORY, FILE_STORE_LOCATION)
     return os.path.join(path, filename + '.pickle')
 
 
-def file_diff_url(domain):
+def file_diff_url():
     """ file_diff_url: returns url to get file diff
-        Args: domain (str): domain to get file diff from
+        Args: None
         Returns: string url to file_diff endpoint
     """
-    return FILE_DIFF_URL.format(domain=domain)
+    return FILE_DIFF_URL.format(domain=DOMAIN)
 
-def file_upload_url(domain):
+def file_upload_url():
     """ file_upload_url: returns url to upload files
-        Args: domain (str): domain to upload files to
+        Args: None
         Returns: string url to file_upload endpoint
     """
-    return FILE_UPLOAD_URL.format(domain=domain)
+    return FILE_UPLOAD_URL.format(domain=DOMAIN)
 
-def create_channel_url(domain):
+def create_channel_url():
     """ create_channel_url: returns url to create channel
-        Args: domain (str): domain to create channel on
+        Args: None
         Returns: string url to create_channel endpoint
     """
-    return CREATE_CHANNEL_URL.format(domain=domain)
+    return CREATE_CHANNEL_URL.format(domain=DOMAIN)
 
-def add_nodes_url(domain):
+def add_nodes_url():
     """ add_nodes_url: returns url to add nodes to channel
-        Args: domain (str): domain to create channel on
+        Args: None
         Returns: string url to add_nodes endpoint
     """
-    return ADD_NODES_URL.format(domain=domain)
+    return ADD_NODES_URL.format(domain=DOMAIN)
 
-def finish_channel_url(domain):
+def finish_channel_url():
     """ finish_channel_url: returns url to finish uploading a channel
-        Args: domain (str): domain to create channel on
+        Args: None
         Returns: string url to finish_channel endpoint
     """
-    return FINISH_CHANNEL_URL.format(domain=domain)
+    return FINISH_CHANNEL_URL.format(domain=DOMAIN)
 
-def open_channel_url(channel, domain):
+def open_channel_url(channel):
     """ open_channel_url: returns url to uploaded channel
         Args:
             channel (str): channel id of uploaded channel
-            domain (str): server where channel was created
         Returns: string url to open channel
     """
-    if domain == PRODUCTION_DOMAIN:
-        domain = "https://contentworkshop.learningequality.org"
-    return OPEN_CHANNEL_URL.format(domain=domain, channel_id=channel)
+    return OPEN_CHANNEL_URL.format(domain=DOMAIN.replace(PRODUCTION_DOMAIN, "https://contentworkshop.learningequality.org"), channel_id=channel)
 
-def publish_channel_url(domain):
+def publish_channel_url():
     """ open_channel_url: returns url to publish channel
-        Args:
-            domain (str): server where channel was created
+        Args: None
         Returns: string url to publish channel
     """
-    return PUBLISH_CHANNEL_URL.format(domain=domain)
+    return PUBLISH_CHANNEL_URL.format(domain=DOMAIN)

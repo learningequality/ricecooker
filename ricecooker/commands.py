@@ -21,42 +21,50 @@ def uploadchannel(path, debug, verbose=False, update=False, resume=False, reset=
             token (str): authorization token (optional)
             prompt (bool): indicates whether to prompt user to open channel when done (optional)
             publish (bool): indicates whether to automatically publish channel (optional)
+            warnings (bool): indicates whether to print out warnings (optional)
             kwargs (dict): keyword arguments to pass to sushi chef (optional)
         Returns: (str) link to access newly created channel
     """
-    # Get domain to upload to
-    domain = config.PRODUCTION_DOMAIN
+
+    # Set configuration settings
+    config.VERBOSE = verbose
+    config.WARNING = warnings
+    config.TOKEN = token
+    config.UPDATE = update
     if debug:
-      domain = config.DEBUG_DOMAIN
-    config.init_file_mapping_store(debug)
+      config.DOMAIN = config.DEBUG_DOMAIN
+      config.FILE_STORE_LOCATION = config.DEBUG_FILE_STORE_LOCATION
+
+    # Get domain to upload to
+    config.init_file_mapping_store()
 
     # Authenticate user
-    if token != "#":
-        if os.path.isfile(token):
-            with open(token, 'r') as fobj:
-                token = fobj.read()
+    if config.TOKEN != "#":
+        if os.path.isfile(config.TOKEN):
+            with open(config.TOKEN, 'r') as fobj:
+                config.TOKEN = fobj.read()
         try:
-            response = requests.post(config.authentication_url(domain), headers={"Authorization": "Token {0}".format(token)})
+            response = requests.post(config.authentication_url(), headers={"Authorization": "Token {0}".format(config.TOKEN)})
             response.raise_for_status()
             user=json.loads(response._content.decode("utf-8"))
-            if verbose:
+            if config.VERBOSE:
                 sys.stderr.write("\nLogged in with username {0}".format(user['username']))
         except HTTPError:
             sys.stderr.write("\nInvalid token: Credentials not found")
             sys.exit()
     else:
-        token = prompt_token(domain)
+        config.TOKEN = prompt_token(domain)
 
-    if verbose:
+    if config.VERBOSE:
         sys.stderr.write("\n\n***** Starting channel build process *****")
 
     # Set up progress tracker
-    progress_manager = RestoreManager(debug)
+    progress_manager = RestoreManager()
     if (reset or not progress_manager.check_for_session()) and step.upper() != Status.DONE.name:
         progress_manager.init_session()
     else:
         if resume or prompt_resume():
-            if verbose:
+            if config.VERBOSE:
                 sys.stderr.write("\nResuming your last session...")
             step = Status.LAST.name if step is None else step
             progress_manager = progress_manager.load_progress(step.upper())
@@ -65,19 +73,19 @@ def uploadchannel(path, debug, verbose=False, update=False, resume=False, reset=
 
     # Construct channel if it hasn't been constructed already
     if progress_manager.get_status_val() <= Status.CONSTRUCT_CHANNEL.value:
-        channel = run_construct_channel(path, verbose, progress_manager, kwargs)
+        channel = run_construct_channel(path, progress_manager, kwargs)
     else:
         channel = progress_manager.channel
 
     # Set initial tree if it hasn't been set already
     if progress_manager.get_status_val() <= Status.CREATE_TREE.value:
-        tree = create_initial_tree(channel, domain, verbose, update, progress_manager, config.get_file_store())
+        tree = create_initial_tree(channel, progress_manager, config.get_file_store())
     else:
         tree = progress_manager.tree
 
     # Download files if they haven't been downloaded already
     if progress_manager.get_status_val() <= Status.DOWNLOAD_FILES.value:
-        process_tree_files(tree, verbose, progress_manager, warnings)
+        process_tree_files(tree, progress_manager)
     else:
         tree.downloader.files = progress_manager.files_downloaded
         tree.downloader.failed_files = progress_manager.files_failed
@@ -85,7 +93,7 @@ def uploadchannel(path, debug, verbose=False, update=False, resume=False, reset=
 
     # Get file diff if it hasn't been generated already
     if progress_manager.get_status_val() <= Status.GET_FILE_DIFF.value:
-        file_diff = get_file_diff(tree, verbose, progress_manager, token)
+        file_diff = get_file_diff(tree, progress_manager)
     else:
         file_diff = progress_manager.file_diff
 
@@ -94,18 +102,18 @@ def uploadchannel(path, debug, verbose=False, update=False, resume=False, reset=
 
     # Upload files if they haven't been uploaded already
     if progress_manager.get_status_val() <= Status.UPLOADING_FILES.value:
-        upload_files(tree, file_diff, verbose, progress_manager, token)
+        upload_files(tree, file_diff, progress_manager)
 
     # Create channel on Kolibri Studio if it hasn't been created already
     if progress_manager.get_status_val() <= Status.UPLOAD_CHANNEL.value:
-        channel_id, channel_link = create_tree(tree, verbose, progress_manager, token, warnings)
+        channel_id, channel_link = create_tree(tree, progress_manager)
     else:
         channel_link = progress_manager.channel_link
         channel_id = progress_manager.channel_id
 
     # Publish tree if flag is set to True
     if publish and progress_manager.get_status_val() <= Status.PUBLISH_CHANNEL.value:
-        publish_tree(tree, verbose, progress_manager, channel_id, token)
+        publish_tree(tree, progress_manager, channel_id)
 
     # Open link on web browser (if specified) and return new link
     sys.stderr.write("\n\nDONE: Channel created at {0}\n".format(channel_link))
@@ -144,11 +152,10 @@ def prompt_resume():
     else:
         return prompt_resume()
 
-def run_construct_channel(path, verbose, progress_manager, kwargs):
+def run_construct_channel(path, progress_manager, kwargs):
     """ run_construct_channel: Run sushi chef's construct_channel method
         Args:
             path (str): path to sushi chef file
-            verbose (bool): indicates whether to print steps
             progress_manager (RestoreManager): manager to keep track of progress
             kwargs (dict): additional keyword arguments
         Returns: channel created from contruct_channel method
@@ -157,114 +164,102 @@ def run_construct_channel(path, verbose, progress_manager, kwargs):
     exec(open(path).read(), globals())
 
     # Create channel (using method from imported file)
-    if verbose:
+    if config.VERBOSE:
         sys.stderr.write("\nConstructing channel... ")
     channel = construct_channel(**kwargs)
     progress_manager.set_channel(channel)
-    if verbose:
-        sys.stderr.write("DONE")
     return channel
 
-def create_initial_tree(channel, domain, verbose, update, progress_manager, file_store):
+def create_initial_tree(channel, progress_manager, file_store):
     """ create_initial_tree: Create initial tree structure
         Args:
             channel (Channel): channel to construct
-            domain (str): domain to
-            verbose (bool): indicates whether to print steps
-            update (bool): determines whether to re-download files
             progress_manager (RestoreManager): manager to keep track of progress
             file_store (str): path to list of files that have been downloaded
         Returns: tree manager to run rest of steps
     """
     # Create channel manager with channel data
-    if verbose:
-        sys.stderr.write("\nSetting up initial channel structure... ")
-    tree = ChannelManager(channel, domain, file_store, verbose, update)
-    if verbose:
+    if config.VERBOSE:
+        sys.stderr.write("\n   Setting up initial channel structure... ")
+    tree = ChannelManager(channel, file_store)
+    if config.VERBOSE:
         sys.stderr.write("DONE")
 
     # Create channel manager with channel data
-    if verbose:
-        sys.stderr.write("\nSetting up node relationships... ")
+    if config.VERBOSE:
+        sys.stderr.write("\n   Setting up node relationships... ")
     tree.set_relationship(channel)
-    if verbose:
+    if config.VERBOSE:
         sys.stderr.write("DONE")
 
     # Make sure channel structure is valid
-    if verbose:
-        sys.stderr.write("\nValidating channel structure...")
+    if config.VERBOSE:
+        sys.stderr.write("\n   Validating channel structure...")
         channel.print_tree()
     tree.validate()
-    if verbose:
+    if config.VERBOSE:
         sys.stderr.write("\n   Tree is valid\n")
     progress_manager.set_tree(tree)
     return tree
 
-def process_tree_files(tree, verbose, progress_manager, warning):
+def process_tree_files(tree, progress_manager):
     """ process_tree_files: Download files from nodes
         Args:
             tree (ChannelManager): manager to handle communication to Kolibri Studio
-            verbose (bool): indicates whether to print steps
             progress_manager (RestoreManager): manager to keep track of progress
         Returns: None
     """
     # Fill in values necessary for next steps
-    if verbose:
+    if config.VERBOSE:
         sys.stderr.write("\nProcessing content...")
     tree.process_tree(tree.channel)
-    tree.check_for_files_failed(warning)
+    tree.check_for_files_failed()
     config.set_file_store(tree.downloader.file_store)
-    if verbose:
+    if config.VERBOSE:
         sys.stderr.write("\n")
     progress_manager.set_files(tree.downloader.get_files(), tree.downloader.get_file_mapping(), tree.downloader.failed_files)
 
-def get_file_diff(tree, verbose, progress_manager, token):
+def get_file_diff(tree, progress_manager):
     """ get_file_diff: Download files from nodes
         Args:
             tree (ChannelManager): manager to handle communication to Kolibri Studio
-            verbose (bool): indicates whether to print steps
             progress_manager (RestoreManager): manager to keep track of progress
-            token (str): authentication token
         Returns: list of files that are not on Kolibri Studio
     """
     # Determine which files have not yet been uploaded to the CC server
-    if verbose:
+    if config.VERBOSE:
         sys.stderr.write("\nChecking if files exist on Kolibri Studio...")
-    file_diff = tree.get_file_diff(token)
-    if verbose:
+    file_diff = tree.get_file_diff()
+    if config.VERBOSE:
         sys.stderr.write("\n")
     progress_manager.set_diff(file_diff)
     return file_diff
 
-def upload_files(tree, file_diff, verbose, progress_manager, token):
+def upload_files(tree, file_diff, progress_manager):
     """ upload_files: Upload files to Kolibri Studio
         Args:
             tree (ChannelManager): manager to handle communication to Kolibri Studio
             file_diff ([str]): list of files to upload
-            verbose (bool): indicates whether to print steps
             progress_manager (RestoreManager): manager to keep track of progress
-            token (str): authentication token
         Returns: None
     """
     # Upload new files to CC
-    tree.upload_files(file_diff, progress_manager, token)
-    if verbose:
+    tree.upload_files(file_diff, progress_manager)
+    if config.VERBOSE:
         sys.stderr.write("\n")
     progress_manager.set_uploaded(file_diff)
 
-def create_tree(tree, verbose, progress_manager, token, warning):
+def create_tree(tree, progress_manager):
     """ create_tree: Upload tree to Kolibri Studio
         Args:
             tree (ChannelManager): manager to handle communication to Kolibri Studio
-            verbose (bool): indicates whether to print steps
             progress_manager (RestoreManager): manager to keep track of progress
-            token (str): authentication token
         Returns: channel id of created channel and link to channel
     """
     # Create tree
-    if verbose:
+    if config.VERBOSE:
         sys.stderr.write("\nCreating tree on Kolibri Studio...")
-    channel_id, channel_link = tree.upload_tree(token, warning)
+    channel_id, channel_link = tree.upload_tree()
     progress_manager.set_channel_created(channel_link, channel_id)
     return channel_id, channel_link
 
@@ -278,26 +273,24 @@ def prompt_open(channel_link):
     if openNow.startswith("y"):
         sys.stderr.write("\nOpening channel... ")
         webbrowser.open_new_tab(channel_link)
-        if verbose:
+        if config.VERBOSE:
             sys.stderr.write("DONE")
     elif openNow.startswith("n"):
         return
     else:
         prompt_open(channel_link)
 
-def publish_tree(tree, verbose, progress_manager, channel_id, token):
+def publish_tree(tree, progress_manager, channel_id):
     """ publish_tree: Publish tree to Kolibri
         Args:
             tree (ChannelManager): manager to handle communication to Kolibri Studio
-            verbose (bool): indicates whether to print steps
             progress_manager (RestoreManager): manager to keep track of progress
             channel_id (str): id of channel to publish
-            token (str): authentication token
         Returns: None
     """
-    if verbose:
+    if config.VERBOSE:
         sys.stderr.write("\nPublishing tree to Kolibri... ")
-    tree.publish(channel_id, token)
-    if verbose:
+    tree.publish(channel_id)
+    if config.VERBOSE:
         sys.stderr.write("DONE")
     progress_manager.set_published()
