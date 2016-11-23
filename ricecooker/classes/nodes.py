@@ -455,11 +455,10 @@ class Exercise(ContentNode):
 
         # Set mastery model defaults if none provided
         exercise_data = {} if exercise_data is None else exercise_data
-        if 'mastery_model' not in exercise_data:
-            exercise_data.update({
-                'mastery_model': exercise_data.get('mastery_model') or exercises.M_OF_N,
-                'randomize': exercise_data.get('randomize') or True,
-            })
+        exercise_data.update({
+            'mastery_model': exercise_data.get('mastery_model') or exercises.M_OF_N,
+            'randomize': exercise_data.get('randomize') or True,
+        })
 
         super(Exercise, self).__init__(id, title, description=description, author=author, license=license, files=files, questions=self.questions, extra_fields=exercise_data,thumbnail=thumbnail)
 
