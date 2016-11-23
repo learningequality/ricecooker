@@ -241,7 +241,7 @@ def _build_tree(node, sourcetree):
                 author=child_source_node.get("author"),
                 description=child_source_node.get("description"),
                 files=child_source_node.get("file"),
-                exercise_data={'mastery_model': child_source_node.get("mastery_model"), 'randomize': True, 'm': 3, 'n': 5},
+                # exercise_data={'mastery_model': child_source_node.get("mastery_model"), 'randomize': True, 'm': 3, 'n': 5},
                 license=child_source_node.get("license"),
                 thumbnail=child_source_node.get("thumbnail"),
             )

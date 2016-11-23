@@ -456,15 +456,10 @@ class Exercise(ContentNode):
         # Set mastery model defaults if none provided
         exercise_data = {} if exercise_data is None else exercise_data
         if 'mastery_model' not in exercise_data:
-        exercise_data.update({
-            'mastery_model': exercise_data.get('mastery_model') or exercises.M_OF_N,
-            'randomize': exercise_data.get('randomize') or True,
-        })
-        if exercise_data['mastery_model'] == exercises.M_OF_N:
-            if 'n' not in exercise_data:
-                exercise_data.update('n',exercise_data.get('m') or 5)
-            if 'm' not in exercise_data:
-                exercise_data.update('m',exercise_data.get('n') or 5)
+            exercise_data.update({
+                'mastery_model': exercise_data.get('mastery_model') or exercises.M_OF_N,
+                'randomize': exercise_data.get('randomize') or True,
+            })
 
         super(Exercise, self).__init__(id, title, description=description, author=author, license=license, files=files, questions=self.questions, extra_fields=exercise_data,thumbnail=thumbnail)
 
@@ -486,6 +481,13 @@ class Exercise(ContentNode):
         """
         for question in self.questions:
             question.process_question(downloader)
+
+        # Update mastery model if parameters were not provided
+        if self.extra_fields['mastery_model'] == exercises.M_OF_N:
+            if 'n' not in self.extra_fields:
+                self.extra_fields.update({'n':self.extra_fields.get('m') or max(len(self.questions), 1)})
+            if 'm' not in self.extra_fields:
+                self.extra_fields.update({'m':self.extra_fields.get('n') or max(len(self.questions), 1)})
 
     def to_dict(self):
         """ to_dict: puts data in format CC expects
