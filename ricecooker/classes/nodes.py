@@ -3,9 +3,10 @@
 import uuid
 import json
 import zipfile
-from ricecooker.managers import DownloadManager
+import sys
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
 from ricecooker.exceptions import InvalidNodeException, InvalidFormatException
+from ricecooker.managers import DownloadManager
 
 def guess_content_kind(files, questions=None):
     """ guess_content_kind: determines what kind the content is
@@ -68,10 +69,10 @@ class Node(object):
 
     def print_tree(self, indent=1):
         """ print_tree: prints out structure of tree
-            Args: indent (int): What level of indentation to start printing at
+            Args: indent (int): What level of indentation at which to start printing
             Returns: None
         """
-        print("{indent}{data}".format(indent="   " * indent, data=str(self)))
+        sys.stderr.write("\n{indent}{data}".format(indent="   " * indent, data=str(self)))
         for child in self.children:
             child.print_tree(indent + 1)
 
@@ -106,8 +107,8 @@ class Channel(Node):
             channel_id (str): channel's unique id
             domain (str): who is providing the content (e.g. learningequality.org)
             title (str): name of channel
-            thumbnail (str): file path or url of channel's thumbnail
             description (str): description of the channel (optional)
+            thumbnail (str): file path or url of channel's thumbnail (optional)
     """
     def __init__(self, channel_id, domain, title, description=None, thumbnail=None):
         # Map parameters to model variables
@@ -115,10 +116,7 @@ class Channel(Node):
         self.id = uuid.uuid3(uuid.NAMESPACE_DNS, uuid.uuid5(uuid.NAMESPACE_DNS, channel_id).hex)
         self.title = title
         self.description = "" if description is None else description
-
-        # Encode thumbnail to base64
-        downloader = DownloadManager()
-        self.thumbnail = downloader.encode_thumbnail(thumbnail)
+        self.thumbnail = thumbnail
 
         # Add data to be used in next steps
         self._internal_domain = uuid.uuid5(uuid.NAMESPACE_DNS, self.domain)
@@ -140,10 +138,8 @@ class Channel(Node):
         return {
             "id": self.id.hex,
             "name": self.title,
-            "has_changed": True,
             "thumbnail": self.thumbnail,
-            "description": self.description if self.description is not None else "",
-            "children": [child_node.to_dict() for child_node in self.children],
+            "description": self.description[:400] if self.description is not None else "",
         }
 
     def validate(self):
@@ -176,6 +172,7 @@ class ContentNode(Node):
     def __init__(self, *args, **kwargs):
         # Map parameters to model variables
         self.id = args[0]
+        self.original_id = args[0]
         self.title = args[1]
         self.description = kwargs.get('description') or ""
         self.author = kwargs.get('author') or ""
@@ -184,8 +181,7 @@ class ContentNode(Node):
         # Set files into list format (adding thumbnail if provided)
         files = kwargs.get('files') or []
         self.files = [files] if isinstance(files, str) else files
-        if kwargs.get('thumbnail') is not None:
-            self.files.append(kwargs.get('thumbnail'))
+        self.thumbnail = kwargs.get('thumbnail')
 
         # Set any possible exercise data to standard format
         self.questions = kwargs.get('questions') or []
@@ -204,11 +200,10 @@ class ContentNode(Node):
         """
         return {
             "title": self.title,
-            "description": self.description,
+            "description": self.description[:400],
             "node_id": self.node_id.hex,
             "content_id": self.content_id.hex,
             "author": self.author,
-            "children": [child_node.to_dict() for child_node in self.children],
             "files" : self.files,
             "kind": self.kind,
             "license": self.license,
@@ -451,6 +446,7 @@ class Exercise(ContentNode):
             author (str): who created the content (optional)
             description (str): description of content (optional)
             license (str): content's license based on le_utils.constants.licenses (optional)
+            exercise_data ({mastery_model:str, randomize:bool, m:int, n:int}): data on mastery requirements (optional)
             thumbnail (str): local path or url to thumbnail image (optional)
     """
     default_preset = format_presets.EXERCISE
@@ -460,7 +456,11 @@ class Exercise(ContentNode):
         files = [] if files is None else files
 
         # Set mastery model defaults if none provided
-        exercise_data = {'mastery_model': exercises.M_OF_N, 'randomize': True, 'm': 3, 'n': 5} if exercise_data is None else exercise_data
+        exercise_data = {} if exercise_data is None else exercise_data
+        exercise_data.update({
+            'mastery_model': exercise_data.get('mastery_model') or exercises.M_OF_N,
+            'randomize': exercise_data.get('randomize') or True,
+        })
 
         super(Exercise, self).__init__(id, title, description=description, author=author, license=license, files=files, questions=self.questions, extra_fields=exercise_data,thumbnail=thumbnail)
 
@@ -481,7 +481,14 @@ class Exercise(ContentNode):
             Returns: None
         """
         for question in self.questions:
-            self.files += question.process_question(downloader)
+            question.process_question(downloader)
+
+        # Update mastery model if parameters were not provided
+        if self.extra_fields['mastery_model'] == exercises.M_OF_N:
+            if 'n' not in self.extra_fields:
+                self.extra_fields.update({'n':self.extra_fields.get('m') or max(len(self.questions), 1)})
+            if 'm' not in self.extra_fields:
+                self.extra_fields.update({'m':self.extra_fields.get('n') or max(len(self.questions), 1)})
 
     def to_dict(self):
         """ to_dict: puts data in format CC expects
@@ -490,11 +497,10 @@ class Exercise(ContentNode):
         """
         return {
             "title": self.title,
-            "description": self.description,
+            "description": self.description[:400],
             "node_id": self.node_id.hex,
             "content_id": self.content_id.hex,
             "author": self.author,
-            "children": [child_node.to_dict() for child_node in self.children],
             "files" : self.files,
             "kind": self.kind,
             "license": self.license,
@@ -509,7 +515,7 @@ class Exercise(ContentNode):
         """
         try:
             assert self.kind == content_kinds.EXERCISE, "Assumption Failed: Node should be an exercise"
-            assert len(self.files) > 0 or len(self.questions) > 0, "Assumption Failed: Exercise should have at least one question or .perseus file"
+            # assert len(self.files) > 0 or len(self.questions) > 0, "Assumption Failed: Exercise should have at least one question or .perseus file"
             assert "mastery_model" in self.extra_fields, "Assumption Failed: Exercise must have a mastery model in extra_fields"
 
             # Check if there are any .perseus files
