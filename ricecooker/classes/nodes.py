@@ -2,6 +2,7 @@
 
 import uuid
 import json
+import zipfile
 from ricecooker.managers import DownloadManager
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
 from ricecooker.exceptions import InvalidNodeException, InvalidFormatException
@@ -33,7 +34,7 @@ def guess_content_kind(files, questions=None):
         return content_kinds.TOPIC
 
 
-class Node:
+class Node(object):
     """ Node: model to represent all nodes in the tree """
     def __init__(self):
         self.children = []
@@ -524,5 +525,48 @@ class Exercise(ContentNode):
             assert questions_valid, "Assumption Failed: Exercise does not have a question"
 
             return super(Exercise, self).validate()
+        except AssertionError as ae:
+            raise InvalidNodeException("Invalid node: {0} - {1}".format(self.title, self.__dict__))
+
+
+class HTML5App(ContentNode):
+    """ Model representing a zipped HTML5 application
+
+        The zip file must contain a file called index.html, which will be the first page loaded.
+        All links (e.g. href and src) must be relative URLs, pointing to other files in the zip.
+
+        Attributes:
+            id (str): content's original id
+            title (str): content's title
+            files (str or list): content's associated file(s)
+            author (str): who created the content (optional)
+            description (str): description of content (optional)
+            license (str): content's license based on le_utils.constants.licenses (optional)
+            thumbnail (str): local path or url to thumbnail image (optional)
+    """
+    default_preset = format_presets.HTML5_ZIP
+    def __init__(self, id, title, files, author="", description="", license=None, thumbnail=None):
+        self.kind = content_kinds.HTML5
+        files = [] if files is None else files
+
+        super(HTML5App, self).__init__(id, title, description=description, author=author, license=license, files=files, thumbnail=thumbnail)
+
+    def __str__(self):
+        return "{title} ({kind})".format(title=self.title, kind=self.__class__.__name__)
+
+    def validate(self):
+        """ validate: Makes sure HTML5 app is valid
+            Args: None
+            Returns: boolean indicating if HTML5 app is valid
+        """
+        try:
+            assert self.kind == content_kinds.HTML5, "Assumption Failed: Node should be an HTML5 app"
+            assert len(self.files) == 1, "Assumption Failed: HTML5 app should have exactly one zip file"
+
+            # TODO: check that zip file contains index.html file
+            # with zipfile.ZipFile(zipped_path) as zf:
+
+
+            return super(HTML5App, self).validate()
         except AssertionError as ae:
             raise InvalidNodeException("Invalid node: {0} - {1}".format(self.title, self.__dict__))
