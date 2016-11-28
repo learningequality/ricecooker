@@ -53,7 +53,7 @@ def uploadchannel(path, debug, verbose=False, update=False, resume=False, reset=
             sys.stderr.write("\nInvalid token: Credentials not found")
             sys.exit()
     else:
-        config.TOKEN = prompt_token(domain)
+        config.TOKEN = prompt_token()
 
     if config.VERBOSE:
         sys.stderr.write("\n\n***** Starting channel build process *****")
@@ -122,29 +122,29 @@ def uploadchannel(path, debug, verbose=False, update=False, resume=False, reset=
     progress_manager.set_done()
     return channel_link
 
-def prompt_token(domain):
+def prompt_token():
     """ prompt_token: Prompt user to enter authentication token
         Args: domain (str): domain to authenticate user
         Returns: Authenticated response
     """
-    token = input("\nEnter authentication token ('q' to quit):").lower()
+    token = raw_input("\nEnter authentication token ('q' to quit):").lower()
     if token == 'q':
         sys.exit()
     else:
         try:
-            response = requests.post(config.authentication_url(domain), headers={"Authorization": "Token {0}".format(token)})
+            response = requests.post(config.authentication_url(), headers={"Authorization": "Token {0}".format(token)})
             response.raise_for_status()
             return token
         except HTTPError:
             sys.stderr.write("\nInvalid token. Please login to {0}/settings/tokens to retrieve your authorization token.".format(domain))
-            prompt_token(domain)
+            prompt_token()
 
 def prompt_resume():
     """ prompt_resume: Prompt user to resume last session if one exists
         Args: None
         Returns: None
     """
-    openNow = input("\nPrevious session detected. Would you like to resume your previous session? [y/n]:").lower()
+    openNow = raw_input("\nPrevious session detected. Would you like to resume your previous session? [y/n]:").lower()
     if openNow.startswith("y"):
         return True
     elif openNow.startswith("n"):
@@ -269,7 +269,7 @@ def prompt_open(channel_link):
             channel_link (str): url of uploaded channel
         Returns: None
     """
-    openNow = input("\nWould you like to open your channel now? [y/n]:").lower()
+    openNow = raw_input("\nWould you like to open your channel now? [y/n]:").lower()
     if openNow.startswith("y"):
         sys.stderr.write("\nOpening channel... ")
         webbrowser.open_new_tab(channel_link)
