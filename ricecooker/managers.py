@@ -18,8 +18,8 @@ from requests_file import FileAdapter
 from requests.exceptions import MissingSchema, HTTPError, ConnectionError, InvalidURL, InvalidSchema
 from io import BytesIO
 from PIL import Image
-from ricecooker import config
-from ricecooker.exceptions import InvalidFormatException, FileNotFoundException
+from . import config
+from .exceptions import InvalidFormatException, FileNotFoundException
 from le_utils.constants import file_formats, exercises, format_presets
 
 # Regex to parse for web+graphie prefix
@@ -350,7 +350,7 @@ class ChannelManager:
                 parent (Node): parent of node being processed
             Returns: None
         """
-        from ricecooker.classes import nodes
+        from .classes import nodes
 
         # If node is not a channel, set ids and download files
         if not isinstance(node, nodes.Channel):
@@ -367,7 +367,7 @@ class ChannelManager:
                 parent (Node): parent of node being processed
             Returns: None
         """
-        from ricecooker.classes import nodes
+        from .classes import nodes
 
         # If node is not a channel, download files
         if isinstance(node, nodes.Channel):

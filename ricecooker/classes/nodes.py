@@ -5,8 +5,8 @@ import json
 import zipfile
 import sys
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
-from ricecooker.exceptions import InvalidNodeException, InvalidFormatException
-from ricecooker.managers import DownloadManager
+from ..exceptions import InvalidNodeException, InvalidFormatException
+from ..managers import DownloadManager
 
 def guess_content_kind(files, questions=None):
     """ guess_content_kind: determines what kind the content is
@@ -16,7 +16,7 @@ def guess_content_kind(files, questions=None):
     """
     # Get files and questions into readable format
     files = [files] if isinstance(files, str) else files
-    questions=[questions] if isinstance(questions, str) else questions
+    questions = [questions] if isinstance(questions, str) else questions
 
     # If there are any questions, return exercise
     if questions is not None and len(questions) > 0:

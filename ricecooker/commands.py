@@ -3,10 +3,10 @@ import sys
 import requests
 import json
 import webbrowser
-from ricecooker import config
-from ricecooker.classes import nodes, questions
+from . import config
+from .classes import nodes, questions
 from requests.exceptions import HTTPError
-from ricecooker.managers import ChannelManager, RestoreManager, Status
+from .managers import ChannelManager, RestoreManager, Status
 
 def uploadchannel(path, debug, verbose=False, update=False, resume=False, reset=False, step=Status.LAST.name, token="#", prompt=False, publish=False, warnings=False, **kwargs):
     """ uploadchannel: Upload channel to Kolibri Studio server

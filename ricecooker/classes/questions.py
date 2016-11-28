@@ -6,8 +6,8 @@ import re
 import copy
 import sys
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
-from ricecooker import config
-from ricecooker.exceptions import UnknownQuestionTypeError, InvalidQuestionException
+from .. import config
+from ..exceptions import UnknownQuestionTypeError, InvalidQuestionException
 
 WEB_GRAPHIE_URL_REGEX = r'web\+graphie:([^\)]+)'
 FILE_REGEX = r'!\[([^\]]+)?\]\(([^\)]+)\)'
