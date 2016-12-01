@@ -1,26 +1,50 @@
-"""Usage: ricecooker uploadchannel [-hvqr] <file_path> [--debug] [[OPTIONS] ...]
+
+"""Usage: ricecooker uploadchannel [-huv] <file_path> [--debug] [--warn] [--token=<t>] [--resume [--step=<step>] | --reset] [--prompt] [--publish] [[OPTIONS] ...]
 
 Arguments:
   file_path        Path to file with channel data
-  [OPTIONS]        Extra arguments to add to command line (e.g. key='field')
 
 Options:
-  -h --help
-  -v       verbose mode
-  -q       quiet mode
-  -r       make report
+  -h               Help documentation
+  -v               Verbose mode
+  -u               Re-download files from file paths
+  --debug          Run ricecooker against debug server (localhost:8000) rather than contentworkshop
+  --warn           Print out warnings to stderr
+  --token=<t>      Authorization token (can be token or path to file with token) [default: #]
+  --resume         Resume from ricecooker step (cannot be used with --reset flag)
+  --step=<step>    Step to resume progress from (must be used with --resume flag) [default: last]
+  --reset          Restart session, overwriting previous session (cannot be used with --resume flag)
+  --prompt         Receive prompt to open the channel once it's uploaded
+  --publish        Automatically publish channel once it's been created
+  [OPTIONS]        Extra arguments to add to command line (e.g. key='field')
+
+Steps (for restoring session):
+  LAST (default):       Resume where the session left off
+  INIT:                 Resume at beginning of session
+  CONSTRUCT_CHANNEL:    Resume with call to construct channel
+  CREATE_TREE:          Resume at set tree relationships
+  DOWNLOAD_FILES:       Resume at beginning of download process
+  GET_FILE_DIFF:        Resume at call to get file diff from Kolibri Studio
+  START_UPLOAD:         Resume at beginning of uploading files to Kolibri Studio
+  UPLOADING_FILES:      Resume at last upload request
+  UPLOAD_CHANNEL:       Resume at beginning of uploading tree to Kolibri Studio
+  PUBLISH_CHANNEL:      Resume at option to publish channel
+  DONE:                 Resume at prompt to open channel
+
 """
 
 from ricecooker.commands import uploadchannel
 from ricecooker import config
 from ricecooker.exceptions import InvalidUsageException
+from ricecooker.managers import Status
 from docopt import docopt
 
 commands = ["uploadchannel"]
 
 if __name__ == '__main__':
     arguments = docopt(__doc__)
-    domain = config.PRODUCTION_DOMAIN
+
+    # Parse OPTIONS for keyword arguments
     kwargs = {}
     for arg in arguments['OPTIONS']:
       try:
@@ -28,6 +52,22 @@ if __name__ == '__main__':
         kwargs.update({kwarg[0].strip(): kwarg[1].strip()})
       except IndexError:
         raise InvalidUsageException("Invalid kwarg '{0}' found: Must format as [key]=[value] (no whitespace)".format(arg))
-    if arguments["--debug"]:
-    	domain = config.DEBUG_DOMAIN
-    uploadchannel(arguments["<file_path>"], domain, verbose=arguments["-v"], **kwargs)
+
+    # Check if step is valid (if provided)
+    step = arguments['--step']
+    all_steps = [s.name for s in Status]
+    if step.upper() not in all_steps:
+      raise InvalidUsageException("Invalid step '{0}': Valid steps are {1}".format(step, all_steps))
+
+    uploadchannel(arguments["<file_path>"],
+                  arguments["--debug"],
+                  verbose=arguments["-v"],
+                  update=arguments['-u'],
+                  resume=arguments['--resume'],
+                  reset=arguments['--reset'],
+                  token=arguments['--token'],
+                  step=step,
+                  prompt=arguments['--prompt'],
+                  publish=arguments['--publish'],
+                  warnings=arguments['--warn'],
+                  **kwargs)

@@ -2,7 +2,8 @@
 
 import uuid
 import json
-from ricecooker.managers import DownloadManager
+import sys
+import zipfile
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
 from ricecooker.exceptions import InvalidNodeException, InvalidFormatException
 
@@ -67,10 +68,10 @@ class Node:
 
     def print_tree(self, indent=1):
         """ print_tree: prints out structure of tree
-            Args: indent (int): What level of indentation to start printing at
+            Args: indent (int): What level of indentation at which to start printing
             Returns: None
         """
-        print("{indent}{data}".format(indent="   " * indent, data=str(self)))
+        sys.stderr.write("\n{indent}{data}".format(indent="   " * indent, data=str(self)))
         for child in self.children:
             child.print_tree(indent + 1)
 
@@ -105,8 +106,8 @@ class Channel(Node):
             channel_id (str): channel's unique id
             domain (str): who is providing the content (e.g. learningequality.org)
             title (str): name of channel
-            thumbnail (str): file path or url of channel's thumbnail
             description (str): description of the channel (optional)
+            thumbnail (str): file path or url of channel's thumbnail (optional)
     """
     def __init__(self, channel_id, domain, title, description=None, thumbnail=None):
         # Map parameters to model variables
@@ -114,10 +115,7 @@ class Channel(Node):
         self.id = uuid.uuid3(uuid.NAMESPACE_DNS, uuid.uuid5(uuid.NAMESPACE_DNS, channel_id).hex)
         self.title = title
         self.description = "" if description is None else description
-
-        # Encode thumbnail to base64
-        downloader = DownloadManager()
-        self.thumbnail = downloader.encode_thumbnail(thumbnail)
+        self.thumbnail = thumbnail
 
         # Add data to be used in next steps
         self._internal_domain = uuid.uuid5(uuid.NAMESPACE_DNS, self.domain)
@@ -139,10 +137,8 @@ class Channel(Node):
         return {
             "id": self.id.hex,
             "name": self.title,
-            "has_changed": True,
             "thumbnail": self.thumbnail,
-            "description": self.description if self.description is not None else "",
-            "children": [child_node.to_dict() for child_node in self.children],
+            "description": self.description[:400] if self.description is not None else "",
         }
 
     def validate(self):
@@ -175,6 +171,7 @@ class ContentNode(Node):
     def __init__(self, *args, **kwargs):
         # Map parameters to model variables
         self.id = args[0]
+        self.original_id = args[0]
         self.title = args[1]
         self.description = kwargs.get('description') or ""
         self.author = kwargs.get('author') or ""
@@ -183,8 +180,7 @@ class ContentNode(Node):
         # Set files into list format (adding thumbnail if provided)
         files = kwargs.get('files') or []
         self.files = [files] if isinstance(files, str) else files
-        if kwargs.get('thumbnail') is not None:
-            self.files.append(kwargs.get('thumbnail'))
+        self.thumbnail = kwargs.get('thumbnail')
 
         # Set any possible exercise data to standard format
         self.questions = kwargs.get('questions') or []
@@ -203,11 +199,10 @@ class ContentNode(Node):
         """
         return {
             "title": self.title,
-            "description": self.description,
+            "description": self.description[:400],
             "node_id": self.node_id.hex,
             "content_id": self.content_id.hex,
             "author": self.author,
-            "children": [child_node.to_dict() for child_node in self.children],
             "files" : self.files,
             "kind": self.kind,
             "license": self.license,
@@ -450,6 +445,7 @@ class Exercise(ContentNode):
             author (str): who created the content (optional)
             description (str): description of content (optional)
             license (str): content's license based on le_utils.constants.licenses (optional)
+            exercise_data ({mastery_model:str, randomize:bool, m:int, n:int}): data on mastery requirements (optional)
             thumbnail (str): local path or url to thumbnail image (optional)
     """
     default_preset = format_presets.EXERCISE
@@ -480,7 +476,7 @@ class Exercise(ContentNode):
             Returns: None
         """
         for question in self.questions:
-            self.files += question.process_question(downloader)
+            question.process_question(downloader)
 
     def to_dict(self):
         """ to_dict: puts data in format CC expects
@@ -489,11 +485,10 @@ class Exercise(ContentNode):
         """
         return {
             "title": self.title,
-            "description": self.description,
+            "description": self.description[:400],
             "node_id": self.node_id.hex,
             "content_id": self.content_id.hex,
             "author": self.author,
-            "children": [child_node.to_dict() for child_node in self.children],
             "files" : self.files,
             "kind": self.kind,
             "license": self.license,
@@ -508,7 +503,7 @@ class Exercise(ContentNode):
         """
         try:
             assert self.kind == content_kinds.EXERCISE, "Assumption Failed: Node should be an exercise"
-            assert len(self.files) > 0 or len(self.questions) > 0, "Assumption Failed: Exercise should have at least one question or .perseus file"
+            # assert len(self.files) > 0 or len(self.questions) > 0, "Assumption Failed: Exercise should have at least one question or .perseus file"
             assert "mastery_model" in self.extra_fields, "Assumption Failed: Exercise must have a mastery model in extra_fields"
 
             # Check if there are any .perseus files
@@ -524,5 +519,60 @@ class Exercise(ContentNode):
             assert questions_valid, "Assumption Failed: Exercise does not have a question"
 
             return super(Exercise, self).validate()
+        except AssertionError as ae:
+            raise InvalidNodeException("Invalid node: {0} - {1}".format(self.title, self.__dict__))
+
+class HTML(ContentNode):
+    """ Model representing html5 content in channel
+
+        HTML must be in zip format with an 'index.html' file at the topmost level
+
+        Attributes:
+            id (str): content's original id
+            title (str): content's title
+            files (str or list): content's associated file(s)
+            author (str): who created the content (optional)
+            description (str): description of content (optional)
+            license (str): content's license based on le_utils.constants.licenses (optional)
+            thumbnail (str): local path or url to thumbnail image (optional)
+    """
+
+    default_preset = format_presets.HTML5_ZIP
+    def __init__(self, id, title, files, author="", description="", license=None, thumbnail=None):
+        self.kind = content_kinds.HTML5
+        super(HTML, self).__init__(id, title, description=description, author=author, license=license, files=files, thumbnail=thumbnail)
+
+    def __str__(self):
+        metadata = "{0} {1}".format(len(self.files), "file" if len(self.files) == 1 else "files")
+        return "{title} ({kind}): {metadata}".format(title=self.title, kind=self.__class__.__name__, metadata=metadata)
+
+    def validate(self):
+        """ validate: Makes sure audio is valid
+            Args: None
+            Returns: boolean indicating if audio is valid
+        """
+        try:
+            assert self.kind == content_kinds.HTML5, "Assumption Failed: Node should be html"
+            assert self.questions == [], "Assumption Failed: HTML should not have questions"
+            assert len(self.files) > 0, "Assumption Failed: HTML should have at least one file"
+
+            # Check if there are any .zip files
+            files_valid = len(self.files) == 0
+            for f in self.files:
+                if file_formats.HTML5 in f:
+                    files_valid = True
+
+                    # make sure index.html exists
+                    with zipfile.ZipFile(f) as zf:
+                        try:
+                            info = zf.getinfo('index.html')
+                        except KeyError:
+                            assert False, "Assumption Failed: HTML zip must have an `index.html` file at topmost level"
+
+
+            assert files_valid , "Assumption Failed: HTML does not have a .zip file attached"
+
+
+            return super(HTML, self).validate()
         except AssertionError as ae:
             raise InvalidNodeException("Invalid node: {0} - {1}".format(self.title, self.__dict__))

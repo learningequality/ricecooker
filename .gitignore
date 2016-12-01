@@ -90,3 +90,5 @@ ENV/
 docs/out/
 
 storage/
+restore/
+sushi_chefs/

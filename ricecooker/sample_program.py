@@ -1,101 +1,89 @@
-from ricecooker.classes.nodes import Channel, Video, Audio, Document, Topic, Exercise, guess_content_kind
+from ricecooker.classes.nodes import Channel, Video, Audio, Document, Topic, Exercise, HTML, guess_content_kind
 from ricecooker.classes.questions import PerseusQuestion, MultipleSelectQuestion, SingleSelectQuestion, FreeResponseQuestion, InputQuestion
 from ricecooker.exceptions import UnknownContentKindError, UnknownQuestionTypeError, raise_for_invalid_channel
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
 
 SAMPLE_PERSEUS = '{"answerArea":{"chi2Table":false,"periodicTable":false,"tTable":false,"zTable":false,"calculator":false},' + \
-'"hints":[{"widgets":{},"images":{},"content":"Hint #1","replace":false},{"widgets":{},"images":{},"content":"Hint #2","replace":false}],' +\
+'"hints":[{"widgets":{},"images":{"web+graphie:C:/users/jordan/contentcuration-dump/0a0c0f1a1a40226d8d227a07dd143f8c08a4b8a5": {}},"content":"Hint #1","replace":false},{"widgets":{},"images":{},"content":"Hint #2","replace":false}],' +\
 '"question":{"widgets":{"radio 1":{"type":"radio","alignment":"default","graded":true,"static":false,' +\
 '"options":{"deselectEnabled":false,"multipleSelect":false,"choices":[{"correct":true,"content":"Yes"},{"correct":false,"content":"No"}],' +\
-'"displayCount":null,"hasNoneOfTheAbove":false,"randomize":false,"onePerLine":true},"version":{"minor":0,"major":1}}},"images":{},' +\
-'"content":"Do you like rice?\\n\\n![](web+graphie:file:///C:/Users/Jordan/contentcuration-dump/test)\\n\\n[[\\u2603 radio 1]]"},"itemDataVersion":{"minor":1,"major":0}}'
+'"displayCount":null,"hasNoneOfTheAbove":false,"randomize":false,"onePerLine":true},"version":{"minor":0,"major":1}}},"images":{"web+graphie:C:/users/jordan/contentcuration-dump/0a0c0f1a1a40226d8d227a07dd143f8c08a4b8a5": {}},' +\
+'"content":"Do you like rice?\\\"\\n\\n![](web+graphie:C:/users/jordan/codump/0a0c0f1a1a40226d8d227a07dd143f8c08a4b8a5)\\n\\n[[\\u2603 radio 1]]"},"itemDataVersion":{"minor":1,"major":0}}'
 
 SAMPLE_TREE = [
     {
-        "title": "Western Philosophy",
+        "title": "Rice 101",
         "id": "abd115",
-        "description": "Philosophy materials for the budding mind.",
+        "description": "Learn about how rice",
         "children": [
             {
-                "title": "Nicomachean Ethics",
-                "id": "ffda92",
-                "author": "Aristotle",
-                "description": "The Nicomachean Ethics is the name normally given to ...",
-                "file": ["https://archive.org/download/petersethics00arisrich/petersethics00arisrich.pdf"],
+                "title": "Rice Distribution",
+                "id": "aaaa4d",
+                "file": "https://ia801407.us.archive.org/21/items/ah_Rice/Rice.mp3",
+                "description": "Get online updates regarding world's leading long grain rice distributors, broken rice distributors, rice suppliers, parboiled rice exporter on our online B2B marketplace TradeBanq.",
                 "license": licenses.PUBLIC_DOMAIN,
+                "thumbnail": "https://upload.wikimedia.org/wikipedia/commons/b/ba/Rice_grains_(IRRI).jpg",
             },
             {
-
-                "title": "The Critique of Pure Reason",
+                "title": "Rice History",
                 "id": "6ef99c",
-                "description": "Kant saw the Critique of Pure Reason as an attempt to bridge the gap...",
+                "description": "Discover the history of rice",
                 "children": [
                     {
-                        "title": "01 - The Critique of Pure Reason",
-                        "id": "8326cc",
-                        "related_to": ["aaaa4d"],
-                        "file": "https://archive.org/download/critique_pure_reason_0709_librivox/critique_of_pure_reason_01_kant.mp3",
-                        # "subtitle": "https://archive.org/download/critique_pure_reason_0709_librivox/critique_of_pure_reason_01_kant.vtt",
-                        "author": "Immanuel Kant",
-                        "license": licenses.PUBLIC_DOMAIN,
+                        "title": "The History of Japanese Rice",
+                        "id": "418799",
+                        "author": "Sandra Lopez-Richter",
+                        "file": "https://ia601301.us.archive.org/31/items/The_History_of_Japanese_Rice_Lopez-Richter/The_History_of_Japanese_Rice_Lopez-Richter.pdf",
+                        "license": licenses.CC_BY,
+                        "thumbnail" : "http://res.freestockphotos.biz/pictures/17/17321-a-bowl-of-rice-with-chopsticks-pv.jpg",
                     },
-                    {
-                        "title": "02 - Preface to the Second Edition",
-                        "id": "aaaa4d",
-                        "author": "Immanuel Kant",
-                        "file": "https://ia801406.us.archive.org/13/items/alice_in_wonderland_librivox/wonderland_ch_01.mp3",
-                        "author": "Immanuel Kant",
-                        "license": licenses.PUBLIC_DOMAIN,
-                    }
                 ]
+            },
+            {
+                "title": "HTML Sample",
+                "id": "abcdef",
+                "description": "An example of how html can be imported from the ricecooker",
+                "license": licenses.PUBLIC_DOMAIN,
+                "file": "C:/users/jordan/Videos/testfolder/HTML Test.zip",
             },
         ]
     },
     {
-        "title": "Recipes",
+        "title": "Rice Cookers",
         "id": "d98752",
-        "description": "Recipes for various dishes.",
+        "description": "Start cooking rice today!",
         "children": [
             {
-                "title": "Smoked Brisket Recipe",
-                "id": "418799",
-                "author": "Bradley Smoker",
-                "file": "https://archive.org/download/SmokedBrisketRecipe/smokedbrisketrecipebybradleysmoker.mp4",
-                "subtitle": "something.vtt",
-                "license": licenses.CC_BY,
-                "thumbnail" : "https://www.kingsford.com/wp-content/uploads/2014/12/kfd-howtosmokebrisket-Brisket5_0267-1024x621.jpg",
-            },
-            {
-                "title": "Food Mob Bites 10: Garlic Bread",
+                "title": "Rice Chef",
                 "id": "6cafe2",
                 "author": "Revision 3",
-                "description": "Basic garlic bread recipe.",
-                "file": "https://archive.org/download/Food_Mob_Bites_10/foodmob--bites--0010--garlicbread--hd720p30.h264.mp4",
+                "description": "Become a master rice cooker",
+                "file": "https://ia600209.us.archive.org/27/items/RiceChef/Rice Chef.mp4",
                 "license": licenses.CC_BY_NC_SA,
-                "thumbnail":"https://cdn.kastatic.org/googleusercontent/4hbrDZGnw8OZKYo17pK-cA00doPXlaO_P_Gj8XGBZ5wYZZ6krD-4STwQ1b0nwY6jpLKB5dDBJEt2brKXdNW0dT0I",
+                "thumbnail":"https://pixabay.com/static/uploads/photo/2015/05/29/21/35/sushi-789820_960_720.jpg",
             },
             {
-                "title": "Recipe Exercise",
-                "id": "6cafe1",
-                "description": "Test how well you know your recipes",
+                "title": "Rice Exercise",
+                "id": "6cafe3",
+                "description": "Test how well you know your rice",
                 "license": licenses.CC_BY_NC_SA,
                 "mastery_model": exercises.M_OF_N,
-                "thumbnail":"https://cdn.kastatic.org/googleusercontent/4hbrDZGnw8OZKYo17pK-cA00doPXlaO_P_Gj8XGBZ5wYZZ6krD-4STwQ1b0nwY6jpLKB5dDBJEt2brKXdNW0dT0I",
+                "thumbnail":"http://www.publicdomainpictures.net/pictures/110000/nahled/bowl-of-rice.jpg",
                 "questions": [
                     {
                         "id": "eeeee",
-                        "question": "Which rice is your favorite? ![](file:///C:/Users/Jordan/Pictures/11881000_10207589179957262_1956307727_n.jpg)\n![](http://discovermagazine.com/~/media/Images/Issues/2014/JanFeb/golden-rice.jpg)",
+                        "question": "Which rice is your favorite? ![](http://discovermagazine.com/~/media/Images/Issues/2014/JanFeb/golden-rice.jpg)",
                         "type":exercises.MULTIPLE_SELECTION,
-                        "correct_answers": ["White rice ![](http://i2.cdn.turner.com/cnnnext/dam/assets/150327114100-06-rice-stock-super-169.jpg)", "Brown rice", "Sushi rice"],
-                        "all_answers": ["White rice ![](http://i2.cdn.turner.com/cnnnext/dam/assets/150327114100-06-rice-stock-super-169.jpg)", "Quinoa","Brown rice"],
+                        "correct_answers": [],
+                        "all_answers": [],
                     },
                     {
                         "id": "bbbbb",
-                        "question": "Which rice is the crunchiest?![](http://www.riceoutlook.com/wp-content/uploads/2016/07/Taiwan-rice.jpg)",
+                        "question": "Which rice is the crunchiest?",
                         "type":exercises.SINGLE_SELECTION,
-                        "correct_answer": "Rice Krispies",
-                        "all_answers": ["White rice", "Brown rice", "Rice Krispies"],
-                        "hints": "Has rice in it",
+                        "correct_answer":"",
+                        "all_answers": [],
+                        "hints": "It's delicious",
                     },
                     {
                         "id": "ccccc",
@@ -108,13 +96,54 @@ SAMPLE_TREE = [
                         "id": "aaaaa",
                         "question": "How many minutes does it take to cook rice? ![](https://upload.wikimedia.org/wikipedia/commons/5/5e/Jeera-rice.JPG)",
                         "type":exercises.INPUT_QUESTION,
-                        "answers": ["20", "25", "15"],
+                        "answers": [],
                         "hints": ["Takes roughly same amount of time to install kolibri on Windows machine", "Does this help?\n![](http://www.aroma-housewares.com/images/rice101/delay_timer_1.jpg)"],
                     },
                     {
                         "id": "ddddd",
                         "type":exercises.PERSEUS_QUESTION,
                         "item_data":SAMPLE_PERSEUS,
+                    },
+                ],
+            },
+            {
+                "title": "Rice Exercise 2",
+                "id": "6cafe4",
+                "description": "Test how well you know your rice",
+                "license": licenses.CC_BY_NC_SA,
+                "mastery_model": exercises.M_OF_N,
+                "thumbnail":"https://c1.staticflickr.com/5/4021/4302326650_b11f0f0aaf_b.jpg",
+                "questions": [
+                    {
+                        "id": "11111",
+                        "question": "<h3 id=\"rainbow\" style=\"font-weight:bold\">RICE COOKING!!!</h3><script type='text/javascript'><!-- setInterval(function() {$('#rainbow').css('color', '#'+((1<<24)*Math.random()|0).toString(16));}, 300); --></script>",
+                        "type":exercises.SINGLE_SELECTION,
+                        "all_answers": ["Rice, Rice, Baby!"],
+                        "correct_answer": "Rice, Rice, Baby!",
+                    },
+                ],
+            },
+            {
+                "title": "The Everyday Rice Cooker: Soups, Sides, Grains, Mains, and More",
+                "id": "aaaa5d",
+                "file": "https://ia601300.us.archive.org/13/items/RiceCookerery/DianePhillips-RiceCooker.mp3",
+                "license": licenses.PUBLIC_DOMAIN,
+                "author": "Diane Phillips",
+            },
+            {
+                "title": "Rice Exercise 3",
+                "id": "6cafe5",
+                "description": "Test how well you know your rice",
+                "license": licenses.CC_BY_NC_SA,
+                "mastery_model": exercises.M_OF_N,
+                "thumbnail":"https://upload.wikimedia.org/wikipedia/commons/b/b7/Rice_p1160004.jpg",
+                "questions": [
+                    {
+                        "id": "ccccc",
+                        "question": "Why? ![](http://agrointel.ro/wp-content/uploads/2015/04/orezul-auriu.jpg)",
+                        "type":exercises.SINGLE_SELECTION,
+                        "all_answers": ["Yes", "No", "Rice!"],
+                        "correct_answer": "Rice!",
                     },
                 ],
             },
@@ -126,9 +155,9 @@ def construct_channel(**kwargs):
 
     channel = Channel(
         domain="learningequality.org",
-        channel_id="sample-channel",
-        title="Sample channel",
-        thumbnail="https://s.graphiq.com/sites/default/files/stories/t4/15_Tiniest_Dog_Breeds_1718_3083.jpg",
+        channel_id="sample-ricecooker-channel",
+        title="Sample Ricecooker Channel",
+        thumbnail="https://upload.wikimedia.org/wikipedia/commons/thumb/5/50/Banaue_Philippines_Banaue-Rice-Terraces-01.jpg/640px-Banaue_Philippines_Banaue-Rice-Terraces-01.jpg",
     )
     _build_tree(channel, SAMPLE_TREE)
     raise_for_invalid_channel(channel)
@@ -219,6 +248,18 @@ def _build_tree(node, sourcetree):
             for q in child_source_node.get("questions"):
                 question = create_question(q)
                 child_node.add_question(question)
+            node.add_child(child_node)
+
+        elif kind == content_kinds.HTML5:
+            child_node = HTML(
+                id=child_source_node["id"],
+                title=child_source_node["title"],
+                author=child_source_node.get("author"),
+                description=child_source_node.get("description"),
+                files=child_source_node.get("file"),
+                license=child_source_node.get("license"),
+                thumbnail=child_source_node.get("thumbnail"),
+            )
             node.add_child(child_node)
 
         else:                   # unknown content file format
