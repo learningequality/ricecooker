@@ -1,18 +1,25 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import ricecooker
-from pip.req import parse_requirements
 from setuptools import setup, find_packages
 
-install_reqs = parse_requirements('requirements.txt')
 
-with open('README.rst') as readme_file:
+with open('README.md') as readme_file:
     readme = readme_file.read()
 
 with open('docs/history.rst') as history_file:
     history = history_file.read()
 
-requirements = [str(ir.req) for ir in install_reqs]
+requirements = [
+    "Click>=6.0",
+    "pytest>=3.0.2",
+    "requests>=2.11.1",
+    "pillow>=3.3.1",
+    "docopt>=0.6.2",
+    "le_utils==0.0.9rc7",
+    "validators",
+    "requests_file",
+]
 
 test_requirements = [
     # TODO: put package test requirements here

@@ -115,9 +115,10 @@ class Channel(Node):
         self.title = title
         self.description = "" if description is None else description
 
-        # Encode thumbnail to base64
-        downloader = DownloadManager()
-        self.thumbnail = downloader.encode_thumbnail(thumbnail)
+        # # Encode thumbnail to base64
+        self.thumbnail = ""
+        # downloader = DownloadManager()
+        # self.thumbnail = downloader.encode_thumbnail(thumbnail)
 
         # Add data to be used in next steps
         self._internal_domain = uuid.uuid5(uuid.NAMESPACE_DNS, self.domain)
@@ -175,6 +176,7 @@ class ContentNode(Node):
     def __init__(self, *args, **kwargs):
         # Map parameters to model variables
         self.id = args[0]
+        self.original_id = args[0]
         self.title = args[1]
         self.description = kwargs.get('description') or ""
         self.author = kwargs.get('author') or ""
@@ -183,8 +185,7 @@ class ContentNode(Node):
         # Set files into list format (adding thumbnail if provided)
         files = kwargs.get('files') or []
         self.files = [files] if isinstance(files, str) else files
-        if kwargs.get('thumbnail') is not None:
-            self.files.append(kwargs.get('thumbnail'))
+        self.thumbnail = kwargs.get('thumbnail')
 
         # Set any possible exercise data to standard format
         self.questions = kwargs.get('questions') or []
@@ -508,7 +509,6 @@ class Exercise(ContentNode):
         """
         try:
             assert self.kind == content_kinds.EXERCISE, "Assumption Failed: Node should be an exercise"
-            assert len(self.files) > 0 or len(self.questions) > 0, "Assumption Failed: Exercise should have at least one question or .perseus file"
             assert "mastery_model" in self.extra_fields, "Assumption Failed: Exercise must have a mastery model in extra_fields"
 
             # Check if there are any .perseus files

@@ -3,6 +3,7 @@
 import uuid
 import json
 import re
+import copy
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
 from ricecooker.exceptions import UnknownQuestionTypeError, InvalidQuestionException
 
@@ -28,6 +29,7 @@ class BaseQuestion:
         self.answers = answers if answers is not None else []
         self.hints = [] if hints is None else [hints] if isinstance(hints,str) else hints
         self.raw_data = raw_data
+        self.original_id = id
         self.id = uuid.uuid5(uuid.NAMESPACE_DNS, id)
 
     def to_dict(self):
@@ -80,11 +82,8 @@ class BaseQuestion:
             hint_files += hfiles
         self.hints = hints
 
-        # Process raw data
-        self.raw_data, data_files = self.set_images(self.raw_data, downloader)
-
         # Return all files
-        return question_files + answer_files + hint_files + data_files
+        return question_files + answer_files + hint_files
 
     def set_images(self, text, downloader):
         """ set_images: Replace image strings with downloaded image checksums
@@ -94,20 +93,31 @@ class BaseQuestion:
             Returns:string with checksums in place of image strings and
                 list of files that were downloaded from string
         """
+        # Set up return values and regex
         file_list = []
         processed_string = text
         reg = re.compile(FILE_REGEX, flags=re.IGNORECASE)
         graphie_reg = re.compile(WEB_GRAPHIE_URL_REGEX, flags=re.IGNORECASE)
         matches = reg.findall(processed_string)
+
+        # Parse all matches
         for match in matches:
+            # If it is a web+graphie, download svg and json files,
+            # Otherwise, download like other files
             graphie_match = graphie_reg.match(match[1])
-            if graphie_match is not None:
+            if graphie_match:
                 link = graphie_match.group().replace("web+graphie:", "")
-                filename, svg_filename, json_filename = downloader.download_graphie(link)
+                graphie_result = downloader.download_graphie(link, "Question {0}".format(self.original_id))
+                if not graphie_result:
+                    return "", []
+                filename, svg_filename, json_filename =graphie_result
                 processed_string = processed_string.replace(link, exercises.CONTENT_STORAGE_FORMAT.format(filename))
                 file_list += [svg_filename, json_filename]
             else:
-                filename = downloader.download_file(match[1], preset=format_presets.EXERCISE_IMAGE)
+                file_result = downloader.download_file(match[1], "Question {0}".format(self.original_id), preset=format_presets.EXERCISE_IMAGE, default_ext=".{}".format(file_formats.PNG))
+                if not file_result:
+                    return "", []
+                filename = file_result
                 processed_string = processed_string.replace(match[1], exercises.CONTENT_STORAGE_FORMAT.format(filename))
                 file_list += [filename]
         return processed_string, file_list
@@ -159,6 +169,87 @@ class PerseusQuestion(BaseQuestion):
         except AssertionError as ae:
             raise InvalidQuestionException("Invalid question: {0}".format(self.__dict__))
 
+    def process_question(self, downloader):
+        """ process_question: Parse data that needs to have image strings processed
+            Args:
+                downloader (DownloadManager): download manager to download images
+            Returns: list of all downloaded files
+        """
+        image_files=[]
+        image_data = json.loads(self.raw_data)
+
+        # Process question
+        if 'question' in image_data and 'images' in image_data['question']:
+            image_data['question']['images'], qfiles = self.process_image_field(image_data['question'], downloader)
+            image_files += qfiles
+
+        # Process hints
+        if 'hints' in image_data:
+            for hint in image_data['hints']:
+                if 'images' in hint:
+                    hint['images'], hfiles = self.process_image_field(hint, downloader)
+                    image_files += hfiles
+
+        # Process answers
+        if 'answers' in image_data:
+            for answer in image_data['answers']:
+                if 'images' in answer:
+                    answer['images'], afiles = self.process_image_field(answer, downloader)
+                    image_files += afiles
+
+        # Process raw data
+        self.raw_data = json.dumps(image_data, ensure_ascii=False)
+        self.raw_data, data_files = super(PerseusQuestion, self).set_images(self.raw_data, downloader)
+
+        # Return all files
+        return image_files + data_files
+
+    def process_image_field(self, data, downloader):
+        """ process_image_field: Specifically process perseus question image field
+            Args:
+                data (dict): data that contains 'images' field
+                downloader (DownloadManager): download manager to download images
+            Returns: list of all downloaded files
+        """
+        files = []
+
+        new_data = copy.deepcopy(data['images'])
+        for k, v in data['images'].items():
+            new_key, fs = self.set_image(k, downloader)
+            files += fs
+            new_data[new_key] = new_data.pop(k)
+        return new_data, files
+
+    def set_image(self, text, downloader):
+        """ set_images: Replace image strings with downloaded image checksums
+            Args:
+                text (str): text to parse for image strings
+                downloader (DownloadManager): download manager to download images
+            Returns:string with checksums in place of image strings and
+                list of files that were downloaded from string
+        """
+        # Set up return values and regex
+        file_list = []
+        graphie_reg = re.compile(WEB_GRAPHIE_URL_REGEX, flags=re.IGNORECASE)
+        graphie_match = graphie_reg.match(text)
+        # If it is a web+graphie, download svg and json files,
+        # Otherwise, download like other files
+        if graphie_match:
+            link = graphie_match.group().replace("web+graphie:", "")
+            graphie_result = downloader.download_graphie(link, "Question {0}".format(self.original_id))
+            if not graphie_result:
+                return "", []
+            filename, svg_filename, json_filename = graphie_result
+            text = text.replace(link, exercises.CONTENT_STORAGE_FORMAT.format(filename))
+            file_list += [svg_filename, json_filename]
+        else:
+            result = downloader.download_file(text, "Question {0}".format(self.original_id), preset=format_presets.EXERCISE_IMAGE, default_ext=".{}".format(file_formats.PNG))
+            if not result:
+                return "", []
+            filename = result
+            text = text.replace(text, exercises.CONTENT_STORAGE_FORMAT.format(filename))
+            file_list += [filename]
+        return text, file_list
 
 class MultipleSelectQuestion(BaseQuestion):
     """ Model representing multiple select questions
