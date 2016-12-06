@@ -20,7 +20,7 @@ def uploadchannel(path, debug, verbose=False, update=False, resume=False, reset=
     # Get domain to upload to
     domain = config.PRODUCTION_DOMAIN
     if debug:
-      domain = config.DEBUG_DOMAIN
+        domain = config.DEBUG_DOMAIN
     config.init_file_mapping_store(debug)
 
     if verbose:

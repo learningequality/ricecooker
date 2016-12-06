@@ -105,7 +105,7 @@ class BaseQuestion:
             # If it is a web+graphie, download svg and json files,
             # Otherwise, download like other files
             graphie_match = graphie_reg.match(match[1])
-            if graphie_match is not None:
+            if graphie_match:
                 link = graphie_match.group().replace("web+graphie:", "")
                 graphie_result = downloader.download_graphie(link, "Question {0}".format(self.original_id))
                 if not graphie_result:
@@ -234,7 +234,7 @@ class PerseusQuestion(BaseQuestion):
         graphie_match = graphie_reg.match(text)
         # If it is a web+graphie, download svg and json files,
         # Otherwise, download like other files
-        if graphie_match is not None:
+        if graphie_match:
             link = graphie_match.group().replace("web+graphie:", "")
             graphie_result = downloader.download_graphie(link, "Question {0}".format(self.original_id))
             if not graphie_result:
