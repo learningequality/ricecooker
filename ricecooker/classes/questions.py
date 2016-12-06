@@ -29,7 +29,7 @@ class BaseQuestion:
         self.answers = answers if answers is not None else []
         self.hints = [] if hints is None else [hints] if isinstance(hints,str) else hints
         self.raw_data = raw_data
-        self.original_id=id
+        self.original_id = id
         self.id = uuid.uuid5(uuid.NAMESPACE_DNS, id)
 
     def to_dict(self):
