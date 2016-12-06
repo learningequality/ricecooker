@@ -125,7 +125,7 @@ class BaseQuestion:
         title="Question {0}".format(self.original_id)
         # If it is a web+graphie, download svg and json files,
         # Otherwise, download like other files
-        if graphie_match is not None:
+        if graphie_match:
             text = graphie_match.group().replace("web+graphie:", "")
             result = downloader.download_graphie(text, title)
         else:
@@ -133,7 +133,7 @@ class BaseQuestion:
         if not result:
             return "", []
         replacement = result['filename']
-        if graphie_match is not None:
+        if graphie_match:
             replacement = result['original_filename']
         text = text.replace(text, exercises.CONTENT_STORAGE_FORMAT.format(replacement))
         return text, [result]

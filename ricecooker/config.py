@@ -4,7 +4,7 @@ import os
 import json
 
 # Domain for uploading to production server
-PRODUCTION_DOMAIN = "https://contentworkshop.learningequality.org"
+PRODUCTION_DOMAIN = os.getenv('CONTENTWORKSHOP_URL', "https://contentworkshop.learningequality.org")
 
 # Domain for uploading to local machine
 DEBUG_DOMAIN = "http://127.0.0.1:8000"

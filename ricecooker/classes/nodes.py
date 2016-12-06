@@ -502,7 +502,6 @@ class Exercise(ContentNode):
         """
         try:
             assert self.kind == content_kinds.EXERCISE, "Assumption Failed: Node should be an exercise"
-            # assert len(self.files) > 0 or len(self.questions) > 0, "Assumption Failed: Exercise should have at least one question or .perseus file"
             assert "mastery_model" in self.extra_fields, "Assumption Failed: Exercise must have a mastery model in extra_fields"
 
             # Check if there are any .perseus files
