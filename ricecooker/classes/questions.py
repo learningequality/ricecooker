@@ -11,6 +11,9 @@ from ricecooker.exceptions import UnknownQuestionTypeError, InvalidQuestionExcep
 
 WEB_GRAPHIE_URL_REGEX = r'web\+graphie:([^\)]+)'
 FILE_REGEX = r'!\[([^\]]+)?\]\(([^\)]+)\)'
+IMG_REGEX = r'<\s*img[^>]+>'
+IMG_SRC_REGEX = r'\ssrc\s*=\"([^"]+)\"'
+IMG_ALT_REGEX = r'\salt\s*=\"([^"]+)\"'
 
 class BaseQuestion:
     """ Base model representing exercise questions
@@ -98,7 +101,7 @@ class BaseQuestion:
         """
         # Set up return values and regex
         file_list = []
-        processed_string = text
+        processed_string = self.parse_html(text)
         reg = re.compile(FILE_REGEX, flags=re.IGNORECASE)
         matches = reg.findall(processed_string)
 
@@ -111,6 +114,39 @@ class BaseQuestion:
             processed_string = processed_string.replace(match[1], replacement)
             file_list += new_files
         return processed_string, file_list
+
+    def parse_html(self, text):
+        """ parse_html: Properly formats any img tags that might be in content
+            Args:
+                text (str): text to parse
+            Returns: string with properly formatted images
+        """
+        reg = re.compile(IMG_REGEX, flags=re.IGNORECASE)
+        src_reg = re.compile(IMG_SRC_REGEX, flags=re.IGNORECASE)
+        alt_reg = re.compile(IMG_ALT_REGEX, flags=re.IGNORECASE)
+        file_reg = re.compile(FILE_REGEX, flags=re.IGNORECASE)
+
+        # Go through all img tags in text
+        matches = reg.findall(text)
+        for match in matches:
+            src_text = ""
+            alt_text = ""
+
+            # Look for src attribute
+            src_match = src_reg.search(match)
+            if src_match:
+                formatted_src_match = file_reg.search(src_match.group(1))
+                src_text = formatted_src_match.group(2) if formatted_src_match else src_match.group(1)
+
+            # Look for alt attribute
+            alt_match = alt_reg.search(match)
+            if alt_match:
+                alt_text = alt_match.group(1)
+
+            # Replace img tag with formatted string
+            text = text.replace(match, "![{alt}]({src})".format(alt=alt_text, src=src_text))
+
+        return text
 
     def set_image(self, text, downloader):
         """ set_image: Replace image string with downloaded image checksum

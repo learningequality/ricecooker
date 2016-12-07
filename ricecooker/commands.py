@@ -7,6 +7,7 @@ from ricecooker import config
 from ricecooker.classes import nodes, questions
 from requests.exceptions import HTTPError
 from ricecooker.managers import ChannelManager, RestoreManager, Status
+from importlib.machinery import SourceFileLoader
 
 def uploadchannel(path, debug, verbose=False, update=False, resume=False, reset=False, step=Status.LAST.name, token="#", prompt=False, publish=False, warnings=False, **kwargs):
     """ uploadchannel: Upload channel to Kolibri Studio server
@@ -161,12 +162,12 @@ def run_construct_channel(path, progress_manager, kwargs):
         Returns: channel created from contruct_channel method
     """
     # Read in file to access create_channel method
-    exec(open(path).read(), globals())
+    mod = SourceFileLoader("mod", path).load_module()
 
     # Create channel (using method from imported file)
     if config.VERBOSE:
         sys.stderr.write("\nConstructing channel... ")
-    channel = construct_channel(**kwargs)
+    channel = mod.construct_channel(**kwargs)
     progress_manager.set_channel(channel)
     return channel
 
