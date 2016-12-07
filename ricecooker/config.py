@@ -9,7 +9,8 @@ VERBOSE = False
 TOKEN = "#"
 
 # Domain and file store location for uploading to production server
-PRODUCTION_DOMAIN = "https://contentworkshop.learningequality.org"
+# Domain for uploading to production server
+PRODUCTION_DOMAIN = os.getenv('CONTENTWORKSHOP_URL', "https://contentworkshop.learningequality.org")
 PRODUCTION_FILE_STORE_LOCATION = "production"
 
 # Domain and file store location for uploading to local machine
