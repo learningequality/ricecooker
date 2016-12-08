@@ -5,6 +5,7 @@ import json
 import re
 import copy
 import sys
+from bs4 import BeautifulSoup
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
 from ricecooker import config
 from ricecooker.exceptions import UnknownQuestionTypeError, InvalidQuestionException
@@ -108,11 +109,10 @@ class BaseQuestion:
         # Parse all matches
         for match in matches:
             file_result=self.set_image(match[1], downloader)
-            if file_result[0]=="":
-                return "", []
-            replacement, new_files = file_result
-            processed_string = processed_string.replace(match[1], replacement)
-            file_list += new_files
+            if file_result[0] != "":
+                replacement, new_files = file_result
+                processed_string = processed_string.replace(match[1], replacement)
+                file_list += new_files
         return processed_string, file_list
 
     def parse_html(self, text):
@@ -121,32 +121,19 @@ class BaseQuestion:
                 text (str): text to parse
             Returns: string with properly formatted images
         """
-        reg = re.compile(IMG_REGEX, flags=re.IGNORECASE)
-        src_reg = re.compile(IMG_SRC_REGEX, flags=re.IGNORECASE)
-        alt_reg = re.compile(IMG_ALT_REGEX, flags=re.IGNORECASE)
+        bs = BeautifulSoup(text, "html.parser")
         file_reg = re.compile(FILE_REGEX, flags=re.IGNORECASE)
+        tags = bs.findAll('img')
 
-        # Go through all img tags in text
-        matches = reg.findall(text)
-        for match in matches:
-            src_text = ""
-            alt_text = ""
+        for tag in tags:
+            # Look for src attribute, remove formatting if added to image
+            src_text = tag.get("src") or ""
+            formatted_src_match = file_reg.search(src_text)
+            src_text = formatted_src_match.group(2) if formatted_src_match else src_text
 
-            # Look for src attribute
-            src_match = src_reg.search(match)
-            if src_match:
-                formatted_src_match = file_reg.search(src_match.group(1))
-                src_text = formatted_src_match.group(2) if formatted_src_match else src_match.group(1)
-
-            # Look for alt attribute
-            alt_match = alt_reg.search(match)
-            if alt_match:
-                alt_text = alt_match.group(1)
-
-            # Replace img tag with formatted string
-            text = text.replace(match, "![{alt}]({src})".format(alt=alt_text, src=src_text))
-
-        return text
+            alt_text = tag.get("alt") or ""
+            tag.replaceWith("![{alt}]({src})".format(alt=alt_text, src=src_text))
+        return str(bs)
 
     def set_image(self, text, downloader):
         """ set_image: Replace image string with downloaded image checksum
