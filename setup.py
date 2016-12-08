@@ -19,6 +19,7 @@ requirements = [
     "le_utils==0.0.9rc12",
     "validators",
     "requests_file",
+    "beautifulsoup4==4.5.1",
 ]
 
 test_requirements = [
