@@ -4,11 +4,17 @@ import uuid
 import json
 import re
 import copy
+import sys
+from bs4 import BeautifulSoup
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
+from ricecooker import config
 from ricecooker.exceptions import UnknownQuestionTypeError, InvalidQuestionException
 
 WEB_GRAPHIE_URL_REGEX = r'web\+graphie:([^\)]+)'
 FILE_REGEX = r'!\[([^\]]+)?\]\(([^\)]+)\)'
+IMG_REGEX = r'<\s*img[^>]+>'
+IMG_SRC_REGEX = r'\ssrc\s*=\"([^"]+)\"'
+IMG_ALT_REGEX = r'\salt\s*=\"([^"]+)\"'
 
 class BaseQuestion:
     """ Base model representing exercise questions
@@ -26,6 +32,7 @@ class BaseQuestion:
     def __init__(self, id, question, question_type, answers=None, hints=None, raw_data=""):
         self.question = question
         self.question_type = question_type
+        self.files=[]
         self.answers = answers if answers is not None else []
         self.hints = [] if hints is None else [hints] if isinstance(hints,str) else hints
         self.raw_data = raw_data
@@ -40,6 +47,7 @@ class BaseQuestion:
         return {
             "assessment_id": self.id.hex,
             "type": self.question_type,
+            "files": self.files,
             "question": self.question,
             "hints": json.dumps(self.hints, ensure_ascii=False),
             "answers": json.dumps(self.answers, ensure_ascii=False),
@@ -82,8 +90,7 @@ class BaseQuestion:
             hint_files += hfiles
         self.hints = hints
 
-        # Return all files
-        return question_files + answer_files + hint_files
+        self.files += question_files + answer_files + hint_files
 
     def set_images(self, text, downloader):
         """ set_images: Replace image strings with downloaded image checksums
@@ -95,32 +102,66 @@ class BaseQuestion:
         """
         # Set up return values and regex
         file_list = []
-        processed_string = text
+        processed_string = self.parse_html(text)
         reg = re.compile(FILE_REGEX, flags=re.IGNORECASE)
-        graphie_reg = re.compile(WEB_GRAPHIE_URL_REGEX, flags=re.IGNORECASE)
         matches = reg.findall(processed_string)
 
         # Parse all matches
         for match in matches:
-            # If it is a web+graphie, download svg and json files,
-            # Otherwise, download like other files
-            graphie_match = graphie_reg.match(match[1])
-            if graphie_match:
-                link = graphie_match.group().replace("web+graphie:", "")
-                graphie_result = downloader.download_graphie(link, "Question {0}".format(self.original_id))
-                if not graphie_result:
-                    return "", []
-                filename, svg_filename, json_filename =graphie_result
-                processed_string = processed_string.replace(link, exercises.CONTENT_STORAGE_FORMAT.format(filename))
-                file_list += [svg_filename, json_filename]
-            else:
-                file_result = downloader.download_file(match[1], "Question {0}".format(self.original_id), preset=format_presets.EXERCISE_IMAGE, default_ext=".{}".format(file_formats.PNG))
-                if not file_result:
-                    return "", []
-                filename = file_result
-                processed_string = processed_string.replace(match[1], exercises.CONTENT_STORAGE_FORMAT.format(filename))
-                file_list += [filename]
+            file_result=self.set_image(match[1], downloader)
+            if file_result[0] != "":
+                replacement, new_files = file_result
+                processed_string = processed_string.replace(match[1], replacement)
+                file_list += new_files
         return processed_string, file_list
+
+    def parse_html(self, text):
+        """ parse_html: Properly formats any img tags that might be in content
+            Args:
+                text (str): text to parse
+            Returns: string with properly formatted images
+        """
+        bs = BeautifulSoup(text, "html.parser")
+        file_reg = re.compile(FILE_REGEX, flags=re.IGNORECASE)
+        tags = bs.findAll('img')
+
+        for tag in tags:
+            # Look for src attribute, remove formatting if added to image
+            src_text = tag.get("src") or ""
+            formatted_src_match = file_reg.search(src_text)
+            src_text = formatted_src_match.group(2) if formatted_src_match else src_text
+
+            alt_text = tag.get("alt") or ""
+            tag.replaceWith("![{alt}]({src})".format(alt=alt_text, src=src_text))
+        return str(bs)
+
+    def set_image(self, text, downloader):
+        """ set_image: Replace image string with downloaded image checksum
+            Args:
+                text (str): text to parse for image strings
+                downloader (DownloadManager): download manager to download images
+            Returns:string with checksums in place of image strings and
+                list of files that were downloaded from string
+        """
+        # Set up return values and regex
+        graphie_reg = re.compile(WEB_GRAPHIE_URL_REGEX, flags=re.IGNORECASE)
+        graphie_match = graphie_reg.match(text)
+        result=None
+        replacement = None
+        title="Question {0}".format(self.original_id)
+        # If it is a web+graphie, download svg and json files,
+        # Otherwise, download like other files
+        if graphie_match is not None:
+            text = graphie_match.group().replace("web+graphie:", "")
+            result = downloader.download_graphie(text, title)
+            replacement = result['original_filename'] if result else ""
+        else:
+            result = downloader.download_file(text, title, preset=format_presets.EXERCISE_IMAGE, default_ext=file_formats.PNG)
+            replacement = result['filename'] if result else ""
+        if not result:
+            return "", []
+        text = text.replace(text, exercises.CONTENT_STORAGE_FORMAT.format(replacement))
+        return text, [result]
 
     def validate(self):
         """ validate: Makes sure question is valid
@@ -202,7 +243,7 @@ class PerseusQuestion(BaseQuestion):
         self.raw_data, data_files = super(PerseusQuestion, self).set_images(self.raw_data, downloader)
 
         # Return all files
-        return image_files + data_files
+        self.files += image_files + data_files
 
     def process_image_field(self, data, downloader):
         """ process_image_field: Specifically process perseus question image field
@@ -219,37 +260,6 @@ class PerseusQuestion(BaseQuestion):
             files += fs
             new_data[new_key] = new_data.pop(k)
         return new_data, files
-
-    def set_image(self, text, downloader):
-        """ set_images: Replace image strings with downloaded image checksums
-            Args:
-                text (str): text to parse for image strings
-                downloader (DownloadManager): download manager to download images
-            Returns:string with checksums in place of image strings and
-                list of files that were downloaded from string
-        """
-        # Set up return values and regex
-        file_list = []
-        graphie_reg = re.compile(WEB_GRAPHIE_URL_REGEX, flags=re.IGNORECASE)
-        graphie_match = graphie_reg.match(text)
-        # If it is a web+graphie, download svg and json files,
-        # Otherwise, download like other files
-        if graphie_match:
-            link = graphie_match.group().replace("web+graphie:", "")
-            graphie_result = downloader.download_graphie(link, "Question {0}".format(self.original_id))
-            if not graphie_result:
-                return "", []
-            filename, svg_filename, json_filename = graphie_result
-            text = text.replace(link, exercises.CONTENT_STORAGE_FORMAT.format(filename))
-            file_list += [svg_filename, json_filename]
-        else:
-            result = downloader.download_file(text, "Question {0}".format(self.original_id), preset=format_presets.EXERCISE_IMAGE, default_ext=".{}".format(file_formats.PNG))
-            if not result:
-                return "", []
-            filename = result
-            text = text.replace(text, exercises.CONTENT_STORAGE_FORMAT.format(filename))
-            file_list += [filename]
-        return text, file_list
 
 class MultipleSelectQuestion(BaseQuestion):
     """ Model representing multiple select questions
@@ -275,6 +285,10 @@ class MultipleSelectQuestion(BaseQuestion):
         set_all_answers = set(all_answers)
         all_answers += [answer for answer in correct_answers if answer not in set_all_answers]
         answers = [self.create_answer(answer, answer in correct_answers) for answer in all_answers]
+        if len(answers) == 0:
+            answers = [self.create_answer('No answers provided.')]
+            if config.WARNING:
+                sys.stderr.write("\n\tWARNING: Question {id} does not have any answers (set to default)".format(id=id))
         super(MultipleSelectQuestion, self).__init__(id, question, exercises.MULTIPLE_SELECTION, answers, hints)
 
     def validate(self):
@@ -316,6 +330,10 @@ class SingleSelectQuestion(BaseQuestion):
         if correct_answer not in all_answers:
             all_answers += [correct_answer]
         answers = [self.create_answer(answer, answer==correct_answer) for answer in all_answers]
+        if len(answers) == 0:
+            answers = [self.create_answer('No answers provided.')]
+            if config.WARNING:
+                sys.stderr.write("\n\tWARNING: Question {id} does not have any answers (set to default)".format(id=id))
         super(SingleSelectQuestion, self).__init__(id, question, exercises.SINGLE_SELECTION, answers, hints)
 
     def validate(self):
@@ -386,6 +404,10 @@ class InputQuestion(BaseQuestion):
     def __init__(self, id, question, answers, hints=None):
         hints = [] if hints is None else hints
         answers = [self.create_answer(answer) for answer in answers]
+        if len(answers) == 0:
+            answers = [self.create_answer('No answers provided.')]
+            if config.WARNING:
+                sys.stderr.write("\n\tWARNING: Question {id} does not have any answers (set to default)".format(id=id))
         super(InputQuestion, self).__init__(id, question, exercises.INPUT_QUESTION, answers, hints)
 
     def validate(self):
