@@ -6,7 +6,7 @@ import webbrowser
 from ricecooker import config
 from ricecooker.classes import nodes, questions
 from requests.exceptions import HTTPError
-from ricecooker.managers import ChannelManager, RestoreManager, Status
+from ricecooker.managers import ChannelManager, RestoreManager, Status, DownloadManager
 from importlib.machinery import SourceFileLoader
 
 def uploadchannel(path, verbose=False, update=False, resume=False, reset=False, step=Status.LAST.name, token="#", prompt=False, publish=False, warnings=False, **kwargs):
@@ -34,6 +34,7 @@ def uploadchannel(path, verbose=False, update=False, resume=False, reset=False, 
 
     # Get domain to upload to
     config.init_file_mapping_store()
+    config.DOWNLOADER = DownloadManager(config.get_file_store())
 
     # Authenticate user
     if config.TOKEN != "#":
@@ -56,67 +57,63 @@ def uploadchannel(path, verbose=False, update=False, resume=False, reset=False, 
         sys.stderr.write("\n\n***** Starting channel build process *****")
 
     # Set up progress tracker
-    progress_manager = RestoreManager()
-    if (reset or not progress_manager.check_for_session()) and step.upper() != Status.DONE.name:
-        progress_manager.init_session()
+    config.PROGRESS_MANAGER = RestoreManager()
+    if (reset or not config.PROGRESS_MANAGER.check_for_session()) and step.upper() != Status.DONE.name:
+        config.PROGRESS_MANAGER.init_session()
     else:
         if resume or prompt_resume():
             if config.VERBOSE:
                 sys.stderr.write("\nResuming your last session...")
             step = Status.LAST.name if step is None else step
-            progress_manager = progress_manager.load_progress(step.upper())
+            config.PROGRESS_MANAGER = config.PROGRESS_MANAGER.load_progress(step.upper())
         else:
-            progress_manager.init_session()
+            config.PROGRESS_MANAGER.init_session()
 
     # Construct channel if it hasn't been constructed already
-    if progress_manager.get_status_val() <= Status.CONSTRUCT_CHANNEL.value:
-        channel = run_construct_channel(path, progress_manager, kwargs)
-    else:
-        channel = progress_manager.channel
+    if config.PROGRESS_MANAGER.get_status_val() <= Status.CONSTRUCT_CHANNEL.value:
+        config.PROGRESS_MANAGER.set_channel(run_construct_channel(path, kwargs))
+    channel = config.PROGRESS_MANAGER.channel
 
     # Set initial tree if it hasn't been set already
-    if progress_manager.get_status_val() <= Status.CREATE_TREE.value:
-        tree = create_initial_tree(channel, progress_manager, config.get_file_store())
-    else:
-        tree = progress_manager.tree
+    if config.PROGRESS_MANAGER.get_status_val() <= Status.CREATE_TREE.value:
+        config.PROGRESS_MANAGER.set_tree(create_initial_tree(channel))
+    tree = config.PROGRESS_MANAGER.tree
 
     # Download files if they haven't been downloaded already
-    if progress_manager.get_status_val() <= Status.DOWNLOAD_FILES.value:
-        process_tree_files(tree, progress_manager)
-    else:
-        tree.downloader.files = progress_manager.files_downloaded
-        tree.downloader.failed_files = progress_manager.files_failed
-        tree.downloader._file_mapping = progress_manager.file_mapping
+    if config.PROGRESS_MANAGER.get_status_val() <= Status.DOWNLOAD_FILES.value:
+        config.PROGRESS_MANAGER.set_files(*process_tree_files(tree))
+    config.DOWNLOADER.files = config.PROGRESS_MANAGER.files_downloaded
+    config.DOWNLOADER.failed_files = config.PROGRESS_MANAGER.files_failed
+    config.DOWNLOADER._file_mapping = config.PROGRESS_MANAGER.file_mapping
 
     # Get file diff if it hasn't been generated already
-    if progress_manager.get_status_val() <= Status.GET_FILE_DIFF.value:
-        file_diff = get_file_diff(tree, progress_manager)
-    else:
-        file_diff = progress_manager.file_diff
+    if config.PROGRESS_MANAGER.get_status_val() <= Status.GET_FILE_DIFF.value:
+        config.PROGRESS_MANAGER.set_diff(get_file_diff(tree))
+    file_diff = config.PROGRESS_MANAGER.file_diff
 
     # Set which files have already been uploaded
-    tree.uploaded_files = progress_manager.files_uploaded
+    tree.uploaded_files = config.PROGRESS_MANAGER.files_uploaded
 
     # Upload files if they haven't been uploaded already
-    if progress_manager.get_status_val() <= Status.UPLOADING_FILES.value:
-        upload_files(tree, file_diff, progress_manager)
+    if config.PROGRESS_MANAGER.get_status_val() <= Status.UPLOADING_FILES.value:
+        config.PROGRESS_MANAGER.set_uploaded(upload_files(tree, file_diff))
 
     # Create channel on Kolibri Studio if it hasn't been created already
-    if progress_manager.get_status_val() <= Status.UPLOAD_CHANNEL.value:
-        channel_id, channel_link = create_tree(tree, progress_manager)
-    else:
-        channel_link = progress_manager.channel_link
-        channel_id = progress_manager.channel_id
+    if config.PROGRESS_MANAGER.get_status_val() <= Status.UPLOAD_CHANNEL.value:
+        config.PROGRESS_MANAGER.set_channel_created(*create_tree(tree))
+    channel_link = config.PROGRESS_MANAGER.channel_link
+    channel_id = config.PROGRESS_MANAGER.channel_id
 
     # Publish tree if flag is set to True
-    if publish and progress_manager.get_status_val() <= Status.PUBLISH_CHANNEL.value:
-        publish_tree(tree, progress_manager, channel_id)
+    if publish and config.PROGRESS_MANAGER.get_status_val() <= Status.PUBLISH_CHANNEL.value:
+        publish_tree(tree, channel_id)
+        config.PROGRESS_MANAGER.set_published()
 
     # Open link on web browser (if specified) and return new link
     sys.stderr.write("\n\nDONE: Channel created at {0}\n".format(channel_link))
     if prompt:
         prompt_open(channel_link)
-    progress_manager.set_done()
+    config.PROGRESS_MANAGER.set_done()
     return channel_link
 
 def prompt_token(domain):
@@ -149,11 +146,10 @@ def prompt_resume():
     else:
         return prompt_resume()
 
-def run_construct_channel(path, progress_manager, kwargs):
+def run_construct_channel(path, kwargs):
     """ run_construct_channel: Run sushi chef's construct_channel method
         Args:
             path (str): path to sushi chef file
-            progress_manager (RestoreManager): manager to keep track of progress
             kwargs (dict): additional keyword arguments
         Returns: channel created from contruct_channel method
     """
@@ -164,21 +160,18 @@ def run_construct_channel(path, progress_manager, kwargs):
     if config.VERBOSE:
         sys.stderr.write("\nConstructing channel... ")
     channel = mod.construct_channel(**kwargs)
-    progress_manager.set_channel(channel)
     return channel
 
-def create_initial_tree(channel, progress_manager, file_store):
+def create_initial_tree(channel):
     """ create_initial_tree: Create initial tree structure
         Args:
             channel (Channel): channel to construct
-            progress_manager (RestoreManager): manager to keep track of progress
-            file_store (str): path to list of files that have been downloaded
         Returns: tree manager to run rest of steps
     """
     # Create channel manager with channel data
     if config.VERBOSE:
         sys.stderr.write("\n   Setting up initial channel structure... ")
-    tree = ChannelManager(channel, file_store)
+    tree = ChannelManager(channel)
     if config.VERBOSE:
         sys.stderr.write("DONE")
 
@@ -196,14 +189,12 @@ def create_initial_tree(channel, progress_manager, file_store):
     tree.validate()
     if config.VERBOSE:
         sys.stderr.write("\n   Tree is valid\n")
-    progress_manager.set_tree(tree)
     return tree
 
-def process_tree_files(tree, progress_manager):
+def process_tree_files(tree):
     """ process_tree_files: Download files from nodes
         Args:
             tree (ChannelManager): manager to handle communication to Kolibri Studio
-            progress_manager (RestoreManager): manager to keep track of progress
         Returns: None
     """
     # Fill in values necessary for next steps
@@ -211,16 +202,15 @@ def process_tree_files(tree, progress_manager):
         sys.stderr.write("\nProcessing content...")
     tree.process_tree(tree.channel)
     tree.check_for_files_failed()
-    config.set_file_store(tree.downloader.file_store)
+    config.set_file_store(config.DOWNLOADER.file_store)
     if config.VERBOSE:
         sys.stderr.write("\n")
-    progress_manager.set_files(tree.downloader.get_files(), tree.downloader.get_file_mapping(), tree.downloader.failed_files)
+    return config.DOWNLOADER.get_files(), config.DOWNLOADER.get_file_mapping(), config.DOWNLOADER.failed_files
 
-def get_file_diff(tree, progress_manager):
+def get_file_diff(tree):
     """ get_file_diff: Download files from nodes
         Args:
             tree (ChannelManager): manager to handle communication to Kolibri Studio
-            progress_manager (RestoreManager): manager to keep track of progress
         Returns: list of files that are not on Kolibri Studio
     """
     # Determine which files have not yet been uploaded to the CC server
@@ -229,36 +219,33 @@ def get_file_diff(tree, progress_manager):
     file_diff = tree.get_file_diff()
     if config.VERBOSE:
         sys.stderr.write("\n")
-    progress_manager.set_diff(file_diff)
     return file_diff
 
-def upload_files(tree, file_diff, progress_manager):
+def upload_files(tree, file_diff):
     """ upload_files: Upload files to Kolibri Studio
         Args:
             tree (ChannelManager): manager to handle communication to Kolibri Studio
             file_diff ([str]): list of files to upload
-            progress_manager (RestoreManager): manager to keep track of progress
         Returns: None
     """
     # Upload new files to CC
-    tree.upload_files(file_diff, progress_manager)
+    tree.upload_files(file_diff)
     if config.VERBOSE:
         sys.stderr.write("\n")
-    progress_manager.set_uploaded(file_diff)
+    return file_diff
 
-def create_tree(tree, progress_manager):
+def create_tree(tree):
     """ create_tree: Upload tree to Kolibri Studio
         Args:
             tree (ChannelManager): manager to handle communication to Kolibri Studio
-            progress_manager (RestoreManager): manager to keep track of progress
         Returns: channel id of created channel and link to channel
     """
     # Create tree
     if config.VERBOSE:
         sys.stderr.write("\nCreating tree on Kolibri Studio...")
     channel_id, channel_link = tree.upload_tree()
-    progress_manager.set_channel_created(channel_link, channel_id)
-    return channel_id, channel_link
+
+    return channel_link, channel_id
 
 def prompt_open(channel_link):
     """ prompt_open: Prompt user to open web browser
@@ -277,11 +264,10 @@ def prompt_open(channel_link):
     else:
         prompt_open(channel_link)
 
-def publish_tree(tree, progress_manager, channel_id):
+def publish_tree(tree, channel_id):
     """ publish_tree: Publish tree to Kolibri
         Args:
             tree (ChannelManager): manager to handle communication to Kolibri Studio
-            progress_manager (RestoreManager): manager to keep track of progress
             channel_id (str): id of channel to publish
         Returns: None
     """
@@ -290,4 +276,3 @@ def publish_tree(tree, progress_manager, channel_id):
     tree.publish(channel_id)
     if config.VERBOSE:
         sys.stderr.write("DONE")
-    progress_manager.set_published()

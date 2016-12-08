@@ -328,11 +328,9 @@ class ChannelManager:
 
         Attributes:
             channel (Channel): channel that manager is handling
-            downloader (DownloadManager): download manager for handling files
     """
-    def __init__(self, channel, file_store):
+    def __init__(self, channel):
         self.channel = channel # Channel to process
-        self.downloader = DownloadManager(file_store)
         self.uploaded_files=[]
         self.failed_node_builds=[]
 
@@ -372,12 +370,12 @@ class ChannelManager:
         # If node is not a channel, download files
         if isinstance(node, nodes.Channel):
             if node.thumbnail is not None and node.thumbnail != "":
-                file_data = self.downloader.download_file(node.thumbnail, "Channel Thumbnail", default_ext=file_formats.PNG)
+                file_data = config.DOWNLOADER.download_file(node.thumbnail, "Channel Thumbnail", default_ext=file_formats.PNG)
                 node.thumbnail = file_data['filename'] if file_data else ""
         else:
-            node.files = self.downloader.download_files(node.files, "Node {}".format(node.original_id))
+            node.files = config.DOWNLOADER.download_files(node.files, "Node {}".format(node.original_id))
             if node.thumbnail is not None:
-                result = self.downloader.download_files([node.thumbnail], "Node {}".format(node.original_id), default_ext=file_formats.PNG)
+                result = config.DOWNLOADER.download_files([node.thumbnail], "Node {}".format(node.original_id), default_ext=file_formats.PNG)
                 if result:
                     node.files += result
 
@@ -385,7 +383,7 @@ class ChannelManager:
             if isinstance(node, nodes.Exercise):
                 if config.VERBOSE:
                     sys.stderr.write("\n\t*** Processing images for exercise: {}".format(node.title))
-                node.process_questions(self.downloader)
+                node.process_questions()
                 if config.VERBOSE:
                     sys.stderr.write("\n\t*** Images for {} have been processed".format(node.title))
 
@@ -398,11 +396,11 @@ class ChannelManager:
             Args: None
             Returns: None
         """
-        if self.downloader.has_failed_files():
+        if config.DOWNLOADER.has_failed_files():
             if config.WARNING:
-                self.downloader.print_failed()
+                config.DOWNLOADER.print_failed()
             else:
-                sys.stderr.write("\n   {} file(s) have failed to download".format(len(self.downloader.failed_files)))
+                sys.stderr.write("\n   {} file(s) have failed to download".format(len(config.DOWNLOADER.failed_files)))
         else:
             sys.stderr.write("\n   All files were successfully downloaded")
 
@@ -411,7 +409,7 @@ class ChannelManager:
             Args: None
             Returns: list of files that are not on server
         """
-        files_to_diff = self.downloader.get_files()
+        files_to_diff = config.DOWNLOADER.get_files()
         file_diff_result = []
         chunks = [files_to_diff[x:x+1000] for x in range(0, len(files_to_diff), 1000)]
         file_count = 0
@@ -426,11 +424,10 @@ class ChannelManager:
 
         return file_diff_result
 
-    def upload_files(self, file_list, progress_manager):
+    def upload_files(self, file_list):
         """ upload_files: uploads files to server
             Args:
                 file_list (str): list of files to upload
-                progress_manager (RestoreManager): manager to keep track of progress
             Returns: None
         """
         counter = 0
@@ -447,7 +444,7 @@ class ChannelManager:
                     if config.VERBOSE:
                         sys.stderr.write("\n\tUploaded {0} ({count}/{total}) ".format(f, count=counter, total=len(files_to_upload)))
         finally:
-            progress_manager.set_uploading(self.uploaded_files)
+            config.PROGRESS_MANAGER.set_uploading(self.uploaded_files)
 
     def upload_tree(self):
         """ upload_files: sends processed channel data to server to create tree

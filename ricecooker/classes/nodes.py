@@ -473,13 +473,13 @@ class Exercise(ContentNode):
         """
         self.questions += [question]
 
-    def process_questions(self, downloader):
+    def process_questions(self):
         """ process_questions: goes through question fields and replaces image strings
-            Args: DownloadManager to download images
+            Args: None
             Returns: None
         """
         for question in self.questions:
-            question.process_question(downloader)
+            question.process_question()
 
         # Update mastery model if parameters were not provided
         if self.extra_fields['mastery_model'] == exercises.M_OF_N:

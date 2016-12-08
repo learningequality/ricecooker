@@ -63,20 +63,19 @@ class BaseQuestion:
         """
         return {"answer": str(answer), "correct":correct}
 
-    def process_question(self, downloader):
+    def process_question(self):
         """ process_question: Parse data that needs to have image strings processed
-            Args:
-                downloader (DownloadManager): download manager to download images
+            Args: None
             Returns: list of all downloaded files
         """
         # Process question
-        self.question, question_files = self.set_images(self.question, downloader)
+        self.question, question_files = self.set_images(self.question)
 
         # Process answers
         answers = []
         answer_files = []
         for answer in self.answers:
-            processed_string, afiles = self.set_images(answer['answer'], downloader)
+            processed_string, afiles = self.set_images(answer['answer'])
             answers += [{"answer": processed_string, "correct":answer['correct']}]
             answer_files += afiles
         self.answers = answers
@@ -85,18 +84,17 @@ class BaseQuestion:
         hints = []
         hint_files = []
         for hint in self.hints:
-            processed_string, hfiles = self.set_images(hint, downloader)
+            processed_string, hfiles = self.set_images(hint)
             hints += [{"hint":processed_string}]
             hint_files += hfiles
         self.hints = hints
 
         self.files += question_files + answer_files + hint_files
 
-    def set_images(self, text, downloader):
+    def set_images(self, text):
         """ set_images: Replace image strings with downloaded image checksums
             Args:
                 text (str): text to parse for image strings
-                downloader (DownloadManager): download manager to download images
             Returns:string with checksums in place of image strings and
                 list of files that were downloaded from string
         """
@@ -108,7 +106,7 @@ class BaseQuestion:
 
         # Parse all matches
         for match in matches:
-            file_result=self.set_image(match[1], downloader)
+            file_result=self.set_image(match[1])
             if file_result[0] != "":
                 replacement, new_files = file_result
                 processed_string = processed_string.replace(match[1], replacement)
@@ -135,11 +133,10 @@ class BaseQuestion:
             tag.replaceWith("![{alt}]({src})".format(alt=alt_text, src=src_text))
         return str(bs)
 
-    def set_image(self, text, downloader):
+    def set_image(self, text):
         """ set_image: Replace image string with downloaded image checksum
             Args:
                 text (str): text to parse for image strings
-                downloader (DownloadManager): download manager to download images
             Returns:string with checksums in place of image strings and
                 list of files that were downloaded from string
         """
@@ -153,10 +150,10 @@ class BaseQuestion:
         # Otherwise, download like other files
         if graphie_match is not None:
             text = graphie_match.group().replace("web+graphie:", "")
-            result = downloader.download_graphie(text, title)
+            result = config.DOWNLOADER.download_graphie(text, title)
             replacement = result['original_filename'] if result else ""
         else:
-            result = downloader.download_file(text, title, preset=format_presets.EXERCISE_IMAGE, default_ext=file_formats.PNG)
+            result = config.DOWNLOADER.download_file(text, title, preset=format_presets.EXERCISE_IMAGE, default_ext=file_formats.PNG)
             replacement = result['filename'] if result else ""
         if not result:
             return "", []
@@ -210,10 +207,9 @@ class PerseusQuestion(BaseQuestion):
         except AssertionError as ae:
             raise InvalidQuestionException("Invalid question: {0}".format(self.__dict__))
 
-    def process_question(self, downloader):
+    def process_question(self,):
         """ process_question: Parse data that needs to have image strings processed
-            Args:
-                downloader (DownloadManager): download manager to download images
+            Args: None
             Returns: list of all downloaded files
         """
         image_files=[]
@@ -221,42 +217,41 @@ class PerseusQuestion(BaseQuestion):
 
         # Process question
         if 'question' in image_data and 'images' in image_data['question']:
-            image_data['question']['images'], qfiles = self.process_image_field(image_data['question'], downloader)
+            image_data['question']['images'], qfiles = self.process_image_field(image_data['question'])
             image_files += qfiles
 
         # Process hints
         if 'hints' in image_data:
             for hint in image_data['hints']:
                 if 'images' in hint:
-                    hint['images'], hfiles = self.process_image_field(hint, downloader)
+                    hint['images'], hfiles = self.process_image_field(hint)
                     image_files += hfiles
 
         # Process answers
         if 'answers' in image_data:
             for answer in image_data['answers']:
                 if 'images' in answer:
-                    answer['images'], afiles = self.process_image_field(answer, downloader)
+                    answer['images'], afiles = self.process_image_field(answer)
                     image_files += afiles
 
         # Process raw data
         self.raw_data = json.dumps(image_data, ensure_ascii=False)
-        self.raw_data, data_files = super(PerseusQuestion, self).set_images(self.raw_data, downloader)
+        self.raw_data, data_files = super(PerseusQuestion, self).set_images(self.raw_data)
 
         # Return all files
         self.files += image_files + data_files
 
-    def process_image_field(self, data, downloader):
+    def process_image_field(self, data):
         """ process_image_field: Specifically process perseus question image field
             Args:
                 data (dict): data that contains 'images' field
-                downloader (DownloadManager): download manager to download images
             Returns: list of all downloaded files
         """
         files = []
 
         new_data = copy.deepcopy(data['images'])
         for k, v in data['images'].items():
-            new_key, fs = self.set_image(k, downloader)
+            new_key, fs = self.set_image(k)
             files += fs
             new_data[new_key] = new_data.pop(k)
         return new_data, files
