@@ -9,11 +9,10 @@ from requests.exceptions import HTTPError
 from ricecooker.managers import ChannelManager, RestoreManager, Status
 from importlib.machinery import SourceFileLoader
 
-def uploadchannel(path, debug, verbose=False, update=False, resume=False, reset=False, step=Status.LAST.name, token="#", prompt=False, publish=False, warnings=False, **kwargs):
+def uploadchannel(path, verbose=False, update=False, resume=False, reset=False, step=Status.LAST.name, token="#", prompt=False, publish=False, warnings=False, **kwargs):
     """ uploadchannel: Upload channel to Kolibri Studio server
         Args:
             path (str): path to file containing construct_channel method
-            debug (bool): determine which domain to upload to
             verbose (bool): indicates whether to print process (optional)
             update (bool): indicates whether to re-download files (optional)
             resume (bool): indicates whether to resume last session automatically (optional)
@@ -32,9 +31,6 @@ def uploadchannel(path, debug, verbose=False, update=False, resume=False, reset=
     config.WARNING = warnings
     config.TOKEN = token
     config.UPDATE = update
-    if debug:
-      config.DOMAIN = config.DEBUG_DOMAIN
-      config.FILE_STORE_LOCATION = config.DEBUG_FILE_STORE_LOCATION
 
     # Get domain to upload to
     config.init_file_mapping_store()
