@@ -6,7 +6,9 @@ import webbrowser
 from ricecooker import config
 from ricecooker.classes import nodes, questions
 from requests.exceptions import HTTPError
-from ricecooker.managers import ChannelManager, RestoreManager, Status, DownloadManager
+from ricecooker.managers.downloader import DownloadManager
+from ricecooker.managers.progress import RestoreManager, Status
+from ricecooker.managers.tree import ChannelManager
 from importlib.machinery import SourceFileLoader
 
 def uploadchannel(path, verbose=False, update=False, resume=False, reset=False, step=Status.LAST.name, token="#", prompt=False, publish=False, warnings=False, **kwargs):
