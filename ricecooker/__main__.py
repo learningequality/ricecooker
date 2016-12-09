@@ -35,7 +35,7 @@ Steps (for restoring session):
 from ricecooker.commands import uploadchannel
 from ricecooker import config
 from ricecooker.exceptions import InvalidUsageException
-from ricecooker.managers import Status
+from ricecooker.managers.progress import Status
 from docopt import docopt
 
 commands = ["uploadchannel"]
