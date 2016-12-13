@@ -53,7 +53,7 @@ def uploadchannel(path, debug, verbose=False, update=False, resume=False, reset=
             sys.stderr.write("\nInvalid token: Credentials not found")
             sys.exit()
     else:
-        config.TOKEN = prompt_token()
+        config.TOKEN = prompt_token(config.DOMAIN)
 
     if config.VERBOSE:
         sys.stderr.write("\n\n***** Starting channel build process *****")
@@ -122,7 +122,7 @@ def uploadchannel(path, debug, verbose=False, update=False, resume=False, reset=
     progress_manager.set_done()
     return channel_link
 
-def prompt_token():
+def prompt_token(domain):
     """ prompt_token: Prompt user to enter authentication token
         Args: domain (str): domain to authenticate user
         Returns: Authenticated response
@@ -137,7 +137,7 @@ def prompt_token():
             return token
         except HTTPError:
             sys.stderr.write("\nInvalid token. Please login to {0}/settings/tokens to retrieve your authorization token.".format(domain))
-            prompt_token()
+            prompt_token(domain)
 
 def prompt_resume():
     """ prompt_resume: Prompt user to resume last session if one exists
