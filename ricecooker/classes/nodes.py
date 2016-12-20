@@ -152,7 +152,7 @@ class Channel(Node):
             assert isinstance(self.thumbnail, str) or self.thumbnail is None
             return super(Channel, self).validate()
         except AssertionError as ae:
-            raise InvalidNodeException("Invalid node: {0} - {1}".format(self.title, ae))
+            raise InvalidNodeException("Invalid channel ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
 
 
 class ContentNode(Node):
@@ -266,7 +266,7 @@ class Topic(ContentNode):
             assert self.extra_fields == {}, "Assumption Failed: Node should have empty extra_fields"
             return super(Topic, self).validate()
         except AssertionError as ae:
-            raise InvalidNodeException("Invalid node: {0} - {1}".format(self.title, self.__dict__))
+            raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
 
 
 class Video(ContentNode):
@@ -340,7 +340,7 @@ class Video(ContentNode):
 
             return super(Video, self).validate()
         except AssertionError as ae:
-            raise InvalidNodeException("Invalid node: {0} - {1}".format(self.title, self.__dict__))
+            raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
 
 
 class Audio(ContentNode):
@@ -386,7 +386,7 @@ class Audio(ContentNode):
 
             return super(Audio, self).validate()
         except AssertionError as ae:
-            raise InvalidNodeException("Invalid node: {0} - {1}".format(self.title, self.__dict__))
+            raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
 
 
 class Document(ContentNode):
@@ -430,7 +430,7 @@ class Document(ContentNode):
 
             return super(Document, self).validate()
         except AssertionError as ae:
-            raise InvalidNodeException("Invalid node: {0} - {1}".format(self.title, self.__dict__))
+            raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
 
 
 class Exercise(ContentNode):
@@ -531,7 +531,7 @@ class Exercise(ContentNode):
 
             return super(Exercise, self).validate()
         except AssertionError as ae:
-            raise InvalidNodeException("Invalid node: {0} - {1}".format(self.title, self.__dict__))
+            raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
 
 
 class HTML5App(ContentNode):
@@ -574,4 +574,4 @@ class HTML5App(ContentNode):
 
             return super(HTML5App, self).validate()
         except AssertionError as ae:
-            raise InvalidNodeException("Invalid node: {0} - {1}".format(self.title, self.__dict__))
+            raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
