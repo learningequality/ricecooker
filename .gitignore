@@ -91,3 +91,6 @@ docs/out/
 
 storage/
 restore/
+
+# nodejs modules
+node_modules/
