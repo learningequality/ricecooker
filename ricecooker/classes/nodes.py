@@ -55,6 +55,7 @@ class Node(object):
             Args: node to add as child
             Returns: None
         """
+        assert isinstance(node, Node), "Child node must be a subclass of Node"
         self.children += [node]
 
     def count(self):
