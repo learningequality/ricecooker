@@ -172,6 +172,7 @@ class ContentNode(Node):
     """
     def __init__(self, *args, **kwargs):
         # Map parameters to model variables
+        assert isinstance(args[0], basestring), "id must be a string"
         self.id = args[0]
         self.original_id = args[0]
         self.title = args[1]
@@ -219,7 +220,7 @@ class ContentNode(Node):
                 parent_id (uuid): parent node's node_id
             Returns: None
         """
-        self.content_id = uuid.uuid5(domain, self.id)
+        self.content_id = uuid.uuid5(domain, str(self.id))
         self.node_id = uuid.uuid5(parent_id, self.content_id.hex)
 
     def validate(self):
