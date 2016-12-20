@@ -1,6 +1,6 @@
-from ricecooker.classes.nodes import Channel, Video, Audio, Document, Topic, Exercise, guess_content_kind
-from ricecooker.classes.questions import PerseusQuestion, MultipleSelectQuestion, SingleSelectQuestion, FreeResponseQuestion, InputQuestion
-from ricecooker.exceptions import UnknownContentKindError, UnknownQuestionTypeError, raise_for_invalid_channel
+from .classes.nodes import Channel, Video, Audio, Document, Topic, Exercise, guess_content_kind
+from .classes.questions import PerseusQuestion, MultipleSelectQuestion, SingleSelectQuestion, FreeResponseQuestion, InputQuestion
+from .exceptions import UnknownContentKindError, UnknownQuestionTypeError, raise_for_invalid_channel
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
 
 SAMPLE_PERSEUS = '{"answerArea":{"chi2Table":false,"periodicTable":false,"tTable":false,"zTable":false,"calculator":false},' + \
