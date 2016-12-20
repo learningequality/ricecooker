@@ -8,6 +8,13 @@ from .classes import nodes, questions
 from requests.exceptions import HTTPError
 from .managers import ChannelManager, RestoreManager, Status
 
+# Fix to support Python 2.x.
+# http://stackoverflow.com/questions/954834/how-do-i-use-raw-input-in-python-3
+try:
+    input = raw_input
+except NameError:
+    pass
+
 def uploadchannel(path, debug, verbose=False, update=False, resume=False, reset=False, step=Status.LAST.name, token="#", prompt=False, publish=False, warnings=False, **kwargs):
     """ uploadchannel: Upload channel to Kolibri Studio server
         Args:
@@ -56,7 +63,7 @@ def uploadchannel(path, debug, verbose=False, update=False, resume=False, reset=
         config.TOKEN = prompt_token(config.DOMAIN)
 
     if config.VERBOSE:
-        sys.stderr.write("\n\n***** Starting channel build process *****")
+        sys.stderr.write("\n\n***** Starting channel build process *****\n\n")
 
     # Set up progress tracker
     progress_manager = RestoreManager()
@@ -127,7 +134,7 @@ def prompt_token(domain):
         Args: domain (str): domain to authenticate user
         Returns: Authenticated response
     """
-    token = raw_input("\nEnter authentication token ('q' to quit):").lower()
+    token ("\nEnter authentication token ('q' to quit):").lower()
     if token == 'q':
         sys.exit()
     else:
@@ -144,7 +151,7 @@ def prompt_resume():
         Args: None
         Returns: None
     """
-    openNow = raw_input("\nPrevious session detected. Would you like to resume your previous session? [y/n]:").lower()
+    openNow = input("\nPrevious session detected. Would you like to resume your previous session? [y/n]:").lower()
     if openNow.startswith("y"):
         return True
     elif openNow.startswith("n"):
@@ -269,7 +276,7 @@ def prompt_open(channel_link):
             channel_link (str): url of uploaded channel
         Returns: None
     """
-    openNow = raw_input("\nWould you like to open your channel now? [y/n]:").lower()
+    openNow = input("\nWould you like to open your channel now? [y/n]:").lower()
     if openNow.startswith("y"):
         sys.stderr.write("\nOpening channel... ")
         webbrowser.open_new_tab(channel_link)
