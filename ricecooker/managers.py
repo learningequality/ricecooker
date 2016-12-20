@@ -515,6 +515,9 @@ class ChannelManager:
         """
         if config.VERBOSE:
             sys.stderr.write("\n{indent}Processing {title} ({kind})".format(indent="   " * indent, title=current_node.title, kind=current_node.__class__.__name__))
+        # if the current node has no children, no need to continue
+        if not current_node.children:
+            return
         payload = {
             'root_id': root_id,
             'content_data': [child.to_dict() for child in current_node.children]
