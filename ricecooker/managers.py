@@ -143,7 +143,7 @@ class DownloadManager:
                 return self._file_mapping[filename]
 
         # Catch errors related to reading file path and handle silently
-        except (HTTPError, FileNotFoundError, ConnectionError, InvalidURL, InvalidSchema, IOError):
+        except (HTTPError, ConnectionError, InvalidURL, InvalidSchema, IOError):
             self.failed_files += [(path,title)]
             return False;
 
@@ -235,7 +235,7 @@ class DownloadManager:
                 if default_ext is not None:
                     extension = default_ext
                 else:
-                    raise FileNotFoundError("No extension found: {}".format(path))
+                    raise IOError("No extension found: {}".format(path))
 
             filename = '{0}.{ext}'.format(hash.hexdigest(), ext=extension)
 
@@ -279,7 +279,7 @@ class DownloadManager:
                 return self._file_mapping[filename]
 
         # Catch errors related to reading file path and handle silently
-        except (HTTPError, FileNotFoundError, ConnectionError, InvalidURL, InvalidSchema, IOError):
+        except (HTTPError, ConnectionError, InvalidURL, InvalidSchema, IOError):
             self.failed_files += [(path,title)]
             return False;
 
