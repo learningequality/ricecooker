@@ -245,9 +245,9 @@ class Topic(ContentNode):
             description (str): description of content (optional)
             author (str): who created the content (optional)
     """
-    def __init__(self, id, title, description="", author=""):
+    def __init__(self, id, title, description="", author="", thumbnail=None):
         self.kind = content_kinds.TOPIC
-        super(Topic, self).__init__(id, title, description=description, author=author)
+        super(Topic, self).__init__(id, title, description=description, author=author, thumbnail=thumbnail)
 
     def __str__(self):
         count = self.count()
