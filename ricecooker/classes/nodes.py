@@ -551,7 +551,9 @@ class HTML5App(ContentNode):
             license (str): content's license based on le_utils.constants.licenses (optional)
             thumbnail (str): local path or url to thumbnail image (optional)
     """
+
     default_preset = format_presets.HTML5_ZIP
+
     def __init__(self, id, title, files, author="", description="", license=None, thumbnail=None):
         self.kind = content_kinds.HTML5
         files = [] if files is None else files
@@ -568,12 +570,24 @@ class HTML5App(ContentNode):
         """
         try:
             assert self.kind == content_kinds.HTML5, "Assumption Failed: Node should be an HTML5 app"
-            assert len(self.files) == 1, "Assumption Failed: HTML5 app should have exactly one zip file"
+            assert self.questions == [], "Assumption Failed: HTML should not have questions"
 
-            # TODO: check that zip file contains index.html file
-            # with zipfile.ZipFile(zipped_path) as zf:
+            # Check if there are any .zip files
+            zip_file_found = False
+            for f in self.files:
+                if f.endswith("." + file_formats.HTML5):
+                    zip_file_found = True
 
+                    # make sure index.html exists
+                    with zipfile.ZipFile(f) as zf:
+                        try:
+                            info = zf.getinfo('index.html')
+                        except KeyError:
+                            assert False, "Assumption Failed: HTML zip must have an `index.html` file at topmost level"
+
+            assert zip_file_found, "Assumption Failed: HTML does not have a .zip file attached"
 
             return super(HTML5App, self).validate()
+
         except AssertionError as ae:
             raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
