@@ -2,7 +2,6 @@
 
 import uuid
 import json
-from ricecooker.managers import DownloadManager
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
 from ricecooker.exceptions import InvalidNodeException, InvalidFormatException
 
@@ -105,8 +104,8 @@ class Channel(Node):
             channel_id (str): channel's unique id
             domain (str): who is providing the content (e.g. learningequality.org)
             title (str): name of channel
-            thumbnail (str): file path or url of channel's thumbnail
             description (str): description of the channel (optional)
+            thumbnail (str): file path or url of channel's thumbnail (optional)
     """
     def __init__(self, channel_id, domain, title, description=None, thumbnail=None):
         # Map parameters to model variables
@@ -114,11 +113,7 @@ class Channel(Node):
         self.id = uuid.uuid3(uuid.NAMESPACE_DNS, uuid.uuid5(uuid.NAMESPACE_DNS, channel_id).hex)
         self.title = title
         self.description = "" if description is None else description
-
-        # # Encode thumbnail to base64
-        self.thumbnail = ""
-        # downloader = DownloadManager()
-        # self.thumbnail = downloader.encode_thumbnail(thumbnail)
+        self.thumbnail = thumbnail
 
         # Add data to be used in next steps
         self._internal_domain = uuid.uuid5(uuid.NAMESPACE_DNS, self.domain)
@@ -143,7 +138,6 @@ class Channel(Node):
             "has_changed": True,
             "thumbnail": self.thumbnail,
             "description": self.description if self.description is not None else "",
-            "children": [child_node.to_dict() for child_node in self.children],
         }
 
     def validate(self):
@@ -208,7 +202,6 @@ class ContentNode(Node):
             "node_id": self.node_id.hex,
             "content_id": self.content_id.hex,
             "author": self.author,
-            "children": [child_node.to_dict() for child_node in self.children],
             "files" : self.files,
             "kind": self.kind,
             "license": self.license,
@@ -451,6 +444,7 @@ class Exercise(ContentNode):
             author (str): who created the content (optional)
             description (str): description of content (optional)
             license (str): content's license based on le_utils.constants.licenses (optional)
+            exercise_data ({mastery_model:str, randomize:bool, m:int, n:int}): data on mastery requirements (optional)
             thumbnail (str): local path or url to thumbnail image (optional)
     """
     default_preset = format_presets.EXERCISE
@@ -481,7 +475,7 @@ class Exercise(ContentNode):
             Returns: None
         """
         for question in self.questions:
-            self.files += question.process_question(downloader)
+            question.process_question(downloader)
 
     def to_dict(self):
         """ to_dict: puts data in format CC expects
@@ -494,7 +488,6 @@ class Exercise(ContentNode):
             "node_id": self.node_id.hex,
             "content_id": self.content_id.hex,
             "author": self.author,
-            "children": [child_node.to_dict() for child_node in self.children],
             "files" : self.files,
             "kind": self.kind,
             "license": self.license,

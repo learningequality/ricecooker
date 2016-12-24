@@ -8,8 +8,7 @@ from ricecooker.classes import nodes, questions
 from requests.exceptions import HTTPError
 from ricecooker.managers import ChannelManager, RestoreManager, Status
 
-def uploadchannel(path, debug, verbose=False, update=False, resume=False, reset=False, step=Status.LAST.name, token="#", **kwargs):
-
+def uploadchannel(path, debug, verbose=False, update=False, resume=False, reset=False, step=Status.LAST.name, token="#", prompt=False, publish=False, **kwargs):
     """ uploadchannel: Upload channel to Kolibri Studio server
         Args:
             path (str): path to file containing channel data
@@ -22,6 +21,22 @@ def uploadchannel(path, debug, verbose=False, update=False, resume=False, reset=
     if debug:
         domain = config.DEBUG_DOMAIN
     config.init_file_mapping_store(debug)
+
+    config.init_file_mapping_store(debug)
+
+    # Authenticate user
+    if token != "#":
+        try:
+            response = requests.post(config.authentication_url(domain), headers={"Authorization": "Token {0}".format(token)})
+            response.raise_for_status()
+            user=json.loads(response._content.decode("utf-8"))
+            if verbose:
+                print("Logged in with username {0}".format(user['username']))
+        except HTTPError:
+            print("Invalid token: Credentials not found")
+            sys.exit()
+    else:
+        token = prompt_token(domain)
 
     if verbose:
         print("\n\n***** Starting channel build process *****")
@@ -74,13 +89,19 @@ def uploadchannel(path, debug, verbose=False, update=False, resume=False, reset=
 
     # Create channel on Kolibri Studio if it hasn't been created already
     if progress_manager.get_status_val() <= Status.UPLOAD_CHANNEL.value:
-        channel_link = create_tree(tree, verbose, progress_manager, token)
+        channel_id, channel_link = create_tree(tree, verbose, progress_manager, token)
     else:
         channel_link = progress_manager.channel_link
+        channel_id = progress_manager.channel_id
+
+    # Publish tree if flag is set to True
+    if publish and progress_manager.get_status_val() <= Status.PUBLISH_CHANNEL.value:
+        publish_tree(tree, verbose, progress_manager, channel_id, token)
 
     # Open link on web browser (if specified) and return new link
     print("DONE: Channel created at {0}".format(channel_link))
-    prompt_open(channel_link)
+    if prompt:
+        prompt_open(channel_link)
     progress_manager.set_done()
     return channel_link
 
@@ -167,9 +188,9 @@ def create_tree(tree, verbose, progress_manager, token):
     # Create tree
     if verbose:
         print("Creating tree on Kolibri Studio...")
-    channel_link = tree.upload_tree(token)
-    progress_manager.set_channel_created(channel_link)
-    return channel_link
+    channel_id, channel_link = tree.upload_tree(token)
+    progress_manager.set_channel_created(channel_link, channel_id)
+    return channel_id, channel_link
 
 def prompt_open(channel_link):
     """ prompt_open: Prompt user to open web browser
@@ -185,3 +206,15 @@ def prompt_open(channel_link):
         return
     else:
         prompt_open(channel_link)
+
+def publish_tree(tree, verbose, progress_manager, channel_id, token):
+    """ publish_tree: Publish tree to Kolibri
+        Args:
+            channel (str): channel to publish
+            token (str): authentication token
+        Returns: None
+    """
+    if verbose:
+        print("Publishing tree to Kolibri...")
+    tree.publish(channel_id, token)
+    progress_manager.set_published()
