@@ -19,6 +19,9 @@ requirements = [
     "le_utils==0.0.9rc14",
     "validators",
     "requests_file",
+    "beautifulsoup4==4.5.1",
+    "selenium==3.0.1",
+    "youtube-dl",
 ]
 
 test_requirements = [

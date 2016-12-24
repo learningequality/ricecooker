@@ -6,8 +6,8 @@ import re
 import copy
 import sys
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
-from ricecooker import config
-from ricecooker.exceptions import UnknownQuestionTypeError, InvalidQuestionException
+from .. import config
+from ..exceptions import UnknownQuestionTypeError, InvalidQuestionException
 
 WEB_GRAPHIE_URL_REGEX = r'web\+graphie:([^\)]+)'
 FILE_REGEX = r'!\[([^\]]+)?\]\(([^\)]+)\)'
@@ -128,15 +128,13 @@ class BaseQuestion:
         title="Question {0}".format(self.original_id)
         # If it is a web+graphie, download svg and json files,
         # Otherwise, download like other files
-        if graphie_match is not None:
+        if graphie_match:
             text = graphie_match.group().replace("web+graphie:", "")
             result = downloader.download_graphie(text, title)
             replacement = result['original_filename'] if result else ""
         else:
             result = downloader.download_file(text, title, preset=format_presets.EXERCISE_IMAGE, default_ext=file_formats.PNG)
             replacement = result['filename'] if result else ""
-        if not result:
-            return "", []
         text = text.replace(text, exercises.CONTENT_STORAGE_FORMAT.format(replacement))
         return text, [result]
 
@@ -237,6 +235,38 @@ class PerseusQuestion(BaseQuestion):
             files += fs
             new_data[new_key] = new_data.pop(k)
         return new_data, files
+
+    def set_image(self, text, downloader):
+        """ set_images: Replace image strings with downloaded image checksums
+            Args:
+                text (str): text to parse for image strings
+                downloader (DownloadManager): download manager to download images
+            Returns:string with checksums in place of image strings and
+                list of files that were downloaded from string
+        """
+        # Set up return values and regex
+        file_list = []
+        graphie_reg = re.compile(WEB_GRAPHIE_URL_REGEX, flags=re.IGNORECASE)
+        graphie_match = graphie_reg.match(text)
+        # If it is a web+graphie, download svg and json files,
+        # Otherwise, download like other files
+        if graphie_match:
+            link = graphie_match.group().replace("web+graphie:", "")
+            graphie_result = downloader.download_graphie(link, "Question {0}".format(self.original_id))
+            if not graphie_result:
+                return "", []
+            filename, svg_filename, json_filename = graphie_result
+            text = text.replace(link, exercises.CONTENT_STORAGE_FORMAT.format(filename))
+            file_list += [svg_filename, json_filename]
+        else:
+            result = downloader.download_file(text, "Question {0}".format(self.original_id), preset=format_presets.EXERCISE_IMAGE, default_ext=".{}".format(file_formats.PNG))
+            if not result:
+                return "", []
+            filename = result
+            text = text.replace(text, exercises.CONTENT_STORAGE_FORMAT.format(filename))
+            file_list += [filename]
+        return text, file_list
+
 
 class MultipleSelectQuestion(BaseQuestion):
     """ Model representing multiple select questions

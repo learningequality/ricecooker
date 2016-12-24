@@ -2,10 +2,11 @@
 
 import uuid
 import json
-import sys
 import zipfile
+import sys
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
-from ricecooker.exceptions import InvalidNodeException, InvalidFormatException
+from ..exceptions import InvalidNodeException, InvalidFormatException
+from ..managers import DownloadManager
 
 def guess_content_kind(files, questions=None):
     """ guess_content_kind: determines what kind the content is
@@ -15,7 +16,7 @@ def guess_content_kind(files, questions=None):
     """
     # Get files and questions into readable format
     files = [files] if isinstance(files, str) else files
-    questions=[questions] if isinstance(questions, str) else questions
+    questions = [questions] if isinstance(questions, str) else questions
 
     # If there are any questions, return exercise
     if questions is not None and len(questions) > 0:
@@ -34,7 +35,7 @@ def guess_content_kind(files, questions=None):
         return content_kinds.TOPIC
 
 
-class Node:
+class Node(object):
     """ Node: model to represent all nodes in the tree """
     def __init__(self):
         self.children = []
@@ -54,6 +55,7 @@ class Node:
             Args: node to add as child
             Returns: None
         """
+        assert isinstance(node, Node), "Child node must be a subclass of Node"
         self.children += [node]
 
     def count(self):
@@ -151,7 +153,7 @@ class Channel(Node):
             assert isinstance(self.thumbnail, str) or self.thumbnail is None
             return super(Channel, self).validate()
         except AssertionError as ae:
-            raise InvalidNodeException("Invalid node: {0} - {1}".format(self.title, ae))
+            raise InvalidNodeException("Invalid channel ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
 
 
 class ContentNode(Node):
@@ -170,6 +172,7 @@ class ContentNode(Node):
     """
     def __init__(self, *args, **kwargs):
         # Map parameters to model variables
+        assert isinstance(args[0], basestring), "id must be a string"
         self.id = args[0]
         self.original_id = args[0]
         self.title = args[1]
@@ -217,7 +220,7 @@ class ContentNode(Node):
                 parent_id (uuid): parent node's node_id
             Returns: None
         """
-        self.content_id = uuid.uuid5(domain, self.id)
+        self.content_id = uuid.uuid5(domain, str(self.id))
         self.node_id = uuid.uuid5(parent_id, self.content_id.hex)
 
     def validate(self):
@@ -244,9 +247,9 @@ class Topic(ContentNode):
             description (str): description of content (optional)
             author (str): who created the content (optional)
     """
-    def __init__(self, id, title, description="", author=""):
+    def __init__(self, id, title, description="", author="", thumbnail=None):
         self.kind = content_kinds.TOPIC
-        super(Topic, self).__init__(id, title, description=description, author=author)
+        super(Topic, self).__init__(id, title, description=description, author=author, thumbnail=thumbnail)
 
     def __str__(self):
         count = self.count()
@@ -265,7 +268,7 @@ class Topic(ContentNode):
             assert self.extra_fields == {}, "Assumption Failed: Node should have empty extra_fields"
             return super(Topic, self).validate()
         except AssertionError as ae:
-            raise InvalidNodeException("Invalid node: {0} - {1}".format(self.title, self.__dict__))
+            raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
 
 
 class Video(ContentNode):
@@ -339,7 +342,7 @@ class Video(ContentNode):
 
             return super(Video, self).validate()
         except AssertionError as ae:
-            raise InvalidNodeException("Invalid node: {0} - {1}".format(self.title, self.__dict__))
+            raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
 
 
 class Audio(ContentNode):
@@ -385,7 +388,7 @@ class Audio(ContentNode):
 
             return super(Audio, self).validate()
         except AssertionError as ae:
-            raise InvalidNodeException("Invalid node: {0} - {1}".format(self.title, self.__dict__))
+            raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
 
 
 class Document(ContentNode):
@@ -429,7 +432,7 @@ class Document(ContentNode):
 
             return super(Document, self).validate()
         except AssertionError as ae:
-            raise InvalidNodeException("Invalid node: {0} - {1}".format(self.title, self.__dict__))
+            raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
 
 
 class Exercise(ContentNode):
@@ -514,7 +517,6 @@ class Exercise(ContentNode):
         """
         try:
             assert self.kind == content_kinds.EXERCISE, "Assumption Failed: Node should be an exercise"
-            # assert len(self.files) > 0 or len(self.questions) > 0, "Assumption Failed: Exercise should have at least one question or .perseus file"
             assert "mastery_model" in self.extra_fields, "Assumption Failed: Exercise must have a mastery model in extra_fields"
 
             # Check if there are any .perseus files
@@ -531,12 +533,14 @@ class Exercise(ContentNode):
 
             return super(Exercise, self).validate()
         except AssertionError as ae:
-            raise InvalidNodeException("Invalid node: {0} - {1}".format(self.title, self.__dict__))
+            raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
 
-class HTML(ContentNode):
-    """ Model representing html5 content in channel
 
-        HTML must be in zip format with an 'index.html' file at the topmost level
+class HTML5App(ContentNode):
+    """ Model representing a zipped HTML5 application
+
+        The zip file must contain a file called index.html, which will be the first page loaded.
+        All links (e.g. href and src) must be relative URLs, pointing to other files in the zip.
 
         Attributes:
             id (str): content's original id
@@ -549,29 +553,30 @@ class HTML(ContentNode):
     """
 
     default_preset = format_presets.HTML5_ZIP
+
     def __init__(self, id, title, files, author="", description="", license=None, thumbnail=None):
         self.kind = content_kinds.HTML5
-        super(HTML, self).__init__(id, title, description=description, author=author, license=license, files=files, thumbnail=thumbnail)
+        files = [] if files is None else files
+
+        super(HTML5App, self).__init__(id, title, description=description, author=author, license=license, files=files, thumbnail=thumbnail)
 
     def __str__(self):
-        metadata = "{0} {1}".format(len(self.files), "file" if len(self.files) == 1 else "files")
-        return "{title} ({kind}): {metadata}".format(title=self.title, kind=self.__class__.__name__, metadata=metadata)
+        return "{title} ({kind})".format(title=self.title, kind=self.__class__.__name__)
 
     def validate(self):
-        """ validate: Makes sure audio is valid
+        """ validate: Makes sure HTML5 app is valid
             Args: None
-            Returns: boolean indicating if audio is valid
+            Returns: boolean indicating if HTML5 app is valid
         """
         try:
-            assert self.kind == content_kinds.HTML5, "Assumption Failed: Node should be html"
+            assert self.kind == content_kinds.HTML5, "Assumption Failed: Node should be an HTML5 app"
             assert self.questions == [], "Assumption Failed: HTML should not have questions"
-            assert len(self.files) > 0, "Assumption Failed: HTML should have at least one file"
 
             # Check if there are any .zip files
-            files_valid = len(self.files) == 0
+            zip_file_found = False
             for f in self.files:
-                if file_formats.HTML5 in f:
-                    files_valid = True
+                if f.endswith("." + file_formats.HTML5):
+                    zip_file_found = True
 
                     # make sure index.html exists
                     with zipfile.ZipFile(f) as zf:
@@ -580,10 +585,9 @@ class HTML(ContentNode):
                         except KeyError:
                             assert False, "Assumption Failed: HTML zip must have an `index.html` file at topmost level"
 
+            assert zip_file_found, "Assumption Failed: HTML does not have a .zip file attached"
 
-            assert files_valid , "Assumption Failed: HTML does not have a .zip file attached"
+            return super(HTML5App, self).validate()
 
-
-            return super(HTML, self).validate()
         except AssertionError as ae:
-            raise InvalidNodeException("Invalid node: {0} - {1}".format(self.title, self.__dict__))
+            raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
