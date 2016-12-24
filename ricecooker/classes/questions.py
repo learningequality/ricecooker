@@ -32,7 +32,7 @@ class BaseQuestion:
         self.answers = answers if answers is not None else []
         self.hints = [] if hints is None else [hints] if isinstance(hints,str) else hints
         self.raw_data = raw_data
-        self.original_id = id
+        self.original_id=id
         self.id = uuid.uuid5(uuid.NAMESPACE_DNS, id)
 
     def to_dict(self):
@@ -135,8 +135,6 @@ class BaseQuestion:
         else:
             result = downloader.download_file(text, title, preset=format_presets.EXERCISE_IMAGE, default_ext=file_formats.PNG)
             replacement = result['filename'] if result else ""
-        if not result:
-            return "", []
         text = text.replace(text, exercises.CONTENT_STORAGE_FORMAT.format(replacement))
         return text, [result]
 
