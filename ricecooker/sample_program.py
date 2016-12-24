@@ -1,4 +1,4 @@
-from .classes.nodes import Channel, Video, Audio, Document, Topic, Exercise, HTML, guess_content_kind
+from .classes.nodes import Channel, Video, Audio, Document, Topic, Exercise, HTML5App, guess_content_kind
 from .classes.questions import PerseusQuestion, MultipleSelectQuestion, SingleSelectQuestion, FreeResponseQuestion, InputQuestion
 from .exceptions import UnknownContentKindError, UnknownQuestionTypeError, raise_for_invalid_channel
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
@@ -258,7 +258,7 @@ def _build_tree(node, sourcetree):
             node.add_child(child_node)
 
         elif kind == content_kinds.HTML5:
-            child_node = HTML(
+            child_node = HTML5App(
                 id=child_source_node["id"],
                 title=child_source_node["title"],
                 author=child_source_node.get("author"),
