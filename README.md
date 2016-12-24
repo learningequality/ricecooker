@@ -58,6 +58,7 @@ A sample program has been created [here](https://github.com/learningequality/ric
     - Audio: mp3 or wav
     - Document: pdf
     - Exercise: assessment-based content with questions
+    - HTML: zip containing html content (must have `index.html` file at topmost level)
 
     The `ricecooker.classes.nodes` module has the function `guess_content_kind`, which takes in a file or list of
     files as well as a list of questions (if available) and determines what model best suits those files

@@ -3,6 +3,7 @@
 import uuid
 import json
 import sys
+import zipfile
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
 from ricecooker.exceptions import InvalidNodeException, InvalidFormatException
 
@@ -529,5 +530,60 @@ class Exercise(ContentNode):
             assert questions_valid, "Assumption Failed: Exercise does not have a question"
 
             return super(Exercise, self).validate()
+        except AssertionError as ae:
+            raise InvalidNodeException("Invalid node: {0} - {1}".format(self.title, self.__dict__))
+
+class HTML(ContentNode):
+    """ Model representing html5 content in channel
+
+        HTML must be in zip format with an 'index.html' file at the topmost level
+
+        Attributes:
+            id (str): content's original id
+            title (str): content's title
+            files (str or list): content's associated file(s)
+            author (str): who created the content (optional)
+            description (str): description of content (optional)
+            license (str): content's license based on le_utils.constants.licenses (optional)
+            thumbnail (str): local path or url to thumbnail image (optional)
+    """
+
+    default_preset = format_presets.HTML5_ZIP
+    def __init__(self, id, title, files, author="", description="", license=None, thumbnail=None):
+        self.kind = content_kinds.HTML5
+        super(HTML, self).__init__(id, title, description=description, author=author, license=license, files=files, thumbnail=thumbnail)
+
+    def __str__(self):
+        metadata = "{0} {1}".format(len(self.files), "file" if len(self.files) == 1 else "files")
+        return "{title} ({kind}): {metadata}".format(title=self.title, kind=self.__class__.__name__, metadata=metadata)
+
+    def validate(self):
+        """ validate: Makes sure audio is valid
+            Args: None
+            Returns: boolean indicating if audio is valid
+        """
+        try:
+            assert self.kind == content_kinds.HTML5, "Assumption Failed: Node should be html"
+            assert self.questions == [], "Assumption Failed: HTML should not have questions"
+            assert len(self.files) > 0, "Assumption Failed: HTML should have at least one file"
+
+            # Check if there are any .zip files
+            files_valid = len(self.files) == 0
+            for f in self.files:
+                if file_formats.HTML5 in f:
+                    files_valid = True
+
+                    # make sure index.html exists
+                    with zipfile.ZipFile(f) as zf:
+                        try:
+                            info = zf.getinfo('index.html')
+                        except KeyError:
+                            assert False, "Assumption Failed: HTML zip must have an `index.html` file at topmost level"
+
+
+            assert files_valid , "Assumption Failed: HTML does not have a .zip file attached"
+
+
+            return super(HTML, self).validate()
         except AssertionError as ae:
             raise InvalidNodeException("Invalid node: {0} - {1}".format(self.title, self.__dict__))

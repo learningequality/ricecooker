@@ -1,4 +1,4 @@
-from ricecooker.classes.nodes import Channel, Video, Audio, Document, Topic, Exercise, guess_content_kind
+from ricecooker.classes.nodes import Channel, Video, Audio, Document, Topic, Exercise, HTML, guess_content_kind
 from ricecooker.classes.questions import PerseusQuestion, MultipleSelectQuestion, SingleSelectQuestion, FreeResponseQuestion, InputQuestion
 from ricecooker.exceptions import UnknownContentKindError, UnknownQuestionTypeError, raise_for_invalid_channel
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
@@ -38,6 +38,13 @@ SAMPLE_TREE = [
                         "thumbnail" : "http://res.freestockphotos.biz/pictures/17/17321-a-bowl-of-rice-with-chopsticks-pv.jpg",
                     },
                 ]
+            },
+            {
+                "title": "HTML Sample",
+                "id": "abcdef",
+                "description": "An example of how html can be imported from the ricecooker",
+                "license": licenses.PUBLIC_DOMAIN,
+                "file": "C:/users/jordan/Videos/testfolder/HTML Test.zip",
             },
         ]
     },
@@ -248,6 +255,18 @@ def _build_tree(node, sourcetree):
             for q in child_source_node.get("questions"):
                 question = create_question(q)
                 child_node.add_question(question)
+            node.add_child(child_node)
+
+        elif kind == content_kinds.HTML5:
+            child_node = HTML(
+                id=child_source_node["id"],
+                title=child_source_node["title"],
+                author=child_source_node.get("author"),
+                description=child_source_node.get("description"),
+                files=child_source_node.get("file"),
+                license=child_source_node.get("license"),
+                thumbnail=child_source_node.get("thumbnail"),
+            )
             node.add_child(child_node)
 
         else:                   # unknown content file format
