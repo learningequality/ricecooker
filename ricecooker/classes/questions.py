@@ -36,7 +36,7 @@ class BaseQuestion:
         self.answers = answers if answers is not None else []
         self.hints = [] if hints is None else [hints] if isinstance(hints,str) else hints
         self.raw_data = raw_data
-        self.original_id = id
+        self.original_id=id
         self.id = uuid.uuid5(uuid.NAMESPACE_DNS, id)
 
     def to_dict(self):
@@ -148,7 +148,7 @@ class BaseQuestion:
         title="Question {0}".format(self.original_id)
         # If it is a web+graphie, download svg and json files,
         # Otherwise, download like other files
-        if graphie_match is not None:
+        if graphie_match:
             text = graphie_match.group().replace("web+graphie:", "")
             result = config.DOWNLOADER.download_graphie(text, title)
             replacement = result['original_filename'] if result else ""
@@ -157,6 +157,9 @@ class BaseQuestion:
             replacement = result['filename'] if result else ""
         if not result:
             return "", []
+        replacement = result['filename']
+        if graphie_match:
+            replacement = result['original_filename']
         text = text.replace(text, exercises.CONTENT_STORAGE_FORMAT.format(replacement))
         return text, [result]
 
