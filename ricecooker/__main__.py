@@ -1,5 +1,5 @@
 
-"""Usage: ricecooker uploadchannel [-huv] <file_path> [--warn] [--token=<t>] [--resume [--step=<step>] | --reset] [--prompt] [--publish] [[OPTIONS] ...]
+"""Usage: ricecooker uploadchannel [-huv] <file_path> [--warn] [--compress] [--token=<t>] [--resume [--step=<step>] | --reset] [--prompt] [--publish] [[OPTIONS] ...]
 
 Arguments:
   file_path        Path to file with channel data
@@ -9,6 +9,7 @@ Options:
   -v               Verbose mode
   -u               Re-download files from file paths
   --warn           Print out warnings to stderr
+  --compress       Compress high resolution videos to low resolution videos
   --token=<t>      Authorization token (can be token or path to file with token) [default: #]
   --resume         Resume from ricecooker step (cannot be used with --reset flag)
   --step=<step>    Step to resume progress from (must be used with --resume flag) [default: last]
@@ -23,6 +24,7 @@ Steps (for restoring session):
   CONSTRUCT_CHANNEL:    Resume with call to construct channel
   CREATE_TREE:          Resume at set tree relationships
   DOWNLOAD_FILES:       Resume at beginning of download process
+  COMPRESS_FILES:       Resume at video compression step
   GET_FILE_DIFF:        Resume at call to get file diff from Kolibri Studio
   START_UPLOAD:         Resume at beginning of uploading files to Kolibri Studio
   UPLOADING_FILES:      Resume at last upload request
@@ -68,4 +70,5 @@ if __name__ == '__main__':
                   prompt=arguments['--prompt'],
                   publish=arguments['--publish'],
                   warnings=arguments['--warn'],
+                  compress=arguments['--compress'],
                   **kwargs)
