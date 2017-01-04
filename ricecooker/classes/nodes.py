@@ -288,6 +288,8 @@ class Video(ContentNode):
     default_preset = format_presets.VIDEO_HIGH_RES
     def __init__(self, id, title, files, author="", description="", transcode_to_lower_resolutions=False, derive_thumbnail=False, license=None, subtitle=None, preset=None, thumbnail=None):
         self.kind = content_kinds.VIDEO
+        self.derive_thumbnail = derive_thumbnail
+
         # If no preset is given, set to default
         if preset is not None:
             self.default_preset = preset
@@ -295,10 +297,6 @@ class Video(ContentNode):
         # Transcode video to lower resoution
         if transcode_to_lower_resolutions:
             self.transcode_to_lower_resolutions()
-
-        # Derive thumbnail from video
-        if derive_thumbnail:
-            thumbnail = self.derive_thumbnail()
 
         super(Video, self).__init__(id, title, description=description, author=author, license=license, files=files, thumbnail=thumbnail)
 
