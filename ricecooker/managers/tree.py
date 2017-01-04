@@ -105,7 +105,7 @@ class ChannelManager:
             for f in node.files:
                 if f['preset'] == format_presets.VIDEO_HIGH_RES:
                     if config.VERBOSE:
-                        sys.stderr.write("\n\tCompressing video: {}".format(node.title))
+                        sys.stderr.write("\n\tCompressing video: {}\n".format(node.title))
                     compressed = config.DOWNLOADER.compress_file(config.get_storage_path(f['filename']), "Node {}".format(node.original_id))
                     if compressed:
                         f.update(compressed)
