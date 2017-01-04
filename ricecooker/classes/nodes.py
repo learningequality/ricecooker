@@ -304,13 +304,6 @@ class Video(ContentNode):
         metadata = "{0} {1}".format(len(self.files), "file" if len(self.files) == 1 else "files")
         return "{title} ({kind}): {metadata}".format(title=self.title, kind=self.__class__.__name__, metadata=metadata)
 
-    def derive_thumbnail(self):
-        """ derive_thumbnail: derive video's thumbnail
-            Args: None
-            Returns: None
-        """
-        pass
-
     def transcode_to_lower_resolutions(self):
         """ transcode_to_lower_resolutions: transcode video to lower resolution
             Args: None

@@ -4,7 +4,7 @@ import requests
 import os
 import sys
 from ricecooker import config
-from le_utils.constants import file_formats
+from le_utils.constants import file_formats, format_presets
 
 
 class ChannelManager:
@@ -93,7 +93,7 @@ class ChannelManager:
         else:
             sys.stderr.write("\n   All files were successfully downloaded")
 
-    def compress_tree(self, node, parent=None):
+    def compress_tree(self, node):
         """ compress_tree: compress high resolution files
             Args: None
             Returns: None
@@ -101,25 +101,18 @@ class ChannelManager:
         from ricecooker.classes import nodes
 
         # If node is not a channel, download files
-        if not isinstance(node, nodes.Channel):
-            node.files = config.DOWNLOADER.download_files(node.files, "Node {}".format(node.original_id))
-            if node.thumbnail is not None:
-                result = config.DOWNLOADER.download_files([node.thumbnail], "Node {}".format(node.original_id), default_ext=file_formats.PNG)
-                if result:
-                    node.files += result
-
-            # If node is an exercise, process images for exercise
-            if isinstance(node, nodes.Exercise):
-                if config.VERBOSE:
-                    sys.stderr.write("\n\t*** Processing images for exercise: {}".format(node.title))
-                node.process_questions()
-                if config.VERBOSE:
-                    sys.stderr.write("\n\t*** Images for {} have been processed".format(node.title))
+        if isinstance(node, nodes.Video):
+            for f in node.files:
+                if f['preset'] == format_presets.VIDEO_HIGH_RES:
+                    if config.VERBOSE:
+                        sys.stderr.write("\n\tCompressing video: {}".format(node.title))
+                    compressed = config.DOWNLOADER.compress_file(config.get_storage_path(f['filename']), "Node {}".format(node.original_id))
+                    if compressed:
+                        f.update(compressed)
 
         # Process node's children
         for child_node in node.children:
-            self.process_tree(child_node, node)
-
+            self.compress_tree(child_node)
 
     def get_file_diff(self):
         """ get_file_diff: retrieves list of files that do not exist on content curation server

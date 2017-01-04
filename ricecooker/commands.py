@@ -226,7 +226,6 @@ def compress_tree_files(tree):
         if config.VERBOSE:
             sys.stderr.write("\nCompressing files...")
         tree.compress_tree(tree.channel)
-        config.set_file_store(config.DOWNLOADER.file_store)
         if config.VERBOSE:
             sys.stderr.write("\n")
     return config.DOWNLOADER.get_files(), config.DOWNLOADER.get_file_mapping(), config.DOWNLOADER.failed_files

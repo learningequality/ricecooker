@@ -8,7 +8,7 @@ import os
 import sys
 import requests
 from enum import Enum
-from pressurecooker.videos import extract_thumbnail_from_video, check_video_resolution
+from pressurecooker.videos import extract_thumbnail_from_video, check_video_resolution, compress_video
 from requests_file import FileAdapter
 from requests.exceptions import MissingSchema, HTTPError, ConnectionError, InvalidURL, InvalidSchema
 from ricecooker import config
@@ -194,7 +194,7 @@ class DownloadManager:
         self.track_file(data['filename'], data['size'],  data['preset'], original_filename=data['original_filename'])
         return self._file_mapping[data['filename']]
 
-    def download_file(self, path, title, default_ext=None, preset=None):
+    def download_file(self, path, title, default_ext=None, preset=None, extracted=False):
         """ download_file: downloads file from path
             Args:
                 path (str): local path or url to file to download
@@ -211,7 +211,7 @@ class DownloadManager:
             if self.check_downloaded_file(path):
                 return self.track_existing_file(path)
 
-            if config.VERBOSE:
+            if config.VERBOSE and not extracted:
                 sys.stderr.write("\n\tDownloading {}".format(path))
 
             hash=self.get_hash(path)
@@ -300,7 +300,6 @@ class DownloadManager:
         if path is not None:
             self.file_store.update({path:file_data})
 
-
     def download_files(self,files, title, default_ext=None):
         """ download_files: download list of files
             Args:
@@ -327,4 +326,16 @@ class DownloadManager:
         with tempfile.NamedTemporaryFile(suffix=".{}".format(file_formats.PNG)) as tempf:
             tempf.close()
             extract_thumbnail_from_video(filepath, tempf.name, overwrite=True)
-            return self.download_file(tempf.name, title, default_ext=file_formats.PNG)
+            return self.download_file(tempf.name, title, extracted=True)
+
+    def compress_file(self, filepath, title):
+        """ derive_thumbnail: derive video's thumbnail
+            Args:
+                filepath (str): path to video file
+                title (str): name of node in case of error
+            Returns: None
+        """
+        with tempfile.NamedTemporaryFile(suffix=".{}".format(file_formats.MP4)) as tempf:
+            tempf.close()
+            compress_video(filepath, tempf.name, overwrite=True)
+            return self.download_file(tempf.name, title, extracted=True)
