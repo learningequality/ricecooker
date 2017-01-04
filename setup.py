@@ -20,7 +20,7 @@ requirements = [
     "validators",
     "requests_file",
     "beautifulsoup4==4.5.1",
-    "pressurecooker==0.0.5",
+    "pressurecooker==0.0.6",
 ]
 
 test_requirements = [
