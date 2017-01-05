@@ -18,8 +18,8 @@ from requests_file import FileAdapter
 from requests.exceptions import MissingSchema, HTTPError, ConnectionError, InvalidURL, InvalidSchema
 from io import BytesIO
 from PIL import Image
-from ricecooker import config
-from ricecooker.exceptions import InvalidFormatException, FileNotFoundException
+from . import config
+from .exceptions import InvalidFormatException, FileNotFoundException
 from le_utils.constants import file_formats, exercises, format_presets
 
 # Regex to parse for web+graphie prefix
@@ -143,7 +143,7 @@ class DownloadManager:
                 return self._file_mapping[filename]
 
         # Catch errors related to reading file path and handle silently
-        except (HTTPError, FileNotFoundError, ConnectionError, InvalidURL, InvalidSchema, IOError):
+        except (HTTPError, ConnectionError, InvalidURL, InvalidSchema, IOError):
             self.failed_files += [(path,title)]
             return False;
 
@@ -235,7 +235,7 @@ class DownloadManager:
                 if default_ext is not None:
                     extension = default_ext
                 else:
-                    raise FileNotFoundError("No extension found: {}".format(path))
+                    raise IOError("No extension found: {}".format(path))
 
             filename = '{0}.{ext}'.format(hash.hexdigest(), ext=extension)
 
@@ -279,7 +279,7 @@ class DownloadManager:
                 return self._file_mapping[filename]
 
         # Catch errors related to reading file path and handle silently
-        except (HTTPError, FileNotFoundError, ConnectionError, InvalidURL, InvalidSchema, IOError):
+        except (HTTPError, ConnectionError, InvalidURL, InvalidSchema, IOError):
             self.failed_files += [(path,title)]
             return False;
 
@@ -350,7 +350,7 @@ class ChannelManager:
                 parent (Node): parent of node being processed
             Returns: None
         """
-        from ricecooker.classes import nodes
+        from .classes import nodes
 
         # If node is not a channel, set ids and download files
         if not isinstance(node, nodes.Channel):
@@ -367,7 +367,7 @@ class ChannelManager:
                 parent (Node): parent of node being processed
             Returns: None
         """
-        from ricecooker.classes import nodes
+        from .classes import nodes
 
         # If node is not a channel, download files
         if isinstance(node, nodes.Channel):
@@ -515,6 +515,9 @@ class ChannelManager:
         """
         if config.VERBOSE:
             sys.stderr.write("\n{indent}Processing {title} ({kind})".format(indent="   " * indent, title=current_node.title, kind=current_node.__class__.__name__))
+        # if the current node has no children, no need to continue
+        if not current_node.children:
+            return
         payload = {
             'root_id': root_id,
             'content_data': [child.to_dict() for child in current_node.children]

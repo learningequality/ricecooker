@@ -10,7 +10,6 @@ VERBOSE = False
 TOKEN = "#"
 
 # Domain and file store location for uploading to production server
-# Domain for uploading to production server
 DOMAIN = os.getenv('CONTENTWORKSHOP_URL', "https://contentworkshop.learningequality.org")
 FILE_STORE_LOCATION =  hashlib.md5(DOMAIN.encode('utf-8')).hexdigest()
 

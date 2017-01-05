@@ -3,11 +3,18 @@ import sys
 import requests
 import json
 import webbrowser
-from ricecooker import config
-from ricecooker.classes import nodes, questions
+from . import config
+from .classes import nodes, questions
 from requests.exceptions import HTTPError
-from ricecooker.managers import ChannelManager, RestoreManager, Status
 from importlib.machinery import SourceFileLoader
+from .managers import ChannelManager, RestoreManager, Status
+
+# Fix to support Python 2.x.
+# http://stackoverflow.com/questions/954834/how-do-i-use-raw-input-in-python-3
+try:
+    input = raw_input
+except NameError:
+    pass
 
 def uploadchannel(path, verbose=False, update=False, resume=False, reset=False, step=Status.LAST.name, token="#", prompt=False, publish=False, warnings=False, **kwargs):
     """ uploadchannel: Upload channel to Kolibri Studio server
@@ -50,10 +57,10 @@ def uploadchannel(path, verbose=False, update=False, resume=False, reset=False, 
             sys.stderr.write("\nInvalid token: Credentials not found")
             sys.exit()
     else:
-        config.TOKEN = prompt_token(domain)
+        config.TOKEN = prompt_token(config.DOMAIN)
 
     if config.VERBOSE:
-        sys.stderr.write("\n\n***** Starting channel build process *****")
+        sys.stderr.write("\n\n***** Starting channel build process *****\n\n")
 
     # Set up progress tracker
     progress_manager = RestoreManager()
@@ -129,7 +136,7 @@ def prompt_token(domain):
         sys.exit()
     else:
         try:
-            response = requests.post(config.authentication_url(domain), headers={"Authorization": "Token {0}".format(token)})
+            response = requests.post(config.authentication_url(), headers={"Authorization": "Token {0}".format(token)})
             response.raise_for_status()
             return token
         except HTTPError:
