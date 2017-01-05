@@ -339,7 +339,7 @@ class DownloadManager:
             Returns: None
         """
         # If file has already been compressed, return the compressed file data
-        if self.check_downloaded_file(filepath) and self.file_store[filepath]['extracted']:
+        if self.check_downloaded_file(filepath) and self.file_store[filepath].get('extracted'):
             if config.VERBOSE:
                 sys.stderr.write("\n\tFound compressed file for {}".format(filepath))
             return self.track_existing_file(filepath)
