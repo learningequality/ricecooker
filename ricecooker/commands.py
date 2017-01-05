@@ -3,6 +3,7 @@ import sys
 import requests
 import json
 import webbrowser
+from ricecooker import __version__
 from ricecooker import config
 from ricecooker.classes import nodes, questions
 from requests.exceptions import HTTPError
@@ -55,6 +56,17 @@ def uploadchannel(path, verbose=False, update=False, resume=False, reset=False, 
             sys.exit()
     else:
         config.TOKEN = prompt_token(domain)
+
+    # Check version number
+    response = requests.get(config.check_version_url(), headers={"Authorization": "Token {0}".format(config.TOKEN)})
+    response.raise_for_status()
+    cc_version = response._content.decode("utf-8")
+    if  cc_version == __version__:
+        if config.VERBOSE:
+            sys.stderr.write("\nRicecooker up-to-date")
+    else:
+        sys.stderr.write("\nRicecooker out of date: upgrade using 'pip install -U ricecooker=={}'".format(cc_version))
+        sys.exit()
 
     if config.VERBOSE:
         sys.stderr.write("\n\n***** Starting channel build process *****")

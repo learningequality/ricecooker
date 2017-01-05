@@ -20,6 +20,9 @@ FILE_STORE_LOCATION =  hashlib.md5(DOMAIN.encode('utf-8')).hexdigest()
 # URL for authenticating user on Kolibri Studio
 AUTHENTICATION_URL = "{domain}/api/internal/authenticate_user_internal"
 
+# URL for checking compatible Ricecooker version on Kolibri Studio
+VERSION_CHECK_URL = "{domain}/api/internal/check_version"
+
 # URL for getting file diff
 FILE_DIFF_URL = "{domain}/api/internal/file_diff"
 
@@ -65,6 +68,13 @@ def authentication_url():
         Returns: string url to authenticate_user_internal endpoint
     """
     return AUTHENTICATION_URL.format(domain=DOMAIN)
+
+def check_version_url():
+    """ check_version_url: returns url to check version on Kolibri Studio
+        Args: None
+        Returns: string url to check_version endpoint
+    """
+    return VERSION_CHECK_URL.format(domain=DOMAIN)
 
 def init_file_mapping_store():
     """ init_file_mapping_store: creates log to keep track of downloaded files

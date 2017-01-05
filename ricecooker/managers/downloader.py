@@ -191,7 +191,7 @@ class DownloadManager:
         data = self.file_store[path]
         if config.VERBOSE:
             sys.stderr.write("\n\tFile {0} already exists (add '-u' flag to update)".format(data['filename']))
-        self.track_file(data['filename'], data['size'],  data['preset'], original_filename=data['original_filename'], extracted=data['extracted'])
+        self.track_file(data['filename'], data['size'],  data['preset'], original_filename=data['original_filename'], extracted=data.get('extracted'))
         return self._file_mapping[data['filename']]
 
     def download_file(self, path, title, default_ext=None, preset=None, extracted=False, original_filepath=None):
@@ -238,7 +238,7 @@ class DownloadManager:
                     preset = check_video_resolution(config.get_storage_path(filename))
 
                 # Keep track of downloaded file
-                self.track_file(filename, os.path.getsize(config.get_storage_path(filename)), preset, path, extracted=extracted)
+                self.track_file(filename, os.path.getsize(config.get_storage_path(filename)), preset, original_filepath, extracted=extracted)
                 return self._file_mapping[filename]
 
             # Write file to temporary file
