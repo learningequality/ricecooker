@@ -140,7 +140,7 @@ class Channel(Node):
             "id": self.id.hex,
             "name": self.title,
             "thumbnail": self.thumbnail,
-            "description": self.description[:400] if self.description is not None else "",
+            "description": self.description if self.description is not None else "",
         }
 
     def validate(self):
@@ -202,7 +202,7 @@ class ContentNode(Node):
         """
         return {
             "title": self.title,
-            "description": self.description[:400],
+            "description": self.description,
             "node_id": self.node_id.hex,
             "content_id": self.content_id.hex,
             "author": self.author,
@@ -499,7 +499,7 @@ class Exercise(ContentNode):
         """
         return {
             "title": self.title,
-            "description": self.description[:400],
+            "description": self.description,
             "node_id": self.node_id.hex,
             "content_id": self.content_id.hex,
             "author": self.author,
