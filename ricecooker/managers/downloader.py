@@ -268,7 +268,6 @@ class DownloadManager:
                 # If a video file, check its resolution
                 if extension == file_formats.MP4:
                     preset = check_video_resolution(config.get_storage_path(filename))
-                    print(preset)
 
                 # Keep track of downloaded file
                 self.track_file(filename, file_size, preset, original_filepath, extracted=extracted)
@@ -330,7 +329,7 @@ class DownloadManager:
         with tempfile.NamedTemporaryFile(suffix=".{}".format(file_formats.PNG)) as tempf:
             tempf.close()
             extract_thumbnail_from_video(filepath, tempf.name, overwrite=True)
-            return self.download_file(tempf.name, title, extracted=True, original_filepath=filepath)
+            return self.download_file(tempf.name, title, extracted=True, original_filepath=filepath + " (thumbnail)")
 
     def compress_file(self, filepath, title):
         """ compress_file: compress the video to a lower resolution
