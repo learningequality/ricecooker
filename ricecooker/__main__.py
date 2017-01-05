@@ -1,5 +1,5 @@
 
-"""Usage: ricecooker uploadchannel [-huv] <file_path> [--debug] [--warn] [--token=<t>] [--resume [--step=<step>] | --reset] [--prompt] [--publish] [[OPTIONS] ...]
+"""Usage: ricecooker uploadchannel [-huv] <file_path> [--warn] [--token=<t>] [--resume [--step=<step>] | --reset] [--prompt] [--publish] [[OPTIONS] ...]
 
 Arguments:
   file_path        Path to file with channel data
@@ -8,7 +8,6 @@ Options:
   -h               Help documentation
   -v               Verbose mode
   -u               Re-download files from file paths
-  --debug          Run ricecooker against debug server (localhost:8000) rather than contentworkshop
   --warn           Print out warnings to stderr
   --token=<t>      Authorization token (can be token or path to file with token) [default: #]
   --resume         Resume from ricecooker step (cannot be used with --reset flag)
@@ -60,7 +59,6 @@ if __name__ == '__main__':
       raise InvalidUsageException("Invalid step '{0}': Valid steps are {1}".format(step, all_steps))
 
     uploadchannel(arguments["<file_path>"],
-                  arguments["--debug"],
                   verbose=arguments["-v"],
                   update=arguments['-u'],
                   resume=arguments['--resume'],

@@ -2,6 +2,7 @@
 
 import os
 import json
+import hashlib
 
 WARNING = False
 UPDATE = False
@@ -9,16 +10,8 @@ VERBOSE = False
 TOKEN = "#"
 
 # Domain and file store location for uploading to production server
-PRODUCTION_DOMAIN = os.getenv('CONTENTWORKSHOP_URL', "https://contentworkshop.learningequality.org")
-PRODUCTION_FILE_STORE_LOCATION = "production"
-
-# Domain and file store location for uploading to local machine
-DEBUG_DOMAIN = "http://127.0.0.1:8000"
-DEBUG_FILE_STORE_LOCATION = "local"
-
-# Domain and file store location to use durring session
-DOMAIN = PRODUCTION_DOMAIN
-FILE_STORE_LOCATION = PRODUCTION_FILE_STORE_LOCATION
+DOMAIN = os.getenv('CONTENTWORKSHOP_URL', "https://contentworkshop.learningequality.org")
+FILE_STORE_LOCATION =  hashlib.md5(DOMAIN.encode('utf-8')).hexdigest()
 
 # URL for authenticating user on Kolibri Studio
 AUTHENTICATION_URL = "{domain}/api/internal/authenticate_user_internal"
@@ -150,7 +143,7 @@ def open_channel_url(channel):
             channel (str): channel id of uploaded channel
         Returns: string url to open channel
     """
-    return OPEN_CHANNEL_URL.format(domain=DOMAIN.replace(PRODUCTION_DOMAIN, "https://contentworkshop.learningequality.org"), channel_id=channel)
+    return OPEN_CHANNEL_URL.format(domain=DOMAIN, channel_id=channel)
 
 def publish_channel_url():
     """ open_channel_url: returns url to publish channel

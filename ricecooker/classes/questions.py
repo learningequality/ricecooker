@@ -5,12 +5,16 @@ import json
 import re
 import copy
 import sys
+from bs4 import BeautifulSoup
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
 from .. import config
 from ..exceptions import UnknownQuestionTypeError, InvalidQuestionException
 
 WEB_GRAPHIE_URL_REGEX = r'web\+graphie:([^\)]+)'
 FILE_REGEX = r'!\[([^\]]+)?\]\(([^\)]+)\)'
+IMG_REGEX = r'<\s*img[^>]+>'
+IMG_SRC_REGEX = r'\ssrc\s*=\"([^"]+)\"'
+IMG_ALT_REGEX = r'\salt\s*=\"([^"]+)\"'
 
 class BaseQuestion:
     """ Base model representing exercise questions
@@ -98,19 +102,38 @@ class BaseQuestion:
         """
         # Set up return values and regex
         file_list = []
-        processed_string = text
+        processed_string = self.parse_html(text)
         reg = re.compile(FILE_REGEX, flags=re.IGNORECASE)
         matches = reg.findall(processed_string)
 
         # Parse all matches
         for match in matches:
             file_result=self.set_image(match[1], downloader)
-            if file_result[0]=="":
-                return "", []
-            replacement, new_files = file_result
-            processed_string = processed_string.replace(match[1], replacement)
-            file_list += new_files
+            if file_result[0] != "":
+                replacement, new_files = file_result
+                processed_string = processed_string.replace(match[1], replacement)
+                file_list += new_files
         return processed_string, file_list
+
+    def parse_html(self, text):
+        """ parse_html: Properly formats any img tags that might be in content
+            Args:
+                text (str): text to parse
+            Returns: string with properly formatted images
+        """
+        bs = BeautifulSoup(text, "html.parser")
+        file_reg = re.compile(FILE_REGEX, flags=re.IGNORECASE)
+        tags = bs.findAll('img')
+
+        for tag in tags:
+            # Look for src attribute, remove formatting if added to image
+            src_text = tag.get("src") or ""
+            formatted_src_match = file_reg.search(src_text)
+            src_text = formatted_src_match.group(2) if formatted_src_match else src_text
+
+            alt_text = tag.get("alt") or ""
+            tag.replaceWith("![{alt}]({src})".format(alt=alt_text, src=src_text))
+        return str(bs)
 
     def set_image(self, text, downloader):
         """ set_image: Replace image string with downloaded image checksum
@@ -266,7 +289,6 @@ class PerseusQuestion(BaseQuestion):
             text = text.replace(text, exercises.CONTENT_STORAGE_FORMAT.format(filename))
             file_list += [filename]
         return text, file_list
-
 
 class MultipleSelectQuestion(BaseQuestion):
     """ Model representing multiple select questions

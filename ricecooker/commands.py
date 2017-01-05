@@ -6,6 +6,7 @@ import webbrowser
 from . import config
 from .classes import nodes, questions
 from requests.exceptions import HTTPError
+from importlib.machinery import SourceFileLoader
 from .managers import ChannelManager, RestoreManager, Status
 
 # Fix to support Python 2.x.
@@ -15,11 +16,10 @@ try:
 except NameError:
     pass
 
-def uploadchannel(path, debug, verbose=False, update=False, resume=False, reset=False, step=Status.LAST.name, token="#", prompt=False, publish=False, warnings=False, **kwargs):
+def uploadchannel(path, verbose=False, update=False, resume=False, reset=False, step=Status.LAST.name, token="#", prompt=False, publish=False, warnings=False, **kwargs):
     """ uploadchannel: Upload channel to Kolibri Studio server
         Args:
             path (str): path to file containing construct_channel method
-            debug (bool): determine which domain to upload to
             verbose (bool): indicates whether to print process (optional)
             update (bool): indicates whether to re-download files (optional)
             resume (bool): indicates whether to resume last session automatically (optional)
@@ -38,9 +38,6 @@ def uploadchannel(path, debug, verbose=False, update=False, resume=False, reset=
     config.WARNING = warnings
     config.TOKEN = token
     config.UPDATE = update
-    if debug:
-      config.DOMAIN = config.DEBUG_DOMAIN
-      config.FILE_STORE_LOCATION = config.DEBUG_FILE_STORE_LOCATION
 
     # Get domain to upload to
     config.init_file_mapping_store()
@@ -134,7 +131,7 @@ def prompt_token(domain):
         Args: domain (str): domain to authenticate user
         Returns: Authenticated response
     """
-    token ("\nEnter authentication token ('q' to quit):").lower()
+    token = input("\nEnter authentication token ('q' to quit):").lower()
     if token == 'q':
         sys.exit()
     else:
@@ -168,12 +165,12 @@ def run_construct_channel(path, progress_manager, kwargs):
         Returns: channel created from contruct_channel method
     """
     # Read in file to access create_channel method
-    exec(open(path).read(), globals())
+    mod = SourceFileLoader("mod", path).load_module()
 
     # Create channel (using method from imported file)
     if config.VERBOSE:
         sys.stderr.write("\nConstructing channel... ")
-    channel = construct_channel(**kwargs)
+    channel = mod.construct_channel(**kwargs)
     progress_manager.set_channel(channel)
     return channel
 
