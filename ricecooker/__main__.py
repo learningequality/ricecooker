@@ -1,14 +1,15 @@
 
-"""Usage: ricecooker uploadchannel [-huv] <file_path> [--debug] [--token=<t>] [--resume [--step=<step>] | --reset] [--prompt] [--publish] [[OPTIONS] ...]
+"""Usage: ricecooker uploadchannel [-huv] <file_path> [--warn] [--compress] [--token=<t>] [--resume [--step=<step>] | --reset] [--prompt] [--publish] [[OPTIONS] ...]
 
 Arguments:
   file_path        Path to file with channel data
 
 Options:
-  -h --help
-  -v       verbose mode
-  -u       re-download files from file paths
-  --debug          Run ricecooker against debug server (localhost:8000) rather than contentworkshop
+  -h               Help documentation
+  -v               Verbose mode
+  -u               Re-download files from file paths
+  --warn           Print out warnings to stderr
+  --compress       Compress high resolution videos to low resolution videos
   --token=<t>      Authorization token (can be token or path to file with token) [default: #]
   --resume         Resume from ricecooker step (cannot be used with --reset flag)
   --step=<step>    Step to resume progress from (must be used with --resume flag) [default: last]
@@ -23,6 +24,7 @@ Steps (for restoring session):
   CONSTRUCT_CHANNEL:    Resume with call to construct channel
   CREATE_TREE:          Resume at set tree relationships
   DOWNLOAD_FILES:       Resume at beginning of download process
+  COMPRESS_FILES:       Resume at video compression step
   GET_FILE_DIFF:        Resume at call to get file diff from Kolibri Studio
   START_UPLOAD:         Resume at beginning of uploading files to Kolibri Studio
   UPLOADING_FILES:      Resume at last upload request
@@ -35,7 +37,7 @@ Steps (for restoring session):
 from ricecooker.commands import uploadchannel
 from ricecooker import config
 from ricecooker.exceptions import InvalidUsageException
-from ricecooker.managers import Status
+from ricecooker.managers.progress import Status
 from docopt import docopt
 
 commands = ["uploadchannel"]
@@ -59,7 +61,6 @@ if __name__ == '__main__':
       raise InvalidUsageException("Invalid step '{0}': Valid steps are {1}".format(step, all_steps))
 
     uploadchannel(arguments["<file_path>"],
-                  arguments["--debug"],
                   verbose=arguments["-v"],
                   update=arguments['-u'],
                   resume=arguments['--resume'],
@@ -68,4 +69,6 @@ if __name__ == '__main__':
                   step=step,
                   prompt=arguments['--prompt'],
                   publish=arguments['--publish'],
+                  warnings=arguments['--warn'],
+                  compress=arguments['--compress'],
                   **kwargs)

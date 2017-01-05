@@ -4,11 +4,17 @@ import uuid
 import json
 import re
 import copy
+import sys
+from bs4 import BeautifulSoup
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
+from ricecooker import config
 from ricecooker.exceptions import UnknownQuestionTypeError, InvalidQuestionException
 
 WEB_GRAPHIE_URL_REGEX = r'web\+graphie:([^\)]+)'
 FILE_REGEX = r'!\[([^\]]+)?\]\(([^\)]+)\)'
+IMG_REGEX = r'<\s*img[^>]+>'
+IMG_SRC_REGEX = r'\ssrc\s*=\"([^"]+)\"'
+IMG_ALT_REGEX = r'\salt\s*=\"([^"]+)\"'
 
 class BaseQuestion:
     """ Base model representing exercise questions
@@ -57,20 +63,19 @@ class BaseQuestion:
         """
         return {"answer": str(answer), "correct":correct}
 
-    def process_question(self, downloader):
+    def process_question(self):
         """ process_question: Parse data that needs to have image strings processed
-            Args:
-                downloader (DownloadManager): download manager to download images
+            Args: None
             Returns: list of all downloaded files
         """
         # Process question
-        self.question, question_files = self.set_images(self.question, downloader)
+        self.question, question_files = self.set_images(self.question)
 
         # Process answers
         answers = []
         answer_files = []
         for answer in self.answers:
-            processed_string, afiles = self.set_images(answer['answer'], downloader)
+            processed_string, afiles = self.set_images(answer['answer'])
             answers += [{"answer": processed_string, "correct":answer['correct']}]
             answer_files += afiles
         self.answers = answers
@@ -79,42 +84,59 @@ class BaseQuestion:
         hints = []
         hint_files = []
         for hint in self.hints:
-            processed_string, hfiles = self.set_images(hint, downloader)
+            processed_string, hfiles = self.set_images(hint)
             hints += [{"hint":processed_string}]
             hint_files += hfiles
         self.hints = hints
 
         self.files += question_files + answer_files + hint_files
 
-    def set_images(self, text, downloader):
+    def set_images(self, text):
         """ set_images: Replace image strings with downloaded image checksums
             Args:
                 text (str): text to parse for image strings
-                downloader (DownloadManager): download manager to download images
             Returns:string with checksums in place of image strings and
                 list of files that were downloaded from string
         """
         # Set up return values and regex
         file_list = []
-        processed_string = text
+        processed_string = self.parse_html(text)
         reg = re.compile(FILE_REGEX, flags=re.IGNORECASE)
         matches = reg.findall(processed_string)
 
         # Parse all matches
         for match in matches:
-            file_result=self.set_image(match[1], downloader)
-            if file_result[0]=="":
-                return "", []
-            replacement, new_files = file_result
-            processed_string = processed_string.replace(match[1], replacement)
-            file_list += new_files
+            file_result=self.set_image(match[1])
+            if file_result[0] != "":
+                replacement, new_files = file_result
+                processed_string = processed_string.replace(match[1], replacement)
+                file_list += new_files
         return processed_string, file_list
 
-    def set_image(self, text, downloader):
+    def parse_html(self, text):
+        """ parse_html: Properly formats any img tags that might be in content
+            Args:
+                text (str): text to parse
+            Returns: string with properly formatted images
+        """
+        bs = BeautifulSoup(text, "html.parser")
+        file_reg = re.compile(FILE_REGEX, flags=re.IGNORECASE)
+        tags = bs.findAll('img')
+
+        for tag in tags:
+            # Look for src attribute, remove formatting if added to image
+            src_text = tag.get("src") or ""
+            formatted_src_match = file_reg.search(src_text)
+            src_text = formatted_src_match.group(2) if formatted_src_match else src_text
+
+            alt_text = tag.get("alt") or ""
+            tag.replaceWith("![{alt}]({src})".format(alt=alt_text, src=src_text))
+        return str(bs)
+
+    def set_image(self, text):
         """ set_image: Replace image string with downloaded image checksum
             Args:
                 text (str): text to parse for image strings
-                downloader (DownloadManager): download manager to download images
             Returns:string with checksums in place of image strings and
                 list of files that were downloaded from string
         """
@@ -122,14 +144,17 @@ class BaseQuestion:
         graphie_reg = re.compile(WEB_GRAPHIE_URL_REGEX, flags=re.IGNORECASE)
         graphie_match = graphie_reg.match(text)
         result=None
+        replacement = None
         title="Question {0}".format(self.original_id)
         # If it is a web+graphie, download svg and json files,
         # Otherwise, download like other files
         if graphie_match:
             text = graphie_match.group().replace("web+graphie:", "")
-            result = downloader.download_graphie(text, title)
+            result = config.DOWNLOADER.download_graphie(text, title)
+            replacement = result['original_filename'] if result else ""
         else:
-            result = downloader.download_file(text, title, preset=format_presets.EXERCISE_IMAGE, default_ext=file_formats.PNG)
+            result = config.DOWNLOADER.download_file(text, title, preset=format_presets.EXERCISE_IMAGE, default_ext=file_formats.PNG)
+            replacement = result['filename'] if result else ""
         if not result:
             return "", []
         replacement = result['filename']
@@ -185,10 +210,9 @@ class PerseusQuestion(BaseQuestion):
         except AssertionError as ae:
             raise InvalidQuestionException("Invalid question: {0}".format(self.__dict__))
 
-    def process_question(self, downloader):
+    def process_question(self,):
         """ process_question: Parse data that needs to have image strings processed
-            Args:
-                downloader (DownloadManager): download manager to download images
+            Args: None
             Returns: list of all downloaded files
         """
         image_files=[]
@@ -196,42 +220,41 @@ class PerseusQuestion(BaseQuestion):
 
         # Process question
         if 'question' in image_data and 'images' in image_data['question']:
-            image_data['question']['images'], qfiles = self.process_image_field(image_data['question'], downloader)
+            image_data['question']['images'], qfiles = self.process_image_field(image_data['question'])
             image_files += qfiles
 
         # Process hints
         if 'hints' in image_data:
             for hint in image_data['hints']:
                 if 'images' in hint:
-                    hint['images'], hfiles = self.process_image_field(hint, downloader)
+                    hint['images'], hfiles = self.process_image_field(hint)
                     image_files += hfiles
 
         # Process answers
         if 'answers' in image_data:
             for answer in image_data['answers']:
                 if 'images' in answer:
-                    answer['images'], afiles = self.process_image_field(answer, downloader)
+                    answer['images'], afiles = self.process_image_field(answer)
                     image_files += afiles
 
         # Process raw data
         self.raw_data = json.dumps(image_data, ensure_ascii=False)
-        self.raw_data, data_files = super(PerseusQuestion, self).set_images(self.raw_data, downloader)
+        self.raw_data, data_files = super(PerseusQuestion, self).set_images(self.raw_data)
 
         # Return all files
         self.files += image_files + data_files
 
-    def process_image_field(self, data, downloader):
+    def process_image_field(self, data):
         """ process_image_field: Specifically process perseus question image field
             Args:
                 data (dict): data that contains 'images' field
-                downloader (DownloadManager): download manager to download images
             Returns: list of all downloaded files
         """
         files = []
 
         new_data = copy.deepcopy(data['images'])
         for k, v in data['images'].items():
-            new_key, fs = self.set_image(k, downloader)
+            new_key, fs = self.set_image(k)
             files += fs
             new_data[new_key] = new_data.pop(k)
         return new_data, files
@@ -260,6 +283,10 @@ class MultipleSelectQuestion(BaseQuestion):
         set_all_answers = set(all_answers)
         all_answers += [answer for answer in correct_answers if answer not in set_all_answers]
         answers = [self.create_answer(answer, answer in correct_answers) for answer in all_answers]
+        if len(answers) == 0:
+            answers = [self.create_answer('No answers provided.')]
+            if config.WARNING:
+                sys.stderr.write("\n\tWARNING: Question {id} does not have any answers (set to default)".format(id=id))
         super(MultipleSelectQuestion, self).__init__(id, question, exercises.MULTIPLE_SELECTION, answers, hints)
 
     def validate(self):
@@ -301,6 +328,10 @@ class SingleSelectQuestion(BaseQuestion):
         if correct_answer not in all_answers:
             all_answers += [correct_answer]
         answers = [self.create_answer(answer, answer==correct_answer) for answer in all_answers]
+        if len(answers) == 0:
+            answers = [self.create_answer('No answers provided.')]
+            if config.WARNING:
+                sys.stderr.write("\n\tWARNING: Question {id} does not have any answers (set to default)".format(id=id))
         super(SingleSelectQuestion, self).__init__(id, question, exercises.SINGLE_SELECTION, answers, hints)
 
     def validate(self):
@@ -371,6 +402,10 @@ class InputQuestion(BaseQuestion):
     def __init__(self, id, question, answers, hints=None):
         hints = [] if hints is None else hints
         answers = [self.create_answer(answer) for answer in answers]
+        if len(answers) == 0:
+            answers = [self.create_answer('No answers provided.')]
+            if config.WARNING:
+                sys.stderr.write("\n\tWARNING: Question {id} does not have any answers (set to default)".format(id=id))
         super(InputQuestion, self).__init__(id, question, exercises.INPUT_QUESTION, answers, hints)
 
     def validate(self):

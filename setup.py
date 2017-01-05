@@ -16,9 +16,11 @@ requirements = [
     "requests>=2.11.1",
     "pillow>=3.3.1",
     "docopt>=0.6.2",
-    "le_utils==0.0.9rc7",
+    "le_utils==0.0.9rc12",
     "validators",
     "requests_file",
+    "beautifulsoup4==4.5.1",
+    "pressurecooker==0.0.6",
 ]
 
 test_requirements = [

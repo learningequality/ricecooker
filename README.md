@@ -1,9 +1,9 @@
-## Rice Cooker
+# Rice Cooker
 
 A framework for creating channels on [Kolibri Studio](https://contentworkshop.learningequality.org/).
 
 
-### Installation
+## Installation
 
 * [Install pip](https://pypi.python.org/pypi/pip) if you don't have it already.
 
@@ -12,21 +12,23 @@ A framework for creating channels on [Kolibri Studio](https://contentworkshop.le
 * You can now reference ricecooker using `import ricecooker` in your .py files
 
 
-### Using the Rice Cooker
+## Using the Rice Cooker
 
 A sample program has been created [here](https://github.com/learningequality/ricecooker/blob/master/ricecooker/sample_program.py)
 
-* Initializing the Channel
+* **Initializing the Channel**
+
 	In order for the rice cooker to run properly, you must include a `create_channel` method in your target py file
 	that returns a Channel model. This function will be responsible for building a tree based on `ricecooker.classes`.
 
 	Start by importing `Channel` from `ricecooker.classes.nodes` and create a Channel model. The Channel model has
 	the following fields:
-        - channel_id (str): channel's unique id
-        - domain (str): who is providing the content (e.g. learningequality.org)
-        - title (str): name of channel
-        - description (str): description of the channel (optional)
-        - thumbnail (str): local path or url to image file (optional)
+
+    - channel_id (str): channel's unique id
+    - domain (str): who is providing the content (e.g. learningequality.org
+    - title (str): name of channel
+    - description (str): description of the channel (optional)
+    - thumbnail (str): local path or url to image file (optional)
 
 	For example:
 	```
@@ -38,6 +40,7 @@ A sample program has been created [here](https://github.com/learningequality/ric
 	        domain="learningequality.org",
 	        channel_id="rice-channel",
 	        title="Rice Channel",
+	        thumbnail="http://path/to/some/image.png"
 	    )
 	    _build_tree(channel, <source tree>) 	# see sample_program.py for example build_tree function
 
@@ -45,15 +48,16 @@ A sample program has been created [here](https://github.com/learningequality/ric
     ```
 
 
-* Building the Tree
+* **Building the Tree**
+
 	Once your channel is created, you can start adding content. To do this, you will need to convert your data to
 	the rice cooker's models. Here are the model types that are available to you:
 
-	- Topic (folders to add hierarchy to the channel's content)
-    - Video (mp4)
-    - Audio (mp3 or wav)
-    - Document (pdf)
-    - Exercise (assessment-based content with questions)
+	- Topic: folders to add hierarchy to the channel's content
+    - Video: mp4
+    - Audio: mp3 or wav
+    - Document: pdf
+    - Exercise: assessment-based content with questions
 
     The `ricecooker.classes.nodes` module has the function `guess_content_kind`, which takes in a file or list of
     files as well as a list of questions (if available) and determines what model best suits those files
@@ -70,7 +74,8 @@ A sample program has been created [here](https://github.com/learningequality/ric
     Once you have created the model, add it to a parent node with `<parent-node>.add_child(<child-node>)`
 
 
-* Adding Exercises
+* **Adding Exercises**
+
 	Exercises are special model kinds that have questions used for assessment. In order to set the criteria
 	for completing exercises, you must set `exercise_data` to equal a dict containing a mastery_model field
 	based on the mastery models provided under `le_utils.constants.exercises`. If no data is provided,
@@ -91,18 +96,27 @@ A sample program has been created [here](https://github.com/learningequality/ric
 	- InputQuestion: questions that have text-based answers (e.g. fill in the blank)
 	- FreeResponseQuestion: questions that require subjective answers (ungraded)
 
-	To set the correct answer(s) for input questions, you must provide an array of all of the accepted answers (`answers`).
-	For multiple selection and single selection questions, you must provide  a list of all of the possible choices as well
-	as an array of the correct answers (`all_answers` and `correct_answer(s)` respectively).
+	To set the correct answer(s) for input questions, you must provide an array of all of the accepted answers (`answers [str]`).
+	For multiple selection questions, you must provide a list of all of the possible choices as well as an array of the correct
+	answers (`all_answers [str]`) and `correct_answers [str]` respectively). For single selection questions, you must provide
+	a list of all possible choices as well as the correct answer (`all_answers [str]` and `correct_answer str` respectively).
 
 	To add images to a question's question, answers, or hints, format the image path with `'![](<path/to/some/file.png>)'`
 
 	Once you have created the appropriate question model, add it to an exercise model with `<exercise-node>.add_question(<question>)`
 
-* Running the Rice Cooker
-	Run `python -m ricecooker uploadchannel [-uv] "<path-to-py-file>" [--debug] [--resume] [[OPTIONS] ...]`
+* **Running the Rice Cooker**
+
+	Run `python -m ricecooker uploadchannel [-huv] "<path-to-py-file>" [--debug] [--warn] [--token=<token>] [--resume [--step=<step>] | --reset] [--prompt] [--publish]  [[OPTIONS] ...]`
+	- -h (help) will print how to use the rice cooker
 	- -v (verbose) will print what the rice cooker is doing
 	- -u (update) will force the ricecooker to redownload all files
 	- --debug will send data to localhost if you have Kolibri Studio running locally
+	- --warn will print out warnings during rice cooking session
+	- --token will authorize you to create your channel (found under Kolibri Studio settings page)
 	- --resume will resume your previous rice cooking session
+	- --step will specify at which step to resume your session
+	- --reset will automatically start the rice cooker from the beginning
+	- --prompt will prompt you to open your channel once it's been uploaded
+	- --publish will automatically publish your channel once it's been uploaded
 	- [OPTIONS] any additional keyword arguments you would like to pass to your construct_channel method

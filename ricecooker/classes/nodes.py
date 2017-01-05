@@ -2,6 +2,7 @@
 
 import uuid
 import json
+import sys
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
 from ricecooker.exceptions import InvalidNodeException, InvalidFormatException
 
@@ -66,10 +67,10 @@ class Node:
 
     def print_tree(self, indent=1):
         """ print_tree: prints out structure of tree
-            Args: indent (int): What level of indentation to start printing at
+            Args: indent (int): What level of indentation at which to start printing
             Returns: None
         """
-        print("{indent}{data}".format(indent="   " * indent, data=str(self)))
+        sys.stderr.write("\n{indent}{data}".format(indent="   " * indent, data=str(self)))
         for child in self.children:
             child.print_tree(indent + 1)
 
@@ -135,9 +136,8 @@ class Channel(Node):
         return {
             "id": self.id.hex,
             "name": self.title,
-            "has_changed": True,
             "thumbnail": self.thumbnail,
-            "description": self.description if self.description is not None else "",
+            "description": self.description[:400] if self.description is not None else "",
         }
 
     def validate(self):
@@ -198,7 +198,7 @@ class ContentNode(Node):
         """
         return {
             "title": self.title,
-            "description": self.description,
+            "description": self.description[:400],
             "node_id": self.node_id.hex,
             "content_id": self.content_id.hex,
             "author": self.author,
@@ -288,6 +288,8 @@ class Video(ContentNode):
     default_preset = format_presets.VIDEO_HIGH_RES
     def __init__(self, id, title, files, author="", description="", transcode_to_lower_resolutions=False, derive_thumbnail=False, license=None, subtitle=None, preset=None, thumbnail=None):
         self.kind = content_kinds.VIDEO
+        self.derive_thumbnail = derive_thumbnail
+
         # If no preset is given, set to default
         if preset is not None:
             self.default_preset = preset
@@ -296,22 +298,11 @@ class Video(ContentNode):
         if transcode_to_lower_resolutions:
             self.transcode_to_lower_resolutions()
 
-        # Derive thumbnail from video
-        if derive_thumbnail:
-            thumbnail = self.derive_thumbnail()
-
         super(Video, self).__init__(id, title, description=description, author=author, license=license, files=files, thumbnail=thumbnail)
 
     def __str__(self):
         metadata = "{0} {1}".format(len(self.files), "file" if len(self.files) == 1 else "files")
         return "{title} ({kind}): {metadata}".format(title=self.title, kind=self.__class__.__name__, metadata=metadata)
-
-    def derive_thumbnail(self):
-        """ derive_thumbnail: derive video's thumbnail
-            Args: None
-            Returns: None
-        """
-        pass
 
     def transcode_to_lower_resolutions(self):
         """ transcode_to_lower_resolutions: transcode video to lower resolution
@@ -454,7 +445,11 @@ class Exercise(ContentNode):
         files = [] if files is None else files
 
         # Set mastery model defaults if none provided
-        exercise_data = {'mastery_model': exercises.M_OF_N, 'randomize': True, 'm': 3, 'n': 5} if exercise_data is None else exercise_data
+        exercise_data = {} if exercise_data is None else exercise_data
+        exercise_data.update({
+            'mastery_model': exercise_data.get('mastery_model') or exercises.M_OF_N,
+            'randomize': exercise_data.get('randomize') or True,
+        })
 
         super(Exercise, self).__init__(id, title, description=description, author=author, license=license, files=files, questions=self.questions, extra_fields=exercise_data,thumbnail=thumbnail)
 
@@ -469,13 +464,20 @@ class Exercise(ContentNode):
         """
         self.questions += [question]
 
-    def process_questions(self, downloader):
+    def process_questions(self):
         """ process_questions: goes through question fields and replaces image strings
-            Args: DownloadManager to download images
+            Args: None
             Returns: None
         """
         for question in self.questions:
-            question.process_question(downloader)
+            question.process_question()
+
+        # Update mastery model if parameters were not provided
+        if self.extra_fields['mastery_model'] == exercises.M_OF_N:
+            if 'n' not in self.extra_fields:
+                self.extra_fields.update({'n':self.extra_fields.get('m') or max(len(self.questions), 1)})
+            if 'm' not in self.extra_fields:
+                self.extra_fields.update({'m':self.extra_fields.get('n') or max(len(self.questions), 1)})
 
     def to_dict(self):
         """ to_dict: puts data in format CC expects
@@ -484,7 +486,7 @@ class Exercise(ContentNode):
         """
         return {
             "title": self.title,
-            "description": self.description,
+            "description": self.description[:400],
             "node_id": self.node_id.hex,
             "content_id": self.content_id.hex,
             "author": self.author,
