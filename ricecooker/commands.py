@@ -61,7 +61,7 @@ def uploadchannel(path, verbose=False, update=False, resume=False, reset=False, 
     response = requests.get(config.check_version_url(), headers={"Authorization": "Token {0}".format(config.TOKEN)})
     response.raise_for_status()
     cc_version = response._content.decode("utf-8")
-    if  cc_version == __version__:
+    if  cc_version <= __version__:
         if config.VERBOSE:
             sys.stderr.write("\nRicecooker up-to-date")
     else:
