@@ -1,6 +1,6 @@
-from ricecooker.classes.nodes import Channel, Video, Audio, Document, Topic, Exercise, guess_content_kind
-from ricecooker.classes.questions import PerseusQuestion, MultipleSelectQuestion, SingleSelectQuestion, FreeResponseQuestion, InputQuestion
-from ricecooker.exceptions import UnknownContentKindError, UnknownQuestionTypeError, raise_for_invalid_channel
+from .classes.nodes import Channel, Video, Audio, Document, Topic, Exercise, HTML5App, guess_content_kind
+from .classes.questions import PerseusQuestion, MultipleSelectQuestion, SingleSelectQuestion, FreeResponseQuestion, InputQuestion
+from .exceptions import UnknownContentKindError, UnknownQuestionTypeError, raise_for_invalid_channel
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
 
 SAMPLE_PERSEUS = '{"answerArea":{"chi2Table":false,"periodicTable":false,"tTable":false,"zTable":false,"calculator":false},' + \
@@ -8,7 +8,7 @@ SAMPLE_PERSEUS = '{"answerArea":{"chi2Table":false,"periodicTable":false,"tTable
 '"question":{"widgets":{"radio 1":{"type":"radio","alignment":"default","graded":true,"static":false,' +\
 '"options":{"deselectEnabled":false,"multipleSelect":false,"choices":[{"correct":true,"content":"Yes"},{"correct":false,"content":"No"}],' +\
 '"displayCount":null,"hasNoneOfTheAbove":false,"randomize":false,"onePerLine":true},"version":{"minor":0,"major":1}}},"images":{"web+graphie:C:/users/jordan/contentcuration-dump/0a0c0f1a1a40226d8d227a07dd143f8c08a4b8a5": {}},' +\
-'"content":"Do you like rice?\\n\\n![](web+graphie:C:/users/jordan/contentcuration-dump/0a0c0f1a1a40226d8d227a07dd143f8c08a4b8a5)\\n\\n[[\\u2603 radio 1]]"},"itemDataVersion":{"minor":1,"major":0}}'
+'"content":"Do you like rice?\\\"\\n\\n![](web+graphie:C:/users/jordan/contentcuration-dump/0a0c0f1a1a40226d8d227a07dd143f8c08a4b8a5)\\n\\n[[\\u2603 radio 1]]"},"itemDataVersion":{"minor":1,"major":0}}'
 
 SAMPLE_TREE = [
     {
@@ -38,6 +38,13 @@ SAMPLE_TREE = [
                         "thumbnail" : "http://res.freestockphotos.biz/pictures/17/17321-a-bowl-of-rice-with-chopsticks-pv.jpg",
                     },
                 ]
+            },
+            {
+                "title": "HTML Sample",
+                "id": "abcdef",
+                "description": "An example of how html can be imported from the ricecooker",
+                "license": licenses.PUBLIC_DOMAIN,
+                "file": "C:/users/jordan/Videos/testfolder/HTML Test.zip",
             },
         ]
     },
@@ -109,10 +116,17 @@ SAMPLE_TREE = [
                 "questions": [
                     {
                         "id": "11111",
-                        "question": "<h3 id='rainbow'><b>RICE COOKING!!!</b></h3><script type='text/javascript'><!-- setInterval(function() {$('#rainbow').css('color', '#'+((1<<24)*Math.random()|0).toString(16));}, 300); --></script>",
+                        "question": "<h3 id=\"rainbow\" style=\"font-weight:bold\">RICE COOKING!!!</h3><script type='text/javascript'><!-- setInterval(function() {$('#rainbow').css('color', '#'+((1<<24)*Math.random()|0).toString(16));}, 300); --></script>",
                         "type":exercises.SINGLE_SELECTION,
-                        "all_answers": ["Rice, Rice, Baby!"],
-                        "correct_answer": "Rice, Rice, Baby!",
+                        "all_answers": ["Answer"],
+                        "correct_answer": "Answer",
+                    },
+                    {
+                        "id": "121212",
+                        "question": '<math> <mrow> <msup><mi> a </mi><mn>2</mn></msup> <mo> + </mo> <msup><mi> b </mi><mn>2</mn></msup> <mo> = </mo> <msup><mi> c </mi><mn>2</mn></msup> </mrow> </math>',
+                        "type":exercises.SINGLE_SELECTION,
+                        "all_answers": ["Answer"],
+                        "correct_answer": "Answer",
                     },
                 ],
             },
@@ -148,9 +162,9 @@ def construct_channel(**kwargs):
 
     channel = Channel(
         domain="learningequality.org",
-        channel_id="sample-ricecooker-channel",
-        title="Sample Ricecooker Channel",
-        thumbnail="https://upload.wikimedia.org/wikipedia/commons/4/48/Electronic_rice_cooker_with_scoop.jpg",
+        channel_id="test-ricecooker-channel",
+        title="Test Ricecooker Channel",
+        thumbnail="https://upload.wikimedia.org/wikipedia/commons/thumb/5/50/Banaue_Philippines_Banaue-Rice-Terraces-01.jpg/640px-Banaue_Philippines_Banaue-Rice-Terraces-01.jpg",
     )
     _build_tree(channel, SAMPLE_TREE)
     raise_for_invalid_channel(channel)
@@ -234,13 +248,25 @@ def _build_tree(node, sourcetree):
                 author=child_source_node.get("author"),
                 description=child_source_node.get("description"),
                 files=child_source_node.get("file"),
-                exercise_data={'mastery_model': child_source_node.get("mastery_model"), 'randomize': True, 'm': 3, 'n': 5},
+                exercise_data={}, # Just set to default
                 license=child_source_node.get("license"),
                 thumbnail=child_source_node.get("thumbnail"),
             )
             for q in child_source_node.get("questions"):
                 question = create_question(q)
                 child_node.add_question(question)
+            node.add_child(child_node)
+
+        elif kind == content_kinds.HTML5:
+            child_node = HTML5App(
+                id=child_source_node["id"],
+                title=child_source_node["title"],
+                author=child_source_node.get("author"),
+                description=child_source_node.get("description"),
+                files=child_source_node.get("file"),
+                license=child_source_node.get("license"),
+                thumbnail=child_source_node.get("thumbnail"),
+            )
             node.add_child(child_node)
 
         else:                   # unknown content file format

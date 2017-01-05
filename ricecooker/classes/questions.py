@@ -4,8 +4,10 @@ import uuid
 import json
 import re
 import copy
+import sys
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
-from ricecooker.exceptions import UnknownQuestionTypeError, InvalidQuestionException
+from .. import config
+from ..exceptions import UnknownQuestionTypeError, InvalidQuestionException
 
 WEB_GRAPHIE_URL_REGEX = r'web\+graphie:([^\)]+)'
 FILE_REGEX = r'!\[([^\]]+)?\]\(([^\)]+)\)'
@@ -122,19 +124,17 @@ class BaseQuestion:
         graphie_reg = re.compile(WEB_GRAPHIE_URL_REGEX, flags=re.IGNORECASE)
         graphie_match = graphie_reg.match(text)
         result=None
+        replacement = None
         title="Question {0}".format(self.original_id)
         # If it is a web+graphie, download svg and json files,
         # Otherwise, download like other files
         if graphie_match:
             text = graphie_match.group().replace("web+graphie:", "")
             result = downloader.download_graphie(text, title)
+            replacement = result['original_filename'] if result else ""
         else:
             result = downloader.download_file(text, title, preset=format_presets.EXERCISE_IMAGE, default_ext=file_formats.PNG)
-        if not result:
-            return "", []
-        replacement = result['filename']
-        if graphie_match:
-            replacement = result['original_filename']
+            replacement = result['filename'] if result else ""
         text = text.replace(text, exercises.CONTENT_STORAGE_FORMAT.format(replacement))
         return text, [result]
 
@@ -236,6 +236,38 @@ class PerseusQuestion(BaseQuestion):
             new_data[new_key] = new_data.pop(k)
         return new_data, files
 
+    def set_image(self, text, downloader):
+        """ set_images: Replace image strings with downloaded image checksums
+            Args:
+                text (str): text to parse for image strings
+                downloader (DownloadManager): download manager to download images
+            Returns:string with checksums in place of image strings and
+                list of files that were downloaded from string
+        """
+        # Set up return values and regex
+        file_list = []
+        graphie_reg = re.compile(WEB_GRAPHIE_URL_REGEX, flags=re.IGNORECASE)
+        graphie_match = graphie_reg.match(text)
+        # If it is a web+graphie, download svg and json files,
+        # Otherwise, download like other files
+        if graphie_match:
+            link = graphie_match.group().replace("web+graphie:", "")
+            graphie_result = downloader.download_graphie(link, "Question {0}".format(self.original_id))
+            if not graphie_result:
+                return "", []
+            filename, svg_filename, json_filename = graphie_result
+            text = text.replace(link, exercises.CONTENT_STORAGE_FORMAT.format(filename))
+            file_list += [svg_filename, json_filename]
+        else:
+            result = downloader.download_file(text, "Question {0}".format(self.original_id), preset=format_presets.EXERCISE_IMAGE, default_ext=".{}".format(file_formats.PNG))
+            if not result:
+                return "", []
+            filename = result
+            text = text.replace(text, exercises.CONTENT_STORAGE_FORMAT.format(filename))
+            file_list += [filename]
+        return text, file_list
+
+
 class MultipleSelectQuestion(BaseQuestion):
     """ Model representing multiple select questions
 
@@ -260,6 +292,10 @@ class MultipleSelectQuestion(BaseQuestion):
         set_all_answers = set(all_answers)
         all_answers += [answer for answer in correct_answers if answer not in set_all_answers]
         answers = [self.create_answer(answer, answer in correct_answers) for answer in all_answers]
+        if len(answers) == 0:
+            answers = [self.create_answer('No answers provided.')]
+            if config.WARNING:
+                sys.stderr.write("\n\tWARNING: Question {id} does not have any answers (set to default)".format(id=id))
         super(MultipleSelectQuestion, self).__init__(id, question, exercises.MULTIPLE_SELECTION, answers, hints)
 
     def validate(self):
@@ -301,6 +337,10 @@ class SingleSelectQuestion(BaseQuestion):
         if correct_answer not in all_answers:
             all_answers += [correct_answer]
         answers = [self.create_answer(answer, answer==correct_answer) for answer in all_answers]
+        if len(answers) == 0:
+            answers = [self.create_answer('No answers provided.')]
+            if config.WARNING:
+                sys.stderr.write("\n\tWARNING: Question {id} does not have any answers (set to default)".format(id=id))
         super(SingleSelectQuestion, self).__init__(id, question, exercises.SINGLE_SELECTION, answers, hints)
 
     def validate(self):
@@ -371,6 +411,10 @@ class InputQuestion(BaseQuestion):
     def __init__(self, id, question, answers, hints=None):
         hints = [] if hints is None else hints
         answers = [self.create_answer(answer) for answer in answers]
+        if len(answers) == 0:
+            answers = [self.create_answer('No answers provided.')]
+            if config.WARNING:
+                sys.stderr.write("\n\tWARNING: Question {id} does not have any answers (set to default)".format(id=id))
         super(InputQuestion, self).__init__(id, question, exercises.INPUT_QUESTION, answers, hints)
 
     def validate(self):
