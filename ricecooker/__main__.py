@@ -1,5 +1,5 @@
 
-"""Usage: ricecooker uploadchannel [-huv] <file_path> [--warn] [--compress] [--token=<t>] [--resume [--step=<step>] | --reset] [--prompt] [--publish] [[OPTIONS] ...]
+"""Usage: ricecooker uploadchannel [-huv] <file_path> [--warn] [--token=<t>] [--resume [--step=<step>] | --reset] [--prompt] [--publish] [[OPTIONS] ...]
 
 Arguments:
   file_path        Path to file with channel data
@@ -34,10 +34,10 @@ Steps (for restoring session):
 
 """
 
-from ricecooker.commands import uploadchannel
-from ricecooker import config
-from ricecooker.exceptions import InvalidUsageException
-from ricecooker.managers.progress import Status
+from .commands import uploadchannel
+from . import config
+from .exceptions import InvalidUsageException
+from .managers.progress import Status
 from docopt import docopt
 
 commands = ["uploadchannel"]
