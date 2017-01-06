@@ -133,6 +133,9 @@ class DownloadManager:
         except (HTTPError, ConnectionError, InvalidURL, InvalidSchema, IOError):
             self.failed_files += [(path,title)]
             return False;
+        except (HTTPError, FileNotFoundError, ConnectionError, InvalidURL, UnicodeDecodeError, InvalidSchema, IOError):
+            self.failed_files += [(path, title)]
+            return False
 
     def write_to_graphie_file(self, path, tempf, hash):
         """ write_to_graphie_file: write from path to graphie file
