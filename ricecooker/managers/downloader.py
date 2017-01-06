@@ -380,6 +380,4 @@ class DownloadManager:
         with tempfile.NamedTemporaryFile(suffix=".{}".format(file_formats.PNG)) as tempf:
             tempf.close()
             write_base64_to_file(text, tempf.name)
-
-            returned = self.download_file(tempf.name, title, preset=preset, extracted=True, original_filepath=filepath)
-            return returned
+            return self.download_file(tempf.name, title, preset=preset, extracted=True, original_filepath=filepath)
