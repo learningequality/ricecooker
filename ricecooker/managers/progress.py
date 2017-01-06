@@ -2,7 +2,7 @@ import pickle
 import os
 import sys
 from enum import Enum
-from . import config
+from .. import config
 
 class Status(Enum):
     """ Enum containing all statuses Ricecooker can have
@@ -165,17 +165,6 @@ class RestoreManager:
 
     def set_files(self, files_downloaded, file_mapping, files_failed):
         """ set_files: records progress from downloading files
-            Args:
-                files_downloaded ([str]): list of files that have been downloaded
-                file_mapping ({filename:...}): filenames mapped to metadata
-                files_failed ([str]): list of files that failed to download
-            Returns: None
-        """
-        self.status = Status.COMPRESS_FILES # Set status to next step
-        self.record_progress()
-
-    def set_compressed_files(self, files_downloaded, file_mapping, files_failed):
-        """ set_compressed_files: records progress from compressing files
             Args:
                 files_downloaded ([str]): list of files that have been downloaded
                 file_mapping ({filename:...}): filenames mapped to metadata

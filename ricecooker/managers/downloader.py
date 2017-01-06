@@ -8,11 +8,10 @@ import os
 import sys
 import requests
 from enum import Enum
-from pressurecooker.videos import extract_thumbnail_from_video, check_video_resolution
 from requests_file import FileAdapter
 from requests.exceptions import MissingSchema, HTTPError, ConnectionError, InvalidURL, InvalidSchema
-from . import config
-from .exceptions import InvalidFormatException, FileNotFoundException
+from .. import config
+from ..exceptions import InvalidFormatException, FileNotFoundException
 from le_utils.constants import file_formats, exercises, format_presets
 
 class DownloadManager:

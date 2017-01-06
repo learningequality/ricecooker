@@ -3,7 +3,7 @@ import json
 import requests
 import os
 import sys
-from . import config
+from .. import config
 from le_utils.constants import file_formats, format_presets
 
 
@@ -32,7 +32,7 @@ class ChannelManager:
                 parent (Node): parent of node being processed
             Returns: None
         """
-        from .classes import nodes
+        from ..classes import nodes
 
         # If node is not a channel, set ids and download files
         if not isinstance(node, nodes.Channel):
@@ -49,7 +49,7 @@ class ChannelManager:
                 parent (Node): parent of node being processed
             Returns: None
         """
-        from .classes import nodes
+        from ..classes import nodes
 
         # If node is not a channel, download files
         if isinstance(node, nodes.Channel):

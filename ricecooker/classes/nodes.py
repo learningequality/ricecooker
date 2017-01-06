@@ -6,7 +6,7 @@ import zipfile
 import sys
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
 from ..exceptions import InvalidNodeException, InvalidFormatException
-from ..managers import DownloadManager
+from ..managers.downloader import DownloadManager
 
 def guess_content_kind(files, questions=None):
     """ guess_content_kind: determines what kind the content is
@@ -172,7 +172,7 @@ class ContentNode(Node):
     """
     def __init__(self, *args, **kwargs):
         # Map parameters to model variables
-        assert isinstance(args[0], basestring), "id must be a string"
+        assert isinstance(args[0], str), "id must be a string"
         self.id = args[0]
         self.original_id = args[0]
         self.title = args[1]
