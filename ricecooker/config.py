@@ -7,7 +7,6 @@ import hashlib
 WARNING = False
 UPDATE = False
 VERBOSE = False
-COMPRESS = False
 TOKEN = "#"
 PROGRESS_MANAGER = None
 DOWNLOADER = None

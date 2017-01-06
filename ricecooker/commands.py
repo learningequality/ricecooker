@@ -93,10 +93,6 @@ def uploadchannel(path, verbose=False, update=False, resume=False, reset=False, 
     if config.PROGRESS_MANAGER.get_status_val() <= Status.DOWNLOAD_FILES.value:
         config.PROGRESS_MANAGER.set_files(*process_tree_files(tree))
 
-    # Compress files if they haven't been compressed already
-    if config.PROGRESS_MANAGER.get_status_val() <= Status.COMPRESS_FILES.value:
-        config.PROGRESS_MANAGER.set_compressed_files(*compress_tree_files(tree))
-
     # Set download manager in case steps were skipped
     config.DOWNLOADER.files = config.PROGRESS_MANAGER.files_downloaded
     config.DOWNLOADER.failed_files = config.PROGRESS_MANAGER.files_failed
@@ -221,21 +217,6 @@ def process_tree_files(tree):
     tree.check_for_files_failed()
     if config.VERBOSE:
         sys.stderr.write("\n")
-    return config.DOWNLOADER.get_files(), config.DOWNLOADER.get_file_mapping(), config.DOWNLOADER.failed_files
-
-def compress_tree_files(tree):
-    """ compress_tree_files: Compress files from nodes
-        Args:
-            tree (ChannelManager): manager to handle communication to Kolibri Studio
-        Returns: None
-    """
-    if config.COMPRESS:
-        if config.VERBOSE:
-            sys.stderr.write("\nCompressing files...")
-        tree.compress_tree(tree.channel)
-        config.set_file_store(config.DOWNLOADER.file_store)
-        if config.VERBOSE:
-            sys.stderr.write("\n")
     return config.DOWNLOADER.get_files(), config.DOWNLOADER.get_file_mapping(), config.DOWNLOADER.failed_files
 
 def get_file_diff(tree):

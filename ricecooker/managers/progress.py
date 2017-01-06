@@ -24,14 +24,13 @@ class Status(Enum):
     CONSTRUCT_CHANNEL = 1
     CREATE_TREE = 2
     DOWNLOAD_FILES = 3
-    COMPRESS_FILES = 4
-    GET_FILE_DIFF = 5
-    START_UPLOAD = 6
-    UPLOADING_FILES = 7
-    UPLOAD_CHANNEL = 8
-    PUBLISH_CHANNEL = 9
-    DONE = 10
-    LAST = 11
+    GET_FILE_DIFF = 4
+    START_UPLOAD = 5
+    UPLOADING_FILES = 6
+    UPLOAD_CHANNEL = 7
+    PUBLISH_CHANNEL = 8
+    DONE = 9
+    LAST = 10
 
 
 class RestoreManager:

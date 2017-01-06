@@ -205,7 +205,7 @@ class PerseusQuestion(BaseQuestion):
         except AssertionError as ae:
             raise InvalidQuestionException("Invalid question: {0}".format(self.__dict__))
 
-    def process_question(self,):
+    def process_question(self):
         """ process_question: Parse data that needs to have image strings processed
             Args: None
             Returns: list of all downloaded files
