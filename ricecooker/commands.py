@@ -24,6 +24,7 @@ def uploadchannel(path, verbose=False, update=False, resume=False, reset=False, 
             prompt (bool): indicates whether to prompt user to open channel when done (optional)
             publish (bool): indicates whether to automatically publish channel (optional)
             warnings (bool): indicates whether to print out warnings (optional)
+            compress (bool): indicates whether to compress larger files (optional)
             kwargs (dict): keyword arguments to pass to sushi chef (optional)
         Returns: (str) link to access newly created channel
     """
