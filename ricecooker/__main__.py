@@ -35,7 +35,7 @@ Steps (for restoring session):
 from .commands import uploadchannel
 from . import config
 from .exceptions import InvalidUsageException
-from .managers import Status
+from .managers.progress import Status
 from docopt import docopt
 
 commands = ["uploadchannel"]

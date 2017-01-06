@@ -6,7 +6,7 @@ import zipfile
 import sys
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
 from ..exceptions import InvalidNodeException, InvalidFormatException
-from ..managers import DownloadManager
+from ..managers.downloader import DownloadManager
 
 def guess_content_kind(files, questions=None):
     """ guess_content_kind: determines what kind the content is
@@ -172,7 +172,7 @@ class ContentNode(Node):
     """
     def __init__(self, *args, **kwargs):
         # Map parameters to model variables
-        assert isinstance(args[0], basestring), "id must be a string"
+        assert isinstance(args[0], str), "id must be a string"
         self.id = args[0]
         self.original_id = args[0]
         self.title = args[1]
@@ -292,6 +292,8 @@ class Video(ContentNode):
     default_preset = format_presets.VIDEO_HIGH_RES
     def __init__(self, id, title, files, author="", description="", transcode_to_lower_resolutions=False, derive_thumbnail=False, license=None, subtitle=None, preset=None, thumbnail=None):
         self.kind = content_kinds.VIDEO
+        self.derive_thumbnail = derive_thumbnail
+
         # If no preset is given, set to default
         if preset is not None:
             self.default_preset = preset
@@ -299,10 +301,6 @@ class Video(ContentNode):
         # Transcode video to lower resoution
         if transcode_to_lower_resolutions:
             self.transcode_to_lower_resolutions()
-
-        # Derive thumbnail from video
-        if derive_thumbnail:
-            thumbnail = self.derive_thumbnail()
 
         super(Video, self).__init__(id, title, description=description, author=author, license=license, files=files, thumbnail=thumbnail)
 
@@ -477,13 +475,13 @@ class Exercise(ContentNode):
         """
         self.questions += [question]
 
-    def process_questions(self, downloader):
+    def process_questions(self):
         """ process_questions: goes through question fields and replaces image strings
-            Args: DownloadManager to download images
+            Args: None
             Returns: None
         """
         for question in self.questions:
-            question.process_question(downloader)
+            question.process_question()
 
         # Update mastery model if parameters were not provided
         if self.extra_fields['mastery_model'] == exercises.M_OF_N:

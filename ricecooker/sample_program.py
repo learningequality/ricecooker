@@ -1,6 +1,6 @@
-from .classes.nodes import Channel, Video, Audio, Document, Topic, Exercise, HTML5App, guess_content_kind
-from .classes.questions import PerseusQuestion, MultipleSelectQuestion, SingleSelectQuestion, FreeResponseQuestion, InputQuestion
-from .exceptions import UnknownContentKindError, UnknownQuestionTypeError, raise_for_invalid_channel
+from ricecooker.classes.nodes import Channel, Video, Audio, Document, Topic, Exercise, HTML5App, guess_content_kind
+from ricecooker.classes.questions import PerseusQuestion, MultipleSelectQuestion, SingleSelectQuestion, FreeResponseQuestion, InputQuestion
+from ricecooker.exceptions import UnknownContentKindError, UnknownQuestionTypeError, raise_for_invalid_channel
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
 
 SAMPLE_PERSEUS = '{"answerArea":{"chi2Table":false,"periodicTable":false,"tTable":false,"zTable":false,"calculator":false},' + \
@@ -162,8 +162,8 @@ def construct_channel(**kwargs):
 
     channel = Channel(
         domain="learningequality.org",
-        channel_id="test-ricecooker-channel",
-        title="Test Ricecooker Channel",
+        channel_id="testing-ricecooker-channel",
+        title="Testing Ricecooker Channel",
         thumbnail="https://upload.wikimedia.org/wikipedia/commons/thumb/5/50/Banaue_Philippines_Banaue-Rice-Terraces-01.jpg/640px-Banaue_Philippines_Banaue-Rice-Terraces-01.jpg",
     )
     _build_tree(channel, SAMPLE_TREE)

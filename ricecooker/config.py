@@ -8,6 +8,8 @@ WARNING = False
 UPDATE = False
 VERBOSE = False
 TOKEN = "#"
+PROGRESS_MANAGER = None
+DOWNLOADER = None
 
 # Domain and file store location for uploading to production server
 DOMAIN = os.getenv('CONTENTWORKSHOP_URL', "https://contentworkshop.learningequality.org")
