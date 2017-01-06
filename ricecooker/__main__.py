@@ -34,10 +34,10 @@ Steps (for restoring session):
 
 """
 
-from ricecooker.commands import uploadchannel
-from ricecooker import config
-from ricecooker.exceptions import InvalidUsageException
-from ricecooker.managers.progress import Status
+from .commands import uploadchannel
+from . import config
+from .exceptions import InvalidUsageException
+from .managers.progress import Status
 from docopt import docopt
 
 commands = ["uploadchannel"]

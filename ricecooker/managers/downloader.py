@@ -11,8 +11,8 @@ from enum import Enum
 from pressurecooker.videos import extract_thumbnail_from_video, check_video_resolution
 from requests_file import FileAdapter
 from requests.exceptions import MissingSchema, HTTPError, ConnectionError, InvalidURL, InvalidSchema
-from ricecooker import config
-from ricecooker.exceptions import InvalidFormatException, FileNotFoundException
+from .. import config
+from ..exceptions import InvalidFormatException, FileNotFoundException
 from le_utils.constants import file_formats, exercises, format_presets
 
 class DownloadManager:
@@ -130,7 +130,7 @@ class DownloadManager:
                 return self._file_mapping[filename]
 
         # Catch errors related to reading file path and handle silently
-        except (HTTPError, FileNotFoundError, ConnectionError, InvalidURL, InvalidSchema, IOError):
+        except (HTTPError, ConnectionError, InvalidURL, InvalidSchema, IOError):
             self.failed_files += [(path,title)]
             return False;
 
@@ -222,7 +222,7 @@ class DownloadManager:
                 if default_ext is not None:
                     extension = default_ext
                 else:
-                    raise FileNotFoundError("No extension found: {}".format(path))
+                    raise IOError("No extension found: {}".format(path))
 
             filename = '{0}.{ext}'.format(hash.hexdigest(), ext=extension)
 
@@ -274,7 +274,7 @@ class DownloadManager:
                 return self._file_mapping[filename]
 
         # Catch errors related to reading file path and handle silently
-        except (HTTPError, FileNotFoundError, ConnectionError, InvalidURL, InvalidSchema, IOError):
+        except (HTTPError, ConnectionError, InvalidURL, InvalidSchema, IOError):
             self.failed_files += [(path,title)]
             return False;
 

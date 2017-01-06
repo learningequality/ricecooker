@@ -7,8 +7,8 @@ import copy
 import sys
 from bs4 import BeautifulSoup
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
-from ricecooker import config
-from ricecooker.exceptions import UnknownQuestionTypeError, InvalidQuestionException
+from .. import config
+from ..exceptions import UnknownQuestionTypeError, InvalidQuestionException
 
 WEB_GRAPHIE_URL_REGEX = r'web\+graphie:([^\)]+)'
 FILE_REGEX = r'!\[([^\]]+)?\]\(([^\)]+)\)'
@@ -36,7 +36,7 @@ class BaseQuestion:
         self.answers = answers if answers is not None else []
         self.hints = [] if hints is None else [hints] if isinstance(hints,str) else hints
         self.raw_data = raw_data
-        self.original_id = id
+        self.original_id=id
         self.id = uuid.uuid5(uuid.NAMESPACE_DNS, id)
 
     def to_dict(self):
@@ -148,15 +148,13 @@ class BaseQuestion:
         title="Question {0}".format(self.original_id)
         # If it is a web+graphie, download svg and json files,
         # Otherwise, download like other files
-        if graphie_match is not None:
+        if graphie_match:
             text = graphie_match.group().replace("web+graphie:", "")
             result = config.DOWNLOADER.download_graphie(text, title)
             replacement = result['original_filename'] if result else ""
         else:
             result = config.DOWNLOADER.download_file(text, title, preset=format_presets.EXERCISE_IMAGE, default_ext=file_formats.PNG)
             replacement = result['filename'] if result else ""
-        if not result:
-            return "", []
         text = text.replace(text, exercises.CONTENT_STORAGE_FORMAT.format(replacement))
         return text, [result]
 
@@ -207,7 +205,7 @@ class PerseusQuestion(BaseQuestion):
         except AssertionError as ae:
             raise InvalidQuestionException("Invalid question: {0}".format(self.__dict__))
 
-    def process_question(self,):
+    def process_question(self):
         """ process_question: Parse data that needs to have image strings processed
             Args: None
             Returns: list of all downloaded files

@@ -3,8 +3,8 @@ import json
 import requests
 import os
 import sys
-from ricecooker import config
-from le_utils.constants import file_formats
+from .. import config
+from le_utils.constants import file_formats, format_presets
 
 
 class ChannelManager:
@@ -32,7 +32,7 @@ class ChannelManager:
                 parent (Node): parent of node being processed
             Returns: None
         """
-        from ricecooker.classes import nodes
+        from ..classes import nodes
 
         # If node is not a channel, set ids and download files
         if not isinstance(node, nodes.Channel):
@@ -49,7 +49,7 @@ class ChannelManager:
                 parent (Node): parent of node being processed
             Returns: None
         """
-        from ricecooker.classes import nodes
+        from ..classes import nodes
 
         # If node is not a channel, download files
         if isinstance(node, nodes.Channel):
@@ -65,6 +65,7 @@ class ChannelManager:
                 thumbnail = config.DOWNLOADER.download_file(node.thumbnail, "Node {}".format(node.original_id), default_ext=file_formats.PNG)
             elif isinstance(node, nodes.Video) and node.derive_thumbnail:
                 thumbnail = config.DOWNLOADER.derive_thumbnail(config.get_storage_path(node.files[0]['filename']), "Node {}".format(node.original_id))
+
             if thumbnail:
                 node.files.append(thumbnail)
 
@@ -119,7 +120,6 @@ class ChannelManager:
         # Process node's children
         for child_node in node.children:
             self.process_tree(child_node, node)
-
 
     def get_file_diff(self):
         """ get_file_diff: retrieves list of files that do not exist on content curation server
@@ -227,6 +227,10 @@ class ChannelManager:
                 indent (int): level of indentation for printing
             Returns: link to uploadedchannel
         """
+        # if the current node has no children, no need to continue
+        if not current_node.children:
+            return
+
         if config.VERBOSE:
             sys.stderr.write("\n{indent}Processing {title} ({kind})".format(indent="   " * indent, title=current_node.title, kind=current_node.__class__.__name__))
         payload = {
