@@ -279,7 +279,7 @@ class DownloadManager:
                 return self._file_mapping[filename]
 
         # Catch errors related to reading file path and handle silently
-        except (HTTPError, ConnectionError, InvalidURL, InvalidSchema, IOError):
+        except (HTTPError, ConnectionError, InvalidURL, UnicodeDecodeError, InvalidSchema, IOError):
             self.failed_files += [(path,title)]
             return False;
 
@@ -333,7 +333,7 @@ class DownloadManager:
         with tempfile.NamedTemporaryFile(suffix=".{}".format(file_formats.PNG)) as tempf:
             tempf.close()
             extract_thumbnail_from_video(filepath, tempf.name, overwrite=True)
-            return self.download_file(tempf.name, title, extracted=True, default_ext=file_formats.PNG, original_filepath=filepath + " (thumbnail)")
+            return self.download_file(tempf.name, title, extracted=True, original_filepath=filepath + " (thumbnail)")
 
     def compress_file(self, filepath, title):
         """ compress_file: compress the video to a lower resolution
