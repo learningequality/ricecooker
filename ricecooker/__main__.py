@@ -9,7 +9,6 @@ Options:
   -v               Verbose mode
   -u               Re-download files from file paths
   --warn           Print out warnings to stderr
-  --compress       Compress high resolution videos to low resolution videos
   --token=<t>      Authorization token (can be token or path to file with token) [default: #]
   --resume         Resume from ricecooker step (cannot be used with --reset flag)
   --step=<step>    Step to resume progress from (must be used with --resume flag) [default: last]
