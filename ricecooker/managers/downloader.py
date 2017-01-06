@@ -8,7 +8,7 @@ import os
 import sys
 import requests
 from enum import Enum
-from pressurecooker.videos import extract_thumbnail_from_video, check_video_resolution
+from pressurecooker.videos import extract_thumbnail_from_video, check_video_resolution, compress_video
 from requests_file import FileAdapter
 from requests.exceptions import MissingSchema, HTTPError, ConnectionError, InvalidURL, InvalidSchema
 from .. import config
@@ -191,10 +191,10 @@ class DownloadManager:
         data = self.file_store[path]
         if config.VERBOSE:
             sys.stderr.write("\n\tFile {0} already exists (add '-u' flag to update)".format(data['filename']))
-        self.track_file(data['filename'], data['size'],  data['preset'], original_filename=data['original_filename'])
+        self.track_file(data['filename'], data['size'],  data.get('preset'), original_filename=data.get('original_filename'), extracted=data.get("extracted"))
         return self._file_mapping[data['filename']]
 
-    def download_file(self, path, title, default_ext=None, preset=None):
+    def download_file(self, path, title, default_ext=None, preset=None, extracted=False, original_filepath=None):
         """ download_file: downloads file from path
             Args:
                 path (str): local path or url to file to download
@@ -208,10 +208,13 @@ class DownloadManager:
             if exercises.CONTENT_STORAGE_PLACEHOLDER in path:
                 return self._file_mapping[os.path.split(path)[-1]]
 
-            if self.check_downloaded_file(path):
-                return self.track_existing_file(path)
+            if not original_filepath:
+                original_filepath = path
 
-            if config.VERBOSE:
+            if self.check_downloaded_file(original_filepath):
+                return self.track_existing_file(original_filepath)
+
+            if config.VERBOSE and not extracted:
                 sys.stderr.write("\n\tDownloading {}".format(path))
 
             hash=self.get_hash(path)
@@ -222,7 +225,7 @@ class DownloadManager:
                 if default_ext is not None:
                     extension = default_ext
                 else:
-                    raise IOError("No extension found: {}".format(path))
+                    raise FileNotFoundError("No extension found: {}".format(path))
 
             filename = '{0}.{ext}'.format(hash.hexdigest(), ext=extension)
 
@@ -235,7 +238,7 @@ class DownloadManager:
                     preset = check_video_resolution(config.get_storage_path(filename))
 
                 # Keep track of downloaded file
-                self.track_file(filename, os.path.getsize(config.get_storage_path(filename)), preset, path)
+                self.track_file(filename, os.path.getsize(config.get_storage_path(filename)), preset, path, extracted=extracted)
                 return self._file_mapping[filename]
 
             # Write file to temporary file
@@ -265,20 +268,19 @@ class DownloadManager:
                 # If a video file, check its resolution
                 if extension == file_formats.MP4:
                     preset = check_video_resolution(config.get_storage_path(filename))
-                    print(preset)
 
                 # Keep track of downloaded file
-                self.track_file(filename, file_size, preset, path)
+                self.track_file(filename, file_size, preset, original_filepath, extracted=extracted)
                 if config.VERBOSE:
                     sys.stderr.write("\n\t--- Downloaded {}".format(filename))
                 return self._file_mapping[filename]
 
         # Catch errors related to reading file path and handle silently
-        except (HTTPError, ConnectionError, InvalidURL, InvalidSchema, IOError):
+        except (HTTPError, FileNotFoundError, ConnectionError, InvalidURL, InvalidSchema, IOError):
             self.failed_files += [(path,title)]
             return False;
 
-    def track_file(self, filename, file_size, preset, path=None, original_filename='[File]'):
+    def track_file(self, filename, file_size, preset, path=None, original_filename='[File]', extracted=False):
         """ track_file: record which file has been downloaded along with metadata
             Args:
                 filename (str): name of file to track
@@ -286,6 +288,7 @@ class DownloadManager:
                 preset (str): preset to assign to file
                 path (str): source path of file (optional)
                 original_filename (str): file's original name (optional)
+                extracted (bool): indicates whether file has been extracted automatically (optional)
             Returns: None
         """
         self.files += [filename]
@@ -294,12 +297,12 @@ class DownloadManager:
             'preset' : preset,
             'filename' : filename,
             'original_filename' : original_filename,
+            'extracted' : extracted,
         }
         self._file_mapping.update({filename : file_data})
 
         if path is not None:
             self.file_store.update({path:file_data})
-
 
     def download_files(self,files, title, default_ext=None):
         """ download_files: download list of files
@@ -327,4 +330,23 @@ class DownloadManager:
         with tempfile.NamedTemporaryFile(suffix=".{}".format(file_formats.PNG)) as tempf:
             tempf.close()
             extract_thumbnail_from_video(filepath, tempf.name, overwrite=True)
-            return self.download_file(tempf.name, title, default_ext=file_formats.PNG)
+            return self.download_file(tempf.name, title, extracted=True, default_ext=file_formats.PNG, original_filepath=filepath + " (thumbnail)")
+
+    def compress_file(self, filepath, title):
+        """ compress_file: compress the video to a lower resolution
+            Args:
+                filepath (str): path to video file
+                title (str): name of node in case of error
+            Returns: None
+        """
+        # If file has already been compressed, return the compressed file data
+        if self.check_downloaded_file(filepath) and self.file_store[filepath].get('extracted'):
+            if config.VERBOSE:
+                sys.stderr.write("\n\tFound compressed file for {}".format(filepath))
+            return self.track_existing_file(filepath)
+
+        # Otherwise, compress the file
+        with tempfile.NamedTemporaryFile(suffix=".{}".format(file_formats.MP4)) as tempf:
+            tempf.close()
+            compress_video(filepath, tempf.name, overwrite=True)
+            return self.download_file(tempf.name, title, extracted=True, original_filepath=filepath)
