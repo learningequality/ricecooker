@@ -225,7 +225,7 @@ class DownloadManager:
                 if default_ext is not None:
                     extension = default_ext
                 else:
-                    raise FileNotFoundError("No extension found: {}".format(path))
+                    raise IOError("No extension found: {}".format(path))
 
             filename = '{0}.{ext}'.format(hash.hexdigest(), ext=extension)
 
