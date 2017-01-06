@@ -111,6 +111,7 @@ class Channel(Node):
             description (str): description of the channel (optional)
             thumbnail (str): file path or url of channel's thumbnail (optional)
     """
+    thumbnail_preset = format_presets.CHANNEL_THUMBNAIL
     def __init__(self, channel_id, domain, title, description=None, thumbnail=None):
         # Map parameters to model variables
         self.domain = domain
@@ -290,6 +291,7 @@ class Video(ContentNode):
             thumbnail (str): local path or url to thumbnail image (optional)
     """
     default_preset = format_presets.VIDEO_HIGH_RES
+    thumbnail_preset = format_presets.VIDEO_THUMBNAIL
     def __init__(self, id, title, files, author="", description="", transcode_to_lower_resolutions=False, derive_thumbnail=False, license=None, subtitle=None, preset=None, thumbnail=None):
         self.kind = content_kinds.VIDEO
         self.derive_thumbnail = derive_thumbnail
@@ -358,7 +360,7 @@ class Audio(ContentNode):
             license (str): content's license based on le_utils.constants.licenses (optional)
             thumbnail (str): local path or url to thumbnail image (optional)
     """
-
+    thumbnail_preset = format_presets.AUDIO_THUMBNAIL
     default_preset = format_presets.AUDIO
     def __init__(self, id, title, files, author="", description="", license=None, subtitle=None, thumbnail=None):
         self.kind = content_kinds.AUDIO
@@ -404,6 +406,7 @@ class Document(ContentNode):
             thumbnail (str): local path or url to thumbnail image (optional)
     """
     default_preset = format_presets.DOCUMENT
+    thumbnail_preset = format_presets.DOCUMENT_THUMBNAIL
     def __init__(self, id, title, files, author="", description="", license=None, thumbnail=None):
         self.kind = content_kinds.DOCUMENT
         super(Document, self).__init__(id, title, description=description, author=author, license=license, files=files, thumbnail=thumbnail)
@@ -450,6 +453,7 @@ class Exercise(ContentNode):
             thumbnail (str): local path or url to thumbnail image (optional)
     """
     default_preset = format_presets.EXERCISE
+    thumbnail_preset = format_presets.EXERCISE_THUMBNAIL
     def __init__(self, id, title, files, author="", description="", license=None, exercise_data=None, thumbnail=None):
         self.kind = content_kinds.EXERCISE
         self.questions = []
@@ -551,7 +555,7 @@ class HTML5App(ContentNode):
     """
 
     default_preset = format_presets.HTML5_ZIP
-
+    thumbnail_preset = format_presets.HTML5_THUMBNAIL
     def __init__(self, id, title, files, author="", description="", license=None, thumbnail=None):
         self.kind = content_kinds.HTML5
         files = [] if files is None else files

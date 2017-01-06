@@ -9,6 +9,7 @@ import sys
 import requests
 from enum import Enum
 from pressurecooker.videos import extract_thumbnail_from_video, check_video_resolution, compress_video
+from pressurecooker.encodings import get_base64_encoding, write_base64_to_file
 from requests_file import FileAdapter
 from requests.exceptions import MissingSchema, HTTPError, ConnectionError, InvalidURL, InvalidSchema
 from .. import config
@@ -217,6 +218,9 @@ class DownloadManager:
             if self.check_downloaded_file(original_filepath):
                 return self.track_existing_file(original_filepath)
 
+            if get_base64_encoding(path):
+                return self.convert_base64_to_file(path, title, preset=preset)
+
             if config.VERBOSE and not extracted:
                 sys.stderr.write("\n\tDownloading {}".format(path))
 
@@ -353,3 +357,29 @@ class DownloadManager:
             tempf.close()
             compress_video(filepath, tempf.name, overwrite=True)
             return self.download_file(tempf.name, title, extracted=True, original_filepath=filepath)
+
+    def convert_base64_to_file(self, text, title, preset=None):
+        """ convert_base64_to_file: Writes base64 encoding to file
+            Args:
+                text (str): text to parse
+            Returns: dict of file data
+        """
+        # Get hash of content for tracking purposes
+        hashed_content = hashlib.md5()
+        hashed_content.update(text.encode('utf-8'))
+        filepath = hashed_content.hexdigest() + " (encoded)"
+
+        # If file has already been encoded, return the encoded file data
+        if self.check_downloaded_file(filepath):
+            if config.VERBOSE:
+                sys.stderr.write("\n\tFound encoded file for {}".format(filepath))
+            return self.track_existing_file(filepath)
+
+        if config.VERBOSE:
+            sys.stderr.write("\n\tConverting base64 to file")
+        with tempfile.NamedTemporaryFile(suffix=".{}".format(file_formats.PNG)) as tempf:
+            tempf.close()
+            write_base64_to_file(text, tempf.name)
+
+            returned = self.download_file(tempf.name, title, preset=preset, extracted=True, original_filepath=filepath)
+            return returned

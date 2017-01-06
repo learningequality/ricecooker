@@ -62,7 +62,7 @@ class ChannelManager:
             # Get the thumbnail if provided or needs to be derived
             thumbnail = None
             if node.thumbnail is not None:
-                thumbnail = config.DOWNLOADER.download_file(node.thumbnail, "Node {}".format(node.original_id), default_ext=file_formats.PNG)
+                thumbnail = config.DOWNLOADER.download_file(node.thumbnail, "Node {}".format(node.original_id), default_ext=file_formats.PNG, preset=node.thumbnail_preset)
             elif isinstance(node, nodes.Video) and node.derive_thumbnail:
                 thumbnail = config.DOWNLOADER.derive_thumbnail(config.get_storage_path(node.files[0]['filename']), "Node {}".format(node.original_id))
 
@@ -164,15 +164,16 @@ class ChannelManager:
         """
         root, channel_id = self.add_channel()
         self.add_nodes(root, self.channel)
-        if self.check_failed():
+        if self.check_failed(print_warning=False):
+            failed = self.failed_node_builds
             self.failed_node_builds = []
-            self.reattempt_failed()
+            self.reattempt_failed(failed)
             self.check_failed()
         channel_id, channel_link = self.commit_channel(channel_id)
         return channel_id, channel_link
 
-    def reattempt_failed(self):
-        for node in self.failed_node_builds:
+    def reattempt_failed(self, failed):
+        for node in failed:
             if config.VERBOSE:
                 sys.stderr.write("\n\tReattempting {0}".format(str(node[1])))
             for f in node[1].files:
@@ -184,9 +185,9 @@ class ChannelManager:
             # Attempt to create node
             self.add_nodes(node[0], node[1])
 
-    def check_failed(self):
+    def check_failed(self, print_warning=True):
         if len(self.failed_node_builds) > 0:
-            if config.WARNING:
+            if config.WARNING and print_warning:
                 sys.stderr.write("\nWARNING: The following nodes have one or more descendants that could not be created:")
                 for node in self.failed_node_builds:
                     sys.stderr.write("\n\t{}".format(str(node[1])))
