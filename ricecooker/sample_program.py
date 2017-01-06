@@ -12,6 +12,14 @@ SAMPLE_PERSEUS = '{"answerArea":{"chi2Table":false,"periodicTable":false,"tTable
 
 SAMPLE_TREE = [
     {
+        "title": "TEST COMPRESSION",
+        "id": "6cafe7",
+        "author": "Revision 3",
+        "description": "Become a master rice cooker",
+        "file": "C:/users/jordan/contentcuration-dump/high resolution.mp4",
+        "license": licenses.CC_BY_NC_SA,
+    },
+    {
         "title": "Rice 101",
         "id": "abd115",
         "description": "Learn about how rice",
@@ -147,7 +155,7 @@ SAMPLE_TREE = [
                 "questions": [
                     {
                         "id": "ccccc",
-                        "question": "Why? ![](http://agrointel.ro/wp-content/uploads/2015/04/orezul-auriu.jpg)",
+                        "question": "<h1>Why? <img src='http://agrointel.ro/wp-content/uploads/2015/04/orezul-auriu.jpg' alt='alternative-text'></h1>",
                         "type":exercises.SINGLE_SELECTION,
                         "all_answers": ["Yes", "No", "Rice!"],
                         "correct_answer": "Rice!",
@@ -206,7 +214,7 @@ def _build_tree(node, sourcetree):
                 # video-specific data
                 preset=format_presets.VIDEO_HIGH_RES,
                 transcode_to_lower_resolutions=True,
-                derive_thumbnail=False,
+                derive_thumbnail=True,
 
                 # audio and video shared data
                 subtitle=child_source_node.get("subtitle"),
