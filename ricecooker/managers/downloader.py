@@ -11,8 +11,8 @@ from enum import Enum
 from pressurecooker.videos import extract_thumbnail_from_video, check_video_resolution
 from requests_file import FileAdapter
 from requests.exceptions import MissingSchema, HTTPError, ConnectionError, InvalidURL, InvalidSchema
-from ricecooker import config
-from ricecooker.exceptions import InvalidFormatException, FileNotFoundException
+from . import config
+from .exceptions import InvalidFormatException, FileNotFoundException
 from le_utils.constants import file_formats, exercises, format_presets
 
 class DownloadManager:
@@ -130,7 +130,7 @@ class DownloadManager:
                 return self._file_mapping[filename]
 
         # Catch errors related to reading file path and handle silently
-        except (HTTPError, FileNotFoundError, ConnectionError, InvalidURL, InvalidSchema, IOError):
+        except (HTTPError, ConnectionError, InvalidURL, InvalidSchema, IOError):
             self.failed_files += [(path,title)]
             return False;
 
@@ -222,7 +222,7 @@ class DownloadManager:
                 if default_ext is not None:
                     extension = default_ext
                 else:
-                    raise FileNotFoundError("No extension found: {}".format(path))
+                    raise IOError("No extension found: {}".format(path))
 
             filename = '{0}.{ext}'.format(hash.hexdigest(), ext=extension)
 
@@ -230,9 +230,6 @@ class DownloadManager:
             if os.path.isfile(config.get_storage_path(filename)):
                 if config.VERBOSE:
                     sys.stderr.write("\n\t--- No changes detected on {0}".format(filename))
-
-                if extension == file_formats.MP4:
-                    preset = check_video_resolution(config.get_storage_path(filename))
 
                 # Keep track of downloaded file
                 self.track_file(filename, os.path.getsize(config.get_storage_path(filename)), preset, path)
@@ -262,11 +259,6 @@ class DownloadManager:
                 with open(config.get_storage_path(filename), 'wb') as destf:
                     shutil.copyfileobj(tempf, destf)
 
-                # If a video file, check its resolution
-                if extension == file_formats.MP4:
-                    preset = check_video_resolution(config.get_storage_path(filename))
-                    print(preset)
-
                 # Keep track of downloaded file
                 self.track_file(filename, file_size, preset, path)
                 if config.VERBOSE:
@@ -274,7 +266,7 @@ class DownloadManager:
                 return self._file_mapping[filename]
 
         # Catch errors related to reading file path and handle silently
-        except (HTTPError, FileNotFoundError, ConnectionError, InvalidURL, InvalidSchema, IOError):
+        except (HTTPError, ConnectionError, InvalidURL, InvalidSchema, IOError):
             self.failed_files += [(path,title)]
             return False;
 
@@ -316,15 +308,3 @@ class DownloadManager:
             if result:
                 file_list += [result]
         return file_list
-
-    def derive_thumbnail(self, filepath, title):
-        """ derive_thumbnail: derive video's thumbnail
-            Args:
-                filepath (str): path to video file
-                title (str): name of node in case of error
-            Returns: None
-        """
-        with tempfile.NamedTemporaryFile(suffix=".{}".format(file_formats.PNG)) as tempf:
-            tempf.close()
-            extract_thumbnail_from_video(filepath, tempf.name, overwrite=True)
-            return self.download_file(tempf.name, title, default_ext=file_formats.PNG)

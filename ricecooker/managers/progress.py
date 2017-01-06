@@ -2,7 +2,7 @@ import pickle
 import os
 import sys
 from enum import Enum
-from ricecooker import config
+from . import config
 
 class Status(Enum):
     """ Enum containing all statuses Ricecooker can have
