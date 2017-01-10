@@ -106,14 +106,23 @@ A sample program has been created [here](https://github.com/learningequality/ric
 
 	Once you have created the appropriate question model, add it to an exercise model with `<exercise-node>.add_question(<question>)`
 
+* **Obtaining an Authorization Token**
+    You will need an authorization token to create a channel on Kolibri Studio. In order to obtain one:
+    1. Create an account on [Kolibri Studio](https://contentworkshop.learningequality.org/).
+    2. Navigate to the Tokens tab under your Settings page.
+    3. Copy the given authorization token.
+    4. Set `token="<auth-token>"` in your call to uploadchannel (alternatively, you can create a file with your
+		authorization token and set `token="<path-to-file.txt>"`).
+
 * **Running the Rice Cooker**
 
-	Run `python -m ricecooker uploadchannel [-huv] "<path-to-py-file>" [--debug] [--warn] [--token=<token>] [--resume [--step=<step>] | --reset] [--prompt] [--publish]  [[OPTIONS] ...]`
+	Run `python -m ricecooker uploadchannel [-huv] "<path-to-py-file>" [--debug] [--warn] [--compress] [--token=<token>] [--resume [--step=<step>] | --reset] [--prompt] [--publish]  [[OPTIONS] ...]`
 	- -h (help) will print how to use the rice cooker
 	- -v (verbose) will print what the rice cooker is doing
 	- -u (update) will force the ricecooker to redownload all files
 	- --debug will send data to localhost if you have Kolibri Studio running locally
 	- --warn will print out warnings during rice cooking session
+    - --compress will compress your high resolution videos to save space
 	- --token will authorize you to create your channel (found under Kolibri Studio settings page)
 	- --resume will resume your previous rice cooking session
 	- --step will specify at which step to resume your session
