@@ -23,6 +23,7 @@ requirements = [
     "pressurecooker==0.0.7",
     "selenium==3.0.1",
     "youtube-dl",
+    "html5lib",
 ]
 
 test_requirements = [

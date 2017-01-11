@@ -262,6 +262,7 @@ def upload_files(tree, file_diff):
     """
     # Upload new files to CC
     tree.upload_files(file_diff)
+    tree.reattempt_upload_fails()
     if config.VERBOSE:
         sys.stderr.write("\n")
     return file_diff

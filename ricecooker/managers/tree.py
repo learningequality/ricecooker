@@ -17,6 +17,7 @@ class ChannelManager:
         self.channel = channel # Channel to process
         self.uploaded_files=[]
         self.failed_node_builds=[]
+        self.failed_uploads=[]
 
     def validate(self):
         """ validate: checks if tree structure is valid
@@ -149,16 +150,26 @@ class ChannelManager:
             for f in files_to_upload:
                 with  open(config.get_storage_path(f), 'rb') as file_obj:
                     response = requests.post(config.file_upload_url(), headers={"Authorization": "Token {0}".format(config.TOKEN)},  files={'file': file_obj})
-                    response.raise_for_status()
-                    self.uploaded_files += [f]
-                    counter += 1
-                    if config.VERBOSE:
-                        sys.stderr.write("\n\tUploaded {0} ({count}/{total}) ".format(f, count=counter, total=len(files_to_upload)))
+                    if response.status_code == 200:
+                        response.raise_for_status()
+                        self.uploaded_files += [f]
+                        counter += 1
+                        if config.VERBOSE:
+                            sys.stderr.write("\n\tUploaded {0} ({count}/{total}) ".format(f, count=counter, total=len(files_to_upload)))
+                    else:
+                        self.failed_uploads += [f]
         finally:
             config.PROGRESS_MANAGER.set_uploading(self.uploaded_files)
 
+    def reattempt_upload_fails(self):
+        """ reattempt_upload_fails: uploads failed files to server
+            Args: None
+            Returns: None
+        """
+        self.upload_files(self.failed_uploads)
+
     def upload_tree(self):
-        """ upload_files: sends processed channel data to server to create tree
+        """ upload_tree: sends processed channel data to server to create tree
             Args: None
             Returns: link to uploadedchannel
         """

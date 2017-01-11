@@ -119,7 +119,7 @@ class BaseQuestion:
                 text (str): text to parse
             Returns: string with properly formatted images
         """
-        bs = BeautifulSoup(text, "html.parser")
+        bs = BeautifulSoup(text, "html5lib")
         file_reg = re.compile(FILE_REGEX, flags=re.IGNORECASE)
         tags = bs.findAll('img')
 
