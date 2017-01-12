@@ -17,6 +17,7 @@ class ChannelManager:
         self.channel = channel # Channel to process
         self.uploaded_files=[]
         self.failed_node_builds=[]
+        self.failed_uploads=[]
 
     def validate(self):
         """ validate: checks if tree structure is valid
@@ -62,7 +63,9 @@ class ChannelManager:
             # Get the thumbnail if provided or needs to be derived
             thumbnail = None
             if node.thumbnail is not None:
-                thumbnail = config.DOWNLOADER.download_file(node.thumbnail, "Node {}".format(node.original_id), default_ext=file_formats.PNG)
+                thumbnail = config.DOWNLOADER.download_file(node.thumbnail, "Node {}".format(node.original_id), default_ext=file_formats.PNG, preset=node.thumbnail_preset)
+            elif isinstance(node, nodes.Video) and node.derive_thumbnail:
+                thumbnail = config.DOWNLOADER.derive_thumbnail(config.get_storage_path(node.files[0]['filename']), "Node {}".format(node.original_id))
 
             if thumbnail:
                 node.files.append(thumbnail)
@@ -91,6 +94,27 @@ class ChannelManager:
                 sys.stderr.write("\n   {} file(s) have failed to download".format(len(config.DOWNLOADER.failed_files)))
         else:
             sys.stderr.write("\n   All files were successfully downloaded")
+
+    def compress_tree(self, node):
+        """ compress_tree: compress high resolution files
+            Args: None
+            Returns: None
+        """
+        from ricecooker.classes import nodes
+
+        # If node is a video, compress any high resolution videos
+        if isinstance(node, nodes.Video):
+            for f in node.files:
+                if f['preset'] == format_presets.VIDEO_HIGH_RES:
+                    if config.VERBOSE:
+                        sys.stderr.write("\n\tCompressing video: {}\n".format(node.title))
+                    compressed = config.DOWNLOADER.compress_file(config.get_storage_path(f['filename']), "Node {}".format(node.original_id))
+                    if compressed:
+                        f.update(compressed)
+
+        # Process node's children
+        for child_node in node.children:
+            self.compress_tree(child_node)
 
     def get_file_diff(self):
         """ get_file_diff: retrieves list of files that do not exist on content curation server
@@ -126,30 +150,41 @@ class ChannelManager:
             for f in files_to_upload:
                 with  open(config.get_storage_path(f), 'rb') as file_obj:
                     response = requests.post(config.file_upload_url(), headers={"Authorization": "Token {0}".format(config.TOKEN)},  files={'file': file_obj})
-                    response.raise_for_status()
-                    self.uploaded_files += [f]
-                    counter += 1
-                    if config.VERBOSE:
-                        sys.stderr.write("\n\tUploaded {0} ({count}/{total}) ".format(f, count=counter, total=len(files_to_upload)))
+                    if response.status_code == 200:
+                        response.raise_for_status()
+                        self.uploaded_files += [f]
+                        counter += 1
+                        if config.VERBOSE:
+                            sys.stderr.write("\n\tUploaded {0} ({count}/{total}) ".format(f, count=counter, total=len(files_to_upload)))
+                    else:
+                        self.failed_uploads += [f]
         finally:
             config.PROGRESS_MANAGER.set_uploading(self.uploaded_files)
 
+    def reattempt_upload_fails(self):
+        """ reattempt_upload_fails: uploads failed files to server
+            Args: None
+            Returns: None
+        """
+        self.upload_files(self.failed_uploads)
+
     def upload_tree(self):
-        """ upload_files: sends processed channel data to server to create tree
+        """ upload_tree: sends processed channel data to server to create tree
             Args: None
             Returns: link to uploadedchannel
         """
         root, channel_id = self.add_channel()
         self.add_nodes(root, self.channel)
-        if self.check_failed():
+        if self.check_failed(print_warning=False):
+            failed = self.failed_node_builds
             self.failed_node_builds = []
-            self.reattempt_failed()
+            self.reattempt_failed(failed)
             self.check_failed()
         channel_id, channel_link = self.commit_channel(channel_id)
         return channel_id, channel_link
 
-    def reattempt_failed(self):
-        for node in self.failed_node_builds:
+    def reattempt_failed(self, failed):
+        for node in failed:
             if config.VERBOSE:
                 sys.stderr.write("\n\tReattempting {0}".format(str(node[1])))
             for f in node[1].files:
@@ -161,9 +196,9 @@ class ChannelManager:
             # Attempt to create node
             self.add_nodes(node[0], node[1])
 
-    def check_failed(self):
+    def check_failed(self, print_warning=True):
         if len(self.failed_node_builds) > 0:
-            if config.WARNING:
+            if config.WARNING and print_warning:
                 sys.stderr.write("\nWARNING: The following nodes have one or more descendants that could not be created:")
                 for node in self.failed_node_builds:
                     sys.stderr.write("\n\t{}".format(str(node[1])))

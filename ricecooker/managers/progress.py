@@ -24,13 +24,14 @@ class Status(Enum):
     CONSTRUCT_CHANNEL = 1
     CREATE_TREE = 2
     DOWNLOAD_FILES = 3
-    GET_FILE_DIFF = 4
-    START_UPLOAD = 5
-    UPLOADING_FILES = 6
-    UPLOAD_CHANNEL = 7
-    PUBLISH_CHANNEL = 8
-    DONE = 9
-    LAST = 10
+    COMPRESS_FILES = 4
+    GET_FILE_DIFF = 5
+    START_UPLOAD = 6
+    UPLOADING_FILES = 7
+    UPLOAD_CHANNEL = 8
+    PUBLISH_CHANNEL = 9
+    DONE = 10
+    LAST = 11
 
 
 class RestoreManager:
@@ -165,6 +166,20 @@ class RestoreManager:
 
     def set_files(self, files_downloaded, file_mapping, files_failed):
         """ set_files: records progress from downloading files
+            Args:
+                files_downloaded ([str]): list of files that have been downloaded
+                file_mapping ({filename:...}): filenames mapped to metadata
+                files_failed ([str]): list of files that failed to download
+            Returns: None
+        """
+        self.status = Status.COMPRESS_FILES # Set status to next step
+        self.files_downloaded = files_downloaded
+        self.file_mapping = file_mapping
+        self.files_failed = files_failed
+        self.record_progress()
+
+    def set_compressed_files(self, files_downloaded, file_mapping, files_failed):
+        """ set_compressed_files: records progress from compressing files
             Args:
                 files_downloaded ([str]): list of files that have been downloaded
                 file_mapping ({filename:...}): filenames mapped to metadata

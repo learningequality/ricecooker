@@ -11,7 +11,6 @@ from .managers.progress import RestoreManager, Status
 from .managers.tree import ChannelManager
 from importlib.machinery import SourceFileLoader
 
-
 # Fix to support Python 2.x.
 # http://stackoverflow.com/questions/954834/how-do-i-use-raw-input-in-python-3
 try:
@@ -19,7 +18,7 @@ try:
 except NameError:
     pass
 
-def uploadchannel(path, verbose=False, update=False, resume=False, reset=False, step=Status.LAST.name, token="#", prompt=False, publish=False, warnings=False, **kwargs):
+def uploadchannel(path, verbose=False, update=False, resume=False, reset=False, step=Status.LAST.name, token="#", prompt=False, publish=False, warnings=False, compress=False, **kwargs):
     """ uploadchannel: Upload channel to Kolibri Studio server
         Args:
             path (str): path to file containing construct_channel method
@@ -32,6 +31,7 @@ def uploadchannel(path, verbose=False, update=False, resume=False, reset=False, 
             prompt (bool): indicates whether to prompt user to open channel when done (optional)
             publish (bool): indicates whether to automatically publish channel (optional)
             warnings (bool): indicates whether to print out warnings (optional)
+            compress (bool): indicates whether to compress larger files (optional)
             kwargs (dict): keyword arguments to pass to sushi chef (optional)
         Returns: (str) link to access newly created channel
     """
@@ -41,6 +41,7 @@ def uploadchannel(path, verbose=False, update=False, resume=False, reset=False, 
     config.WARNING = warnings
     config.TOKEN = token
     config.UPDATE = update
+    config.COMPRESS = compress
 
     # Get domain to upload to
     config.init_file_mapping_store()
@@ -92,6 +93,10 @@ def uploadchannel(path, verbose=False, update=False, resume=False, reset=False, 
     # Download files if they haven't been downloaded already
     if config.PROGRESS_MANAGER.get_status_val() <= Status.DOWNLOAD_FILES.value:
         config.PROGRESS_MANAGER.set_files(*process_tree_files(tree))
+
+    # Compress files if they haven't been compressed already
+    if config.PROGRESS_MANAGER.get_status_val() <= Status.COMPRESS_FILES.value:
+        config.PROGRESS_MANAGER.set_compressed_files(*compress_tree_files(tree))
 
     # Set download manager in case steps were skipped
     config.DOWNLOADER.files = config.PROGRESS_MANAGER.files_downloaded
@@ -219,6 +224,21 @@ def process_tree_files(tree):
         sys.stderr.write("\n")
     return config.DOWNLOADER.get_files(), config.DOWNLOADER.get_file_mapping(), config.DOWNLOADER.failed_files
 
+def compress_tree_files(tree):
+    """ compress_tree_files: Compress files from nodes
+        Args:
+            tree (ChannelManager): manager to handle communication to Kolibri Studio
+        Returns: None
+    """
+    if config.COMPRESS:
+        if config.VERBOSE:
+            sys.stderr.write("\nCompressing files...")
+        tree.compress_tree(tree.channel)
+        config.set_file_store(config.DOWNLOADER.file_store)
+        if config.VERBOSE:
+            sys.stderr.write("\n")
+    return config.DOWNLOADER.get_files(), config.DOWNLOADER.get_file_mapping(), config.DOWNLOADER.failed_files
+
 def get_file_diff(tree):
     """ get_file_diff: Download files from nodes
         Args:
@@ -242,6 +262,7 @@ def upload_files(tree, file_diff):
     """
     # Upload new files to CC
     tree.upload_files(file_diff)
+    tree.reattempt_upload_fails()
     if config.VERBOSE:
         sys.stderr.write("\n")
     return file_diff
