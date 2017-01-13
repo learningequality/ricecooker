@@ -114,10 +114,12 @@ class Node(object):
         assert isinstance(self.title, str), "Assumption Failed: Node title is not a string"
         assert isinstance(self.description, str) or self.description is None, "Assumption Failed: Node description is not a string"
         assert isinstance(self.children, list), "Assumption Failed: Node children is not a list"
+        for f in self.files:
+            f.validate()
         return True
 
 
-class Channel(Node):
+class ChannelNode(Node):
     """ Model representing the channel you are creating
 
         Used to store metadata on channel that is being created
@@ -142,7 +144,7 @@ class Channel(Node):
         self.content_id = uuid.uuid5(self._internal_domain, self.id.hex)
         self.node_id = uuid.uuid5(self.id, self.content_id.hex)
 
-        super(Channel, self).__init__()
+        super(ChannelNode, self).__init__()
 
     def __str__(self):
         count = self.count()
@@ -168,7 +170,7 @@ class Channel(Node):
         """
         try:
             assert isinstance(self.domain, str)
-            return super(Channel, self).validate()
+            return super(ChannelNode, self).validate()
         except AssertionError as ae:
             raise InvalidNodeException("Invalid channel ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
 
@@ -251,7 +253,7 @@ class ContentNode(Node):
         return super(ContentNode, self).validate()
 
 
-class Topic(ContentNode):
+class TopicNode(ContentNode):
     """ Model representing channel topics
 
         Topic nodes are used to add organization to the channel's content
@@ -264,7 +266,7 @@ class Topic(ContentNode):
     """
     def __init__(self, id, title, description="", author="", thumbnail=None):
         self.kind = content_kinds.TOPIC
-        super(Topic, self).__init__(id, title, description=description, author=author, thumbnail=thumbnail)
+        super(TopicNode, self).__init__(id, title, description=description, author=author, thumbnail=thumbnail)
 
     def __str__(self):
         count = self.count()
@@ -281,12 +283,12 @@ class Topic(ContentNode):
             assert self.questions == [], "Assumption Failed: Topic nodes should not have questions"
             assert self.files == [], "Assumption Failed: Topic nodes should not have files"
             assert self.extra_fields == {}, "Assumption Failed: Node should have empty extra_fields"
-            return super(Topic, self).validate()
+            return super(TopicNode, self).validate()
         except AssertionError as ae:
             raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
 
 
-class Video(ContentNode):
+class VideoNode(ContentNode):
     """ Model representing videos in channel
 
         Videos must be mp4 format
@@ -304,8 +306,6 @@ class Video(ContentNode):
             license (str): content's license based on le_utils.constants.licenses (optional)
             thumbnail (str): local path or url to thumbnail image (optional)
     """
-    default_preset = format_presets.VIDEO_HIGH_RES
-    thumbnail_preset = format_presets.VIDEO_THUMBNAIL
     def __init__(self, id, title, files, author="", description="", transcode_to_lower_resolutions=False, derive_thumbnail=False, license=None, subtitle=None, preset=None, thumbnail=None):
         self.kind = content_kinds.VIDEO
         self.derive_thumbnail = derive_thumbnail
@@ -318,7 +318,7 @@ class Video(ContentNode):
         if transcode_to_lower_resolutions:
             self.transcode_to_lower_resolutions()
 
-        super(Video, self).__init__(id, title, description=description, author=author, license=license, files=files, thumbnail=thumbnail)
+        super(VideoNode, self).__init__(id, title, description=description, author=author, license=license, files=files, thumbnail=thumbnail)
 
     def __str__(self):
         metadata = "{0} {1}".format(len(self.files), "file" if len(self.files) == 1 else "files")
@@ -354,12 +354,12 @@ class Video(ContentNode):
                 files_valid = files_valid or file_formats.MP4 in f.filename
             assert files_valid , "Assumption Failed: Video should have at least one .mp4 file"
 
-            return super(Video, self).validate()
+            return super(VideoNode, self).validate()
         except AssertionError as ae:
             raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
 
 
-class Audio(ContentNode):
+class AudioNode(ContentNode):
     """ Model representing audio content in channel
 
         Audio can be in either mp3 or wav format
@@ -378,7 +378,7 @@ class Audio(ContentNode):
     default_preset = format_presets.AUDIO
     def __init__(self, id, title, author="", description="", license=None, subtitle=None, thumbnail=None):
         self.kind = content_kinds.AUDIO
-        super(Audio, self).__init__(id, title, description=description, author=author, license=license, thumbnail=thumbnail)
+        super(AudioNode, self).__init__(id, title, description=description, author=author, license=license, thumbnail=thumbnail)
 
     def __str__(self):
         metadata = "{0} {1}".format(len(self.files), "file" if len(self.files) == 1 else "files")
@@ -400,12 +400,12 @@ class Audio(ContentNode):
                 files_valid = files_valid or file_formats.MP3  in f.path or file_formats.WAV  in f.path
             assert files_valid, "Assumption Failed: Audio should have at least one .mp3 or .wav file"
 
-            return super(Audio, self).validate()
+            return super(AudioNode, self).validate()
         except AssertionError as ae:
             raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
 
 
-class Document(ContentNode):
+class DocumentNode(ContentNode):
     """ Model representing documents in channel
 
         Documents must be pdf format
@@ -423,7 +423,7 @@ class Document(ContentNode):
     thumbnail_preset = format_presets.DOCUMENT_THUMBNAIL
     def __init__(self, id, title, files, author="", description="", license=None, thumbnail=None):
         self.kind = content_kinds.DOCUMENT
-        super(Document, self).__init__(id, title, description=description, author=author, license=license, files=files, thumbnail=thumbnail)
+        super(DocumentNode, self).__init__(id, title, description=description, author=author, license=license, files=files, thumbnail=thumbnail)
 
     def __str__(self):
         metadata = "{0} {1}".format(len(self.files), "file" if len(self.files) == 1 else "files")
@@ -445,12 +445,12 @@ class Document(ContentNode):
                 files_valid = files_valid or file_formats.PDF in f.path
             assert files_valid, "Assumption Failed: Document should have at least one .pdf file"
 
-            return super(Document, self).validate()
+            return super(DocumentNode, self).validate()
         except AssertionError as ae:
             raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
 
 
-class Exercise(ContentNode):
+class ExerciseNode(ContentNode):
     """ Model representing exercises in channel
 
         Exercises are sets of questions to assess learners'
@@ -480,7 +480,7 @@ class Exercise(ContentNode):
             'randomize': exercise_data.get('randomize') or True,
         })
 
-        super(Exercise, self).__init__(id, title, description=description, author=author, license=license, files=files, questions=self.questions, extra_fields=exercise_data,thumbnail=thumbnail)
+        super(ExerciseNode, self).__init__(id, title, description=description, author=author, license=license, files=files, questions=self.questions, extra_fields=exercise_data,thumbnail=thumbnail)
 
     def __str__(self):
         metadata = "{0} {1}".format(len(self.questions), "question" if len(self.questions) == 1 else "questions")
@@ -547,12 +547,12 @@ class Exercise(ContentNode):
                 questions_valid = questions_valid and q.validate()
             assert questions_valid, "Assumption Failed: Exercise does not have a question"
 
-            return super(Exercise, self).validate()
+            return super(ExerciseNode, self).validate()
         except AssertionError as ae:
             raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
 
 
-class HTML5App(ContentNode):
+class HTML5AppNode(ContentNode):
     """ Model representing a zipped HTML5 application
 
         The zip file must contain a file called index.html, which will be the first page loaded.
@@ -574,7 +574,7 @@ class HTML5App(ContentNode):
         self.kind = content_kinds.HTML5
         files = [] if files is None else files
 
-        super(HTML5App, self).__init__(id, title, description=description, author=author, license=license, files=files, thumbnail=thumbnail)
+        super(HTML5AppNode, self).__init__(id, title, description=description, author=author, license=license, files=files, thumbnail=thumbnail)
 
     def __str__(self):
         return "{title} ({kind})".format(title=self.title, kind=self.__class__.__name__)
@@ -595,7 +595,7 @@ class HTML5App(ContentNode):
                     zip_file_found = True
 
                     # make sure index.html exists
-                    with zipfile.ZipFile(f) as zf:
+                    with zipfile.ZipFile(f.path) as zf:
                         try:
                             info = zf.getinfo('index.html')
                         except KeyError:
@@ -603,7 +603,7 @@ class HTML5App(ContentNode):
 
             assert zip_file_found, "Assumption Failed: HTML does not have a .zip file attached"
 
-            return super(HTML5App, self).validate()
+            return super(HTML5AppNode, self).validate()
 
         except AssertionError as ae:
             raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))

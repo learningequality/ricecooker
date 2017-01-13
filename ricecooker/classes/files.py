@@ -6,6 +6,8 @@ import tempfile
 from enum import Enum
 from le_utils.constants import content_kinds,file_formats, format_presets
 from .. import config
+from .nodes import ChannelNode, TopicNode, VideoNode, AudioNode, DocumentNode, ExerciseNode, HTML5AppNode
+from ..exceptions import UnknownFileTypeError
 from pressurecooker.videos import extract_thumbnail_from_video, check_video_resolution, compress_video
 from pressurecooker.encodings import get_base64_encoding, write_base64_to_file
 from requests.exceptions import MissingSchema, HTTPError, ConnectionError, InvalidURL, InvalidSchema
@@ -14,8 +16,9 @@ class FileTypes(Enum):
     """ Enum containing all file types Ricecooker can have
 
         Steps:
-            AUDIOFILE: mp3 files
+            AUDIO_FILE: mp3 files
             THUMBNAIL: png, jpg, or jpeg files
+            DOCUMENT_FILE: pdf files
     """
     AUDIO_FILE = 0
     THUMBNAIL = 1
@@ -44,6 +47,19 @@ FILE_TYPE_MAPPING = {
         file_formats.JPG : FileTypes.THUMBNAIL,
         file_formats.JPEG : FileTypes.THUMBNAIL,
     },
+    content_kinds.HTML5 : {
+        file_formats.HTML5 : FileTypes.HTML_ZIP_FILE,
+        file_formats.PNG : FileTypes.THUMBNAIL,
+        file_formats.JPG : FileTypes.THUMBNAIL,
+        file_formats.JPEG : FileTypes.THUMBNAIL,
+    },
+    content_kinds.VIDEO : {
+        file_formats.MP4 : FileTypes.VIDEO_FILE,
+        file_formats.VTT : FileTypes.SUBTITLE_FILE,
+        file_formats.PNG : FileTypes.THUMBNAIL,
+        file_formats.JPG : FileTypes.THUMBNAIL,
+        file_formats.JPEG : FileTypes.THUMBNAIL,
+    },
 }
 
 ALL_FILE_EXTENSIONS = [key for key, value in file_formats.choices]
@@ -68,28 +84,31 @@ class File(object):
     original_filename = '[File]'
     node = None
     error = None
+    hash = None
 
     def __init__(self, path, preset=None):
         self.path = path
         self.cache_key = path
         self.preset = preset
 
-    def get_preset(self, node=None):
+    def validate(self):
+        pass
+
+    def get_preset(self):
         if self.preset:
-            return preset
-        raise NotImplementedError("get_preset must be overridden if preset isn't specified when creating File object")
+            return self.preset
+        raise NotImplementedError("preset must be set if preset isn't specified when creating File object")
 
     def to_dict(self):
         return {
             'size' : self.file_size,
-            'preset' : self.preset,
+            'preset' : self.get_preset(),
             'filename' : self.filename,
             'original_filename' : self.original_filename
         }
 
     def map_from_downloaded(self, attributes):
         self.file_size = attributes['file_size']
-        self.preset = attributes['preset']
         self.filename = attributes['filename']
         self.original_filename = attributes['original_filename']
 
@@ -105,17 +124,8 @@ class File(object):
                 return
 
             config.LOGGER.info("\tDownloading {}".format(self.path))
-            hash = self.get_hash()
 
-            # Get extension of file or default if none found
-            extension = os.path.splitext(self.path)[1][1:].lower()
-            if extension not in ALL_FILE_EXTENSIONS:
-                if default_ext:
-                    extension = default_ext
-                else:
-                    raise IOError("No extension found: {}".format(self.path))
-
-            self.filename = '{0}.{ext}'.format(hash.hexdigest(), ext=extension)
+            self.filename = self.generate_filename()
 
             # If file already exists, skip it
             if os.path.isfile(config.get_storage_path(self.filename)):
@@ -160,85 +170,166 @@ class File(object):
             self.error = err
             config.DOWNLOADER.add_to_failed(self)
 
-    def get_hash(self):
+    def generate_filename(self, default_ext=None):
         """ get_hash: generate hash of file
             Args: None
             Returns: md5 hash of file
         """
-        hash_to_update = hashlib.md5()
-        try:
-            r = config.SESSION.get(self.path, stream=True)
-            r.raise_for_status()
-            for chunk in r:
-                hash_to_update.update(chunk)
-        except (MissingSchema, InvalidSchema):
-            with open(self.path, 'rb') as fobj:
-                for chunk in iter(lambda: fobj.read(4096), b""):
+        if not self.hash:
+            hash_to_update = hashlib.md5()
+            try:
+                r = config.SESSION.get(self.path, stream=True)
+                r.raise_for_status()
+                for chunk in r:
                     hash_to_update.update(chunk)
-        return hash_to_update
+            except (MissingSchema, InvalidSchema):
+                with open(self.path, 'rb') as fobj:
+                    for chunk in iter(lambda: fobj.read(4096), b""):
+                        hash_to_update.update(chunk)
+            self.hash = hash_to_update.hexdigest()
+
+        # Get extension of file or default if none found
+        extension = os.path.splitext(self.path)[1][1:].lower()
+        if extension not in ALL_FILE_EXTENSIONS:
+            if default_ext:
+                extension = default_ext
+            else:
+                raise IOError("No extension found: {}".format(self.path))
+
+        return '{0}.{ext}'.format(self.hash, ext=extension)
 
 class ThumbnailFile(File):
-    def __init__(self, path):
+    def __init__(self, path, preset=None):
         super(ThumbnailFile, self).__init__(path)
 
+    def validate(self):
+        assert self.path.endswith(file_formats.JPG) or\
+               self.path.endswith(file_formats.JPEG) or\
+               self.path.endswith(file_formats.PNG),\
+               "Thumbnails must be in jpg, jpeg, or png format"
+
+    def get_preset(self):
+        if isinstance(self.node, ChannelNode):
+            return format_presets.CHANNEL_THUMBNAIL
+        elif isinstance(self.node, VideoNode):
+            return format_presets.VIDEO_THUMBNAIL
+        elif isinstance(self.node, AudioNode):
+            return format_presets.AUDIO_THUMBNAIL
+        elif isinstance(self.node, DocumentNode):
+            return format_presets.DOCUMENT_THUMBNAIL
+        elif isinstance(self.node, ExerciseNode):
+            return format_presets.EXERCISE_THUMBNAIL
+        elif isinstance(self.node, HTML5AppNode):
+            return format_presets.HTML5_THUMBNAIL
+        else:
+            raise UnknownFileTypeError("Thumbnails are not supported for node kind.")
+
 class AudioFile(File):
-    def __init__(self, path):
+    def __init__(self, path, preset=None):
         super(AudioFile, self).__init__(path)
 
+    def get_preset(self):
+        if self.preset:
+            return self.preset
+        return format_presets.AUDIO
+
+    def validate(self):
+        assert self.path.endswith(file_formats.MP3) or\
+               self.path.endswith(file_formats.WAV), \
+               "Audio files be in mp3 or wav format"
+
 class DocumentFile(File):
-    def __init__(self, path):
+    def __init__(self, path, preset=None):
         super(DocumentFile, self).__init__(path)
+
+    def get_preset(self):
+        if self.preset:
+            return self.preset
+        return format_presets.DOCUMENT
+
+    def validate(self):
+        assert self.path.endswith(file_formats.PDF), "Document files be in pdf format"
+
+class HTMLZipFile(File):
+    def __init__(self, path, preset=None):
+        super(HTMLZipFile, self).__init__(path)
+
+    def get_preset(self):
+        if self.preset:
+            return self.preset
+        return format_presets.HTML5_ZIP
+
+    def validate(self):
+        assert self.path.endswith(file_formats.HTML5), "HTML files be in zip format"
+
+class VideoFile(File):
+
+    def __init__(self, path, ffmpeg_settings=None):
+        self.path = path
+        self.cache_key = path # OVERRIDE THIS VALUE
+        self.preset = preset
+        self.ffmpeg_settings = ffmpeg_settings
+
+    def get_preset(self):
+        if self.preset
+            return self.preset
+        else:
+            return check_video_resolution(config.get_storage_path(self.filename))
+
+    def download(self):
+        if self.ffmpeg_settings:
+            # Compress
+            pass
+        else:
+            super(VideoFile, self).download()
+
+    # def compress_file(self, filepath, title):
+    #     """ compress_file: compress the video to a lower resolution
+    #         Args:
+    #             filepath (str): path to video file
+    #             title (str): name of node in case of error
+    #         Returns: None
+    #     """
+    #     # If file has already been compressed, return the compressed file data
+    #     if self.check_downloaded_file(filepath) and self.file_store[filepath].get('extracted'):
+    #         if config.VERBOSE:
+    #             sys.stderr.write("\n\tFound compressed file for {}".format(filepath))
+    #         return self.track_existing_file(filepath)
+
+    #     # Otherwise, compress the file
+    #     with tempfile.NamedTemporaryFile(suffix=".{}".format(file_formats.MP4)) as tempf:
+    #         tempf.close()
+    #         compress_video(filepath, tempf.name, overwrite=True)
+    #         return self.download_file(tempf.name, title, extracted=True, original_filepath=filepath)
+
+    # def get_file(self):
+
+    #     videopath = download_file(self.path)
+
+    #     if self.ffmpeg_settings:
+    #         cache_key = "ffmpegconvert:{sourcepath}:{max_width}:{clf}".format({
+    #             "sourcepath": videopath,
+    #             "max_width": self.ffmpeg_settings["max_width"],
+    #             "clf": self.ffmpeg_settings["clf"],
+    #         })
+    #         if cache.has_key(cache_key):
+    #             videopath = cache.get(cache_key)
+    #         else:
+    #             videopath = ffmpeg_compress_video(source, settings=ffmpeg_settings)
+    #             cache.set(cache_key, videopath)
+
+    #     return videopath
+
 
 # VideoFile
 # YouTubeVideoFile
 # VectorizedVideoFile
-# VideoThumbnailFile
+# VideoThumbnailFile (extracted from video)
 # YouTubeVideoThumbnailFile
-# ThumbnailFile
-# AudioFile
-# DocumentFile
-# HTMLZIP
 # SubtitleFile
 # TiledThumbnailFile
 # UniversalSubsSubtitleFile
 
-# class VideoFile(File):
-
-#     def __init__(self, path, ffmpeg_settings=None):
-#         self.path = path
-#         self.ffmpeg_settings = ffmpeg_settings
-
-#     def get_preset(self, node=Node):
-#         if ...
-#             return presets.VIDEO_HIGH_RES
-#         else:
-#             return presets.VIDEO_LOW_RES
-
-#     def get_file(self):
-
-#         videopath = download_file(self.path)
-
-#         if self.ffmpeg_settings:
-#             cache_key = "ffmpegconvert:{sourcepath}:{max_width}:{clf}".format({
-#                 "sourcepath": videopath,
-#                 "max_width": self.ffmpeg_settings["max_width"],
-#                 "clf": self.ffmpeg_settings["clf"],
-#             })
-#             if cache.has_key(cache_key):
-#                 videopath = cache.get(cache_key)
-#             else:
-#                 videopath = ffmpeg_compress_video(source, settings=ffmpeg_settings)
-#                 cache.set(cache_key, videopath)
-
-#         return videopath
-
-
-# class ThumbnailFile(File):
-
-#     def get_preset(self, node=None):
-#         if isinstance(node, Video):
-#             return presets.VIDEO_THUMBNAIL
-#         elif ...
 
 
 # class VideoThumbnailFile(ThumbnailFile):

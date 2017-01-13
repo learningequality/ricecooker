@@ -86,7 +86,6 @@ class DownloadManager:
         if file_model.cache_key is not None:
             self.file_store.update({file_model.cache_key:{
                 'file_size' : file_model.file_size,
-                'preset' : file_model.preset,
                 'filename' : file_model.filename,
                 'original_filename' : file_model.original_filename,
             }})

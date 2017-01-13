@@ -36,7 +36,7 @@ class ChannelManager:
         from ..classes import nodes
 
         # If node is not a channel, set ids and download files
-        if not isinstance(node, nodes.Channel):
+        if not isinstance(node, nodes.ChannelNode):
             node.set_ids(self.channel._internal_domain, parent.node_id)
 
         # Process node's children
@@ -79,7 +79,7 @@ class ChannelManager:
         from ricecooker.classes import nodes
 
         # If node is a video, compress any high resolution videos
-        if isinstance(node, nodes.Video):
+        if isinstance(node, nodes.VideoNode):
             for f in node.files:
                 if f['preset'] == format_presets.VIDEO_HIGH_RES:
                     config.LOGGER.info("\tCompressing video: {}\n".format(node.title))
@@ -138,8 +138,9 @@ class ChannelManager:
             Args: None
             Returns: None
         """
-        config.LOGGER.info("\nReattempting to upload {0} file(s)...".format(len(self.failed_uploads)))
-        self.upload_files(self.failed_uploads)
+        if len(self.failed_uploads) > 0:
+            config.LOGGER.info("\nReattempting to upload {0} file(s)...".format(len(self.failed_uploads)))
+            self.upload_files(self.failed_uploads)
 
     def upload_tree(self):
         """ upload_tree: sends processed channel data to server to create tree
