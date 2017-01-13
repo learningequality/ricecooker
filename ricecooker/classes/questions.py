@@ -280,8 +280,7 @@ class MultipleSelectQuestion(BaseQuestion):
         answers = [self.create_answer(answer, answer in correct_answers) for answer in all_answers]
         if len(answers) == 0:
             answers = [self.create_answer('No answers provided.')]
-            if config.WARNING:
-                sys.stderr.write("\n\tWARNING: Question {id} does not have any answers (set to default)".format(id=id))
+            config.warning("\tWARNING: Question {id} does not have any answers (set to default)".format(id=id))
         super(MultipleSelectQuestion, self).__init__(id, question, exercises.MULTIPLE_SELECTION, answers, hints)
 
     def validate(self):
@@ -325,8 +324,7 @@ class SingleSelectQuestion(BaseQuestion):
         answers = [self.create_answer(answer, answer==correct_answer) for answer in all_answers]
         if len(answers) == 0:
             answers = [self.create_answer('No answers provided.')]
-            if config.WARNING:
-                sys.stderr.write("\n\tWARNING: Question {id} does not have any answers (set to default)".format(id=id))
+            config.warning("\tWARNING: Question {id} does not have any answers (set to default)".format(id=id))
         super(SingleSelectQuestion, self).__init__(id, question, exercises.SINGLE_SELECTION, answers, hints)
 
     def validate(self):
@@ -399,8 +397,7 @@ class InputQuestion(BaseQuestion):
         answers = [self.create_answer(answer) for answer in answers]
         if len(answers) == 0:
             answers = [self.create_answer('No answers provided.')]
-            if config.WARNING:
-                sys.stderr.write("\n\tWARNING: Question {id} does not have any answers (set to default)".format(id=id))
+            config.warning("\tWARNING: Question {id} does not have any answers (set to default)".format(id=id))
         super(InputQuestion, self).__init__(id, question, exercises.INPUT_QUESTION, answers, hints)
 
     def validate(self):

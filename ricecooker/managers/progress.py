@@ -100,14 +100,14 @@ class RestoreManager:
 
         # If progress is corrupted, revert to step before
         while not self.check_for_session(resume_step):
-            sys.stderr.write("\nRicecooker has not reached {0} status. Reverting to earlier step...".format(resume_step.name))
+            config.LOGGER.error("Ricecooker has not reached {0} status. Reverting to earlier step...".format(resume_step.name))
             # All files are corrupted or absent, restart process
             if resume_step.value - 1 < 0:
                 self.init_session()
                 return self
             resume_step = Status(resume_step.value - 1)
             progress_path = self.get_restore_path(resume_step)
-        sys.stderr.write("\nStarting from status {0}".format(resume_step.name))
+        config.LOGGER.error("Starting from status {0}".format(resume_step.name))
 
         # Load manager
         with open(progress_path, 'rb') as handle:
@@ -164,31 +164,27 @@ class RestoreManager:
         self.tree = tree
         self.record_progress()
 
-    def set_files(self, files_downloaded, file_mapping, files_failed):
+    def set_files(self, files_downloaded, files_failed):
         """ set_files: records progress from downloading files
             Args:
                 files_downloaded ([str]): list of files that have been downloaded
-                file_mapping ({filename:...}): filenames mapped to metadata
                 files_failed ([str]): list of files that failed to download
             Returns: None
         """
         self.status = Status.COMPRESS_FILES # Set status to next step
         self.files_downloaded = files_downloaded
-        self.file_mapping = file_mapping
         self.files_failed = files_failed
         self.record_progress()
 
-    def set_compressed_files(self, files_downloaded, file_mapping, files_failed):
+    def set_compressed_files(self, files_downloaded, files_failed):
         """ set_compressed_files: records progress from compressing files
             Args:
                 files_downloaded ([str]): list of files that have been downloaded
-                file_mapping ({filename:...}): filenames mapped to metadata
                 files_failed ([str]): list of files that failed to download
             Returns: None
         """
         self.status = Status.GET_FILE_DIFF # Set status to next step
         self.files_downloaded = files_downloaded
-        self.file_mapping = file_mapping
         self.files_failed = files_failed
         self.record_progress()
 

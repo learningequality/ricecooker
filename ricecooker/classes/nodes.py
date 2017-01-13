@@ -7,6 +7,7 @@ import sys
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
 from ..exceptions import InvalidNodeException, InvalidFormatException
 from ..managers.downloader import DownloadManager
+from .. import config
 
 def guess_content_kind(files, questions=None):
     """ guess_content_kind: determines what kind the content is
@@ -39,6 +40,7 @@ class Node(object):
     """ Node: model to represent all nodes in the tree """
     def __init__(self):
         self.children = []
+        self.files = []
 
     def __str__(self):
         pass
@@ -58,6 +60,22 @@ class Node(object):
         assert isinstance(node, Node), "Child node must be a subclass of Node"
         self.children += [node]
 
+    def add_file(self, file_to_add):
+        """ add_file: Add to node's associated files
+            Args: file_to_add (File): file model to add to node
+            Returns: None
+        """
+        file_to_add.node = self
+        self.files.append(file_to_add)
+
+    def download_files(self):
+        """ download_files: Download node's files
+            Args: None
+            Returns: None
+        """
+        for f in self.files:
+            f.download()
+
     def count(self):
         """ count: get number of nodes in tree
             Args: None
@@ -73,7 +91,7 @@ class Node(object):
             Args: indent (int): What level of indentation at which to start printing
             Returns: None
         """
-        sys.stderr.write("\n{indent}{data}".format(indent="   " * indent, data=str(self)))
+        config.LOGGER.info("{indent}{data}".format(indent="   " * indent, data=str(self)))
         for child in self.children:
             child.print_tree(indent + 1)
 
@@ -112,13 +130,12 @@ class Channel(Node):
             thumbnail (str): file path or url of channel's thumbnail (optional)
     """
     thumbnail_preset = format_presets.CHANNEL_THUMBNAIL
-    def __init__(self, channel_id, domain, title, description=None, thumbnail=None):
+    def __init__(self, channel_id, domain, title, description=None):
         # Map parameters to model variables
         self.domain = domain
         self.id = uuid.uuid3(uuid.NAMESPACE_DNS, uuid.uuid5(uuid.NAMESPACE_DNS, channel_id).hex)
         self.title = title
         self.description = "" if description is None else description
-        self.thumbnail = thumbnail
 
         # Add data to be used in next steps
         self._internal_domain = uuid.uuid5(uuid.NAMESPACE_DNS, self.domain)
@@ -140,7 +157,7 @@ class Channel(Node):
         return {
             "id": self.id.hex,
             "name": self.title,
-            "thumbnail": self.thumbnail,
+            "thumbnail": self.files[0].filename,
             "description": self.description if self.description is not None else "",
         }
 
@@ -151,7 +168,6 @@ class Channel(Node):
         """
         try:
             assert isinstance(self.domain, str)
-            assert isinstance(self.thumbnail, str) or self.thumbnail is None
             return super(Channel, self).validate()
         except AssertionError as ae:
             raise InvalidNodeException("Invalid channel ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
@@ -182,9 +198,7 @@ class ContentNode(Node):
         self.license = kwargs.get('license')
 
         # Set files into list format (adding thumbnail if provided)
-        files = kwargs.get('files') or []
-        self.files = [files] if isinstance(files, str) else files
-        self.thumbnail = kwargs.get('thumbnail')
+        self.files = []
 
         # Set any possible exercise data to standard format
         self.questions = kwargs.get('questions') or []
@@ -207,7 +221,7 @@ class ContentNode(Node):
             "node_id": self.node_id.hex,
             "content_id": self.content_id.hex,
             "author": self.author,
-            "files" : self.files,
+            "files" : [f.to_dict() for f in self.files],
             "kind": self.kind,
             "license": self.license,
             "questions": self.questions,
@@ -362,9 +376,9 @@ class Audio(ContentNode):
     """
     thumbnail_preset = format_presets.AUDIO_THUMBNAIL
     default_preset = format_presets.AUDIO
-    def __init__(self, id, title, files, author="", description="", license=None, subtitle=None, thumbnail=None):
+    def __init__(self, id, title, author="", description="", license=None, subtitle=None, thumbnail=None):
         self.kind = content_kinds.AUDIO
-        super(Audio, self).__init__(id, title, description=description, author=author, license=license, files=files, thumbnail=thumbnail)
+        super(Audio, self).__init__(id, title, description=description, author=author, license=license, thumbnail=thumbnail)
 
     def __str__(self):
         metadata = "{0} {1}".format(len(self.files), "file" if len(self.files) == 1 else "files")
