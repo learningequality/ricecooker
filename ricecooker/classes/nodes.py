@@ -86,7 +86,7 @@ class Node(object):
             total += child.count()
         return total
 
-    def print_tree(self, indent=1):
+    def print_tree(self, indent=2):
         """ print_tree: prints out structure of tree
             Args: indent (int): What level of indentation at which to start printing
             Returns: None
@@ -132,9 +132,11 @@ class ChannelNode(Node):
             thumbnail (str): file path or url of channel's thumbnail (optional)
     """
     thumbnail_preset = format_presets.CHANNEL_THUMBNAIL
+    kind = "Channel"
     def __init__(self, channel_id, domain, title, description=None):
         # Map parameters to model variables
         self.domain = domain
+        self.original_id = channel_id
         self.id = uuid.uuid3(uuid.NAMESPACE_DNS, uuid.uuid5(uuid.NAMESPACE_DNS, channel_id).hex)
         self.title = title
         self.description = "" if description is None else description
@@ -223,7 +225,7 @@ class ContentNode(Node):
             "node_id": self.node_id.hex,
             "content_id": self.content_id.hex,
             "author": self.author,
-            "files" : [f.to_dict() for f in self.files],
+            "files" : [f.to_dict() for f in filter(lambda x: x.filename, self.files)], # Filter out failed downloads
             "kind": self.kind,
             "license": self.license,
             "questions": self.questions,
@@ -351,7 +353,7 @@ class VideoNode(ContentNode):
             # Check if there are any .mp4 files
             files_valid = False
             for f in self.files:
-                files_valid = files_valid or file_formats.MP4 in f.filename
+                files_valid = files_valid or file_formats.MP4 in f.path
             assert files_valid , "Assumption Failed: Video should have at least one .mp4 file"
 
             return super(VideoNode, self).validate()
@@ -577,7 +579,8 @@ class HTML5AppNode(ContentNode):
         super(HTML5AppNode, self).__init__(id, title, description=description, author=author, license=license, files=files, thumbnail=thumbnail)
 
     def __str__(self):
-        return "{title} ({kind})".format(title=self.title, kind=self.__class__.__name__)
+        metadata = "{0} {1}".format(len(self.files), "file" if len(self.files) == 1 else "files")
+        return "{title} ({kind}): {metadata}".format(title=self.title, kind=self.__class__.__name__, metadata=metadata)
 
     def validate(self):
         """ validate: Makes sure HTML5 app is valid

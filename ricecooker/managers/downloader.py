@@ -64,9 +64,9 @@ class DownloadManager:
             Args: None
             Returns: None
         """
-        config.warning("   WARNING: The following files could not be accessed:")
+        config.LOGGER.warning("   WARNING: The following files could not be accessed:")
         for f in self.failed_files:
-            config.warning("\t{id}: {path}".format(id=f[1], path=f[0]))
+            config.LOGGER.warning("\t{0} {id}: {path} \n\t   {err}".format(f.node.kind.capitalize(), id=f.node.original_id, path=f.path, err=f.error))
 
     def check_downloaded_file(self, file_model):
         """ check_downloaded_file: determine if file has been downloaded before
@@ -76,13 +76,14 @@ class DownloadManager:
         """
         return not config.UPDATE and file_model.cache_key in self.file_store
 
-    def add_to_downloaded(self, file_model):
+    def add_to_downloaded(self, file_model, track_file=True):
         """ add_to_downloaded: add file to list of files downloaded this session
             Args:
                 file_model (File): file to add
             Returns:
         """
-        self.files.append(file_model)
+        if track_file:
+            self.files.append(file_model)
         if file_model.cache_key is not None:
             self.file_store.update({file_model.cache_key:{
                 'file_size' : file_model.file_size,
@@ -98,7 +99,7 @@ class DownloadManager:
         """
         self.failed_files.append(file_model)
 
-    def handle_existing_file(self, file_model):
+    def handle_existing_file(self, file_model, track_file=True):
         """ handle_existing_file: add file to mapping if already downloaded
             Args:
                 path (str): url or path to file to track
@@ -106,6 +107,6 @@ class DownloadManager:
         """
         data = self.file_store[file_model.cache_key]
         file_model.map_from_downloaded(data)
-        self.files.append(file_model)
 
-        config.LOGGER.info("\tFile {0} already exists (add '-u' flag to update)".format(file_model.filename))
+        if track_file:
+            self.files.append(file_model)

@@ -97,7 +97,7 @@ def set_file_store(file_store):
         Returns: None
     """
     with open(get_file_store(), 'w') as storeobj:
-        json.dump(file_store, storeobj)
+        json.dump(file_store, storeobj, indent=4, sort_keys=True)
 
 def get_restore_path(filename):
     """ get_restore_path: returns path to directory for restoration points

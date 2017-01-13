@@ -3,6 +3,8 @@
 import os
 import hashlib
 import tempfile
+import shutil
+from subprocess import CalledProcessError
 from enum import Enum
 from le_utils.constants import content_kinds,file_formats, format_presets
 from .. import config
@@ -85,6 +87,7 @@ class File(object):
     node = None
     error = None
     hash = None
+    default_ext = None
 
     def __init__(self, path, preset=None):
         self.path = path
@@ -112,93 +115,104 @@ class File(object):
         self.filename = attributes['filename']
         self.original_filename = attributes['original_filename']
 
-    def download(self):
+    def download(self, track_file=True):
         """ download: downloads file
             Args: None
-            Returns: None
+            Returns: Boolean indicating if file was downloaded
         """
         try:
             # Check cache for file and handle if found
             if config.DOWNLOADER.check_downloaded_file(self):
-                config.DOWNLOADER.handle_existing_file(self)
+                config.DOWNLOADER.handle_existing_file(self, track_file=track_file)
+                config.LOGGER.info("\tFile {0} already exists (add '-u' flag to update)".format(self.filename))
                 return
 
             config.LOGGER.info("\tDownloading {}".format(self.path))
-
             self.filename = self.generate_filename()
 
             # If file already exists, skip it
-            if os.path.isfile(config.get_storage_path(self.filename)):
-                config.LOGGER.info("\t--- No changes detected on {0}".format(self.filename))
-
-                # Keep track of downloaded file
-                self.file_size = os.path.getsize(config.get_storage_path(self.filename))
-                config.DOWNLOADER.add_to_downloaded(self)
-
             # Otherwise, download file
+            if os.path.isfile(config.get_storage_path(self.filename)):
+                self.file_size = os.path.getsize(config.get_storage_path(self.filename))
+                config.LOGGER.info("\t--- No changes detected on {0}".format(self.filename))
             else:
-                # Write file to temporary file
-                with tempfile.TemporaryFile() as tempf:
-                    try:
-                        # Access path
-                        r = config.SESSION.get(self.path, stream=True)
-                        r.raise_for_status()
+                self.write_file_to_storage()
+                config.LOGGER.info("\t--- Downloaded {}".format(self.filename))
 
-                        # Write to file (generate hash if none provided)
-                        for chunk in r:
-                            tempf.write(chunk)
-
-                    except (MissingSchema, InvalidSchema):
-                        # If path is a local file path, try to open the file (generate hash if none provided)
-                        with open(self.path, 'rb') as fobj:
-                            tempf.write(fobj.read())
-
-                    # Get file metadata (hashed filename, original filename, size)
-                    self.file_size = tempf.tell()
-                    tempf.seek(0)
-
-                    # Write file to local storage
-                    with open(config.get_storage_path(self.filename), 'wb') as destf:
-                        shutil.copyfileobj(tempf, destf)
-
-                    # Keep track of downloaded file
-                    config.add_to_downloaded(self)
-                    config.LOGGER.info("\t--- Downloaded {}".format(self.filename))
+            # Keep track of downloaded file
+            config.DOWNLOADER.add_to_downloaded(self, track_file=track_file)
 
         # Catch errors related to reading file path and handle silently
         except (HTTPError, ConnectionError, InvalidURL, UnicodeDecodeError, UnicodeError, InvalidSchema, IOError) as err:
             self.error = err
             config.DOWNLOADER.add_to_failed(self)
 
-    def generate_filename(self, default_ext=None):
+    def write_file_to_storage(self, path=None):
+        """ write_file_to_storage: reads from file path and writes it to storage
+            Args: None
+            Returns: None
+        """
+        path = path if path else self.path
+        # Write file to temporary file
+        with tempfile.TemporaryFile() as tempf:
+            try:
+                # Access path
+                r = config.SESSION.get(path, stream=True)
+                r.raise_for_status()
+
+                # Write to file (generate hash if none provided)
+                for chunk in r:
+                    tempf.write(chunk)
+
+            except (MissingSchema, InvalidSchema):
+                # If path is a local file path, try to open the file (generate hash if none provided)
+                with open(path, 'rb') as fobj:
+                    tempf.write(fobj.read())
+
+            # Get file metadata (hashed filename, original filename, size)
+            self.file_size = tempf.tell()
+            tempf.seek(0)
+
+            # Write file to local storage
+            with open(config.get_storage_path(self.filename), 'wb') as destf:
+                shutil.copyfileobj(tempf, destf)
+
+            if self.file_size == 0:
+                raise IOError("File failed to write (corrupted).")
+
+    def generate_filename(self, path=None, force_generate=False):
         """ get_hash: generate hash of file
             Args: None
             Returns: md5 hash of file
         """
-        if not self.hash:
+        path = path if path else self.path
+        if not self.hash or force_generate:
             hash_to_update = hashlib.md5()
             try:
-                r = config.SESSION.get(self.path, stream=True)
+                r = config.SESSION.get(path, stream=True)
                 r.raise_for_status()
                 for chunk in r:
                     hash_to_update.update(chunk)
             except (MissingSchema, InvalidSchema):
-                with open(self.path, 'rb') as fobj:
+                with open(path, 'rb') as fobj:
                     for chunk in iter(lambda: fobj.read(4096), b""):
                         hash_to_update.update(chunk)
             self.hash = hash_to_update.hexdigest()
 
         # Get extension of file or default if none found
-        extension = os.path.splitext(self.path)[1][1:].lower()
+        extension = os.path.splitext(path)[1][1:].lower()
         if extension not in ALL_FILE_EXTENSIONS:
-            if default_ext:
-                extension = default_ext
+            if self.default_ext:
+                extension = self.default_ext
             else:
-                raise IOError("No extension found: {}".format(self.path))
+                raise IOError("No extension found: {}".format(path))
 
         return '{0}.{ext}'.format(self.hash, ext=extension)
 
+
 class ThumbnailFile(File):
+    default_ext = file_formats.PNG
+
     def __init__(self, path, preset=None):
         super(ThumbnailFile, self).__init__(path)
 
@@ -224,6 +238,7 @@ class ThumbnailFile(File):
         else:
             raise UnknownFileTypeError("Thumbnails are not supported for node kind.")
 
+
 class AudioFile(File):
     def __init__(self, path, preset=None):
         super(AudioFile, self).__init__(path)
@@ -238,6 +253,7 @@ class AudioFile(File):
                self.path.endswith(file_formats.WAV), \
                "Audio files be in mp3 or wav format"
 
+
 class DocumentFile(File):
     def __init__(self, path, preset=None):
         super(DocumentFile, self).__init__(path)
@@ -249,6 +265,7 @@ class DocumentFile(File):
 
     def validate(self):
         assert self.path.endswith(file_formats.PDF), "Document files be in pdf format"
+
 
 class HTMLZipFile(File):
     def __init__(self, path, preset=None):
@@ -262,66 +279,72 @@ class HTMLZipFile(File):
     def validate(self):
         assert self.path.endswith(file_formats.HTML5), "HTML files be in zip format"
 
-class VideoFile(File):
 
-    def __init__(self, path, ffmpeg_settings=None):
+class VideoFile(File):
+    default_ext = file_formats.MP4
+
+    def __init__(self, path, preset=None, ffmpeg_settings=None):
         self.path = path
-        self.cache_key = path # OVERRIDE THIS VALUE
         self.preset = preset
+        self.cache_key = path
         self.ffmpeg_settings = ffmpeg_settings
 
     def get_preset(self):
-        if self.preset
-            return self.preset
-        else:
-            return check_video_resolution(config.get_storage_path(self.filename))
+        if not self.preset:
+            self.preset = check_video_resolution(config.get_storage_path(self.filename))
+        return self.preset
+
+    def validate(self):
+        assert self.path.endswith(file_formats.MP4), "Video files be in mp4 format"
 
     def download(self):
-        if self.ffmpeg_settings:
-            # Compress
-            pass
-        else:
-            super(VideoFile, self).download()
+        # Get copy of video before compression (if specified)
+        super(VideoFile, self).download(track_file=self.ffmpeg_settings is None or not config.COMPRESS)
+        if self.ffmpeg_settings or config.COMPRESS:
+            try:
+                # Generate cache key based on settings
+                self.cache_key = self.generate_cache_key()
 
-    # def compress_file(self, filepath, title):
-    #     """ compress_file: compress the video to a lower resolution
-    #         Args:
-    #             filepath (str): path to video file
-    #             title (str): name of node in case of error
-    #         Returns: None
-    #     """
-    #     # If file has already been compressed, return the compressed file data
-    #     if self.check_downloaded_file(filepath) and self.file_store[filepath].get('extracted'):
-    #         if config.VERBOSE:
-    #             sys.stderr.write("\n\tFound compressed file for {}".format(filepath))
-    #         return self.track_existing_file(filepath)
+                # Check cache for file or compress file
+                if config.DOWNLOADER.check_downloaded_file(self):
+                    config.DOWNLOADER.handle_existing_file(self)
+                    config.LOGGER.info("\tFile {0} was already compressed (add '-u' flag to update)".format(self.filename))
+                else:
+                    self.compress_file()
+                    config.DOWNLOADER.add_to_downloaded(self)
 
-    #     # Otherwise, compress the file
-    #     with tempfile.NamedTemporaryFile(suffix=".{}".format(file_formats.MP4)) as tempf:
-    #         tempf.close()
-    #         compress_video(filepath, tempf.name, overwrite=True)
-    #         return self.download_file(tempf.name, title, extracted=True, original_filepath=filepath)
+            # Catch errors related to ffmpeg and handle silently
+            except (BrokenPipeError, CalledProcessError, IOError) as err:
+                self.error = err
+                config.DOWNLOADER.add_to_failed(self)
 
-    # def get_file(self):
+    def generate_cache_key(self):
+        setting_pairs = sorted(["{}:{}".format(k, v) for k, v in self.ffmpeg_settings.items()])
+        settings = " ({})".format(":".join(setting_pairs)) if self.ffmpeg_settings else ""
+        return "{0}{1}".format(self.path, settings)
 
-    #     videopath = download_file(self.path)
+    def compress_file(self):
+        """ compress_file: compress the video to a lower resolution
+            Args: None
+            Returns: None
+        """
+        config.LOGGER.info("\t--- Compressing {}".format(self.path))
 
-    #     if self.ffmpeg_settings:
-    #         cache_key = "ffmpegconvert:{sourcepath}:{max_width}:{clf}".format({
-    #             "sourcepath": videopath,
-    #             "max_width": self.ffmpeg_settings["max_width"],
-    #             "clf": self.ffmpeg_settings["clf"],
-    #         })
-    #         if cache.has_key(cache_key):
-    #             videopath = cache.get(cache_key)
-    #         else:
-    #             videopath = ffmpeg_compress_video(source, settings=ffmpeg_settings)
-    #             cache.set(cache_key, videopath)
+        with tempfile.NamedTemporaryFile(suffix=".{}".format(file_formats.MP4)) as tempf:
+            tempf.close() # Need to close so pressure cooker can write to file
+            compress_video(config.get_storage_path(self.filename), tempf.name, overwrite=True, **self.ffmpeg_settings)
+            self.filename = self.generate_filename(path=tempf.name, force_generate=True)
+            self.file_size = os.path.getsize(tempf.name)
 
-    #     return videopath
+            # If file doesn't exist, save compressed file
+            if os.path.isfile(config.get_storage_path(self.filename)):
+                self.file_size = os.path.getsize(tempf.name)
+                config.LOGGER.info("\t--- Compressed file found at {0}".format(self.filename))
+            else:
+                self.write_file_to_storage(path=tempf.name)
+                config.LOGGER.info("\t--- Compressed file {0}".format(self.filename))
 
 
-# VideoFile
 # YouTubeVideoFile
 # VectorizedVideoFile
 # VideoThumbnailFile (extracted from video)
@@ -344,11 +367,6 @@ class VideoFile(File):
 #             storage_path = copy(self.path)
 #         thumbnail_storage_path = extract_thumbnail(storage_path)
 #         return thumbnail_storage_path
-
-
-# videofile = VideoFile(path=video_url, max_width=600, clf=35)
-# return VideoNode(files=[videofile], title="Blah", id="woooo")
-
 
 
 
