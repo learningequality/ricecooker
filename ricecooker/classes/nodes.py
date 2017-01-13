@@ -351,7 +351,7 @@ class Video(ContentNode):
             # Check if there are any .mp4 files
             files_valid = False
             for f in self.files:
-                files_valid = files_valid or file_formats.MP4 in f
+                files_valid = files_valid or file_formats.MP4 in f.filename
             assert files_valid , "Assumption Failed: Video should have at least one .mp4 file"
 
             return super(Video, self).validate()
@@ -397,7 +397,7 @@ class Audio(ContentNode):
             # Check if there are any .mp3 or .wav files
             files_valid = False
             for f in self.files:
-                files_valid = files_valid or file_formats.MP3  in f or file_formats.WAV  in f
+                files_valid = files_valid or file_formats.MP3  in f.path or file_formats.WAV  in f.path
             assert files_valid, "Assumption Failed: Audio should have at least one .mp3 or .wav file"
 
             return super(Audio, self).validate()
@@ -442,7 +442,7 @@ class Document(ContentNode):
             # Check if there are any .pdf files
             files_valid = False
             for f in self.files:
-                files_valid = files_valid or file_formats.PDF
+                files_valid = files_valid or file_formats.PDF in f.path
             assert files_valid, "Assumption Failed: Document should have at least one .pdf file"
 
             return super(Document, self).validate()
@@ -538,7 +538,7 @@ class Exercise(ContentNode):
             # Check if there are any .perseus files
             files_valid = len(self.files) == 0
             for f in self.files:
-                files_valid = files_valid or file_formats.PERSEUS
+                files_valid = files_valid or file_formats.PERSEUS in f.path
             assert files_valid , "Assumption Failed: Exercise does not have a .perseus file attached"
 
             # Check if questions are correct
@@ -591,7 +591,7 @@ class HTML5App(ContentNode):
             # Check if there are any .zip files
             zip_file_found = False
             for f in self.files:
-                if f.endswith("." + file_formats.HTML5):
+                if f.path.endswith("." + file_formats.HTML5):
                     zip_file_found = True
 
                     # make sure index.html exists

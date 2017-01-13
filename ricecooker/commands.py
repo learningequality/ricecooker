@@ -46,7 +46,7 @@ def uploadchannel(path, verbose=False, update=False, resume=False, reset=False, 
 
     # Mount file:// to allow local path requests
     config.SESSION.mount('file://', FileAdapter())
-    config.TOKEN = token
+    config.SESSION.headers.update({"Authorization": "Token {0}".format(token)})
     config.UPDATE = update
     config.COMPRESS = compress
 
@@ -55,20 +55,20 @@ def uploadchannel(path, verbose=False, update=False, resume=False, reset=False, 
     config.DOWNLOADER = DownloadManager(config.get_file_store())
 
     # Authenticate user
-    if config.TOKEN != "#":
-        if os.path.isfile(config.TOKEN):
-            with open(config.TOKEN, 'r') as fobj:
-                config.TOKEN = fobj.read()
+    if token != "#":
+        if os.path.isfile(token):
+            with open(token, 'r') as fobj:
+                token = fobj.read()
         try:
-            response = requests.post(config.authentication_url(), headers={"Authorization": "Token {0}".format(config.TOKEN)})
+            response = config.SESSION.post(config.authentication_url())
             response.raise_for_status()
-            user=json.loads(response._content.decode("utf-8"))
+            user = json.loads(response._content.decode("utf-8"))
             config.LOGGER.info("Logged in with username {0}".format(user['username']))
         except HTTPError:
             config.LOGGER.error("Invalid token: Credentials not found")
             sys.exit()
     else:
-        config.TOKEN = prompt_token(config.DOMAIN)
+        prompt_token(config.DOMAIN)
 
     config.LOGGER.info("\n\n***** Starting channel build process *****\n\n")
 
@@ -147,7 +147,8 @@ def prompt_token(domain):
         sys.exit()
     else:
         try:
-            response = requests.post(config.authentication_url(), headers={"Authorization": "Token {0}".format(token)})
+            config.SESSION.headers.update({"Authorization": "Token {0}".format(token)})
+            response = config.SESSION.post(config.authentication_url())
             response.raise_for_status()
             return token
         except HTTPError:
@@ -235,7 +236,7 @@ def get_file_diff(tree):
         Returns: list of files that are not on Kolibri Studio
     """
     # Determine which files have not yet been uploaded to the CC server
-    config.LOGGER.info("Checking if files exist on Kolibri Studio...")
+    config.LOGGER.info("\nChecking if files exist on Kolibri Studio...")
     file_diff = tree.get_file_diff()
     return file_diff
 
@@ -247,6 +248,7 @@ def upload_files(tree, file_diff):
         Returns: None
     """
     # Upload new files to CC
+    config.LOGGER.info("\nUploading {0} new file(s) to Kolibri Studio...".format(len(file_diff)))
     tree.upload_files(file_diff)
     tree.reattempt_upload_fails()
     return file_diff
@@ -258,7 +260,7 @@ def create_tree(tree):
         Returns: channel id of created channel and link to channel
     """
     # Create tree
-    config.LOGGER.info("Creating tree on Kolibri Studio...")
+    config.LOGGER.info("\nCreating tree on Kolibri Studio...")
     channel_id, channel_link = tree.upload_tree()
 
     return channel_link, channel_id
@@ -285,5 +287,5 @@ def publish_tree(tree, channel_id):
             channel_id (str): id of channel to publish
         Returns: None
     """
-    config.LOGGER.info("Publishing tree to Kolibri... ")
+    config.LOGGER.info("\nPublishing tree to Kolibri... ")
     tree.publish(channel_id)

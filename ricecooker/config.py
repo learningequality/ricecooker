@@ -9,7 +9,6 @@ import requests
 
 UPDATE = False
 COMPRESS = False
-TOKEN = "#"
 PROGRESS_MANAGER = None
 DOWNLOADER = None
 LOGGER = logging.getLogger()

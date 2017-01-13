@@ -1,6 +1,5 @@
 
 import json
-import requests
 import logging
 import os
 import sys
@@ -103,7 +102,7 @@ class ChannelManager:
         file_count = 0
         total_count = len(files_to_diff)
         for chunk in chunks:
-            response = requests.post(config.file_diff_url(), headers={"Authorization": "Token {0}".format(config.TOKEN)}, data=json.dumps(chunk))
+            response = config.SESSION.post(config.file_diff_url(), data=json.dumps(chunk))
             response.raise_for_status()
             file_diff_result += json.loads(response._content.decode("utf-8"))
             file_count += len(chunk)
@@ -119,11 +118,11 @@ class ChannelManager:
         """
         counter = 0
         files_to_upload = list(set(file_list) - set(self.uploaded_files)) # In case restoring from previous session
-        config.LOGGER.info("Uploading {0} new file(s) to Kolibri Studio...".format(len(files_to_upload)))
+
         try:
             for f in files_to_upload:
                 with  open(config.get_storage_path(f), 'rb') as file_obj:
-                    response = requests.post(config.file_upload_url(), headers={"Authorization": "Token {0}".format(config.TOKEN)},  files={'file': file_obj})
+                    response = config.SESSION.post(config.file_upload_url(), files={'file': file_obj})
                     if response.status_code == 200:
                         response.raise_for_status()
                         self.uploaded_files += [f]
@@ -139,6 +138,7 @@ class ChannelManager:
             Args: None
             Returns: None
         """
+        config.LOGGER.info("\nReattempting to upload {0} file(s)...".format(len(self.failed_uploads)))
         self.upload_files(self.failed_uploads)
 
     def upload_tree(self):
@@ -162,7 +162,7 @@ class ChannelManager:
             for f in node[1].files:
                 # Attempt to upload file
                 with  open(config.get_storage_path(f['filename']), 'rb') as file_obj:
-                    response = requests.post(config.file_upload_url(), headers={"Authorization": "Token {0}".format(config.TOKEN)},  files={'file': file_obj})
+                    response = config.SESSION.post(config.file_upload_url(), files={'file': file_obj})
                     response.raise_for_status()
                     self.uploaded_files += [f['filename']]
             # Attempt to create node
@@ -190,7 +190,7 @@ class ChannelManager:
         payload = {
             "channel_data":self.channel.to_dict(),
         }
-        response = requests.post(config.create_channel_url(), headers={"Authorization": "Token {0}".format(config.TOKEN)}, data=json.dumps(payload))
+        response = config.SESSION.post(config.create_channel_url(), data=json.dumps(payload))
         response.raise_for_status()
         new_channel = json.loads(response._content.decode("utf-8"))
 
@@ -213,7 +213,7 @@ class ChannelManager:
             'root_id': root_id,
             'content_data': [child.to_dict() for child in current_node.children]
         }
-        response = requests.post(config.add_nodes_url(), headers={"Authorization": "Token {0}".format(config.TOKEN)}, data=json.dumps(payload))
+        response = config.SESSION.post(config.add_nodes_url(), data=json.dumps(payload))
         if response.status_code != 200:
             self.failed_node_builds += [(root_id, current_node)]
         else:
@@ -231,7 +231,7 @@ class ChannelManager:
         payload = {
             "channel_id":channel_id,
         }
-        response = requests.post(config.finish_channel_url(), headers={"Authorization": "Token {0}".format(config.TOKEN)}, data=json.dumps(payload))
+        response = config.SESSION.post(config.finish_channel_url(), data=json.dumps(payload))
         response.raise_for_status()
         new_channel = json.loads(response._content.decode("utf-8"))
         channel_link = config.open_channel_url(new_channel['new_channel'])
@@ -246,5 +246,5 @@ class ChannelManager:
         payload = {
             "channel_id":channel_id,
         }
-        response = requests.post(config.publish_channel_url(), headers={"Authorization": "Token {0}".format(config.TOKEN)}, data=json.dumps(payload))
+        response = config.SESSION.post(config.publish_channel_url(), data=json.dumps(payload))
         response.raise_for_status()
