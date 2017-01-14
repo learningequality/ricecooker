@@ -50,8 +50,6 @@ class ChannelManager:
                 parent (Node): parent of node being processed
             Returns: None
         """
-        from ..classes import nodes
-
         node.download_files()
 
         # Process node's children
@@ -70,26 +68,6 @@ class ChannelManager:
                 config.LOGGER.error("   {} file(s) have failed to download".format(len(config.DOWNLOADER.failed_files)))
         else:
             config.LOGGER.error("   All files were successfully downloaded")
-
-    def compress_tree(self, node):
-        """ compress_tree: compress high resolution files
-            Args: None
-            Returns: None
-        """
-        from ricecooker.classes import nodes
-
-        # If node is a video, compress any high resolution videos
-        if isinstance(node, nodes.VideoNode):
-            for f in node.files:
-                if f['preset'] == format_presets.VIDEO_HIGH_RES:
-                    config.LOGGER.info("\tCompressing video: {}\n".format(node.title))
-                    compressed = config.DOWNLOADER.compress_file(config.get_storage_path(f['filename']), "Node {}".format(node.original_id))
-                    if compressed:
-                        f.update(compressed)
-
-        # Process node's children
-        for child_node in node.children:
-            self.compress_tree(child_node)
 
     def get_file_diff(self):
         """ get_file_diff: retrieves list of files that do not exist on content curation server
@@ -162,10 +140,11 @@ class ChannelManager:
             config.LOGGER.info("\tReattempting {0}".format(str(node[1])))
             for f in node[1].files:
                 # Attempt to upload file
-                with  open(config.get_storage_path(f['filename']), 'rb') as file_obj:
-                    response = config.SESSION.post(config.file_upload_url(), files={'file': file_obj})
-                    response.raise_for_status()
-                    self.uploaded_files += [f['filename']]
+                if f.filename:
+                    with open(config.get_storage_path(f.filename), 'rb') as file_obj:
+                        response = config.SESSION.post(config.file_upload_url(), files={'file': file_obj})
+                        response.raise_for_status()
+                        self.uploaded_files.append(f.filename)
             # Attempt to create node
             self.add_nodes(node[0], node[1])
 
@@ -174,7 +153,7 @@ class ChannelManager:
             if print_warning:
                 config.LOGGER.warning("WARNING: The following nodes have one or more descendants that could not be created:")
                 for node in self.failed_node_builds:
-                    config.LOGGER.warning("\t{}".format(str(node[1])))
+                    config.LOGGER.warning("\t{} ({})".format(str(node[1]), node[2]))
             else:
                 config.LOGGER.error("Failed to create descendants for {} node(s).".format(len(self.failed_node_builds)))
             return True
@@ -216,7 +195,7 @@ class ChannelManager:
         }
         response = config.SESSION.post(config.add_nodes_url(), data=json.dumps(payload))
         if response.status_code != 200:
-            self.failed_node_builds += [(root_id, current_node)]
+            self.failed_node_builds += [(root_id, current_node, response.reason)]
         else:
             response_json = json.loads(response._content.decode("utf-8"))
 

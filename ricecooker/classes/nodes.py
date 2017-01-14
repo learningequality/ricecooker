@@ -326,12 +326,28 @@ class VideoNode(ContentNode):
         metadata = "{0} {1}".format(len(self.files), "file" if len(self.files) == 1 else "files")
         return "{title} ({kind}): {metadata}".format(title=self.title, kind=self.__class__.__name__, metadata=metadata)
 
-    def derive_thumbnail(self):
-        """ derive_thumbnail: derive video's thumbnail
+    def download_files(self):
+        """ download_files: Download video's files
             Args: None
             Returns: None
         """
-        pass
+        from .files import VideoFile, ThumbnailFile, ExtractedVideoThumbnailFile
+
+        super(VideoNode, self).download_files()
+
+        try:
+            # Extract thumbnail if one hasn't been provided and derive_thumbnail is set
+            if self.derive_thumbnail and len(list(filter(lambda f: isinstance(f, ThumbnailFile), self.files))) == 0:
+                videos = list(filter(lambda f: isinstance(f, VideoFile), self.files))
+                assert len(videos) > 0 and videos[0].filename, "No videos downloaded for this node"
+
+                thumbnail = ExtractedVideoThumbnailFile(config.get_storage_path(videos[0].filename))
+                self.add_file(thumbnail)
+                thumbnail.download()
+                print("THUMBNAIL:", thumbnail.filename)
+
+        except AssertionError as ae:
+            config.LOGGER.warning("\tWARNING: Cannot extract thumbnail ({0})".format(ae))
 
     def transcode_to_lower_resolutions(self):
         """ transcode_to_lower_resolutions: transcode video to lower resolution

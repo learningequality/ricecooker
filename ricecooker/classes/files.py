@@ -129,15 +129,7 @@ class File(object):
 
             config.LOGGER.info("\tDownloading {}".format(self.path))
             self.filename = self.generate_filename()
-
-            # If file already exists, skip it
-            # Otherwise, download file
-            if os.path.isfile(config.get_storage_path(self.filename)):
-                self.file_size = os.path.getsize(config.get_storage_path(self.filename))
-                config.LOGGER.info("\t--- No changes detected on {0}".format(self.filename))
-            else:
-                self.write_file_to_storage()
-                config.LOGGER.info("\t--- Downloaded {}".format(self.filename))
+            self.process_file()
 
             # Keep track of downloaded file
             config.DOWNLOADER.add_to_downloaded(self, track_file=track_file)
@@ -146,6 +138,16 @@ class File(object):
         except (HTTPError, ConnectionError, InvalidURL, UnicodeDecodeError, UnicodeError, InvalidSchema, IOError) as err:
             self.error = err
             config.DOWNLOADER.add_to_failed(self)
+
+    def process_file(self, path=None, action="Downloaded"):
+        # If file already exists, skip it
+        # Otherwise, download file
+        if os.path.isfile(config.get_storage_path(self.filename)):
+            self.file_size = os.path.getsize(config.get_storage_path(self.filename))
+            config.LOGGER.info("\t--- {0} file found at {1}".format(action, self.filename))
+        else:
+            self.write_file_to_storage(path=path)
+            config.LOGGER.info("\t--- {0} file {1}".format(action, self.filename))
 
     def write_file_to_storage(self, path=None):
         """ write_file_to_storage: reads from file path and writes it to storage
@@ -213,9 +215,6 @@ class File(object):
 class ThumbnailFile(File):
     default_ext = file_formats.PNG
 
-    def __init__(self, path, preset=None):
-        super(ThumbnailFile, self).__init__(path)
-
     def validate(self):
         assert self.path.endswith(file_formats.JPG) or\
                self.path.endswith(file_formats.JPEG) or\
@@ -238,15 +237,42 @@ class ThumbnailFile(File):
         else:
             raise UnknownFileTypeError("Thumbnails are not supported for node kind.")
 
-
-class AudioFile(File):
-    def __init__(self, path, preset=None):
-        super(AudioFile, self).__init__(path)
+class ExtractedVideoThumbnailFile(ThumbnailFile):
+    def __init__(self, videopath, preset=None):
+        self.path = videopath
+        self.cache_key = "{} (extracted thumbnail)".format(videopath)
+        self.preset = preset
 
     def get_preset(self):
-        if self.preset:
-            return self.preset
-        return format_presets.AUDIO
+        return self.preset or format_presets.VIDEO_THUMBNAIL
+
+    def download(self):
+        # Check cache for file or derive thumbnail
+        if config.DOWNLOADER.check_downloaded_file(self):
+            config.DOWNLOADER.handle_existing_file(self)
+            config.LOGGER.info("\tImage {0} has already been extracted (add '-u' flag to update)".format(self.filename))
+        else:
+            self.derive_thumbnail()
+            config.DOWNLOADER.add_to_downloaded(self)
+
+    def derive_thumbnail(self):
+        """ derive_thumbnail: derive video's thumbnail
+            Args: None
+            Returns: None
+        """
+        config.LOGGER.info("\t--- Extracting thumbnail from {}".format(self.path))
+
+        # Otherwise, compress the file
+        with tempfile.NamedTemporaryFile(suffix=".{}".format(file_formats.PNG)) as tempf:
+            tempf.close()
+            extract_thumbnail_from_video(self.path, tempf.name, overwrite=True)
+            self.filename = self.generate_filename(path=tempf.name, force_generate=True)
+            self.process_file(path=tempf.name, action="Extracted thumbnail")
+
+
+class AudioFile(File):
+    def get_preset(self):
+        return self.preset or format_presets.AUDIO
 
     def validate(self):
         assert self.path.endswith(file_formats.MP3) or\
@@ -255,26 +281,16 @@ class AudioFile(File):
 
 
 class DocumentFile(File):
-    def __init__(self, path, preset=None):
-        super(DocumentFile, self).__init__(path)
-
     def get_preset(self):
-        if self.preset:
-            return self.preset
-        return format_presets.DOCUMENT
+        return self.preset or format_presets.DOCUMENT
 
     def validate(self):
         assert self.path.endswith(file_formats.PDF), "Document files be in pdf format"
 
 
 class HTMLZipFile(File):
-    def __init__(self, path, preset=None):
-        super(HTMLZipFile, self).__init__(path)
-
     def get_preset(self):
-        if self.preset:
-            return self.preset
-        return format_presets.HTML5_ZIP
+        return self.preset or format_presets.HTML5_ZIP
 
     def validate(self):
         assert self.path.endswith(file_formats.HTML5), "HTML files be in zip format"
@@ -284,15 +300,11 @@ class VideoFile(File):
     default_ext = file_formats.MP4
 
     def __init__(self, path, preset=None, ffmpeg_settings=None):
-        self.path = path
-        self.preset = preset
-        self.cache_key = path
         self.ffmpeg_settings = ffmpeg_settings
+        super(VideoFile, self).__init__(path, preset)
 
     def get_preset(self):
-        if not self.preset:
-            self.preset = check_video_resolution(config.get_storage_path(self.filename))
-        return self.preset
+        return self.preset or check_video_resolution(config.get_storage_path(self.filename))
 
     def validate(self):
         assert self.path.endswith(file_formats.MP4), "Video files be in mp4 format"
@@ -334,20 +346,12 @@ class VideoFile(File):
             tempf.close() # Need to close so pressure cooker can write to file
             compress_video(config.get_storage_path(self.filename), tempf.name, overwrite=True, **self.ffmpeg_settings)
             self.filename = self.generate_filename(path=tempf.name, force_generate=True)
-            self.file_size = os.path.getsize(tempf.name)
-
-            # If file doesn't exist, save compressed file
-            if os.path.isfile(config.get_storage_path(self.filename)):
-                self.file_size = os.path.getsize(tempf.name)
-                config.LOGGER.info("\t--- Compressed file found at {0}".format(self.filename))
-            else:
-                self.write_file_to_storage(path=tempf.name)
-                config.LOGGER.info("\t--- Compressed file {0}".format(self.filename))
+            self.process_file(path=tempf.name, action="Compressed")
 
 
 # YouTubeVideoFile
 # VectorizedVideoFile
-# VideoThumbnailFile (extracted from video)
+# ExtractedVideoThumbnailFile
 # YouTubeVideoThumbnailFile
 # SubtitleFile
 # TiledThumbnailFile
