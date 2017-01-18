@@ -9,6 +9,8 @@ from bs4 import BeautifulSoup
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
 from .. import config
 from ..exceptions import UnknownQuestionTypeError, InvalidQuestionException
+from .files import ExerciseImageFile, ExerciseGraphieFile, ExerciseBase64ImageFile
+from pressurecooker.encodings import get_base64_encoding
 
 WEB_GRAPHIE_URL_REGEX = r'web\+graphie:([^\)]+)'
 FILE_REGEX = r'!\[([^\]]+)?\]\(([^\)]+)\)'
@@ -47,7 +49,7 @@ class BaseQuestion:
         return {
             "assessment_id": self.id.hex,
             "type": self.question_type,
-            "files": self.files,
+            "files": [f.to_dict() for f in filter(lambda x: x and x.filename, self.files)],
             "question": self.question,
             "hints": json.dumps(self.hints, ensure_ascii=False),
             "answers": json.dumps(self.answers, ensure_ascii=False),
@@ -76,7 +78,7 @@ class BaseQuestion:
         answer_files = []
         for answer in self.answers:
             processed_string, afiles = self.set_images(answer['answer'])
-            answers += [{"answer": processed_string, "correct":answer['correct']}]
+            answers += [{"answer": processed_string, "correct": answer['correct']}]
             answer_files += afiles
         self.answers = answers
 
@@ -85,11 +87,12 @@ class BaseQuestion:
         hint_files = []
         for hint in self.hints:
             processed_string, hfiles = self.set_images(hint)
-            hints += [{"hint":processed_string}]
+            hints += [{"hint": processed_string}]
             hint_files += hfiles
         self.hints = hints
 
         self.files += question_files + answer_files + hint_files
+        return [f.filename for f in self.files]
 
     def set_images(self, text):
         """ set_images: Replace image strings with downloaded image checksums
@@ -106,7 +109,7 @@ class BaseQuestion:
 
         # Parse all matches
         for match in matches:
-            file_result=self.set_image(match[1])
+            file_result = self.set_image(match[1])
             if file_result[0] != "":
                 replacement, new_files = file_result
                 processed_string = processed_string.replace(match[1], replacement)
@@ -140,23 +143,29 @@ class BaseQuestion:
             Returns:string with checksums in place of image strings and
                 list of files that were downloaded from string
         """
+        # Make sure image hasn't already been replaced
+        if exercises.CONTENT_STORAGE_PLACEHOLDER in text:
+            return text, []
+
         # Set up return values and regex
         graphie_reg = re.compile(WEB_GRAPHIE_URL_REGEX, flags=re.IGNORECASE)
         graphie_match = graphie_reg.match(text)
-        result=None
-        replacement = None
-        title="Question {0}".format(self.original_id)
+        exercise_file = None
+
         # If it is a web+graphie, download svg and json files,
         # Otherwise, download like other files
         if graphie_match:
             text = graphie_match.group().replace("web+graphie:", "")
-            result = config.DOWNLOADER.download_graphie(text, title)
-            replacement = result['original_filename'] if result else ""
+            exercise_file = ExerciseGraphieFile(text)
+        elif get_base64_encoding(text):
+            exercise_file = ExerciseBase64ImageFile(text)
         else:
-            result = config.DOWNLOADER.download_file(text, title, preset=format_presets.EXERCISE_IMAGE, default_ext=file_formats.PNG)
-            replacement = result['filename'] if result else ""
-        text = text.replace(text, exercises.CONTENT_STORAGE_FORMAT.format(replacement))
-        return text, [result]
+            exercise_file = ExerciseImageFile(text)
+        exercise_file.assessment_item = self
+        filename = exercise_file.process_file()
+
+        text = text.replace(text, exercises.CONTENT_STORAGE_FORMAT.format(exercise_file.get_replacement_str()))
+        return text, [exercise_file]
 
     def validate(self):
         """ validate: Makes sure question is valid
@@ -173,6 +182,7 @@ class BaseQuestion:
         for h in self.hints:
             assert isinstance(h, str), "Assumption Failed: Hint in hint list is not a string"
         return True
+
 
 class PerseusQuestion(BaseQuestion):
     """ Model representing perseus questions
@@ -238,6 +248,7 @@ class PerseusQuestion(BaseQuestion):
 
         # Return all files
         self.files += image_files + data_files
+        return [f.filename for f in self.files]
 
     def process_image_field(self, data):
         """ process_image_field: Specifically process perseus question image field
@@ -253,6 +264,7 @@ class PerseusQuestion(BaseQuestion):
             files += fs
             new_data[new_key] = new_data.pop(k)
         return new_data, files
+
 
 class MultipleSelectQuestion(BaseQuestion):
     """ Model representing multiple select questions

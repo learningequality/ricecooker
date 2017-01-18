@@ -50,6 +50,8 @@ RESTORE_DIRECTORY = "restore"
 # Session for downloading files
 SESSION = requests.Session()
 
+FAILED_FILES = []
+
 def get_storage_path(filename):
     """ get_storage_path: returns path to storage directory for downloading content
         Args: filename (str): Name of file to store

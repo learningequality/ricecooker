@@ -97,14 +97,14 @@ def uploadchannel(path, verbose=False, update=False, resume=False, reset=False, 
     # Download files if they haven't been downloaded already
     if config.PROGRESS_MANAGER.get_status_val() <= Status.DOWNLOAD_FILES.value:
         config.PROGRESS_MANAGER.set_files(*process_tree_files(tree))
+
     # Set download manager in case steps were skipped
-    config.DOWNLOADER.files = config.PROGRESS_MANAGER.files_downloaded
-    config.DOWNLOADER.failed_files = config.PROGRESS_MANAGER.files_failed
-    config.set_file_store(config.DOWNLOADER.file_store)
+    files_to_diff = config.PROGRESS_MANAGER.files_downloaded
+    config.FAILED_FILES = config.PROGRESS_MANAGER.files_failed
 
     # Get file diff if it hasn't been generated already
     if config.PROGRESS_MANAGER.get_status_val() <= Status.GET_FILE_DIFF.value:
-        config.PROGRESS_MANAGER.set_diff(get_file_diff(tree))
+        config.PROGRESS_MANAGER.set_diff(get_file_diff(tree, files_to_diff))
     file_diff = config.PROGRESS_MANAGER.file_diff
 
     # Set which files have already been uploaded
@@ -208,11 +208,11 @@ def process_tree_files(tree):
     """
     # Fill in values necessary for next steps
     config.LOGGER.info("Processing content...")
-    tree.process_tree(tree.channel)
+    files_to_diff = tree.process_tree(tree.channel)
     tree.check_for_files_failed()
-    return config.DOWNLOADER.get_files(), config.DOWNLOADER.failed_files
+    return files_to_diff, config.FAILED_FILES
 
-def get_file_diff(tree):
+def get_file_diff(tree, files_to_diff):
     """ get_file_diff: Download files from nodes
         Args:
             tree (ChannelManager): manager to handle communication to Kolibri Studio
@@ -220,7 +220,7 @@ def get_file_diff(tree):
     """
     # Determine which files have not yet been uploaded to the CC server
     config.LOGGER.info("\nChecking if files exist on Kolibri Studio...")
-    file_diff = tree.get_file_diff()
+    file_diff = tree.get_file_diff(files_to_diff)
     return file_diff
 
 def upload_files(tree, file_diff):

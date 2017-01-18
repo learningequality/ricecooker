@@ -50,31 +50,33 @@ class ChannelManager:
                 parent (Node): parent of node being processed
             Returns: None
         """
-        node.download_files()
+        downloaded = node.process_files()
 
         # Process node's children
         for child_node in node.children:
-            self.process_tree(child_node, node)
+            downloaded += self.process_tree(child_node, node)
+
+        return list(filter(lambda x: x, set(downloaded))) # Remove any duplicate or null files
 
     def check_for_files_failed(self):
         """ check_for_files_failed: print any files that failed during download process
             Args: None
             Returns: None
         """
-        if config.DOWNLOADER.has_failed_files():
-            if config.LOGGER.getEffectiveLevel() <= logging.WARNING:
-                config.DOWNLOADER.print_failed()
-            else:
-                config.LOGGER.error("   {} file(s) have failed to download".format(len(config.DOWNLOADER.failed_files)))
+        if len(config.FAILED_FILES) > 0:
+            config.LOGGER.error("   {} file(s) have failed to download".format(len(config.FAILED_FILES)))
+            for f in config.FAILED_FILES:
+                title = "{0} {id}".format(f.node.kind.capitalize(), id=f.node.original_id)\
+                        if f.node else "{0} {id}".format("Question", id=f.assessment_item.original_id)
+                config.LOGGER.warning("\t{0}: {path} \n\t   {err}".format(title, path=f.path, err=f.error))
         else:
-            config.LOGGER.error("   All files were successfully downloaded")
+            config.LOGGER.info("   All files were successfully downloaded")
 
-    def get_file_diff(self):
+    def get_file_diff(self, files_to_diff):
         """ get_file_diff: retrieves list of files that do not exist on content curation server
             Args: None
             Returns: list of files that are not on server
         """
-        files_to_diff = config.DOWNLOADER.get_filenames()
         file_diff_result = []
         chunks = [files_to_diff[x:x+1000] for x in range(0, len(files_to_diff), 1000)]
         file_count = 0
@@ -103,11 +105,11 @@ class ChannelManager:
                     response = config.SESSION.post(config.file_upload_url(), files={'file': file_obj})
                     if response.status_code == 200:
                         response.raise_for_status()
-                        self.uploaded_files += [f]
+                        self.uploaded_files.append(f)
                         counter += 1
                         config.LOGGER.info("\tUploaded {0} ({count}/{total}) ".format(f, count=counter, total=len(files_to_upload)))
                     else:
-                        self.failed_uploads += [f]
+                        self.failed_uploads.append(f)
         finally:
             config.PROGRESS_MANAGER.set_uploading(self.uploaded_files)
 
@@ -118,6 +120,7 @@ class ChannelManager:
         """
         if len(self.failed_uploads) > 0:
             config.LOGGER.info("\nReattempting to upload {0} file(s)...".format(len(self.failed_uploads)))
+            import pdb; pdb.set_trace()
             self.upload_files(self.failed_uploads)
 
     def upload_tree(self):

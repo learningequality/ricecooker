@@ -68,13 +68,15 @@ class Node(object):
         file_to_add.node = self
         self.files.append(file_to_add)
 
-    def download_files(self):
-        """ download_files: Download node's files
+    def process_files(self):
+        """ process_files: Process node's files
             Args: None
             Returns: None
         """
+        downloaded = []
         for f in self.files:
-            f.download()
+            downloaded.append(f.process_file())
+        return downloaded
 
     def count(self):
         """ count: get number of nodes in tree
@@ -225,10 +227,10 @@ class ContentNode(Node):
             "node_id": self.node_id.hex,
             "content_id": self.content_id.hex,
             "author": self.author,
-            "files" : [f.to_dict() for f in filter(lambda x: x.filename, self.files)], # Filter out failed downloads
+            "files" : [f.to_dict() for f in filter(lambda x: x and x.filename, self.files)], # Filter out failed downloads
             "kind": self.kind,
             "license": self.license,
-            "questions": self.questions,
+            "questions": [question.to_dict() for question in self.questions],
             "extra_fields": json.dumps(self.extra_fields),
         }
 
@@ -326,14 +328,14 @@ class VideoNode(ContentNode):
         metadata = "{0} {1}".format(len(self.files), "file" if len(self.files) == 1 else "files")
         return "{title} ({kind}): {metadata}".format(title=self.title, kind=self.__class__.__name__, metadata=metadata)
 
-    def download_files(self):
+    def process_files(self):
         """ download_files: Download video's files
             Args: None
             Returns: None
         """
         from .files import VideoFile, ThumbnailFile, ExtractedVideoThumbnailFile
 
-        super(VideoNode, self).download_files()
+        downloaded = super(VideoNode, self).process_files()
 
         try:
             # Extract thumbnail if one hasn't been provided and derive_thumbnail is set
@@ -343,11 +345,12 @@ class VideoNode(ContentNode):
 
                 thumbnail = ExtractedVideoThumbnailFile(config.get_storage_path(videos[0].filename))
                 self.add_file(thumbnail)
-                thumbnail.download()
-                print("THUMBNAIL:", thumbnail.filename)
+                downloaded.append(thumbnail.process_file())
 
         except AssertionError as ae:
             config.LOGGER.warning("\tWARNING: Cannot extract thumbnail ({0})".format(ae))
+
+        return downloaded
 
     def transcode_to_lower_resolutions(self):
         """ transcode_to_lower_resolutions: transcode video to lower resolution
@@ -392,8 +395,6 @@ class AudioNode(ContentNode):
             license (str): content's license based on le_utils.constants.licenses (optional)
             thumbnail (str): local path or url to thumbnail image (optional)
     """
-    thumbnail_preset = format_presets.AUDIO_THUMBNAIL
-    default_preset = format_presets.AUDIO
     def __init__(self, id, title, author="", description="", license=None, subtitle=None, thumbnail=None):
         self.kind = content_kinds.AUDIO
         super(AudioNode, self).__init__(id, title, description=description, author=author, license=license, thumbnail=thumbnail)
@@ -437,8 +438,6 @@ class DocumentNode(ContentNode):
             license (str): content's license based on le_utils.constants.licenses (optional)
             thumbnail (str): local path or url to thumbnail image (optional)
     """
-    default_preset = format_presets.DOCUMENT
-    thumbnail_preset = format_presets.DOCUMENT_THUMBNAIL
     def __init__(self, id, title, files, author="", description="", license=None, thumbnail=None):
         self.kind = content_kinds.DOCUMENT
         super(DocumentNode, self).__init__(id, title, description=description, author=author, license=license, files=files, thumbnail=thumbnail)
@@ -468,108 +467,6 @@ class DocumentNode(ContentNode):
             raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
 
 
-class ExerciseNode(ContentNode):
-    """ Model representing exercises in channel
-
-        Exercises are sets of questions to assess learners'
-        understanding of the content
-
-        Attributes:
-            id (str): content's original id
-            title (str): content's title
-            files (str or list): content's associated file(s)
-            author (str): who created the content (optional)
-            description (str): description of content (optional)
-            license (str): content's license based on le_utils.constants.licenses (optional)
-            exercise_data ({mastery_model:str, randomize:bool, m:int, n:int}): data on mastery requirements (optional)
-            thumbnail (str): local path or url to thumbnail image (optional)
-    """
-    default_preset = format_presets.EXERCISE
-    thumbnail_preset = format_presets.EXERCISE_THUMBNAIL
-    def __init__(self, id, title, files, author="", description="", license=None, exercise_data=None, thumbnail=None):
-        self.kind = content_kinds.EXERCISE
-        self.questions = []
-        files = [] if files is None else files
-
-        # Set mastery model defaults if none provided
-        exercise_data = {} if exercise_data is None else exercise_data
-        exercise_data.update({
-            'mastery_model': exercise_data.get('mastery_model') or exercises.M_OF_N,
-            'randomize': exercise_data.get('randomize') or True,
-        })
-
-        super(ExerciseNode, self).__init__(id, title, description=description, author=author, license=license, files=files, questions=self.questions, extra_fields=exercise_data,thumbnail=thumbnail)
-
-    def __str__(self):
-        metadata = "{0} {1}".format(len(self.questions), "question" if len(self.questions) == 1 else "questions")
-        return "{title} ({kind}): {metadata}".format(title=self.title, kind=self.__class__.__name__, metadata=metadata)
-
-    def add_question(self, question):
-        """ add_question: adds question to question list
-            Args: question to add to list
-            Returns: None
-        """
-        self.questions += [question]
-
-    def process_questions(self):
-        """ process_questions: goes through question fields and replaces image strings
-            Args: None
-            Returns: None
-        """
-        for question in self.questions:
-            question.process_question()
-
-        # Update mastery model if parameters were not provided
-        if self.extra_fields['mastery_model'] == exercises.M_OF_N:
-            if 'n' not in self.extra_fields:
-                self.extra_fields.update({'n':self.extra_fields.get('m') or max(len(self.questions), 1)})
-            if 'm' not in self.extra_fields:
-                self.extra_fields.update({'m':self.extra_fields.get('n') or max(len(self.questions), 1)})
-
-    def to_dict(self):
-        """ to_dict: puts data in format CC expects
-            Args: None
-            Returns: dict of node's data
-        """
-        return {
-            "title": self.title,
-            "description": self.description,
-            "node_id": self.node_id.hex,
-            "content_id": self.content_id.hex,
-            "author": self.author,
-            "files" : self.files,
-            "kind": self.kind,
-            "license": self.license,
-            "questions": [question.to_dict() for question in self.questions],
-            "extra_fields": json.dumps(self.extra_fields),
-        }
-
-    def validate(self):
-        """ validate: Makes sure exercise is valid
-            Args: None
-            Returns: boolean indicating if exercise is valid
-        """
-        try:
-            assert self.kind == content_kinds.EXERCISE, "Assumption Failed: Node should be an exercise"
-            assert "mastery_model" in self.extra_fields, "Assumption Failed: Exercise must have a mastery model in extra_fields"
-
-            # Check if there are any .perseus files
-            files_valid = len(self.files) == 0
-            for f in self.files:
-                files_valid = files_valid or file_formats.PERSEUS in f.path
-            assert files_valid , "Assumption Failed: Exercise does not have a .perseus file attached"
-
-            # Check if questions are correct
-            questions_valid = True
-            for q in self.questions:
-                questions_valid = questions_valid and q.validate()
-            assert questions_valid, "Assumption Failed: Exercise does not have a question"
-
-            return super(ExerciseNode, self).validate()
-        except AssertionError as ae:
-            raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
-
-
 class HTML5AppNode(ContentNode):
     """ Model representing a zipped HTML5 application
 
@@ -585,9 +482,6 @@ class HTML5AppNode(ContentNode):
             license (str): content's license based on le_utils.constants.licenses (optional)
             thumbnail (str): local path or url to thumbnail image (optional)
     """
-
-    default_preset = format_presets.HTML5_ZIP
-    thumbnail_preset = format_presets.HTML5_THUMBNAIL
     def __init__(self, id, title, files, author="", description="", license=None, thumbnail=None):
         self.kind = content_kinds.HTML5
         files = [] if files is None else files
@@ -626,3 +520,87 @@ class HTML5AppNode(ContentNode):
 
         except AssertionError as ae:
             raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
+
+
+class ExerciseNode(ContentNode):
+    """ Model representing exercises in channel
+
+        Exercises are sets of questions to assess learners'
+        understanding of the content
+
+        Attributes:
+            id (str): content's original id
+            title (str): content's title
+            files (str or list): content's associated file(s)
+            author (str): who created the content (optional)
+            description (str): description of content (optional)
+            license (str): content's license based on le_utils.constants.licenses (optional)
+            exercise_data ({mastery_model:str, randomize:bool, m:int, n:int}): data on mastery requirements (optional)
+            thumbnail (str): local path or url to thumbnail image (optional)
+    """
+    default_preset = format_presets.EXERCISE
+    def __init__(self, id, title, files, author="", description="", license=None, exercise_data=None, thumbnail=None):
+        self.kind = content_kinds.EXERCISE
+        self.questions = []
+        files = [] if files is None else files
+
+        # Set mastery model defaults if none provided
+        exercise_data = {} if exercise_data is None else exercise_data
+        exercise_data.update({
+            'mastery_model': exercise_data.get('mastery_model') or exercises.M_OF_N,
+            'randomize': exercise_data.get('randomize') or True,
+        })
+
+        super(ExerciseNode, self).__init__(id, title, description=description, author=author, license=license, files=files, questions=self.questions, extra_fields=exercise_data,thumbnail=thumbnail)
+
+    def __str__(self):
+        metadata = "{0} {1}".format(len(self.questions), "question" if len(self.questions) == 1 else "questions")
+        return "{title} ({kind}): {metadata}".format(title=self.title, kind=self.__class__.__name__, metadata=metadata)
+
+    def add_question(self, question):
+        """ add_question: adds question to question list
+            Args: question to add to list
+            Returns: None
+        """
+        self.questions += [question]
+
+    def process_files(self):
+        """ process_files: goes through question fields and replaces image strings
+            Args: None
+            Returns: None
+        """
+        config.LOGGER.info("\t*** Processing images for exercise: {}".format(self.title))
+        downloaded = super(ExerciseNode, self).process_files()
+        for question in self.questions:
+            downloaded += question.process_question()
+
+        # Update mastery model if parameters were not provided
+        if self.extra_fields['mastery_model'] == exercises.M_OF_N:
+            if 'n' not in self.extra_fields:
+                self.extra_fields.update({'n':self.extra_fields.get('m') or max(len(self.questions), 1)})
+            if 'm' not in self.extra_fields:
+                self.extra_fields.update({'m':self.extra_fields.get('n') or max(len(self.questions), 1)})
+
+        config.LOGGER.info("\t*** Images for {} have been processed".format(self.title))
+        return downloaded
+
+    def validate(self):
+        """ validate: Makes sure exercise is valid
+            Args: None
+            Returns: boolean indicating if exercise is valid
+        """
+        try:
+            assert self.kind == content_kinds.EXERCISE, "Assumption Failed: Node should be an exercise"
+            assert "mastery_model" in self.extra_fields, "Assumption Failed: Exercise must have a mastery model in extra_fields"
+
+            # Check if questions are correct
+            questions_valid = True
+            for q in self.questions:
+                questions_valid = questions_valid and q.validate()
+            assert questions_valid, "Assumption Failed: Exercise does not have a question"
+
+            return super(ExerciseNode, self).validate()
+        except AssertionError as ae:
+            raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
+
+
