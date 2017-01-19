@@ -183,7 +183,7 @@ class ChannelNode(Node):
         """
         try:
             assert isinstance(self.source_domain, str), "Channel domain must be a string"
-            return super(Channel, self).validate()
+            return super(ChannelNode, self).validate()
         except AssertionError as ae:
             raise InvalidNodeException("Invalid channel ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
 

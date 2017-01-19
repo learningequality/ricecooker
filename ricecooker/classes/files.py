@@ -74,17 +74,21 @@ FILE_TYPE_MAPPING = {
 
 # CACHE = FileCache(".filecache")
 
-def guess_file_type(filepath, kind):
+def guess_file_type(kind, filepath=None, youtube_id=None, encoding=None):
     """ guess_file_class: determines what file the content is
         Args:
             filepath (str): filepath of file to check
         Returns: string indicating file's class
     """
-    if get_base64_encoding(filepath):
+    assert filepath or youtube_id or encoding, "Cannot guess file type: must include a filepath, youtube_id, or encoding"
+    if encoding:
         return FileTypes.BASE64_FILE
-    ext = filepath.rsplit('/', 1)[-1].split(".")[-1].lower()
-    if kind in FILE_TYPE_MAPPING and ext in FILE_TYPE_MAPPING[kind]:
-        return FILE_TYPE_MAPPING[kind][ext]
+    if youtube_id:
+        return FileTypes.YOUTUBE_VIDEO_FILE
+    if filepath:
+        ext = filepath.rsplit('/', 1)[-1].split(".")[-1].lower()
+        if kind in FILE_TYPE_MAPPING and ext in FILE_TYPE_MAPPING[kind]:
+            return FILE_TYPE_MAPPING[kind][ext]
     return None
 
 def download(path, default_ext=None):
