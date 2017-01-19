@@ -2,6 +2,7 @@ import os
 import sys
 import requests
 import json
+import logging
 import webbrowser
 from . import config
 from .classes import nodes, questions
@@ -37,8 +38,11 @@ def uploadchannel(path, verbose=False, update=False, resume=False, reset=False, 
     """
 
     # Set configuration settings
-    config.VERBOSE = verbose
-    config.WARNING = warnings
+    level = logging.INFO if verbose else logging.WARNING if warnings else logging.ERROR
+    config.LOGGER.addHandler(logging.StreamHandler())
+    logging.getLogger("requests").setLevel(logging.WARNING)
+    config.LOGGER.setLevel(level)
+
     config.TOKEN = token
     config.UPDATE = update
     config.COMPRESS = compress
@@ -56,16 +60,14 @@ def uploadchannel(path, verbose=False, update=False, resume=False, reset=False, 
             response = requests.post(config.authentication_url(), headers={"Authorization": "Token {0}".format(config.TOKEN)})
             response.raise_for_status()
             user=json.loads(response._content.decode("utf-8"))
-            if config.VERBOSE:
-                sys.stderr.write("\nLogged in with username {0}".format(user['username']))
+            config.LOGGER.info("Logged in with username {0}".format(user['username']))
         except HTTPError:
-            sys.stderr.write("\nInvalid token: Credentials not found")
+            config.LOGGER.error("Invalid token: Credentials not found")
             sys.exit()
     else:
         config.TOKEN = prompt_token(config.DOMAIN)
 
-    if config.VERBOSE:
-        sys.stderr.write("\n\n***** Starting channel build process *****\n\n")
+    config.LOGGER.info("\n\n***** Starting channel build process *****\n\n")
 
     # Set up progress tracker
     config.PROGRESS_MANAGER = RestoreManager()
@@ -73,8 +75,7 @@ def uploadchannel(path, verbose=False, update=False, resume=False, reset=False, 
         config.PROGRESS_MANAGER.init_session()
     else:
         if resume or prompt_resume():
-            if config.VERBOSE:
-                sys.stderr.write("\nResuming your last session...")
+            config.LOGGER.info("Resuming your last session...")
             step = Status.LAST.name if step is None else step
             config.PROGRESS_MANAGER = config.PROGRESS_MANAGER.load_progress(step.upper())
         else:
@@ -128,7 +129,7 @@ def uploadchannel(path, verbose=False, update=False, resume=False, reset=False, 
         config.PROGRESS_MANAGER.set_published()
 
     # Open link on web browser (if specified) and return new link
-    sys.stderr.write("\n\nDONE: Channel created at {0}\n".format(channel_link))
+    config.LOGGER.info("\n\nDONE: Channel created at {0}\n".format(channel_link))
     if prompt:
         prompt_open(channel_link)
     config.PROGRESS_MANAGER.set_done()
@@ -148,7 +149,7 @@ def prompt_token(domain):
             response.raise_for_status()
             return token
         except HTTPError:
-            sys.stderr.write("\nInvalid token. Please login to {0}/settings/tokens to retrieve your authorization token.".format(domain))
+            config.LOGGER.error("Invalid token. Please login to {0}/settings/tokens to retrieve your authorization token.".format(domain))
             prompt_token(domain)
 
 def prompt_resume():
@@ -175,8 +176,7 @@ def run_construct_channel(path, kwargs):
     mod = SourceFileLoader("mod", path).load_module()
 
     # Create channel (using method from imported file)
-    if config.VERBOSE:
-        sys.stderr.write("\nConstructing channel... ")
+    config.LOGGER.info("Constructing channel... ")
     channel = mod.construct_channel(**kwargs)
     return channel
 
@@ -187,26 +187,19 @@ def create_initial_tree(channel):
         Returns: tree manager to run rest of steps
     """
     # Create channel manager with channel data
-    if config.VERBOSE:
-        sys.stderr.write("\n   Setting up initial channel structure... ")
+    config.LOGGER.info("   Setting up initial channel structure... ")
     tree = ChannelManager(channel)
-    if config.VERBOSE:
-        sys.stderr.write("DONE")
 
     # Create channel manager with channel data
-    if config.VERBOSE:
-        sys.stderr.write("\n   Setting up node relationships... ")
+    config.LOGGER.info("   Setting up node relationships... ")
     tree.set_relationship(channel)
-    if config.VERBOSE:
-        sys.stderr.write("DONE")
 
     # Make sure channel structure is valid
-    if config.VERBOSE:
-        sys.stderr.write("\n   Validating channel structure...")
+    config.LOGGER.info("   Validating channel structure...")
+    if config.LOGGER.getEffectiveLevel() <= logging.INFO:
         channel.print_tree()
     tree.validate()
-    if config.VERBOSE:
-        sys.stderr.write("\n   Tree is valid\n")
+    config.LOGGER.info("   Tree is valid\n")
     return tree
 
 def process_tree_files(tree):
@@ -216,12 +209,9 @@ def process_tree_files(tree):
         Returns: None
     """
     # Fill in values necessary for next steps
-    if config.VERBOSE:
-        sys.stderr.write("\nProcessing content...")
+    config.LOGGER.info("Processing content...")
     tree.process_tree(tree.channel)
     tree.check_for_files_failed()
-    if config.VERBOSE:
-        sys.stderr.write("\n")
     return config.DOWNLOADER.get_files(), config.DOWNLOADER.get_file_mapping(), config.DOWNLOADER.failed_files
 
 def compress_tree_files(tree):
@@ -231,12 +221,9 @@ def compress_tree_files(tree):
         Returns: None
     """
     if config.COMPRESS:
-        if config.VERBOSE:
-            sys.stderr.write("\nCompressing files...")
+        config.LOGGER.info("Compressing files...")
         tree.compress_tree(tree.channel)
         config.set_file_store(config.DOWNLOADER.file_store)
-        if config.VERBOSE:
-            sys.stderr.write("\n")
     return config.DOWNLOADER.get_files(), config.DOWNLOADER.get_file_mapping(), config.DOWNLOADER.failed_files
 
 def get_file_diff(tree):
@@ -246,11 +233,8 @@ def get_file_diff(tree):
         Returns: list of files that are not on Kolibri Studio
     """
     # Determine which files have not yet been uploaded to the CC server
-    if config.VERBOSE:
-        sys.stderr.write("\nChecking if files exist on Kolibri Studio...")
+    config.LOGGER.info("Checking if files exist on Kolibri Studio...")
     file_diff = tree.get_file_diff()
-    if config.VERBOSE:
-        sys.stderr.write("\n")
     return file_diff
 
 def upload_files(tree, file_diff):
@@ -263,8 +247,6 @@ def upload_files(tree, file_diff):
     # Upload new files to CC
     tree.upload_files(file_diff)
     tree.reattempt_upload_fails()
-    if config.VERBOSE:
-        sys.stderr.write("\n")
     return file_diff
 
 def create_tree(tree):
@@ -274,8 +256,7 @@ def create_tree(tree):
         Returns: channel id of created channel and link to channel
     """
     # Create tree
-    if config.VERBOSE:
-        sys.stderr.write("\nCreating tree on Kolibri Studio...")
+    config.LOGGER.info("Creating tree on Kolibri Studio...")
     channel_id, channel_link = tree.upload_tree()
 
     return channel_link, channel_id
@@ -288,10 +269,8 @@ def prompt_open(channel_link):
     """
     openNow = input("\nWould you like to open your channel now? [y/n]:").lower()
     if openNow.startswith("y"):
-        sys.stderr.write("\nOpening channel... ")
+        config.LOGGER.info("Opening channel... ")
         webbrowser.open_new_tab(channel_link)
-        if config.VERBOSE:
-            sys.stderr.write("DONE")
     elif openNow.startswith("n"):
         return
     else:
@@ -304,8 +283,5 @@ def publish_tree(tree, channel_id):
             channel_id (str): id of channel to publish
         Returns: None
     """
-    if config.VERBOSE:
-        sys.stderr.write("\nPublishing tree to Kolibri... ")
+    config.LOGGER.info("Publishing tree to Kolibri... ")
     tree.publish(channel_id)
-    if config.VERBOSE:
-        sys.stderr.write("DONE")
