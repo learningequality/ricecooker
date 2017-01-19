@@ -107,17 +107,17 @@ class Channel(Node):
         Used to store metadata on channel that is being created
 
         Attributes:
-            channel_id (str): channel's unique id
-            domain (str): who is providing the content (e.g. learningequality.org)
+            source_id (str): channel's unique id
+            source_domain (str): who is providing the content (e.g. learningequality.org)
             title (str): name of channel
             description (str): description of the channel (optional)
             thumbnail (str): file path or url of channel's thumbnail (optional)
     """
     thumbnail_preset = format_presets.CHANNEL_THUMBNAIL
-    def __init__(self, channel_id, source_domain, title, description="", thumbnail=None):
+    def __init__(self, source_id, source_domain, title, description="", thumbnail=None):
         # Map parameters to model variables
         self.source_domain = source_domain
-        self.source_id = channel_id
+        self.source_id = source_id
         self.title = title
         self.description = description
         self.thumbnail = thumbnail
