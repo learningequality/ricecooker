@@ -6,7 +6,6 @@ import logging
 import hashlib
 import requests
 
-
 UPDATE = False
 COMPRESS = False
 PROGRESS_MANAGER = None

@@ -10,8 +10,6 @@ import requests
 from enum import Enum
 from pressurecooker.videos import extract_thumbnail_from_video, check_video_resolution, compress_video
 from pressurecooker.encodings import get_base64_encoding, write_base64_to_file
-
-
 from .. import config
 from ..exceptions import InvalidFormatException, FileNotFoundException
 from le_utils.constants import file_formats, exercises, format_presets
@@ -20,7 +18,6 @@ class DownloadManager:
     """ Manager for handling file downloading and storage
 
         Attributes:
-            session (Session): session to handle requests
             all_file_extensions ([str]): all accepted file extensions
             files ([str]): files that have been downloaded by download manager
     """
