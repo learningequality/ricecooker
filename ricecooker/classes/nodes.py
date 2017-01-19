@@ -114,9 +114,10 @@ class Channel(Node):
             thumbnail (str): file path or url of channel's thumbnail (optional)
     """
     thumbnail_preset = format_presets.CHANNEL_THUMBNAIL
-    def __init__(self, channel_id, source_domain, title, description="", thumbnail=None):
+    def __init__(self, channel_id, source_domain, title, description="", thumbnail=None, domain_ns=None):
         # Map parameters to model variables
         self.source_domain = source_domain
+        self.domain_ns = domain_ns
         self.source_id = channel_id
         self.title = title
         self.description = description
@@ -125,6 +126,8 @@ class Channel(Node):
         super(Channel, self).__init__()
 
     def get_domain_namespace(self):
+        if self.domain_ns:
+            return domain_ns
         return uuid.uuid5(uuid.NAMESPACE_DNS, self.source_domain)
 
     def get_content_id(self):
@@ -177,10 +180,10 @@ class ContentNode(Node):
             files (str or list): content's associated file(s)
             thumbnail (str): local path or url to thumbnail image (optional)
     """
-    def __init__(self, id, title, description="", author="", files=None, thumbnail=None, license=None, questions=None, extra_fields=None):
+    def __init__(self, source_id, title, description="", author="", files=None, thumbnail=None, license=None, questions=None, extra_fields=None):
         # Map parameters to model variables
-        assert isinstance(id, str), "id must be a string"
-        self.source_id = id
+        assert isinstance(source_id, str), "source_id must be a string"
+        self.source_id = source_id
         self.title = title
         self.description = description or ""
         self.author = author or ""

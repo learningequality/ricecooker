@@ -183,7 +183,7 @@ def _build_tree(node, sourcetree):
 
         if kind == content_kinds.TOPIC:
             child_node = Topic(
-                id=child_source_node["id"],
+                source_id=child_source_node["id"],
                 title=child_source_node["title"],
                 author=child_source_node.get("author"),
                 description=child_source_node.get("description"),
@@ -197,7 +197,7 @@ def _build_tree(node, sourcetree):
         elif kind == content_kinds.VIDEO:
 
             child_node = Video(
-                id=child_source_node["id"],
+                source_id=child_source_node["id"],
                 title=child_source_node["title"],
                 author=child_source_node.get("author"),
                 description=child_source_node.get("description"),
@@ -216,7 +216,7 @@ def _build_tree(node, sourcetree):
 
         elif kind == content_kinds.AUDIO:
             child_node = Audio(
-                id=child_source_node["id"],
+                source_id=child_source_node["id"],
                 title=child_source_node["title"],
                 author=child_source_node.get("author"),
                 description=child_source_node.get("description"),
@@ -230,7 +230,7 @@ def _build_tree(node, sourcetree):
 
         elif kind == content_kinds.DOCUMENT:
             child_node = Document(
-                id=child_source_node["id"],
+                source_id=child_source_node["id"],
                 title=child_source_node["title"],
                 author=child_source_node.get("author"),
                 description=child_source_node.get("description"),
@@ -242,7 +242,7 @@ def _build_tree(node, sourcetree):
 
         elif kind == content_kinds.EXERCISE:
             child_node = Exercise(
-                id=child_source_node["id"],
+                source_id=child_source_node["id"],
                 title=child_source_node["title"],
                 author=child_source_node.get("author"),
                 description=child_source_node.get("description"),
@@ -258,7 +258,7 @@ def _build_tree(node, sourcetree):
 
         elif kind == content_kinds.HTML5:
             child_node = HTML5App(
-                id=child_source_node["id"],
+                source_id=child_source_node["id"],
                 title=child_source_node["title"],
                 author=child_source_node.get("author"),
                 description=child_source_node.get("description"),
