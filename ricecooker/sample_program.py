@@ -249,16 +249,12 @@ def _build_tree(node, sourcetree):
                 title=child_source_node["title"],
                 author=child_source_node.get("author"),
                 description=child_source_node.get("description"),
-                files=child_source_node.get("file"),
                 license=child_source_node.get("license"),
 
                 # video-specific data
-                preset=format_presets.VIDEO_HIGH_RES,
-                transcode_to_lower_resolutions=True,
                 derive_thumbnail=True,
 
                 # audio and video shared data
-                subtitle=child_source_node.get("subtitle"),
                 thumbnail=child_source_node.get("thumbnail"),
             )
             add_files(child_node, child_source_node.get("files") or [])
@@ -273,7 +269,6 @@ def _build_tree(node, sourcetree):
                 license=child_source_node.get("license"),
 
                 # audio and video shared data
-                subtitle=child_source_node.get("subtitle"),
                 thumbnail=child_source_node.get("thumbnail"),
             )
             add_files(child_node, child_source_node.get("files") or [])
@@ -285,7 +280,6 @@ def _build_tree(node, sourcetree):
                 title=child_source_node["title"],
                 author=child_source_node.get("author"),
                 description=child_source_node.get("description"),
-                files=child_source_node.get("file"),
                 license=child_source_node.get("license"),
                 thumbnail=child_source_node.get("thumbnail"),
             )
@@ -298,7 +292,6 @@ def _build_tree(node, sourcetree):
                 title=child_source_node["title"],
                 author=child_source_node.get("author"),
                 description=child_source_node.get("description"),
-                files=child_source_node.get("file"),
                 exercise_data={}, # Just set to default
                 license=child_source_node.get("license"),
                 thumbnail=child_source_node.get("thumbnail"),
@@ -315,7 +308,6 @@ def _build_tree(node, sourcetree):
                 title=child_source_node["title"],
                 author=child_source_node.get("author"),
                 description=child_source_node.get("description"),
-                files=child_source_node.get("file"),
                 license=child_source_node.get("license"),
                 thumbnail=child_source_node.get("thumbnail"),
             )

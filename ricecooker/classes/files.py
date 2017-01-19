@@ -484,9 +484,56 @@ class ExerciseGraphieFile(DownloadFile):
             config.DOWNLOADER.set(key, filename)
             return filename
 
-# YouTubeVideoFile
-# VectorizedVideoFile
+
+
+class YouTubeVideoFile(File):
+    def __init__(self, youtube_id, youtube_dl_settings=None, **kwargs):
+        self.youtube_id = youtube_id
+        self.youtube_dl_settings = youtube_dl_settings or {}
+        self.youtube_dl_settings['format'] = file_formats.MP4
+        super(YouTubeVideoFile, self).__init__(**kwargs)
+        # postprocessors, progress_hooks,
+
+    def get_preset(self):
+        return self.preset or check_video_resolution(config.get_storage_path(self.filename))
+
+    def process_file(self):
+        pass
+
+class YouTubeHighResolutionVideoFile(YouTubeVideoFile):
+    def __init__(self, youtube_id, youtube_dl_settings=None, **kwargs):
+        self.youtube_id = youtube_id
+        self.youtube_dl_settings = youtube_dl_settings or {}
+        self.youtube_dl_settings['format'] = "bestvideo[ext={}]" # file_formats.MP4
+        super(YouTubeHighResolutionVideoFile, self).__init__(**kwargs)
+        # postprocessors, progress_hooks, EMBEDDING
+
+    def get_preset(self):
+        return self.preset or check_video_resolution(config.get_storage_path(self.filename))
+
+    def process_file(self):
+        pass
+
+
+class YouTubeHighResolutionVideoFile(YouTubeVideoFile):
+    def __init__(self, youtube_id, youtube_dl_settings=None, **kwargs):
+        self.youtube_id = youtube_id
+        self.youtube_dl_settings = youtube_dl_settings or {}
+        self.youtube_dl_settings['format'] = "worstvideo" # file_formats.MP4
+        super(YouTubeHighResolutionVideoFile, self).__init__(**kwargs)
+        # postprocessors, progress_hooks,
+
+    def get_preset(self):
+        return self.preset or check_video_resolution(config.get_storage_path(self.filename))
+
+    def process_file(self):
+        pass
+
 # YouTubeVideoThumbnailFile
+
+
+# VectorizedVideoFile
+
 # TiledThumbnailFile
 # UniversalSubsSubtitleFile
 

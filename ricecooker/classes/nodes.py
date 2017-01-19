@@ -114,7 +114,7 @@ class Node(object):
             Args: None
             Returns: boolean indicating if node is valid
         """
-        assert self.id is not None, "Assumption Failed: Node must have an id"
+        assert self.source_id is not None, "Assumption Failed: Node must have an id"
         assert isinstance(self.title, str), "Assumption Failed: Node title is not a string"
         assert isinstance(self.description, str) or self.description is None, "Assumption Failed: Node description is not a string"
         assert isinstance(self.children, list), "Assumption Failed: Node children is not a list"
@@ -150,6 +150,9 @@ class ChannelNode(Node):
 
         super(ChannelNode, self).__init__()
 
+    def get_domain_namespace(self):
+        return self.domain_ns
+
     def get_content_id(self):
         return uuid.uuid5(self.domain_ns, self.id.hex)
 
@@ -179,7 +182,7 @@ class ChannelNode(Node):
             Returns: boolean indicating if channel is valid
         """
         try:
-            assert isinstance(self.domain, str)
+            assert isinstance(self.source_domain, str)
             return super(ChannelNode, self).validate()
         except AssertionError as ae:
             raise InvalidNodeException("Invalid channel ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
@@ -203,8 +206,8 @@ class ContentNode(Node):
         assert isinstance(id, str), "id must be a string"
         self.source_id = id
         self.title = title
-        self.description = description
-        self.author = author
+        self.description = description or ""
+        self.author = author or ""
         self.license = license
 
         # Set files into list format (adding thumbnail if provided)
@@ -228,7 +231,7 @@ class ContentNode(Node):
 
     def get_node_id(self):
         assert self.parent, "Parent not found: node id must be calculated based on parent"
-        return uuid.uuid5(self.parent.get_node_id(), self.get_content_id())
+        return uuid.uuid5(self.parent.get_node_id(), self.get_content_id().hex)
 
     def to_dict(self):
         """ to_dict: puts data in format CC expects

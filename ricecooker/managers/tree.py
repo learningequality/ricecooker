@@ -50,8 +50,8 @@ class ChannelManager:
         if len(config.FAILED_FILES) > 0:
             config.LOGGER.error("   {} file(s) have failed to download".format(len(config.FAILED_FILES)))
             for f in config.FAILED_FILES:
-                title = "{0} {id}".format(f.node.kind.capitalize(), id=f.node.original_id)\
-                        if f.node else "{0} {id}".format("Question", id=f.assessment_item.original_id)
+                title = "{0} {id}".format(f.node.kind.capitalize(), id=f.node.source_id)\
+                        if f.node else "{0} {id}".format("Question", id=f.assessment_item.source_id)
                 config.LOGGER.warning("\t{0}: {path} \n\t   {err}".format(title, path=f.path, err=f.error))
         else:
             config.LOGGER.info("   All files were successfully downloaded")
@@ -187,7 +187,7 @@ class ChannelManager:
             response_json = json.loads(response._content.decode("utf-8"))
 
             for child in current_node.children:
-                self.add_nodes(response_json['root_ids'][child.node_id.hex], child, indent + 1)
+                self.add_nodes(response_json['root_ids'][child.get_node_id().hex], child, indent + 1)
 
     def commit_channel(self, channel_id):
         """ commit_channel: commits channel to Kolibri Studio
