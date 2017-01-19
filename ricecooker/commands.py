@@ -196,8 +196,7 @@ def create_initial_tree(channel):
 
     # Make sure channel structure is valid
     config.LOGGER.info("   Validating channel structure...")
-    if config.LOGGER.getEffectiveLevel() <= logging.INFO:
-        channel.print_tree()
+    channel.print_tree()
     tree.validate()
     config.LOGGER.info("   Tree is valid\n")
     return tree
