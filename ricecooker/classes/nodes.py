@@ -94,7 +94,7 @@ class Node(object):
             Args: None
             Returns: boolean indicating if node is valid
         """
-        assert self.id is not None, "Assumption Failed: Node must have an id"
+        assert self.source_id is not None, "Assumption Failed: Node must have an id"
         assert isinstance(self.title, str), "Assumption Failed: Node title is not a string"
         assert isinstance(self.description, str) or self.description is None, "Assumption Failed: Node description is not a string"
         assert isinstance(self.children, list), "Assumption Failed: Node children is not a list"
@@ -114,28 +114,24 @@ class Channel(Node):
             thumbnail (str): file path or url of channel's thumbnail (optional)
     """
     thumbnail_preset = format_presets.CHANNEL_THUMBNAIL
-    def __init__(self, channel_id, domain, title, description=None, thumbnail=None):
+    def __init__(self, channel_id, source_domain, title, description="", thumbnail=None):
         # Map parameters to model variables
-        self.source_domain = domain
+        self.source_domain = source_domain
         self.source_id = channel_id
         self.title = title
-        self.description = description or ""
+        self.description = description
         self.thumbnail = thumbnail
-
-        # Add data to be used in next steps
-        self.domain_ns = uuid.uuid5(uuid.NAMESPACE_DNS, self.source_domain)
-        self.id = uuid.uuid5(self.domain_ns, channel_id)
 
         super(Channel, self).__init__()
 
     def get_domain_namespace(self):
-        return self.domain_ns
+        return uuid.uuid5(uuid.NAMESPACE_DNS, self.source_domain)
 
     def get_content_id(self):
         return uuid.uuid5(self.domain_ns, self.id.hex)
 
     def get_node_id(self):
-        return self.id
+        return uuid.uuid5(self.domain_ns, channel_id)
 
     def __str__(self):
         count = self.count()
@@ -148,7 +144,7 @@ class Channel(Node):
             Returns: dict of channel data
         """
         return {
-            "id": self.id.hex,
+            "id": self.get_node_id().hex,
             "name": self.title,
             "thumbnail": self.thumbnail,
             "description": self.description if self.description is not None else "",
@@ -192,6 +188,7 @@ class ContentNode(Node):
 
         # Set files into list format (adding thumbnail if provided)
         self.files = files or []
+        self.files = [self.files] if isinstance(self.files, str) else self.files
         self.thumbnail = thumbnail
 
         # Set any possible exercise data to standard format
@@ -212,7 +209,7 @@ class ContentNode(Node):
 
     def get_node_id(self):
         assert self.parent, "Parent not found: node id must be calculated based on parent"
-        return uuid.uuid5(self.parent.get_node_id(), self.get_content_id())
+        return uuid.uuid5(self.parent.get_node_id(), self.get_content_id().hex)
 
     def to_dict(self):
         """ to_dict: puts data in format CC expects
@@ -300,7 +297,7 @@ class Video(ContentNode):
     """
     default_preset = format_presets.VIDEO_HIGH_RES
     thumbnail_preset = format_presets.VIDEO_THUMBNAIL
-    def __init__(self, id, title, files, transcode_to_lower_resolutions=False, derive_thumbnail=False, **kwargs):
+    def __init__(self, id, title, files, preset=None, transcode_to_lower_resolutions=False, derive_thumbnail=False, **kwargs):
         self.kind = content_kinds.VIDEO
         self.derive_thumbnail = derive_thumbnail
 

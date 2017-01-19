@@ -162,7 +162,7 @@ SAMPLE_TREE = [
 def construct_channel(**kwargs):
 
     channel = Channel(
-        domain="learningequality.org",
+        source_domain="learningequality.org",
         channel_id="testing-ricecooker-channel",
         title="Testing Ricecooker Channel",
         thumbnail="https://upload.wikimedia.org/wikipedia/commons/thumb/5/50/Banaue_Philippines_Banaue-Rice-Terraces-01.jpg/640px-Banaue_Philippines_Banaue-Rice-Terraces-01.jpg",
@@ -210,7 +210,6 @@ def _build_tree(node, sourcetree):
                 derive_thumbnail=True,
 
                 # audio and video shared data
-                subtitle=child_source_node.get("subtitle"),
                 thumbnail=child_source_node.get("thumbnail"),
             )
             node.add_child(child_node)
@@ -225,7 +224,6 @@ def _build_tree(node, sourcetree):
                 license=child_source_node.get("license"),
 
                 # audio and video shared data
-                subtitle=child_source_node.get("subtitle"),
                 thumbnail=child_source_node.get("thumbnail"),
             )
             node.add_child(child_node)

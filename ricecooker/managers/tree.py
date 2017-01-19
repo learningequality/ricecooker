@@ -46,7 +46,7 @@ class ChannelManager:
             # Get the thumbnail if provided or needs to be derived
             thumbnail = None
             if node.thumbnail is not None:
-                thumbnail = config.DOWNLOADER.download_file(node.thumbnail, "Node {}".format(node.original_id), default_ext=file_formats.PNG, preset=node.thumbnail_preset)
+                thumbnail = config.DOWNLOADER.download_file(node.thumbnail, "Node {}".format(node.source_id), default_ext=file_formats.PNG, preset=node.thumbnail_preset)
             elif isinstance(node, nodes.Video) and node.derive_thumbnail:
                 thumbnail = config.DOWNLOADER.derive_thumbnail(config.get_storage_path(node.files[0]['filename']), "Node {}".format(node.source_id))
 

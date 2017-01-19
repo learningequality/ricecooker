@@ -36,7 +36,7 @@ class BaseQuestion:
         self.answers = answers if answers is not None else []
         self.hints = [] if hints is None else [hints] if isinstance(hints,str) else hints
         self.raw_data = raw_data
-        self.original_id=id
+        self.source_id=id
         self.id = uuid.uuid5(uuid.NAMESPACE_DNS, id)
 
     def to_dict(self):
@@ -145,7 +145,7 @@ class BaseQuestion:
         graphie_match = graphie_reg.match(text)
         result=None
         replacement = None
-        title="Question {0}".format(self.original_id)
+        title="Question {0}".format(self.source_id)
         # If it is a web+graphie, download svg and json files,
         # Otherwise, download like other files
         if graphie_match:
