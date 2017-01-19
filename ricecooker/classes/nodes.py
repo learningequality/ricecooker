@@ -128,10 +128,10 @@ class Channel(Node):
         return uuid.uuid5(uuid.NAMESPACE_DNS, self.source_domain)
 
     def get_content_id(self):
-        return uuid.uuid5(self.domain_ns, self.id.hex)
+        return uuid.uuid5(self.get_domain_namespace(), self.id.hex)
 
     def get_node_id(self):
-        return uuid.uuid5(self.domain_ns, channel_id)
+        return uuid.uuid5(self.get_domain_namespace(), self.source_id)
 
     def __str__(self):
         count = self.count()
@@ -251,7 +251,7 @@ class Topic(ContentNode):
         Topic nodes are used to add organization to the channel's content
 
         Attributes:
-            id (str): content's original id
+            source_id (str): content's original id
             title (str): content's title
             description (str): description of content (optional)
             author (str): who created the content (optional)
@@ -286,7 +286,7 @@ class Video(ContentNode):
         Videos must be mp4 format
 
         Attributes:
-            id (str): content's original id
+            source_id (str): content's original id
             title (str): content's title
             files (str or list): content's associated file(s)
             author (str): who created the content (optional)
@@ -300,7 +300,7 @@ class Video(ContentNode):
     """
     default_preset = format_presets.VIDEO_HIGH_RES
     thumbnail_preset = format_presets.VIDEO_THUMBNAIL
-    def __init__(self, id, title, files, preset=None, transcode_to_lower_resolutions=False, derive_thumbnail=False, **kwargs):
+    def __init__(self, source_id, title, files, preset=None, transcode_to_lower_resolutions=False, derive_thumbnail=False, **kwargs):
         self.kind = content_kinds.VIDEO
         self.derive_thumbnail = derive_thumbnail
 
@@ -312,7 +312,7 @@ class Video(ContentNode):
         if transcode_to_lower_resolutions:
             self.transcode_to_lower_resolutions()
 
-        super(Video, self).__init__(id, title, files=files, **kwargs)
+        super(Video, self).__init__(source_id, title, files=files, **kwargs)
 
     def __str__(self):
         metadata = "{0} {1}".format(len(self.files), "file" if len(self.files) == 1 else "files")
@@ -359,7 +359,7 @@ class Audio(ContentNode):
         Audio can be in either mp3 or wav format
 
         Attributes:
-            id (str): content's original id
+            source_id (str): content's original id
             title (str): content's title
             files (str or list): content's associated file(s)
             author (str): who created the content (optional)
@@ -405,7 +405,7 @@ class Document(ContentNode):
         Documents must be pdf format
 
         Attributes:
-            id (str): content's original id
+            source_id (str): content's original id
             title (str): content's title
             files (str or list): content's associated file(s)
             author (str): who created the content (optional)
@@ -451,7 +451,7 @@ class Exercise(ContentNode):
         understanding of the content
 
         Attributes:
-            id (str): content's original id
+            source_id (str): content's original id
             title (str): content's title
             files (str or list): content's associated file(s)
             author (str): who created the content (optional)
@@ -462,7 +462,7 @@ class Exercise(ContentNode):
     """
     default_preset = format_presets.EXERCISE
     thumbnail_preset = format_presets.EXERCISE_THUMBNAIL
-    def __init__(self, id, title, files, exercise_data=None, **kwargs):
+    def __init__(self, source_id, title, files, exercise_data=None, **kwargs):
         self.kind = content_kinds.EXERCISE
         self.questions = []
         files = [] if files is None else files
@@ -474,7 +474,7 @@ class Exercise(ContentNode):
             'randomize': exercise_data.get('randomize') or True,
         })
 
-        super(Exercise, self).__init__(id, title, questions=self.questions, extra_fields=exercise_data, **kwargs)
+        super(Exercise, self).__init__(source_id, title, questions=self.questions, extra_fields=exercise_data, **kwargs)
 
     def __str__(self):
         metadata = "{0} {1}".format(len(self.questions), "question" if len(self.questions) == 1 else "questions")
@@ -553,7 +553,7 @@ class HTML5App(ContentNode):
         All links (e.g. href and src) must be relative URLs, pointing to other files in the zip.
 
         Attributes:
-            id (str): content's original id
+            source_id (str): content's original id
             title (str): content's title
             files (str or list): content's associated file(s)
             author (str): who created the content (optional)
