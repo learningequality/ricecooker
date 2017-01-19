@@ -193,13 +193,6 @@ def create_initial_tree(channel):
     if config.VERBOSE:
         sys.stderr.write("DONE")
 
-    # Create channel manager with channel data
-    if config.VERBOSE:
-        sys.stderr.write("\n   Setting up node relationships... ")
-    tree.set_relationship(channel)
-    if config.VERBOSE:
-        sys.stderr.write("DONE")
-
     # Make sure channel structure is valid
     if config.VERBOSE:
         sys.stderr.write("\n   Validating channel structure...")

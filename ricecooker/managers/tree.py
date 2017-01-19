@@ -26,23 +26,6 @@ class ChannelManager:
         """
         return self.channel.test_tree()
 
-    def set_relationship(self, node, parent=None):
-        """ set_relationship: sets ids
-            Args:
-                node (Node): node to process
-                parent (Node): parent of node being processed
-            Returns: None
-        """
-        from ..classes import nodes
-
-        # If node is not a channel, set ids and download files
-        if not isinstance(node, nodes.Channel):
-            node.set_ids(self.channel._internal_domain, parent.node_id)
-
-        # Process node's children
-        for child_node in node.children:
-            self.set_relationship(child_node, node)
-
     def process_tree(self, node, parent=None):
         """ process_tree: processes files
             Args:
@@ -58,14 +41,14 @@ class ChannelManager:
                 file_data = config.DOWNLOADER.download_file(node.thumbnail, "Channel Thumbnail", default_ext=file_formats.PNG)
                 node.thumbnail = file_data['filename'] if file_data else ""
         else:
-            node.files = config.DOWNLOADER.download_files(node.files, "Node {}".format(node.original_id))
+            node.files = config.DOWNLOADER.download_files(node.files, "Node {}".format(node.source_id))
 
             # Get the thumbnail if provided or needs to be derived
             thumbnail = None
             if node.thumbnail is not None:
                 thumbnail = config.DOWNLOADER.download_file(node.thumbnail, "Node {}".format(node.original_id), default_ext=file_formats.PNG, preset=node.thumbnail_preset)
             elif isinstance(node, nodes.Video) and node.derive_thumbnail:
-                thumbnail = config.DOWNLOADER.derive_thumbnail(config.get_storage_path(node.files[0]['filename']), "Node {}".format(node.original_id))
+                thumbnail = config.DOWNLOADER.derive_thumbnail(config.get_storage_path(node.files[0]['filename']), "Node {}".format(node.source_id))
 
             if thumbnail:
                 node.files.append(thumbnail)
@@ -108,7 +91,7 @@ class ChannelManager:
                 if f['preset'] == format_presets.VIDEO_HIGH_RES:
                     if config.VERBOSE:
                         sys.stderr.write("\n\tCompressing video: {}\n".format(node.title))
-                    compressed = config.DOWNLOADER.compress_file(config.get_storage_path(f['filename']), "Node {}".format(node.original_id))
+                    compressed = config.DOWNLOADER.compress_file(config.get_storage_path(f['filename']), "Node {}".format(node.source_id))
                     if compressed:
                         f.update(compressed)
 
@@ -250,7 +233,7 @@ class ChannelManager:
             response_json = json.loads(response._content.decode("utf-8"))
 
             for child in current_node.children:
-                self.add_nodes(response_json['root_ids'][child.node_id.hex], child, indent + 1)
+                self.add_nodes(response_json['root_ids'][child.get_node_id().hex], child, indent + 1)
 
     def commit_channel(self, channel_id):
         """ commit_channel: commits channel to Kolibri Studio

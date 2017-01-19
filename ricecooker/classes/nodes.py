@@ -39,6 +39,7 @@ class Node(object):
     """ Node: model to represent all nodes in the tree """
     def __init__(self):
         self.children = []
+        self.parent = None
 
     def __str__(self):
         pass
@@ -56,6 +57,7 @@ class Node(object):
             Returns: None
         """
         assert isinstance(node, Node), "Child node must be a subclass of Node"
+        node.parent = self
         self.children += [node]
 
     def count(self):
@@ -114,18 +116,26 @@ class Channel(Node):
     thumbnail_preset = format_presets.CHANNEL_THUMBNAIL
     def __init__(self, channel_id, domain, title, description=None, thumbnail=None):
         # Map parameters to model variables
-        self.domain = domain
-        self.id = uuid.uuid3(uuid.NAMESPACE_DNS, uuid.uuid5(uuid.NAMESPACE_DNS, channel_id).hex)
+        self.source_domain = domain
+        self.source_id = channel_id
         self.title = title
         self.description = "" if description is None else description
         self.thumbnail = thumbnail
 
         # Add data to be used in next steps
-        self._internal_domain = uuid.uuid5(uuid.NAMESPACE_DNS, self.domain)
-        self.content_id = uuid.uuid5(self._internal_domain, self.id.hex)
-        self.node_id = uuid.uuid5(self.id, self.content_id.hex)
+        self.domain_ns = uuid.uuid5(uuid.NAMESPACE_DNS, self.source_domain)
+        self.id = uuid.uuid5(self.domain_ns, channel_id)
 
         super(Channel, self).__init__()
+
+    def get_domain_namespace(self):
+        return self.domain_ns
+
+    def get_content_id(self):
+        return uuid.uuid5(self.domain_ns, self.id.hex)
+
+    def get_node_id(self):
+        return self.id
 
     def __str__(self):
         count = self.count()
@@ -150,8 +160,8 @@ class Channel(Node):
             Returns: boolean indicating if channel is valid
         """
         try:
-            assert isinstance(self.domain, str)
-            assert isinstance(self.thumbnail, str) or self.thumbnail is None
+            assert isinstance(self.source_domain, str), "Channel domain must be a string"
+            assert isinstance(self.thumbnail, str) or self.thumbnail is None, "Channel thumbnail must be a string"
             return super(Channel, self).validate()
         except AssertionError as ae:
             raise InvalidNodeException("Invalid channel ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
@@ -171,30 +181,38 @@ class ContentNode(Node):
             files (str or list): content's associated file(s)
             thumbnail (str): local path or url to thumbnail image (optional)
     """
-    def __init__(self, *args, **kwargs):
+    def __init__(self, id, title, description="", author="", files=None, thumbnail=None, license=None, questions=None, extra_fields=None):
         # Map parameters to model variables
-        assert isinstance(args[0], str), "id must be a string"
-        self.id = args[0]
-        self.original_id = args[0]
-        self.title = args[1]
-        self.description = kwargs.get('description') or ""
-        self.author = kwargs.get('author') or ""
-        self.license = kwargs.get('license')
+        assert isinstance(id, str), "id must be a string"
+        self.source_id = id
+        self.title = title
+        self.description = description
+        self.author = author
+        self.license = license
 
         # Set files into list format (adding thumbnail if provided)
-        files = kwargs.get('files') or []
-        self.files = [files] if isinstance(files, str) else files
-        self.thumbnail = kwargs.get('thumbnail')
+        self.files = files or []
+        self.thumbnail = thumbnail
 
         # Set any possible exercise data to standard format
-        self.questions = kwargs.get('questions') or []
-        self.extra_fields = kwargs.get('extra_fields') or {}
+        self.questions = questions or []
+        self.extra_fields = extra_fields or {}
         super(ContentNode, self).__init__()
 
     def __str__(self):
         count = self.count()
         metadata = "{0} {1}".format(count, "descendant" if count == 1 else "descendants")
         return "{title} ({kind}): {metadata}".format(title=self.title, kind=self.__class__.__name__, metadata=metadata)
+
+    def get_domain_namespace(self):
+        return self.parent.get_domain_namespace()
+
+    def get_content_id(self):
+        return uuid.uuid5(self.get_domain_namespace(), self.source_id)
+
+    def get_node_id(self):
+        assert self.parent, "Parent not found: node id must be calculated based on parent"
+        return uuid.uuid5(self.parent.get_node_id(), self.get_content_id())
 
     def to_dict(self):
         """ to_dict: puts data in format CC expects
@@ -204,8 +222,8 @@ class ContentNode(Node):
         return {
             "title": self.title,
             "description": self.description,
-            "node_id": self.node_id.hex,
-            "content_id": self.content_id.hex,
+            "node_id": self.get_node_id().hex,
+            "content_id": self.get_content_id().hex,
             "author": self.author,
             "files" : self.files,
             "kind": self.kind,
@@ -213,16 +231,6 @@ class ContentNode(Node):
             "questions": self.questions,
             "extra_fields": json.dumps(self.extra_fields),
         }
-
-    def set_ids(self, domain, parent_id):
-        """ set_ids: sets ids to be used in building tree
-            Args:
-                domain (uuid): uuid of channel domain
-                parent_id (uuid): parent node's node_id
-            Returns: None
-        """
-        self.content_id = uuid.uuid5(domain, str(self.id))
-        self.node_id = uuid.uuid5(parent_id, self.content_id.hex)
 
     def validate(self):
         """ validate: Makes sure content node is valid
@@ -502,8 +510,8 @@ class Exercise(ContentNode):
         return {
             "title": self.title,
             "description": self.description,
-            "node_id": self.node_id.hex,
-            "content_id": self.content_id.hex,
+            "node_id": self.get_node_id().hex,
+            "content_id": self.get_content_id().hex,
             "author": self.author,
             "files" : self.files,
             "kind": self.kind,
