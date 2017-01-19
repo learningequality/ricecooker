@@ -119,7 +119,7 @@ class Channel(Node):
         self.source_domain = domain
         self.source_id = channel_id
         self.title = title
-        self.description = "" if description is None else description
+        self.description = description or ""
         self.thumbnail = thumbnail
 
         # Add data to be used in next steps
@@ -186,8 +186,8 @@ class ContentNode(Node):
         assert isinstance(id, str), "id must be a string"
         self.source_id = id
         self.title = title
-        self.description = description
-        self.author = author
+        self.description = description or ""
+        self.author = author or ""
         self.license = license
 
         # Set files into list format (adding thumbnail if provided)
@@ -256,9 +256,9 @@ class Topic(ContentNode):
             description (str): description of content (optional)
             author (str): who created the content (optional)
     """
-    def __init__(self, id, title, description="", author="", thumbnail=None):
+    def __init__(self, *args, **kwargs):
         self.kind = content_kinds.TOPIC
-        super(Topic, self).__init__(id, title, description=description, author=author, thumbnail=thumbnail)
+        super(Topic, self).__init__(*args, **kwargs)
 
     def __str__(self):
         count = self.count()
@@ -300,7 +300,7 @@ class Video(ContentNode):
     """
     default_preset = format_presets.VIDEO_HIGH_RES
     thumbnail_preset = format_presets.VIDEO_THUMBNAIL
-    def __init__(self, id, title, files, author="", description="", transcode_to_lower_resolutions=False, derive_thumbnail=False, license=None, subtitle=None, preset=None, thumbnail=None):
+    def __init__(self, id, title, files, transcode_to_lower_resolutions=False, derive_thumbnail=False, **kwargs):
         self.kind = content_kinds.VIDEO
         self.derive_thumbnail = derive_thumbnail
 
@@ -312,7 +312,7 @@ class Video(ContentNode):
         if transcode_to_lower_resolutions:
             self.transcode_to_lower_resolutions()
 
-        super(Video, self).__init__(id, title, description=description, author=author, license=license, files=files, thumbnail=thumbnail)
+        super(Video, self).__init__(id, title, files=files, **kwargs)
 
     def __str__(self):
         metadata = "{0} {1}".format(len(self.files), "file" if len(self.files) == 1 else "files")
@@ -370,9 +370,9 @@ class Audio(ContentNode):
     """
     thumbnail_preset = format_presets.AUDIO_THUMBNAIL
     default_preset = format_presets.AUDIO
-    def __init__(self, id, title, files, author="", description="", license=None, subtitle=None, thumbnail=None):
+    def __init__(self, *args, **kwargs):
         self.kind = content_kinds.AUDIO
-        super(Audio, self).__init__(id, title, description=description, author=author, license=license, files=files, thumbnail=thumbnail)
+        super(Audio, self).__init__(*args, **kwargs)
 
     def __str__(self):
         metadata = "{0} {1}".format(len(self.files), "file" if len(self.files) == 1 else "files")
@@ -415,9 +415,9 @@ class Document(ContentNode):
     """
     default_preset = format_presets.DOCUMENT
     thumbnail_preset = format_presets.DOCUMENT_THUMBNAIL
-    def __init__(self, id, title, files, author="", description="", license=None, thumbnail=None):
+    def __init__(self, *args, **kwargs):
         self.kind = content_kinds.DOCUMENT
-        super(Document, self).__init__(id, title, description=description, author=author, license=license, files=files, thumbnail=thumbnail)
+        super(Document, self).__init__(*args, **kwargs)
 
     def __str__(self):
         metadata = "{0} {1}".format(len(self.files), "file" if len(self.files) == 1 else "files")
@@ -462,7 +462,7 @@ class Exercise(ContentNode):
     """
     default_preset = format_presets.EXERCISE
     thumbnail_preset = format_presets.EXERCISE_THUMBNAIL
-    def __init__(self, id, title, files, author="", description="", license=None, exercise_data=None, thumbnail=None):
+    def __init__(self, id, title, files, exercise_data=None, **kwargs):
         self.kind = content_kinds.EXERCISE
         self.questions = []
         files = [] if files is None else files
@@ -474,7 +474,7 @@ class Exercise(ContentNode):
             'randomize': exercise_data.get('randomize') or True,
         })
 
-        super(Exercise, self).__init__(id, title, description=description, author=author, license=license, files=files, questions=self.questions, extra_fields=exercise_data,thumbnail=thumbnail)
+        super(Exercise, self).__init__(id, title, questions=self.questions, extra_fields=exercise_data, **kwargs)
 
     def __str__(self):
         metadata = "{0} {1}".format(len(self.questions), "question" if len(self.questions) == 1 else "questions")
@@ -564,11 +564,10 @@ class HTML5App(ContentNode):
 
     default_preset = format_presets.HTML5_ZIP
     thumbnail_preset = format_presets.HTML5_THUMBNAIL
-    def __init__(self, id, title, files, author="", description="", license=None, thumbnail=None):
+    def __init__(self, *args, **kwargs):
         self.kind = content_kinds.HTML5
-        files = [] if files is None else files
 
-        super(HTML5App, self).__init__(id, title, description=description, author=author, license=license, files=files, thumbnail=thumbnail)
+        super(HTML5App, self).__init__(*args, **kwargs)
 
     def __str__(self):
         return "{title} ({kind})".format(title=self.title, kind=self.__class__.__name__)
