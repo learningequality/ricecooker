@@ -188,10 +188,6 @@ def create_initial_tree(channel):
     config.LOGGER.info("   Setting up initial channel structure... ")
     tree = ChannelManager(channel)
 
-    # Create channel manager with channel data
-    config.LOGGER.info("   Setting up node relationships... ")
-    tree.set_relationship(channel)
-
     # Make sure channel structure is valid
     config.LOGGER.info("   Validating channel structure...")
     if config.LOGGER.getEffectiveLevel() <= logging.INFO:

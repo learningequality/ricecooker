@@ -26,22 +26,6 @@ class ChannelManager:
         """
         return self.channel.test_tree()
 
-    def set_relationship(self, node, parent=None):
-        """ set_relationship: sets ids
-            Args:
-                node (Node): node to process
-                parent (Node): parent of node being processed
-            Returns: None
-        """
-        from ..classes import nodes
-
-        # If node is not a channel, set ids and download files
-        if not isinstance(node, nodes.ChannelNode):
-            node.set_ids(self.channel._internal_domain, parent.node_id)
-
-        # Process node's children
-        for child_node in node.children:
-            self.set_relationship(child_node, node)
 
     def process_tree(self, node, parent=None):
         """ process_tree: processes files
