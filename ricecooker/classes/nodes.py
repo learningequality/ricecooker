@@ -39,9 +39,9 @@ def guess_content_kind(files, questions=None):
 class Node(object):
     """ Node: model to represent all nodes in the tree """
     def __init__(self):
-        self.parent = None
         self.children = []
         self.files = []
+        self.parent = None
 
     def __str__(self):
         pass
@@ -142,7 +142,7 @@ class ChannelNode(Node):
         self.source_domain = domain
         self.source_id = channel_id
         self.title = title
-        self.description = "" if description is None else description
+        self.description = description or ""
 
         # Add data to be used in next steps
         self.domain_ns = uuid.uuid5(uuid.NAMESPACE_DNS, self.source_domain)
@@ -182,8 +182,8 @@ class ChannelNode(Node):
             Returns: boolean indicating if channel is valid
         """
         try:
-            assert isinstance(self.source_domain, str)
-            return super(ChannelNode, self).validate()
+            assert isinstance(self.source_domain, str), "Channel domain must be a string"
+            return super(Channel, self).validate()
         except AssertionError as ae:
             raise InvalidNodeException("Invalid channel ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
 
@@ -474,7 +474,6 @@ class HTML5AppNode(ContentNode):
     """
     def __init__(self, *args, **kwargs):
         self.kind = content_kinds.HTML5
-
         super(HTML5AppNode, self).__init__(*args, **kwargs)
 
     def __str__(self):
@@ -590,5 +589,3 @@ class ExerciseNode(ContentNode):
             return super(ExerciseNode, self).validate()
         except AssertionError as ae:
             raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
-
-

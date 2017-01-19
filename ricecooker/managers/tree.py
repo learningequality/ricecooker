@@ -26,7 +26,6 @@ class ChannelManager:
         """
         return self.channel.test_tree()
 
-
     def process_tree(self, node, parent=None):
         """ process_tree: processes files
             Args:
