@@ -9,7 +9,7 @@ from ..exceptions import InvalidNodeException, InvalidFormatException
 from ..managers.downloader import DownloadManager
 from .. import config
 
-def guess_content_kind(path=None, online_data=None, questions=None):
+def guess_content_kind(path=None, web_video_data=None, questions=None):
     """ guess_content_kind: determines what kind the content is
         Args:
             files (str or list): files associated with content
@@ -124,20 +124,26 @@ class ChannelNode(Node):
         Used to store metadata on channel that is being created
 
         Attributes:
-            channel_id (str): channel's unique id
-            domain (str): who is providing the content (e.g. learningequality.org)
+            source_id (str): channel's unique id
+            source_domain (str): who is providing the content (e.g. learningequality.org)
             title (str): name of channel
             description (str): description of the channel (optional)
             thumbnail (str): file path or url of channel's thumbnail (optional)
     """
     thumbnail_preset = format_presets.CHANNEL_THUMBNAIL
     kind = "Channel"
-    def __init__(self, channel_id, domain, title, description=None):
+    def __init__(self, source_id, source_domain, title, description=None, thumbnail=None):
         # Map parameters to model variables
-        self.source_domain = domain
-        self.source_id = channel_id
+        self.source_domain = source_domain
+        self.source_id = source_id
         self.title = title
         self.description = description or ""
+        self.files = []
+
+        if thumbnail and isinstance(thumbnail, str):
+            from .files import ThumbnailFile
+            channel_thumbnail = ThumbnailFile(path=thumbnail)
+            self.add_file(channel_thumbnail)
 
         # Add data to be used in next steps
         self.domain_ns = uuid.uuid5(uuid.NAMESPACE_DNS, self.source_domain)
@@ -146,13 +152,13 @@ class ChannelNode(Node):
         super(ChannelNode, self).__init__()
 
     def get_domain_namespace(self):
-        return self.domain_ns
+        return uuid.uuid5(uuid.NAMESPACE_DNS, self.source_domain)
 
     def get_content_id(self):
-        return uuid.uuid5(self.domain_ns, self.id.hex)
+        return uuid.uuid5(self.get_domain_namespace(), self.id.hex)
 
     def get_node_id(self):
-        return self.id
+        return uuid.uuid5(self.get_domain_namespace(), self.source_id)
 
     def __str__(self):
         count = self.count()
@@ -165,9 +171,9 @@ class ChannelNode(Node):
             Returns: dict of channel data
         """
         return {
-            "id": self.id.hex,
+            "id": self.get_node_id().hex,
             "name": self.title,
-            "thumbnail": self.files[0].filename,
+            "thumbnail": self.files[0].filename if len(self.files) > 0 else None,
             "description": self.description if self.description is not None else "",
         }
 
@@ -196,18 +202,18 @@ class ContentNode(Node):
             license (str): content's license based on le_utils.constants.licenses (optional)
             thumbnail (str): local path or url to thumbnail image (optional)
     """
-    def __init__(self, id, title, description="", author="", thumbnail=None, license=None, questions=None, extra_fields=None):
+    def __init__(self, source_id, title, description="", author="", thumbnail=None, license=None, questions=None, extra_fields=None, domain_ns=None):
         # Map parameters to model variables
-        assert isinstance(id, str), "id must be a string"
-        self.source_id = id
+        assert isinstance(source_id, str), "source_id must be a string"
+        self.source_id = source_id
         self.title = title
         self.description = description or ""
         self.author = author or ""
         self.license = license
+        self.domain_ns = domain_ns
 
         # Set files into list format (adding thumbnail if provided)
         self.files = []
-
         # Set any possible exercise data to standard format
         self.questions = questions or []
         self.extra_fields = extra_fields or {}
@@ -219,6 +225,8 @@ class ContentNode(Node):
         return "{title} ({kind}): {metadata}".format(title=self.title, kind=self.__class__.__name__, metadata=metadata)
 
     def get_domain_namespace(self):
+        if self.domain_ns:
+            return self.domain_ns
         return self.parent.get_domain_namespace()
 
     def get_content_id(self):
@@ -265,7 +273,7 @@ class TopicNode(ContentNode):
         Topic nodes are used to add organization to the channel's content
 
         Attributes:
-            id (str): content's original id
+            source_id (str): content's original id
             title (str): content's title
             description (str): description of content (optional)
             author (str): who created the content (optional)
@@ -300,7 +308,7 @@ class VideoNode(ContentNode):
         Videos must be mp4 format
 
         Attributes:
-            id (str): content's original id
+            source_id (str): content's original id
             title (str): content's title
             files (str or list): content's associated file(s)
             author (str): who created the content (optional)
@@ -311,11 +319,11 @@ class VideoNode(ContentNode):
             license (str): content's license based on le_utils.constants.licenses (optional)
             thumbnail (str): local path or url to thumbnail image (optional)
     """
-    def __init__(self, id, title, derive_thumbnail=False, **kwargs):
+    def __init__(self, source_id, title, derive_thumbnail=False, **kwargs):
         self.kind = content_kinds.VIDEO
         self.derive_thumbnail = derive_thumbnail
 
-        super(VideoNode, self).__init__(id, title, **kwargs)
+        super(VideoNode, self).__init__(source_id, title, **kwargs)
 
     def __str__(self):
         metadata = "{0} {1}".format(len(self.files), "file" if len(self.files) == 1 else "files")
@@ -370,7 +378,7 @@ class AudioNode(ContentNode):
         Audio can be in either mp3 or wav format
 
         Attributes:
-            id (str): content's original id
+            source_id (str): content's original id
             title (str): content's title
             files (str or list): content's associated file(s)
             author (str): who created the content (optional)
@@ -414,7 +422,7 @@ class DocumentNode(ContentNode):
         Documents must be pdf format
 
         Attributes:
-            id (str): content's original id
+            source_id (str): content's original id
             title (str): content's title
             author (str): who created the content (optional)
             description (str): description of content (optional)
@@ -510,7 +518,7 @@ class ExerciseNode(ContentNode):
         understanding of the content
 
         Attributes:
-            id (str): content's original id
+            source_id (str): content's original id
             title (str): content's title
             files (str or list): content's associated file(s)
             author (str): who created the content (optional)
@@ -520,7 +528,7 @@ class ExerciseNode(ContentNode):
             thumbnail (str): local path or url to thumbnail image (optional)
     """
     default_preset = format_presets.EXERCISE
-    def __init__(self, id, title, exercise_data=None, **kwargs):
+    def __init__(self, source_id, title, exercise_data=None, **kwargs):
         self.kind = content_kinds.EXERCISE
         self.questions = []
 
@@ -531,7 +539,7 @@ class ExerciseNode(ContentNode):
             'randomize': exercise_data.get('randomize') or True,
         })
 
-        super(ExerciseNode, self).__init__(id, title, questions=self.questions, extra_fields=exercise_data, **kwargs)
+        super(ExerciseNode, self).__init__(source_id, title, questions=self.questions, extra_fields=exercise_data, **kwargs)
 
     def __str__(self):
         metadata = "{0} {1}".format(len(self.questions), "question" if len(self.questions) == 1 else "questions")
@@ -578,7 +586,6 @@ class ExerciseNode(ContentNode):
             for q in self.questions:
                 questions_valid = questions_valid and q.validate()
             assert questions_valid, "Assumption Failed: Exercise does not have a question"
-
             return super(ExerciseNode, self).validate()
         except AssertionError as ae:
             raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))

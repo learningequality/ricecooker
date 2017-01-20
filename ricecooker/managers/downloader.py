@@ -2,7 +2,6 @@ import json
 import os
 from .. import config
 
-
 class DownloadManager:
     """ Manager for handling file downloading and storage
 

@@ -47,7 +47,6 @@ def uploadchannel(path, verbose=False, update=False, resume=False, reset=False, 
     # Mount file:// to allow local path requests
     config.SESSION.mount('file://', FileAdapter())
     config.SESSION.headers.update({"Authorization": "Token {0}".format(token)})
-
     config.UPDATE = update
     config.COMPRESS = compress
 
@@ -59,7 +58,7 @@ def uploadchannel(path, verbose=False, update=False, resume=False, reset=False, 
     if token != "#":
         if os.path.isfile(token):
             with open(token, 'r') as fobj:
-                token = fobj.read()
+                config.SESSION.headers.update({"Authorization": "Token {0}".format(fobj.read())})
         try:
             response = config.SESSION.post(config.authentication_url())
             response.raise_for_status()
