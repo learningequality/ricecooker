@@ -1,9 +1,12 @@
 # Node models to represent channel's tree
+from __future__ import unicode_literals
 
 import os
 import hashlib
 import tempfile
 import shutil
+import youtube_dl
+
 from subprocess import CalledProcessError
 from enum import Enum
 from le_utils.constants import content_kinds,file_formats, format_presets, exercises
@@ -74,22 +77,27 @@ FILE_TYPE_MAPPING = {
 
 # CACHE = FileCache(".filecache")
 
-def guess_file_type(kind, filepath=None, youtube_id=None, encoding=None):
+def guess_file_type(kind, filepath=None, youtube_data=None, encoding=None):
     """ guess_file_class: determines what file the content is
         Args:
             filepath (str): filepath of file to check
         Returns: string indicating file's class
     """
-    assert filepath or youtube_id or encoding, "Cannot guess file type: must include a filepath, youtube_id, or encoding"
+    assert filepath or youtube_data or encoding, "Cannot guess file type: must include a filepath, youtube_data, or encoding"
     if encoding:
         return FileTypes.BASE64_FILE
-    if youtube_id:
+    if youtube_data:
         return FileTypes.YOUTUBE_VIDEO_FILE
     if filepath:
         ext = filepath.rsplit('/', 1)[-1].split(".")[-1].lower()
         if kind in FILE_TYPE_MAPPING and ext in FILE_TYPE_MAPPING[kind]:
             return FILE_TYPE_MAPPING[kind][ext]
     return None
+
+def generate_key(path_or_id, settings):
+    setting_pairs = sorted(["{}:{}".format(k, v) for k, v in settings.items()])
+    settings_keys = " ({})".format(":".join(setting_pairs)) if settings else " (default)"
+    return "{0}{1}".format(path_or_id, settings_keys)
 
 def download(path, default_ext=None):
     """ download: downloads file
@@ -158,11 +166,8 @@ def get_hash(filepath):
     return hash.hexdigest()
 
 def compress(filename, ffmpeg_settings):
-    # Generate key for compressed file
-    setting_list = ffmpeg_settings if ffmpeg_settings else {}
-    setting_pairs = sorted(["{}:{}".format(k, v) for k, v in setting_list.items()])
-    settings = " ({})".format(":".join(setting_pairs)) if ffmpeg_settings else " (default compression)"
-    key = "{0}{1}".format(filename, settings)
+    ffmpeg_settings = ffmpeg_settings or {}
+    key = generate_key(filename, ffmpeg_settings)
 
     if config.DOWNLOADER.get(key):
         return config.DOWNLOADER.get(key)
@@ -171,7 +176,7 @@ def compress(filename, ffmpeg_settings):
 
     with tempfile.NamedTemporaryFile(suffix=".{}".format(file_formats.MP4)) as tempf:
         tempf.close() # Need to close so pressure cooker can write to file
-        compress_video(config.get_storage_path(filename), tempf.name, overwrite=True, **setting_list)
+        compress_video(config.get_storage_path(filename), tempf.name, overwrite=True, **ffmpeg_settings)
         filename = "{}.{}".format(get_hash(tempf.name), file_formats.MP4)
 
         # Write file to local storage
@@ -181,6 +186,27 @@ def compress(filename, ffmpeg_settings):
         config.DOWNLOADER.set(key, filename)
         return filename
 
+def download_from_youtube(url, youtube_dl_settings):
+    key = generate_key(url, youtube_dl_settings)
+    if config.DOWNLOADER.get(key):
+        return config.DOWNLOADER.get(key)
+
+    # Get hash of url to act as temporary storage name
+    url_hash = hashlib.md5()
+    url_hash.update(url.encode('utf-8'))
+    destination_path = os.path.join(tempfile.gettempdir(), "{}.{}".format(url_hash.hexdigest(), file_formats.MP4))
+    youtube_dl_settings["outtmpl"] = destination_path
+
+    with youtube_dl.YoutubeDL(youtube_dl_settings) as ydl:
+        ydl.download([url])
+        filename = "{}.{}".format(get_hash(destination_path), file_formats.MP4)
+
+        # Write file to local storage
+        with open(destination_path, "rb") as dlf, open(config.get_storage_path(filename), 'wb') as destf:
+            shutil.copyfileobj(dlf, destf)
+
+        config.DOWNLOADER.set(key, filename)
+        return filename
 
 
 class File(object):
@@ -491,57 +517,34 @@ class ExerciseGraphieFile(DownloadFile):
 
 
 class YouTubeVideoFile(File):
-    def __init__(self, youtube_id, youtube_dl_settings=None, **kwargs):
-        self.youtube_id = youtube_id
+    # In future, look into postprocessors and progress_hooks
+    def __init__(self, youtube_id=None, youtube_url=None, youtube_dl_settings=None, high_resolution=True, **kwargs):
+        assert youtube_id or youtube_url, "Error: Must provide either an id or url to download YouTube video."
+        self.youtube_url = youtube_url
+        if youtube_id:
+            self.youtube_url = 'http://www.youtube.com/watch?v={}'.format(youtube_id)
         self.youtube_dl_settings = youtube_dl_settings or {}
-        self.youtube_dl_settings['format'] = file_formats.MP4
+        self.youtube_dl_settings['format'] = "22/best" if high_resolution else "18/worst"
+
         super(YouTubeVideoFile, self).__init__(**kwargs)
-        # postprocessors, progress_hooks,
 
     def get_preset(self):
         return self.preset or check_video_resolution(config.get_storage_path(self.filename))
 
     def process_file(self):
-        pass
+        try:
+            self.filename = download_from_youtube(self.youtube_url, self.youtube_dl_settings)
+            config.LOGGER.info("\t--- Downloaded (YouTube) {}".format(self.filename))
+            return self.filename
+        except youtube_dl.utils.DownloadError as err:
+            self.error = str(err)
+            config.FAILED_FILES.append(self)
 
-class YouTubeHighResolutionVideoFile(YouTubeVideoFile):
-    def __init__(self, youtube_id, youtube_dl_settings=None, **kwargs):
-        self.youtube_id = youtube_id
-        self.youtube_dl_settings = youtube_dl_settings or {}
-        self.youtube_dl_settings['format'] = "bestvideo[ext={}]" # file_formats.MP4
-        super(YouTubeHighResolutionVideoFile, self).__init__(**kwargs)
-        # postprocessors, progress_hooks, EMBEDDING
-
-    def get_preset(self):
-        return self.preset or check_video_resolution(config.get_storage_path(self.filename))
-
-    def process_file(self):
-        pass
-
-
-class YouTubeHighResolutionVideoFile(YouTubeVideoFile):
-    def __init__(self, youtube_id, youtube_dl_settings=None, **kwargs):
-        self.youtube_id = youtube_id
-        self.youtube_dl_settings = youtube_dl_settings or {}
-        self.youtube_dl_settings['format'] = "worstvideo" # file_formats.MP4
-        super(YouTubeHighResolutionVideoFile, self).__init__(**kwargs)
-        # postprocessors, progress_hooks,
-
-    def get_preset(self):
-        return self.preset or check_video_resolution(config.get_storage_path(self.filename))
-
-    def process_file(self):
-        pass
-
-# YouTubeVideoThumbnailFile
 
 
 # VectorizedVideoFile
-
 # TiledThumbnailFile
 # UniversalSubsSubtitleFile
-
-
 # class TiledThumbnailFile(ThumbnailFile):
 #     def __init__(self, sources):
 #         assert len(sources) == 4, "Please provide 4 sources for creating tiled thumbnail"
@@ -550,7 +553,6 @@ class YouTubeHighResolutionVideoFile(YouTubeVideoFile):
 #     def get_file(self):
 #         images = [source.get_file() for source in self.sources]
 #         thumbnail_storage_path = create_tiled_image(images)
-
 
 # class UniversalSubsSubtitleFile(SubtitleFile):
 #     def __init__(self, us_id, language):

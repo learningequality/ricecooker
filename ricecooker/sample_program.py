@@ -10,174 +10,197 @@ SAMPLE_PERSEUS = '{"answerArea":{"chi2Table":false,"periodicTable":false,"tTable
 '"content":"Do you like rice?\\\"\\n\\n![](web+graphie:C:/users/jordan/contentcuration-dump/0a0c0f1a1a40226d8d227a07dd143f8c08a4b8a5)\\n\\n[[\\u2603 radio 1]]"},"itemDataVersion":{"minor":1,"major":0}}'
 
 SAMPLE_TREE = [
-    # {
-    #     "title": "TEST COMPRESSION",
-    #     "id": "6cafe7",
-    #     "author": "Revision 3",
-    #     "description": "Become a master rice cooker",
-    #     "license": licenses.CC_BY_NC_SA,
-    #     "files": [
-    #         {
-    #             "path": "C:/users/jordan/contentcuration-dump/high resolution.mp4",
-    #             "ffmpeg_settings": {"max_width": 480, "crf": 20},
-    #         },
-    #         {
-    #             "path": "C:/users/jordan/Videos/testfolder/captions.vtt",
-    #             "language": "1",
-    #         }
-    #     ],
-    # },
-    # {
-    #     "title": "Rice 101",
-    #     "id": "abd115",
-    #     "description": "Learn about how rice",
-    #     "children": [
-    #         {
-    #             "title": "Rice Distribution",
-    #             "id": "aaaa4d",
-    #             "files": [
-    #                 {
-    #                     "path" : "https://ia801407.us.archive.org/21/items/ah_Rice/Rice.mp3",
-    #                 },
-    #                 {
-    #                     "path" : "https://upload.wikimedia.org/wikipedia/commons/b/ba/Rice_grains_(IRRI).jpg",
-    #                 },
-    #             ],
-    #             "description": "Get online updates regarding world's leading long grain rice distributors, broken rice distributors, rice suppliers, parboiled rice exporter on our online B2B marketplace TradeBanq.",
-    #             "license": licenses.PUBLIC_DOMAIN,
-    #         },
-    #         {
-    #             "title": "Rice History",
-    #             "id": "6ef99c",
-    #             "description": "Discover the history of rice",
-    #             "children": [
-    #                 {
-    #                     "title": "The History of Japanese Rice",
-    #                     "id": "418799",
-    #                     "author": "Sandra Lopez-Richter",
-    #                     "files":[
-    #                         {
-    #                             "path" : "https://ia601301.us.archive.org/31/items/The_History_of_Japanese_Rice_Lopez-Richter/The_History_of_Japanese_Rice_Lopez-Richter.pdf",
-    #                         },
-    #                         {
-    #                             "path" : "http://res.freestockphotos.biz/pictures/17/17321-a-bowl-of-rice-with-chopsticks-pv.jpg",
-    #                         },
-    #                     ],
-    #                     "license": licenses.CC_BY,
-    #                 },
-    #             ]
-    #         },
-    #     ]
-    # },
+    {
+        "title": "TEST COMPRESSION",
+        "id": "6cafe7",
+        "author": "Revision 3",
+        "description": "Become a master rice cooker",
+        "license": licenses.CC_BY_NC_SA,
+        "files": [
+            {
+                "path": "C:/users/jordan/contentcuration-dump/high resolution.mp4",
+                "ffmpeg_settings": {"max_width": 480, "crf": 20},
+            },
+            {
+                "path": "C:/users/jordan/Videos/testfolder/captions.vtt",
+                "language": "1",
+            }
+        ],
+    },
+    {
+        "title": "TEST YOUTUBE",
+        "id": "6cafe8",
+        "description": "Youtube Test",
+        "license": licenses.CC_BY_NC_SA,
+        "files": [
+            {
+                "youtube_id": "kpCJyQ2usJ4",
+                "high_resolution": False,
+            }
+        ],
+    },
+    {
+        "title": "TEST VIMEO",
+        "id": "6cafe9",
+        "description": "Vimeo Test",
+        "license": licenses.CC_BY_NC_SA,
+        "files": [
+            {
+                "youtube_url": "https://vimeo.com/188609325",
+            }
+        ],
+    },
+    {
+        "title": "Rice 101",
+        "id": "abd115",
+        "description": "Learn about how rice",
+        "children": [
+            {
+                "title": "Rice Distribution",
+                "id": "aaaa4d",
+                "files": [
+                    {
+                        "path" : "https://ia801407.us.archive.org/21/items/ah_Rice/Rice.mp3",
+                    },
+                    {
+                        "path" : "https://upload.wikimedia.org/wikipedia/commons/b/ba/Rice_grains_(IRRI).jpg",
+                    },
+                ],
+                "description": "Get online updates regarding world's leading long grain rice distributors, broken rice distributors, rice suppliers, parboiled rice exporter on our online B2B marketplace TradeBanq.",
+                "license": licenses.PUBLIC_DOMAIN,
+            },
+            {
+                "title": "Rice History",
+                "id": "6ef99c",
+                "description": "Discover the history of rice",
+                "children": [
+                    {
+                        "title": "The History of Japanese Rice",
+                        "id": "418799",
+                        "author": "Sandra Lopez-Richter",
+                        "files":[
+                            {
+                                "path" : "https://ia601301.us.archive.org/31/items/The_History_of_Japanese_Rice_Lopez-Richter/The_History_of_Japanese_Rice_Lopez-Richter.pdf",
+                            },
+                            {
+                                "path" : "http://res.freestockphotos.biz/pictures/17/17321-a-bowl-of-rice-with-chopsticks-pv.jpg",
+                            },
+                        ],
+                        "license": licenses.CC_BY,
+                    },
+                ]
+            },
+        ]
+    },
     {
         "title": "Rice Cookers",
         "id": "d98752",
         "description": "Start cooking rice today!",
         "children": [
-            # {
-            #     "title": "Rice Chef",
-            #     "id": "6cafe2",
-            #     "author": "Revision 3",
-            #     "description": "Become a master rice cooker",
-            #     "file": "https://ia600209.us.archive.org/27/items/RiceChef/Rice Chef.mp4",
-            #     "license": licenses.CC_BY_NC_SA,
-            #     "files": [
-            #         {
-            #             "path": "https://ia600209.us.archive.org/27/items/RiceChef/Rice Chef.mp4",
-            #         },
-            #         {
-            #             "encoding": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAABGdBTUEAALGPC/xhBQAAAAFzUkdCAK7OHOkAAAAgY0hSTQAAeiYAAICEAAD6AAAAgOgAAHUwAADqYAAAOpgAABdwnLpRPAAAAmFQTFRF////wN/2I0FiNFFuAAAAxdvsN1RxV3KMnrPFFi9PAB1CVG+KXHaQI0NjttLrEjVchIF4AyNGZXB5V087UUw/EzBMpqWeb2thbmpgpqOceXVsERgfTWeADg8QCAEApKGZBAYIop+XCQkIhZ+2T2mEg5mtnK/AobPDkKO2YXqTAAAAJkBetMraZH2VprjIz9zm4enw7/T47fP3wc7ae5GnAAAAN1BsSmSApLfI1ODq2OHp5Orv8PL09vb38fb5wM/bbISbrL/PfZSpxNPgzdnj2+Pr5evw6+/z6e3w3ePp2OPsma2/ABM5Q197ABk4jKG1yNfjytfh1uDo3eXs4unv1t/nztrjqbzMTmmEXneRES1Ji6CzxtXixdPfztrk1N/n1+Dp1d/oz9vlxdPeq73NVG+KYnyUAAAddIuhwtPhvMzaxtTgytfiy9jjwtHewtHenbDCHT1fS2eCRV52qr7PvM3cucrYv87cv8/cvMzavc3bucvacoyl////ByE8WnKKscXWv9Hguszbu8zbvc7dtcnaiJqrcHZ4f4SHEh0nEitFTWZ+hJqumrDDm7HDj6W5dI2lYGJfmZeQl5SNAAAADRciAAATHjdSOVNsPlhyLklmKCYjW1lUlpOLlZKLFSAqWXSOBQAADA0NAAAAHh0bWlhSk5CIk5CIBAYJDRQbERcdDBAUBgkMAAAEDg4NAAAAHBsZWFZQkY6GAAAAAAAABQUEHBsZAAAAGxoYVlROko+GBAQDZ2RdAAAAGhkYcW9oAgICAAAAExMSDQwLjouDjYuDioiAiIV9hoN7VlRO////Z2DcYwAAAMR0Uk5TAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACRKrJyrZlBQECaNXCsKaqypMGAUDcu7Gpn5mf03gDo8+4saiipKq3xRMBH83Eu7OsqbG61DkDMdbFvrizsbK3wNs9Ax/VysS/vLq/zNwfArDhxMfExMXE3pMCMe7byMjIzd33ZgYGQtnz6+zooeJXBQMFD1yHejZ1+l8FBgEELlOR+GgFCQ0SGxoBGFKg+m0BBwEMR6v+hAEDM6nRASWURVuYQQ4AAAABYktHRACIBR1IAAAACXBIWXMAAAjLAAAIywGEuOmJAAABCklEQVQY02NgUGZUUVVT19DUYtBmYmZhYdBh1dXTNzA0MjYxZTFjAwqwm1tYWlnb2NrZO3A4cgIFGJycXVzd3D08vbx9uHyBAn7+AYFBwSEhoWHhEdyRQIGo6JjYuPiExKTklFSeNKBAekZmVnZObk5efkEhbxFQgK+4pLSsvKKyqrqGoZZfgIVBsK6+obGpuaW1rV2oQ1hEgKFTtKu7p7evf8LEI5PEJotLMEyZyjJt+oyZsxhmzzk6V3KeFIO01vwFMrJyCxctXrL02DL55QwsClorVq5avWbtuvUbNh7fpMjAwsKyWWvLFJatStu279h5YhdIAAJ2s+zZu+/kfoQAy4HNLAcPHQYA5YtSi+k2/WkAAAAldEVYdGRhdGU6Y3JlYXRlADIwMTMtMTAtMDRUMTk6Mzk6MjEtMDQ6MDAwU1uYAAAAJXRFWHRkYXRlOm1vZGlmeQAyMDEzLTEwLTA0VDE5OjM5OjIxLTA0OjAwQQ7jJAAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAAAASUVORK5CYII=",
-            #         },
-            #     ],
-            # },
-            # {
-            #     "title": "Rice Exercise",
-            #     "id": "6cafe3",
-            #     "description": "Test how well you know your rice",
-            #     "license": licenses.CC_BY_NC_SA,
-            #     "mastery_model": exercises.M_OF_N,
-            #     "files": [
-            #         {
-            #             "path": "http://www.publicdomainpictures.net/pictures/110000/nahled/bowl-of-rice.jpg",
-            #             # "language": languages.get("english")
-            #         }
-            #     ],
-            #     "questions": [
-            #         {
-            #             "id": "eeeee",
-            #             "question": "Which rice is your favorite? ![](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAABGdBTUEAALGPC/xhBQAAAAFzUkdCAK7OHOkAAAAgY0hSTQAAeiYAAICEAAD6AAAAgOgAAHUwAADqYAAAOpgAABdwnLpRPAAAAmFQTFRF////wN/2I0FiNFFuAAAAxdvsN1RxV3KMnrPFFi9PAB1CVG+KXHaQI0NjttLrEjVchIF4AyNGZXB5V087UUw/EzBMpqWeb2thbmpgpqOceXVsERgfTWeADg8QCAEApKGZBAYIop+XCQkIhZ+2T2mEg5mtnK/AobPDkKO2YXqTAAAAJkBetMraZH2VprjIz9zm4enw7/T47fP3wc7ae5GnAAAAN1BsSmSApLfI1ODq2OHp5Orv8PL09vb38fb5wM/bbISbrL/PfZSpxNPgzdnj2+Pr5evw6+/z6e3w3ePp2OPsma2/ABM5Q197ABk4jKG1yNfjytfh1uDo3eXs4unv1t/nztrjqbzMTmmEXneRES1Ji6CzxtXixdPfztrk1N/n1+Dp1d/oz9vlxdPeq73NVG+KYnyUAAAddIuhwtPhvMzaxtTgytfiy9jjwtHewtHenbDCHT1fS2eCRV52qr7PvM3cucrYv87cv8/cvMzavc3bucvacoyl////ByE8WnKKscXWv9Hguszbu8zbvc7dtcnaiJqrcHZ4f4SHEh0nEitFTWZ+hJqumrDDm7HDj6W5dI2lYGJfmZeQl5SNAAAADRciAAATHjdSOVNsPlhyLklmKCYjW1lUlpOLlZKLFSAqWXSOBQAADA0NAAAAHh0bWlhSk5CIk5CIBAYJDRQbERcdDBAUBgkMAAAEDg4NAAAAHBsZWFZQkY6GAAAAAAAABQUEHBsZAAAAGxoYVlROko+GBAQDZ2RdAAAAGhkYcW9oAgICAAAAExMSDQwLjouDjYuDioiAiIV9hoN7VlRO////Z2DcYwAAAMR0Uk5TAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACRKrJyrZlBQECaNXCsKaqypMGAUDcu7Gpn5mf03gDo8+4saiipKq3xRMBH83Eu7OsqbG61DkDMdbFvrizsbK3wNs9Ax/VysS/vLq/zNwfArDhxMfExMXE3pMCMe7byMjIzd33ZgYGQtnz6+zooeJXBQMFD1yHejZ1+l8FBgEELlOR+GgFCQ0SGxoBGFKg+m0BBwEMR6v+hAEDM6nRASWURVuYQQ4AAAABYktHRACIBR1IAAAACXBIWXMAAAjLAAAIywGEuOmJAAABCklEQVQY02NgUGZUUVVT19DUYtBmYmZhYdBh1dXTNzA0MjYxZTFjAwqwm1tYWlnb2NrZO3A4cgIFGJycXVzd3D08vbx9uHyBAn7+AYFBwSEhoWHhEdyRQIGo6JjYuPiExKTklFSeNKBAekZmVnZObk5efkEhbxFQgK+4pLSsvKKyqrqGoZZfgIVBsK6+obGpuaW1rV2oQ1hEgKFTtKu7p7evf8LEI5PEJotLMEyZyjJt+oyZsxhmzzk6V3KeFIO01vwFMrJyCxctXrL02DL55QwsClorVq5avWbtuvUbNh7fpMjAwsKyWWvLFJatStu279h5YhdIAAJ2s+zZu+/kfoQAy4HNLAcPHQYA5YtSi+k2/WkAAAAldEVYdGRhdGU6Y3JlYXRlADIwMTMtMTAtMDRUMTk6Mzk6MjEtMDQ6MDAwU1uYAAAAJXRFWHRkYXRlOm1vZGlmeQAyMDEzLTEwLTA0VDE5OjM5OjIxLTA0OjAwQQ7jJAAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAAAASUVORK5CYII=)",
-            #             "type":exercises.MULTIPLE_SELECTION,
-            #             "correct_answers": ["White rice", "Brown rice", "Sushi rice"],
-            #             "all_answers": ["White rice", "Quinoa","Brown rice"],
-            #         },
-            #         {
-            #             "id": "bbbbb",
-            #             "question": "Which rice is the crunchiest?",
-            #             "type":exercises.SINGLE_SELECTION,
-            #             "correct_answer": "Rice Krispies \n![](https://upload.wikimedia.org/wikipedia/commons/c/cd/RKTsquares.jpg)",
-            #             "all_answers": ["White rice \n![](https://upload.wikimedia.org/wikipedia/commons/4/4b/Thai_jasmine_rice_uncooked.jpg)", "Brown rice \n![](https://c2.staticflickr.com/4/3159/2889140143_b99fd8dd4c_z.jpg?zz=1)", "Rice Krispies \n![](https://upload.wikimedia.org/wikipedia/commons/c/cd/RKTsquares.jpg)"],
-            #             "hints": "It's delicious",
-            #         },
-            #         {
-            #             "id": "ccccc",
-            #             "question": "Why a rice cooker?",
-            #             "type":exercises.FREE_RESPONSE,
-            #             "answers": [],
-            #             "images": None,
-            #         },
-            #         {
-            #             "id": "aaaaa",
-            #             "question": "How many minutes does it take to cook rice? ![](https://upload.wikimedia.org/wikipedia/commons/5/5e/Jeera-rice.JPG)",
-            #             "type":exercises.INPUT_QUESTION,
-            #             "answers": ["20", "25", "15"],
-            #             "hints": ["Takes roughly same amount of time to install kolibri on Windows machine", "Does this help?\n![](http://www.aroma-housewares.com/images/rice101/delay_timer_1.jpg)"],
-            #         },
-            #         {
-            #             "id": "ddddd",
-            #             "type":exercises.PERSEUS_QUESTION,
-            #             "item_data":SAMPLE_PERSEUS,
-            #         },
-            #     ],
-            # },
-            # {
-            #     "title": "Rice Exercise 2",
-            #     "id": "6cafe4",
-            #     "description": "Test how well you know your rice",
-            #     "license": licenses.CC_BY_NC_SA,
-            #     "mastery_model": exercises.M_OF_N,
-            #     "files": [
-            #         {
-            #             "path": "https://c1.staticflickr.com/5/4021/4302326650_b11f0f0aaf_b.jpg",
-            #         }
-            #     ],
-            #     "questions": [
-            #         {
-            #             "id": "11111",
-            #             "question": "<h3 id=\"rainbow\" style=\"font-weight:bold\">RICE COOKING!!!</h3><script type='text/javascript'><!-- setInterval(function() {$('#rainbow').css('color', '#'+((1<<24)*Math.random()|0).toString(16));}, 300); --></script>",
-            #             "type":exercises.SINGLE_SELECTION,
-            #             "all_answers": ["Answer"],
-            #             "correct_answer": "Answer",
-            #         },
-            #         {
-            #             "id": "121212",
-            #             "question": '<math> <mrow> <msup><mi> a </mi><mn>2</mn></msup> <mo> + </mo> <msup><mi> b </mi><mn>2</mn></msup> <mo> = </mo> <msup><mi> c </mi><mn>2</mn></msup> </mrow> </math>',
-            #             "type":exercises.SINGLE_SELECTION,
-            #             "all_answers": ["Answer"],
-            #             "correct_answer": "Answer",
-            #         },
-            #     ],
-            # },
-            # {
-            #     "title": "HTML Sample",
-            #     "id": "abcdef",
-            #     "description": "An example of how html can be imported from the ricecooker",
-            #     "license": licenses.PUBLIC_DOMAIN,
-            #     "files": [
-            #         {
-            #             "path": "C:/users/jordan/Videos/testfolder/htmltest.zip",
-            #         }
-            #     ]
-            # },
+            {
+                "title": "Rice Chef",
+                "id": "6cafe2",
+                "author": "Revision 3",
+                "description": "Become a master rice cooker",
+                "file": "https://ia600209.us.archive.org/27/items/RiceChef/Rice Chef.mp4",
+                "license": licenses.CC_BY_NC_SA,
+                "files": [
+                    {
+                        "path": "https://ia600209.us.archive.org/27/items/RiceChef/Rice Chef.mp4",
+                    },
+                    {
+                        "encoding": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAABGdBTUEAALGPC/xhBQAAAAFzUkdCAK7OHOkAAAAgY0hSTQAAeiYAAICEAAD6AAAAgOgAAHUwAADqYAAAOpgAABdwnLpRPAAAAmFQTFRF////wN/2I0FiNFFuAAAAxdvsN1RxV3KMnrPFFi9PAB1CVG+KXHaQI0NjttLrEjVchIF4AyNGZXB5V087UUw/EzBMpqWeb2thbmpgpqOceXVsERgfTWeADg8QCAEApKGZBAYIop+XCQkIhZ+2T2mEg5mtnK/AobPDkKO2YXqTAAAAJkBetMraZH2VprjIz9zm4enw7/T47fP3wc7ae5GnAAAAN1BsSmSApLfI1ODq2OHp5Orv8PL09vb38fb5wM/bbISbrL/PfZSpxNPgzdnj2+Pr5evw6+/z6e3w3ePp2OPsma2/ABM5Q197ABk4jKG1yNfjytfh1uDo3eXs4unv1t/nztrjqbzMTmmEXneRES1Ji6CzxtXixdPfztrk1N/n1+Dp1d/oz9vlxdPeq73NVG+KYnyUAAAddIuhwtPhvMzaxtTgytfiy9jjwtHewtHenbDCHT1fS2eCRV52qr7PvM3cucrYv87cv8/cvMzavc3bucvacoyl////ByE8WnKKscXWv9Hguszbu8zbvc7dtcnaiJqrcHZ4f4SHEh0nEitFTWZ+hJqumrDDm7HDj6W5dI2lYGJfmZeQl5SNAAAADRciAAATHjdSOVNsPlhyLklmKCYjW1lUlpOLlZKLFSAqWXSOBQAADA0NAAAAHh0bWlhSk5CIk5CIBAYJDRQbERcdDBAUBgkMAAAEDg4NAAAAHBsZWFZQkY6GAAAAAAAABQUEHBsZAAAAGxoYVlROko+GBAQDZ2RdAAAAGhkYcW9oAgICAAAAExMSDQwLjouDjYuDioiAiIV9hoN7VlRO////Z2DcYwAAAMR0Uk5TAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACRKrJyrZlBQECaNXCsKaqypMGAUDcu7Gpn5mf03gDo8+4saiipKq3xRMBH83Eu7OsqbG61DkDMdbFvrizsbK3wNs9Ax/VysS/vLq/zNwfArDhxMfExMXE3pMCMe7byMjIzd33ZgYGQtnz6+zooeJXBQMFD1yHejZ1+l8FBgEELlOR+GgFCQ0SGxoBGFKg+m0BBwEMR6v+hAEDM6nRASWURVuYQQ4AAAABYktHRACIBR1IAAAACXBIWXMAAAjLAAAIywGEuOmJAAABCklEQVQY02NgUGZUUVVT19DUYtBmYmZhYdBh1dXTNzA0MjYxZTFjAwqwm1tYWlnb2NrZO3A4cgIFGJycXVzd3D08vbx9uHyBAn7+AYFBwSEhoWHhEdyRQIGo6JjYuPiExKTklFSeNKBAekZmVnZObk5efkEhbxFQgK+4pLSsvKKyqrqGoZZfgIVBsK6+obGpuaW1rV2oQ1hEgKFTtKu7p7evf8LEI5PEJotLMEyZyjJt+oyZsxhmzzk6V3KeFIO01vwFMrJyCxctXrL02DL55QwsClorVq5avWbtuvUbNh7fpMjAwsKyWWvLFJatStu279h5YhdIAAJ2s+zZu+/kfoQAy4HNLAcPHQYA5YtSi+k2/WkAAAAldEVYdGRhdGU6Y3JlYXRlADIwMTMtMTAtMDRUMTk6Mzk6MjEtMDQ6MDAwU1uYAAAAJXRFWHRkYXRlOm1vZGlmeQAyMDEzLTEwLTA0VDE5OjM5OjIxLTA0OjAwQQ7jJAAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAAAASUVORK5CYII=",
+                    },
+                ],
+            },
+            {
+                "title": "Rice Exercise",
+                "id": "6cafe3",
+                "description": "Test how well you know your rice",
+                "license": licenses.CC_BY_NC_SA,
+                "mastery_model": exercises.M_OF_N,
+                "files": [
+                    {
+                        "path": "http://www.publicdomainpictures.net/pictures/110000/nahled/bowl-of-rice.jpg",
+                        # "language": languages.get("english")
+                    }
+                ],
+                "questions": [
+                    {
+                        "id": "eeeee",
+                        "question": "Which rice is your favorite? ![](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAABGdBTUEAALGPC/xhBQAAAAFzUkdCAK7OHOkAAAAgY0hSTQAAeiYAAICEAAD6AAAAgOgAAHUwAADqYAAAOpgAABdwnLpRPAAAAmFQTFRF////wN/2I0FiNFFuAAAAxdvsN1RxV3KMnrPFFi9PAB1CVG+KXHaQI0NjttLrEjVchIF4AyNGZXB5V087UUw/EzBMpqWeb2thbmpgpqOceXVsERgfTWeADg8QCAEApKGZBAYIop+XCQkIhZ+2T2mEg5mtnK/AobPDkKO2YXqTAAAAJkBetMraZH2VprjIz9zm4enw7/T47fP3wc7ae5GnAAAAN1BsSmSApLfI1ODq2OHp5Orv8PL09vb38fb5wM/bbISbrL/PfZSpxNPgzdnj2+Pr5evw6+/z6e3w3ePp2OPsma2/ABM5Q197ABk4jKG1yNfjytfh1uDo3eXs4unv1t/nztrjqbzMTmmEXneRES1Ji6CzxtXixdPfztrk1N/n1+Dp1d/oz9vlxdPeq73NVG+KYnyUAAAddIuhwtPhvMzaxtTgytfiy9jjwtHewtHenbDCHT1fS2eCRV52qr7PvM3cucrYv87cv8/cvMzavc3bucvacoyl////ByE8WnKKscXWv9Hguszbu8zbvc7dtcnaiJqrcHZ4f4SHEh0nEitFTWZ+hJqumrDDm7HDj6W5dI2lYGJfmZeQl5SNAAAADRciAAATHjdSOVNsPlhyLklmKCYjW1lUlpOLlZKLFSAqWXSOBQAADA0NAAAAHh0bWlhSk5CIk5CIBAYJDRQbERcdDBAUBgkMAAAEDg4NAAAAHBsZWFZQkY6GAAAAAAAABQUEHBsZAAAAGxoYVlROko+GBAQDZ2RdAAAAGhkYcW9oAgICAAAAExMSDQwLjouDjYuDioiAiIV9hoN7VlRO////Z2DcYwAAAMR0Uk5TAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACRKrJyrZlBQECaNXCsKaqypMGAUDcu7Gpn5mf03gDo8+4saiipKq3xRMBH83Eu7OsqbG61DkDMdbFvrizsbK3wNs9Ax/VysS/vLq/zNwfArDhxMfExMXE3pMCMe7byMjIzd33ZgYGQtnz6+zooeJXBQMFD1yHejZ1+l8FBgEELlOR+GgFCQ0SGxoBGFKg+m0BBwEMR6v+hAEDM6nRASWURVuYQQ4AAAABYktHRACIBR1IAAAACXBIWXMAAAjLAAAIywGEuOmJAAABCklEQVQY02NgUGZUUVVT19DUYtBmYmZhYdBh1dXTNzA0MjYxZTFjAwqwm1tYWlnb2NrZO3A4cgIFGJycXVzd3D08vbx9uHyBAn7+AYFBwSEhoWHhEdyRQIGo6JjYuPiExKTklFSeNKBAekZmVnZObk5efkEhbxFQgK+4pLSsvKKyqrqGoZZfgIVBsK6+obGpuaW1rV2oQ1hEgKFTtKu7p7evf8LEI5PEJotLMEyZyjJt+oyZsxhmzzk6V3KeFIO01vwFMrJyCxctXrL02DL55QwsClorVq5avWbtuvUbNh7fpMjAwsKyWWvLFJatStu279h5YhdIAAJ2s+zZu+/kfoQAy4HNLAcPHQYA5YtSi+k2/WkAAAAldEVYdGRhdGU6Y3JlYXRlADIwMTMtMTAtMDRUMTk6Mzk6MjEtMDQ6MDAwU1uYAAAAJXRFWHRkYXRlOm1vZGlmeQAyMDEzLTEwLTA0VDE5OjM5OjIxLTA0OjAwQQ7jJAAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAAAASUVORK5CYII=)",
+                        "type":exercises.MULTIPLE_SELECTION,
+                        "correct_answers": ["White rice", "Brown rice", "Sushi rice"],
+                        "all_answers": ["White rice", "Quinoa","Brown rice"],
+                    },
+                    {
+                        "id": "bbbbb",
+                        "question": "Which rice is the crunchiest?",
+                        "type":exercises.SINGLE_SELECTION,
+                        "correct_answer": "Rice Krispies \n![](https://upload.wikimedia.org/wikipedia/commons/c/cd/RKTsquares.jpg)",
+                        "all_answers": ["White rice \n![](https://upload.wikimedia.org/wikipedia/commons/4/4b/Thai_jasmine_rice_uncooked.jpg)", "Brown rice \n![](https://c2.staticflickr.com/4/3159/2889140143_b99fd8dd4c_z.jpg?zz=1)", "Rice Krispies \n![](https://upload.wikimedia.org/wikipedia/commons/c/cd/RKTsquares.jpg)"],
+                        "hints": "It's delicious",
+                    },
+                    {
+                        "id": "ccccc",
+                        "question": "Why a rice cooker?",
+                        "type":exercises.FREE_RESPONSE,
+                        "answers": [],
+                        "images": None,
+                    },
+                    {
+                        "id": "aaaaa",
+                        "question": "How many minutes does it take to cook rice? ![](https://upload.wikimedia.org/wikipedia/commons/5/5e/Jeera-rice.JPG)",
+                        "type":exercises.INPUT_QUESTION,
+                        "answers": ["20", "25", "15"],
+                        "hints": ["Takes roughly same amount of time to install kolibri on Windows machine", "Does this help?\n![](http://www.aroma-housewares.com/images/rice101/delay_timer_1.jpg)"],
+                    },
+                    {
+                        "id": "ddddd",
+                        "type":exercises.PERSEUS_QUESTION,
+                        "item_data":SAMPLE_PERSEUS,
+                    },
+                ],
+            },
+            {
+                "title": "Rice Exercise 2",
+                "id": "6cafe4",
+                "description": "Test how well you know your rice",
+                "license": licenses.CC_BY_NC_SA,
+                "mastery_model": exercises.M_OF_N,
+                "files": [
+                    {
+                        "path": "https://c1.staticflickr.com/5/4021/4302326650_b11f0f0aaf_b.jpg",
+                    }
+                ],
+                "questions": [
+                    {
+                        "id": "11111",
+                        "question": "<h3 id=\"rainbow\" style=\"font-weight:bold\">RICE COOKING!!!</h3><script type='text/javascript'><!-- setInterval(function() {$('#rainbow').css('color', '#'+((1<<24)*Math.random()|0).toString(16));}, 300); --></script>",
+                        "type":exercises.SINGLE_SELECTION,
+                        "all_answers": ["Answer"],
+                        "correct_answer": "Answer",
+                    },
+                    {
+                        "id": "121212",
+                        "question": '<math> <mrow> <msup><mi> a </mi><mn>2</mn></msup> <mo> + </mo> <msup><mi> b </mi><mn>2</mn></msup> <mo> = </mo> <msup><mi> c </mi><mn>2</mn></msup> </mrow> </math>',
+                        "type":exercises.SINGLE_SELECTION,
+                        "all_answers": ["Answer"],
+                        "correct_answer": "Answer",
+                    },
+                ],
+            },
+            {
+                "title": "HTML Sample",
+                "id": "abcdef",
+                "description": "An example of how html can be imported from the ricecooker",
+                "license": licenses.PUBLIC_DOMAIN,
+                "files": [
+                    {
+                        "path": "C:/users/jordan/Videos/testfolder/htmltest.zip",
+                    }
+                ]
+            },
             {
                 "title": "Rice Exercise 3",
                 "id": "6cafe5",
@@ -232,8 +255,8 @@ def _build_tree(node, sourcetree):
 
     for child_source_node in sourcetree:
         try:
-            files = [f.get('path') or f.get('encoding') or f.get('youtube_id') for f in child_source_node['files']] if 'files' in child_source_node else None
-            kind = nodes.guess_content_kind(files, child_source_node.get("questions"))
+            main_file = child_source_node['files'][0] if 'files' in child_source_node else {}
+            kind = nodes.guess_content_kind(path=main_file.get('path'), youtube_data=main_file.get('youtube_id') or main_file.get('youtube_url'), questions=child_source_node.get("questions"))
         except UnknownContentKindError:
             continue
 
@@ -329,7 +352,7 @@ def _build_tree(node, sourcetree):
 
 def add_files(node, file_list):
     for f in file_list:
-        file_type = files.guess_file_type(node.kind, filepath=f.get('path'), youtube_id=f.get('youtube_id'), encoding=f.get('encoding'))
+        file_type = files.guess_file_type(node.kind, filepath=f.get('path'), youtube_data=f.get('youtube_id') or f.get('youtube_url'), encoding=f.get('encoding'))
 
         if file_type == files.FileTypes.AUDIO_FILE:
             node.add_file(files.AudioFile(path=f['path'], language=f.get('language')))
@@ -345,6 +368,8 @@ def add_files(node, file_list):
             node.add_file(files.SubtitleFile(path=f['path'], language=f['language']))
         elif file_type == files.FileTypes.BASE64_FILE:
             node.add_file(files.Base64ImageFile(encoding=f['encoding']))
+        elif file_type == files.FileTypes.YOUTUBE_VIDEO_FILE:
+            node.add_file(files.YouTubeVideoFile(youtube_id=f.get('youtube_id'), youtube_url=f.get('youtube_url'), high_resolution=f.get('high_resolution')))
         else:
             raise UnknownFileTypeError("Unrecognized file type '{0}'".format(f['path']))
 

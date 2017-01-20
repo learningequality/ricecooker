@@ -51,7 +51,12 @@ class ChannelManager:
             for f in config.FAILED_FILES:
                 title = "{0} {id}".format(f.node.kind.capitalize(), id=f.node.source_id)\
                         if f.node else "{0} {id}".format("Question", id=f.assessment_item.source_id)
-                config.LOGGER.warning("\t{0}: {path} \n\t   {err}".format(title, path=f.path, err=f.error))
+                file_identifier = f.__dict__
+                if hasattr(f, 'path') and f.path:
+                    file_identifier = f.path
+                elif hasattr(f, 'youtube_url') and f.youtube_url:
+                    file_identifier = f.youtube_url
+                config.LOGGER.warning("\t{0}: {id} \n\t   {err}".format(title, id=file_identifier, err=f.error))
         else:
             config.LOGGER.info("   All files were successfully downloaded")
 
