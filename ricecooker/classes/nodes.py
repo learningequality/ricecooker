@@ -7,6 +7,7 @@ import sys
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
 from ..exceptions import InvalidNodeException, InvalidFormatException
 from ..managers.downloader import DownloadManager
+from .. import config
 
 def guess_content_kind(files, questions=None):
     """ guess_content_kind: determines what kind the content is
@@ -75,7 +76,7 @@ class Node(object):
             Args: indent (int): What level of indentation at which to start printing
             Returns: None
         """
-        sys.stderr.write("\n{indent}{data}".format(indent="   " * indent, data=str(self)))
+        config.LOGGER.info("{indent}{data}".format(indent="   " * indent, data=str(self)))
         for child in self.children:
             child.print_tree(indent + 1)
 
