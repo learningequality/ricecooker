@@ -214,7 +214,7 @@ def construct_channel(**kwargs):
     channel = nodes.ChannelNode(
         domain = "learningequality.org",
         channel_id = "tester-ricecooker-channel",
-        title = "Testing Ricecooker Channel",
+        title = "Tester Ricecooker Channel",
         thumbnail = "https://upload.wikimedia.org/wikipedia/commons/thumb/5/50/Banaue_Philippines_Banaue-Rice-Terraces-01.jpg/640px-Banaue_Philippines_Banaue-Rice-Terraces-01.jpg",
     )
 
