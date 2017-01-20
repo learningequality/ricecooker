@@ -137,12 +137,17 @@ class ChannelNode(Node):
     """
     thumbnail_preset = format_presets.CHANNEL_THUMBNAIL
     kind = "Channel"
-    def __init__(self, channel_id, domain, title, description=None):
+    def __init__(self, channel_id, domain, title, description=None, thumbnail=None):
         # Map parameters to model variables
         self.source_domain = domain
         self.source_id = channel_id
         self.title = title
         self.description = description or ""
+
+        if thumbnail and isinstance(thumbnail, str):
+            from .files import ThumbnailFile
+            channel_thumbnail = ThumbnailFile(path=thumbnail)
+            self.add_file(channel_thumbnail)
 
         # Add data to be used in next steps
         self.domain_ns = uuid.uuid5(uuid.NAMESPACE_DNS, self.source_domain)
