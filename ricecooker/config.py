@@ -4,6 +4,7 @@ import os
 import json
 import hashlib
 import requests
+import logging
 
 UPDATE = False
 COMPRESS = False

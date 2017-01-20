@@ -55,11 +55,7 @@ class ChannelManager:
 
             # If node is an exercise, process images for exercise
             if isinstance(node, nodes.Exercise):
-                if config.VERBOSE:
-                    sys.stderr.write("\n\t*** Processing images for exercise: {}".format(node.title))
                 node.process_questions()
-                if config.VERBOSE:
-                    sys.stderr.write("\n\t*** Images for {} have been processed".format(node.title))
 
         # Process node's children
         for child_node in node.children:
@@ -71,12 +67,10 @@ class ChannelManager:
             Returns: None
         """
         if config.DOWNLOADER.has_failed_files():
-            if config.WARNING:
-                config.DOWNLOADER.print_failed()
-            else:
-                sys.stderr.write("\n   {} file(s) have failed to download".format(len(config.DOWNLOADER.failed_files)))
+            config.DOWNLOADER.print_failed()
+            config.LOGGER.error("   {} file(s) have failed to download".format(len(config.DOWNLOADER.failed_files)))
         else:
-            sys.stderr.write("\n   All files were successfully downloaded")
+            config.LOGGER.info("   All files were successfully downloaded")
 
     def compress_tree(self, node):
         """ compress_tree: compress high resolution files
@@ -89,8 +83,7 @@ class ChannelManager:
         if isinstance(node, nodes.Video):
             for f in node.files:
                 if f['preset'] == format_presets.VIDEO_HIGH_RES:
-                    if config.VERBOSE:
-                        sys.stderr.write("\n\tCompressing video: {}\n".format(node.title))
+                    config.LOGGER.info("\tCompressing video: {}\n".format(node.title))
                     compressed = config.DOWNLOADER.compress_file(config.get_storage_path(f['filename']), "Node {}".format(node.source_id))
                     if compressed:
                         f.update(compressed)
@@ -110,12 +103,11 @@ class ChannelManager:
         file_count = 0
         total_count = len(files_to_diff)
         for chunk in chunks:
-            response = requests.post(config.file_diff_url(), headers={"Authorization": "Token {0}".format(config.TOKEN)}, data=json.dumps(chunk))
+            response = config.SESSION.post(config.file_diff_url(), data=json.dumps(chunk))
             response.raise_for_status()
             file_diff_result += json.loads(response._content.decode("utf-8"))
             file_count += len(chunk)
-            if config.VERBOSE:
-                sys.stderr.write("\n\tGot file diff for {0} out of {1} files".format(file_count, total_count))
+            config.LOGGER.info("\n\tGot file diff for {0} out of {1} files".format(file_count, total_count))
 
         return file_diff_result
 
@@ -127,8 +119,7 @@ class ChannelManager:
         """
         counter = 0
         files_to_upload = list(set(file_list) - set(self.uploaded_files)) # In case restoring from previous session
-        if config.VERBOSE:
-            sys.stderr.write("\nUploading {0} new file(s) to Kolibri Studio...".format(len(files_to_upload)))
+        config.LOGGER.info("\nUploading {0} new file(s) to Kolibri Studio...".format(len(files_to_upload)))
         try:
             for f in files_to_upload:
                 with  open(config.get_storage_path(f), 'rb') as file_obj:
@@ -137,8 +128,7 @@ class ChannelManager:
                         response.raise_for_status()
                         self.uploaded_files += [f]
                         counter += 1
-                        if config.VERBOSE:
-                            sys.stderr.write("\n\tUploaded {0} ({count}/{total}) ".format(f, count=counter, total=len(files_to_upload)))
+                        config.LOGGER.info("\n\tUploaded {0} ({count}/{total}) ".format(f, count=counter, total=len(files_to_upload)))
                     else:
                         self.failed_uploads += [f]
         finally:
@@ -168,8 +158,7 @@ class ChannelManager:
 
     def reattempt_failed(self, failed):
         for node in failed:
-            if config.VERBOSE:
-                sys.stderr.write("\n\tReattempting {0}".format(str(node[1])))
+            config.LOGGER.info("\tReattempting {0}".format(str(node[1])))
             for f in node[1].files:
                 # Attempt to upload file
                 with  open(config.get_storage_path(f['filename']), 'rb') as file_obj:
@@ -181,15 +170,15 @@ class ChannelManager:
 
     def check_failed(self, print_warning=True):
         if len(self.failed_node_builds) > 0:
-            if config.WARNING and print_warning:
-                sys.stderr.write("\nWARNING: The following nodes have one or more descendants that could not be created:")
+            if print_warning:
+                config.LOGGER.warning("WARNING: The following nodes have one or more descendants that could not be created:")
                 for node in self.failed_node_builds:
                     sys.stderr.write("\n\t{}".format(str(node[1])))
             else:
-                sys.stderr.write("\nFailed to create descendants for {} node(s).".format(len(self.failed_node_builds)))
+                config.LOGGER.error("Failed to create descendants for {} node(s).".format(len(self.failed_node_builds)))
             return True
-        elif config.VERBOSE:
-            sys.stderr.write("\n   All nodes were created successfully.")
+        else:
+            config.LOGGER.info("   All nodes were created successfully.")
         return False
 
     def add_channel(self):
@@ -197,8 +186,7 @@ class ChannelManager:
             Args: None
             Returns: link to uploadedchannel
         """
-        if config.VERBOSE:
-            sys.stderr.write("\n   Creating channel {0}".format(self.channel.title))
+        config.LOGGER.info("   Creating channel {0}".format(self.channel.title))
         payload = {
             "channel_data":self.channel.to_dict(),
         }
@@ -220,8 +208,7 @@ class ChannelManager:
         if not current_node.children:
             return
 
-        if config.VERBOSE:
-            sys.stderr.write("\n{indent}Processing {title} ({kind})".format(indent="   " * indent, title=current_node.title, kind=current_node.__class__.__name__))
+        config.LOGGER.info("{indent}Processing {title} ({kind})".format(indent="   " * indent, title=current_node.title, kind=current_node.__class__.__name__))
         payload = {
             'root_id': root_id,
             'content_data': [child.to_dict() for child in current_node.children]
