@@ -77,6 +77,35 @@ A sample program has been created [here](https://github.com/learningequality/ric
     Once you have created the model, add it to a parent node with `<parent-node>.add_child(<child-node>)`
 
 
+* **Adding Files**
+
+	For example:
+	```
+	node = Exercise(
+		exercise_data={'mastery_model': exercises.M_OF_N, 'randomize': True, 'm': 3, 'n': 5},
+		...
+	)
+	```
+
+	To add a question to your exercise, you must first create a question model from `ricecooker.classes.questions`.
+	Your program is responsible for determining which question type to create. Here are the available question types:
+
+	- PerseusQuestion: special question type for pre-formatted perseus questions
+	- MultipleSelectQuestion: questions that have multiple correct answers (e.g. check all that apply)
+	- SingleSelectQuestion: questions that only have one right answer (e.g. radio button questions)
+	- InputQuestion: questions that have text-based answers (e.g. fill in the blank)
+	- FreeResponseQuestion: questions that require subjective answers (ungraded)
+
+	To set the correct answer(s) for input questions, you must provide an array of all of the accepted answers (`answers [str]`).
+	For multiple selection questions, you must provide a list of all of the possible choices as well as an array of the correct
+	answers (`all_answers [str]`) and `correct_answers [str]` respectively). For single selection questions, you must provide
+	a list of all possible choices as well as the correct answer (`all_answers [str]` and `correct_answer str` respectively).
+
+	To add images to a question's question, answers, or hints, format the image path with `'![](<path/to/some/file.png>)'`
+
+	Once you have created the appropriate question model, add it to an exercise model with `<exercise-node>.add_question(<question>)`
+
+
 * **Adding Exercises**
 
 	Exercises are special model kinds that have questions used for assessment. In order to set the criteria
@@ -139,12 +168,11 @@ A sample program has been created [here](https://github.com/learningequality/ric
 	using `--resume --step=<step>` option. If step is not specified, Ricecooker will resume from the last
 	step you ran. If the specified step has not been reached, the Ricecooker will resume from
 
-	- LAST (default):       Resume where the session left off
+	- LAST:       			Resume where the session left off (default)
   	- INIT:                 Resume at beginning of session
   	- CONSTRUCT_CHANNEL:    Resume with call to construct channel
   	- CREATE_TREE:          Resume at set tree relationships
   	- DOWNLOAD_FILES:       Resume at beginning of download process
-  	- COMPRESS_FILES:       Resume at video compression step
   	- GET_FILE_DIFF:        Resume at call to get file diff from Kolibri Studio
   	- START_UPLOAD:         Resume at beginning of uploading files to Kolibri Studio
   	- UPLOADING_FILES:      Resume at last upload request
