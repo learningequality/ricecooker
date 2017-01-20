@@ -67,12 +67,10 @@ class ChannelManager:
             Returns: None
         """
         if config.DOWNLOADER.has_failed_files():
-            if config.WARNING:
-                config.DOWNLOADER.print_failed()
-            else:
-                sys.stderr.write("\n   {} file(s) have failed to download".format(len(config.DOWNLOADER.failed_files)))
+            config.DOWNLOADER.print_failed()
+            config.LOGGER.error("   {} file(s) have failed to download".format(len(config.DOWNLOADER.failed_files)))
         else:
-            sys.stderr.write("\n   All files were successfully downloaded")
+            config.LOGGER.info("   All files were successfully downloaded")
 
     def compress_tree(self, node):
         """ compress_tree: compress high resolution files
@@ -172,12 +170,12 @@ class ChannelManager:
 
     def check_failed(self, print_warning=True):
         if len(self.failed_node_builds) > 0:
-            if config.WARNING and print_warning:
-                sys.stderr.write("\nWARNING: The following nodes have one or more descendants that could not be created:")
+            if print_warning:
+                config.LOGGER.warning("WARNING: The following nodes have one or more descendants that could not be created:")
                 for node in self.failed_node_builds:
                     sys.stderr.write("\n\t{}".format(str(node[1])))
             else:
-                sys.stderr.write("\nFailed to create descendants for {} node(s).".format(len(self.failed_node_builds)))
+                config.LOGGER.error("Failed to create descendants for {} node(s).".format(len(self.failed_node_builds)))
             return True
         else:
             config.LOGGER.info("   All nodes were created successfully.")
