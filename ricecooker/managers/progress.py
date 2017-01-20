@@ -100,14 +100,14 @@ class RestoreManager:
 
         # If progress is corrupted, revert to step before
         while not self.check_for_session(resume_step):
-            sys.stderr.write("\nRicecooker has not reached {0} status. Reverting to earlier step...".format(resume_step.name))
+            config.LOGGER.info("Ricecooker has not reached {0} status. Reverting to earlier step...".format(resume_step.name))
             # All files are corrupted or absent, restart process
             if resume_step.value - 1 < 0:
                 self.init_session()
                 return self
             resume_step = Status(resume_step.value - 1)
             progress_path = self.get_restore_path(resume_step)
-        sys.stderr.write("\nStarting from status {0}".format(resume_step.name))
+        config.LOGGER.info("Starting from status {0}".format(resume_step.name))
 
         # Load manager
         with open(progress_path, 'rb') as handle:

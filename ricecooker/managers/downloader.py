@@ -62,9 +62,9 @@ class DownloadManager:
             Args: None
             Returns: None
         """
-        sys.stderr.write("\n   WARNING: The following files could not be accessed:")
+        config.LOGGER.warning("   WARNING: The following files could not be accessed:")
         for f in self.failed_files:
-            sys.stderr.write("\n\t{id}: {path}".format(id=f[1], path=f[0]))
+            config.LOGGER.warning("\t{id}: {path}".format(id=f[1], path=f[0]))
 
     def download_graphie(self, path, title):
         """ download_graphie: download a web+graphie file
@@ -93,8 +93,7 @@ class DownloadManager:
         try:
             # Create graphie file combining svg and json files
             with tempfile.TemporaryFile() as tempf:
-                if config.VERBOSE:
-                    sys.stderr.write("\n\tDownloading graphie {}".format(original_filename))
+                config.LOGGER.info("\tDownloading graphie {}".format(original_filename))
 
                 # Write to graphie file
                 self.write_to_graphie_file(svg_path, tempf, hash)
@@ -109,8 +108,7 @@ class DownloadManager:
 
                 # If file already exists, skip it
                 if os.path.isfile(config.get_storage_path(filename)):
-                    if config.VERBOSE:
-                        sys.stderr.write("\n\t--- No changes detected on {0}".format(filename))
+                    config.LOGGER.info("\t--- No changes detected on {0}".format(filename))
                     # Keep track of downloaded file
                     self.track_file(filename, file_size, format_presets.EXERCISE_GRAPHIE, path_name, original_filename)
                     return self._file_mapping[filename]
@@ -121,8 +119,7 @@ class DownloadManager:
 
                 # Keep track of downloaded file
                 self.track_file(filename, file_size, format_presets.EXERCISE_GRAPHIE, path_name, original_filename)
-                if config.VERBOSE:
-                    sys.stderr.write("\n\t--- Downloaded {}".format(filename))
+                config.LOGGER.info("\t--- Downloaded {}".format(filename))
                 return self._file_mapping[filename]
 
         # Catch errors related to reading file path and handle silently
@@ -188,8 +185,7 @@ class DownloadManager:
             Returns: file data for tracked file
         """
         data = self.file_store[path]
-        if config.VERBOSE:
-            sys.stderr.write("\n\tFile {0} already exists (add '-u' flag to update)".format(data['filename']))
+        config.LOGGER.info("\tFile {0} already exists (add '-u' flag to update)".format(data['filename']))
         self.track_file(data['filename'], data['size'],  data.get('preset'), original_filename=data.get('original_filename'), extracted=data.get("extracted"))
         return self._file_mapping[data['filename']]
 
@@ -216,8 +212,7 @@ class DownloadManager:
             if get_base64_encoding(path):
                 return self.convert_base64_to_file(path, title, preset=preset)
 
-            if config.VERBOSE and not extracted:
-                sys.stderr.write("\n\tDownloading {}".format(path))
+            config.LOGGER.info("\tDownloading {}".format(path))
 
             hash=self.get_hash(path)
 
@@ -233,8 +228,7 @@ class DownloadManager:
 
             # If file already exists, skip it
             if os.path.isfile(config.get_storage_path(filename)):
-                if config.VERBOSE:
-                    sys.stderr.write("\n\t--- No changes detected on {0}".format(filename))
+                config.LOGGER.info("\t--- No changes detected on {0}".format(filename))
 
                 if extension == file_formats.MP4:
                     preset = check_video_resolution(config.get_storage_path(filename))
@@ -273,8 +267,7 @@ class DownloadManager:
 
                 # Keep track of downloaded file
                 self.track_file(filename, file_size, preset, original_filepath, extracted=extracted)
-                if config.VERBOSE:
-                    sys.stderr.write("\n\t--- Downloaded {}".format(filename))
+                config.LOGGER.info("\t--- Downloaded {}".format(filename))
                 return self._file_mapping[filename]
 
         # Catch errors related to reading file path and handle silently
@@ -343,8 +336,7 @@ class DownloadManager:
         """
         # If file has already been compressed, return the compressed file data
         if self.check_downloaded_file(filepath) and self.file_store[filepath].get('extracted'):
-            if config.VERBOSE:
-                sys.stderr.write("\n\tFound compressed file for {}".format(filepath))
+            config.LOGGER.info("\tFound compressed file for {}".format(filepath))
             return self.track_existing_file(filepath)
 
         # Otherwise, compress the file
@@ -366,12 +358,10 @@ class DownloadManager:
 
         # If file has already been encoded, return the encoded file data
         if self.check_downloaded_file(filepath):
-            if config.VERBOSE:
-                sys.stderr.write("\n\tFound encoded file for {}".format(filepath))
+            config.LOGGER.info("\tFound encoded file for {}".format(filepath))
             return self.track_existing_file(filepath)
 
-        if config.VERBOSE:
-            sys.stderr.write("\n\tConverting base64 to file")
+        config.LOGGER.info("\tConverting base64 to file")
         with tempfile.NamedTemporaryFile(suffix=".{}".format(file_formats.PNG)) as tempf:
             tempf.close()
             write_base64_to_file(text, tempf.name)

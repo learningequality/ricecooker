@@ -5,12 +5,11 @@ import json
 import hashlib
 import requests
 
-WARNING = False
 UPDATE = False
-VERBOSE = False
 COMPRESS = False
 PROGRESS_MANAGER = None
 DOWNLOADER = None
+LOGGER = logging.getLogger()
 
 # Domain and file store location for uploading to production server
 DOMAIN = os.getenv('CONTENTWORKSHOP_URL', "https://contentworkshop.learningequality.org")
