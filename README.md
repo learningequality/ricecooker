@@ -24,8 +24,8 @@ A sample program has been created [here](https://github.com/learningequality/ric
 	Start by importing `Channel` from `ricecooker.classes.nodes` and create a Channel model. The Channel model has
 	the following fields:
 
-    - channel_id (str): channel's unique id
-    - domain (str): who is providing the content (e.g. learningequality.org
+    - source_id (str): channel's unique id
+    - source_domain (str): who is providing the content (e.g. learningequality.org)
     - title (str): name of channel
     - description (str): description of the channel (optional)
     - thumbnail (str): local path or url to image file (optional)
@@ -37,8 +37,8 @@ A sample program has been created [here](https://github.com/learningequality/ric
 	def construct_channel(args):
 
 	    channel = Channel(
-	        domain="learningequality.org",
-	        channel_id="rice-channel",
+	        source_domain="learningequality.org",
+	        source_id="rice-channel",
 	        title="Rice Channel",
 	        thumbnail="http://path/to/some/image.png"
 	    )
@@ -116,11 +116,10 @@ A sample program has been created [here](https://github.com/learningequality/ric
 
 * **Running the Rice Cooker**
 
-	Run `python -m ricecooker uploadchannel [-huv] "<path-to-py-file>" [--debug] [--warn] [--compress] [--token=<token>] [--resume [--step=<step>] | --reset] [--prompt] [--publish]  [[OPTIONS] ...]`
+	Run `python -m ricecooker uploadchannel [-huv] "<path-to-py-file>" [--warn] [--compress] [--token=<token>] [--resume [--step=<step>] | --reset] [--prompt] [--publish]  [[OPTIONS] ...]`
 	- -h (help) will print how to use the rice cooker
 	- -v (verbose) will print what the rice cooker is doing
 	- -u (update) will force the ricecooker to redownload all files
-	- --debug will send data to localhost if you have Kolibri Studio running locally
 	- --warn will print out warnings during rice cooking session
     - --compress will compress your high resolution videos to save space
 	- --token will authorize you to create your channel (found under Kolibri Studio settings page)
