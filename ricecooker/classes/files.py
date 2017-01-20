@@ -189,19 +189,19 @@ def compress(filename, ffmpeg_settings):
         config.DOWNLOADER.set(key, filename)
         return filename
 
-def download_from_youtube(url, youtube_dl_settings):
-    key = generate_key(url, youtube_dl_settings)
+def download_from_web(web_url, download_settings):
+    key = generate_key(web_url, download_settings)
     if config.DOWNLOADER.get(key):
         return config.DOWNLOADER.get(key)
 
-    # Get hash of url to act as temporary storage name
+    # Get hash of web_url to act as temporary storage name
     url_hash = hashlib.md5()
-    url_hash.update(url.encode('utf-8'))
+    url_hash.update(web_url.encode('utf-8'))
     destination_path = os.path.join(tempfile.gettempdir(), "{}.{}".format(url_hash.hexdigest(), file_formats.MP4))
-    youtube_dl_settings["outtmpl"] = destination_path
+    download_settings["outtmpl"] = destination_path
 
-    with youtube_dl.YoutubeDL(youtube_dl_settings) as ydl:
-        ydl.download([url])
+    with youtube_dl.YoutubeDL(download_settings) as ydl:
+        ydl.download([web_url])
         filename = "{}.{}".format(get_hash(destination_path), file_formats.MP4)
 
         # Write file to local storage
@@ -533,7 +533,7 @@ class WebVideoFile(File):
 
     def process_file(self):
         try:
-            self.filename = download_from_youtube(self.web_url, self.download_settings)
+            self.filename = download_from_web(self.web_url, self.download_settings)
             config.LOGGER.info("\t--- Downloaded (YouTube) {}".format(self.filename))
             return self.filename
         except youtube_dl.utils.DownloadError as err:
