@@ -121,7 +121,7 @@ A sample program has been created [here](https://github.com/learningequality/ric
 	Run `python -m ricecooker uploadchannel [-huv] "<path-to-py-file>" [--warn] [--compress] [--token=<token>] [--resume [--step=<step>] | --reset] [--prompt] [--publish]  [[OPTIONS] ...]`
 	- -h (help) will print how to use the rice cooker
 	- -v (verbose) will print what the rice cooker is doing
-	- -u (update) will force the ricecooker to redownload all files
+	- -u (update) will force the ricecooker to redownload all files (skip checking the cache)
 	- --warn will print out warnings during rice cooking session
     - --compress will compress your high resolution videos to save space
 	- --token will authorize you to create your channel (found under Kolibri Studio settings page)
@@ -131,3 +131,23 @@ A sample program has been created [here](https://github.com/learningequality/ric
 	- --prompt will prompt you to open your channel once it's been uploaded
 	- --publish will automatically publish your channel once it's been uploaded
 	- [OPTIONS] any additional keyword arguments you would like to pass to your construct_channel method
+
+
+* **Resuming the Rice Cooker**
+
+	If your rice cooking session gets interrupted, you can resume from any step that has already completed
+	using `--resume --step=<step>` option. If step is not specified, Ricecooker will resume from the last
+	step you ran. If the specified step has not been reached, the Ricecooker will resume from
+
+	- LAST (default):       Resume where the session left off
+  	- INIT:                 Resume at beginning of session
+  	- CONSTRUCT_CHANNEL:    Resume with call to construct channel
+  	- CREATE_TREE:          Resume at set tree relationships
+  	- DOWNLOAD_FILES:       Resume at beginning of download process
+  	- COMPRESS_FILES:       Resume at video compression step
+  	- GET_FILE_DIFF:        Resume at call to get file diff from Kolibri Studio
+  	- START_UPLOAD:         Resume at beginning of uploading files to Kolibri Studio
+  	- UPLOADING_FILES:      Resume at last upload request
+  	- UPLOAD_CHANNEL:       Resume at beginning of uploading tree to Kolibri Studio
+  	- PUBLISH_CHANNEL:      Resume at option to publish channel
+  	- DONE:                 Resume at prompt to open channel
