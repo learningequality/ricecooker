@@ -254,16 +254,13 @@ SAMPLE_TREE = [
 
 def construct_channel(**kwargs):
 
-    channel = nodes.ChannelNode(
-        domain = "learningequality.org",
-        channel_id = "testing-ricecooker-channel",
-        title = "Testing Ricecooker Channel",
+    channel = ChannelNode(
+        source_domain="learningequality.org",
+        source_id="testing-ricecooker-channel",
+        title="Testing Ricecooker Channel",
+        thumbnail="https://upload.wikimedia.org/wikipedia/commons/thumb/5/50/Banaue_Philippines_Banaue-Rice-Terraces-01.jpg/640px-Banaue_Philippines_Banaue-Rice-Terraces-01.jpg",
     )
 
-    channel_thumbnail = files.ThumbnailFile(
-        path = "https://upload.wikimedia.org/wikipedia/commons/thumb/5/50/Banaue_Philippines_Banaue-Rice-Terraces-01.jpg/640px-Banaue_Philippines_Banaue-Rice-Terraces-01.jpg"
-    )
-    channel.add_file(channel_thumbnail)
     _build_tree(channel, SAMPLE_TREE)
     raise_for_invalid_channel(channel)
 
@@ -281,7 +278,7 @@ def _build_tree(node, sourcetree):
 
         if kind == content_kinds.TOPIC:
             child_node = nodes.TopicNode(
-                id=child_source_node["id"],
+                source_id=child_source_node["id"],
                 title=child_source_node["title"],
                 author=child_source_node.get("author"),
                 description=child_source_node.get("description"),
@@ -293,9 +290,8 @@ def _build_tree(node, sourcetree):
             _build_tree(child_node, source_tree_children)
 
         elif kind == content_kinds.VIDEO:
-
-            child_node = nodes.VideoNode(
-                id=child_source_node["id"],
+            child_node = Video(
+                source_id=child_source_node["id"],
                 title=child_source_node["title"],
                 author=child_source_node.get("author"),
                 description=child_source_node.get("description"),
@@ -311,40 +307,35 @@ def _build_tree(node, sourcetree):
             node.add_child(child_node)
 
         elif kind == content_kinds.AUDIO:
-            child_node = nodes.AudioNode(
-                id=child_source_node["id"],
+            child_node = Audio(
+                source_id=child_source_node["id"],
                 title=child_source_node["title"],
                 author=child_source_node.get("author"),
                 description=child_source_node.get("description"),
                 license=child_source_node.get("license"),
-
-                # audio and video shared data
-                thumbnail=child_source_node.get("thumbnail"),
             )
             add_files(child_node, child_source_node.get("files") or [])
             node.add_child(child_node)
 
         elif kind == content_kinds.DOCUMENT:
-            child_node = nodes.DocumentNode(
-                id=child_source_node["id"],
+            child_node = Document(
+                source_id=child_source_node["id"],
                 title=child_source_node["title"],
                 author=child_source_node.get("author"),
                 description=child_source_node.get("description"),
                 license=child_source_node.get("license"),
-                thumbnail=child_source_node.get("thumbnail"),
             )
             add_files(child_node, child_source_node.get("files") or [])
             node.add_child(child_node)
 
         elif kind == content_kinds.EXERCISE:
-            child_node = nodes.ExerciseNode(
-                id=child_source_node["id"],
+            child_node = Exercise(
+                source_id=child_source_node["id"],
                 title=child_source_node["title"],
                 author=child_source_node.get("author"),
                 description=child_source_node.get("description"),
                 exercise_data={}, # Just set to default
                 license=child_source_node.get("license"),
-                thumbnail=child_source_node.get("thumbnail"),
             )
             add_files(child_node, child_source_node.get("files") or [])
             for q in child_source_node.get("questions"):
@@ -353,13 +344,12 @@ def _build_tree(node, sourcetree):
             node.add_child(child_node)
 
         elif kind == content_kinds.HTML5:
-            child_node = nodes.HTML5AppNode(
-                id=child_source_node["id"],
+            child_node = HTML5App(
+                source_id=child_source_node["id"],
                 title=child_source_node["title"],
                 author=child_source_node.get("author"),
                 description=child_source_node.get("description"),
                 license=child_source_node.get("license"),
-                thumbnail=child_source_node.get("thumbnail"),
             )
             add_files(child_node, child_source_node.get("files") or [])
             node.add_child(child_node)

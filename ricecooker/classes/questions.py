@@ -151,7 +151,6 @@ class BaseQuestion:
         graphie_reg = re.compile(WEB_GRAPHIE_URL_REGEX, flags=re.IGNORECASE)
         graphie_match = graphie_reg.match(text)
         exercise_file = None
-
         # If it is a web+graphie, download svg and json files,
         # Otherwise, download like other files
         if graphie_match:
