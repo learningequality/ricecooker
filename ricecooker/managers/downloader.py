@@ -10,7 +10,6 @@ import requests
 from enum import Enum
 from pressurecooker.videos import extract_thumbnail_from_video, check_video_resolution, compress_video
 from pressurecooker.encodings import get_base64_encoding, write_base64_to_file
-from requests_file import FileAdapter
 from requests.exceptions import MissingSchema, HTTPError, ConnectionError, InvalidURL, InvalidSchema
 from .. import config
 from ..exceptions import InvalidFormatException, FileNotFoundException
@@ -20,7 +19,6 @@ class DownloadManager:
     """ Manager for handling file downloading and storage
 
         Attributes:
-            session (Session): session to handle requests
             all_file_extensions ([str]): all accepted file extensions
             files ([str]): files that have been downloaded by download manager
             _file_mapping ([{'filename':{...}]): map from filename to file metadata
@@ -30,9 +28,6 @@ class DownloadManager:
     all_file_extensions = [key for key, value in file_formats.choices]
 
     def __init__(self, file_store):
-        # Mount file:// to allow local path requests
-        self.session = requests.Session()
-        self.session.mount('file://', FileAdapter())
         self.file_store = {}
         if os.stat(file_store).st_size > 0:
             with open(file_store, 'r') as jsonobj:
@@ -147,7 +142,7 @@ class DownloadManager:
             Returns: None
         """
         try:
-            r = self.session.get(path, stream=True)
+            r = config.SESSION.get(path, stream=True)
             r.raise_for_status()
             for chunk in r:
                 tempf.write(chunk)
@@ -167,7 +162,7 @@ class DownloadManager:
         """
         hash_to_update = hashlib.md5()
         try:
-            r = self.session.get(path, stream=True)
+            r = config.SESSION.get(path, stream=True)
             r.raise_for_status()
             for chunk in r:
                 hash_to_update.update(chunk)
@@ -252,7 +247,7 @@ class DownloadManager:
             with tempfile.TemporaryFile() as tempf:
                 try:
                     # Access path
-                    r = self.session.get(path, stream=True)
+                    r = config.SESSION.get(path, stream=True)
                     r.raise_for_status()
 
                     # Write to file (generate hash if none provided)
