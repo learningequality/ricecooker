@@ -60,15 +60,17 @@ A sample program has been created [here](https://github.com/learningequality/ric
     - Exercise: assessment-based content with questions
     - HTML5App: zip containing html content (must have `index.html` file at topmost level)
 
-    The `ricecooker.classes.nodes` module has the function `guess_content_kind`, which takes in a file or list of
-    files as well as a list of questions (if available) and determines what model best suits those files
-    (if no match could be found, an `UnknownContentKindError` will be raised). For example:
+    The `ricecooker.classes.nodes` module has the function `guess_content_kind`, which takes in a file path (this
+    should be the primary file for the node), web video data (e.g. a YouTube link), or a list of questions and determines what model best suits the given data (if no match could be found, an `UnknownContentKindError`
+    will be raised). For example:
     ```
-    	>> guess_content_kind([])
+    	>> guess_content_kind()
     	'topic'
-    	>> guess_content_kind(["http://path/to/some/file.mp4"])
+    	>> guess_content_kind(path="http://path/to/some/file.mp4")
     	'video'
-    	>> guess_content_kind([], ["Question?"])
+    	>> guess_content_kind(web_video_data="<youtube_id>")
+    	'video'
+    	>> guess_content_kind(questions=["Question?"])
     	'exercise'
     ```
 
