@@ -160,7 +160,7 @@ class ChannelNode(Node):
         return uuid.uuid5(uuid.NAMESPACE_DNS, self.source_domain)
 
     def get_content_id(self):
-        return uuid.uuid5(self.get_domain_namespace(), self.id.hex)
+        return uuid.uuid5(self.get_domain_namespace(), self.get_node_id().hex)
 
     def get_node_id(self):
         return uuid.uuid5(self.get_domain_namespace(), self.source_id)
