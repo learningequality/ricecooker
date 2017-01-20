@@ -9,7 +9,7 @@ from ..exceptions import InvalidNodeException, InvalidFormatException
 from ..managers.downloader import DownloadManager
 from .. import config
 
-def guess_content_kind(path=None, online_data=None, questions=None):
+def guess_content_kind(path=None, web_video_data=None, questions=None):
     """ guess_content_kind: determines what kind the content is
         Args:
             files (str or list): files associated with content

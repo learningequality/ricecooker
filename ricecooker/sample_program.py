@@ -275,7 +275,7 @@ def _build_tree(node, sourcetree):
     for child_source_node in sourcetree:
         try:
             main_file = child_source_node['files'][0] if 'files' in child_source_node else {}
-            kind = nodes.guess_content_kind(path=main_file.get('path'), online_data=main_file.get('youtube_id') or main_file.get('web_url'), questions=child_source_node.get("questions"))
+            kind = nodes.guess_content_kind(path=main_file.get('path'), web_video_data=main_file.get('youtube_id') or main_file.get('web_url'), questions=child_source_node.get("questions"))
         except UnknownContentKindError:
             continue
 
