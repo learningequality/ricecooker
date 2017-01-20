@@ -40,6 +40,7 @@ class Node(object):
     """ Node: model to represent all nodes in the tree """
     def __init__(self):
         self.children = []
+        self.parent = None
 
     def __str__(self):
         pass
@@ -57,6 +58,7 @@ class Node(object):
             Returns: None
         """
         assert isinstance(node, Node), "Child node must be a subclass of Node"
+        node.parent = self
         self.children += [node]
 
     def count(self):
@@ -93,7 +95,7 @@ class Node(object):
             Args: None
             Returns: boolean indicating if node is valid
         """
-        assert self.id is not None, "Assumption Failed: Node must have an id"
+        assert self.source_id is not None, "Assumption Failed: Node must have an id"
         assert isinstance(self.title, str), "Assumption Failed: Node title is not a string"
         assert isinstance(self.description, str) or self.description is None, "Assumption Failed: Node description is not a string"
         assert isinstance(self.children, list), "Assumption Failed: Node children is not a list"
@@ -106,27 +108,31 @@ class Channel(Node):
         Used to store metadata on channel that is being created
 
         Attributes:
-            channel_id (str): channel's unique id
-            domain (str): who is providing the content (e.g. learningequality.org)
+            source_id (str): channel's unique id
+            source_domain (str): who is providing the content (e.g. learningequality.org)
             title (str): name of channel
             description (str): description of the channel (optional)
             thumbnail (str): file path or url of channel's thumbnail (optional)
     """
     thumbnail_preset = format_presets.CHANNEL_THUMBNAIL
-    def __init__(self, channel_id, domain, title, description=None, thumbnail=None):
+    def __init__(self, source_id, source_domain, title, description="", thumbnail=None):
         # Map parameters to model variables
-        self.domain = domain
-        self.id = uuid.uuid3(uuid.NAMESPACE_DNS, uuid.uuid5(uuid.NAMESPACE_DNS, channel_id).hex)
+        self.source_domain = source_domain
+        self.source_id = source_id
         self.title = title
-        self.description = "" if description is None else description
+        self.description = description
         self.thumbnail = thumbnail
 
-        # Add data to be used in next steps
-        self._internal_domain = uuid.uuid5(uuid.NAMESPACE_DNS, self.domain)
-        self.content_id = uuid.uuid5(self._internal_domain, self.id.hex)
-        self.node_id = uuid.uuid5(self.id, self.content_id.hex)
-
         super(Channel, self).__init__()
+
+    def get_domain_namespace(self):
+        return uuid.uuid5(uuid.NAMESPACE_DNS, self.source_domain)
+
+    def get_content_id(self):
+        return uuid.uuid5(self.get_domain_namespace(), self.id.hex)
+
+    def get_node_id(self):
+        return uuid.uuid5(self.get_domain_namespace(), self.source_id)
 
     def __str__(self):
         count = self.count()
@@ -139,7 +145,7 @@ class Channel(Node):
             Returns: dict of channel data
         """
         return {
-            "id": self.id.hex,
+            "id": self.get_node_id().hex,
             "name": self.title,
             "thumbnail": self.thumbnail,
             "description": self.description if self.description is not None else "",
@@ -151,8 +157,8 @@ class Channel(Node):
             Returns: boolean indicating if channel is valid
         """
         try:
-            assert isinstance(self.domain, str)
-            assert isinstance(self.thumbnail, str) or self.thumbnail is None
+            assert isinstance(self.source_domain, str), "Channel domain must be a string"
+            assert isinstance(self.thumbnail, str) or self.thumbnail is None, "Channel thumbnail must be a string"
             return super(Channel, self).validate()
         except AssertionError as ae:
             raise InvalidNodeException("Invalid channel ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
@@ -172,30 +178,42 @@ class ContentNode(Node):
             files (str or list): content's associated file(s)
             thumbnail (str): local path or url to thumbnail image (optional)
     """
-    def __init__(self, *args, **kwargs):
+    def __init__(self, source_id, title, description="", author="", files=None, thumbnail=None, license=None, questions=None, extra_fields=None, domain_ns=None):
         # Map parameters to model variables
-        assert isinstance(args[0], str), "id must be a string"
-        self.id = args[0]
-        self.original_id = args[0]
-        self.title = args[1]
-        self.description = kwargs.get('description') or ""
-        self.author = kwargs.get('author') or ""
-        self.license = kwargs.get('license')
+        assert isinstance(source_id, str), "source_id must be a string"
+        self.source_id = source_id
+        self.title = title
+        self.description = description or ""
+        self.author = author or ""
+        self.license = license
+        self.domain_ns = domain_ns
 
         # Set files into list format (adding thumbnail if provided)
-        files = kwargs.get('files') or []
-        self.files = [files] if isinstance(files, str) else files
-        self.thumbnail = kwargs.get('thumbnail')
+        self.files = files or []
+        self.files = [self.files] if isinstance(self.files, str) else self.files
+        self.thumbnail = thumbnail
 
         # Set any possible exercise data to standard format
-        self.questions = kwargs.get('questions') or []
-        self.extra_fields = kwargs.get('extra_fields') or {}
+        self.questions = questions or []
+        self.extra_fields = extra_fields or {}
         super(ContentNode, self).__init__()
 
     def __str__(self):
         count = self.count()
         metadata = "{0} {1}".format(count, "descendant" if count == 1 else "descendants")
         return "{title} ({kind}): {metadata}".format(title=self.title, kind=self.__class__.__name__, metadata=metadata)
+
+    def get_domain_namespace(self):
+        if self.domain_ns:
+            return self.domain_ns
+        return self.parent.get_domain_namespace()
+
+    def get_content_id(self):
+        return uuid.uuid5(self.get_domain_namespace(), self.source_id)
+
+    def get_node_id(self):
+        assert self.parent, "Parent not found: node id must be calculated based on parent"
+        return uuid.uuid5(self.parent.get_node_id(), self.get_content_id().hex)
 
     def to_dict(self):
         """ to_dict: puts data in format CC expects
@@ -205,8 +223,8 @@ class ContentNode(Node):
         return {
             "title": self.title,
             "description": self.description,
-            "node_id": self.node_id.hex,
-            "content_id": self.content_id.hex,
+            "node_id": self.get_node_id().hex,
+            "content_id": self.get_content_id().hex,
             "author": self.author,
             "files" : self.files,
             "kind": self.kind,
@@ -214,16 +232,6 @@ class ContentNode(Node):
             "questions": self.questions,
             "extra_fields": json.dumps(self.extra_fields),
         }
-
-    def set_ids(self, domain, parent_id):
-        """ set_ids: sets ids to be used in building tree
-            Args:
-                domain (uuid): uuid of channel domain
-                parent_id (uuid): parent node's node_id
-            Returns: None
-        """
-        self.content_id = uuid.uuid5(domain, str(self.id))
-        self.node_id = uuid.uuid5(parent_id, self.content_id.hex)
 
     def validate(self):
         """ validate: Makes sure content node is valid
@@ -244,14 +252,14 @@ class Topic(ContentNode):
         Topic nodes are used to add organization to the channel's content
 
         Attributes:
-            id (str): content's original id
+            source_id (str): content's original id
             title (str): content's title
             description (str): description of content (optional)
             author (str): who created the content (optional)
     """
-    def __init__(self, id, title, description="", author="", thumbnail=None):
+    def __init__(self, *args, **kwargs):
         self.kind = content_kinds.TOPIC
-        super(Topic, self).__init__(id, title, description=description, author=author, thumbnail=thumbnail)
+        super(Topic, self).__init__(*args, **kwargs)
 
     def __str__(self):
         count = self.count()
@@ -279,7 +287,7 @@ class Video(ContentNode):
         Videos must be mp4 format
 
         Attributes:
-            id (str): content's original id
+            source_id (str): content's original id
             title (str): content's title
             files (str or list): content's associated file(s)
             author (str): who created the content (optional)
@@ -293,7 +301,7 @@ class Video(ContentNode):
     """
     default_preset = format_presets.VIDEO_HIGH_RES
     thumbnail_preset = format_presets.VIDEO_THUMBNAIL
-    def __init__(self, id, title, files, author="", description="", transcode_to_lower_resolutions=False, derive_thumbnail=False, license=None, subtitle=None, preset=None, thumbnail=None):
+    def __init__(self, source_id, title, files, preset=None, transcode_to_lower_resolutions=False, derive_thumbnail=False, **kwargs):
         self.kind = content_kinds.VIDEO
         self.derive_thumbnail = derive_thumbnail
 
@@ -305,7 +313,7 @@ class Video(ContentNode):
         if transcode_to_lower_resolutions:
             self.transcode_to_lower_resolutions()
 
-        super(Video, self).__init__(id, title, description=description, author=author, license=license, files=files, thumbnail=thumbnail)
+        super(Video, self).__init__(source_id, title, files=files, **kwargs)
 
     def __str__(self):
         metadata = "{0} {1}".format(len(self.files), "file" if len(self.files) == 1 else "files")
@@ -352,7 +360,7 @@ class Audio(ContentNode):
         Audio can be in either mp3 or wav format
 
         Attributes:
-            id (str): content's original id
+            source_id (str): content's original id
             title (str): content's title
             files (str or list): content's associated file(s)
             author (str): who created the content (optional)
@@ -363,9 +371,9 @@ class Audio(ContentNode):
     """
     thumbnail_preset = format_presets.AUDIO_THUMBNAIL
     default_preset = format_presets.AUDIO
-    def __init__(self, id, title, files, author="", description="", license=None, subtitle=None, thumbnail=None):
+    def __init__(self, *args, **kwargs):
         self.kind = content_kinds.AUDIO
-        super(Audio, self).__init__(id, title, description=description, author=author, license=license, files=files, thumbnail=thumbnail)
+        super(Audio, self).__init__(*args, **kwargs)
 
     def __str__(self):
         metadata = "{0} {1}".format(len(self.files), "file" if len(self.files) == 1 else "files")
@@ -398,7 +406,7 @@ class Document(ContentNode):
         Documents must be pdf format
 
         Attributes:
-            id (str): content's original id
+            source_id (str): content's original id
             title (str): content's title
             files (str or list): content's associated file(s)
             author (str): who created the content (optional)
@@ -408,9 +416,9 @@ class Document(ContentNode):
     """
     default_preset = format_presets.DOCUMENT
     thumbnail_preset = format_presets.DOCUMENT_THUMBNAIL
-    def __init__(self, id, title, files, author="", description="", license=None, thumbnail=None):
+    def __init__(self, *args, **kwargs):
         self.kind = content_kinds.DOCUMENT
-        super(Document, self).__init__(id, title, description=description, author=author, license=license, files=files, thumbnail=thumbnail)
+        super(Document, self).__init__(*args, **kwargs)
 
     def __str__(self):
         metadata = "{0} {1}".format(len(self.files), "file" if len(self.files) == 1 else "files")
@@ -444,7 +452,7 @@ class Exercise(ContentNode):
         understanding of the content
 
         Attributes:
-            id (str): content's original id
+            source_id (str): content's original id
             title (str): content's title
             files (str or list): content's associated file(s)
             author (str): who created the content (optional)
@@ -455,7 +463,7 @@ class Exercise(ContentNode):
     """
     default_preset = format_presets.EXERCISE
     thumbnail_preset = format_presets.EXERCISE_THUMBNAIL
-    def __init__(self, id, title, files, author="", description="", license=None, exercise_data=None, thumbnail=None):
+    def __init__(self, source_id, title, files, exercise_data=None, **kwargs):
         self.kind = content_kinds.EXERCISE
         self.questions = []
         files = [] if files is None else files
@@ -467,7 +475,7 @@ class Exercise(ContentNode):
             'randomize': exercise_data.get('randomize') or True,
         })
 
-        super(Exercise, self).__init__(id, title, description=description, author=author, license=license, files=files, questions=self.questions, extra_fields=exercise_data,thumbnail=thumbnail)
+        super(Exercise, self).__init__(source_id, title, questions=self.questions, extra_fields=exercise_data, **kwargs)
 
     def __str__(self):
         metadata = "{0} {1}".format(len(self.questions), "question" if len(self.questions) == 1 else "questions")
@@ -503,8 +511,8 @@ class Exercise(ContentNode):
         return {
             "title": self.title,
             "description": self.description,
-            "node_id": self.node_id.hex,
-            "content_id": self.content_id.hex,
+            "node_id": self.get_node_id().hex,
+            "content_id": self.get_content_id().hex,
             "author": self.author,
             "files" : self.files,
             "kind": self.kind,
@@ -546,7 +554,7 @@ class HTML5App(ContentNode):
         All links (e.g. href and src) must be relative URLs, pointing to other files in the zip.
 
         Attributes:
-            id (str): content's original id
+            source_id (str): content's original id
             title (str): content's title
             files (str or list): content's associated file(s)
             author (str): who created the content (optional)
@@ -557,11 +565,10 @@ class HTML5App(ContentNode):
 
     default_preset = format_presets.HTML5_ZIP
     thumbnail_preset = format_presets.HTML5_THUMBNAIL
-    def __init__(self, id, title, files, author="", description="", license=None, thumbnail=None):
+    def __init__(self, *args, **kwargs):
         self.kind = content_kinds.HTML5
-        files = [] if files is None else files
 
-        super(HTML5App, self).__init__(id, title, description=description, author=author, license=license, files=files, thumbnail=thumbnail)
+        super(HTML5App, self).__init__(*args, **kwargs)
 
     def __str__(self):
         return "{title} ({kind})".format(title=self.title, kind=self.__class__.__name__)

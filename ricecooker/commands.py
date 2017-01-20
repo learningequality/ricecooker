@@ -39,20 +39,14 @@ def uploadchannel(path, verbose=False, update=False, resume=False, reset=False, 
     """
 
     # Set configuration settings
-<<<<<<< HEAD
     level = logging.INFO if verbose else logging.WARNING if warnings else logging.ERROR
     config.LOGGER.addHandler(logging.StreamHandler())
     logging.getLogger("requests").setLevel(logging.WARNING)
     config.LOGGER.setLevel(level)
 
-    config.TOKEN = token
-=======
     # Mount file:// to allow local path requests
     config.SESSION.mount('file://', FileAdapter())
-    config.VERBOSE = verbose
-    config.WARNING = warnings
     config.SESSION.headers.update({"Authorization": "Token {0}".format(token)})
->>>>>>> 0b3aaac4376b516ab0fc38fcd76c497c8ab76922
     config.UPDATE = update
     config.COMPRESS = compress
 
@@ -200,10 +194,6 @@ def create_initial_tree(channel):
     # Create channel manager with channel data
     config.LOGGER.info("   Setting up initial channel structure... ")
     tree = ChannelManager(channel)
-
-    # Create channel manager with channel data
-    config.LOGGER.info("   Setting up node relationships... ")
-    tree.set_relationship(channel)
 
     # Make sure channel structure is valid
     config.LOGGER.info("   Validating channel structure...")
