@@ -7,6 +7,7 @@ import webbrowser
 from . import config
 from .classes import nodes, questions
 from requests.exceptions import HTTPError
+from requests_file import FileAdapter
 from .managers.downloader import DownloadManager
 from .managers.progress import RestoreManager, Status
 from .managers.tree import ChannelManager
@@ -38,12 +39,20 @@ def uploadchannel(path, verbose=False, update=False, resume=False, reset=False, 
     """
 
     # Set configuration settings
+<<<<<<< HEAD
     level = logging.INFO if verbose else logging.WARNING if warnings else logging.ERROR
     config.LOGGER.addHandler(logging.StreamHandler())
     logging.getLogger("requests").setLevel(logging.WARNING)
     config.LOGGER.setLevel(level)
 
     config.TOKEN = token
+=======
+    # Mount file:// to allow local path requests
+    config.SESSION.mount('file://', FileAdapter())
+    config.VERBOSE = verbose
+    config.WARNING = warnings
+    config.SESSION.headers.update({"Authorization": "Token {0}".format(token)})
+>>>>>>> 0b3aaac4376b516ab0fc38fcd76c497c8ab76922
     config.UPDATE = update
     config.COMPRESS = compress
 
@@ -52,20 +61,21 @@ def uploadchannel(path, verbose=False, update=False, resume=False, reset=False, 
     config.DOWNLOADER = DownloadManager(config.get_file_store())
 
     # Authenticate user
-    if config.TOKEN != "#":
-        if os.path.isfile(config.TOKEN):
-            with open(config.TOKEN, 'r') as fobj:
-                config.TOKEN = fobj.read()
+    if token != "#":
+        if os.path.isfile(token):
+            with open(token, 'r') as fobj:
+                token = fobj.read()
         try:
-            response = requests.post(config.authentication_url(), headers={"Authorization": "Token {0}".format(config.TOKEN)})
+            response = config.SESSION.post(config.authentication_url())
             response.raise_for_status()
-            user=json.loads(response._content.decode("utf-8"))
+            user = json.loads(response._content.decode("utf-8"))
             config.LOGGER.info("Logged in with username {0}".format(user['username']))
+
         except HTTPError:
             config.LOGGER.error("Invalid token: Credentials not found")
             sys.exit()
     else:
-        config.TOKEN = prompt_token(config.DOMAIN)
+        prompt_token(config.DOMAIN)
 
     config.LOGGER.info("\n\n***** Starting channel build process *****\n\n")
 
@@ -145,7 +155,8 @@ def prompt_token(domain):
         sys.exit()
     else:
         try:
-            response = requests.post(config.authentication_url(), headers={"Authorization": "Token {0}".format(token)})
+            config.SESSION.headers.update({"Authorization": "Token {0}".format(token)})
+            response = config.SESSION.post(config.authentication_url())
             response.raise_for_status()
             return token
         except HTTPError:

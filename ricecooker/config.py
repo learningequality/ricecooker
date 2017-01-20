@@ -3,10 +3,10 @@
 import os
 import json
 import hashlib
+import requests
 
 UPDATE = False
 COMPRESS = False
-TOKEN = "#"
 PROGRESS_MANAGER = None
 DOWNLOADER = None
 LOGGER = logging.getLogger()
@@ -44,6 +44,9 @@ STORAGE_DIRECTORY = "storage"
 
 # Folder to store progress tracking information
 RESTORE_DIRECTORY = "restore"
+
+# Session for downloading files
+SESSION = requests.Session()
 
 def get_storage_path(filename):
     """ get_storage_path: returns path to storage directory for downloading content
