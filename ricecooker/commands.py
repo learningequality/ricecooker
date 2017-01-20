@@ -47,7 +47,6 @@ def uploadchannel(path, verbose=False, update=False, resume=False, reset=False, 
     # Mount file:// to allow local path requests
     config.SESSION.mount('file://', FileAdapter())
     config.SESSION.headers.update({"Authorization": "Token {0}".format(token)})
-
     config.UPDATE = update
     config.COMPRESS = compress
 

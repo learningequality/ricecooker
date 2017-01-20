@@ -81,7 +81,6 @@ class ChannelManager:
         """
         counter = 0
         files_to_upload = list(set(file_list) - set(self.uploaded_files)) # In case restoring from previous session
-
         try:
             for f in files_to_upload:
                 with  open(config.get_storage_path(f), 'rb') as file_obj:
