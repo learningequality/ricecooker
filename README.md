@@ -19,9 +19,9 @@ A sample program has been created [here](https://github.com/learningequality/ric
 * **Initializing the Channel**
 
 	In order for the rice cooker to run properly, you must include a `create_channel` method in your target py file
-	that returns a Channel model. This function will be responsible for building a tree based on `ricecooker.classes`.
+	that returns a ChannelNode model. This function will be responsible for building a tree based on `ricecooker.classes`.
 
-	Start by importing `Channel` from `ricecooker.classes.nodes` and create a Channel model. The Channel model has
+	Start by importing `ChannelNode` from `ricecooker.classes.nodes` and create a ChannelNode model. The ChannelNode model has
 	the following fields:
 
     - source_id (str): channel's unique id
@@ -32,11 +32,11 @@ A sample program has been created [here](https://github.com/learningequality/ric
 
 	For example:
 	```
-	from ricecooker.classes.nodes import Channel
+	from ricecooker.classes.nodes import ChannelNode
 
 	def construct_channel(args):
 
-	    channel = Channel(
+	    channel = ChannelNode(
 	        source_domain="learningequality.org",
 	        source_id="rice-channel",
 	        title="Rice Channel",
@@ -53,12 +53,12 @@ A sample program has been created [here](https://github.com/learningequality/ric
 	Once your channel is created, you can start adding content. To do this, you will need to convert your data to
 	the rice cooker's models. Here are the model types that are available to you:
 
-	- Topic: folders to add hierarchy to the channel's content
-    - Video: mp4
-    - Audio: mp3 or wav
-    - Document: pdf
-    - Exercise: assessment-based content with questions
-    - HTML5App: zip containing html content (must have `index.html` file at topmost level)
+	- TopicNode: folders to add hierarchy to the channel's content
+    - VideoNode: mp4
+    - AudioNode: mp3 or wav
+    - DocumentNode: pdf
+    - ExerciseNode: assessment-based content with questions
+    - HTML5AppNode: zip containing html content (must have `index.html` file at topmost level)
 
     The `ricecooker.classes.nodes` module has the function `guess_content_kind`, which takes in a file path (this
     should be the primary file for the node), web video data (e.g. a YouTube link), or a list of questions and determines what model best suits the given data (if no match could be found, an `UnknownContentKindError`
@@ -90,11 +90,20 @@ A sample program has been created [here](https://github.com/learningequality/ric
 	To add a question to your exercise, you must first create a question model from `ricecooker.classes.questions`.
 	Your program is responsible for determining which question type to create. Here are the available question types:
 
-	- PerseusQuestion: special question type for pre-formatted perseus questions
-	- MultipleSelectQuestion: questions that have multiple correct answers (e.g. check all that apply)
-	- SingleSelectQuestion: questions that only have one right answer (e.g. radio button questions)
-	- InputQuestion: questions that have text-based answers (e.g. fill in the blank)
-	- FreeResponseQuestion: questions that require subjective answers (ungraded)
+	AUDIO_FILE = 0
+    THUMBNAIL = 1
+    DOCUMENT_FILE = 2
+    VIDEO_FILE = 3
+    YOUTUBE_VIDEO_FILE = 4
+    WEB_VIDEO_FILE = 5
+    VECTORIZED_VIDEO_FILE = 6
+    VIDEO_THUMBNAIL = 7
+    YOUTUBE_VIDEO_THUMBNAIL_FILE = 8
+    HTML_ZIP_FILE = 9
+    SUBTITLE_FILE = 10
+    TILED_THUMBNAIL_FILE = 11
+    UNIVERSAL_SUBS_SUBTITLE_FILE = 12
+    BASE64_FILE = 13
 
 	To set the correct answer(s) for input questions, you must provide an array of all of the accepted answers (`answers [str]`).
 	For multiple selection questions, you must provide a list of all of the possible choices as well as an array of the correct
@@ -113,7 +122,7 @@ A sample program has been created [here](https://github.com/learningequality/ric
 	based on the mastery models provided under `le_utils.constants.exercises`. If no data is provided,
 	the rice cooker will default to mastery at 3 of 5 correct. For example:
 	```
-	node = Exercise(
+	node = ExerciseNode(
 		exercise_data={'mastery_model': exercises.M_OF_N, 'randomize': True, 'm': 3, 'n': 5},
 		...
 	)
