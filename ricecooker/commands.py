@@ -47,6 +47,7 @@ def uploadchannel(path, verbose=False, update=False, resume=False, reset=False, 
     # Mount file:// to allow local path requests
     config.SESSION.mount('file://', FileAdapter())
     config.SESSION.headers.update({"Authorization": "Token {0}".format(token)})
+
     config.UPDATE = update
     config.COMPRESS = compress
 
@@ -64,6 +65,7 @@ def uploadchannel(path, verbose=False, update=False, resume=False, reset=False, 
             response.raise_for_status()
             user = json.loads(response._content.decode("utf-8"))
             config.LOGGER.info("Logged in with username {0}".format(user['username']))
+
         except HTTPError:
             config.LOGGER.error("Invalid token: Credentials not found")
             sys.exit()
