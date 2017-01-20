@@ -11,44 +11,63 @@ SAMPLE_PERSEUS = '{"answerArea":{"chi2Table":false,"periodicTable":false,"tTable
 
 SAMPLE_TREE = [
     {
-        "title": "TEST COMPRESSION",
-        "id": "6cafe7",
-        "author": "Revision 3",
-        "description": "Become a master rice cooker",
-        "license": licenses.CC_BY_NC_SA,
-        "files": [
+        "title": "Video Tests",
+        "id": "abd116",
+        "description": "Tests for different videos",
+        "children": [
             {
-                "path": "C:/users/jordan/contentcuration-dump/high resolution.mp4",
-                "ffmpeg_settings": {"max_width": 480, "crf": 20},
+                "title": "TEST COMPRESSION",
+                "id": "6cafe7",
+                "author": "Revision 3",
+                "description": "Compression Test",
+                "license": licenses.CC_BY_NC_SA,
+                "files": [
+                    {
+                        "path": "C:/users/jordan/contentcuration-dump/high resolution.mp4",
+                        "ffmpeg_settings": {"max_width": 480, "crf": 20},
+                    }
+                ],
             },
             {
-                "path": "C:/users/jordan/Videos/testfolder/captions.vtt",
-                "language": "1",
-            }
-        ],
-    },
-    {
-        "title": "TEST YOUTUBE",
-        "id": "6cafe8",
-        "description": "Youtube Test",
-        "license": licenses.CC_BY_NC_SA,
-        "files": [
+                "title": "TEST SUBTITLES",
+                "id": "7cafe6",
+                "author": "Revision 3",
+                "description": "Subtitle Test",
+                "license": licenses.CC_BY_NC_SA,
+                "files": [
+                    {
+                        "path": "https://ia600209.us.archive.org/27/items/RiceChef/Rice Chef.mp4",
+                    },
+                    {
+                        "path": "C:/users/jordan/Videos/testfolder/captions.vtt",
+                        "language": "1",
+                    }
+                ],
+            },
             {
-                "youtube_id": "kpCJyQ2usJ4",
-                "high_resolution": False,
-            }
-        ],
-    },
-    {
-        "title": "TEST VIMEO",
-        "id": "6cafe9",
-        "description": "Vimeo Test",
-        "license": licenses.CC_BY_NC_SA,
-        "files": [
+                "title": "TEST YOUTUBE",
+                "id": "6cafe8",
+                "description": "Youtube Test",
+                "license": licenses.CC_BY_NC_SA,
+                "files": [
+                    {
+                        "youtube_id": "kpCJyQ2usJ4",
+                        "high_resolution": False,
+                    }
+                ],
+            },
             {
-                "youtube_url": "https://vimeo.com/188609325",
-            }
-        ],
+                "title": "TEST VIMEO",
+                "id": "6cafe9",
+                "description": "Vimeo Test",
+                "license": licenses.CC_BY_NC_SA,
+                "files": [
+                    {
+                        "web_url": "https://vimeo.com/188609325",
+                    }
+                ],
+            },
+        ]
     },
     {
         "title": "Rice 101",
@@ -256,7 +275,7 @@ def _build_tree(node, sourcetree):
     for child_source_node in sourcetree:
         try:
             main_file = child_source_node['files'][0] if 'files' in child_source_node else {}
-            kind = nodes.guess_content_kind(path=main_file.get('path'), youtube_data=main_file.get('youtube_id') or main_file.get('youtube_url'), questions=child_source_node.get("questions"))
+            kind = nodes.guess_content_kind(path=main_file.get('path'), online_data=main_file.get('youtube_id') or main_file.get('web_url'), questions=child_source_node.get("questions"))
         except UnknownContentKindError:
             continue
 
@@ -352,7 +371,7 @@ def _build_tree(node, sourcetree):
 
 def add_files(node, file_list):
     for f in file_list:
-        file_type = files.guess_file_type(node.kind, filepath=f.get('path'), youtube_data=f.get('youtube_id') or f.get('youtube_url'), encoding=f.get('encoding'))
+        file_type = files.guess_file_type(node.kind, filepath=f.get('path'), youtube_id=f.get('youtube_id'), web_url=f.get('web_url'), encoding=f.get('encoding'))
 
         if file_type == files.FileTypes.AUDIO_FILE:
             node.add_file(files.AudioFile(path=f['path'], language=f.get('language')))
@@ -368,8 +387,10 @@ def add_files(node, file_list):
             node.add_file(files.SubtitleFile(path=f['path'], language=f['language']))
         elif file_type == files.FileTypes.BASE64_FILE:
             node.add_file(files.Base64ImageFile(encoding=f['encoding']))
+        elif file_type == files.FileTypes.WEB_VIDEO_FILE:
+            node.add_file(files.WebVideoFile(web_url=f['web_url'], high_resolution=f.get('high_resolution')))
         elif file_type == files.FileTypes.YOUTUBE_VIDEO_FILE:
-            node.add_file(files.YouTubeVideoFile(youtube_id=f.get('youtube_id'), youtube_url=f.get('youtube_url'), high_resolution=f.get('high_resolution')))
+            node.add_file(files.YouTubeVideoFile(youtube_id=f['youtube_id'], high_resolution=f.get('high_resolution')))
         else:
             raise UnknownFileTypeError("Unrecognized file type '{0}'".format(f['path']))
 

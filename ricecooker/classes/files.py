@@ -30,14 +30,15 @@ class FileTypes(Enum):
     DOCUMENT_FILE = 2
     VIDEO_FILE = 3
     YOUTUBE_VIDEO_FILE = 4
-    VECTORIZED_VIDEO_FILE = 5
-    VIDEO_THUMBNAIL = 6
-    YOUTUBE_VIDEO_THUMBNAIL_FILE = 7
-    HTML_ZIP_FILE = 8
-    SUBTITLE_FILE = 9
-    TILED_THUMBNAIL_FILE = 10
-    UNIVERSAL_SUBS_SUBTITLE_FILE = 11
-    BASE64_FILE = 12
+    WEB_VIDEO_FILE = 5
+    VECTORIZED_VIDEO_FILE = 6
+    VIDEO_THUMBNAIL = 7
+    YOUTUBE_VIDEO_THUMBNAIL_FILE = 8
+    HTML_ZIP_FILE = 9
+    SUBTITLE_FILE = 10
+    TILED_THUMBNAIL_FILE = 11
+    UNIVERSAL_SUBS_SUBTITLE_FILE = 12
+    BASE64_FILE = 13
 
 
 FILE_TYPE_MAPPING = {
@@ -77,16 +78,18 @@ FILE_TYPE_MAPPING = {
 
 # CACHE = FileCache(".filecache")
 
-def guess_file_type(kind, filepath=None, youtube_data=None, encoding=None):
+def guess_file_type(kind, filepath=None, web_url=None, youtube_id=None, encoding=None):
     """ guess_file_class: determines what file the content is
         Args:
             filepath (str): filepath of file to check
         Returns: string indicating file's class
     """
-    assert filepath or youtube_data or encoding, "Cannot guess file type: must include a filepath, youtube_data, or encoding"
+    assert filepath or web_url or youtube_id or encoding, "Cannot guess file type: must include a filepath, web_url, youtube_id, or encoding"
     if encoding:
         return FileTypes.BASE64_FILE
-    if youtube_data:
+    if web_url:
+        return FileTypes.WEB_VIDEO_FILE
+    if youtube_id:
         return FileTypes.YOUTUBE_VIDEO_FILE
     if filepath:
         ext = filepath.rsplit('/', 1)[-1].split(".")[-1].lower()
@@ -516,30 +519,31 @@ class ExerciseGraphieFile(DownloadFile):
 
 
 
-class YouTubeVideoFile(File):
+class WebVideoFile(File):
     # In future, look into postprocessors and progress_hooks
-    def __init__(self, youtube_id=None, youtube_url=None, youtube_dl_settings=None, high_resolution=True, **kwargs):
-        assert youtube_id or youtube_url, "Error: Must provide either an id or url to download YouTube video."
-        self.youtube_url = youtube_url
-        if youtube_id:
-            self.youtube_url = 'http://www.youtube.com/watch?v={}'.format(youtube_id)
-        self.youtube_dl_settings = youtube_dl_settings or {}
-        self.youtube_dl_settings['format'] = "22/best" if high_resolution else "18/worst"
+    def __init__(self, web_url, download_settings=None, high_resolution=True, **kwargs):
+        self.web_url = web_url
+        self.download_settings = download_settings or {}
+        self.download_settings['format'] = "22/best" if high_resolution else "18/worst"
 
-        super(YouTubeVideoFile, self).__init__(**kwargs)
+        super(WebVideoFile, self).__init__(**kwargs)
 
     def get_preset(self):
         return self.preset or check_video_resolution(config.get_storage_path(self.filename))
 
     def process_file(self):
         try:
-            self.filename = download_from_youtube(self.youtube_url, self.youtube_dl_settings)
+            self.filename = download_from_youtube(self.web_url, self.download_settings)
             config.LOGGER.info("\t--- Downloaded (YouTube) {}".format(self.filename))
             return self.filename
         except youtube_dl.utils.DownloadError as err:
             self.error = str(err)
             config.FAILED_FILES.append(self)
 
+
+class YouTubeVideoFile(WebVideoFile):
+    def __init__(self, youtube_id, **kwargs):
+        super(YouTubeVideoFile, self).__init__('http://www.youtube.com/watch?v={}'.format(youtube_id), **kwargs)
 
 
 # VectorizedVideoFile

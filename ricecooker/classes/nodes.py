@@ -9,7 +9,7 @@ from ..exceptions import InvalidNodeException, InvalidFormatException
 from ..managers.downloader import DownloadManager
 from .. import config
 
-def guess_content_kind(path=None, youtube_data=None, questions=None):
+def guess_content_kind(path=None, online_data=None, questions=None):
     """ guess_content_kind: determines what kind the content is
         Args:
             files (str or list): files associated with content
@@ -25,7 +25,7 @@ def guess_content_kind(path=None, youtube_data=None, questions=None):
         if ext in content_kinds.MAPPING:
             return content_kinds.MAPPING[ext]
         raise InvalidFormatException("Invalid file type: Allowed formats are {0}".format([key for key, value in content_kinds.MAPPING.items()]))
-    elif youtube_data:
+    elif online_data:
         return content_kinds.VIDEO
     else:
         return content_kinds.TOPIC
@@ -347,16 +347,17 @@ class VideoNode(ContentNode):
             Args: None
             Returns: boolean indicating if video is valid
         """
+        from .files import VideoFile
         try:
             assert self.kind == content_kinds.VIDEO, "Assumption Failed: Node should be a video"
             assert self.questions == [], "Assumption Failed: Video should not have questions"
             assert len(self.files) > 0, "Assumption Failed: Video must have at least one video file"
 
-            # Check if there are any .mp4 files
-            files_valid = False
+            # Check if there are any .mp4 files if there are video files (other video types don't have paths)
+            files_valid = len(set(filter(lambda f: isinstance(f, VideoFile), self.files))) == 0
             for f in self.files:
-                files_valid = files_valid or hasattr(f, 'youtube_url') or file_formats.MP4 in f.path
-            assert files_valid , "Assumption Failed: Video should have at least one .mp4 file"
+                files_valid = files_valid or file_formats.MP4 in f.path
+            assert files_valid, "Assumption Failed: Video should have at least one .mp4 file"
 
             return super(VideoNode, self).validate()
         except AssertionError as ae:
