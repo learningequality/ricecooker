@@ -21,10 +21,10 @@ SAMPLE_TREE = [
                 "path": "C:/users/jordan/contentcuration-dump/high resolution.mp4",
                 "ffmpeg_settings": {"max_width": 480, "crf": 20},
             },
-            {
-                "path": "C:/users/jordan/Videos/testfolder/captions.vtt",
-                "language": "1",
-            }
+            # {
+            #     "path": "C:/users/jordan/Videos/testfolder/captions.vtt",
+            #     "language": "1",
+            # }
         ],
     },
     {
@@ -196,6 +196,13 @@ SAMPLE_TREE = [
                         "all_answers": ["Yes", "No", "Rice!"],
                         "correct_answer": "Rice!",
                     },
+                    {
+                        "id": "ccdcc",
+                        "question": "Solve this: $$(111^{x+1}\\times111^\\frac14)\\div111^\\frac12=111^3$$",
+                        "type":exercises.SINGLE_SELECTION,
+                        "all_answers": ["Yes", "No", "Rice!"],
+                        "correct_answer": "Rice!",
+                    },
                 ],
             },
         ]
@@ -206,7 +213,7 @@ def construct_channel(**kwargs):
 
     channel = nodes.ChannelNode(
         domain = "learningequality.org",
-        channel_id = "testing-ricecooker-channel",
+        channel_id = "tester-ricecooker-channel",
         title = "Testing Ricecooker Channel",
         thumbnail = "https://upload.wikimedia.org/wikipedia/commons/thumb/5/50/Banaue_Philippines_Banaue-Rice-Terraces-01.jpg/640px-Banaue_Philippines_Banaue-Rice-Terraces-01.jpg",
     )

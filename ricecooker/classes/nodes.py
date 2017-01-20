@@ -143,6 +143,7 @@ class ChannelNode(Node):
         self.source_id = channel_id
         self.title = title
         self.description = description or ""
+        self.files = []
 
         if thumbnail and isinstance(thumbnail, str):
             from .files import ThumbnailFile
@@ -177,7 +178,7 @@ class ChannelNode(Node):
         return {
             "id": self.id.hex,
             "name": self.title,
-            "thumbnail": self.files[0].filename,
+            "thumbnail": self.files[0].filename if len(self.files) > 0 else None,
             "description": self.description if self.description is not None else "",
         }
 
@@ -188,7 +189,7 @@ class ChannelNode(Node):
         """
         try:
             assert isinstance(self.source_domain, str), "Channel domain must be a string"
-            return super(Channel, self).validate()
+            return super(ChannelNode, self).validate()
         except AssertionError as ae:
             raise InvalidNodeException("Invalid channel ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
 
