@@ -201,7 +201,7 @@ def _build_tree(node, sourcetree):
                 title=child_source_node["title"],
                 author=child_source_node.get("author"),
                 description=child_source_node.get("description"),
-                files=child_source_node.get("file"),
+
                 license=child_source_node.get("license"),
 
                 # video-specific data
@@ -211,6 +211,7 @@ def _build_tree(node, sourcetree):
 
                 # audio and video shared data
                 thumbnail=child_source_node.get("thumbnail"),
+                files=child_source_node.get("file"),
             )
             node.add_child(child_node)
 

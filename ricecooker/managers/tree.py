@@ -107,7 +107,7 @@ class ChannelManager:
             response.raise_for_status()
             file_diff_result += json.loads(response._content.decode("utf-8"))
             file_count += len(chunk)
-            config.LOGGER.info("\n\tGot file diff for {0} out of {1} files".format(file_count, total_count))
+            config.LOGGER.info("\tGot file diff for {0} out of {1} files".format(file_count, total_count))
 
         return file_diff_result
 
