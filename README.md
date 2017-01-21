@@ -79,40 +79,81 @@ A sample program has been created [here](https://github.com/learningequality/ric
 
 * **Adding Files**
 
-	For example:
+	To add a file to your node, you must start by creating a file model from `ricecooker.classes.files`.
+	If you don't know which file model to use, you can use the function `guess_file_type` from
+	`ricecooker.classes.files`, which accepts a kind and a path, web video url, youtube id, or encoding
+	and returns the appropriate file type. For example:
+
 	```
-	node = Exercise(
-		exercise_data={'mastery_model': exercises.M_OF_N, 'randomize': True, 'm': 3, 'n': 5},
-		...
-	)
-	```
+    	>> guess_file_type(filepath="http://path/to/some/file.mp4")
+    	'video'
+    	>> guess_file_type(web_url="<youtube_id>")
+    	'video'
+    	>> guess_file_type(youtube_id=["Question?"])
+    	'exercise'
+    	>> guess_file_type(encoding=["Question?"])
+    	'exercise'
+    	>> guess_file_type()
+    	'AssertionError: Cannot guess file type: must include a filepath, web_url, youtube_id, or encoding'
+    ```
+
+   	Here are the available file models:
 
 	To add a question to your exercise, you must first create a question model from `ricecooker.classes.questions`.
 	Your program is responsible for determining which question type to create. Here are the available question types:
 
-	AUDIO_FILE = 0
-    THUMBNAIL = 1
-    DOCUMENT_FILE = 2
-    VIDEO_FILE = 3
-    YOUTUBE_VIDEO_FILE = 4
-    WEB_VIDEO_FILE = 5
-    VECTORIZED_VIDEO_FILE = 6
-    VIDEO_THUMBNAIL = 7
-    YOUTUBE_VIDEO_THUMBNAIL_FILE = 8
-    HTML_ZIP_FILE = 9
-    SUBTITLE_FILE = 10
-    TILED_THUMBNAIL_FILE = 11
-    UNIVERSAL_SUBS_SUBTITLE_FILE = 12
-    BASE64_FILE = 13
 
-	To set the correct answer(s) for input questions, you must provide an array of all of the accepted answers (`answers [str]`).
-	For multiple selection questions, you must provide a list of all of the possible choices as well as an array of the correct
-	answers (`all_answers [str]`) and `correct_answers [str]` respectively). For single selection questions, you must provide
-	a list of all possible choices as well as the correct answer (`all_answers [str]` and `correct_answer str` respectively).
 
-	To add images to a question's question, answers, or hints, format the image path with `'![](<path/to/some/file.png>)'`
+class File(object):
+    def __init__(self, preset=None, language=None):
 
-	Once you have created the appropriate question model, add it to an exercise model with `<exercise-node>.add_question(<question>)`
+class DownloadFile(File):
+    def __init__(self, path, **kwargs):
+        self.path = path
+        super(DownloadFile, self).__init__(**kwargs)
+
+class ThumbnailFile(DownloadFile):
+
+class AudioFile(DownloadFile):
+
+class DocumentFile(DownloadFile):
+
+class HTMLZipFile(DownloadFile):
+
+class ExtractedVideoThumbnailFile(DownloadFile):
+
+class VideoFile(DownloadFile):
+    def __init__(self, path, ffmpeg_settings=None, **kwargs):
+        self.ffmpeg_settings = ffmpeg_settings
+    def process_file(self):
+            if self.filename and (self.ffmpeg_settings or config.COMPRESS):
+                self.filename = compress(self.filename, self.ffmpeg_settings)
+
+class SubtitleFile(DownloadFile):
+    def __init__(self, path, language, **kwargs):
+
+class WebVideoFile(File):
+    def __init__(self, web_url, download_settings=None, high_resolution=True, **kwargs):
+
+class YouTubeVideoFile(WebVideoFile):
+    def __init__(self, youtube_id, **kwargs):
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 * **Adding Exercises**
