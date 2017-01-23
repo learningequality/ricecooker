@@ -145,10 +145,6 @@ class ChannelNode(Node):
             channel_thumbnail = ThumbnailFile(path=thumbnail)
             self.add_file(channel_thumbnail)
 
-        # Add data to be used in next steps
-        self.domain_ns = uuid.uuid5(uuid.NAMESPACE_DNS, self.source_domain)
-        self.id = uuid.uuid5(self.domain_ns, channel_id)
-
         super(ChannelNode, self).__init__()
 
     def get_domain_namespace(self):

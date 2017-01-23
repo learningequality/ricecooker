@@ -254,7 +254,7 @@ SAMPLE_TREE = [
 
 def construct_channel(**kwargs):
 
-    channel = ChannelNode(
+    channel = nodes.ChannelNode(
         source_domain="learningequality.org",
         source_id="testing-ricecooker-channel",
         title="Testing Ricecooker Channel",
@@ -290,7 +290,7 @@ def _build_tree(node, sourcetree):
             _build_tree(child_node, source_tree_children)
 
         elif kind == content_kinds.VIDEO:
-            child_node = Video(
+            child_node = nodes.VideoNode(
                 source_id=child_source_node["id"],
                 title=child_source_node["title"],
                 author=child_source_node.get("author"),
@@ -307,7 +307,7 @@ def _build_tree(node, sourcetree):
             node.add_child(child_node)
 
         elif kind == content_kinds.AUDIO:
-            child_node = Audio(
+            child_node = nodes.AudioNode(
                 source_id=child_source_node["id"],
                 title=child_source_node["title"],
                 author=child_source_node.get("author"),
@@ -318,7 +318,7 @@ def _build_tree(node, sourcetree):
             node.add_child(child_node)
 
         elif kind == content_kinds.DOCUMENT:
-            child_node = Document(
+            child_node = nodes.DocumentNode(
                 source_id=child_source_node["id"],
                 title=child_source_node["title"],
                 author=child_source_node.get("author"),
@@ -329,7 +329,7 @@ def _build_tree(node, sourcetree):
             node.add_child(child_node)
 
         elif kind == content_kinds.EXERCISE:
-            child_node = Exercise(
+            child_node = nodes.ExerciseNode(
                 source_id=child_source_node["id"],
                 title=child_source_node["title"],
                 author=child_source_node.get("author"),
@@ -344,7 +344,7 @@ def _build_tree(node, sourcetree):
             node.add_child(child_node)
 
         elif kind == content_kinds.HTML5:
-            child_node = HTML5App(
+            child_node = nodes.HTML5AppNode(
                 source_id=child_source_node["id"],
                 title=child_source_node["title"],
                 author=child_source_node.get("author"),
