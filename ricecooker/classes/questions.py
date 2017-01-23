@@ -156,7 +156,7 @@ class BaseQuestion:
             result = config.DOWNLOADER.download_file(text, title, preset=format_presets.EXERCISE_IMAGE, default_ext=file_formats.PNG)
             replacement = result['filename'] if result else ""
         text = text.replace(text, exercises.CONTENT_STORAGE_FORMAT.format(replacement))
-        return text, [result]
+        return text, [result] if result else []
 
     def validate(self):
         """ validate: Makes sure question is valid
