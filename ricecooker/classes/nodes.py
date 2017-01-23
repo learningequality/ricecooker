@@ -37,6 +37,8 @@ class Node(object):
         self.children = []
         self.files = []
         self.parent = None
+        self.node_id = None
+        self.content_id = None
 
     def __str__(self):
         pass
@@ -221,16 +223,20 @@ class ContentNode(Node):
         return "{title} ({kind}): {metadata}".format(title=self.title, kind=self.__class__.__name__, metadata=metadata)
 
     def get_domain_namespace(self):
-        if self.domain_ns:
-            return self.domain_ns
-        return self.parent.get_domain_namespace()
+        if not self.domain_ns:
+            self.domain_ns = self.parent.get_domain_namespace()
+        return self.domain_ns
 
     def get_content_id(self):
-        return uuid.uuid5(self.get_domain_namespace(), self.source_id)
+        if not self.content_id:
+            self.content_id = uuid.uuid5(self.get_domain_namespace(), self.source_id)
+        return self.content_id
 
     def get_node_id(self):
         assert self.parent, "Parent not found: node id must be calculated based on parent"
-        return uuid.uuid5(self.parent.get_node_id(), self.get_content_id().hex)
+        if not self.node_id:
+            self.node_id = uuid.uuid5(self.parent.get_node_id(), self.get_content_id().hex)
+        return self.node_id
 
     def to_dict(self):
         """ to_dict: puts data in format CC expects
