@@ -129,7 +129,7 @@ def write_and_get_hash(path, write_to_file, hash=None):
     hash = hash or hashlib.md5()
     try:
         # Access path
-        r = config.SESSION.get(path, stream=True)
+        r = config.DOWNLOAD_SESSION.get(path, stream=True)
         r.raise_for_status()
         for chunk in r:
             write_to_file.write(chunk)

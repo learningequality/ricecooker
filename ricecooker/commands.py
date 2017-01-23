@@ -7,7 +7,6 @@ import webbrowser
 from . import config
 from .classes import nodes, questions
 from requests.exceptions import HTTPError
-from requests_file import FileAdapter
 from .managers.downloader import DownloadManager
 from .managers.progress import RestoreManager, Status
 from .managers.tree import ChannelManager
@@ -45,7 +44,6 @@ def uploadchannel(path, verbose=False, update=False, resume=False, reset=False, 
     config.LOGGER.setLevel(level)
 
     # Mount file:// to allow local path requests
-    config.SESSION.mount('file://', FileAdapter())
     config.SESSION.headers.update({"Authorization": "Token {0}".format(token)})
     config.UPDATE = update
     config.COMPRESS = compress
