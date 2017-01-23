@@ -41,6 +41,8 @@ class Node(object):
     def __init__(self):
         self.children = []
         self.parent = None
+        self.node_id = None
+        self.content_id = None
 
     def __str__(self):
         pass
@@ -305,7 +307,7 @@ class Video(ContentNode):
     """
     default_preset = format_presets.VIDEO_HIGH_RES
     thumbnail_preset = format_presets.VIDEO_THUMBNAIL
-    def __init__(self, source_id, title, preset=None, transcode_to_lower_resolutions=False, derive_thumbnail=False, **kwargs):
+    def __init__(self, source_id, title, preset=None, derive_thumbnail=False, **kwargs):
         self.kind = content_kinds.VIDEO
         self.derive_thumbnail = derive_thumbnail
 
@@ -313,29 +315,11 @@ class Video(ContentNode):
         if preset is not None:
             self.default_preset = preset
 
-        # Transcode video to lower resoution
-        if transcode_to_lower_resolutions:
-            self.transcode_to_lower_resolutions()
-
         super(Video, self).__init__(source_id, title, **kwargs)
 
     def __str__(self):
         metadata = "{0} {1}".format(len(self.files), "file" if len(self.files) == 1 else "files")
         return "{title} ({kind}): {metadata}".format(title=self.title, kind=self.__class__.__name__, metadata=metadata)
-
-    def derive_thumbnail(self):
-        """ derive_thumbnail: derive video's thumbnail
-            Args: None
-            Returns: None
-        """
-        pass
-
-    def transcode_to_lower_resolutions(self):
-        """ transcode_to_lower_resolutions: transcode video to lower resolution
-            Args: None
-            Returns: None
-        """
-        pass
 
     def validate(self):
         """ validate: Makes sure video is valid
@@ -467,10 +451,9 @@ class Exercise(ContentNode):
     """
     default_preset = format_presets.EXERCISE
     thumbnail_preset = format_presets.EXERCISE_THUMBNAIL
-    def __init__(self, source_id, title, files=None, exercise_data=None, **kwargs):
+    def __init__(self, source_id, title, exercise_data=None, **kwargs):
         self.kind = content_kinds.EXERCISE
         self.questions = []
-        files = [] if files is None else files
 
         # Set mastery model defaults if none provided
         exercise_data = {} if exercise_data is None else exercise_data
@@ -479,7 +462,7 @@ class Exercise(ContentNode):
             'randomize': exercise_data.get('randomize') or True,
         })
 
-        super(Exercise, self).__init__(source_id, title, questions=self.questions, files=files, extra_fields=exercise_data, **kwargs)
+        super(Exercise, self).__init__(source_id, title, questions=self.questions, extra_fields=exercise_data, **kwargs)
 
     def __str__(self):
         metadata = "{0} {1}".format(len(self.questions), "question" if len(self.questions) == 1 else "questions")
