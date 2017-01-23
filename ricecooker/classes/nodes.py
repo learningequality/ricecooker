@@ -25,7 +25,7 @@ def guess_content_kind(path=None, web_video_data=None, questions=None):
         if ext in content_kinds.MAPPING:
             return content_kinds.MAPPING[ext]
         raise InvalidFormatException("Invalid file type: Allowed formats are {0}".format([key for key, value in content_kinds.MAPPING.items()]))
-    elif online_data:
+    elif web_video_data:
         return content_kinds.VIDEO
     else:
         return content_kinds.TOPIC
