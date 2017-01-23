@@ -6,6 +6,7 @@ import logging
 import hashlib
 import requests
 import logging
+from requests_file import FileAdapter
 
 UPDATE = False
 COMPRESS = False
@@ -47,8 +48,12 @@ STORAGE_DIRECTORY = "storage"
 # Folder to store progress tracking information
 RESTORE_DIRECTORY = "restore"
 
-# Session for downloading files
+# Session for communicating to Kolibri Studio
 SESSION = requests.Session()
+
+# Session for downloading files
+DOWNLOAD_SESSION = requests.Session()
+DOWNLOAD_SESSION.mount('file://', FileAdapter())
 
 FAILED_FILES = []
 
