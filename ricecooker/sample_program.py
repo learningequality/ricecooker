@@ -1,6 +1,6 @@
 from ricecooker.classes import nodes, questions, files
 from ricecooker.exceptions import UnknownContentKindError, UnknownFileTypeError, UnknownQuestionTypeError, raise_for_invalid_channel
-from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
+from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises, languages
 
 SAMPLE_PERSEUS = '{"answerArea":{"chi2Table":false,"periodicTable":false,"tTable":false,"zTable":false,"calculator":false},' + \
 '"hints":[{"widgets":{},"images":{"web+graphie:C:/users/jordan/contentcuration-dump/0a0c0f1a1a40226d8d227a07dd143f8c08a4b8a5": {}},"content":"Hint #1","replace":false},{"widgets":{},"images":{},"content":"Hint #2","replace":false}],' +\
@@ -21,10 +21,15 @@ SAMPLE_TREE = [
                 "path": "C:/users/jordan/contentcuration-dump/high resolution.mp4",
                 "ffmpeg_settings": {"max_width": 480, "crf": 20},
             },
-            # {
-            #     "path": "C:/users/jordan/Videos/testfolder/captions.vtt",
-            #     "language": "1",
-            # }
+            {
+                "path": "C:/users/jordan/Videos/testfolder/captions.vtt",
+                "language": languages.getlang('en').code,
+            }
+            ,
+            {
+                "path": "C:/users/jordan/Videos/testfolder/captions.vtt",
+                "language": languages.getlang('es').code,
+            }
         ],
     },
     {
@@ -211,7 +216,7 @@ SAMPLE_TREE = [
 
 def construct_channel(**kwargs):
 
-    channel = ChannelNode(
+    channel = nodes.ChannelNode(
         source_domain="learningequality.org",
         source_id="testing-ricecooker-channel",
         title="Testing Ricecooker Channel",
@@ -247,7 +252,7 @@ def _build_tree(node, sourcetree):
             _build_tree(child_node, source_tree_children)
 
         elif kind == content_kinds.VIDEO:
-            child_node = Video(
+            child_node = nodes.VideoNode(
                 source_id=child_source_node["id"],
                 title=child_source_node["title"],
                 author=child_source_node.get("author"),
@@ -259,7 +264,7 @@ def _build_tree(node, sourcetree):
             node.add_child(child_node)
 
         elif kind == content_kinds.AUDIO:
-            child_node = Audio(
+            child_node = nodes.AudioNode(
                 source_id=child_source_node["id"],
                 title=child_source_node["title"],
                 author=child_source_node.get("author"),
@@ -270,7 +275,7 @@ def _build_tree(node, sourcetree):
             node.add_child(child_node)
 
         elif kind == content_kinds.DOCUMENT:
-            child_node = Document(
+            child_node = nodes.DocumentNode(
                 source_id=child_source_node["id"],
                 title=child_source_node["title"],
                 author=child_source_node.get("author"),
@@ -281,7 +286,7 @@ def _build_tree(node, sourcetree):
             node.add_child(child_node)
 
         elif kind == content_kinds.EXERCISE:
-            child_node = Exercise(
+            child_node = nodes.ExerciseNode(
                 source_id=child_source_node["id"],
                 title=child_source_node["title"],
                 author=child_source_node.get("author"),
@@ -296,7 +301,7 @@ def _build_tree(node, sourcetree):
             node.add_child(child_node)
 
         elif kind == content_kinds.HTML5:
-            child_node = HTML5App(
+            child_node = nodes.HTML5AppNode(
                 source_id=child_source_node["id"],
                 title=child_source_node["title"],
                 author=child_source_node.get("author"),
