@@ -27,7 +27,7 @@ SAMPLE_TREE = [
             }
             ,
             {
-                "path": "C:/users/jordan/Videos/testfolder/captions.vtt",
+                "path": "file:///C:/users/jordan/Videos/testfolder/captions.vtt",
                 "language": languages.getlang('es').code,
             }
         ],

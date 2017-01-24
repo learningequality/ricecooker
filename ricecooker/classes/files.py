@@ -4,8 +4,12 @@ import os
 import hashlib
 import tempfile
 import shutil
+import requests
 from subprocess import CalledProcessError
 from enum import Enum
+from cachecontrol import CacheControl
+from cachecontrol.caches.file_cache import FileCache
+from requests_file import FileAdapter
 from le_utils.constants import content_kinds,file_formats, format_presets, exercises
 from .. import config
 from .nodes import ChannelNode, TopicNode, VideoNode, AudioNode, DocumentNode, ExerciseNode, HTML5AppNode
@@ -13,6 +17,15 @@ from ..exceptions import UnknownFileTypeError
 from pressurecooker.videos import extract_thumbnail_from_video, check_video_resolution, compress_video
 from pressurecooker.encodings import get_base64_encoding, write_base64_to_file
 from requests.exceptions import MissingSchema, HTTPError, ConnectionError, InvalidURL, InvalidSchema
+
+# Session for downloading files
+session = requests.Session()
+DOWNLOAD_SESSION = CacheControl(session)
+DOWNLOAD_SESSION.mount('file://', FileAdapter())
+
+# Cache for filenames
+FILECACHE = FileCache(config.FILECACHE_DIRECTORY, forever=True)
+
 
 class FileTypes(Enum):
     """ Enum containing all file types Ricecooker can have
@@ -70,9 +83,7 @@ FILE_TYPE_MAPPING = {
     },
 }
 
-# from cachecontrol.caches.file_cache import FileCache
 
-# CACHE = FileCache(".filecache")
 
 def guess_file_type(filepath, kind):
     """ guess_file_class: determines what file the content is
@@ -93,8 +104,8 @@ def download(path, default_ext=None):
         Returns: filename
     """
     key = "DOWNLOAD:{}".format(path)
-    if config.DOWNLOADER.get(key):
-        return config.DOWNLOADER.get(key)
+    if FILECACHE.get(key):
+        return FILECACHE.get(key).decode('utf-8')
 
     config.LOGGER.info("\tDownloading {}".format(path))
 
@@ -117,7 +128,7 @@ def download(path, default_ext=None):
         with open(config.get_storage_path(filename), 'wb') as destf:
             shutil.copyfileobj(tempf, destf)
 
-        config.DOWNLOADER.set(key, filename)
+        FILECACHE.set(key, bytes(filename, "utf-8"))
 
         return filename
 
@@ -129,7 +140,7 @@ def write_and_get_hash(path, write_to_file, hash=None):
     hash = hash or hashlib.md5()
     try:
         # Access path
-        r = config.DOWNLOAD_SESSION.get(path, stream=True)
+        r = DOWNLOAD_SESSION.get(path, stream=True)
         r.raise_for_status()
         for chunk in r:
             write_to_file.write(chunk)
@@ -158,10 +169,10 @@ def compress(filename, ffmpeg_settings):
     setting_list = ffmpeg_settings if ffmpeg_settings else {}
     setting_pairs = sorted(["{}:{}".format(k, v) for k, v in setting_list.items()])
     settings = " ({})".format(":".join(setting_pairs)) if ffmpeg_settings else " (default compression)"
-    key = "{0}{1}".format(filename, settings)
+    key = "COMPRESSED: {0}{1}".format(filename, settings)
 
-    if config.DOWNLOADER.get(key):
-        return config.DOWNLOADER.get(key)
+    if FILECACHE.get(key):
+        return FILECACHE.get(key).decode('utf-8')
 
     config.LOGGER.info("\t--- Compressing {}".format(filename))
 
@@ -174,7 +185,7 @@ def compress(filename, ffmpeg_settings):
         with open(tempf.name, 'rb') as srcf, open(config.get_storage_path(filename), 'wb') as destf:
             shutil.copyfileobj(srcf, destf)
 
-        config.DOWNLOADER.set(key, filename)
+        FILECACHE.set(key, bytes(filename, "utf-8"))
         return filename
 
 
@@ -301,9 +312,9 @@ class ExtractedVideoThumbnailFile(DownloadFile):
         return self.filename
 
     def derive_thumbnail(self):
-        key = "{} (extracted thumbnail)".format(self.path)
-        if config.DOWNLOADER.get(key):
-            return config.DOWNLOADER.get(key)
+        key = "EXTRACTED: {} (extracted thumbnail)".format(self.path)
+        if FILECACHE.get(key):
+            return FILECACHE.get(key).decode('utf-8')
 
         config.LOGGER.info("\t--- Extracting thumbnail from {}".format(self.path))
         with tempfile.NamedTemporaryFile(suffix=".{}".format(file_formats.PNG)) as tempf:
@@ -315,7 +326,7 @@ class ExtractedVideoThumbnailFile(DownloadFile):
             with open(tempf.name, 'rb') as srcf, open(config.get_storage_path(filename), 'wb') as destf:
                 shutil.copyfileobj(srcf, destf)
 
-            config.DOWNLOADER.set(key, filename)
+            FILECACHE.set(key, bytes(filename, "utf-8"))
             return filename
 
 
@@ -402,10 +413,10 @@ class Base64ImageFile(File):
         # Get hash of content for cache key
         hashed_content = hashlib.md5()
         hashed_content.update(self.encoding.encode('utf-8'))
-        key = hashed_content.hexdigest() + " (base64 encoded)"
+        key = "ENCODED: {} (base64 encoded)".format(hashed_content.hexdigest())
 
-        if config.DOWNLOADER.get(key):
-            return config.DOWNLOADER.get(key)
+        if FILECACHE.get(key):
+            return FILECACHE.get(key).decode('utf-8')
 
         config.LOGGER.info("\tConverting base64 to file")
 
@@ -417,7 +428,7 @@ class Base64ImageFile(File):
             # Write file to local storage
             with open(tempf.name, 'rb') as srcf, open(config.get_storage_path(filename), 'wb') as destf:
                 shutil.copyfileobj(srcf, destf)
-            config.DOWNLOADER.set(key, filename)
+            FILECACHE.set(key, bytes(filename, "utf-8"))
             return filename
 
 
@@ -458,10 +469,10 @@ class ExerciseGraphieFile(DownloadFile):
             config.FAILED_FILES.append(self)
 
     def generate_graphie_file(self):
-        key = "GRAPHIE:{}".format(self.path)
+        key = "GRAPHIE: {}".format(self.path)
 
-        if config.DOWNLOADER.get(key):
-            return config.DOWNLOADER.get(key)
+        if FILECACHE.get(key):
+            return FILECACHE.get(key).decode('utf-8')
 
         # Create graphie file combining svg and json files
         with tempfile.TemporaryFile() as tempf:
@@ -481,7 +492,7 @@ class ExerciseGraphieFile(DownloadFile):
             with open(config.get_storage_path(filename), 'wb') as destf:
                 shutil.copyfileobj(tempf, destf)
 
-            config.DOWNLOADER.set(key, filename)
+            FILECACHE.set(key, bytes(filename, "utf-8"))
             return filename
 
 
