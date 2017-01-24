@@ -1,6 +1,6 @@
 from ricecooker.classes import nodes, questions, files
 from ricecooker.exceptions import UnknownContentKindError, UnknownFileTypeError, UnknownQuestionTypeError, raise_for_invalid_channel
-from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
+from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises, languages
 
 SAMPLE_PERSEUS = '{"answerArea":{"chi2Table":false,"periodicTable":false,"tTable":false,"zTable":false,"calculator":false},' + \
 '"hints":[{"widgets":{},"images":{"web+graphie:C:/users/jordan/contentcuration-dump/0a0c0f1a1a40226d8d227a07dd143f8c08a4b8a5": {}},"content":"Hint #1","replace":false},{"widgets":{},"images":{},"content":"Hint #2","replace":false}],' +\
@@ -21,10 +21,15 @@ SAMPLE_TREE = [
                 "path": "C:/users/jordan/contentcuration-dump/high resolution.mp4",
                 "ffmpeg_settings": {"max_width": 480, "crf": 20},
             },
-            # {
-            #     "path": "C:/users/jordan/Videos/testfolder/captions.vtt",
-            #     "language": "1",
-            # }
+            {
+                "path": "C:/users/jordan/Videos/testfolder/captions.vtt",
+                "language": languages.getlang('en').code,
+            }
+            ,
+            {
+                "path": "C:/users/jordan/Videos/testfolder/captions.vtt",
+                "language": languages.getlang('es').code,
+            }
         ],
     },
     {
