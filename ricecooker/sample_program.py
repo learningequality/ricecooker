@@ -16,7 +16,7 @@ SAMPLE_TREE = [
         "id": "6cafe7",
         "author": "Revision 3",
         "description": "Become a master rice cooker",
-        "file": "https://cdn.kastatic.org/KA-youtube/3ed_Ey_DotQ.mp4/3ed_Ey_DotQ.mp4",
+        "file": "https://cdn.kastatic.org/KA-youtube-converted/3ed_Ey_DotQ.mp4/3ed_Ey_DotQ.mp4",
         "license": licenses.CC_BY_NC_SA,
         "thumbnail": "https://upload.wikimedia.org/wikipedia/commons/b/ba/Rice_grains_(IRRI).jpg",
     },
