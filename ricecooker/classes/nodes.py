@@ -6,7 +6,6 @@ import zipfile
 import sys
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
 from ..exceptions import InvalidNodeException, InvalidFormatException
-from ..managers.downloader import DownloadManager
 from .. import config
 
 def guess_content_kind(files, questions=None):

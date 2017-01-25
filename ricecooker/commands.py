@@ -7,7 +7,6 @@ import webbrowser
 from . import config
 from .classes import nodes, questions
 from requests.exceptions import HTTPError
-from .managers.downloader import DownloadManager
 from .managers.progress import RestoreManager, Status
 from .managers.tree import ChannelManager
 from importlib.machinery import SourceFileLoader
@@ -47,10 +46,6 @@ def uploadchannel(path, verbose=False, update=False, resume=False, reset=False, 
     config.SESSION.headers.update({"Authorization": "Token {0}".format(token)})
     config.UPDATE = update
     config.COMPRESS = compress
-
-    # Get domain to upload to
-    config.init_file_mapping_store()
-    config.DOWNLOADER = DownloadManager(config.get_file_store())
 
     # Authenticate user
     if token != "#":
