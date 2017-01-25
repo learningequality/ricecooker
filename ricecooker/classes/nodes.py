@@ -37,12 +37,18 @@ def guess_content_kind(files, questions=None):
 
 class Node(object):
     """ Node: model to represent all nodes in the tree """
-    def __init__(self):
+    def __init__(self, title, description=None, thumbnail=None):
         self.children = []
         self.files = []
         self.parent = None
         self.node_id = None
         self.content_id = None
+
+        if thumbnail and isinstance(thumbnail, str):
+            from .files import ThumbnailFile
+            node_thumbnail = ThumbnailFile(path=thumbnail)
+            self.add_file(node_thumbnail)
+
 
     def __str__(self):
         pass
@@ -115,11 +121,14 @@ class Node(object):
             Args: None
             Returns: boolean indicating if node is valid
         """
+        from .files import File
+
         assert self.source_id is not None, "Assumption Failed: Node must have an id"
         assert isinstance(self.title, str), "Assumption Failed: Node title is not a string"
         assert isinstance(self.description, str) or self.description is None, "Assumption Failed: Node description is not a string"
         assert isinstance(self.children, list), "Assumption Failed: Node children is not a list"
         for f in self.files:
+            assert isinstance(f, File), "Assumption Failed: files must be file class"
             f.validate()
         return True
 
@@ -136,22 +145,15 @@ class ChannelNode(Node):
             description (str): description of the channel (optional)
             thumbnail (str): file path or url of channel's thumbnail (optional)
     """
-    thumbnail_preset = format_presets.CHANNEL_THUMBNAIL
     kind = "Channel"
-    def __init__(self, source_id, source_domain, title, description=None, thumbnail=None):
+    def __init__(self, source_id, source_domain, *args, **kwargs):
         # Map parameters to model variables
         self.source_domain = source_domain
         self.source_id = source_id
         self.title = title
         self.description = description or ""
-        self.files = []
 
-        if thumbnail and isinstance(thumbnail, str):
-            from .files import ThumbnailFile
-            channel_thumbnail = ThumbnailFile(path=thumbnail)
-            self.add_file(channel_thumbnail)
-
-        super(ChannelNode, self).__init__()
+        super(ChannelNode, self).__init__(*args, **kwargs)
 
     def get_domain_namespace(self):
         return uuid.uuid5(uuid.NAMESPACE_DNS, self.source_domain)
@@ -204,7 +206,7 @@ class ContentNode(Node):
             license (str): content's license based on le_utils.constants.licenses (optional)
             thumbnail (str): local path or url to thumbnail image (optional)
     """
-    def __init__(self, source_id, title, description="", author="", thumbnail=None, license=None, questions=None, extra_fields=None, domain_ns=None):
+    def __init__(self, source_id, title, author="", license=None, questions=None, extra_fields=None, domain_ns=None, **kwargs):
         # Map parameters to model variables
         assert isinstance(source_id, str), "source_id must be a string"
         self.source_id = source_id
@@ -219,7 +221,7 @@ class ContentNode(Node):
         # Set any possible exercise data to standard format
         self.questions = questions or []
         self.extra_fields = extra_fields or {}
-        super(ContentNode, self).__init__()
+        super(ContentNode, self).__init__(title, **kwargs)
 
     def __str__(self):
         count = self.count()

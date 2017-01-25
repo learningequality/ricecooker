@@ -7,7 +7,6 @@ import shutil
 import requests
 from subprocess import CalledProcessError
 from enum import Enum
-from cachecontrol import CacheControl
 from cachecontrol.caches.file_cache import FileCache
 from requests_file import FileAdapter
 from le_utils.constants import content_kinds,file_formats, format_presets, exercises
@@ -19,8 +18,7 @@ from pressurecooker.encodings import get_base64_encoding, write_base64_to_file
 from requests.exceptions import MissingSchema, HTTPError, ConnectionError, InvalidURL, InvalidSchema
 
 # Session for downloading files
-session = requests.Session()
-DOWNLOAD_SESSION = CacheControl(session)
+DOWNLOAD_SESSION = requests.Session()
 DOWNLOAD_SESSION.mount('file://', FileAdapter())
 
 # Cache for filenames
@@ -196,11 +194,13 @@ class File(object):
     error = None
     default_ext = None
     filename = None
+    language = None
     assessment_item = None
 
-    def __init__(self, preset=None, language=None):
+    def __init__(self, preset=None, language=None, default_ext=None):
         self.preset = preset
         self.language = language
+        self.default_ext = default_ext or self.default_ext
 
     def validate(self):
         pass
@@ -254,7 +254,6 @@ class DownloadFile(File):
 
 class ThumbnailFile(DownloadFile):
     default_ext = file_formats.PNG
-    language = None
 
     def validate(self):
         assert self.path.endswith(file_formats.JPG) or\
@@ -301,10 +300,7 @@ class HTMLZipFile(DownloadFile):
     def validate(self):
         assert self.path.endswith(file_formats.HTML5), "HTML files must be in zip format"
 
-class ExtractedVideoThumbnailFile(DownloadFile):
-
-    def get_preset(self):
-        return self.preset or format_presets.VIDEO_THUMBNAIL
+class ExtractedVideoThumbnailFile(ThumbnailFile):
 
     def process_file(self):
         self.filename = self.derive_thumbnail()
@@ -312,7 +308,7 @@ class ExtractedVideoThumbnailFile(DownloadFile):
         return self.filename
 
     def derive_thumbnail(self):
-        key = "EXTRACTED: {} (extracted thumbnail)".format(self.path)
+        key = "EXTRACTED: {}".format(self.path)
         if FILECACHE.get(key):
             return FILECACHE.get(key).decode('utf-8')
 
@@ -358,9 +354,9 @@ class VideoFile(DownloadFile):
 
 
 class SubtitleFile(DownloadFile):
-    def __init__(self, path, language, **kwargs):
-        assert language, "Subtitles must have a language"
-        super(SubtitleFile, self).__init__(path, language=language, **kwargs)
+    def __init__(self, path, **kwargs):
+        super(SubtitleFile, self).__init__(path, **kwargs)
+        assert self.language, "Subtitles must have a language"
 
     def get_preset(self):
         return self.preset or format_presets.VIDEO_SUBTITLE
@@ -369,7 +365,7 @@ class SubtitleFile(DownloadFile):
         assert self.path.endswith(file_formats.VTT), "Subtitle files must be in vtt format"
 
 
-class ExerciseImageFile(DownloadFile):
+class _ExerciseImageFile(DownloadFile):
     default_ext = file_formats.PNG
 
     def get_replacement_str(self):
@@ -432,7 +428,7 @@ class Base64ImageFile(File):
             return filename
 
 
-class ExerciseBase64ImageFile(Base64ImageFile):
+class _ExerciseBase64ImageFile(Base64ImageFile):
     default_ext = file_formats.PNG
 
     def get_preset(self):
@@ -441,7 +437,7 @@ class ExerciseBase64ImageFile(Base64ImageFile):
     def get_replacement_str(self):
         return self.get_filename() or self.encoding
 
-class ExerciseGraphieFile(DownloadFile):
+class _ExerciseGraphieFile(DownloadFile):
     default_ext = file_formats.GRAPHIE
 
     def __init__(self, path, **kwargs):
@@ -495,50 +491,6 @@ class ExerciseGraphieFile(DownloadFile):
             FILECACHE.set(key, bytes(filename, "utf-8"))
             return filename
 
-
-
-class YouTubeVideoFile(File):
-    def __init__(self, youtube_id, youtube_dl_settings=None, **kwargs):
-        self.youtube_id = youtube_id
-        self.youtube_dl_settings = youtube_dl_settings or {}
-        self.youtube_dl_settings['format'] = file_formats.MP4
-        super(YouTubeVideoFile, self).__init__(**kwargs)
-        # postprocessors, progress_hooks,
-
-    def get_preset(self):
-        return self.preset or check_video_resolution(config.get_storage_path(self.filename))
-
-    def process_file(self):
-        pass
-
-class YouTubeHighResolutionVideoFile(YouTubeVideoFile):
-    def __init__(self, youtube_id, youtube_dl_settings=None, **kwargs):
-        self.youtube_id = youtube_id
-        self.youtube_dl_settings = youtube_dl_settings or {}
-        self.youtube_dl_settings['format'] = "bestvideo[ext={}]" # file_formats.MP4
-        super(YouTubeHighResolutionVideoFile, self).__init__(**kwargs)
-        # postprocessors, progress_hooks, EMBEDDING
-
-    def get_preset(self):
-        return self.preset or check_video_resolution(config.get_storage_path(self.filename))
-
-    def process_file(self):
-        pass
-
-
-class YouTubeHighResolutionVideoFile(YouTubeVideoFile):
-    def __init__(self, youtube_id, youtube_dl_settings=None, **kwargs):
-        self.youtube_id = youtube_id
-        self.youtube_dl_settings = youtube_dl_settings or {}
-        self.youtube_dl_settings['format'] = "worstvideo" # file_formats.MP4
-        super(YouTubeHighResolutionVideoFile, self).__init__(**kwargs)
-        # postprocessors, progress_hooks,
-
-    def get_preset(self):
-        return self.preset or check_video_resolution(config.get_storage_path(self.filename))
-
-    def process_file(self):
-        pass
 
 # YouTubeVideoThumbnailFile
 
