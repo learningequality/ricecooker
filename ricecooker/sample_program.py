@@ -16,8 +16,9 @@ SAMPLE_TREE = [
         "id": "6cafe7",
         "author": "Revision 3",
         "description": "Become a master rice cooker",
-        "file": "C:/users/jordan/contentcuration-dump/high resolution.mp4",
+        "file": "https://cdn.kastatic.org/KA-youtube-converted/3ed_Ey_DotQ.mp4/3ed_Ey_DotQ.mp4",
         "license": licenses.CC_BY_NC_SA,
+        "thumbnail": "https://upload.wikimedia.org/wikipedia/commons/b/ba/Rice_grains_(IRRI).jpg",
     },
     {
         "title": "Rice 101",
@@ -201,16 +202,16 @@ def _build_tree(node, sourcetree):
                 title=child_source_node["title"],
                 author=child_source_node.get("author"),
                 description=child_source_node.get("description"),
-                files=child_source_node.get("file"),
+
                 license=child_source_node.get("license"),
 
                 # video-specific data
                 preset=format_presets.VIDEO_HIGH_RES,
-                transcode_to_lower_resolutions=True,
-                derive_thumbnail=True,
+                derive_thumbnail=False,
 
                 # audio and video shared data
                 thumbnail=child_source_node.get("thumbnail"),
+                files=child_source_node.get("file"),
             )
             node.add_child(child_node)
 

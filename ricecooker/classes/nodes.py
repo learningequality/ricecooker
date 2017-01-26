@@ -41,6 +41,8 @@ class Node(object):
     def __init__(self):
         self.children = []
         self.parent = None
+        self.node_id = None
+        self.content_id = None
 
     def __str__(self):
         pass
@@ -204,16 +206,20 @@ class ContentNode(Node):
         return "{title} ({kind}): {metadata}".format(title=self.title, kind=self.__class__.__name__, metadata=metadata)
 
     def get_domain_namespace(self):
-        if self.domain_ns:
-            return self.domain_ns
-        return self.parent.get_domain_namespace()
+        if not self.domain_ns:
+            self.domain_ns = self.parent.get_domain_namespace()
+        return self.domain_ns
 
     def get_content_id(self):
-        return uuid.uuid5(self.get_domain_namespace(), self.source_id)
+        if not self.content_id:
+            self.content_id = uuid.uuid5(self.get_domain_namespace(), self.source_id)
+        return self.content_id
 
     def get_node_id(self):
         assert self.parent, "Parent not found: node id must be calculated based on parent"
-        return uuid.uuid5(self.parent.get_node_id(), self.get_content_id().hex)
+        if not self.node_id:
+            self.node_id = uuid.uuid5(self.parent.get_node_id(), self.get_content_id().hex)
+        return self.node_id
 
     def to_dict(self):
         """ to_dict: puts data in format CC expects
@@ -301,7 +307,7 @@ class Video(ContentNode):
     """
     default_preset = format_presets.VIDEO_HIGH_RES
     thumbnail_preset = format_presets.VIDEO_THUMBNAIL
-    def __init__(self, source_id, title, files, preset=None, transcode_to_lower_resolutions=False, derive_thumbnail=False, **kwargs):
+    def __init__(self, source_id, title, preset=None, derive_thumbnail=False, **kwargs):
         self.kind = content_kinds.VIDEO
         self.derive_thumbnail = derive_thumbnail
 
@@ -309,29 +315,11 @@ class Video(ContentNode):
         if preset is not None:
             self.default_preset = preset
 
-        # Transcode video to lower resoution
-        if transcode_to_lower_resolutions:
-            self.transcode_to_lower_resolutions()
-
-        super(Video, self).__init__(source_id, title, files=files, **kwargs)
+        super(Video, self).__init__(source_id, title, **kwargs)
 
     def __str__(self):
         metadata = "{0} {1}".format(len(self.files), "file" if len(self.files) == 1 else "files")
         return "{title} ({kind}): {metadata}".format(title=self.title, kind=self.__class__.__name__, metadata=metadata)
-
-    def derive_thumbnail(self):
-        """ derive_thumbnail: derive video's thumbnail
-            Args: None
-            Returns: None
-        """
-        pass
-
-    def transcode_to_lower_resolutions(self):
-        """ transcode_to_lower_resolutions: transcode video to lower resolution
-            Args: None
-            Returns: None
-        """
-        pass
 
     def validate(self):
         """ validate: Makes sure video is valid
@@ -463,10 +451,9 @@ class Exercise(ContentNode):
     """
     default_preset = format_presets.EXERCISE
     thumbnail_preset = format_presets.EXERCISE_THUMBNAIL
-    def __init__(self, source_id, title, files, exercise_data=None, **kwargs):
+    def __init__(self, source_id, title, exercise_data=None, **kwargs):
         self.kind = content_kinds.EXERCISE
         self.questions = []
-        files = [] if files is None else files
 
         # Set mastery model defaults if none provided
         exercise_data = {} if exercise_data is None else exercise_data

@@ -45,10 +45,10 @@ class ChannelManager:
 
             # Get the thumbnail if provided or needs to be derived
             thumbnail = None
-            if node.thumbnail is not None:
+            if node.thumbnail:
                 thumbnail = config.DOWNLOADER.download_file(node.thumbnail, "Node {}".format(node.source_id), default_ext=file_formats.PNG, preset=node.thumbnail_preset)
             elif isinstance(node, nodes.Video) and node.derive_thumbnail:
-                thumbnail = config.DOWNLOADER.derive_thumbnail(config.get_storage_path(node.files[0]['filename']), "Node {}".format(node.source_id))
+                thumbnail = config.DOWNLOADER.derive_thumbnail(config.get_storage_path(node.files[0]['filename']), "Node {}".format(node.source_id), preset=node.thumbnail_preset)
 
             if thumbnail:
                 node.files.append(thumbnail)
@@ -107,7 +107,7 @@ class ChannelManager:
             response.raise_for_status()
             file_diff_result += json.loads(response._content.decode("utf-8"))
             file_count += len(chunk)
-            config.LOGGER.info("\n\tGot file diff for {0} out of {1} files".format(file_count, total_count))
+            config.LOGGER.info("\tGot file diff for {0} out of {1} files".format(file_count, total_count))
 
         return file_diff_result
 

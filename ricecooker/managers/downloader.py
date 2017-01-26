@@ -7,6 +7,7 @@ import shutil
 import os
 import sys
 import requests
+
 from enum import Enum
 from pressurecooker.videos import extract_thumbnail_from_video, check_video_resolution, compress_video
 from pressurecooker.encodings import get_base64_encoding, write_base64_to_file
@@ -14,6 +15,10 @@ from requests.exceptions import MissingSchema, HTTPError, ConnectionError, Inval
 from .. import config
 from ..exceptions import InvalidFormatException, FileNotFoundException
 from le_utils.constants import file_formats, exercises, format_presets
+
+from requests_file import FileAdapter
+DownloadSession = requests.Session()
+DownloadSession.mount('file://', FileAdapter())
 
 class DownloadManager:
     """ Manager for handling file downloading and storage
@@ -64,7 +69,7 @@ class DownloadManager:
         """
         config.LOGGER.warning("   WARNING: The following files could not be accessed:")
         for f in self.failed_files:
-            config.LOGGER.warning("\t{id}: {path}".format(id=f[1], path=f[0]))
+            config.LOGGER.warning("\t{id}: {path} {error}".format(id=f[1], path=f[0], error=f[2]))
 
     def download_graphie(self, path, title):
         """ download_graphie: download a web+graphie file
@@ -123,11 +128,8 @@ class DownloadManager:
                 return self._file_mapping[filename]
 
         # Catch errors related to reading file path and handle silently
-        except (HTTPError, ConnectionError, InvalidURL, InvalidSchema, IOError):
-            self.failed_files += [(path,title)]
-            return False;
-        except (HTTPError, ConnectionError, InvalidURL, UnicodeDecodeError, UnicodeError, InvalidSchema, IOError):
-            self.failed_files += [(path, title)]
+        except (HTTPError, ConnectionError, InvalidURL, UnicodeDecodeError, UnicodeError, InvalidSchema, IOError) as err:
+            self.failed_files += [(path, title, err)]
             return False
 
     def write_to_graphie_file(self, path, tempf, hash):
@@ -159,7 +161,7 @@ class DownloadManager:
         """
         hash_to_update = hashlib.md5()
         try:
-            r = config.SESSION.get(path, stream=True)
+            r = DownloadSession.get(path, stream=True)
             r.raise_for_status()
             for chunk in r:
                 hash_to_update.update(chunk)
@@ -241,7 +243,7 @@ class DownloadManager:
             with tempfile.TemporaryFile() as tempf:
                 try:
                     # Access path
-                    r = config.SESSION.get(path, stream=True)
+                    r = DownloadSession.get(path, stream=True)
                     r.raise_for_status()
 
                     # Write to file (generate hash if none provided)
@@ -271,9 +273,9 @@ class DownloadManager:
                 return self._file_mapping[filename]
 
         # Catch errors related to reading file path and handle silently
-        except (HTTPError, ConnectionError, InvalidURL, UnicodeDecodeError, UnicodeError, InvalidSchema, IOError):
-            self.failed_files += [(path,title)]
-            return False;
+        except (HTTPError, ConnectionError, InvalidURL, UnicodeDecodeError, UnicodeError, InvalidSchema, IOError) as err:
+            self.failed_files += [(path,title, err)]
+            return False
 
     def track_file(self, filename, file_size, preset, path=None, original_filename='[File]', extracted=False):
         """ track_file: record which file has been downloaded along with metadata
