@@ -37,17 +37,21 @@ def guess_content_kind(files, questions=None):
 
 class Node(object):
     """ Node: model to represent all nodes in the tree """
-    def __init__(self, title, description=None, thumbnail=None):
+    def __init__(self, title, description=None, thumbnail=None, license=None, copyright_holder=None):
         self.children = []
         self.files = []
         self.parent = None
         self.node_id = None
         self.content_id = None
+        self.title = title
+        self.description = description or ""
+        self.license = license
+        self.copyright_holder = copyright_holder
 
         if thumbnail and isinstance(thumbnail, str):
             from .files import ThumbnailFile
-            node_thumbnail = ThumbnailFile(path=thumbnail)
-            self.add_file(node_thumbnail)
+            self.thumbnail = ThumbnailFile(path=thumbnail)
+            self.add_file(self.thumbnail)
 
 
     def __str__(self):
@@ -150,8 +154,6 @@ class ChannelNode(Node):
         # Map parameters to model variables
         self.source_domain = source_domain
         self.source_id = source_id
-        self.title = title
-        self.description = description or ""
 
         super(ChannelNode, self).__init__(*args, **kwargs)
 
@@ -177,8 +179,10 @@ class ChannelNode(Node):
         return {
             "id": self.get_node_id().hex,
             "name": self.title,
-            "thumbnail": self.files[0].filename if len(self.files) > 0 else None,
-            "description": self.description if self.description is not None else "",
+            "thumbnail": self.thumbnail.filename if self.thumbnail else None,
+            "description": self.description or "",
+            "license": self.license,
+            "copyright_holder": self.copyright_holder or "",
         }
 
     def validate(self):
@@ -210,8 +214,6 @@ class ContentNode(Node):
         # Map parameters to model variables
         assert isinstance(source_id, str), "source_id must be a string"
         self.source_id = source_id
-        self.title = title
-        self.description = description or ""
         self.author = author or ""
         self.license = license
         self.domain_ns = domain_ns
@@ -258,6 +260,7 @@ class ContentNode(Node):
             "files" : [f.to_dict() for f in filter(lambda x: x and x.filename, self.files)], # Filter out failed downloads
             "kind": self.kind,
             "license": self.license,
+            "copyright_holder": self.copyright_holder or "",
             "questions": [question.to_dict() for question in self.questions],
             "extra_fields": json.dumps(self.extra_fields),
         }
@@ -385,7 +388,7 @@ class VideoNode(ContentNode):
 class AudioNode(ContentNode):
     """ Model representing audio content in channel
 
-        Audio can be in either mp3 or wav format
+        Audio must be in mp3 format
 
         Attributes:
             source_id (str): content's original id
@@ -418,8 +421,8 @@ class AudioNode(ContentNode):
             # Check if there are any .mp3 or .wav files
             files_valid = False
             for f in self.files:
-                files_valid = files_valid or file_formats.MP3  in f.path or file_formats.WAV  in f.path
-            assert files_valid, "Assumption Failed: Audio should have at least one .mp3 or .wav file"
+                files_valid = files_valid or file_formats.MP3  in f.path
+            assert files_valid, "Assumption Failed: Audio should have at least one .mp3 file"
 
             return super(AudioNode, self).validate()
         except AssertionError as ae:

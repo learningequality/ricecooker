@@ -6,7 +6,6 @@ import tempfile
 import shutil
 import requests
 from subprocess import CalledProcessError
-from enum import Enum
 from cachecontrol.caches.file_cache import FileCache
 from requests_file import FileAdapter
 from le_utils.constants import content_kinds,file_formats, format_presets, exercises
@@ -23,78 +22,6 @@ DOWNLOAD_SESSION.mount('file://', FileAdapter())
 
 # Cache for filenames
 FILECACHE = FileCache(config.FILECACHE_DIRECTORY, forever=True)
-
-
-class FileTypes(Enum):
-    """ Enum containing all file types Ricecooker can have
-
-        Steps:
-            AUDIO_FILE: mp3 files
-            THUMBNAIL: png, jpg, or jpeg files
-            DOCUMENT_FILE: pdf files
-    """
-    AUDIO_FILE = 0
-    THUMBNAIL = 1
-    DOCUMENT_FILE = 2
-    VIDEO_FILE = 3
-    YOUTUBE_VIDEO_FILE = 4
-    VECTORIZED_VIDEO_FILE = 5
-    VIDEO_THUMBNAIL = 6
-    YOUTUBE_VIDEO_THUMBNAIL_FILE = 7
-    HTML_ZIP_FILE = 8
-    SUBTITLE_FILE = 9
-    TILED_THUMBNAIL_FILE = 10
-    UNIVERSAL_SUBS_SUBTITLE_FILE = 11
-    BASE64_FILE = 12
-
-
-FILE_TYPE_MAPPING = {
-    content_kinds.AUDIO : {
-        file_formats.MP3 : FileTypes.AUDIO_FILE,
-        file_formats.PNG : FileTypes.THUMBNAIL,
-        file_formats.JPG : FileTypes.THUMBNAIL,
-        file_formats.JPEG : FileTypes.THUMBNAIL,
-    },
-    content_kinds.DOCUMENT : {
-        file_formats.PDF : FileTypes.DOCUMENT_FILE,
-        file_formats.PNG : FileTypes.THUMBNAIL,
-        file_formats.JPG : FileTypes.THUMBNAIL,
-        file_formats.JPEG : FileTypes.THUMBNAIL,
-    },
-    content_kinds.HTML5 : {
-        file_formats.HTML5 : FileTypes.HTML_ZIP_FILE,
-        file_formats.PNG : FileTypes.THUMBNAIL,
-        file_formats.JPG : FileTypes.THUMBNAIL,
-        file_formats.JPEG : FileTypes.THUMBNAIL,
-    },
-    content_kinds.VIDEO : {
-        file_formats.MP4 : FileTypes.VIDEO_FILE,
-        file_formats.VTT : FileTypes.SUBTITLE_FILE,
-        file_formats.PNG : FileTypes.THUMBNAIL,
-        file_formats.JPG : FileTypes.THUMBNAIL,
-        file_formats.JPEG : FileTypes.THUMBNAIL,
-    },
-    content_kinds.EXERCISE : {
-        file_formats.PNG : FileTypes.THUMBNAIL,
-        file_formats.JPG : FileTypes.THUMBNAIL,
-        file_formats.JPEG : FileTypes.THUMBNAIL,
-    },
-}
-
-
-
-def guess_file_type(filepath, kind):
-    """ guess_file_class: determines what file the content is
-        Args:
-            filepath (str): filepath of file to check
-        Returns: string indicating file's class
-    """
-    if get_base64_encoding(filepath):
-        return FileTypes.BASE64_FILE
-    ext = filepath.rsplit('/', 1)[-1].split(".")[-1].lower()
-    if kind in FILE_TYPE_MAPPING and ext in FILE_TYPE_MAPPING[kind]:
-        return FILE_TYPE_MAPPING[kind][ext]
-    return None
 
 def download(path, default_ext=None):
     """ download: downloads file
@@ -122,9 +49,7 @@ def download(path, default_ext=None):
 
         filename = '{0}.{ext}'.format(hash.hexdigest(), ext=extension)
 
-        # Write file to local storage
-        with open(config.get_storage_path(filename), 'wb') as destf:
-            shutil.copyfileobj(tempf, destf)
+        copy_file_to_storage(filename, tempf)
 
         FILECACHE.set(key, bytes(filename, "utf-8"))
 
@@ -147,7 +72,7 @@ def write_and_get_hash(path, write_to_file, hash=None):
     except (MissingSchema, InvalidSchema):
         # If path is a local file path, try to open the file (generate hash if none provided)
         with open(path, 'rb') as fobj:
-            for chunk in iter(lambda: fobj.read(4096), b""):
+            for chunk in iter(lambda: fobj.read(2097152), b""):
                 write_to_file.write(chunk)
                 hash.update(chunk)
 
@@ -155,20 +80,30 @@ def write_and_get_hash(path, write_to_file, hash=None):
 
     return hash
 
+def copy_file_to_storage(filename, srcfile, delete_original=False):
+    # Some files might have been closed, so only filepath will work
+    if isinstance(srcfile, str):
+        srcfile = open(srcfile, 'rb')
+
+    # Write file to local storage
+    with open(config.get_storage_path(filename), 'wb') as destf:
+        shutil.copyfileobj(srcfile, destf)
+
+    if delete_original:
+        os.remove(srcfile.name)
+
 def get_hash(filepath):
     hash = hashlib.md5()
     with open(filepath, 'rb') as fobj:
-        for chunk in iter(lambda: fobj.read(4096), b""):
+        for chunk in iter(lambda: fobj.read(2097152), b""):
             hash.update(chunk)
     return hash.hexdigest()
 
-def compress(filename, ffmpeg_settings):
+def compress_video_file(filename, ffmpeg_settings):
     # Generate key for compressed file
     setting_list = ffmpeg_settings if ffmpeg_settings else {}
-    setting_pairs = sorted(["{}:{}".format(k, v) for k, v in setting_list.items()])
-    settings = " ({})".format(":".join(setting_pairs)) if ffmpeg_settings else " (default compression)"
+    settings = " {}".format(str(sorted(setting_list.items()))) if ffmpeg_settings else " (default compression)"
     key = "COMPRESSED: {0}{1}".format(filename, settings)
-
     if FILECACHE.get(key):
         return FILECACHE.get(key).decode('utf-8')
 
@@ -177,11 +112,10 @@ def compress(filename, ffmpeg_settings):
     with tempfile.NamedTemporaryFile(suffix=".{}".format(file_formats.MP4)) as tempf:
         tempf.close() # Need to close so pressure cooker can write to file
         compress_video(config.get_storage_path(filename), tempf.name, overwrite=True, **setting_list)
+
         filename = "{}.{}".format(get_hash(tempf.name), file_formats.MP4)
 
-        # Write file to local storage
-        with open(tempf.name, 'rb') as srcf, open(config.get_storage_path(filename), 'wb') as destf:
-            shutil.copyfileobj(srcf, destf)
+        copy_file_to_storage(filename, tempf.name)
 
         FILECACHE.set(key, bytes(filename, "utf-8"))
         return filename
@@ -189,7 +123,7 @@ def compress(filename, ffmpeg_settings):
 
 
 class File(object):
-    original_filename = '[File]'
+    original_filename = None
     node = None
     error = None
     default_ext = None
@@ -256,10 +190,7 @@ class ThumbnailFile(DownloadFile):
     default_ext = file_formats.PNG
 
     def validate(self):
-        assert self.path.endswith(file_formats.JPG) or\
-               self.path.endswith(file_formats.JPEG) or\
-               self.path.endswith(file_formats.PNG),\
-               "Thumbnails must be in jpg, jpeg, or png format"
+        assert os.path.splitext(self.path)[1][1:] in [file_formats.JPG, file_formats.JPEG, file_formats.PNG], "Thumbnails must be in jpg, jpeg, or png format"
 
     def get_preset(self):
         if isinstance(self.node, ChannelNode):
@@ -282,9 +213,7 @@ class AudioFile(DownloadFile):
         return self.preset or format_presets.AUDIO
 
     def validate(self):
-        assert self.path.endswith(file_formats.MP3) or\
-               self.path.endswith(file_formats.WAV), \
-               "Audio files must be in mp3 or wav format"
+        assert self.path.endswith(file_formats.MP3), "Audio files must be in mp3 format"
 
 class DocumentFile(DownloadFile):
     def get_preset(self):
@@ -318,13 +247,10 @@ class ExtractedVideoThumbnailFile(ThumbnailFile):
             extract_thumbnail_from_video(self.path, tempf.name, overwrite=True)
             filename = "{}.{}".format(get_hash(tempf.name), file_formats.PNG)
 
-            # Write file to local storage
-            with open(tempf.name, 'rb') as srcf, open(config.get_storage_path(filename), 'wb') as destf:
-                shutil.copyfileobj(srcf, destf)
+            copy_file_to_storage(filename, tempf.name)
 
             FILECACHE.set(key, bytes(filename, "utf-8"))
             return filename
-
 
 class VideoFile(DownloadFile):
     default_ext = file_formats.MP4
@@ -344,7 +270,7 @@ class VideoFile(DownloadFile):
             # Get copy of video before compression (if specified)
             self.filename = super(VideoFile, self).process_file()
             if self.filename and (self.ffmpeg_settings or config.COMPRESS):
-                self.filename = compress(self.filename, self.ffmpeg_settings)
+                self.filename = compress_video_file(self.filename, self.ffmpeg_settings)
                 config.LOGGER.info("\t--- Compressed {}".format(self.filename))
             return self.filename
         # Catch errors related to ffmpeg and handle silently
@@ -421,9 +347,7 @@ class Base64ImageFile(File):
             write_base64_to_file(self.encoding, tempf.name)
             filename = "{}.{}".format(get_hash(tempf.name), file_formats.PNG)
 
-            # Write file to local storage
-            with open(tempf.name, 'rb') as srcf, open(config.get_storage_path(filename), 'wb') as destf:
-                shutil.copyfileobj(srcf, destf)
+            copy_file_to_storage(filename, tempf.name)
             FILECACHE.set(key, bytes(filename, "utf-8"))
             return filename
 
@@ -442,7 +366,7 @@ class _ExerciseGraphieFile(DownloadFile):
 
     def __init__(self, path, **kwargs):
         self.original_filename = path.split("/")[-1].split(".")[0]
-        super(ExerciseGraphieFile, self).__init__(path, **kwargs)
+        super(_ExerciseGraphieFile, self).__init__(path, **kwargs)
 
     def get_preset(self):
         return self.preset or format_presets.EXERCISE_GRAPHIE
@@ -484,9 +408,7 @@ class _ExerciseGraphieFile(DownloadFile):
             tempf.seek(0)
             filename = "{}.{}".format(hash.hexdigest(), file_formats.GRAPHIE)
 
-            # Write file to local storage
-            with open(config.get_storage_path(filename), 'wb') as destf:
-                shutil.copyfileobj(tempf, destf)
+            copy_file_to_storage(filename, tempf)
 
             FILECACHE.set(key, bytes(filename, "utf-8"))
             return filename
