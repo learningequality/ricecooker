@@ -30,7 +30,7 @@ def download(path, default_ext=None):
         Returns: filename
     """
     key = "DOWNLOAD:{}".format(path)
-    if FILECACHE.get(key):
+    if not config.UPDATE and FILECACHE.get(key):
         return FILECACHE.get(key).decode('utf-8')
 
     config.LOGGER.info("\tDownloading {}".format(path))
@@ -89,7 +89,7 @@ def copy_file_to_storage(filename, srcfile, delete_original=False):
     # Write file to local storage
     with open(config.get_storage_path(filename), 'wb') as destf:
         if delete_original:
-            shutil.move(srcfile, destf)
+            shutil.move(srcfile.name, destf.name)
         else:
             shutil.copyfileobj(srcfile, destf)
 
@@ -105,7 +105,7 @@ def compress_video_file(filename, ffmpeg_settings):
     setting_list = ffmpeg_settings if ffmpeg_settings else {}
     settings = " {}".format(str(sorted(setting_list.items()))) if ffmpeg_settings else " (default compression)"
     key = "COMPRESSED: {0}{1}".format(filename, settings)
-    if FILECACHE.get(key):
+    if not config.UPDATE and FILECACHE.get(key):
         return FILECACHE.get(key).decode('utf-8')
 
     config.LOGGER.info("\t--- Compressing {}".format(filename))
@@ -245,7 +245,7 @@ class ExtractedVideoThumbnailFile(ThumbnailFile):
 
     def derive_thumbnail(self):
         key = "EXTRACTED: {}".format(self.path)
-        if FILECACHE.get(key):
+        if not config.UPDATE and FILECACHE.get(key):
             return FILECACHE.get(key).decode('utf-8')
 
         config.LOGGER.info("\t--- Extracting thumbnail from {}".format(self.path))
@@ -328,7 +328,7 @@ class Base64ImageFile(ThumbnailPresetMixin, File):
         hashed_content.update(self.encoding.encode('utf-8'))
         key = "ENCODED: {} (base64 encoded)".format(hashed_content.hexdigest())
 
-        if FILECACHE.get(key):
+        if not config.UPDATE and FILECACHE.get(key):
             return FILECACHE.get(key).decode('utf-8')
 
         config.LOGGER.info("\tConverting base64 to file")
@@ -385,7 +385,7 @@ class _ExerciseGraphieFile(DownloadFile):
     def generate_graphie_file(self):
         key = "GRAPHIE: {}".format(self.path)
 
-        if FILECACHE.get(key):
+        if not config.UPDATE and FILECACHE.get(key):
             return FILECACHE.get(key).decode('utf-8')
 
         # Create graphie file combining svg and json files

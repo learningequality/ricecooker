@@ -90,6 +90,8 @@ def get_restore_path(filename):
         Returns: string path to file
     """
     path = os.path.join(RESTORE_DIRECTORY, FILE_STORE_LOCATION)
+    if not os.path.exists(path):
+        os.makedirs(path)
     return os.path.join(path, filename + '.pickle')
 
 
