@@ -26,6 +26,7 @@ class FileTypes(Enum):
     TILED_THUMBNAIL_FILE = 10
     UNIVERSAL_SUBS_SUBTITLE_FILE = 11
     BASE64_FILE = 12
+    WEB_VIDEO_FILE = 13
 
 
 FILE_TYPE_MAPPING = {
@@ -63,17 +64,22 @@ FILE_TYPE_MAPPING = {
 
 
 
-def guess_file_type(filepath, kind):
+def guess_file_type(kind, filepath=None, youtube_id=None, web_url=None, encoding=None):
     """ guess_file_class: determines what file the content is
         Args:
             filepath (str): filepath of file to check
         Returns: string indicating file's class
     """
-    if get_base64_encoding(filepath):
+    if youtube_id:
+        return FileTypes.YOUTUBE_VIDEO_FILE
+    elif web_url:
+        return FileTypes.WEB_VIDEO_FILE
+    elif encoding:
         return FileTypes.BASE64_FILE
-    ext = os.path.splitext(filepath)[1][1:].lower()
-    if kind in FILE_TYPE_MAPPING and ext in FILE_TYPE_MAPPING[kind]:
-        return FILE_TYPE_MAPPING[kind][ext]
+    else:
+        ext = os.path.splitext(filepath)[1][1:].lower()
+        if kind in FILE_TYPE_MAPPING and ext in FILE_TYPE_MAPPING[kind]:
+            return FILE_TYPE_MAPPING[kind][ext]
     return None
 
 
@@ -102,6 +108,7 @@ SAMPLE_TREE = [
                         "ffmpeg_settings": {"max_width": 480, "crf": 20},
                     }
                 ],
+                "thumbnail": "https://cdn.kastatic.org/googleusercontent/5QUfMdnHfeSlnm4mI-2T1cnyn7xLC8hL_Ye9sSVufVma8FLQOrJ55nCkeRG50jp6lNiY_aCvVEzMPqDmxR6ccncqfA"
             },
             {
                 "title": "TEST SUBTITLES",
@@ -378,6 +385,7 @@ def _build_tree(node, sourcetree):
                 description=child_source_node.get("description"),
                 license=child_source_node.get("license"),
                 derive_thumbnail=True, # video-specific data
+                thumbnail=child_source_node.get('thumbnail'),
             )
             add_files(child_node, child_source_node.get("files") or [])
             node.add_child(child_node)
@@ -437,11 +445,7 @@ def _build_tree(node, sourcetree):
 
 def add_files(node, file_list):
     for f in file_list:
-<<<<<<< HEAD
-        file_type = files.guess_file_type(node.kind, filepath=f.get('path'), youtube_id=f.get('youtube_id'), web_url=f.get('web_url'), encoding=f.get('encoding'))
-=======
-        file_type = guess_file_type(f['path'], node.kind)
->>>>>>> 85bef26a32a7f6cc5407d5dc9021533dfafccd4b
+        file_type = guess_file_type(node.kind, filepath=f.get('path'), youtube_id=f.get('youtube_id'), web_url=f.get('web_url'), encoding=f.get('encoding'))
 
         if file_type == FileTypes.AUDIO_FILE:
             node.add_file(files.AudioFile(path=f['path'], language=f.get('language')))
@@ -455,11 +459,11 @@ def add_files(node, file_list):
             node.add_file(files.VideoFile(path=f['path'], language=f.get('language'), ffmpeg_settings=f.get('ffmpeg_settings')))
         elif file_type == FileTypes.SUBTITLE_FILE:
             node.add_file(files.SubtitleFile(path=f['path'], language=f['language']))
-        elif file_type == files.FileTypes.BASE64_FILE:
+        elif file_type == FileTypes.BASE64_FILE:
             node.add_file(files.Base64ImageFile(encoding=f['encoding']))
-        elif file_type == files.FileTypes.WEB_VIDEO_FILE:
+        elif file_type == FileTypes.WEB_VIDEO_FILE:
             node.add_file(files.WebVideoFile(web_url=f['web_url'], high_resolution=f.get('high_resolution')))
-        elif file_type == files.FileTypes.YOUTUBE_VIDEO_FILE:
+        elif file_type == FileTypes.YOUTUBE_VIDEO_FILE:
             node.add_file(files.YouTubeVideoFile(youtube_id=f['youtube_id'], high_resolution=f.get('high_resolution')))
         else:
             raise UnknownFileTypeError("Unrecognized file type '{0}'".format(f['path']))

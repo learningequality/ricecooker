@@ -28,7 +28,7 @@ FILECACHE = FileCache(config.FILECACHE_DIRECTORY, forever=True)
 
 def generate_key(action, path_or_id, settings, default=" (default)"):
     settings = " {}".format(str(sorted(settings.items()))) if settings else " (default)"
-    return "{}: {0}{1}".format(action.upper(), filename, settings)
+    return "{}: {}{}".format(action.upper(), path_or_id, settings)
 
 def download(path, default_ext=None):
     """ download: downloads file
@@ -121,15 +121,15 @@ def compress_video_file(filename, ffmpeg_settings):
         compress_video(config.get_storage_path(filename), tempf.name, overwrite=True, **ffmpeg_settings)
         filename = "{}.{}".format(get_hash(tempf.name), file_formats.MP4)
 
-        copy_file_to_storage(filename, tempf.name, delete_original=True)
+        copy_file_to_storage(filename, tempf.name)
 
         FILECACHE.set(key, bytes(filename, "utf-8"))
         return filename
 
 def download_from_web(web_url, download_settings):
-    key = generate_key(web_url, download_settings)
-    if config.DOWNLOADER.get(key):
-        return config.DOWNLOADER.get(key)
+    key = generate_key("DOWNLOADED", web_url, download_settings)
+    if not config.UPDATE and FILECACHE.get(key):
+        return FILECACHE.get(key).decode('utf-8')
 
     # Get hash of web_url to act as temporary storage name
     url_hash = hashlib.md5()
@@ -145,7 +145,7 @@ def download_from_web(web_url, download_settings):
         with open(destination_path, "rb") as dlf, open(config.get_storage_path(filename), 'wb') as destf:
             shutil.copyfileobj(dlf, destf)
 
-        config.DOWNLOADER.set(key, filename)
+        FILECACHE.set(key, bytes(filename, "utf-8"))
         return filename
 
 class ThumbnailPresetMixin(object):
@@ -234,28 +234,38 @@ class ThumbnailFile(ThumbnailPresetMixin, DownloadFile):
     default_ext = file_formats.PNG
 
     def validate(self):
-        assert os.path.splitext(self.path)[1][1:] in [file_formats.JPG, file_formats.JPEG, file_formats.PNG], "Thumbnails must be in jpg, jpeg, or png format"
+        if os.path.splitext(self.path)[1][1:] != "":
+            assert os.path.splitext(self.path)[1][1:] in [file_formats.JPG, file_formats.JPEG, file_formats.PNG], "Thumbnails must be in jpg, jpeg, or png format"
 
 class AudioFile(DownloadFile):
+    default_ext = file_formats.MP3
+
     def get_preset(self):
         return self.preset or format_presets.AUDIO
 
     def validate(self):
-        assert self.path.endswith(file_formats.MP3), "Audio files must be in mp3 format"
+        if os.path.splitext(self.path)[1][1:] != "":
+            assert self.path.endswith(file_formats.MP3), "Audio files must be in mp3 format"
 
 class DocumentFile(DownloadFile):
+    default_ext = file_formats.PDF
+
     def get_preset(self):
         return self.preset or format_presets.DOCUMENT
 
     def validate(self):
-        assert self.path.endswith(file_formats.PDF), "Document files must be in pdf format"
+        if os.path.splitext(self.path)[1][1:] != "":
+            assert self.path.endswith(file_formats.PDF), "Document files must be in pdf format"
 
 class HTMLZipFile(DownloadFile):
+    default_ext = file_formats.HTML5
+
     def get_preset(self):
         return self.preset or format_presets.HTML5_ZIP
 
     def validate(self):
-        assert self.path.endswith(file_formats.HTML5), "HTML files must be in zip format"
+        if os.path.splitext(self.path)[1][1:] != "":
+            assert self.path.endswith(file_formats.HTML5), "HTML files must be in zip format"
         # make sure index.html exists
         with zipfile.ZipFile(self.path) as zf:
             try:
@@ -281,7 +291,7 @@ class ExtractedVideoThumbnailFile(ThumbnailFile):
             extract_thumbnail_from_video(self.path, tempf.name, overwrite=True)
             filename = "{}.{}".format(get_hash(tempf.name), file_formats.PNG)
 
-            copy_file_to_storage(filename, tempf.name, delete_original=True)
+            copy_file_to_storage(filename, tempf.name)
 
             FILECACHE.set(key, bytes(filename, "utf-8"))
             return filename
@@ -297,7 +307,8 @@ class VideoFile(DownloadFile):
         return self.preset or guess_video_preset_by_resolution(config.get_storage_path(self.filename))
 
     def validate(self):
-        assert self.path.endswith(file_formats.MP4), "Video files be in mp4 format"
+        if os.path.splitext(self.path)[1][1:] != "":
+            assert self.path.endswith(file_formats.MP4), "Video files be in mp4 format"
 
     def process_file(self):
         try:
@@ -313,7 +324,36 @@ class VideoFile(DownloadFile):
             config.FAILED_FILES.append(self)
 
 
+class WebVideoFile(File):
+    # In future, look into postprocessors and progress_hooks
+    def __init__(self, web_url, download_settings=None, high_resolution=True, **kwargs):
+        self.web_url = web_url
+        self.download_settings = download_settings or {}
+        self.download_settings['format'] = "22/best" if high_resolution else "18/worst"
+
+        super(WebVideoFile, self).__init__(**kwargs)
+
+    def get_preset(self):
+        return self.preset or guess_video_preset_by_resolution(config.get_storage_path(self.filename))
+
+    def process_file(self):
+        try:
+            self.filename = download_from_web(self.web_url, self.download_settings)
+            config.LOGGER.info("\t--- Downloaded (YouTube) {}".format(self.filename))
+            return self.filename
+        except youtube_dl.utils.DownloadError as err:
+            self.error = str(err)
+            config.FAILED_FILES.append(self)
+
+
+class YouTubeVideoFile(WebVideoFile):
+    def __init__(self, youtube_id, **kwargs):
+        super(YouTubeVideoFile, self).__init__('http://www.youtube.com/watch?v={}'.format(youtube_id), **kwargs)
+
+
 class SubtitleFile(DownloadFile):
+    default_ext = file_formats.VTT
+
     def __init__(self, path, **kwargs):
         super(SubtitleFile, self).__init__(path, **kwargs)
         assert self.language, "Subtitles must have a language"
@@ -322,7 +362,7 @@ class SubtitleFile(DownloadFile):
         return self.preset or format_presets.VIDEO_SUBTITLE
 
     def validate(self):
-        assert self.path.endswith(file_formats.VTT), "Subtitle files must be in vtt format"
+        assert os.path.splitext(self.path)[1][1:] == "" or self.path.endswith(file_formats.VTT), "Subtitle files must be in vtt format"
 
 
 class _ExerciseImageFile(DownloadFile):
@@ -368,7 +408,7 @@ class Base64ImageFile(ThumbnailPresetMixin, File):
             write_base64_to_file(self.encoding, tempf.name)
             filename = "{}.{}".format(get_hash(tempf.name), file_formats.PNG)
 
-            copy_file_to_storage(filename, tempf.name, delete_original=True)
+            copy_file_to_storage(filename, tempf.name)
             FILECACHE.set(key, bytes(filename, "utf-8"))
             return filename
 
@@ -429,37 +469,10 @@ class _ExerciseGraphieFile(DownloadFile):
             tempf.seek(0)
             filename = "{}.{}".format(hash.hexdigest(), file_formats.GRAPHIE)
 
-            copy_file_to_storage(filename, tempf, delete_original=True)
+            copy_file_to_storage(filename, tempf)
 
             FILECACHE.set(key, bytes(filename, "utf-8"))
             return filename
-
-class WebVideoFile(File):
-    # In future, look into postprocessors and progress_hooks
-    def __init__(self, web_url, download_settings=None, high_resolution=True, **kwargs):
-        self.web_url = web_url
-        self.download_settings = download_settings or {}
-        self.download_settings['format'] = "22/best" if high_resolution else "18/worst"
-
-        super(WebVideoFile, self).__init__(**kwargs)
-
-    def get_preset(self):
-        return self.preset or check_video_resolution(config.get_storage_path(self.filename))
-
-    def process_file(self):
-        try:
-            self.filename = download_from_web(self.web_url, self.download_settings)
-            config.LOGGER.info("\t--- Downloaded (YouTube) {}".format(self.filename))
-            return self.filename
-        except youtube_dl.utils.DownloadError as err:
-            self.error = str(err)
-            config.FAILED_FILES.append(self)
-
-
-class YouTubeVideoFile(WebVideoFile):
-    def __init__(self, youtube_id, **kwargs):
-        super(YouTubeVideoFile, self).__init__('http://www.youtube.com/watch?v={}'.format(youtube_id), **kwargs)
-
 
 # VectorizedVideoFile
 # TiledThumbnailFile
