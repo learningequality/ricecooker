@@ -561,7 +561,7 @@ class ExerciseNode(ContentNode):
             questions ([<Question>]): list of question objects for node (optional)
     """
     default_preset = format_presets.EXERCISE
-    def __init__(self, source_id, title, license, questions=None, exercise_data=None, **kwargs):
+    def __init__(self, source_id, title, questions=None, exercise_data=None, **kwargs):
         self.kind = content_kinds.EXERCISE
         self.questions = questions or []
 
@@ -612,6 +612,7 @@ class ExerciseNode(ContentNode):
         """
         try:
             assert self.kind == content_kinds.EXERCISE, "Assumption Failed: Node should be an exercise"
+            assert self.license, "Assumption Failed: Exercise content must have a license"
             assert "mastery_model" in self.extra_fields, "Assumption Failed: Exercise must have a mastery model in extra_fields"
 
             # Check if questions are correct
