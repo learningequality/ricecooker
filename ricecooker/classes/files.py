@@ -103,7 +103,7 @@ def get_hash(filepath):
 def compress_video_file(filename, ffmpeg_settings):
     # Generate key for compressed file
     setting_list = ffmpeg_settings if ffmpeg_settings else {}
-    settings = " {}".format(str(sorted(setting_list.items()))) if ffmpeg_settings else " (default compression)"
+    settings = " {}".format(str(sorted(setting_list.items()))) if ffmpeg_settings else " (default)"
     key = "COMPRESSED: {0}{1}".format(filename, settings)
     if not config.UPDATE and FILECACHE.get(key):
         return FILECACHE.get(key).decode('utf-8')
