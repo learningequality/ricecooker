@@ -46,13 +46,16 @@ class Node(object):
         self.description = description or ""
         self.license = license
         self.copyright_holder = copyright_holder
+        self.thumbnail = thumbnail
 
         for f in files or []:
             self.add_file(f)
 
-        if thumbnail and isinstance(thumbnail, str):
+        if isinstance(self.thumbnail, str):
             from .files import ThumbnailFile
-            self.thumbnail = ThumbnailFile(path=thumbnail)
+            self.thumbnail = ThumbnailFile(path=self.thumbnail)
+
+        if self.thumbnail:
             self.add_file(self.thumbnail)
 
 

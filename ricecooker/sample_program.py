@@ -93,7 +93,7 @@ SAMPLE_TREE = [
         "license": licenses.CC_BY_NC_SA,
         "files": [
             {
-                "path": "C:/users/jordan/contentcuration-dump/high resolution.mp4",
+                "path": "C:/Users/Jordan/Videos/testfolder/high resolution.mp4",
                 # "ffmpeg_settings": {"max_width": 480, "crf": 20},
             },
             {
