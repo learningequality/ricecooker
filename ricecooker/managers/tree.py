@@ -1,6 +1,6 @@
 
 import json
-import requests
+import logging
 import os
 import sys
 from .. import config
@@ -33,71 +33,33 @@ class ChannelManager:
                 parent (Node): parent of node being processed
             Returns: None
         """
-        from ..classes import nodes
-
-        # If node is not a channel, download files
-        if isinstance(node, nodes.Channel):
-            if node.thumbnail is not None and node.thumbnail != "":
-                file_data = config.DOWNLOADER.download_file(node.thumbnail, "Channel Thumbnail", default_ext=file_formats.PNG)
-                node.thumbnail = file_data['filename'] if file_data else ""
-        else:
-            node.files = config.DOWNLOADER.download_files(node.files, "Node {}".format(node.source_id))
-
-            # Get the thumbnail if provided or needs to be derived
-            thumbnail = None
-            if node.thumbnail:
-                thumbnail = config.DOWNLOADER.download_file(node.thumbnail, "Node {}".format(node.source_id), default_ext=file_formats.PNG, preset=node.thumbnail_preset)
-            elif isinstance(node, nodes.Video) and node.derive_thumbnail:
-                thumbnail = config.DOWNLOADER.derive_thumbnail(config.get_storage_path(node.files[0]['filename']), "Node {}".format(node.source_id), preset=node.thumbnail_preset)
-
-            if thumbnail:
-                node.files.append(thumbnail)
-
-            # If node is an exercise, process images for exercise
-            if isinstance(node, nodes.Exercise):
-                node.process_questions()
+        filenames = node.process_files()
 
         # Process node's children
         for child_node in node.children:
-            self.process_tree(child_node, node)
+            filenames += self.process_tree(child_node, node)
+
+        return [x for x in set(filenames) if x] # Remove any duplicate or null files
 
     def check_for_files_failed(self):
         """ check_for_files_failed: print any files that failed during download process
             Args: None
             Returns: None
         """
-        if config.DOWNLOADER.has_failed_files():
-            config.DOWNLOADER.print_failed()
-            config.LOGGER.error("   {} file(s) have failed to download".format(len(config.DOWNLOADER.failed_files)))
+        if len(config.FAILED_FILES) > 0:
+            config.LOGGER.error("   {} file(s) have failed to download".format(len(config.FAILED_FILES)))
+            for f in config.FAILED_FILES:
+                title = "{0} {id}".format(f.node.kind.capitalize(), id=f.node.source_id)\
+                        if f.node else "{0} {id}".format("Question", id=f.assessment_item.source_id)
+                config.LOGGER.warning("\t{0}: {path} \n\t   {err}".format(title, path=f.path, err=f.error))
         else:
             config.LOGGER.info("   All files were successfully downloaded")
 
-    def compress_tree(self, node):
-        """ compress_tree: compress high resolution files
-            Args: None
-            Returns: None
-        """
-        from ricecooker.classes import nodes
-
-        # If node is a video, compress any high resolution videos
-        if isinstance(node, nodes.Video):
-            for f in node.files:
-                if f['preset'] == format_presets.VIDEO_HIGH_RES:
-                    config.LOGGER.info("\tCompressing video: {}\n".format(node.title))
-                    compressed = config.DOWNLOADER.compress_file(config.get_storage_path(f['filename']), "Node {}".format(node.source_id))
-                    if compressed:
-                        f.update(compressed)
-
-        # Process node's children
-        for child_node in node.children:
-            self.compress_tree(child_node)
-
-    def get_file_diff(self):
+    def get_file_diff(self, files_to_diff):
         """ get_file_diff: retrieves list of files that do not exist on content curation server
             Args: None
             Returns: list of files that are not on server
         """
-        files_to_diff = config.DOWNLOADER.get_files()
         file_diff_result = []
         chunks = [files_to_diff[x:x+1000] for x in range(0, len(files_to_diff), 1000)]
         file_count = 0
@@ -119,18 +81,17 @@ class ChannelManager:
         """
         counter = 0
         files_to_upload = list(set(file_list) - set(self.uploaded_files)) # In case restoring from previous session
-        config.LOGGER.info("\nUploading {0} new file(s) to Kolibri Studio...".format(len(files_to_upload)))
         try:
             for f in files_to_upload:
                 with  open(config.get_storage_path(f), 'rb') as file_obj:
-                    response = config.SESSION.post(config.file_upload_url(),  files={'file': file_obj})
+                    response = config.SESSION.post(config.file_upload_url(), files={'file': file_obj})
                     if response.status_code == 200:
                         response.raise_for_status()
-                        self.uploaded_files += [f]
+                        self.uploaded_files.append(f)
                         counter += 1
-                        config.LOGGER.info("\n\tUploaded {0} ({count}/{total}) ".format(f, count=counter, total=len(files_to_upload)))
+                        config.LOGGER.info("\tUploaded {0} ({count}/{total}) ".format(f, count=counter, total=len(files_to_upload)))
                     else:
-                        self.failed_uploads += [f]
+                        self.failed_uploads.append(f)
         finally:
             config.PROGRESS_MANAGER.set_uploading(self.uploaded_files)
 
@@ -139,7 +100,9 @@ class ChannelManager:
             Args: None
             Returns: None
         """
-        self.upload_files(self.failed_uploads)
+        if len(self.failed_uploads) > 0:
+            config.LOGGER.info("\nReattempting to upload {0} file(s)...".format(len(self.failed_uploads)))
+            self.upload_files(self.failed_uploads)
 
     def upload_tree(self):
         """ upload_tree: sends processed channel data to server to create tree
@@ -161,10 +124,14 @@ class ChannelManager:
             config.LOGGER.info("\tReattempting {0}".format(str(node[1])))
             for f in node[1].files:
                 # Attempt to upload file
-                with  open(config.get_storage_path(f['filename']), 'rb') as file_obj:
-                    response = config.SESSION.post(config.file_upload_url(),  files={'file': file_obj})
-                    response.raise_for_status()
-                    self.uploaded_files += [f['filename']]
+                try:
+                    assert f.filename, "File failed to download (cannot be uploaded)"
+                    with open(config.get_storage_path(f.filename), 'rb') as file_obj:
+                        response = config.SESSION.post(config.file_upload_url(), files={'file': file_obj})
+                        response.raise_for_status()
+                        self.uploaded_files.append(f.filename)
+                except AssertionError as ae:
+                    config.LOGGER.warning(ae)
             # Attempt to create node
             self.add_nodes(node[0], node[1])
 
@@ -173,7 +140,7 @@ class ChannelManager:
             if print_warning:
                 config.LOGGER.warning("WARNING: The following nodes have one or more descendants that could not be created:")
                 for node in self.failed_node_builds:
-                    sys.stderr.write("\n\t{}".format(str(node[1])))
+                    config.LOGGER.warning("\t{} ({})".format(str(node[1]), node[2]))
             else:
                 config.LOGGER.error("Failed to create descendants for {} node(s).".format(len(self.failed_node_builds)))
             return True
@@ -215,7 +182,7 @@ class ChannelManager:
         }
         response = config.SESSION.post(config.add_nodes_url(), data=json.dumps(payload))
         if response.status_code != 200:
-            self.failed_node_builds += [(root_id, current_node)]
+            self.failed_node_builds += [(root_id, current_node, response.reason)]
         else:
             response_json = json.loads(response._content.decode("utf-8"))
 

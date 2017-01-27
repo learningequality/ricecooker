@@ -30,6 +30,11 @@ class UnknownQuestionTypeError(Exception):
     def __init__(self,*args,**kwargs):
         Exception.__init__(self,*args,**kwargs)
 
+class UnknownFileTypeError(Exception):
+    """ UnknownFileTypeError: raised when file type is unrecognized """
+    def __init__(self,*args,**kwargs):
+        Exception.__init__(self,*args,**kwargs)
+
 class InvalidNodeException(Exception):
     """ InvalidNodeException: raised when node is improperly formatted """
     def __init__(self,*args,**kwargs):

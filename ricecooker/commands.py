@@ -7,8 +7,6 @@ import webbrowser
 from . import config
 from .classes import nodes, questions
 from requests.exceptions import HTTPError
-from requests_file import FileAdapter
-from .managers.downloader import DownloadManager
 from .managers.progress import RestoreManager, Status
 from .managers.tree import ChannelManager
 from importlib.machinery import SourceFileLoader
@@ -45,14 +43,9 @@ def uploadchannel(path, verbose=False, update=False, resume=False, reset=False, 
     config.LOGGER.setLevel(level)
 
     # Mount file:// to allow local path requests
-    config.SESSION.mount('file://', FileAdapter())
     config.SESSION.headers.update({"Authorization": "Token {0}".format(token)})
     config.UPDATE = update
     config.COMPRESS = compress
-
-    # Get domain to upload to
-    config.init_file_mapping_store()
-    config.DOWNLOADER = DownloadManager(config.get_file_store())
 
     # Authenticate user
     if token != "#":
@@ -99,19 +92,13 @@ def uploadchannel(path, verbose=False, update=False, resume=False, reset=False, 
     if config.PROGRESS_MANAGER.get_status_val() <= Status.DOWNLOAD_FILES.value:
         config.PROGRESS_MANAGER.set_files(*process_tree_files(tree))
 
-    # Compress files if they haven't been compressed already
-    if config.PROGRESS_MANAGER.get_status_val() <= Status.COMPRESS_FILES.value:
-        config.PROGRESS_MANAGER.set_compressed_files(*compress_tree_files(tree))
-
     # Set download manager in case steps were skipped
-    config.DOWNLOADER.files = config.PROGRESS_MANAGER.files_downloaded
-    config.DOWNLOADER.failed_files = config.PROGRESS_MANAGER.files_failed
-    config.DOWNLOADER._file_mapping = config.PROGRESS_MANAGER.file_mapping
-    config.set_file_store(config.DOWNLOADER.file_store)
+    files_to_diff = config.PROGRESS_MANAGER.files_downloaded
+    config.FAILED_FILES = config.PROGRESS_MANAGER.files_failed
 
     # Get file diff if it hasn't been generated already
     if config.PROGRESS_MANAGER.get_status_val() <= Status.GET_FILE_DIFF.value:
-        config.PROGRESS_MANAGER.set_diff(get_file_diff(tree))
+        config.PROGRESS_MANAGER.set_diff(get_file_diff(tree, files_to_diff))
     file_diff = config.PROGRESS_MANAGER.file_diff
 
     # Set which files have already been uploaded
@@ -210,31 +197,19 @@ def process_tree_files(tree):
     """
     # Fill in values necessary for next steps
     config.LOGGER.info("Processing content...")
-    tree.process_tree(tree.channel)
+    files_to_diff = tree.process_tree(tree.channel)
     tree.check_for_files_failed()
-    return config.DOWNLOADER.get_files(), config.DOWNLOADER.get_file_mapping(), config.DOWNLOADER.failed_files
+    return files_to_diff, config.FAILED_FILES
 
-def compress_tree_files(tree):
-    """ compress_tree_files: Compress files from nodes
-        Args:
-            tree (ChannelManager): manager to handle communication to Kolibri Studio
-        Returns: None
-    """
-    if config.COMPRESS:
-        config.LOGGER.info("Compressing files...")
-        tree.compress_tree(tree.channel)
-        config.set_file_store(config.DOWNLOADER.file_store)
-    return config.DOWNLOADER.get_files(), config.DOWNLOADER.get_file_mapping(), config.DOWNLOADER.failed_files
-
-def get_file_diff(tree):
+def get_file_diff(tree, files_to_diff):
     """ get_file_diff: Download files from nodes
         Args:
             tree (ChannelManager): manager to handle communication to Kolibri Studio
         Returns: list of files that are not on Kolibri Studio
     """
     # Determine which files have not yet been uploaded to the CC server
-    config.LOGGER.info("Checking if files exist on Kolibri Studio...")
-    file_diff = tree.get_file_diff()
+    config.LOGGER.info("\nChecking if files exist on Kolibri Studio...")
+    file_diff = tree.get_file_diff(files_to_diff)
     return file_diff
 
 def upload_files(tree, file_diff):
@@ -245,6 +220,7 @@ def upload_files(tree, file_diff):
         Returns: None
     """
     # Upload new files to CC
+    config.LOGGER.info("\nUploading {0} new file(s) to Kolibri Studio...".format(len(file_diff)))
     tree.upload_files(file_diff)
     tree.reattempt_upload_fails()
     return file_diff
@@ -256,7 +232,7 @@ def create_tree(tree):
         Returns: channel id of created channel and link to channel
     """
     # Create tree
-    config.LOGGER.info("Creating tree on Kolibri Studio...")
+    config.LOGGER.info("\nCreating tree on Kolibri Studio...")
     channel_id, channel_link = tree.upload_tree()
 
     return channel_link, channel_id
@@ -283,5 +259,5 @@ def publish_tree(tree, channel_id):
             channel_id (str): id of channel to publish
         Returns: None
     """
-    config.LOGGER.info("Publishing tree to Kolibri... ")
+    config.LOGGER.info("\nPublishing tree to Kolibri... ")
     tree.publish(channel_id)

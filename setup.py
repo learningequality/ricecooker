@@ -24,6 +24,8 @@ requirements = [
     "selenium==3.0.1",
     "youtube-dl",
     "html5lib",
+    "cachecontrol==0.11.7",
+    "lockfile==0.12.2",
 ]
 
 test_requirements = [
