@@ -135,6 +135,7 @@ SAMPLE_TREE = [
                         "title": "The History of Japanese Rice",
                         "id": "418799",
                         "author": "Sandra Lopez-Richter",
+                        "license": licenses.CC_BY_NC_SA,
                         "files":[
                             {
                                 "path" : "https://ia601301.us.archive.org/31/items/The_History_of_Japanese_Rice_Lopez-Richter/The_History_of_Japanese_Rice_Lopez-Richter.pdf",

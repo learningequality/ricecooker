@@ -88,10 +88,10 @@ def copy_file_to_storage(filename, srcfile, delete_original=False):
 
     # Write file to local storage
     with open(config.get_storage_path(filename), 'wb') as destf:
-        shutil.copyfileobj(srcfile, destf)
-
-    if delete_original:
-        os.remove(srcfile.name)
+        if delete_original:
+            shutil.move(srcfile, destf)
+        else:
+            shutil.copyfileobj(srcfile, destf)
 
 def get_hash(filepath):
     hash = hashlib.md5()
@@ -116,7 +116,7 @@ def compress_video_file(filename, ffmpeg_settings):
 
         filename = "{}.{}".format(get_hash(tempf.name), file_formats.MP4)
 
-        copy_file_to_storage(filename, tempf.name)
+        copy_file_to_storage(filename, tempf.name, delete_original=True)
 
         FILECACHE.set(key, bytes(filename, "utf-8"))
         return filename
@@ -254,7 +254,7 @@ class ExtractedVideoThumbnailFile(ThumbnailFile):
             extract_thumbnail_from_video(self.path, tempf.name, overwrite=True)
             filename = "{}.{}".format(get_hash(tempf.name), file_formats.PNG)
 
-            copy_file_to_storage(filename, tempf.name)
+            copy_file_to_storage(filename, tempf.name, delete_original=True)
 
             FILECACHE.set(key, bytes(filename, "utf-8"))
             return filename
@@ -341,7 +341,7 @@ class Base64ImageFile(ThumbnailPresetMixin, File):
             write_base64_to_file(self.encoding, tempf.name)
             filename = "{}.{}".format(get_hash(tempf.name), file_formats.PNG)
 
-            copy_file_to_storage(filename, tempf.name)
+            copy_file_to_storage(filename, tempf.name, delete_original=True)
             FILECACHE.set(key, bytes(filename, "utf-8"))
             return filename
 
@@ -402,7 +402,7 @@ class _ExerciseGraphieFile(DownloadFile):
             tempf.seek(0)
             filename = "{}.{}".format(hash.hexdigest(), file_formats.GRAPHIE)
 
-            copy_file_to_storage(filename, tempf)
+            copy_file_to_storage(filename, tempf, delete_original=True)
 
             FILECACHE.set(key, bytes(filename, "utf-8"))
             return filename

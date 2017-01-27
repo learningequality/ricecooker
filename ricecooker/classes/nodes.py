@@ -212,14 +212,14 @@ class ContentNode(Node):
             title (str): content's title
             description (str): description of content (optional)
             author (str): who created the content (optional)
-            license (str): content's license based on le_utils.constants.licenses (optional)
+            license (str): content's license based on le_utils.constants.licenses
             thumbnail (str): local path or url to thumbnail image (optional)
             copyright_holder (str): name of person or organization who owns license (optional)
             files ([<File>]): list of file objects for node (optional)
             extra_fields (dict): any additional data needed for node (optional)
             domain_ns (str): who is providing the content (e.g. learningequality.org) (optional)
     """
-    def __init__(self, source_id, title, author="", license=None, extra_fields=None, domain_ns=None, **kwargs):
+    def __init__(self, source_id, title, author="", extra_fields=None, domain_ns=None, **kwargs):
         # Map parameters to model variables
         assert isinstance(source_id, str), "source_id must be a string"
         self.source_id = source_id
@@ -293,7 +293,7 @@ class TopicNode(ContentNode):
             title (str): content's title
             description (str): description of content (optional)
             author (str): who created the content (optional)
-            license (str): default license for content under this topic (optional)
+            license (str): default license for content under this topic
             thumbnail (str): local path or url to thumbnail image (optional)
             copyright_holder (str): name of person or organization who owns license (optional)
             extra_fields (dict): any additional data needed for node (optional)
@@ -335,7 +335,7 @@ class VideoNode(ContentNode):
             author (str): who created the content (optional)
             description (str): description of content (optional)
             derive_thumbnail (bool): indicates whether to derive thumbnail from video (optional)
-            license (str): content's license based on le_utils.constants.licenses (optional)
+            license (str): content's license based on le_utils.constants.licenses
             thumbnail (str): local path or url to thumbnail image (optional)
             copyright_holder (str): name of person or organization who owns license (optional)
             extra_fields (dict): any additional data needed for node (optional)
@@ -383,6 +383,7 @@ class VideoNode(ContentNode):
         """
         try:
             assert self.kind == content_kinds.VIDEO, "Assumption Failed: Node should be a video"
+            assert self.license, "Assumption Failed: Video content must have a license"
             assert self.questions == [], "Assumption Failed: Video should not have questions"
             assert len(self.files) > 0, "Assumption Failed: Video must have at least one video file"
 
@@ -407,7 +408,7 @@ class AudioNode(ContentNode):
             title (str): content's title
             author (str): who created the content (optional)
             description (str): description of content (optional)
-            license (str): content's license based on le_utils.constants.licenses (optional)
+            license (str): content's license based on le_utils.constants.licenses
             thumbnail (str): local path or url to thumbnail image (optional)
             copyright_holder (str): name of person or organization who owns license (optional)
             extra_fields (dict): any additional data needed for node (optional)
@@ -429,6 +430,7 @@ class AudioNode(ContentNode):
         """
         try:
             assert self.kind == content_kinds.AUDIO, "Assumption Failed: Node should be audio"
+            assert self.license, "Assumption Failed: Audio content must have a license"
             assert self.questions == [], "Assumption Failed: Audio should not have questions"
             assert len(self.files) > 0, "Assumption Failed: Audio should have at least one file"
 
@@ -453,7 +455,7 @@ class DocumentNode(ContentNode):
             title (str): content's title
             author (str): who created the content (optional)
             description (str): description of content (optional)
-            license (str): content's license based on le_utils.constants.licenses (optional)
+            license (str): content's license based on le_utils.constants.licenses
             thumbnail (str): local path or url to thumbnail image (optional)
             copyright_holder (str): name of person or organization who owns license (optional)
             extra_fields (dict): any additional data needed for node (optional)
@@ -475,6 +477,7 @@ class DocumentNode(ContentNode):
         """
         try:
             assert self.kind == content_kinds.DOCUMENT, "Assumption Failed: Node should be a document"
+            assert self.license, "Assumption Failed: Documents must have a license"
             assert self.questions == [], "Assumption Failed: Document should not have questions"
             assert len(self.files) > 0, "Assumption Failed: Document should have at least one file"
 
@@ -500,7 +503,7 @@ class HTML5AppNode(ContentNode):
             title (str): content's title
             author (str): who created the content (optional)
             description (str): description of content (optional)
-            license (str): content's license based on le_utils.constants.licenses (optional)
+            license (str): content's license based on le_utils.constants.licenses
             thumbnail (str): local path or url to thumbnail image (optional)
             copyright_holder (str): name of person or organization who owns license (optional)
             extra_fields (dict): any additional data needed for node (optional)
@@ -522,6 +525,7 @@ class HTML5AppNode(ContentNode):
         """
         try:
             assert self.kind == content_kinds.HTML5, "Assumption Failed: Node should be an HTML5 app"
+            assert self.license, "Assumption Failed: HTML content must have a license"
             assert self.questions == [], "Assumption Failed: HTML should not have questions"
 
             # Check if there are any .zip files
@@ -557,7 +561,7 @@ class ExerciseNode(ContentNode):
             questions ([<Question>]): list of question objects for node (optional)
     """
     default_preset = format_presets.EXERCISE
-    def __init__(self, source_id, title, questions=None, exercise_data=None, **kwargs):
+    def __init__(self, source_id, title, license, questions=None, exercise_data=None, **kwargs):
         self.kind = content_kinds.EXERCISE
         self.questions = questions or []
 
