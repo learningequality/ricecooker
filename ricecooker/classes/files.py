@@ -5,6 +5,7 @@ import hashlib
 import tempfile
 import shutil
 import requests
+import zipfile
 from subprocess import CalledProcessError
 from cachecontrol.caches.file_cache import FileCache
 from requests_file import FileAdapter
@@ -12,7 +13,7 @@ from le_utils.constants import content_kinds,file_formats, format_presets, exerc
 from .. import config
 from .nodes import ChannelNode, TopicNode, VideoNode, AudioNode, DocumentNode, ExerciseNode, HTML5AppNode
 from ..exceptions import UnknownFileTypeError
-from pressurecooker.videos import extract_thumbnail_from_video, check_video_resolution, compress_video
+from pressurecooker.videos import extract_thumbnail_from_video, guess_video_preset_by_resolution, compress_video
 from pressurecooker.encodings import get_base64_encoding, write_base64_to_file
 from requests.exceptions import MissingSchema, HTTPError, ConnectionError, InvalidURL, InvalidSchema
 
@@ -120,7 +121,23 @@ def compress_video_file(filename, ffmpeg_settings):
         FILECACHE.set(key, bytes(filename, "utf-8"))
         return filename
 
+class ThumbnailPresetMixin(object):
 
+    def get_preset(self):
+        if isinstance(self.node, ChannelNode):
+            return format_presets.CHANNEL_THUMBNAIL
+        elif isinstance(self.node, VideoNode):
+            return format_presets.VIDEO_THUMBNAIL
+        elif isinstance(self.node, AudioNode):
+            return format_presets.AUDIO_THUMBNAIL
+        elif isinstance(self.node, DocumentNode):
+            return format_presets.DOCUMENT_THUMBNAIL
+        elif isinstance(self.node, ExerciseNode):
+            return format_presets.EXERCISE_THUMBNAIL
+        elif isinstance(self.node, HTML5AppNode):
+            return format_presets.HTML5_THUMBNAIL
+        else:
+            raise UnknownFileTypeError("Thumbnails are not supported for node kind.")
 
 class File(object):
     original_filename = None
@@ -186,27 +203,11 @@ class DownloadFile(File):
             self.error = err
             config.FAILED_FILES.append(self)
 
-class ThumbnailFile(DownloadFile):
+class ThumbnailFile(ThumbnailPresetMixin, DownloadFile):
     default_ext = file_formats.PNG
 
     def validate(self):
         assert os.path.splitext(self.path)[1][1:] in [file_formats.JPG, file_formats.JPEG, file_formats.PNG], "Thumbnails must be in jpg, jpeg, or png format"
-
-    def get_preset(self):
-        if isinstance(self.node, ChannelNode):
-            return format_presets.CHANNEL_THUMBNAIL
-        elif isinstance(self.node, VideoNode):
-            return format_presets.VIDEO_THUMBNAIL
-        elif isinstance(self.node, AudioNode):
-            return format_presets.AUDIO_THUMBNAIL
-        elif isinstance(self.node, DocumentNode):
-            return format_presets.DOCUMENT_THUMBNAIL
-        elif isinstance(self.node, ExerciseNode):
-            return format_presets.EXERCISE_THUMBNAIL
-        elif isinstance(self.node, HTML5AppNode):
-            return format_presets.HTML5_THUMBNAIL
-        else:
-            raise UnknownFileTypeError("Thumbnails are not supported for node kind.")
 
 class AudioFile(DownloadFile):
     def get_preset(self):
@@ -228,6 +229,12 @@ class HTMLZipFile(DownloadFile):
 
     def validate(self):
         assert self.path.endswith(file_formats.HTML5), "HTML files must be in zip format"
+        # make sure index.html exists
+        with zipfile.ZipFile(self.path) as zf:
+            try:
+                info = zf.getinfo('index.html')
+            except KeyError:
+                assert False, "Assumption Failed: HTML zip must have an `index.html` file at topmost level"
 
 class ExtractedVideoThumbnailFile(ThumbnailFile):
 
@@ -260,7 +267,7 @@ class VideoFile(DownloadFile):
         super(VideoFile, self).__init__(path, **kwargs)
 
     def get_preset(self):
-        return self.preset or check_video_resolution(config.get_storage_path(self.filename))
+        return self.preset or guess_video_preset_by_resolution(config.get_storage_path(self.filename))
 
     def validate(self):
         assert self.path.endswith(file_formats.MP4), "Video files be in mp4 format"
@@ -300,27 +307,11 @@ class _ExerciseImageFile(DownloadFile):
     def get_preset(self):
         return self.preset or format_presets.EXERCISE_IMAGE
 
-class Base64ImageFile(File):
+class Base64ImageFile(ThumbnailPresetMixin, File):
 
     def __init__(self, encoding, **kwargs):
         self.encoding = encoding
         super(Base64ImageFile, self).__init__(**kwargs)
-
-    def get_preset(self):
-        if isinstance(self.node, ChannelNode):
-            return format_presets.CHANNEL_THUMBNAIL
-        elif isinstance(self.node, VideoNode):
-            return format_presets.VIDEO_THUMBNAIL
-        elif isinstance(self.node, AudioNode):
-            return format_presets.AUDIO_THUMBNAIL
-        elif isinstance(self.node, DocumentNode):
-            return format_presets.DOCUMENT_THUMBNAIL
-        elif isinstance(self.node, ExerciseNode):
-            return format_presets.EXERCISE_THUMBNAIL
-        elif isinstance(self.node, HTML5AppNode):
-            return format_presets.HTML5_THUMBNAIL
-        else:
-            raise UnknownFileTypeError("Thumbnails are not supported for node kind.")
 
     def process_file(self):
         """ process_file: Writes base64 encoding to file
@@ -342,7 +333,10 @@ class Base64ImageFile(File):
 
         config.LOGGER.info("\tConverting base64 to file")
 
-        with tempfile.NamedTemporaryFile(suffix=".{}".format(file_formats.PNG)) as tempf:
+        extension = get_base64_encoding(self.encoding).group(1)
+        assert extension in [file_formats.PNG, file_formats.JPG, file_formats.JPEG], "Base64 files must be images in jpg or png format"
+
+        with tempfile.NamedTemporaryFile(suffix=".{}".format(extension)) as tempf:
             tempf.close()
             write_base64_to_file(self.encoding, tempf.name)
             filename = "{}.{}".format(get_hash(tempf.name), file_formats.PNG)

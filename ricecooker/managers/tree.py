@@ -33,13 +33,13 @@ class ChannelManager:
                 parent (Node): parent of node being processed
             Returns: None
         """
-        downloaded = node.process_files()
+        filenames = node.process_files()
 
         # Process node's children
         for child_node in node.children:
-            downloaded += self.process_tree(child_node, node)
+            filenames += self.process_tree(child_node, node)
 
-        return list(filter(lambda x: x, set(downloaded))) # Remove any duplicate or null files
+        return [x for x in set(filenames) if x] # Remove any duplicate or null files
 
     def check_for_files_failed(self):
         """ check_for_files_failed: print any files that failed during download process
@@ -102,7 +102,6 @@ class ChannelManager:
         """
         if len(self.failed_uploads) > 0:
             config.LOGGER.info("\nReattempting to upload {0} file(s)...".format(len(self.failed_uploads)))
-            import pdb; pdb.set_trace()
             self.upload_files(self.failed_uploads)
 
     def upload_tree(self):
@@ -125,11 +124,14 @@ class ChannelManager:
             config.LOGGER.info("\tReattempting {0}".format(str(node[1])))
             for f in node[1].files:
                 # Attempt to upload file
-                if f.filename:
+                try:
+                    assert f.filename, "File failed to download (cannot be uploaded)"
                     with open(config.get_storage_path(f.filename), 'rb') as file_obj:
                         response = config.SESSION.post(config.file_upload_url(), files={'file': file_obj})
                         response.raise_for_status()
                         self.uploaded_files.append(f.filename)
+                except AssertionError as ae:
+                    config.LOGGER.warning(ae)
             # Attempt to create node
             self.add_nodes(node[0], node[1])
 
