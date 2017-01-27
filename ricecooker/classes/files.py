@@ -207,28 +207,43 @@ class ThumbnailFile(ThumbnailPresetMixin, DownloadFile):
     default_ext = file_formats.PNG
 
     def validate(self):
-        assert os.path.splitext(self.path)[1][1:] in [file_formats.JPG, file_formats.JPEG, file_formats.PNG], "Thumbnails must be in jpg, jpeg, or png format"
+        super(ThumbnailFile, self).validate()
+        if os.path.splitext(self.path)[1][1:] != "":
+            assert os.path.splitext(self.path)[1][1:] in [file_formats.JPG, file_formats.JPEG, file_formats.PNG], "Thumbnails must be in jpg, jpeg, or png format"
+
 
 class AudioFile(DownloadFile):
+    default_ext = file_formats.MP3
+
     def get_preset(self):
         return self.preset or format_presets.AUDIO
 
     def validate(self):
-        assert self.path.endswith(file_formats.MP3), "Audio files must be in mp3 format"
+        super(AudioFile, self).validate()
+        if os.path.splitext(self.path)[1][1:] != "":
+            assert self.path.endswith(file_formats.MP3), "Audio files must be in mp3 format"
 
 class DocumentFile(DownloadFile):
+    default_ext = file_formats.PDF
+
     def get_preset(self):
         return self.preset or format_presets.DOCUMENT
 
     def validate(self):
-        assert self.path.endswith(file_formats.PDF), "Document files must be in pdf format"
+        super(DocumentFile, self).validate()
+        if os.path.splitext(self.path)[1][1:] != "":
+            assert self.path.endswith(file_formats.PDF), "Document files must be in pdf format"
 
 class HTMLZipFile(DownloadFile):
+    default_ext = file_formats.HTML5
+
     def get_preset(self):
         return self.preset or format_presets.HTML5_ZIP
 
     def validate(self):
-        assert self.path.endswith(file_formats.HTML5), "HTML files must be in zip format"
+        super(HTMLZipFile, self).validate()
+        if os.path.splitext(self.path)[1][1:] != "":
+            assert self.path.endswith(file_formats.HTML5), "HTML files must be in zip format"
         # make sure index.html exists
         with zipfile.ZipFile(self.path) as zf:
             try:
@@ -270,7 +285,9 @@ class VideoFile(DownloadFile):
         return self.preset or guess_video_preset_by_resolution(config.get_storage_path(self.filename))
 
     def validate(self):
-        assert self.path.endswith(file_formats.MP4), "Video files be in mp4 format"
+        super(VideoFile, self).validate()
+        if os.path.splitext(self.path)[1][1:] != "":
+            assert self.path.endswith(file_formats.MP4), "Video files be in mp4 format"
 
     def process_file(self):
         try:
@@ -287,6 +304,8 @@ class VideoFile(DownloadFile):
 
 
 class SubtitleFile(DownloadFile):
+    default_ext = file_formats.VTT
+
     def __init__(self, path, **kwargs):
         super(SubtitleFile, self).__init__(path, **kwargs)
         assert self.language, "Subtitles must have a language"
@@ -295,17 +314,10 @@ class SubtitleFile(DownloadFile):
         return self.preset or format_presets.VIDEO_SUBTITLE
 
     def validate(self):
-        assert self.path.endswith(file_formats.VTT), "Subtitle files must be in vtt format"
+        super(SubtitleFile, self).validate()
+        if os.path.splitext(self.path)[1][1:] != "":
+            assert self.path.endswith(file_formats.VTT), "Subtitle files must be in vtt format"
 
-
-class _ExerciseImageFile(DownloadFile):
-    default_ext = file_formats.PNG
-
-    def get_replacement_str(self):
-        return self.get_filename() or self.path
-
-    def get_preset(self):
-        return self.preset or format_presets.EXERCISE_IMAGE
 
 class Base64ImageFile(ThumbnailPresetMixin, File):
 
@@ -345,7 +357,6 @@ class Base64ImageFile(ThumbnailPresetMixin, File):
             FILECACHE.set(key, bytes(filename, "utf-8"))
             return filename
 
-
 class _ExerciseBase64ImageFile(Base64ImageFile):
     default_ext = file_formats.PNG
 
@@ -354,6 +365,15 @@ class _ExerciseBase64ImageFile(Base64ImageFile):
 
     def get_replacement_str(self):
         return self.get_filename() or self.encoding
+
+class _ExerciseImageFile(DownloadFile):
+    default_ext = file_formats.PNG
+
+    def get_replacement_str(self):
+        return self.get_filename() or self.path
+
+    def get_preset(self):
+        return self.preset or format_presets.EXERCISE_IMAGE
 
 class _ExerciseGraphieFile(DownloadFile):
     default_ext = file_formats.GRAPHIE
