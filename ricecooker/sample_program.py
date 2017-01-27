@@ -1,6 +1,81 @@
+import os
+from enum import Enum
 from ricecooker.classes import nodes, questions, files
 from ricecooker.exceptions import UnknownContentKindError, UnknownFileTypeError, UnknownQuestionTypeError, raise_for_invalid_channel
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises, languages
+from pressurecooker.encodings import get_base64_encoding
+
+class FileTypes(Enum):
+    """ Enum containing all file types Ricecooker can have
+
+        Steps:
+            AUDIO_FILE: mp3 files
+            THUMBNAIL: png, jpg, or jpeg files
+            DOCUMENT_FILE: pdf files
+    """
+    AUDIO_FILE = 0
+    THUMBNAIL = 1
+    DOCUMENT_FILE = 2
+    VIDEO_FILE = 3
+    YOUTUBE_VIDEO_FILE = 4
+    VECTORIZED_VIDEO_FILE = 5
+    VIDEO_THUMBNAIL = 6
+    YOUTUBE_VIDEO_THUMBNAIL_FILE = 7
+    HTML_ZIP_FILE = 8
+    SUBTITLE_FILE = 9
+    TILED_THUMBNAIL_FILE = 10
+    UNIVERSAL_SUBS_SUBTITLE_FILE = 11
+    BASE64_FILE = 12
+
+
+FILE_TYPE_MAPPING = {
+    content_kinds.AUDIO : {
+        file_formats.MP3 : FileTypes.AUDIO_FILE,
+        file_formats.PNG : FileTypes.THUMBNAIL,
+        file_formats.JPG : FileTypes.THUMBNAIL,
+        file_formats.JPEG : FileTypes.THUMBNAIL,
+    },
+    content_kinds.DOCUMENT : {
+        file_formats.PDF : FileTypes.DOCUMENT_FILE,
+        file_formats.PNG : FileTypes.THUMBNAIL,
+        file_formats.JPG : FileTypes.THUMBNAIL,
+        file_formats.JPEG : FileTypes.THUMBNAIL,
+    },
+    content_kinds.HTML5 : {
+        file_formats.HTML5 : FileTypes.HTML_ZIP_FILE,
+        file_formats.PNG : FileTypes.THUMBNAIL,
+        file_formats.JPG : FileTypes.THUMBNAIL,
+        file_formats.JPEG : FileTypes.THUMBNAIL,
+    },
+    content_kinds.VIDEO : {
+        file_formats.MP4 : FileTypes.VIDEO_FILE,
+        file_formats.VTT : FileTypes.SUBTITLE_FILE,
+        file_formats.PNG : FileTypes.THUMBNAIL,
+        file_formats.JPG : FileTypes.THUMBNAIL,
+        file_formats.JPEG : FileTypes.THUMBNAIL,
+    },
+    content_kinds.EXERCISE : {
+        file_formats.PNG : FileTypes.THUMBNAIL,
+        file_formats.JPG : FileTypes.THUMBNAIL,
+        file_formats.JPEG : FileTypes.THUMBNAIL,
+    },
+}
+
+
+
+def guess_file_type(filepath, kind):
+    """ guess_file_class: determines what file the content is
+        Args:
+            filepath (str): filepath of file to check
+        Returns: string indicating file's class
+    """
+    if get_base64_encoding(filepath):
+        return FileTypes.BASE64_FILE
+    ext = os.path.splitext(filepath)[1][1:].lower()
+    if kind in FILE_TYPE_MAPPING and ext in FILE_TYPE_MAPPING[kind]:
+        return FILE_TYPE_MAPPING[kind][ext]
+    return None
+
 
 SAMPLE_PERSEUS = '{"answerArea":{"chi2Table":false,"periodicTable":false,"tTable":false,"zTable":false,"calculator":false},' + \
 '"hints":[{"widgets":{},"images":{"web+graphie:C:/users/jordan/contentcuration-dump/0a0c0f1a1a40226d8d227a07dd143f8c08a4b8a5": {}},"content":"Hint #1","replace":false},{"widgets":{},"images":{},"content":"Hint #2","replace":false}],' +\
@@ -102,6 +177,7 @@ SAMPLE_TREE = [
                         "title": "The History of Japanese Rice",
                         "id": "418799",
                         "author": "Sandra Lopez-Richter",
+                        "license": licenses.CC_BY_NC_SA,
                         "files":[
                             {
                                 "path" : "https://ia601301.us.archive.org/31/items/The_History_of_Japanese_Rice_Lopez-Richter/The_History_of_Japanese_Rice_Lopez-Richter.pdf",
@@ -361,19 +437,23 @@ def _build_tree(node, sourcetree):
 
 def add_files(node, file_list):
     for f in file_list:
+<<<<<<< HEAD
         file_type = files.guess_file_type(node.kind, filepath=f.get('path'), youtube_id=f.get('youtube_id'), web_url=f.get('web_url'), encoding=f.get('encoding'))
+=======
+        file_type = guess_file_type(f['path'], node.kind)
+>>>>>>> 85bef26a32a7f6cc5407d5dc9021533dfafccd4b
 
-        if file_type == files.FileTypes.AUDIO_FILE:
+        if file_type == FileTypes.AUDIO_FILE:
             node.add_file(files.AudioFile(path=f['path'], language=f.get('language')))
-        elif file_type == files.FileTypes.THUMBNAIL:
+        elif file_type == FileTypes.THUMBNAIL:
             node.add_file(files.ThumbnailFile(path=f['path']))
-        elif file_type == files.FileTypes.DOCUMENT_FILE:
+        elif file_type == FileTypes.DOCUMENT_FILE:
             node.add_file(files.DocumentFile(path=f['path'], language=f.get('language')))
-        elif file_type == files.FileTypes.HTML_ZIP_FILE:
+        elif file_type == FileTypes.HTML_ZIP_FILE:
             node.add_file(files.HTMLZipFile(path=f['path'], language=f.get('language')))
-        elif file_type == files.FileTypes.VIDEO_FILE:
+        elif file_type == FileTypes.VIDEO_FILE:
             node.add_file(files.VideoFile(path=f['path'], language=f.get('language'), ffmpeg_settings=f.get('ffmpeg_settings')))
-        elif file_type == files.FileTypes.SUBTITLE_FILE:
+        elif file_type == FileTypes.SUBTITLE_FILE:
             node.add_file(files.SubtitleFile(path=f['path'], language=f['language']))
         elif file_type == files.FileTypes.BASE64_FILE:
             node.add_file(files.Base64ImageFile(encoding=f['encoding']))
@@ -383,7 +463,6 @@ def add_files(node, file_list):
             node.add_file(files.YouTubeVideoFile(youtube_id=f['youtube_id'], high_resolution=f.get('high_resolution')))
         else:
             raise UnknownFileTypeError("Unrecognized file type '{0}'".format(f['path']))
-
 
 def create_question(raw_question):
 
