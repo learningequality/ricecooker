@@ -94,7 +94,7 @@ SAMPLE_TREE = [
         "files": [
             {
                 "path": "C:/users/jordan/contentcuration-dump/high resolution.mp4",
-                "ffmpeg_settings": {"max_width": 480, "crf": 20},
+                # "ffmpeg_settings": {"max_width": 480, "crf": 20},
             },
             {
                 "path": "C:/users/jordan/Videos/testfolder/captions.vtt",
