@@ -116,7 +116,7 @@ def compress_video_file(filename, ffmpeg_settings):
 
         filename = "{}.{}".format(get_hash(tempf.name), file_formats.MP4)
 
-        copy_file_to_storage(filename, tempf.name, delete_original=True)
+        copy_file_to_storage(filename, tempf.name)
 
         FILECACHE.set(key, bytes(filename, "utf-8"))
         return filename
@@ -269,7 +269,7 @@ class ExtractedVideoThumbnailFile(ThumbnailFile):
             extract_thumbnail_from_video(self.path, tempf.name, overwrite=True)
             filename = "{}.{}".format(get_hash(tempf.name), file_formats.PNG)
 
-            copy_file_to_storage(filename, tempf.name, delete_original=True)
+            copy_file_to_storage(filename, tempf.name)
 
             FILECACHE.set(key, bytes(filename, "utf-8"))
             return filename
@@ -353,7 +353,7 @@ class Base64ImageFile(ThumbnailPresetMixin, File):
             write_base64_to_file(self.encoding, tempf.name)
             filename = "{}.{}".format(get_hash(tempf.name), file_formats.PNG)
 
-            copy_file_to_storage(filename, tempf.name, delete_original=True)
+            copy_file_to_storage(filename, tempf.name)
             FILECACHE.set(key, bytes(filename, "utf-8"))
             return filename
 
@@ -422,7 +422,7 @@ class _ExerciseGraphieFile(DownloadFile):
             tempf.seek(0)
             filename = "{}.{}".format(hash.hexdigest(), file_formats.GRAPHIE)
 
-            copy_file_to_storage(filename, tempf, delete_original=True)
+            copy_file_to_storage(filename, tempf)
 
             FILECACHE.set(key, bytes(filename, "utf-8"))
             return filename
