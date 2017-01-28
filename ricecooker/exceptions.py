@@ -35,6 +35,11 @@ class UnknownFileTypeError(Exception):
     def __init__(self,*args,**kwargs):
         Exception.__init__(self,*args,**kwargs)
 
+class UnknownLicenseError(Exception):
+    """ UnknownLicenseError: raised when license is unrecognized """
+    def __init__(self,*args,**kwargs):
+        Exception.__init__(self,*args,**kwargs)
+
 class InvalidNodeException(Exception):
     """ InvalidNodeException: raised when node is improperly formatted """
     def __init__(self,*args,**kwargs):
