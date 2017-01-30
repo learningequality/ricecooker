@@ -7,19 +7,14 @@ import shutil
 import requests
 import zipfile
 from subprocess import CalledProcessError
-from cachecontrol.caches.file_cache import FileCache
-from requests_file import FileAdapter
 from le_utils.constants import content_kinds,file_formats, format_presets, exercises
 from .. import config
 from .nodes import ChannelNode, TopicNode, VideoNode, AudioNode, DocumentNode, ExerciseNode, HTML5AppNode
 from ..exceptions import UnknownFileTypeError
+from cachecontrol.caches.file_cache import FileCache
 from pressurecooker.videos import extract_thumbnail_from_video, guess_video_preset_by_resolution, compress_video
 from pressurecooker.encodings import get_base64_encoding, write_base64_to_file
 from requests.exceptions import MissingSchema, HTTPError, ConnectionError, InvalidURL, InvalidSchema
-
-# Session for downloading files
-DOWNLOAD_SESSION = requests.Session()
-DOWNLOAD_SESSION.mount('file://', FileAdapter())
 
 # Cache for filenames
 FILECACHE = FileCache(config.FILECACHE_DIRECTORY, forever=True)
@@ -64,7 +59,7 @@ def write_and_get_hash(path, write_to_file, hash=None):
     hash = hash or hashlib.md5()
     try:
         # Access path
-        r = DOWNLOAD_SESSION.get(path, stream=True)
+        r = config.DOWNLOAD_SESSION.get(path, stream=True)
         r.raise_for_status()
         for chunk in r:
             write_to_file.write(chunk)

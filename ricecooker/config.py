@@ -6,6 +6,7 @@ import logging
 import hashlib
 import requests
 import logging
+from requests_file import FileAdapter
 
 UPDATE = False
 COMPRESS = False
@@ -53,6 +54,11 @@ SESSION = requests.Session()
 FILECACHE_DIRECTORY = ".ricecookerfilecache"
 
 FAILED_FILES = []
+
+# Session for downloading files
+DOWNLOAD_SESSION = requests.Session()
+DOWNLOAD_SESSION.mount('file://', FileAdapter())
+
 
 def get_storage_path(filename):
     """ get_storage_path: returns path to storage directory for downloading content
