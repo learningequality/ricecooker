@@ -96,15 +96,15 @@ SAMPLE_TREE = [
                 "path": "C:/Users/Jordan/Videos/testfolder/high resolution.mp4",
                 # "ffmpeg_settings": {"max_width": 480, "crf": 20},
             },
-            {
-                "path": "C:/users/jordan/Videos/testfolder/captions.vtt",
-                "language": languages.getlang('en').code,
-            }
-            ,
-            {
-                "path": "file:///C:/users/jordan/Videos/testfolder/captions.vtt",
-                "language": languages.getlang('es').code,
-            }
+            # {
+            #     "path": "C:/users/jordan/Videos/testfolder/captions.vtt",
+            #     "language": languages.getlang('en').code,
+            # }
+            # ,
+            # {
+            #     "path": "file:///C:/users/jordan/Videos/testfolder/captions.vtt",
+            #     "language": languages.getlang('es').code,
+            # }
         ],
     },
     {
