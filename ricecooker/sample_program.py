@@ -129,10 +129,8 @@ SAMPLE_TREE = [
                     {
                         "path" : "https://ia801407.us.archive.org/21/items/ah_Rice/Rice.mp3",
                     },
-                    {
-                        "path" : "https://upload.wikimedia.org/wikipedia/commons/b/ba/Rice_grains_(IRRI).jpg",
-                    },
                 ],
+                "thumbnail": "https://upload.wikimedia.org/wikipedia/commons/b/ba/Rice_grains_(IRRI)",
                 "description": "Get online updates regarding world's leading long grain rice distributors, broken rice distributors, rice suppliers, parboiled rice exporter on our online B2B marketplace TradeBanq.",
                 "license": licenses.PUBLIC_DOMAIN,
             },
@@ -334,6 +332,7 @@ def _build_tree(node, sourcetree):
                 title=child_source_node["title"],
                 author=child_source_node.get("author"),
                 description=child_source_node.get("description"),
+                thumbnail=child_source_node.get("thumbnail"),
             )
             node.add_child(child_node)
 
@@ -349,6 +348,7 @@ def _build_tree(node, sourcetree):
                 description=child_source_node.get("description"),
                 license=child_source_node.get("license"),
                 derive_thumbnail=True, # video-specific data
+                thumbnail=child_source_node.get("thumbnail"),
             )
             add_files(child_node, child_source_node.get("files") or [])
             node.add_child(child_node)
@@ -360,6 +360,7 @@ def _build_tree(node, sourcetree):
                 author=child_source_node.get("author"),
                 description=child_source_node.get("description"),
                 license=child_source_node.get("license"),
+                thumbnail=child_source_node.get("thumbnail"),
             )
             add_files(child_node, child_source_node.get("files") or [])
             node.add_child(child_node)
@@ -371,6 +372,7 @@ def _build_tree(node, sourcetree):
                 author=child_source_node.get("author"),
                 description=child_source_node.get("description"),
                 license=child_source_node.get("license"),
+                thumbnail=child_source_node.get("thumbnail"),
             )
             add_files(child_node, child_source_node.get("files") or [])
             node.add_child(child_node)
@@ -383,6 +385,7 @@ def _build_tree(node, sourcetree):
                 description=child_source_node.get("description"),
                 exercise_data={}, # Just set to default
                 license=child_source_node.get("license"),
+                thumbnail=child_source_node.get("thumbnail"),
             )
             add_files(child_node, child_source_node.get("files") or [])
             for q in child_source_node.get("questions"):
@@ -397,6 +400,7 @@ def _build_tree(node, sourcetree):
                 author=child_source_node.get("author"),
                 description=child_source_node.get("description"),
                 license=child_source_node.get("license"),
+                thumbnail=child_source_node.get("thumbnail"),
             )
             add_files(child_node, child_source_node.get("files") or [])
             node.add_child(child_node)

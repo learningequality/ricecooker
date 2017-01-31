@@ -194,8 +194,9 @@ class DownloadFile(File):
 
     def validate(self):
         assert self.path, "{} must have a path".format(self.__class__.__name__)
-        if os.path.splitext(self.path)[1][1:] != "":
-            assert os.path.splitext(self.path)[1][1:] in self.allowed_formats, "{} must have one of the following extensions: {}".format(self.__class__.__name__, self.allowed_formats)
+        _basename, ext = os.path.splitext(self.path)
+        if ext:
+            assert ext.lstrip('.') in self.allowed_formats, "{} must have one of the following extensions: {}".format(self.__class__.__name__, self.allowed_formats)
 
     def process_file(self):
         try:
