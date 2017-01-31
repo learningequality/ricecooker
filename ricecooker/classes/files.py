@@ -187,7 +187,7 @@ class File(object):
 
 class DownloadFile(File):
     def __init__(self, path, **kwargs):
-        self.path = path
+        self.path = path.strip()
         super(DownloadFile, self).__init__(**kwargs)
 
     def validate(self):
@@ -386,7 +386,7 @@ class _ExerciseGraphieFile(DownloadFile):
         return self.preset or format_presets.EXERCISE_GRAPHIE
 
     def get_replacement_str(self):
-        return self.original_filename or self.path
+        return self.path.split("/")[-1].split(".")[0] or self.path
 
     def process_file(self):
         """ download: download a web+graphie file
@@ -414,6 +414,7 @@ class _ExerciseGraphieFile(DownloadFile):
             delimiter = bytes(exercises.GRAPHIE_DELIMITER, 'UTF-8')
             config.LOGGER.info("\tDownloading graphie {}".format(self.original_filename))
 
+
             # Write to graphie file
             hash = write_and_get_hash(self.path + ".svg", tempf)
             tempf.write(delimiter)
@@ -421,6 +422,7 @@ class _ExerciseGraphieFile(DownloadFile):
             hash = write_and_get_hash(self.path + "-data.json", tempf, hash)
             tempf.seek(0)
             filename = "{}.{}".format(hash.hexdigest(), file_formats.GRAPHIE)
+
 
             copy_file_to_storage(filename, tempf)
 
