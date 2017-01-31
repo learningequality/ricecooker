@@ -82,7 +82,17 @@ SAMPLE_PERSEUS = '{"answerArea":{"chi2Table":false,"periodicTable":false,"tTable
 '"question":{"widgets":{"radio 1":{"type":"radio","alignment":"default","graded":true,"static":false,' +\
 '"options":{"deselectEnabled":false,"multipleSelect":false,"choices":[{"correct":true,"content":"Yes"},{"correct":false,"content":"No"}],' +\
 '"displayCount":null,"hasNoneOfTheAbove":false,"randomize":false,"onePerLine":true},"version":{"minor":0,"major":1}}},"images":{"web+graphie:C:/users/jordan/contentcuration-dump/0a0c0f1a1a40226d8d227a07dd143f8c08a4b8a5": {}},' +\
-'"content":"Do you like rice?\\\"\\n\\n![](web+graphie:C:/users/jordan/contentcuration-dump/0a0c0f1a1a40226d8d227a07dd143f8c08a4b8a5)\\n\\n[[\\u2603 radio 1]]"},"itemDataVersion":{"minor":1,"major":0}}'
+'"content":"Do you like rice?\\\"\\n\\n![](web+graphie:file:///C:/users/jordan/contentcuration-dump/0a0c0f1a1a40226d8d227a07dd143f8c08a4b8a5)\\n\\n[[\\u2603 radio 1]]"},"itemDataVersion":{"minor":1,"major":0}}'
+
+SAMPLE_PERSEUS_2 = '{"hints":[{"replace":false,"content":"Numbers are equivalent when they are located at the same point on the number line.\\n\\nLet\'s ' +\
+'see what fraction is at the same location as $\\\\tealD{\\\\dfrac48}$ on the number line.\\n","widgets":{},"images":{"web+graphie:file:///C:/Users/Jordan/contentcuration-dump/ddb3feb4c8e3740ca4f10c2ebad70b5797f60ebd":' +\
+'{"width":460,"height":120}}},{"replace":false,"content":"![](web+graphie:file:///home/ralphie/Desktop/ka-sushi-chef-sw/build/a61/a61ac6f4038cb3e2c3bd6e69f6e75da10632a3d4\\n)\\n\\n $\\\\purpleC{\\\\dfrac24}$ is at the same location on the ' +\
+'number line as  $\\\\tealD{\\\\dfrac48}$.\\n","widgets":{},"images":{}},{"replace":false,"content":" $\\\\purpleC{\\\\dfrac24}$ is equivalent to $\\\\tealD{\\\\dfrac48}$.\\n\\n![]( web+graphie:file:///home/ralphie/Desktop/ka-sushi-chef-sw/' +\
+'build/e84/e84b6d5fa1410f002ef8f9446a999d4a09266edd)","widgets":{},"images":{"web+graphie:file:///home/ralphie/Desktop/ka-sushi-chef-sw/build/6a1/6a1bf04c8df3d217c846362e8902008d84d10ff4":{"width":460,"height":120}}}],"question":{"content"' +\
+':"![](web+graphie:file:///home/ralphie/Desktop/ka-sushi-chef-sw/build/749/749d2d16db0cfc94e8685f3eb7302394448d8c8c)\\n\\n**Move the dot to a fraction equivalent to $\\\\tealD{\\\\dfrac48}$ on the number line.**\\n\\n\\n[[\\u2603 number-line ' +\
+'1]]\\n","widgets":{"number-line 1":{"type":"number-line","static":false,"options":{"initialX":null,"labelRange":[null,null],"divisionRange":[null,null],"correctX":0.5,"labelStyle":"non-reduced","labelTicks":true,"snapDivisions":2,"correctRel":' +\
+'"eq","static":false,"numDivisions":null,"range":[null,null],"tickStep":0.25},"graded":true,"version":{"minor":0,"major":0},"alignment":"default"}},"images":{}},"itemDataVersion":{"minor":1,"major":0},"answerArea":{"periodicTable":false,"zTable":' +\
+'false,"chi2Table":false,"calculator":false,"tTable":false}}'
 
 SAMPLE_TREE = [
     {
@@ -93,7 +103,7 @@ SAMPLE_TREE = [
         "license": licenses.CC_BY_NC_SA,
         "files": [
             {
-                "path": "C:/Users/Jordan/Videos/testfolder/high resolution.mp4",
+                "path": "file:///C:/Users/Jordan/Videos/testfolder/high resolution.mp4",
                 # "ffmpeg_settings": {"max_width": 480, "crf": 20},
             },
             # {
@@ -119,10 +129,8 @@ SAMPLE_TREE = [
                     {
                         "path" : "https://ia801407.us.archive.org/21/items/ah_Rice/Rice.mp3",
                     },
-                    {
-                        "path" : "https://upload.wikimedia.org/wikipedia/commons/b/ba/Rice_grains_(IRRI).jpg",
-                    },
                 ],
+                "thumbnail": "https://upload.wikimedia.org/wikipedia/commons/b/ba/Rice_grains_(IRRI)",
                 "description": "Get online updates regarding world's leading long grain rice distributors, broken rice distributors, rice suppliers, parboiled rice exporter on our online B2B marketplace TradeBanq.",
                 "license": licenses.PUBLIC_DOMAIN,
             },
@@ -195,12 +203,16 @@ SAMPLE_TREE = [
                         "question": "Which rice is the crunchiest?",
                         "type":exercises.SINGLE_SELECTION,
                         "correct_answer": "Rice Krispies \n![](https://upload.wikimedia.org/wikipedia/commons/c/cd/RKTsquares.jpg)",
-                        "all_answers": ["White rice \n![](https://upload.wikimedia.org/wikipedia/commons/4/4b/Thai_jasmine_rice_uncooked.jpg)", "Brown rice \n![](https://c2.staticflickr.com/4/3159/2889140143_b99fd8dd4c_z.jpg?zz=1)", "Rice Krispies \n![](https://upload.wikimedia.org/wikipedia/commons/c/cd/RKTsquares.jpg)"],
+                        "all_answers": [
+                            "White rice \n![](web+graphie:file:///C:/users/jordan/contentcuration-dump/0a0c0f1a1a40226d8d227a07dd143f8c08a4b8a5)![](web+graphie:file:///C:/users/jordan/contentcuration-dump/0a0c0f1a1a40226d8d227a07dd143f8c08a4b8a5 - Copy)![](web+graphie:file:///C:/users/jordan/contentcuration-dump/0a0c0f1a1a40226d8d227a07dd143f8c08a4b8a5)",
+                            "Brown rice \n![](https://c2.staticflickr.com/4/3159/2889140143_b99fd8dd4c_z.jpg?zz=1)",
+                            "Rice Krispies \n![](https://upload.wikimedia.org/wikipedia/commons/c/cd/RKTsquares.jpg)"
+                        ],
                         "hints": "It's delicious",
                     },
                     {
                         "id": "ccccc",
-                        "question": "Why a rice cooker?",
+                        "question": "Why a rice cooker? ![bb8](https://media.giphy.com/media/9fbYYzdf6BbQA/giphy.gif)",
                         "type":exercises.FREE_RESPONSE,
                         "answers": [],
                         "images": None,
@@ -215,7 +227,7 @@ SAMPLE_TREE = [
                     {
                         "id": "ddddd",
                         "type":exercises.PERSEUS_QUESTION,
-                        "item_data":SAMPLE_PERSEUS,
+                        "item_data":SAMPLE_PERSEUS_2,
                     },
                 ],
             },
@@ -320,6 +332,7 @@ def _build_tree(node, sourcetree):
                 title=child_source_node["title"],
                 author=child_source_node.get("author"),
                 description=child_source_node.get("description"),
+                thumbnail=child_source_node.get("thumbnail"),
             )
             node.add_child(child_node)
 
@@ -335,6 +348,7 @@ def _build_tree(node, sourcetree):
                 description=child_source_node.get("description"),
                 license=child_source_node.get("license"),
                 derive_thumbnail=True, # video-specific data
+                thumbnail=child_source_node.get("thumbnail"),
             )
             add_files(child_node, child_source_node.get("files") or [])
             node.add_child(child_node)
@@ -346,6 +360,7 @@ def _build_tree(node, sourcetree):
                 author=child_source_node.get("author"),
                 description=child_source_node.get("description"),
                 license=child_source_node.get("license"),
+                thumbnail=child_source_node.get("thumbnail"),
             )
             add_files(child_node, child_source_node.get("files") or [])
             node.add_child(child_node)
@@ -357,6 +372,7 @@ def _build_tree(node, sourcetree):
                 author=child_source_node.get("author"),
                 description=child_source_node.get("description"),
                 license=child_source_node.get("license"),
+                thumbnail=child_source_node.get("thumbnail"),
             )
             add_files(child_node, child_source_node.get("files") or [])
             node.add_child(child_node)
@@ -369,6 +385,7 @@ def _build_tree(node, sourcetree):
                 description=child_source_node.get("description"),
                 exercise_data={}, # Just set to default
                 license=child_source_node.get("license"),
+                thumbnail=child_source_node.get("thumbnail"),
             )
             add_files(child_node, child_source_node.get("files") or [])
             for q in child_source_node.get("questions"):
@@ -383,6 +400,7 @@ def _build_tree(node, sourcetree):
                 author=child_source_node.get("author"),
                 description=child_source_node.get("description"),
                 license=child_source_node.get("license"),
+                thumbnail=child_source_node.get("thumbnail"),
             )
             add_files(child_node, child_source_node.get("files") or [])
             node.add_child(child_node)
