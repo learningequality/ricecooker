@@ -4,7 +4,7 @@ import requests
 import json
 import logging
 import webbrowser
-from . import config
+from . import config, __version__
 from .classes import nodes, questions
 from requests.exceptions import HTTPError
 from .managers.progress import RestoreManager, Status
@@ -18,12 +18,13 @@ try:
 except NameError:
     pass
 
-def uploadchannel(path, verbose=False, update=False, resume=False, reset=False, step=Status.LAST.name, token="#", prompt=False, publish=False, warnings=False, compress=False, **kwargs):
+def uploadchannel(path, verbose=False, update=False, max_retries=3, resume=False, reset=False, step=Status.LAST.name, token="#", prompt=False, publish=False, warnings=False, compress=False, **kwargs):
     """ uploadchannel: Upload channel to Kolibri Studio server
         Args:
             path (str): path to file containing construct_channel method
             verbose (bool): indicates whether to print process (optional)
             update (bool): indicates whether to re-download files (optional)
+            max_retries (int): number of times to retry downloading files (optional)
             resume (bool): indicates whether to resume last session automatically (optional)
             step (str): step to resume process from (optional)
             reset (bool): indicates whether to start session from beginning automatically (optional)
@@ -47,22 +48,16 @@ def uploadchannel(path, verbose=False, update=False, resume=False, reset=False, 
     config.UPDATE = update
     config.COMPRESS = compress
 
-    # Authenticate user
-    if token != "#":
-        if os.path.isfile(token):
-            with open(token, 'r') as fobj:
-                config.SESSION.headers.update({"Authorization": "Token {0}".format(fobj.read())})
-        try:
-            response = config.SESSION.post(config.authentication_url())
-            response.raise_for_status()
-            user = json.loads(response._content.decode("utf-8"))
-            config.LOGGER.info("Logged in with username {0}".format(user['username']))
+    # Set max retries for downloading
+    config.DOWNLOAD_SESSION.mount('http://', requests.adapters.HTTPAdapter(max_retries=int(max_retries)))
+    config.DOWNLOAD_SESSION.mount('https://', requests.adapters.HTTPAdapter(max_retries=int(max_retries)))
 
-        except HTTPError:
-            config.LOGGER.error("Invalid token: Credentials not found")
-            sys.exit()
-    else:
-        prompt_token(config.DOMAIN)
+    # Get domain to upload to
+    config.init_file_mapping_store()
+
+    # Authenticate user and check current Ricecooker version
+    authenticate_user(token)
+    # check_version_number()
 
     config.LOGGER.info("\n\n***** Starting channel build process *****\n\n")
 
@@ -71,7 +66,7 @@ def uploadchannel(path, verbose=False, update=False, resume=False, reset=False, 
     if (reset or not config.PROGRESS_MANAGER.check_for_session()) and step.upper() != Status.DONE.name:
         config.PROGRESS_MANAGER.init_session()
     else:
-        if resume or prompt_resume():
+        if resume or prompt_yes_or_no('Previous session detected. Would you like to resume your last session?'):
             config.LOGGER.info("Resuming your last session...")
             step = Status.LAST.name if step is None else step
             config.PROGRESS_MANAGER = config.PROGRESS_MANAGER.load_progress(step.upper())
@@ -121,10 +116,29 @@ def uploadchannel(path, verbose=False, update=False, resume=False, reset=False, 
 
     # Open link on web browser (if specified) and return new link
     config.LOGGER.info("\n\nDONE: Channel created at {0}\n".format(channel_link))
-    if prompt:
-        prompt_open(channel_link)
+    if prompt and prompt_yes_or_no('Would you like to open your channel now?'):
+        config.LOGGER.info("Opening channel... ")
+        webbrowser.open_new_tab(channel_link)
+
     config.PROGRESS_MANAGER.set_done()
     return channel_link
+
+def authenticate_user(token):
+    if token != "#":
+        if os.path.isfile(token):
+            with open(token, 'r') as fobj:
+                config.SESSION.headers.update({"Authorization": "Token {0}".format(fobj.read())})
+        try:
+            response = config.SESSION.post(config.authentication_url())
+            response.raise_for_status()
+            user = json.loads(response._content.decode("utf-8"))
+            config.LOGGER.info("Logged in with username {0}".format(user['username']))
+
+        except HTTPError:
+            config.LOGGER.error("Invalid token: Credentials not found")
+            sys.exit()
+    else:
+        prompt_token(config.DOMAIN)
 
 def prompt_token(domain):
     """ prompt_token: Prompt user to enter authentication token
@@ -144,18 +158,35 @@ def prompt_token(domain):
             config.LOGGER.error("Invalid token. Please login to {0}/settings/tokens to retrieve your authorization token.".format(domain))
             prompt_token(domain)
 
-def prompt_resume():
-    """ prompt_resume: Prompt user to resume last session if one exists
+def check_version_number():
+    response = config.SESSION.post(config.check_version_url(), data=json.dumps({"version": __version__}))
+    response.raise_for_status()
+    result = json.loads(response._content.decode('utf-8'))
+
+    if  result['status'] == 0:
+        config.LOGGER.info(result['message'])
+    elif result['status'] == 1:
+        config.LOGGER.warning(result['message'])
+    elif result['status'] == 2:
+        config.LOGGER.error(result['message'])
+        if not prompt_yes_or_no("Continue anyways?"):
+            sys.exit()
+    else:
+        config.LOGGER.error(result['message'])
+        sys.exit()
+
+def prompt_yes_or_no(message):
+    """ prompt_yes_or_no: Prompt user to reply with a y/n response
         Args: None
         Returns: None
     """
-    openNow = input("\nPrevious session detected. Would you like to resume your previous session? [y/n]:").lower()
-    if openNow.startswith("y"):
+    user_input = input("{} [y/n]:".format(message)).lower()
+    if user_input.startswith("y"):
         return True
-    elif openNow.startswith("n"):
+    elif user_input.startswith("n"):
         return False
     else:
-        return prompt_resume()
+        return prompt_yes_or_no(message)
 
 def run_construct_channel(path, kwargs):
     """ run_construct_channel: Run sushi chef's construct_channel method
@@ -236,21 +267,6 @@ def create_tree(tree):
     channel_id, channel_link = tree.upload_tree()
 
     return channel_link, channel_id
-
-def prompt_open(channel_link):
-    """ prompt_open: Prompt user to open web browser
-        Args:
-            channel_link (str): url of uploaded channel
-        Returns: None
-    """
-    openNow = input("\nWould you like to open your channel now? [y/n]:").lower()
-    if openNow.startswith("y"):
-        config.LOGGER.info("Opening channel... ")
-        webbrowser.open_new_tab(channel_link)
-    elif openNow.startswith("n"):
-        return
-    else:
-        prompt_open(channel_link)
 
 def publish_tree(tree, channel_id):
     """ publish_tree: Publish tree to Kolibri

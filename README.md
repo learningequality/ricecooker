@@ -101,35 +101,11 @@ A sample sushi chef has been created [here](https://github.com/learningequality/
     - __WebVideoFile__: video downloaded from site such as YouTube or Vimeo
     - __YouTubeVideoFile__: video downloaded from YouTube using a youtube video id
 
-    Each file class can be passed a __preset__ and __language__ at initialization. A preset determines what kind of file the object is (e.g. high resolution video vs. low resolution video). A list of available presets can be found at `le_utils.constants.format_presets`. A list of available languages can be found at `le_utils.constants.languages`.
+    Each file class can be passed a __preset__ and __language__ at initialization (SubtitleFiles must have a language set at initialization). A preset determines what kind of file the object is (e.g. high resolution video vs. low resolution video). A list of available presets can be found at `le_utils.constants.format_presets`. A list of available languages can be found at `le_utils.constants.languages`.
 
-    ThumbnailFiles, AudioFiles, DocumentFiles, HTMLZipFiles, VideoFiles, and SubtitleFiles must be initialized with a path (str). This path can be a url or a local path to a file.
+    ThumbnailFiles, AudioFiles, DocumentFiles, HTMLZipFiles, VideoFiles, and SubtitleFiles must be initialized with a __path__ (str). This path can be a url or a local path to a file. VideoFiles can also be initialized with __ffmpeg_settings__ (dict), which will be used to determine compression settings for the video file.
 
-
-
-class VideoFile(path):
-    def __init__(self, path, ffmpeg_settings=None, **kwargs):
-        self.ffmpeg_settings = ffmpeg_settings
-    def process_file(self):
-            if self.filename and (self.ffmpeg_settings or config.COMPRESS):
-                self.filename = compress(self.filename, self.ffmpeg_settings)
-
-class SubtitleFile(path):
-    def __init__(self, path, language, **kwargs):
-
-class WebVideoFile(File):
-    def __init__(self, web_url, download_settings=None, high_resolution=True, **kwargs):
-
-class YouTubeVideoFile(WebVideoFile):
-    def __init__(self, youtube_id, **kwargs):
-
-
-
-
-
-
-
-
+    WebVideoFiles must be given a __web_url__ (str) to a video on YouTube or Vimeo, and YouTubeVideoFiles must be given a __youtube_id__ (str). WebVideoFiles and YouTubeVideoFiles can also take in __download_settings__ (dict) to determine how the video will be downloaded and __high_resolution__ (boolean) to determine what resolution to download.
 
 
 * **Step 3b: Adding Exercises**
@@ -140,7 +116,6 @@ class YouTubeVideoFile(WebVideoFile):
 	- __SingleSelectQuestion__: questions that only have one right answer (e.g. radio button questions)
 	- __InputQuestion__: questions that have text-based answers (e.g. fill in the blank)
 	- __FreeResponseQuestion__: questions that require subjective answers (ungraded)
-
 
 	Each question class has the following attributes that can be set at initialization:
 	- __id__ (str): question's unique id
@@ -201,7 +176,6 @@ class YouTubeVideoFile(WebVideoFile):
 	)
 	```
 
-
 	Once you have created the appropriate question object, add it to an exercise object with `<exercise-node>.add_question(<question>)`
 
 
@@ -216,10 +190,11 @@ class YouTubeVideoFile(WebVideoFile):
 
 * **Step 5: Running the Rice Cooker**
 
-	Run `python -m ricecooker uploadchannel [-huv] "<path-to-py-file>" [--warn] [--compress] [--token=<token>] [--resume [--step=<step>] | --reset] [--prompt] [--publish]  [[OPTIONS] ...]`
+	Run `python -m ricecooker uploadchannel [-huv] "<path-to-py-file>" [--warn] [--compress] [--max-retries=<n>] [--token=<token>] [--resume [--step=<step>] | --reset] [--prompt] [--publish]  [[OPTIONS] ...]`
 	- -h (help) will print how to use the rice cooker
 	- -v (verbose) will print what the rice cooker is doing
 	- -u (update) will force the ricecooker to redownload all files (skip checking the cache)
+	- --max-retries will set the maximum number of times to retry downloading files
 	- --warn will print out warnings during rice cooking session
     - --compress will compress your high resolution videos to save space
 	- --token will authorize you to create your channel (found under Kolibri Studio settings page)
