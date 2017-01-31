@@ -164,11 +164,7 @@ def check_version_number():
     result = json.loads(response._content.decode('utf-8'))
 
     if  result['status'] == 0:
-<<<<<<< HEAD
         config.LOGGER.info(result['message'])
-=======
-        config.LOGGER.warning(result['message'])
->>>>>>> dff40b285550198518860260e392d56b64324d0c
     elif result['status'] == 1:
         config.LOGGER.warning(result['message'])
     elif result['status'] == 2:
