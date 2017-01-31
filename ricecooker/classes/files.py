@@ -401,7 +401,6 @@ class _ExerciseGraphieFile(DownloadFile):
             tempf.seek(0)
             filename = "{}.{}".format(hash.hexdigest(), file_formats.GRAPHIE)
 
-
             copy_file_to_storage(filename, tempf)
 
             FILECACHE.set(key, bytes(filename, "utf-8"))

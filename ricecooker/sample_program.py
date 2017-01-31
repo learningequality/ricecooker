@@ -1,6 +1,7 @@
 import os
 from enum import Enum
 from ricecooker.classes import nodes, questions, files
+from ricecooker.classes.licenses import get_license
 from ricecooker.exceptions import UnknownContentKindError, UnknownFileTypeError, UnknownQuestionTypeError, raise_for_invalid_channel
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises, languages
 from pressurecooker.encodings import get_base64_encoding
