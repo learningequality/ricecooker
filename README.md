@@ -62,11 +62,11 @@ A sample sushi chef has been created [here](https://github.com/learningequality/
 	Each node has the following attributes:
 	- __source_id__ (str): content's original id
 	- __title__ (str): content's title
-	- __license__ (str or <License>): content's license id or object
+	- __license__ (str or License): content's license id or object
 	- __description__ (str): description of content (optional)
 	- __author__ (str): who created the content (optional)
 	- __thumbnail__ (str or <ThumbnailFile>): path to thumbnail or file object (optional)
-	- __files__ ([<File>]): list of file objects for node (optional)
+	- __files__ ([File]): list of file objects for node (optional)
 	- __extra_fields__ (dict): any additional data needed for node (optional)
 	- __domain_ns__ (uuid): who is providing the content (e.g. learningequality.org) (optional)
 
@@ -86,7 +86,7 @@ A sample sushi chef has been created [here](https://github.com/learningequality/
 
     Thumbnails can also be passed in as a path to an image (str) or a ThumbnailFile object. Files can be passed in upon initialization, but can also be added at a later time. More details about how to create a file object can be found in the next section. VideoNodes also have a __derive_thumbnail__ (boolean) argument, which will automatically extract a thumbnail from the video if no thumbnails are provided.
 
-    Once you have created the node, add it to a parent node with `<parent-node>.add_child(<child-node>)`
+    Once you have created the node, add it to a parent node with `parent_node.add_child(child_node)`
 
 
 * **Step 3a: Adding Files**
@@ -160,7 +160,7 @@ A sample sushi chef has been created [here](https://github.com/learningequality/
     )
     ```
 
-	To add images to a question's question, answers, or hints, format the image path with `'![](<path/to/some/file.png>)'` and the rice cooker will parse them automatically.
+	To add images to a question's question, answers, or hints, format the image path with `'![](path/to/some/file.png)'` and the rice cooker will parse them automatically.
 
 
 	In order to set the criteria for completing exercises, you must set __exercise_data__ to equal a dict containing a mastery_model field based on the mastery models provided under `le_utils.constants.exercises`. If no data is provided, the rice cooker will default to mastery at 3 of 5 correct. For example:
@@ -176,7 +176,7 @@ A sample sushi chef has been created [here](https://github.com/learningequality/
 	)
 	```
 
-	Once you have created the appropriate question object, add it to an exercise object with `<exercise-node>.add_question(<question>)`
+	Once you have created the appropriate question object, add it to an exercise object with `exercise_node.add_question(question)`
 
 
 * **Step 4: Obtaining an Authorization Token**
@@ -184,8 +184,8 @@ A sample sushi chef has been created [here](https://github.com/learningequality/
     1. Create an account on [Kolibri Studio](https://contentworkshop.learningequality.org/).
     2. Navigate to the Tokens tab under your Settings page.
     3. Copy the given authorization token.
-    4. Set `token="<auth-token>"` in your call to uploadchannel (alternatively, you can create a file with your
-		authorization token and set `token="<path-to-file.txt>"`).
+    4. Set `token="auth-token"` in your call to uploadchannel (alternatively, you can create a file with your
+		authorization token and set `token="path/to/file.txt"`).
 
 
 * **Step 5: Running the Rice Cooker**
