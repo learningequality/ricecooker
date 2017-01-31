@@ -126,6 +126,9 @@ class BaseQuestion:
         file_reg = re.compile(FILE_REGEX, flags=re.IGNORECASE)
         tags = bs.findAll('img')
 
+        if len(tags) == 0:
+            return text
+
         for tag in tags:
             # Look for src attribute, remove formatting if added to image
             src_text = tag.get("src") or ""
@@ -148,22 +151,25 @@ class BaseQuestion:
             return text, []
 
         # Set up return values and regex
-        graphie_reg = re.compile(WEB_GRAPHIE_URL_REGEX, flags=re.IGNORECASE)
-        graphie_match = graphie_reg.match(text)
         exercise_file = None
+        path_text = text.strip().replace('\\n', '')
+        graphie_reg = re.compile(WEB_GRAPHIE_URL_REGEX, flags=re.IGNORECASE)
+        graphie_match = graphie_reg.match(path_text)
         # If it is a web+graphie, download svg and json files,
         # Otherwise, download like other files
         if graphie_match:
-            text = graphie_match.group().replace("web+graphie:", "")
-            exercise_file = _ExerciseGraphieFile(text)
+            path_text = graphie_match.group().replace("web+graphie:", "")
+            exercise_file = _ExerciseGraphieFile(path_text)
         elif get_base64_encoding(text):
-            exercise_file = _ExerciseBase64ImageFile(text)
+            exercise_file = _ExerciseBase64ImageFile(path_text)
         else:
-            exercise_file = _ExerciseImageFile(text)
+            exercise_file = _ExerciseImageFile(path_text)
+
         exercise_file.assessment_item = self
         filename = exercise_file.process_file()
 
-        text = text.replace(text, exercises.CONTENT_STORAGE_FORMAT.format(exercise_file.get_replacement_str()))
+        text = text.replace(path_text, exercises.CONTENT_STORAGE_FORMAT.format(exercise_file.get_replacement_str()))
+
         return text, [exercise_file]
 
     def validate(self):
