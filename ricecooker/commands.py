@@ -49,7 +49,6 @@ def uploadchannel(path, verbose=False, update=False, resume=False, reset=False, 
 
     # Get domain to upload to
     config.init_file_mapping_store()
-    config.DOWNLOADER = DownloadManager(config.get_file_store())
 
     # Authenticate user and check current Ricecooker version
     authenticate_user(token)
