@@ -1,5 +1,5 @@
 
-"""Usage: ricecooker uploadchannel [-huv] <file_path> [--warn] [--compress] [--token=<t>] [--resume [--step=<step>] | --reset] [--prompt] [--publish] [[OPTIONS] ...]
+"""Usage: ricecooker uploadchannel [-huv] <file_path> [--warn] [--compress] [--thumbnails] [--token=<t>] [--resume [--step=<step>] | --reset] [--prompt] [--publish] [[OPTIONS] ...]
 
 Arguments:
   file_path        Path to file with channel data
@@ -10,6 +10,7 @@ Options:
   -u               Re-download files from file paths
   --warn           Print out warnings to stderr
   --compress       Compress high resolution videos to low resolution videos
+  --thumbnails     Automatically generate thumbnails for topics
   --token=<t>      Authorization token (can be token or path to file with token) [default: #]
   --resume         Resume from ricecooker step (cannot be used with --reset flag)
   --step=<step>    Step to resume progress from (must be used with --resume flag) [default: last]
@@ -63,6 +64,7 @@ if __name__ == '__main__':
     uploadchannel(arguments["<file_path>"],
                   verbose=arguments["-v"],
                   update=arguments['-u'],
+                  thumbnails=arguments["--thumbnails"],
                   resume=arguments['--resume'],
                   reset=arguments['--reset'],
                   token=arguments['--token'],

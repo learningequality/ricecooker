@@ -302,15 +302,36 @@ class TopicNode(ContentNode):
             extra_fields (dict): any additional data needed for node (optional)
             domain_ns (str): who is providing the content (e.g. learningequality.org) (optional)
     """
-
+    kind = content_kinds.TOPIC
     def __init__(self, *args, **kwargs):
-        self.kind = content_kinds.TOPIC
+        self.descendants = []
         super(TopicNode, self).__init__(*args, **kwargs)
 
     def __str__(self):
         count = self.count()
         metadata = "{0} {1}".format(count, "descendant" if count == 1 else "descendants")
         return "{title} ({kind}): {metadata}".format(title=self.title, kind=self.__class__.__name__, metadata=metadata)
+
+    def process_files(self):
+        """ process_files: Process topic's files
+            Args: None
+            Returns: None
+        """
+        if not self.thumbnail and config.THUMBNAILS:
+            from .files import TiledThumbnailFile
+            self.thumbnail = TiledThumbnailFile([n for n in self.get_non_topic_descendants(self) if n.thumbnail])
+            self.add_file(self.thumbnail)
+
+        return super(TopicNode, self).process_files()
+
+    def get_non_topic_descendants(self, node):
+        if len(self.descendants) == 0:
+            for child_node in node.children:
+                if child_node.kind == content_kinds.TOPIC:
+                    self.descendants += self.get_non_topic_descendants(child_node)
+                else:
+                    self.descendants.append(child_node)
+        return self.descendants
 
     def validate(self):
         """ validate: Makes sure topic is valid

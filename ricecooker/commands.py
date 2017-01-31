@@ -18,7 +18,7 @@ try:
 except NameError:
     pass
 
-def uploadchannel(path, verbose=False, update=False, resume=False, reset=False, step=Status.LAST.name, token="#", prompt=False, publish=False, warnings=False, compress=False, **kwargs):
+def uploadchannel(path, verbose=False, update=False, thumbnails=False, resume=False, reset=False, step=Status.LAST.name, token="#", prompt=False, publish=False, warnings=False, compress=False, **kwargs):
     """ uploadchannel: Upload channel to Kolibri Studio server
         Args:
             path (str): path to file containing construct_channel method
@@ -46,6 +46,7 @@ def uploadchannel(path, verbose=False, update=False, resume=False, reset=False, 
     config.SESSION.headers.update({"Authorization": "Token {0}".format(token)})
     config.UPDATE = update
     config.COMPRESS = compress
+    config.THUMBNAILS = thumbnails
 
     # Authenticate user
     if token != "#":

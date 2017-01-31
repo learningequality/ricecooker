@@ -26,18 +26,20 @@ class ChannelManager:
         """
         return self.channel.test_tree()
 
-    def process_tree(self, node, parent=None):
+    def process_tree(self, node):
         """ process_tree: processes files
             Args:
                 node (Node): node to process
                 parent (Node): parent of node being processed
             Returns: None
         """
-        filenames = node.process_files()
+        filenames = []
 
         # Process node's children
         for child_node in node.children:
-            filenames += self.process_tree(child_node, node)
+            filenames += self.process_tree(child_node)
+
+        filenames += node.process_files() # Call children first in case need to create tiled thumbnail
 
         return [x for x in set(filenames) if x] # Remove any duplicate or null files
 
