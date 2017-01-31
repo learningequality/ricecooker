@@ -6,6 +6,7 @@ import sys
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
 from ..exceptions import InvalidNodeException, InvalidFormatException
 from .. import config
+from .licenses import License
 
 def guess_content_kind(path=None, web_video_data=None, questions=None):
     """ guess_content_kind: determines what kind the content is
@@ -31,7 +32,7 @@ def guess_content_kind(path=None, web_video_data=None, questions=None):
 
 class Node(object):
     """ Node: model to represent all nodes in the tree """
-    def __init__(self, title, description=None, thumbnail=None, license=None, copyright_holder=None, files=None):
+    def __init__(self, title, description=None, thumbnail=None, files=None):
         self.children = []
         self.files = []
         self.parent = None
@@ -39,13 +40,12 @@ class Node(object):
         self.content_id = None
         self.title = title
         self.description = description or ""
-        self.license = license
-        self.copyright_holder = copyright_holder
         self.thumbnail = thumbnail
 
         for f in files or []:
             self.add_file(f)
 
+        # Add thumbnail (create model if it's just a path)
         if isinstance(self.thumbnail, str):
             from .files import ThumbnailFile
             self.thumbnail = ThumbnailFile(path=self.thumbnail)
@@ -53,9 +53,10 @@ class Node(object):
         if self.thumbnail:
             self.add_file(self.thumbnail)
 
-
     def __str__(self):
-        pass
+        count = self.count()
+        metadata = "{0} {1}".format(count, "descendant" if count == 1 else "descendants")
+        return "{title} ({kind}): {metadata}".format(title=self.title, kind=self.__class__.__name__, metadata=metadata)
 
     def to_dict(self):
         """ to_dict: puts data in format CC expects
@@ -148,8 +149,6 @@ class ChannelNode(Node):
             title (str): name of channel
             description (str): description of the channel (optional)
             thumbnail (str): file path or url of channel's thumbnail (optional)
-            license (str): default license to use if nodes don't have license specified (optional)
-            copyright_holder (str): name of person or organization who owns license
             files ([<File>]): list of file objects for node (optional)
     """
     kind = "Channel"
@@ -169,11 +168,6 @@ class ChannelNode(Node):
     def get_node_id(self):
         return uuid.uuid5(self.get_domain_namespace(), self.source_id)
 
-    def __str__(self):
-        count = self.count()
-        metadata = "{0} {1}".format(count, "descendant" if count == 1 else "descendants")
-        return "{title} ({kind}): {metadata}".format(title=self.title, kind=self.__class__.__name__, metadata=metadata)
-
     def to_dict(self):
         """ to_dict: puts data in format CC expects
             Args: None
@@ -184,8 +178,6 @@ class ChannelNode(Node):
             "name": self.title,
             "thumbnail": self.thumbnail.filename if self.thumbnail else None,
             "description": self.description or "",
-            "license": self.license,
-            "copyright_holder": self.copyright_holder or "",
         }
 
     def validate(self):
@@ -200,7 +192,7 @@ class ChannelNode(Node):
             raise InvalidNodeException("Invalid channel ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
 
 
-class ContentNode(Node):
+class TreeNode(Node):
     """ Model representing the content nodes in the channel's tree
 
         Base model for different content node kinds (topic, video, exercise, etc.)
@@ -208,11 +200,10 @@ class ContentNode(Node):
         Attributes:
             source_id (str): content's original id
             title (str): content's title
+            license (str or <License>): content's license
             description (str): description of content (optional)
             author (str): who created the content (optional)
-            license (str): content's license based on le_utils.constants.licenses
             thumbnail (str): local path or url to thumbnail image (optional)
-            copyright_holder (str): name of person or organization who owns license (optional)
             files ([<File>]): list of file objects for node (optional)
             extra_fields (dict): any additional data needed for node (optional)
             domain_ns (str): who is providing the content (e.g. learningequality.org) (optional)
@@ -222,16 +213,11 @@ class ContentNode(Node):
         assert isinstance(source_id, str), "source_id must be a string"
         self.source_id = source_id
         self.author = author or ""
-        self.license = license
         self.domain_ns = domain_ns
         self.questions = self.questions if hasattr(self, 'questions') else [] # Needed for to_dict method
         self.extra_fields = extra_fields or {}
-        super(ContentNode, self).__init__(title, **kwargs)
 
-    def __str__(self):
-        count = self.count()
-        metadata = "{0} {1}".format(count, "descendant" if count == 1 else "descendants")
-        return "{title} ({kind}): {metadata}".format(title=self.title, kind=self.__class__.__name__, metadata=metadata)
+        super(TreeNode, self).__init__(title, **kwargs)
 
     def get_domain_namespace(self):
         if not self.domain_ns:
@@ -252,7 +238,7 @@ class ContentNode(Node):
     def to_dict(self):
         """ to_dict: puts data in format CC expects
             Args: None
-            Returns: dict of node's data
+            Returns: dict of channel data
         """
         return {
             "title": self.title,
@@ -262,10 +248,10 @@ class ContentNode(Node):
             "author": self.author,
             "files" : [f.to_dict() for f in filter(lambda x: x and x.filename, self.files)], # Filter out failed downloads
             "kind": self.kind,
-            "license": self.license,
-            "copyright_holder": self.copyright_holder or "",
-            "questions": [question.to_dict() for question in self.questions],
-            "extra_fields": json.dumps(self.extra_fields),
+            "license": None,
+            "copyright_holder": "",
+            "questions": [],
+            "extra_fields": {},
         }
 
     def validate(self):
@@ -274,14 +260,13 @@ class ContentNode(Node):
             Returns: boolean indicating if content node is valid
         """
         assert isinstance(self.author, str) , "Assumption Failed: Author is not a string"
-        assert isinstance(self.license, str) or self.license is None, "Assumption Failed: License is not a string or empty"
         assert isinstance(self.files, list), "Assumption Failed: Files is not a list"
         assert isinstance(self.questions, list), "Assumption Failed: Questions is not a list"
         assert isinstance(self.extra_fields, dict), "Assumption Failed: Extra fields is not a dict"
-        return super(ContentNode, self).validate()
+        return super(TreeNode, self).validate()
 
 
-class TopicNode(ContentNode):
+class TopicNode(TreeNode):
     """ Model representing channel topics
 
         Topic nodes are used to add organization to the channel's content
@@ -290,22 +275,9 @@ class TopicNode(ContentNode):
             source_id (str): content's original id
             title (str): content's title
             description (str): description of content (optional)
-            author (str): who created the content (optional)
-            license (str): default license for content under this topic
             thumbnail (str): local path or url to thumbnail image (optional)
-            copyright_holder (str): name of person or organization who owns license (optional)
-            extra_fields (dict): any additional data needed for node (optional)
-            domain_ns (str): who is providing the content (e.g. learningequality.org) (optional)
     """
-
-    def __init__(self, *args, **kwargs):
-        self.kind = content_kinds.TOPIC
-        super(TopicNode, self).__init__(*args, **kwargs)
-
-    def __str__(self):
-        count = self.count()
-        metadata = "{0} {1}".format(count, "descendant" if count == 1 else "descendants")
-        return "{title} ({kind}): {metadata}".format(title=self.title, kind=self.__class__.__name__, metadata=metadata)
+    kind = content_kinds.TOPIC
 
     def validate(self):
         """ validate: Makes sure topic is valid
@@ -314,12 +286,76 @@ class TopicNode(ContentNode):
         """
         try:
             assert self.kind == content_kinds.TOPIC, "Assumption Failed: Node is supposed to be a topic"
-            assert self.questions == [], "Assumption Failed: Topic nodes should not have questions"
-            assert self.files == [], "Assumption Failed: Topic nodes should not have files"
-            assert self.extra_fields == {}, "Assumption Failed: Node should have empty extra_fields"
             return super(TopicNode, self).validate()
         except AssertionError as ae:
             raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
+
+
+class ContentNode(TreeNode):
+    """ Model representing the content nodes in the channel's tree
+
+        Base model for different content node kinds (topic, video, exercise, etc.)
+
+        Attributes:
+            source_id (str): content's original id
+            title (str): content's title
+            license (str or <License>): content's license
+            description (str): description of content (optional)
+            author (str): who created the content (optional)
+            thumbnail (str): local path or url to thumbnail image (optional)
+            files ([<File>]): list of file objects for node (optional)
+            extra_fields (dict): any additional data needed for node (optional)
+            domain_ns (str): who is providing the content (e.g. learningequality.org) (optional)
+    """
+    required_file_format = None
+
+    def __init__(self, source_id, title, license, **kwargs):
+        self.set_license(license)
+        super(ContentNode, self).__init__(source_id, title, **kwargs)
+
+    def __str__(self):
+        metadata = "{0} {1}".format(len(self.files), "file" if len(self.files) == 1 else "files")
+        return "{title} ({kind}): {metadata}".format(title=self.title, kind=self.__class__.__name__, metadata=metadata)
+
+    def set_license(self, license):
+        # Add license (create model if it's just a path)
+        if isinstance(license, str):
+            from .licenses import get_license
+            license = get_license(license)
+        self.license = license
+
+    def validate(self):
+        """ validate: Makes sure content node is valid
+            Args: None
+            Returns: boolean indicating if content node is valid
+        """
+        assert isinstance(self.license, str) or isinstance(self.license, License), "Assumption Failed: License is not a string or empty"
+        if self.required_file_format:
+            # Check if there are any .mp4 files
+            files_valid = False
+            for f in self.files:
+                files_valid = files_valid or f.path.endswith(self.required_file_format)
+            assert files_valid , "Assumption Failed: Node should have at least one {} file".format(self.required_file_format)
+        return super(ContentNode, self).validate()
+
+    def to_dict(self):
+        """ to_dict: puts data in format CC expects
+            Args: None
+            Returns: dict of channel data
+        """
+        return {
+            "title": self.title,
+            "description": self.description,
+            "node_id": self.get_node_id().hex,
+            "content_id": self.get_content_id().hex,
+            "author": self.author,
+            "files" : [f.to_dict() for f in filter(lambda x: x and x.filename, self.files)], # Filter out failed downloads
+            "kind": self.kind,
+            "license": self.license.license_id,
+            "copyright_holder": self.license.copyright_holder,
+            "questions": [question.to_dict() for question in self.questions],
+            "extra_fields": json.dumps(self.extra_fields),
+        }
 
 
 class VideoNode(ContentNode):
@@ -330,25 +366,21 @@ class VideoNode(ContentNode):
         Attributes:
             source_id (str): content's original id
             title (str): content's title
+            license (str or <License>): content's license
             author (str): who created the content (optional)
             description (str): description of content (optional)
             derive_thumbnail (bool): indicates whether to derive thumbnail from video (optional)
-            license (str): content's license based on le_utils.constants.licenses
             thumbnail (str): local path or url to thumbnail image (optional)
-            copyright_holder (str): name of person or organization who owns license (optional)
             extra_fields (dict): any additional data needed for node (optional)
             domain_ns (str): who is providing the content (e.g. learningequality.org) (optional)
             files ([<File>]): list of file objects for node (optional)
     """
-    def __init__(self, source_id, title, derive_thumbnail=False, **kwargs):
-        self.kind = content_kinds.VIDEO
+    kind = content_kinds.VIDEO
+    required_file_format = file_formats.MP4
+
+    def __init__(self, source_id, title, license, derive_thumbnail=False, **kwargs):
         self.derive_thumbnail = derive_thumbnail
-
-        super(VideoNode, self).__init__(source_id, title, **kwargs)
-
-    def __str__(self):
-        metadata = "{0} {1}".format(len(self.files), "file" if len(self.files) == 1 else "files")
-        return "{title} ({kind}): {metadata}".format(title=self.title, kind=self.__class__.__name__, metadata=metadata)
+        super(VideoNode, self).__init__(source_id, title, license, **kwargs)
 
     def process_files(self):
         """ download_files: Download video's files
@@ -379,15 +411,8 @@ class VideoNode(ContentNode):
         from .files import VideoFile
         try:
             assert self.kind == content_kinds.VIDEO, "Assumption Failed: Node should be a video"
-            assert self.license, "Assumption Failed: Video content must have a license"
             assert self.questions == [], "Assumption Failed: Video should not have questions"
             assert len(self.files) > 0, "Assumption Failed: Video must have at least one video file"
-
-            # Check if there are any .mp4 files if there are video files (other video types don't have paths)
-            files_valid = len(set(filter(lambda f: isinstance(f, VideoFile), self.files))) == 0
-            for f in self.files:
-                files_valid = files_valid or file_formats.MP4 in f.path
-            assert files_valid, "Assumption Failed: Video should have at least one .mp4 file"
 
             return super(VideoNode, self).validate()
         except AssertionError as ae:
@@ -402,22 +427,16 @@ class AudioNode(ContentNode):
         Attributes:
             source_id (str): content's original id
             title (str): content's title
+            license (str or <License>): content's license
             author (str): who created the content (optional)
             description (str): description of content (optional)
-            license (str): content's license based on le_utils.constants.licenses
             thumbnail (str): local path or url to thumbnail image (optional)
-            copyright_holder (str): name of person or organization who owns license (optional)
             extra_fields (dict): any additional data needed for node (optional)
             domain_ns (str): who is providing the content (e.g. learningequality.org) (optional)
             files ([<File>]): list of file objects for node (optional)
     """
-    def __init__(self, *args, **kwargs):
-        self.kind = content_kinds.AUDIO
-        super(AudioNode, self).__init__(*args, **kwargs)
-
-    def __str__(self):
-        metadata = "{0} {1}".format(len(self.files), "file" if len(self.files) == 1 else "files")
-        return "{title} ({kind}): {metadata}".format(title=self.title, kind=self.__class__.__name__, metadata=metadata)
+    kind = content_kinds.AUDIO
+    required_file_format = file_formats.MP3
 
     def validate(self):
         """ validate: Makes sure audio is valid
@@ -426,16 +445,8 @@ class AudioNode(ContentNode):
         """
         try:
             assert self.kind == content_kinds.AUDIO, "Assumption Failed: Node should be audio"
-            assert self.license, "Assumption Failed: Audio content must have a license"
             assert self.questions == [], "Assumption Failed: Audio should not have questions"
             assert len(self.files) > 0, "Assumption Failed: Audio should have at least one file"
-
-            # Check if there are any .mp3 or .wav files
-            files_valid = False
-            for f in self.files:
-                files_valid = files_valid or file_formats.MP3  in f.path
-            assert files_valid, "Assumption Failed: Audio should have at least one .mp3 file"
-
             return super(AudioNode, self).validate()
         except AssertionError as ae:
             raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
@@ -449,22 +460,16 @@ class DocumentNode(ContentNode):
         Attributes:
             source_id (str): content's original id
             title (str): content's title
+            license (str or <License>): content's license
             author (str): who created the content (optional)
             description (str): description of content (optional)
-            license (str): content's license based on le_utils.constants.licenses
             thumbnail (str): local path or url to thumbnail image (optional)
-            copyright_holder (str): name of person or organization who owns license (optional)
             extra_fields (dict): any additional data needed for node (optional)
             domain_ns (str): who is providing the content (e.g. learningequality.org) (optional)
             files ([<File>]): list of file objects for node (optional)
     """
-    def __init__(self, *args, **kwargs):
-        self.kind = content_kinds.DOCUMENT
-        super(DocumentNode, self).__init__(*args, **kwargs)
-
-    def __str__(self):
-        metadata = "{0} {1}".format(len(self.files), "file" if len(self.files) == 1 else "files")
-        return "{title} ({kind}): {metadata}".format(title=self.title, kind=self.__class__.__name__, metadata=metadata)
+    kind = content_kinds.DOCUMENT
+    required_file_format = file_formats.PDF
 
     def validate(self):
         """ validate: Makes sure document is valid
@@ -473,16 +478,8 @@ class DocumentNode(ContentNode):
         """
         try:
             assert self.kind == content_kinds.DOCUMENT, "Assumption Failed: Node should be a document"
-            assert self.license, "Assumption Failed: Documents must have a license"
             assert self.questions == [], "Assumption Failed: Document should not have questions"
             assert len(self.files) > 0, "Assumption Failed: Document should have at least one file"
-
-            # Check if there are any .pdf files
-            files_valid = False
-            for f in self.files:
-                files_valid = files_valid or file_formats.PDF in f.path
-            assert files_valid, "Assumption Failed: Document should have at least one .pdf file"
-
             return super(DocumentNode, self).validate()
         except AssertionError as ae:
             raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
@@ -497,22 +494,16 @@ class HTML5AppNode(ContentNode):
         Attributes:
             source_id (str): content's original id
             title (str): content's title
+            license (str or <License>): content's license
             author (str): who created the content (optional)
             description (str): description of content (optional)
-            license (str): content's license based on le_utils.constants.licenses
             thumbnail (str): local path or url to thumbnail image (optional)
-            copyright_holder (str): name of person or organization who owns license (optional)
             extra_fields (dict): any additional data needed for node (optional)
             domain_ns (str): who is providing the content (e.g. learningequality.org) (optional)
             files ([<File>]): list of file objects for node (optional)
     """
-    def __init__(self, *args, **kwargs):
-        self.kind = content_kinds.HTML5
-        super(HTML5AppNode, self).__init__(*args, **kwargs)
-
-    def __str__(self):
-        metadata = "{0} {1}".format(len(self.files), "file" if len(self.files) == 1 else "files")
-        return "{title} ({kind}): {metadata}".format(title=self.title, kind=self.__class__.__name__, metadata=metadata)
+    kind = content_kinds.HTML5
+    required_file_format = file_formats.HTML5
 
     def validate(self):
         """ validate: Makes sure HTML5 app is valid
@@ -521,16 +512,7 @@ class HTML5AppNode(ContentNode):
         """
         try:
             assert self.kind == content_kinds.HTML5, "Assumption Failed: Node should be an HTML5 app"
-            assert self.license, "Assumption Failed: HTML content must have a license"
             assert self.questions == [], "Assumption Failed: HTML should not have questions"
-
-            # Check if there are any .zip files
-            zip_file_found = False
-            for f in self.files:
-                if f.get_preset() == format_presets.HTML5_ZIP:
-                    zip_file_found = True
-            assert zip_file_found, "Assumption Failed: HTML does not have a .zip file attached"
-
             return super(HTML5AppNode, self).validate()
 
         except AssertionError as ae:
@@ -546,19 +528,18 @@ class ExerciseNode(ContentNode):
         Attributes:
             source_id (str): content's original id
             title (str): content's title
+            license (str or <License>): content's license
             author (str): who created the content (optional)
             description (str): description of content (optional)
-            license (str): content's license based on le_utils.constants.licenses (optional)
             exercise_data ({mastery_model:str, randomize:bool, m:int, n:int}): data on mastery requirements (optional)
             thumbnail (str): local path or url to thumbnail image (optional)
-            copyright_holder (str): name of person or organization who owns license (optional)
             extra_fields (dict): any additional data needed for node (optional)
             domain_ns (str): who is providing the content (e.g. learningequality.org) (optional)
             questions ([<Question>]): list of question objects for node (optional)
     """
-    default_preset = format_presets.EXERCISE
-    def __init__(self, source_id, title, questions=None, exercise_data=None, **kwargs):
-        self.kind = content_kinds.EXERCISE
+    kind = content_kinds.EXERCISE
+
+    def __init__(self, source_id, title, license, questions=None, exercise_data=None, **kwargs):
         self.questions = questions or []
 
         # Set mastery model defaults if none provided
@@ -568,7 +549,7 @@ class ExerciseNode(ContentNode):
             'randomize': exercise_data.get('randomize') or True,
         })
 
-        super(ExerciseNode, self).__init__(source_id, title, extra_fields=exercise_data, **kwargs)
+        super(ExerciseNode, self).__init__(source_id, title, license, extra_fields=exercise_data, **kwargs)
 
     def __str__(self):
         metadata = "{0} {1}".format(len(self.questions), "question" if len(self.questions) == 1 else "questions")
@@ -608,7 +589,6 @@ class ExerciseNode(ContentNode):
         """
         try:
             assert self.kind == content_kinds.EXERCISE, "Assumption Failed: Node should be an exercise"
-            assert self.license, "Assumption Failed: Exercise content must have a license"
             assert "mastery_model" in self.extra_fields, "Assumption Failed: Exercise must have a mastery model in extra_fields"
 
             # Check if questions are correct
