@@ -10,7 +10,6 @@ import logging
 UPDATE = False
 COMPRESS = False
 PROGRESS_MANAGER = None
-DOWNLOADER = None
 LOGGER = logging.getLogger()
 
 # Domain and file store location for uploading to production server
@@ -47,8 +46,11 @@ STORAGE_DIRECTORY = "storage"
 # Folder to store progress tracking information
 RESTORE_DIRECTORY = "restore"
 
-# Session for downloading files
+# Session for communicating to Kolibri Studio
 SESSION = requests.Session()
+
+# Cache for filenames
+FILECACHE_DIRECTORY = ".ricecookerfilecache"
 
 FAILED_FILES = []
 
@@ -81,26 +83,6 @@ def init_file_mapping_store():
     if not os.path.exists(path):
         os.makedirs(path)
 
-    # Create file mapping json if it doesn't exist
-    path = os.path.join(RESTORE_DIRECTORY, "file_restore.json")
-    if not os.path.isfile(path):
-        open(path, 'a').close()
-
-def get_file_store():
-    """ get_file_store: returns path to list of downloaded files
-        Args: None
-        Returns: string path to list of downloaded files
-    """
-    return os.path.join(RESTORE_DIRECTORY, "file_restore.json")
-
-def set_file_store(file_store):
-    """ set_file_store: saves list of downloaded files
-        Args: file_store ([{path: {size:number, preset:str, filename:str, original_filename:str}}]): list of downloaded files in json format
-        Returns: None
-    """
-    with open(get_file_store(), 'w') as storeobj:
-        json.dump(file_store, storeobj, indent=4, sort_keys=True)
-
 def get_restore_path(filename):
     """ get_restore_path: returns path to directory for restoration points
         Args:
@@ -108,6 +90,8 @@ def get_restore_path(filename):
         Returns: string path to file
     """
     path = os.path.join(RESTORE_DIRECTORY, FILE_STORE_LOCATION)
+    if not os.path.exists(path):
+        os.makedirs(path)
     return os.path.join(path, filename + '.pickle')
 
 

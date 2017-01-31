@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
 from .. import config
 from ..exceptions import UnknownQuestionTypeError, InvalidQuestionException
-from .files import ExerciseImageFile, ExerciseGraphieFile, ExerciseBase64ImageFile
+from .files import _ExerciseImageFile, _ExerciseGraphieFile, _ExerciseBase64ImageFile
 from pressurecooker.encodings import get_base64_encoding
 
 WEB_GRAPHIE_URL_REGEX = r'web\+graphie:([^\)]+)'
@@ -155,11 +155,11 @@ class BaseQuestion:
         # Otherwise, download like other files
         if graphie_match:
             text = graphie_match.group().replace("web+graphie:", "")
-            exercise_file = ExerciseGraphieFile(text)
+            exercise_file = _ExerciseGraphieFile(text)
         elif get_base64_encoding(text):
-            exercise_file = ExerciseBase64ImageFile(text)
+            exercise_file = _ExerciseBase64ImageFile(text)
         else:
-            exercise_file = ExerciseImageFile(text)
+            exercise_file = _ExerciseImageFile(text)
         exercise_file.assessment_item = self
         filename = exercise_file.process_file()
 
