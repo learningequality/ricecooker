@@ -18,7 +18,7 @@ The rice cooker is a framework you can use to translate content into Kolibri-com
 The following steps will guide you through how to create a program, or sushi chef, to utilize this framework.
 A sample sushi chef has been created [here](https://github.com/learningequality/ricecooker/blob/master/ricecooker/sample_program.py)
 
-### Step 1: Initializing the Channel
+### Step 1: Initializing the Channel ###
 
 	To run the Ricecooker, you must include a `construct_channel` method in your sushi chef file that returns a ChannelNode object. This function will be responsible for building the structure of your channel.
 
