@@ -317,9 +317,9 @@ class TopicNode(ContentNode):
             Args: None
             Returns: None
         """
-        if not self.thumbnail and config.THUMBNAILS:
-            from .files import TiledThumbnailFile
-            self.thumbnail = TiledThumbnailFile([n for n in self.get_non_topic_descendants(self) if n.thumbnail])
+        from .files import ThumbnailFile, TiledThumbnailFile
+        if len([f for f in self.files if isinstance(f, ThumbnailFile)]) == 0 and config.THUMBNAILS:
+            self.thumbnail = TiledThumbnailFile(self.get_non_topic_descendants(self))
             self.add_file(self.thumbnail)
 
         return super(TopicNode, self).process_files()

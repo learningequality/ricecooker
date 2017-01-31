@@ -269,6 +269,9 @@ SAMPLE_TREE = [
                 "files": [
                     {
                         "path": "C:/users/jordan/Videos/testfolder/htmltest.zip",
+                    },
+                    {
+                        "path": "https://upload.wikimedia.org/wikipedia/commons/b/b7/Rice_p1160004.jpg",
                     }
                 ]
             },

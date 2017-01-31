@@ -412,14 +412,25 @@ class _ExerciseGraphieFile(DownloadFile):
             return filename
 
 
-# class TiledThumbnailFile(ThumbnailPresetMixin, File):
-#     def __init__(self, source_nodes, **kwargs):
-#         import pdb; pdb.set_trace()
+class TiledThumbnailFile(ThumbnailPresetMixin, File):
+    allowed_formats = [file_formats.JPG, file_formats.JPEG, file_formats.PNG]
 
-#     def process_file(self):
-#         pass
-#         # images = [source.get_file() for source in self.sources]
-#         # thumbnail_storage_path = create_tiled_image(images)
+    def __init__(self, source_nodes, **kwargs):
+        self.sources = []
+        for n in source_nodes:
+            images = [f for f in n.files if isinstance(f, ThumbnailFile)]
+            if len(images) > 0:
+                self.sources.append(images[0])
+                import pdb; pdb.set_trace()
+
+    def process_file(self):
+        if len(self.sources) >= 4:
+            print("TILED!")
+        elif len(self.sources) >= 1:
+            print("Individual...")
+
+        # images = [source.get_file() for source in self.sources]
+        # thumbnail_storage_path = create_tiled_image(images)
 
 # VectorizedVideoFile
 # UniversalSubsSubtitleFile
