@@ -5,7 +5,7 @@ import json
 import sys
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
 from ..exceptions import InvalidNodeException, InvalidFormatException
-from .. import config
+from .. import config, __version__
 
 def guess_content_kind(path=None, web_video_data=None, questions=None):
     """ guess_content_kind: determines what kind the content is
@@ -186,6 +186,9 @@ class ChannelNode(Node):
             "description": self.description or "",
             "license": self.license,
             "copyright_holder": self.copyright_holder or "",
+            "source_domain": self.source_domain,
+            "source_id": self.source_id,
+            "ricecooker_version": __version__,
         }
 
     def validate(self):
@@ -259,6 +262,8 @@ class ContentNode(Node):
             "description": self.description,
             "node_id": self.get_node_id().hex,
             "content_id": self.get_content_id().hex,
+            "source_domain": self.domain_ns.hex,
+            "source_id": self.source_id,
             "author": self.author,
             "files" : [f.to_dict() for f in filter(lambda x: x and x.filename, self.files)], # Filter out failed downloads
             "kind": self.kind,
