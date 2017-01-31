@@ -18,6 +18,7 @@ The rice cooker is a framework you can use to translate content into Kolibri-com
 The following steps will guide you through how to create a program, or sushi chef, to utilize this framework.
 A sample sushi chef has been created [here](https://github.com/learningequality/ricecooker/blob/master/ricecooker/sample_program.py)
 
+
 ### Step 1: Initializing the Channel ###
 
 To run the Ricecooker, you must include a `construct_channel` method in your sushi chef file that returns a ChannelNode object. This function will be responsible for building the structure of your channel.
@@ -46,6 +47,7 @@ def construct_channel(args):
 
     return channel
 ```
+
 
 
 ### Step 2: Creating Nodes ###
@@ -86,6 +88,7 @@ node = VideoNode(
 Thumbnails can also be passed in as a path to an image (str) or a ThumbnailFile object. Files can be passed in upon initialization, but can also be added at a later time. More details about how to create a file object can be found in the next section. VideoNodes also have a __derive_thumbnail__ (boolean) argument, which will automatically extract a thumbnail from the video if no thumbnails are provided.
 
 Once you have created the node, add it to a parent node with `parent_node.add_child(child_node)`
+
 
 
 ### Step 3a: Adding Files ###
@@ -136,9 +139,10 @@ file_object = YouTubeVideoFile(
 ```
 
 
+
 ### Step 3b: Adding Exercises ###
 
-Exercises are special model kinds that have questions used for assessment. To add a question to your exercise, you must first create a question model from `ricecooker.classes.questions`. Your program is responsible for determining which question type to create. Here are the available question types:
+ExerciseNodes are special objects that have questions used for assessment. To add a question to your exercise, you must first create a question model from `ricecooker.classes.questions`. Your program is responsible for determining which question type to create. Here are the available question types:
 - __PerseusQuestion__: special question type for pre-formatted perseus questions
 - __MultipleSelectQuestion__: questions that have multiple correct answers (e.g. check all that apply)
 - __SingleSelectQuestion__: questions that only have one right answer (e.g. radio button questions)
@@ -207,6 +211,7 @@ node = ExerciseNode(
 Once you have created the appropriate question object, add it to an exercise object with `exercise_node.add_question(question)`
 
 
+
 ### Step 4: Obtaining an Authorization Token ###
 You will need an authorization token to create a channel on Kolibri Studio. In order to obtain one:
 1. Create an account on [Kolibri Studio](https://contentworkshop.learningequality.org/).
@@ -214,6 +219,7 @@ You will need an authorization token to create a channel on Kolibri Studio. In o
 3. Copy the given authorization token.
 4. Set `token="auth-token"` in your call to uploadchannel (alternatively, you can create a file with your
     authorization token and set `token="path/to/file.txt"`).
+
 
 
 ### Step 5: Running the Rice Cooker ###
@@ -234,19 +240,20 @@ Run `python -m ricecooker uploadchannel [-huv] "<path-to-py-file>" [--warn] [--c
 - [OPTIONS] any additional keyword arguments you would like to pass to your construct_channel method
 
 
+
 ### Optional: Resuming the Rice Cooker ###
 
 If your rice cooking session gets interrupted, you can resume from any step that has already completed using `--resume --step=<step>` option. If step is not specified, the rice cooker will resume from the last
 step you ran. If the specified step has not been reached, the rice cooker will resume from
 
-- LAST:       			Resume where the session left off (default)
-- INIT:                 Resume at beginning of session
-- CONSTRUCT_CHANNEL:    Resume with call to construct channel
-- CREATE_TREE:          Resume at set tree relationships
-- DOWNLOAD_FILES:       Resume at beginning of download process
-- GET_FILE_DIFF:        Resume at call to get file diff from Kolibri Studio
-- START_UPLOAD:         Resume at beginning of uploading files to Kolibri Studio
-- UPLOADING_FILES:      Resume at last upload request
-- UPLOAD_CHANNEL:       Resume at beginning of uploading tree to Kolibri Studio
-- PUBLISH_CHANNEL:      Resume at option to publish channel
-- DONE:                 Resume at prompt to open channel
+- __LAST__:       			Resume where the session left off (default)
+- __INIT__:                 Resume at beginning of session
+- __CONSTRUCT_CHANNEL__:    Resume with call to construct channel
+- __CREATE_TREE__:          Resume at set tree relationships
+- __DOWNLOAD_FILES__:       Resume at beginning of download process
+- __GET_FILE_DIFF__:        Resume at call to get file diff from Kolibri Studio
+- __START_UPLOAD__:         Resume at beginning of uploading files to Kolibri Studio
+- __UPLOADING_FILES__:      Resume at last upload request
+- __UPLOAD_CHANNEL__:       Resume at beginning of uploading tree to Kolibri Studio
+- __PUBLISH_CHANNEL__:      Resume at option to publish channel
+- __DONE__:                 Resume at prompt to open channel
