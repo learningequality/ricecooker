@@ -116,7 +116,7 @@ def compress_video_file(filename, ffmpeg_settings):
 
         filename = "{}.{}".format(get_hash(tempf.name), file_formats.MP4)
 
-        copy_file_to_storage(filename, tempf.name, delete_original=True)
+        copy_file_to_storage(filename, tempf.name)
 
         FILECACHE.set(key, bytes(filename, "utf-8"))
         return filename
@@ -186,12 +186,17 @@ class File(object):
         pass
 
 class DownloadFile(File):
+    allowed_formats = []
+
     def __init__(self, path, **kwargs):
-        self.path = path
+        self.path = path.strip()
         super(DownloadFile, self).__init__(**kwargs)
 
     def validate(self):
-        assert self.path, "Download files must have a path"
+        assert self.path, "{} must have a path".format(self.__class__.__name__)
+        _basename, ext = os.path.splitext(self.path)
+        if ext:
+            assert ext.lstrip('.') in self.allowed_formats, "{} must have one of the following extensions: {}".format(self.__class__.__name__, self.allowed_formats)
 
     def process_file(self):
         try:
@@ -205,30 +210,32 @@ class DownloadFile(File):
 
 class ThumbnailFile(ThumbnailPresetMixin, DownloadFile):
     default_ext = file_formats.PNG
-
-    def validate(self):
-        assert os.path.splitext(self.path)[1][1:] in [file_formats.JPG, file_formats.JPEG, file_formats.PNG], "Thumbnails must be in jpg, jpeg, or png format"
+    allowed_formats = [file_formats.JPG, file_formats.JPEG, file_formats.PNG]
 
 class AudioFile(DownloadFile):
+    default_ext = file_formats.MP3
+    allowed_formats = [file_formats.MP3]
+
     def get_preset(self):
         return self.preset or format_presets.AUDIO
 
-    def validate(self):
-        assert self.path.endswith(file_formats.MP3), "Audio files must be in mp3 format"
-
 class DocumentFile(DownloadFile):
+    default_ext = file_formats.PDF
+    allowed_formats = [file_formats.PDF]
+
     def get_preset(self):
         return self.preset or format_presets.DOCUMENT
 
-    def validate(self):
-        assert self.path.endswith(file_formats.PDF), "Document files must be in pdf format"
-
 class HTMLZipFile(DownloadFile):
+    default_ext = file_formats.HTML5
+    allowed_formats = [file_formats.HTML5]
+
     def get_preset(self):
         return self.preset or format_presets.HTML5_ZIP
 
     def validate(self):
-        assert self.path.endswith(file_formats.HTML5), "HTML files must be in zip format"
+        super(HTMLZipFile, self).validate()
+
         # make sure index.html exists
         with zipfile.ZipFile(self.path) as zf:
             try:
@@ -254,13 +261,14 @@ class ExtractedVideoThumbnailFile(ThumbnailFile):
             extract_thumbnail_from_video(self.path, tempf.name, overwrite=True)
             filename = "{}.{}".format(get_hash(tempf.name), file_formats.PNG)
 
-            copy_file_to_storage(filename, tempf.name, delete_original=True)
+            copy_file_to_storage(filename, tempf.name)
 
             FILECACHE.set(key, bytes(filename, "utf-8"))
             return filename
 
 class VideoFile(DownloadFile):
     default_ext = file_formats.MP4
+    allowed_formats = [file_formats.MP4]
 
     def __init__(self, path, ffmpeg_settings=None, **kwargs):
         self.ffmpeg_settings = ffmpeg_settings
@@ -268,9 +276,6 @@ class VideoFile(DownloadFile):
 
     def get_preset(self):
         return self.preset or guess_video_preset_by_resolution(config.get_storage_path(self.filename))
-
-    def validate(self):
-        assert self.path.endswith(file_formats.MP4), "Video files be in mp4 format"
 
     def process_file(self):
         try:
@@ -287,25 +292,15 @@ class VideoFile(DownloadFile):
 
 
 class SubtitleFile(DownloadFile):
+    default_ext = file_formats.VTT
+    allowed_formats = [file_formats.VTT]
+
     def __init__(self, path, **kwargs):
         super(SubtitleFile, self).__init__(path, **kwargs)
         assert self.language, "Subtitles must have a language"
 
     def get_preset(self):
         return self.preset or format_presets.VIDEO_SUBTITLE
-
-    def validate(self):
-        assert self.path.endswith(file_formats.VTT), "Subtitle files must be in vtt format"
-
-
-class _ExerciseImageFile(DownloadFile):
-    default_ext = file_formats.PNG
-
-    def get_replacement_str(self):
-        return self.get_filename() or self.path
-
-    def get_preset(self):
-        return self.preset or format_presets.EXERCISE_IMAGE
 
 class Base64ImageFile(ThumbnailPresetMixin, File):
 
@@ -341,10 +336,9 @@ class Base64ImageFile(ThumbnailPresetMixin, File):
             write_base64_to_file(self.encoding, tempf.name)
             filename = "{}.{}".format(get_hash(tempf.name), file_formats.PNG)
 
-            copy_file_to_storage(filename, tempf.name, delete_original=True)
+            copy_file_to_storage(filename, tempf.name)
             FILECACHE.set(key, bytes(filename, "utf-8"))
             return filename
-
 
 class _ExerciseBase64ImageFile(Base64ImageFile):
     default_ext = file_formats.PNG
@@ -354,6 +348,15 @@ class _ExerciseBase64ImageFile(Base64ImageFile):
 
     def get_replacement_str(self):
         return self.get_filename() or self.encoding
+
+class _ExerciseImageFile(DownloadFile):
+    default_ext = file_formats.PNG
+
+    def get_replacement_str(self):
+        return self.get_filename() or self.path
+
+    def get_preset(self):
+        return self.preset or format_presets.EXERCISE_IMAGE
 
 class _ExerciseGraphieFile(DownloadFile):
     default_ext = file_formats.GRAPHIE
@@ -366,7 +369,7 @@ class _ExerciseGraphieFile(DownloadFile):
         return self.preset or format_presets.EXERCISE_GRAPHIE
 
     def get_replacement_str(self):
-        return self.original_filename or self.path
+        return self.path.split("/")[-1].split(".")[0] or self.path
 
     def process_file(self):
         """ download: download a web+graphie file
@@ -394,6 +397,7 @@ class _ExerciseGraphieFile(DownloadFile):
             delimiter = bytes(exercises.GRAPHIE_DELIMITER, 'UTF-8')
             config.LOGGER.info("\tDownloading graphie {}".format(self.original_filename))
 
+
             # Write to graphie file
             hash = write_and_get_hash(self.path + ".svg", tempf)
             tempf.write(delimiter)
@@ -402,7 +406,8 @@ class _ExerciseGraphieFile(DownloadFile):
             tempf.seek(0)
             filename = "{}.{}".format(hash.hexdigest(), file_formats.GRAPHIE)
 
-            copy_file_to_storage(filename, tempf, delete_original=True)
+
+            copy_file_to_storage(filename, tempf)
 
             FILECACHE.set(key, bytes(filename, "utf-8"))
             return filename
