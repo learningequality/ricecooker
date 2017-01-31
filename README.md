@@ -18,7 +18,7 @@ The rice cooker is a framework you can use to translate content into Kolibri-com
 The following steps will guide you through how to create a program, or sushi chef, to utilize this framework.
 A sample sushi chef has been created [here](https://github.com/learningequality/ricecooker/blob/master/ricecooker/sample_program.py)
 
-* **Step 1: Initializing the Channel**
+### Step 1: Initializing the Channel
 
 	To run the Ricecooker, you must include a `construct_channel` method in your sushi chef file that returns a ChannelNode object. This function will be responsible for building the structure of your channel.
 
@@ -48,7 +48,7 @@ A sample sushi chef has been created [here](https://github.com/learningequality/
     ```
 
 
-* **Step 2: Creating Nodes**
+### Step 2: Creating Nodes
 
 	Once your channel is created, you can start adding nodes. To do this, you will need to convert your data to the rice cooker's objects. Here are the classes that are available to you (import from `ricecooker.classes.nodes`):
 	- __TopicNode__: folders to organize to the channel's content
@@ -89,7 +89,7 @@ A sample sushi chef has been created [here](https://github.com/learningequality/
     Once you have created the node, add it to a parent node with `parent_node.add_child(child_node)`
 
 
-* **Step 3a: Adding Files**
+### Step 3a: Adding Files
 
 	To add a file to your node, you must start by creating a file object from `ricecooker.classes.files`. Your program is responsible for determining which file object to create. Here are the available file models:
 	- __ThumbnailFile__: png or jpg files to add to any kind of node
@@ -108,7 +108,7 @@ A sample sushi chef has been created [here](https://github.com/learningequality/
     WebVideoFiles must be given a __web_url__ (str) to a video on YouTube or Vimeo, and YouTubeVideoFiles must be given a __youtube_id__ (str). WebVideoFiles and YouTubeVideoFiles can also take in __download_settings__ (dict) to determine how the video will be downloaded and __high_resolution__ (boolean) to determine what resolution to download.
 
 
-* **Step 3b: Adding Exercises**
+### Step 3b: Adding Exercises
 
 	Exercises are special model kinds that have questions used for assessment. To add a question to your exercise, you must first create a question model from `ricecooker.classes.questions`. Your program is responsible for determining which question type to create. Here are the available question types:
 	- __PerseusQuestion__: special question type for pre-formatted perseus questions
@@ -179,7 +179,7 @@ A sample sushi chef has been created [here](https://github.com/learningequality/
 	Once you have created the appropriate question object, add it to an exercise object with `exercise_node.add_question(question)`
 
 
-* **Step 4: Obtaining an Authorization Token**
+### Step 4: Obtaining an Authorization Token
     You will need an authorization token to create a channel on Kolibri Studio. In order to obtain one:
     1. Create an account on [Kolibri Studio](https://contentworkshop.learningequality.org/).
     2. Navigate to the Tokens tab under your Settings page.
@@ -188,7 +188,7 @@ A sample sushi chef has been created [here](https://github.com/learningequality/
 		authorization token and set `token="path/to/file.txt"`).
 
 
-* **Step 5: Running the Rice Cooker**
+### Step 5: Running the Rice Cooker
 
 	Run `python -m ricecooker uploadchannel [-huv] "<path-to-py-file>" [--warn] [--compress] [--max-retries=<n>] [--token=<token>] [--resume [--step=<step>] | --reset] [--prompt] [--publish]  [[OPTIONS] ...]`
 	- -h (help) will print how to use the rice cooker
@@ -206,7 +206,7 @@ A sample sushi chef has been created [here](https://github.com/learningequality/
 	- [OPTIONS] any additional keyword arguments you would like to pass to your construct_channel method
 
 
-* **Optional: Resuming the Rice Cooker**
+### Optional: Resuming the Rice Cooker
 
 	If your rice cooking session gets interrupted, you can resume from any step that has already completed using `--resume --step=<step>` option. If step is not specified, the rice cooker will resume from the last
 	step you ran. If the specified step has not been reached, the rice cooker will resume from
