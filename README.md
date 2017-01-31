@@ -23,12 +23,11 @@ A sample sushi chef has been created [here](https://github.com/learningequality/
 	To run the Ricecooker, you must include a `construct_channel` method in your sushi chef file that returns a ChannelNode object. This function will be responsible for building the structure of your channel.
 
 	Start by importing `ChannelNode` from `ricecooker.classes.nodes` and create a ChannelNode object. The ChannelNode class has the following fields:
-
-    - source_id (str): channel's unique id
-    - source_domain (str): who is providing the content (e.g. learningequality.org)
-    - title (str): name of channel
-    - description (str): description of the channel (optional)
-    - thumbnail (str): local path or url to image file (optional)
+    - __source_id__ (str): channel's unique id
+    - __source_domain__ (str): who is providing the content (e.g. learningequality.org)
+    - __title__ (str): name of channel
+    - __description__ (str): description of the channel (optional)
+    - __thumbnail__ (str): local path or url to image file (optional)
 
 
 	For example:
@@ -52,30 +51,26 @@ A sample sushi chef has been created [here](https://github.com/learningequality/
 * **Step 2: Creating Nodes**
 
 	Once your channel is created, you can start adding nodes. To do this, you will need to convert your data to the rice cooker's objects. Here are the classes that are available to you (import from `ricecooker.classes.nodes`):
-
-	- TopicNode: folders to organize to the channel's content
-    - VideoNode: content containing mp4 file
-    - AudioNode: content containing mp3 file
-    - DocumentNode: content containing pdf file
-    - HTML5AppNode: content containing zip of html files (html, js, css, etc.)
-    - ExerciseNode: assessment-based content with questions
+	- __TopicNode__: folders to organize to the channel's content
+    - __VideoNode__: content containing mp4 file
+    - __AudioNode__: content containing mp3 file
+    - __DocumentNode__: content containing pdf file
+    - __HTML5AppNode__: content containing zip of html files (html, js, css, etc.)
+    - __ExerciseNode__: assessment-based content with questions
 
 
 	Each node has the following attributes:
+	- __source_id__ (str): content's original id
+	- __title__ (str): content's title
+	- __license__ (str or <License>): content's license id or object
+	- __description__ (str): description of content (optional)
+	- __author__ (str): who created the content (optional)
+	- __thumbnail__ (str or <ThumbnailFile>): path to thumbnail or file object (optional)
+	- __files__ ([<File>]): list of file objects for node (optional)
+	- __extra_fields__ (dict): any additional data needed for node (optional)
+	- __domain_ns__ (uuid): who is providing the content (e.g. learningequality.org) (optional)
 
-	- source_id (str): content's original id
-	- title (str): content's title
-	- license (str or <License>): content's license id or object
-	- description (str): description of content (optional)
-	- author (str): who created the content (optional)
-	- thumbnail (str or <ThumbnailFile>): path to thumbnail or file object (optional)
-	- files ([<File>]): list of file objects for node (optional)
-	- extra_fields (dict): any additional data needed for node (optional)
-	- domain_ns (uuid): who is providing the content (e.g. learningequality.org) (optional)
-
-
-	All non-topic nodes must be assigned a license upon initialization. You can use the license's id (found under `le_utils.constants.licenses`) or create a license object from `ricecooker.classes.licenses` (recommended). When initializing a license object, you  can specify a copyright_holder (str), or the person or organization who owns the license. If you are unsure which license class to use, a `get_license` method has been provided that takes in a license id and returns a corresponding license object.
-
+	All non-topic nodes must be assigned a license upon initialization. You can use the license's id (found under `le_utils.constants.licenses`) or create a license object from `ricecooker.classes.licenses` (recommended). When initializing a license object, you  can specify a __copyright_holder__ (str), or the person or organization who owns the license. If you are unsure which license class to use, a `get_license` method has been provided that takes in a license id and returns a corresponding license object.
 
 	For example:
 	```
@@ -89,7 +84,7 @@ A sample sushi chef has been created [here](https://github.com/learningequality/
     ```
 
 
-    Thumbnails can also be passed in as a path to an image (str) or a ThumbnailFile object. Files can be passed in upon initialization, but can also be added at a later time. More details about how to create a file object can be found in the next section. VideoNodes also have a `derive_thumbnail` (boolean) argument, which will automatically extract a thumbnail from the video if no thumbnails are provided.
+    Thumbnails can also be passed in as a path to an image (str) or a ThumbnailFile object. Files can be passed in upon initialization, but can also be added at a later time. More details about how to create a file object can be found in the next section. VideoNodes also have a __derive_thumbnail__ (boolean) argument, which will automatically extract a thumbnail from the video if no thumbnails are provided.
 
     Once you have created the node, add it to a parent node with `<parent-node>.add_child(<child-node>)`
 
@@ -97,18 +92,16 @@ A sample sushi chef has been created [here](https://github.com/learningequality/
 * **Step 3a: Adding Files**
 
 	To add a file to your node, you must start by creating a file object from `ricecooker.classes.files`. Your program is responsible for determining which file object to create. Here are the available file models:
+	- __ThumbnailFile__: png or jpg files to add to any kind of node
+	- __AudioFile__: mp3 file
+    - __DocumentFile__: pdf file
+    - __HTMLZipFile__: zip of html files (must have `index.html` file at topmost level)
+    - __VideoFile__: mp4 file (can be high resolution or low resolution)
+    - __SubtitleFile__: vtt files to be used with VideoFiles
+    - __WebVideoFile__: video downloaded from site such as YouTube or Vimeo
+    - __YouTubeVideoFile__: video downloaded from YouTube using a youtube video id
 
-	- ThumbnailFile: png or jpg files to add to any kind of node
-	- AudioFile: mp3 file
-    - DocumentFile: pdf file
-    - HTMLZipFile: zip of html files (must have `index.html` file at topmost level)
-    - VideoFile: mp4 file (can be high resolution or low resolution)
-    - SubtitleFile: vtt files to be used with VideoFiles
-    - WebVideoFile: video downloaded from site such as YouTube or Vimeo
-    - YouTubeVideoFile: video downloaded from YouTube using a youtube video id
-
-
-    Each file class can be passed a preset and language at initialization. A preset determines what kind of file the object is (e.g. high resolution video vs. low resolution video). A list of available presets can be found at `le_utils.constants.format_presets`. A list of available languages can be found at `le_utils.constants.languages`.
+    Each file class can be passed a __preset__ and __language__ at initialization. A preset determines what kind of file the object is (e.g. high resolution video vs. low resolution video). A list of available presets can be found at `le_utils.constants.format_presets`. A list of available languages can be found at `le_utils.constants.languages`.
 
     ThumbnailFiles, AudioFiles, DocumentFiles, HTMLZipFiles, VideoFiles, and SubtitleFiles must be initialized with a path (str). This path can be a url or a local path to a file.
 
@@ -142,19 +135,18 @@ class YouTubeVideoFile(WebVideoFile):
 * **Step 3b: Adding Exercises**
 
 	Exercises are special model kinds that have questions used for assessment. To add a question to your exercise, you must first create a question model from `ricecooker.classes.questions`. Your program is responsible for determining which question type to create. Here are the available question types:
-
-	- PerseusQuestion: special question type for pre-formatted perseus questions
-	- MultipleSelectQuestion: questions that have multiple correct answers (e.g. check all that apply)
-	- SingleSelectQuestion: questions that only have one right answer (e.g. radio button questions)
-	- InputQuestion: questions that have text-based answers (e.g. fill in the blank)
-	- FreeResponseQuestion: questions that require subjective answers (ungraded)
+	- __PerseusQuestion__: special question type for pre-formatted perseus questions
+	- __MultipleSelectQuestion__: questions that have multiple correct answers (e.g. check all that apply)
+	- __SingleSelectQuestion__: questions that only have one right answer (e.g. radio button questions)
+	- __InputQuestion__: questions that have text-based answers (e.g. fill in the blank)
+	- __FreeResponseQuestion__: questions that require subjective answers (ungraded)
 
 
 	Each question class has the following attributes that can be set at initialization:
-	- id (str): question's unique id
-    - question (str): question text
-    - answers ([{'answer':str, 'correct':bool}]): answers to question
-    - hints (str or [str]): optional hints on how to answer question
+	- __id__ (str): question's unique id
+    - __question__ (str): question text
+    - __answers__ ([{'answer':str, 'correct':bool}]): answers to question
+    - __hints__ (str or [str]): optional hints on how to answer question
 
 
 	FreeResponseQuestions do not need any answers set.
@@ -193,11 +185,10 @@ class YouTubeVideoFile(WebVideoFile):
     )
     ```
 
-
 	To add images to a question's question, answers, or hints, format the image path with `'![](<path/to/some/file.png>)'` and the rice cooker will parse them automatically.
 
 
-	In order to set the criteria for completing exercises, you must set `exercise_data` to equal a dict containing a mastery_model field based on the mastery models provided under `le_utils.constants.exercises`. If no data is provided, the rice cooker will default to mastery at 3 of 5 correct. For example:
+	In order to set the criteria for completing exercises, you must set __exercise_data__ to equal a dict containing a mastery_model field based on the mastery models provided under `le_utils.constants.exercises`. If no data is provided, the rice cooker will default to mastery at 3 of 5 correct. For example:
 	```
 	node = ExerciseNode(
 		exercise_data={
@@ -242,9 +233,8 @@ class YouTubeVideoFile(WebVideoFile):
 
 * **Optional: Resuming the Rice Cooker**
 
-	If your rice cooking session gets interrupted, you can resume from any step that has already completed
-	using `--resume --step=<step>` option. If step is not specified, Ricecooker will resume from the last
-	step you ran. If the specified step has not been reached, the Ricecooker will resume from
+	If your rice cooking session gets interrupted, you can resume from any step that has already completed using `--resume --step=<step>` option. If step is not specified, the rice cooker will resume from the last
+	step you ran. If the specified step has not been reached, the rice cooker will resume from
 
 	- LAST:       			Resume where the session left off (default)
   	- INIT:                 Resume at beginning of session
