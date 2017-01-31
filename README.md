@@ -93,7 +93,7 @@ Once you have created the node, add it to a parent node with `parent_node.add_ch
 
 ### Step 3a: Adding Files ###
 
-To add a file to your node, you must start by creating a file object from `ricecooker.classes.files`. Your program is responsible for determining which file object to create. Here are the available file models:
+To add a file to your node, you must start by creating a file object from `ricecooker.classes.files`. Your sushi chef is responsible for determining which file object to create. Here are the available file models:
 - __ThumbnailFile__: png or jpg files to add to any kind of node
 - __AudioFile__: mp3 file
 - __DocumentFile__: pdf file
@@ -142,7 +142,7 @@ file_object = YouTubeVideoFile(
 
 ### Step 3b: Adding Exercises ###
 
-ExerciseNodes are special objects that have questions used for assessment. To add a question to your exercise, you must first create a question model from `ricecooker.classes.questions`. Your program is responsible for determining which question type to create. Here are the available question types:
+ExerciseNodes are special objects that have questions used for assessment. To add a question to your exercise, you must first create a question model from `ricecooker.classes.questions`. Your sushi chef is responsible for determining which question type to create. Here are the available question types:
 - __PerseusQuestion__: special question type for pre-formatted perseus questions
 - __MultipleSelectQuestion__: questions that have multiple correct answers (e.g. check all that apply)
 - __SingleSelectQuestion__: questions that only have one right answer (e.g. radio button questions)
