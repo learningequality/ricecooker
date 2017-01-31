@@ -65,8 +65,8 @@ A sample sushi chef has been created [here](https://github.com/learningequality/
 	- __license__ (str or License): content's license id or object
 	- __description__ (str): description of content (optional)
 	- __author__ (str): who created the content (optional)
-	- __thumbnail__ (str or <ThumbnailFile>): path to thumbnail or file object (optional)
-	- __files__ ([File]): list of file objects for node (optional)
+	- __thumbnail__ (str or ThumbnailFile): path to thumbnail or file object (optional)
+	- __files__ ([FileObject]): list of file objects for node (optional)
 	- __extra_fields__ (dict): any additional data needed for node (optional)
 	- __domain_ns__ (uuid): who is providing the content (e.g. learningequality.org) (optional)
 
