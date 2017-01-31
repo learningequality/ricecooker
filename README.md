@@ -83,7 +83,6 @@ node = VideoNode(
 )
 ```
 
-
 Thumbnails can also be passed in as a path to an image (str) or a ThumbnailFile object. Files can be passed in upon initialization, but can also be added at a later time. More details about how to create a file object can be found in the next section. VideoNodes also have a __derive_thumbnail__ (boolean) argument, which will automatically extract a thumbnail from the video if no thumbnails are provided.
 
 Once you have created the node, add it to a parent node with `parent_node.add_child(child_node)`
@@ -103,9 +102,38 @@ To add a file to your node, you must start by creating a file object from `ricec
 
 Each file class can be passed a __preset__ and __language__ at initialization (SubtitleFiles must have a language set at initialization). A preset determines what kind of file the object is (e.g. high resolution video vs. low resolution video). A list of available presets can be found at `le_utils.constants.format_presets`. A list of available languages can be found at `le_utils.constants.languages`.
 
-ThumbnailFiles, AudioFiles, DocumentFiles, HTMLZipFiles, VideoFiles, and SubtitleFiles must be initialized with a __path__ (str). This path can be a url or a local path to a file. VideoFiles can also be initialized with __ffmpeg_settings__ (dict), which will be used to determine compression settings for the video file.
+ThumbnailFiles, AudioFiles, DocumentFiles, HTMLZipFiles, VideoFiles, and SubtitleFiles must be initialized with a __path__ (str). This path can be a url or a local path to a file.
+```
+from le_utils.constants import languages
+
+file_object = SubtitleFile(
+    path = "file:///path/to/file.vtt",
+    language = languages.getlang('en').code,
+    ...
+)
+```
+
+VideoFiles can also be initialized with __ffmpeg_settings__ (dict), which will be used to determine compression settings for the video file.
+```
+file_object = VideoFile(
+    path = "file:///path/to/file.mp3",
+    ffmpeg_settings = {"max_width": 480, "crf": 20},
+    ...
+)
+```
 
 WebVideoFiles must be given a __web_url__ (str) to a video on YouTube or Vimeo, and YouTubeVideoFiles must be given a __youtube_id__ (str). WebVideoFiles and YouTubeVideoFiles can also take in __download_settings__ (dict) to determine how the video will be downloaded and __high_resolution__ (boolean) to determine what resolution to download.
+```
+file_object = WebVideoFile(
+    web_url = "https://vimeo.com/video-id",
+    ...
+)
+
+file_object = YouTubeVideoFile(
+    youtube_id = "abcdef",
+    ...
+)
+```
 
 
 ### Step 3b: Adding Exercises ###
