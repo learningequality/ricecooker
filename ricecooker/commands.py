@@ -57,7 +57,7 @@ def uploadchannel(path, verbose=False, update=False, max_retries=3, resume=False
 
     # Authenticate user and check current Ricecooker version
     authenticate_user(token)
-    # check_version_number()
+    check_version_number()
 
     config.LOGGER.info("\n\n***** Starting channel build process *****\n\n")
 
@@ -164,7 +164,11 @@ def check_version_number():
     result = json.loads(response._content.decode('utf-8'))
 
     if  result['status'] == 0:
+<<<<<<< HEAD
         config.LOGGER.info(result['message'])
+=======
+        config.LOGGER.warning(result['message'])
+>>>>>>> dff40b285550198518860260e392d56b64324d0c
     elif result['status'] == 1:
         config.LOGGER.warning(result['message'])
     elif result['status'] == 2:
