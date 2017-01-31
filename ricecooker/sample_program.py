@@ -107,7 +107,6 @@ SAMPLE_TREE = [
         "description": "Tests for different videos",
         "children": [
             {
-<<<<<<< HEAD
                 "title": "TEST COMPRESSION",
                 "id": "6cafe7",
                 "author": "Revision 3",
@@ -165,20 +164,6 @@ SAMPLE_TREE = [
                     }
                 ],
             },
-=======
-                "path": "file:///C:/Users/Jordan/Videos/testfolder/high resolution.mp4",
-                # "ffmpeg_settings": {"max_width": 480, "crf": 20},
-            },
-            # {
-            #     "path": "C:/users/jordan/Videos/testfolder/captions.vtt",
-            #     "language": languages.getlang('en').code,
-            # }
-            # ,
-            # {
-            #     "path": "file:///C:/users/jordan/Videos/testfolder/captions.vtt",
-            #     "language": languages.getlang('es').code,
-            # }
->>>>>>> dff40b285550198518860260e392d56b64324d0c
         ],
     },
     {
