@@ -319,7 +319,7 @@ class VideoFile(DownloadFile):
             return self.filename
         # Catch errors related to ffmpeg and handle silently
         except (BrokenPipeError, CalledProcessError, IOError) as err:
-            error = err
+            self.error = err
             config.FAILED_FILES.append(self)
 
 
