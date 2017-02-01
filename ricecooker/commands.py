@@ -18,13 +18,13 @@ try:
 except NameError:
     pass
 
-def uploadchannel(path, verbose=False, update=False, max_retries=3, resume=False, reset=False, step=Status.LAST.name, token="#", prompt=False, publish=False, warnings=False, compress=False, **kwargs):
+def uploadchannel(path, verbose=False, update=False, download_attempts=3, resume=False, reset=False, step=Status.LAST.name, token="#", prompt=False, publish=False, warnings=False, compress=False, **kwargs):
     """ uploadchannel: Upload channel to Kolibri Studio server
         Args:
             path (str): path to file containing construct_channel method
             verbose (bool): indicates whether to print process (optional)
             update (bool): indicates whether to re-download files (optional)
-            max_retries (int): number of times to retry downloading files (optional)
+            download_attempts (int): number of times to retry downloading files (optional)
             resume (bool): indicates whether to resume last session automatically (optional)
             step (str): step to resume process from (optional)
             reset (bool): indicates whether to start session from beginning automatically (optional)
@@ -49,8 +49,8 @@ def uploadchannel(path, verbose=False, update=False, max_retries=3, resume=False
     config.COMPRESS = compress
 
     # Set max retries for downloading
-    config.DOWNLOAD_SESSION.mount('http://', requests.adapters.HTTPAdapter(max_retries=int(max_retries)))
-    config.DOWNLOAD_SESSION.mount('https://', requests.adapters.HTTPAdapter(max_retries=int(max_retries)))
+    config.DOWNLOAD_SESSION.mount('http://', requests.adapters.HTTPAdapter(max_retries=int(download_attempts)))
+    config.DOWNLOAD_SESSION.mount('https://', requests.adapters.HTTPAdapter(max_retries=int(download_attempts)))
 
     # Get domain to upload to
     config.init_file_mapping_store()
