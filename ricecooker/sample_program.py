@@ -415,9 +415,9 @@ def _build_tree(node, sourcetree):
             child_node = nodes.VideoNode(
                 source_id=child_source_node["id"],
                 title=child_source_node["title"],
+                license=child_source_node.get("license"),
                 author=child_source_node.get("author"),
                 description=child_source_node.get("description"),
-                license=child_source_node.get("license"),
                 derive_thumbnail=True, # video-specific data
                 thumbnail=child_source_node.get('thumbnail'),
             )
@@ -428,9 +428,9 @@ def _build_tree(node, sourcetree):
             child_node = nodes.AudioNode(
                 source_id=child_source_node["id"],
                 title=child_source_node["title"],
+                license=child_source_node.get("license"),
                 author=child_source_node.get("author"),
                 description=child_source_node.get("description"),
-                license=child_source_node.get("license"),
                 thumbnail=child_source_node.get("thumbnail"),
             )
             add_files(child_node, child_source_node.get("files") or [])
@@ -440,9 +440,9 @@ def _build_tree(node, sourcetree):
             child_node = nodes.DocumentNode(
                 source_id=child_source_node["id"],
                 title=child_source_node["title"],
+                license=child_source_node.get("license"),
                 author=child_source_node.get("author"),
                 description=child_source_node.get("description"),
-                license=child_source_node.get("license"),
                 thumbnail=child_source_node.get("thumbnail"),
             )
             add_files(child_node, child_source_node.get("files") or [])
@@ -452,10 +452,10 @@ def _build_tree(node, sourcetree):
             child_node = nodes.ExerciseNode(
                 source_id=child_source_node["id"],
                 title=child_source_node["title"],
+                license=child_source_node.get("license"),
                 author=child_source_node.get("author"),
                 description=child_source_node.get("description"),
                 exercise_data={}, # Just set to default
-                license=child_source_node.get("license"),
                 thumbnail=child_source_node.get("thumbnail"),
             )
             add_files(child_node, child_source_node.get("files") or [])
@@ -468,9 +468,9 @@ def _build_tree(node, sourcetree):
             child_node = nodes.HTML5AppNode(
                 source_id=child_source_node["id"],
                 title=child_source_node["title"],
+                license=child_source_node.get("license"),
                 author=child_source_node.get("author"),
                 description=child_source_node.get("description"),
-                license=child_source_node.get("license"),
                 thumbnail=child_source_node.get("thumbnail"),
             )
             add_files(child_node, child_source_node.get("files") or [])

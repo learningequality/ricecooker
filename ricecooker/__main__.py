@@ -25,7 +25,6 @@ Steps (for restoring session):
   CONSTRUCT_CHANNEL:    Resume with call to construct channel
   CREATE_TREE:          Resume at set tree relationships
   DOWNLOAD_FILES:       Resume at beginning of download process
-  COMPRESS_FILES:       Resume at video compression step
   GET_FILE_DIFF:        Resume at call to get file diff from Kolibri Studio
   START_UPLOAD:         Resume at beginning of uploading files to Kolibri Studio
   UPLOADING_FILES:      Resume at last upload request

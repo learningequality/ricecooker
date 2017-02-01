@@ -5,14 +5,16 @@ import json
 import sys
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
 from ..exceptions import InvalidNodeException, InvalidFormatException
-from .licenses import License
 from .. import config, __version__
+from .licenses import License
 
 class Node(object):
+    license = None
+
     """ Node: model to represent all nodes in the tree """
     def __init__(self, title, description=None, thumbnail=None, files=None):
-        self.children = []
         self.files = []
+        self.children = []
         self.parent = None
         self.node_id = None
         self.content_id = None
@@ -156,6 +158,7 @@ class ChannelNode(Node):
             "name": self.title,
             "thumbnail": self.thumbnail.filename if self.thumbnail else None,
             "description": self.description or "",
+            "license": self.license,
             "source_domain": self.source_domain,
             "source_id": self.source_id,
             "ricecooker_version": __version__,
