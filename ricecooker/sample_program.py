@@ -26,6 +26,7 @@ class FileTypes(Enum):
     TILED_THUMBNAIL_FILE = 10
     UNIVERSAL_SUBS_SUBTITLE_FILE = 11
     BASE64_FILE = 12
+    WEB_VIDEO_FILE = 13
 
 
 FILE_TYPE_MAPPING = {
@@ -63,19 +64,44 @@ FILE_TYPE_MAPPING = {
 
 
 
-def guess_file_type(filepath, kind):
+def guess_file_type(kind, filepath=None, youtube_id=None, web_url=None, encoding=None):
     """ guess_file_class: determines what file the content is
         Args:
             filepath (str): filepath of file to check
         Returns: string indicating file's class
     """
-    if get_base64_encoding(filepath):
+    if youtube_id:
+        return FileTypes.YOUTUBE_VIDEO_FILE
+    elif web_url:
+        return FileTypes.WEB_VIDEO_FILE
+    elif encoding:
         return FileTypes.BASE64_FILE
-    ext = os.path.splitext(filepath)[1][1:].lower()
-    if kind in FILE_TYPE_MAPPING and ext in FILE_TYPE_MAPPING[kind]:
-        return FILE_TYPE_MAPPING[kind][ext]
+    else:
+        ext = os.path.splitext(filepath)[1][1:].lower()
+        if kind in FILE_TYPE_MAPPING and ext in FILE_TYPE_MAPPING[kind]:
+            return FILE_TYPE_MAPPING[kind][ext]
     return None
 
+def guess_content_kind(path=None, web_video_data=None, questions=None):
+    """ guess_content_kind: determines what kind the content is
+        Args:
+            files (str or list): files associated with content
+        Returns: string indicating node's kind
+    """
+    # If there are any questions, return exercise
+    if questions and len(questions) > 0:
+        return content_kinds.EXERCISE
+
+    # See if any files match a content kind
+    if path:
+        ext = path.rsplit('/', 1)[-1].split(".")[-1].lower()
+        if ext in content_kinds.MAPPING:
+            return content_kinds.MAPPING[ext]
+        raise InvalidFormatException("Invalid file type: Allowed formats are {0}".format([key for key, value in content_kinds.MAPPING.items()]))
+    elif web_video_data:
+        return content_kinds.VIDEO
+    else:
+        return content_kinds.TOPIC
 
 SAMPLE_PERSEUS = '{"answerArea":{"chi2Table":false,"periodicTable":false,"tTable":false,"zTable":false,"calculator":false},' + \
 '"hints":[{"widgets":{},"images":{"web+graphie:C:/users/jordan/contentcuration-dump/0a0c0f1a1a40226d8d227a07dd143f8c08a4b8a5": {}},"content":"Hint #1","replace":false},{"widgets":{},"images":{},"content":"Hint #2","replace":false}],' +\
@@ -96,25 +122,68 @@ SAMPLE_PERSEUS_2 = '{"hints":[{"replace":false,"content":"Numbers are equivalent
 
 SAMPLE_TREE = [
     {
-        "title": "TEST COMPRESSION",
-        "id": "6cafe7",
-        "author": "Revision 3",
-        "description": "Become a master rice cooker",
-        "license": licenses.CC_BY_NC_SA,
-        "files": [
+        "title": "Video Tests",
+        "id": "abd116",
+        "description": "Tests for different videos",
+        "children": [
             {
-                "path": "file:///C:/Users/Jordan/Videos/testfolder/high resolution.mp4",
-                # "ffmpeg_settings": {"max_width": 480, "crf": 20},
+                "title": "TEST COMPRESSION",
+                "id": "6cafe7",
+                "author": "Revision 3",
+                "description": "Compression Test",
+                "license": licenses.CC_BY_NC_SA,
+                "files": [
+                    {
+                        "path": "C:/users/jordan/contentcuration-dump/high resolution.mp4",
+                        "ffmpeg_settings": {"max_width": 480, "crf": 20},
+                    }
+                ],
+                "thumbnail": "https://cdn.kastatic.org/googleusercontent/5QUfMdnHfeSlnm4mI-2T1cnyn7xLC8hL_Ye9sSVufVma8FLQOrJ55nCkeRG50jp6lNiY_aCvVEzMPqDmxR6ccncqfA"
             },
-            # {
-            #     "path": "C:/users/jordan/Videos/testfolder/captions.vtt",
-            #     "language": languages.getlang('en').code,
-            # }
-            # ,
-            # {
-            #     "path": "file:///C:/users/jordan/Videos/testfolder/captions.vtt",
-            #     "language": languages.getlang('es').code,
-            # }
+            {
+                "title": "TEST SUBTITLES",
+                "id": "7cafe6",
+                "author": "Revision 3",
+                "description": "Subtitle Test",
+                "license": licenses.CC_BY_NC_SA,
+                "files": [
+                    {
+                        "path": "https://ia600209.us.archive.org/27/items/RiceChef/Rice Chef.mp4",
+                    },
+                    {
+                        "path": "C:/users/jordan/Videos/testfolder/captions.vtt",
+                        "language": languages.getlang('en').code,
+                    }
+                    ,
+                    {
+                        "path": "C:/users/jordan/Videos/testfolder/captions.vtt",
+                        "language": languages.getlang('es').code,
+                    }
+                ],
+            },
+            {
+                "title": "TEST YOUTUBE",
+                "id": "6cafe8",
+                "description": "Youtube Test",
+                "license": licenses.CC_BY_NC_SA,
+                "files": [
+                    {
+                        "youtube_id": "kpCJyQ2usJ4",
+                        "high_resolution": False,
+                    }
+                ],
+            },
+            {
+                "title": "TEST VIMEO",
+                "id": "6cafe9",
+                "description": "Vimeo Test",
+                "license": licenses.CC_BY_NC_SA,
+                "files": [
+                    {
+                        "web_url": "https://vimeo.com/188609325",
+                    }
+                ],
+            },
         ],
     },
     {
@@ -175,7 +244,7 @@ SAMPLE_TREE = [
                         "path": "https://ia600209.us.archive.org/27/items/RiceChef/Rice Chef.mp4",
                     },
                     {
-                        "path": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAABGdBTUEAALGPC/xhBQAAAAFzUkdCAK7OHOkAAAAgY0hSTQAAeiYAAICEAAD6AAAAgOgAAHUwAADqYAAAOpgAABdwnLpRPAAAAmFQTFRF////wN/2I0FiNFFuAAAAxdvsN1RxV3KMnrPFFi9PAB1CVG+KXHaQI0NjttLrEjVchIF4AyNGZXB5V087UUw/EzBMpqWeb2thbmpgpqOceXVsERgfTWeADg8QCAEApKGZBAYIop+XCQkIhZ+2T2mEg5mtnK/AobPDkKO2YXqTAAAAJkBetMraZH2VprjIz9zm4enw7/T47fP3wc7ae5GnAAAAN1BsSmSApLfI1ODq2OHp5Orv8PL09vb38fb5wM/bbISbrL/PfZSpxNPgzdnj2+Pr5evw6+/z6e3w3ePp2OPsma2/ABM5Q197ABk4jKG1yNfjytfh1uDo3eXs4unv1t/nztrjqbzMTmmEXneRES1Ji6CzxtXixdPfztrk1N/n1+Dp1d/oz9vlxdPeq73NVG+KYnyUAAAddIuhwtPhvMzaxtTgytfiy9jjwtHewtHenbDCHT1fS2eCRV52qr7PvM3cucrYv87cv8/cvMzavc3bucvacoyl////ByE8WnKKscXWv9Hguszbu8zbvc7dtcnaiJqrcHZ4f4SHEh0nEitFTWZ+hJqumrDDm7HDj6W5dI2lYGJfmZeQl5SNAAAADRciAAATHjdSOVNsPlhyLklmKCYjW1lUlpOLlZKLFSAqWXSOBQAADA0NAAAAHh0bWlhSk5CIk5CIBAYJDRQbERcdDBAUBgkMAAAEDg4NAAAAHBsZWFZQkY6GAAAAAAAABQUEHBsZAAAAGxoYVlROko+GBAQDZ2RdAAAAGhkYcW9oAgICAAAAExMSDQwLjouDjYuDioiAiIV9hoN7VlRO////Z2DcYwAAAMR0Uk5TAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACRKrJyrZlBQECaNXCsKaqypMGAUDcu7Gpn5mf03gDo8+4saiipKq3xRMBH83Eu7OsqbG61DkDMdbFvrizsbK3wNs9Ax/VysS/vLq/zNwfArDhxMfExMXE3pMCMe7byMjIzd33ZgYGQtnz6+zooeJXBQMFD1yHejZ1+l8FBgEELlOR+GgFCQ0SGxoBGFKg+m0BBwEMR6v+hAEDM6nRASWURVuYQQ4AAAABYktHRACIBR1IAAAACXBIWXMAAAjLAAAIywGEuOmJAAABCklEQVQY02NgUGZUUVVT19DUYtBmYmZhYdBh1dXTNzA0MjYxZTFjAwqwm1tYWlnb2NrZO3A4cgIFGJycXVzd3D08vbx9uHyBAn7+AYFBwSEhoWHhEdyRQIGo6JjYuPiExKTklFSeNKBAekZmVnZObk5efkEhbxFQgK+4pLSsvKKyqrqGoZZfgIVBsK6+obGpuaW1rV2oQ1hEgKFTtKu7p7evf8LEI5PEJotLMEyZyjJt+oyZsxhmzzk6V3KeFIO01vwFMrJyCxctXrL02DL55QwsClorVq5avWbtuvUbNh7fpMjAwsKyWWvLFJatStu279h5YhdIAAJ2s+zZu+/kfoQAy4HNLAcPHQYA5YtSi+k2/WkAAAAldEVYdGRhdGU6Y3JlYXRlADIwMTMtMTAtMDRUMTk6Mzk6MjEtMDQ6MDAwU1uYAAAAJXRFWHRkYXRlOm1vZGlmeQAyMDEzLTEwLTA0VDE5OjM5OjIxLTA0OjAwQQ7jJAAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAAAASUVORK5CYII=",
+                        "encoding": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAABGdBTUEAALGPC/xhBQAAAAFzUkdCAK7OHOkAAAAgY0hSTQAAeiYAAICEAAD6AAAAgOgAAHUwAADqYAAAOpgAABdwnLpRPAAAAmFQTFRF////wN/2I0FiNFFuAAAAxdvsN1RxV3KMnrPFFi9PAB1CVG+KXHaQI0NjttLrEjVchIF4AyNGZXB5V087UUw/EzBMpqWeb2thbmpgpqOceXVsERgfTWeADg8QCAEApKGZBAYIop+XCQkIhZ+2T2mEg5mtnK/AobPDkKO2YXqTAAAAJkBetMraZH2VprjIz9zm4enw7/T47fP3wc7ae5GnAAAAN1BsSmSApLfI1ODq2OHp5Orv8PL09vb38fb5wM/bbISbrL/PfZSpxNPgzdnj2+Pr5evw6+/z6e3w3ePp2OPsma2/ABM5Q197ABk4jKG1yNfjytfh1uDo3eXs4unv1t/nztrjqbzMTmmEXneRES1Ji6CzxtXixdPfztrk1N/n1+Dp1d/oz9vlxdPeq73NVG+KYnyUAAAddIuhwtPhvMzaxtTgytfiy9jjwtHewtHenbDCHT1fS2eCRV52qr7PvM3cucrYv87cv8/cvMzavc3bucvacoyl////ByE8WnKKscXWv9Hguszbu8zbvc7dtcnaiJqrcHZ4f4SHEh0nEitFTWZ+hJqumrDDm7HDj6W5dI2lYGJfmZeQl5SNAAAADRciAAATHjdSOVNsPlhyLklmKCYjW1lUlpOLlZKLFSAqWXSOBQAADA0NAAAAHh0bWlhSk5CIk5CIBAYJDRQbERcdDBAUBgkMAAAEDg4NAAAAHBsZWFZQkY6GAAAAAAAABQUEHBsZAAAAGxoYVlROko+GBAQDZ2RdAAAAGhkYcW9oAgICAAAAExMSDQwLjouDjYuDioiAiIV9hoN7VlRO////Z2DcYwAAAMR0Uk5TAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACRKrJyrZlBQECaNXCsKaqypMGAUDcu7Gpn5mf03gDo8+4saiipKq3xRMBH83Eu7OsqbG61DkDMdbFvrizsbK3wNs9Ax/VysS/vLq/zNwfArDhxMfExMXE3pMCMe7byMjIzd33ZgYGQtnz6+zooeJXBQMFD1yHejZ1+l8FBgEELlOR+GgFCQ0SGxoBGFKg+m0BBwEMR6v+hAEDM6nRASWURVuYQQ4AAAABYktHRACIBR1IAAAACXBIWXMAAAjLAAAIywGEuOmJAAABCklEQVQY02NgUGZUUVVT19DUYtBmYmZhYdBh1dXTNzA0MjYxZTFjAwqwm1tYWlnb2NrZO3A4cgIFGJycXVzd3D08vbx9uHyBAn7+AYFBwSEhoWHhEdyRQIGo6JjYuPiExKTklFSeNKBAekZmVnZObk5efkEhbxFQgK+4pLSsvKKyqrqGoZZfgIVBsK6+obGpuaW1rV2oQ1hEgKFTtKu7p7evf8LEI5PEJotLMEyZyjJt+oyZsxhmzzk6V3KeFIO01vwFMrJyCxctXrL02DL55QwsClorVq5avWbtuvUbNh7fpMjAwsKyWWvLFJatStu279h5YhdIAAJ2s+zZu+/kfoQAy4HNLAcPHQYA5YtSi+k2/WkAAAAldEVYdGRhdGU6Y3JlYXRlADIwMTMtMTAtMDRUMTk6Mzk6MjEtMDQ6MDAwU1uYAAAAJXRFWHRkYXRlOm1vZGlmeQAyMDEzLTEwLTA0VDE5OjM5OjIxLTA0OjAwQQ7jJAAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAAAASUVORK5CYII=",
                     },
                 ],
             },
@@ -188,6 +257,7 @@ SAMPLE_TREE = [
                 "files": [
                     {
                         "path": "http://www.publicdomainpictures.net/pictures/110000/nahled/bowl-of-rice.jpg",
+                        # "language": languages.get("english")
                     }
                 ],
                 "questions": [
@@ -290,8 +360,8 @@ SAMPLE_TREE = [
                         "correct_answer": "Rice!",
                     },
                     {
-                        "id": "ccdcc",
-                        "question": "Solve this: $$(111^{x+1}\\times111^\\frac14)\\div111^\\frac12=111^3$$",
+                        "id": "123456",
+                        "question": "Solve: $$(111^{x+1}\\times111^\\frac14)\div111^\\frac12=111^3$$",
                         "type":exercises.SINGLE_SELECTION,
                         "all_answers": ["Yes", "No", "Rice!"],
                         "correct_answer": "Rice!",
@@ -321,8 +391,8 @@ def _build_tree(node, sourcetree):
 
     for child_source_node in sourcetree:
         try:
-            files = [f['path'] for f in child_source_node['files']] if 'files' in child_source_node else None
-            kind = nodes.guess_content_kind(files, child_source_node.get("questions"))
+            main_file = child_source_node['files'][0] if 'files' in child_source_node else {}
+            kind = guess_content_kind(path=main_file.get('path'), web_video_data=main_file.get('youtube_id') or main_file.get('web_url'), questions=child_source_node.get("questions"))
         except UnknownContentKindError:
             continue
 
@@ -348,7 +418,7 @@ def _build_tree(node, sourcetree):
                 description=child_source_node.get("description"),
                 license=child_source_node.get("license"),
                 derive_thumbnail=True, # video-specific data
-                thumbnail=child_source_node.get("thumbnail"),
+                thumbnail=child_source_node.get('thumbnail'),
             )
             add_files(child_node, child_source_node.get("files") or [])
             node.add_child(child_node)
@@ -412,7 +482,7 @@ def _build_tree(node, sourcetree):
 
 def add_files(node, file_list):
     for f in file_list:
-        file_type = guess_file_type(f['path'], node.kind)
+        file_type = guess_file_type(node.kind, filepath=f.get('path'), youtube_id=f.get('youtube_id'), web_url=f.get('web_url'), encoding=f.get('encoding'))
 
         if file_type == FileTypes.AUDIO_FILE:
             node.add_file(files.AudioFile(path=f['path'], language=f.get('language')))
@@ -427,7 +497,11 @@ def add_files(node, file_list):
         elif file_type == FileTypes.SUBTITLE_FILE:
             node.add_file(files.SubtitleFile(path=f['path'], language=f['language']))
         elif file_type == FileTypes.BASE64_FILE:
-            node.add_file(files.Base64ImageFile(encoding=f['path']))
+            node.add_file(files.Base64ImageFile(encoding=f['encoding']))
+        elif file_type == FileTypes.WEB_VIDEO_FILE:
+            node.add_file(files.WebVideoFile(web_url=f['web_url'], high_resolution=f.get('high_resolution')))
+        elif file_type == FileTypes.YOUTUBE_VIDEO_FILE:
+            node.add_file(files.YouTubeVideoFile(youtube_id=f['youtube_id'], high_resolution=f.get('high_resolution')))
         else:
             raise UnknownFileTypeError("Unrecognized file type '{0}'".format(f['path']))
 
