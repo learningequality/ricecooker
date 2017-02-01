@@ -1,11 +1,13 @@
 # Node models to represent channel's tree
 
 import os
+import copy
 import hashlib
 import tempfile
 import shutil
 import requests
 import zipfile
+from PIL import Image
 from subprocess import CalledProcessError
 from cachecontrol.caches.file_cache import FileCache
 from requests_file import FileAdapter
@@ -126,6 +128,8 @@ class ThumbnailPresetMixin(object):
     def get_preset(self):
         if isinstance(self.node, ChannelNode):
             return format_presets.CHANNEL_THUMBNAIL
+        elif isinstance(self.node, TopicNode):
+            return format_presets.TOPIC_THUMBNAIL
         elif isinstance(self.node, VideoNode):
             return format_presets.VIDEO_THUMBNAIL
         elif isinstance(self.node, AudioNode):
@@ -421,13 +425,28 @@ class TiledThumbnailFile(ThumbnailPresetMixin, File):
             images = [f for f in n.files if isinstance(f, ThumbnailFile)]
             if len(images) > 0:
                 self.sources.append(images[0])
-                import pdb; pdb.set_trace()
 
     def process_file(self):
         if len(self.sources) >= 4:
             print("TILED!")
+            images = map(Image.open, [config.get_storage_path(f.get_filename()) for f in self.sources[:3]])
+            widths, heights = zip(*(i.size for i in images))
+
+            total_width = sum(widths)
+            max_height = max(heights)
+
+            new_im = Image.new('RGB', (total_width, max_height))
+
+            x_offset = 0
+            for im in images:
+              new_im.paste(im, (x_offset,0))
+              x_offset += im.size[0]
+
+            new_im.save('test.jpg')
+
         elif len(self.sources) >= 1:
-            print("Individual...")
+            self.node.set_thumbnail(copy.copy(self.sources[0]))
+
 
         # images = [source.get_file() for source in self.sources]
         # thumbnail_storage_path = create_tiled_image(images)

@@ -46,17 +46,11 @@ class Node(object):
         self.description = description or ""
         self.license = license
         self.copyright_holder = copyright_holder
-        self.thumbnail = thumbnail
 
         for f in files or []:
             self.add_file(f)
 
-        if isinstance(self.thumbnail, str):
-            from .files import ThumbnailFile
-            self.thumbnail = ThumbnailFile(path=self.thumbnail)
-
-        if self.thumbnail:
-            self.add_file(self.thumbnail)
+        self.set_thumbnail(thumbnail)
 
 
     def __str__(self):
@@ -85,6 +79,21 @@ class Node(object):
         """
         file_to_add.node = self
         self.files.append(file_to_add)
+
+    def set_thumbnail(self, thumbnail):
+        """ set_thumbnail: Set node's thumbnail
+            Args: thumbnail (ThumbnailFile): file model to add to node
+            Returns: None
+        """
+        self.thumbnail = thumbnail
+        if isinstance(self.thumbnail, str):
+            from .files import ThumbnailFile
+            self.thumbnail = ThumbnailFile(path=self.thumbnail)
+
+        if self.thumbnail:
+            self.thumbnail.node = self
+            if self.thumbnail not in self.files:
+                self.files.append(self.thumbnail)
 
     def process_files(self):
         """ process_files: Process node's files

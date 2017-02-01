@@ -226,11 +226,11 @@ SAMPLE_TREE = [
                         "answers": ["20", "25", "15"],
                         "hints": ["Takes roughly same amount of time to install kolibri on Windows machine", "Does this help?\n![](http://www.aroma-housewares.com/images/rice101/delay_timer_1.jpg)"],
                     },
-                    {
-                        "id": "ddddd",
-                        "type":exercises.PERSEUS_QUESTION,
-                        "item_data":SAMPLE_PERSEUS_2,
-                    },
+                    # {
+                    #     "id": "ddddd",
+                    #     "type":exercises.PERSEUS_QUESTION,
+                    #     "item_data":SAMPLE_PERSEUS_2,
+                    # },
                 ],
             },
             {
