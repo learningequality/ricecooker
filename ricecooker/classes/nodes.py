@@ -5,34 +5,7 @@ import json
 import sys
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
 from ..exceptions import InvalidNodeException, InvalidFormatException
-from .. import config
-
-def guess_content_kind(files, questions=None):
-    """ guess_content_kind: determines what kind the content is
-        Args:
-            files (str or list): files associated with content
-        Returns: string indicating node's kind
-    """
-    # Get files and questions into readable format
-    files = [files] if isinstance(files, str) else files
-    questions = [questions] if isinstance(questions, str) else questions
-
-    # If there are any questions, return exercise
-    if questions is not None and len(questions) > 0:
-        return content_kinds.EXERCISE
-
-    # See if any files match a content kind
-    elif files is not None and len(files) > 0:
-        for f in files:
-            ext = f.rsplit('/', 1)[-1].split(".")[-1].lower()
-            if ext in content_kinds.MAPPING:
-                return content_kinds.MAPPING[ext]
-        raise InvalidFormatException("Invalid file type: Allowed formats are {0}".format([key for key, value in content_kinds.MAPPING.items()]))
-
-    # If there are no files/questions, return topic
-    else:
-        return content_kinds.TOPIC
-
+from .. import config, __version__
 
 class Node(object):
     """ Node: model to represent all nodes in the tree """
@@ -191,6 +164,9 @@ class ChannelNode(Node):
             "description": self.description or "",
             "license": self.license,
             "copyright_holder": self.copyright_holder or "",
+            "source_domain": self.source_domain,
+            "source_id": self.source_id,
+            "ricecooker_version": __version__,
         }
 
     def validate(self):
@@ -264,6 +240,8 @@ class ContentNode(Node):
             "description": self.description,
             "node_id": self.get_node_id().hex,
             "content_id": self.get_content_id().hex,
+            "source_domain": self.domain_ns.hex,
+            "source_id": self.source_id,
             "author": self.author,
             "files" : [f.to_dict() for f in filter(lambda x: x and x.filename, self.files)], # Filter out failed downloads
             "kind": self.kind,
@@ -360,23 +338,20 @@ class VideoNode(ContentNode):
             Args: None
             Returns: None
         """
-        from .files import VideoFile, ThumbnailFile, ExtractedVideoThumbnailFile
+        from .files import VideoFile, ThumbnailFile, ExtractedVideoThumbnailFile, YouTubeVideoFile
 
         downloaded = super(VideoNode, self).process_files()
 
-        try:
-            # Extract thumbnail if one hasn't been provided and derive_thumbnail is set
-            if self.derive_thumbnail and len(list(filter(lambda f: isinstance(f, ThumbnailFile), self.files))) == 0:
-                videos = list(filter(lambda f: isinstance(f, VideoFile), self.files))
-                assert len(videos) > 0 and videos[0].filename, "No videos downloaded for this node"
+        # Extract thumbnail if one hasn't been provided and derive_thumbnail is set
+        if self.derive_thumbnail and any(f for f in self.files if isinstance(f, ThumbnailFile)):
+            videos = list(filter(lambda f: isinstance(f, VideoFile) or isinstance(f, YouTubeVideoFile), self.files))
 
+            if len(videos) > 0 and videos[0].filename:
                 thumbnail = ExtractedVideoThumbnailFile(config.get_storage_path(videos[0].filename))
                 self.add_file(thumbnail)
                 downloaded.append(thumbnail.process_file())
-
-        except AssertionError as ae:
-            config.LOGGER.warning("\tWARNING: Cannot extract thumbnail ({0})".format(ae))
-
+            else:
+                config.LOGGER.warning("\tWARNING: Cannot extract thumbnail (No videos found on node {0})".format(self.source_id))
         return downloaded
 
     def validate(self):
@@ -384,17 +359,15 @@ class VideoNode(ContentNode):
             Args: None
             Returns: boolean indicating if video is valid
         """
+        from .files import VideoFile, WebVideoFile
         try:
             assert self.kind == content_kinds.VIDEO, "Assumption Failed: Node should be a video"
             assert self.license, "Assumption Failed: Video content must have a license"
             assert self.questions == [], "Assumption Failed: Video should not have questions"
             assert len(self.files) > 0, "Assumption Failed: Video must have at least one video file"
 
-            # Check if there are any .mp4 files
-            files_valid = False
-            for f in self.files:
-                files_valid = files_valid or file_formats.MP4 in f.path
-            assert files_valid , "Assumption Failed: Video should have at least one .mp4 file"
+            # Check if there are any .mp4 files if there are video files (other video types don't have paths)
+            assert any(f for f in self.files if isinstance(f, VideoFile) or isinstance(f, WebVideoFile)), "Assumption Failed: Video should have at least one .mp4 file"
 
             return super(VideoNode, self).validate()
         except AssertionError as ae:
