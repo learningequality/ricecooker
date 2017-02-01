@@ -31,7 +31,7 @@ class BaseQuestion:
             hints (str or [str]): optional hints on how to answer question
             raw_data (str): raw data for perseus file
     """
-    def __init__(self, id, question, question_type, answers=None, hints=None, raw_data=""):
+    def __init__(self, id, question, question_type, answers=None, hints=None, raw_data="", source_url=None):
         self.question = question
         self.question_type = question_type
         self.files=[]
@@ -39,6 +39,7 @@ class BaseQuestion:
         self.hints = [] if hints is None else [hints] if isinstance(hints,str) else hints
         self.raw_data = raw_data
         self.source_id=id
+        self.source_url = source_url
         self.id = uuid.uuid5(uuid.NAMESPACE_DNS, id)
 
     def to_dict(self):
@@ -54,6 +55,7 @@ class BaseQuestion:
             "hints": json.dumps(self.hints, ensure_ascii=False),
             "answers": json.dumps(self.answers, ensure_ascii=False),
             "raw_data": self.raw_data,
+            "source_url": self.source_url,
         }
 
     def create_answer(self, answer, correct=True):
@@ -202,9 +204,9 @@ class PerseusQuestion(BaseQuestion):
             images ({key:str, ...}): a dict mapping image string to replace to path to image
     """
 
-    def __init__(self, id, raw_data):
+    def __init__(self, id, raw_data, source_url=None):
         raw_data = raw_data if isinstance(raw_data, str) else json.dumps(raw_data)
-        super(PerseusQuestion, self).__init__(id, "", exercises.PERSEUS_QUESTION, [], [], raw_data)
+        super(PerseusQuestion, self).__init__(id, "", exercises.PERSEUS_QUESTION, [], [], raw_data, source_url=source_url)
 
     def validate(self):
         """ validate: Makes sure perseus question is valid
