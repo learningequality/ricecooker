@@ -1,9 +1,11 @@
 # Node models to represent channel's tree
+from __future__ import unicode_literals
 
 import os
 import hashlib
 import tempfile
 import shutil
+import youtube_dl
 import requests
 import zipfile
 from subprocess import CalledProcessError
@@ -23,6 +25,18 @@ DOWNLOAD_SESSION.mount('file://', FileAdapter())
 
 # Cache for filenames
 FILECACHE = FileCache(config.FILECACHE_DIRECTORY, forever=True)
+
+def generate_key(action, path_or_id, settings=None, default=" (default)"):
+    """ generate_key: generate key used for caching
+        Args:
+            action (str): how video is being processed (e.g. COMPRESSED or DOWNLOADED)
+            path_or_id (str): path to video or youtube_id
+            settings (dict): settings for compression or downloading passed in by user
+            default (str): if settings are None, default to this extension (avoid overwriting keys)
+        Returns: filename
+    """
+    settings = " {}".format(str(sorted(settings.items()))) if settings else default
+    return "{}: {}{}".format(action.upper(), path_or_id, settings)
 
 def download(path, default_ext=None):
     """ download: downloads file
@@ -100,11 +114,11 @@ def get_hash(filepath):
             hash.update(chunk)
     return hash.hexdigest()
 
+
 def compress_video_file(filename, ffmpeg_settings):
-    # Generate key for compressed file
-    setting_list = ffmpeg_settings if ffmpeg_settings else {}
-    settings = " {}".format(str(sorted(setting_list.items()))) if ffmpeg_settings else " (default compression)"
-    key = "COMPRESSED: {0}{1}".format(filename, settings)
+    ffmpeg_settings = ffmpeg_settings or {}
+    key = generate_key("COMPRESSED", filename, settings=ffmpeg_settings, default=" (default compression)")
+
     if not config.UPDATE and FILECACHE.get(key):
         return FILECACHE.get(key).decode('utf-8')
 
@@ -112,11 +126,32 @@ def compress_video_file(filename, ffmpeg_settings):
 
     with tempfile.NamedTemporaryFile(suffix=".{}".format(file_formats.MP4)) as tempf:
         tempf.close() # Need to close so pressure cooker can write to file
-        compress_video(config.get_storage_path(filename), tempf.name, overwrite=True, **setting_list)
-
+        compress_video(config.get_storage_path(filename), tempf.name, overwrite=True, **ffmpeg_settings)
         filename = "{}.{}".format(get_hash(tempf.name), file_formats.MP4)
 
         copy_file_to_storage(filename, tempf.name)
+
+        FILECACHE.set(key, bytes(filename, "utf-8"))
+        return filename
+
+def download_from_web(web_url, download_settings):
+    key = generate_key("DOWNLOADED", web_url, settings=download_settings)
+    if not config.UPDATE and FILECACHE.get(key):
+        return FILECACHE.get(key).decode('utf-8')
+
+    # Get hash of web_url to act as temporary storage name
+    url_hash = hashlib.md5()
+    url_hash.update(web_url.encode('utf-8'))
+    destination_path = os.path.join(tempfile.gettempdir(), "{}.{}".format(url_hash.hexdigest(), file_formats.MP4))
+    download_settings["outtmpl"] = destination_path
+
+    with youtube_dl.YoutubeDL(download_settings) as ydl:
+        ydl.download([web_url])
+        filename = "{}.{}".format(get_hash(destination_path), file_formats.MP4)
+
+        # Write file to local storage
+        with open(destination_path, "rb") as dlf, open(config.get_storage_path(filename), 'wb') as destf:
+            shutil.copyfileobj(dlf, destf)
 
         FILECACHE.set(key, bytes(filename, "utf-8"))
         return filename
@@ -147,6 +182,7 @@ class File(object):
     filename = None
     language = None
     assessment_item = None
+    source_url = None
 
     def __init__(self, preset=None, language=None, default_ext=None):
         self.preset = preset
@@ -178,6 +214,7 @@ class File(object):
                 'filename' : filename,
                 'original_filename' : self.original_filename,
                 'language' : self.language,
+                'source_url': self.source_url,
             }
         return None
 
@@ -190,6 +227,7 @@ class DownloadFile(File):
 
     def __init__(self, path, **kwargs):
         self.path = path.strip()
+        self.source_url = self.path
         super(DownloadFile, self).__init__(**kwargs)
 
     def validate(self):
@@ -289,6 +327,33 @@ class VideoFile(DownloadFile):
         except (BrokenPipeError, CalledProcessError, IOError) as err:
             error = err
             config.FAILED_FILES.append(self)
+
+
+class WebVideoFile(File):
+    # In future, look into postprocessors and progress_hooks
+    def __init__(self, web_url, download_settings=None, high_resolution=True, **kwargs):
+        self.web_url = web_url
+        self.download_settings = download_settings or {}
+        self.download_settings['format'] = "22/best" if high_resolution else "18/worst"
+
+        super(WebVideoFile, self).__init__(**kwargs)
+
+    def get_preset(self):
+        return self.preset or guess_video_preset_by_resolution(config.get_storage_path(self.filename))
+
+    def process_file(self):
+        try:
+            self.filename = download_from_web(self.web_url, self.download_settings)
+            config.LOGGER.info("\t--- Downloaded (YouTube) {}".format(self.filename))
+            return self.filename
+        except youtube_dl.utils.DownloadError as err:
+            self.error = str(err)
+            config.FAILED_FILES.append(self)
+
+
+class YouTubeVideoFile(WebVideoFile):
+    def __init__(self, youtube_id, **kwargs):
+        super(YouTubeVideoFile, self).__init__('http://www.youtube.com/watch?v={}'.format(youtube_id), **kwargs)
 
 
 class SubtitleFile(DownloadFile):
@@ -411,16 +476,9 @@ class _ExerciseGraphieFile(DownloadFile):
             FILECACHE.set(key, bytes(filename, "utf-8"))
             return filename
 
-
-# YouTubeVideoThumbnailFile
-
-
 # VectorizedVideoFile
-
 # TiledThumbnailFile
 # UniversalSubsSubtitleFile
-
-
 # class TiledThumbnailFile(ThumbnailFile):
 #     def __init__(self, sources):
 #         assert len(sources) == 4, "Please provide 4 sources for creating tiled thumbnail"
@@ -429,7 +487,6 @@ class _ExerciseGraphieFile(DownloadFile):
 #     def get_file(self):
 #         images = [source.get_file() for source in self.sources]
 #         thumbnail_storage_path = create_tiled_image(images)
-
 
 # class UniversalSubsSubtitleFile(SubtitleFile):
 #     def __init__(self, us_id, language):
