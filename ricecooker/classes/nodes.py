@@ -5,34 +5,8 @@ import json
 import sys
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
 from ..exceptions import InvalidNodeException, InvalidFormatException
-<<<<<<< HEAD
-from .. import config
-from .licenses import License
-
-def guess_content_kind(path=None, web_video_data=None, questions=None):
-    """ guess_content_kind: determines what kind the content is
-        Args:
-            files (str or list): files associated with content
-        Returns: string indicating node's kind
-    """
-    # If there are any questions, return exercise
-    if questions and len(questions) > 0:
-        return content_kinds.EXERCISE
-
-    # See if any files match a content kind
-    if path:
-        ext = path.rsplit('/', 1)[-1].split(".")[-1].lower()
-        if ext in content_kinds.MAPPING:
-            return content_kinds.MAPPING[ext]
-        raise InvalidFormatException("Invalid file type: Allowed formats are {0}".format([key for key, value in content_kinds.MAPPING.items()]))
-    elif web_video_data:
-        return content_kinds.VIDEO
-    else:
-        return content_kinds.TOPIC
-
-=======
 from .. import config, __version__
->>>>>>> 42efc448ba141b13ed1c3dc7bdd466f609323d0e
+from .licenses import License
 
 class Node(object):
     """ Node: model to represent all nodes in the tree """
@@ -182,14 +156,11 @@ class ChannelNode(Node):
             "name": self.title,
             "thumbnail": self.thumbnail.filename if self.thumbnail else None,
             "description": self.description or "",
-<<<<<<< HEAD
-=======
             "license": self.license,
             "copyright_holder": self.copyright_holder or "",
             "source_domain": self.source_domain,
             "source_id": self.source_id,
             "ricecooker_version": __version__,
->>>>>>> 42efc448ba141b13ed1c3dc7bdd466f609323d0e
         }
 
     def validate(self):
