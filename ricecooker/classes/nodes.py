@@ -9,10 +9,12 @@ from .. import config, __version__
 from .licenses import License
 
 class Node(object):
+    license = None
+
     """ Node: model to represent all nodes in the tree """
     def __init__(self, title, description=None, thumbnail=None, files=None):
-        self.children = []
         self.files = []
+        self.children = []
         self.parent = None
         self.node_id = None
         self.content_id = None
@@ -157,7 +159,6 @@ class ChannelNode(Node):
             "thumbnail": self.thumbnail.filename if self.thumbnail else None,
             "description": self.description or "",
             "license": self.license,
-            "copyright_holder": self.copyright_holder or "",
             "source_domain": self.source_domain,
             "source_id": self.source_id,
             "ricecooker_version": __version__,
@@ -316,8 +317,7 @@ class ContentNode(TreeNode):
         """
         assert isinstance(self.license, str) or isinstance(self.license, License), "Assumption Failed: License is not a string or empty"
         if self.required_file_format:
-            # Check if there are any .mp4 files
-            files_valid = False
+            files_valid = not any(f for f in self.files if hasattr(f, 'path'))
             for f in self.files:
                 files_valid = files_valid or f.path.endswith(self.required_file_format)
             assert files_valid , "Assumption Failed: Node should have at least one {} file".format(self.required_file_format)
