@@ -19,7 +19,19 @@ The following steps will guide you through how to create a program, or sushi che
 A sample sushi chef has been created [here](https://github.com/learningequality/ricecooker/blob/master/ricecooker/sample_program.py)
 
 
-### Step 1: Initializing the Channel ###
+
+### Step 1: Obtaining an Authorization Token ###
+You will need an authorization token to create a channel on Kolibri Studio. In order to obtain one:
+
+1. Create an account on [Kolibri Studio](https://contentworkshop.learningequality.org/).
+2. Navigate to the Tokens tab under your Settings page.
+3. Copy the given authorization token.
+4. Set `token="auth-token"` in your call to uploadchannel (alternatively, you can create a file with your
+    authorization token and set `token="path/to/file.txt"`).
+
+
+
+### Step 2: Initializing the Channel ###
 
 To run the Ricecooker, you must include a `construct_channel` method in your sushi chef file that returns a ChannelNode object. This function will be responsible for building the structure of your channel.
 
@@ -50,7 +62,7 @@ def construct_channel(args):
 
 
 
-### Step 2: Creating Nodes ###
+### Step 3: Creating Nodes ###
 
 Once your channel is created, you can start adding nodes. To do this, you will need to convert your data to the rice cooker's objects. Here are the classes that are available to you (import from `ricecooker.classes.nodes`):
 - __TopicNode__: folders to organize to the channel's content
@@ -91,7 +103,7 @@ Once you have created the node, add it to a parent node with `parent_node.add_ch
 
 
 
-### Step 3a: Adding Files ###
+### Step 4a: Adding Files ###
 
 To add a file to your node, you must start by creating a file object from `ricecooker.classes.files`. Your sushi chef is responsible for determining which file object to create. Here are the available file models:
 - __ThumbnailFile__: png or jpg files to add to any kind of node
@@ -140,7 +152,7 @@ file_object = YouTubeVideoFile(
 
 
 
-### Step 3b: Adding Exercises ###
+### Step 4b: Adding Exercises ###
 
 ExerciseNodes are special objects that have questions used for assessment. To add a question to your exercise, you must first create a question model from `ricecooker.classes.questions`. Your sushi chef is responsible for determining which question type to create. Here are the available question types:
 - __PerseusQuestion__: special question type for pre-formatted perseus questions
@@ -209,16 +221,6 @@ node = ExerciseNode(
 ```
 
 Once you have created the appropriate question object, add it to an exercise object with `exercise_node.add_question(question)`
-
-
-
-### Step 4: Obtaining an Authorization Token ###
-You will need an authorization token to create a channel on Kolibri Studio. In order to obtain one:
-1. Create an account on [Kolibri Studio](https://contentworkshop.learningequality.org/).
-2. Navigate to the Tokens tab under your Settings page.
-3. Copy the given authorization token.
-4. Set `token="auth-token"` in your call to uploadchannel (alternatively, you can create a file with your
-    authorization token and set `token="path/to/file.txt"`).
 
 
 
