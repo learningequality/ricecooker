@@ -147,12 +147,12 @@ class File(object):
     filename = None
     language = None
     assessment_item = None
-    source_url = None
 
-    def __init__(self, preset=None, language=None, default_ext=None):
+    def __init__(self, preset=None, language=None, default_ext=None, source_url=None):
         self.preset = preset
         self.language = language
         self.default_ext = default_ext or self.default_ext
+        self.source_url = source_url
 
     def validate(self):
         pass
@@ -192,7 +192,6 @@ class DownloadFile(File):
 
     def __init__(self, path, **kwargs):
         self.path = path.strip()
-        self.source_url = self.path
         super(DownloadFile, self).__init__(**kwargs)
 
     def validate(self):
