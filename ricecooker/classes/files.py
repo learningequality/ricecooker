@@ -147,6 +147,7 @@ class File(object):
     filename = None
     language = None
     assessment_item = None
+    source_url = None
 
     def __init__(self, preset=None, language=None, default_ext=None):
         self.preset = preset
@@ -178,6 +179,7 @@ class File(object):
                 'filename' : filename,
                 'original_filename' : self.original_filename,
                 'language' : self.language,
+                'source_url': self.source_url,
             }
         return None
 
@@ -190,6 +192,7 @@ class DownloadFile(File):
 
     def __init__(self, path, **kwargs):
         self.path = path.strip()
+        self.source_url = self.path
         super(DownloadFile, self).__init__(**kwargs)
 
     def validate(self):
