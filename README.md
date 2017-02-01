@@ -233,7 +233,7 @@ Run `python -m ricecooker uploadchannel [-huv] "<path-to-py-file>" [--warn] [--c
 - --max-retries will set the maximum number of times to retry downloading files
 - --warn will print out warnings during rice cooking session
 - --compress will compress your high resolution videos to save space
-- --token will authorize you to create your channel (found under Kolibri Studio settings page)
+- --token will authorize you to create your channel (obtained in Step 1)
 - --resume will resume your previous rice cooking session
 - --step will specify at which step to resume your session
 - --reset will automatically start the rice cooker from the beginning
