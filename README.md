@@ -5,6 +5,8 @@ A framework for creating channels on [Kolibri Studio](https://contentworkshop.le
 
 ## Installation
 
+* [Install ffmpeg](https://ffmpeg.org/) if you don't have it already.
+
 * [Install pip](https://pypi.python.org/pypi/pip) if you don't have it already.
 
 * Run `pip install ricecooker`
