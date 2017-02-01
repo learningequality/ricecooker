@@ -429,7 +429,8 @@ class TiledThumbnailFile(ThumbnailPresetMixin, File):
     def process_file(self):
         if len(self.sources) >= 4:
             print("TILED!")
-            images = map(Image.open, [config.get_storage_path(f.get_filename()) for f in self.sources[:3]])
+            import pdb; pdb.set_trace()
+            images = map(Image.open, [config.get_storage_path(f.get_filename()) for f in self.sources[:4]])
             widths, heights = zip(*(i.size for i in images))
 
             total_width = sum(widths)
@@ -439,8 +440,9 @@ class TiledThumbnailFile(ThumbnailPresetMixin, File):
 
             x_offset = 0
             for im in images:
-              new_im.paste(im, (x_offset,0))
-              x_offset += im.size[0]
+                import pdb; pdb.set_trace()
+                new_im.paste(im, (x_offset,0))
+                x_offset += im.size[0]
 
             new_im.save('test.jpg')
 
