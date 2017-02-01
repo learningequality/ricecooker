@@ -178,6 +178,7 @@ class File(object):
                 'filename' : filename,
                 'original_filename' : self.original_filename,
                 'language' : self.language,
+                'source_url': None
             }
         return None
 
@@ -197,6 +198,22 @@ class DownloadFile(File):
         _basename, ext = os.path.splitext(self.path)
         if ext:
             assert ext.lstrip('.') in self.allowed_formats, "{} must have one of the following extensions: {}".format(self.__class__.__name__, self.allowed_formats)
+
+    def to_dict(self):
+        filename = self.get_filename()
+
+        # If file was successfully downloaded, return dict
+        # Otherwise return None
+        if filename:
+            return {
+                'size' : os.path.getsize(config.get_storage_path(filename)),
+                'preset' : self.get_preset(),
+                'filename' : filename,
+                'original_filename' : self.original_filename,
+                'language' : self.language,
+                'source_url': self.path,
+            }
+        return None
 
     def process_file(self):
         try:
