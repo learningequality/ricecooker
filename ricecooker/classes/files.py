@@ -26,7 +26,15 @@ DOWNLOAD_SESSION.mount('file://', FileAdapter())
 # Cache for filenames
 FILECACHE = FileCache(config.FILECACHE_DIRECTORY, forever=True)
 
-def generate_key(action, path_or_id, settings, default=" (default)"):
+def generate_key(action, path_or_id, settings=None, default=" (default)"):
+    """ generate_key: generate key used for caching
+        Args:
+            action (str): how video is being processed (e.g. COMPRESSED or DOWNLOADED)
+            path_or_id (str): path to video or youtube_id
+            settings (dict): settings for compression or downloading passed in by user
+            default (str): if settings are None, default to this extension (avoid overwriting keys)
+        Returns: filename
+    """
     settings = " {}".format(str(sorted(settings.items()))) if settings else default
     return "{}: {}{}".format(action.upper(), path_or_id, settings)
 
