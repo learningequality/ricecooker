@@ -7,28 +7,6 @@ from le_utils.constants import content_kinds,file_formats, format_presets, licen
 from ..exceptions import InvalidNodeException, InvalidFormatException
 from .. import config, __version__
 
-def guess_content_kind(path=None, web_video_data=None, questions=None):
-    """ guess_content_kind: determines what kind the content is
-        Args:
-            files (str or list): files associated with content
-        Returns: string indicating node's kind
-    """
-    # If there are any questions, return exercise
-    if questions and len(questions) > 0:
-        return content_kinds.EXERCISE
-
-    # See if any files match a content kind
-    if path:
-        ext = path.rsplit('/', 1)[-1].split(".")[-1].lower()
-        if ext in content_kinds.MAPPING:
-            return content_kinds.MAPPING[ext]
-        raise InvalidFormatException("Invalid file type: Allowed formats are {0}".format([key for key, value in content_kinds.MAPPING.items()]))
-    elif web_video_data:
-        return content_kinds.VIDEO
-    else:
-        return content_kinds.TOPIC
-
-
 class Node(object):
     """ Node: model to represent all nodes in the tree """
     def __init__(self, title, description=None, thumbnail=None, license=None, copyright_holder=None, files=None):
@@ -365,7 +343,7 @@ class VideoNode(ContentNode):
         downloaded = super(VideoNode, self).process_files()
 
         # Extract thumbnail if one hasn't been provided and derive_thumbnail is set
-        if self.derive_thumbnail and len(list(filter(lambda f: isinstance(f, ThumbnailFile), self.files))) == 0:
+        if self.derive_thumbnail and any(f for f in self.files if isinstance(f, ThumbnailFile)):
             videos = list(filter(lambda f: isinstance(f, VideoFile) or isinstance(f, YouTubeVideoFile), self.files))
 
             if len(videos) > 0 and videos[0].filename:
@@ -381,7 +359,7 @@ class VideoNode(ContentNode):
             Args: None
             Returns: boolean indicating if video is valid
         """
-        from .files import VideoFile
+        from .files import VideoFile, WebVideoFile
         try:
             assert self.kind == content_kinds.VIDEO, "Assumption Failed: Node should be a video"
             assert self.license, "Assumption Failed: Video content must have a license"
@@ -389,10 +367,7 @@ class VideoNode(ContentNode):
             assert len(self.files) > 0, "Assumption Failed: Video must have at least one video file"
 
             # Check if there are any .mp4 files if there are video files (other video types don't have paths)
-            files_valid = len(set(filter(lambda f: isinstance(f, VideoFile), self.files))) == 0
-            for f in self.files:
-                files_valid = files_valid or file_formats.MP4 in f.path
-            assert files_valid, "Assumption Failed: Video should have at least one .mp4 file"
+            assert any(f for f in self.files if isinstance(f, VideoFile) or isinstance(f, WebVideoFile)), "Assumption Failed: Video should have at least one .mp4 file"
 
             return super(VideoNode, self).validate()
         except AssertionError as ae:

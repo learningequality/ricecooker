@@ -82,6 +82,26 @@ def guess_file_type(kind, filepath=None, youtube_id=None, web_url=None, encoding
             return FILE_TYPE_MAPPING[kind][ext]
     return None
 
+def guess_content_kind(path=None, web_video_data=None, questions=None):
+    """ guess_content_kind: determines what kind the content is
+        Args:
+            files (str or list): files associated with content
+        Returns: string indicating node's kind
+    """
+    # If there are any questions, return exercise
+    if questions and len(questions) > 0:
+        return content_kinds.EXERCISE
+
+    # See if any files match a content kind
+    if path:
+        ext = path.rsplit('/', 1)[-1].split(".")[-1].lower()
+        if ext in content_kinds.MAPPING:
+            return content_kinds.MAPPING[ext]
+        raise InvalidFormatException("Invalid file type: Allowed formats are {0}".format([key for key, value in content_kinds.MAPPING.items()]))
+    elif web_video_data:
+        return content_kinds.VIDEO
+    else:
+        return content_kinds.TOPIC
 
 SAMPLE_PERSEUS = '{"answerArea":{"chi2Table":false,"periodicTable":false,"tTable":false,"zTable":false,"calculator":false},' + \
 '"hints":[{"widgets":{},"images":{"web+graphie:C:/users/jordan/contentcuration-dump/0a0c0f1a1a40226d8d227a07dd143f8c08a4b8a5": {}},"content":"Hint #1","replace":false},{"widgets":{},"images":{},"content":"Hint #2","replace":false}],' +\
@@ -372,7 +392,7 @@ def _build_tree(node, sourcetree):
     for child_source_node in sourcetree:
         try:
             main_file = child_source_node['files'][0] if 'files' in child_source_node else {}
-            kind = nodes.guess_content_kind(path=main_file.get('path'), web_video_data=main_file.get('youtube_id') or main_file.get('web_url'), questions=child_source_node.get("questions"))
+            kind = guess_content_kind(path=main_file.get('path'), web_video_data=main_file.get('youtube_id') or main_file.get('web_url'), questions=child_source_node.get("questions"))
         except UnknownContentKindError:
             continue
 
