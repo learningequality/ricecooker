@@ -117,7 +117,7 @@ def get_hash(filepath):
 
 def compress_video_file(filename, ffmpeg_settings):
     ffmpeg_settings = ffmpeg_settings or {}
-    key = generate_key("COMPRESSED", filename, ffmpeg_settings, default=" (default compression)")
+    key = generate_key("COMPRESSED", filename, settings=ffmpeg_settings, default=" (default compression)")
 
     if not config.UPDATE and FILECACHE.get(key):
         return FILECACHE.get(key).decode('utf-8')
@@ -135,7 +135,7 @@ def compress_video_file(filename, ffmpeg_settings):
         return filename
 
 def download_from_web(web_url, download_settings):
-    key = generate_key("DOWNLOADED", web_url, download_settings)
+    key = generate_key("DOWNLOADED", web_url, settings=download_settings)
     if not config.UPDATE and FILECACHE.get(key):
         return FILECACHE.get(key).decode('utf-8')
 
