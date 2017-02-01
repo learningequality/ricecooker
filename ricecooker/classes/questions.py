@@ -204,9 +204,9 @@ class PerseusQuestion(BaseQuestion):
             images ({key:str, ...}): a dict mapping image string to replace to path to image
     """
 
-    def __init__(self, id, raw_data):
+    def __init__(self, id, raw_data, source_url=None):
         raw_data = raw_data if isinstance(raw_data, str) else json.dumps(raw_data)
-        super(PerseusQuestion, self).__init__(id, "", exercises.PERSEUS_QUESTION, [], [], raw_data)
+        super(PerseusQuestion, self).__init__(id, "", exercises.PERSEUS_QUESTION, [], [], raw_data, source_url=source_url)
 
     def validate(self):
         """ validate: Makes sure perseus question is valid

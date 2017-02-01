@@ -18,12 +18,13 @@ try:
 except NameError:
     pass
 
-def uploadchannel(path, verbose=False, update=False, resume=False, reset=False, step=Status.LAST.name, token="#", prompt=False, publish=False, warnings=False, compress=False, **kwargs):
+def uploadchannel(path, verbose=False, update=False, download_attempts=3, resume=False, reset=False, step=Status.LAST.name, token="#", prompt=False, publish=False, warnings=False, compress=False, **kwargs):
     """ uploadchannel: Upload channel to Kolibri Studio server
         Args:
             path (str): path to file containing construct_channel method
             verbose (bool): indicates whether to print process (optional)
             update (bool): indicates whether to re-download files (optional)
+            download_attempts (int): number of times to retry downloading files (optional)
             resume (bool): indicates whether to resume last session automatically (optional)
             step (str): step to resume process from (optional)
             reset (bool): indicates whether to start session from beginning automatically (optional)
@@ -46,6 +47,10 @@ def uploadchannel(path, verbose=False, update=False, resume=False, reset=False, 
     config.SESSION.headers.update({"Authorization": "Token {0}".format(token)})
     config.UPDATE = update
     config.COMPRESS = compress
+
+    # Set max retries for downloading
+    config.DOWNLOAD_SESSION.mount('http://', requests.adapters.HTTPAdapter(max_retries=int(download_attempts)))
+    config.DOWNLOAD_SESSION.mount('https://', requests.adapters.HTTPAdapter(max_retries=int(download_attempts)))
 
     # Get domain to upload to
     config.init_file_mapping_store()
@@ -159,7 +164,7 @@ def check_version_number():
     result = json.loads(response._content.decode('utf-8'))
 
     if  result['status'] == 0:
-        config.LOGGER.warning(result['message'])
+        config.LOGGER.info(result['message'])
     elif result['status'] == 1:
         config.LOGGER.warning(result['message'])
     elif result['status'] == 2:

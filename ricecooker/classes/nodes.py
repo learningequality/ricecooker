@@ -312,10 +312,10 @@ class ContentNode(TreeNode):
             Args: None
             Returns: boolean indicating if content node is valid
         """
+        from .files import DownloadFile
         assert isinstance(self.license, str) or isinstance(self.license, License), "Assumption Failed: License is not a string or empty"
         if self.required_file_format:
-            # Check if there are any .mp4 files
-            files_valid = False
+            files_valid = not any(f for f in self.files if isinstance(f, DownloadFile))
             for f in self.files:
                 files_valid = files_valid or f.path.endswith(self.required_file_format)
             assert files_valid , "Assumption Failed: Node should have at least one {} file".format(self.required_file_format)
@@ -399,6 +399,7 @@ class VideoNode(ContentNode):
 
             # Check if there are any .mp4 files if there are video files (other video types don't have paths)
             assert any(f for f in self.files if isinstance(f, VideoFile) or isinstance(f, WebVideoFile)), "Assumption Failed: Video should have at least one .mp4 file"
+
             return super(VideoNode, self).validate()
         except AssertionError as ae:
             raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
