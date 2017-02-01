@@ -8,33 +8,6 @@ from ..exceptions import InvalidNodeException, InvalidFormatException
 from .licenses import License
 from .. import config, __version__
 
-def guess_content_kind(files, questions=None):
-    """ guess_content_kind: determines what kind the content is
-        Args:
-            files (str or list): files associated with content
-        Returns: string indicating node's kind
-    """
-    # Get files and questions into readable format
-    files = [files] if isinstance(files, str) else files
-    questions = [questions] if isinstance(questions, str) else questions
-
-    # If there are any questions, return exercise
-    if questions is not None and len(questions) > 0:
-        return content_kinds.EXERCISE
-
-    # See if any files match a content kind
-    elif files is not None and len(files) > 0:
-        for f in files:
-            ext = f.rsplit('/', 1)[-1].split(".")[-1].lower()
-            if ext in content_kinds.MAPPING:
-                return content_kinds.MAPPING[ext]
-        raise InvalidFormatException("Invalid file type: Allowed formats are {0}".format([key for key, value in content_kinds.MAPPING.items()]))
-
-    # If there are no files/questions, return topic
-    else:
-        return content_kinds.TOPIC
-
-
 class Node(object):
     """ Node: model to represent all nodes in the tree """
     def __init__(self, title, description=None, thumbnail=None, files=None):
@@ -397,23 +370,20 @@ class VideoNode(ContentNode):
             Args: None
             Returns: None
         """
-        from .files import VideoFile, ThumbnailFile, ExtractedVideoThumbnailFile
+        from .files import VideoFile, ThumbnailFile, ExtractedVideoThumbnailFile, YouTubeVideoFile
 
         downloaded = super(VideoNode, self).process_files()
 
-        try:
-            # Extract thumbnail if one hasn't been provided and derive_thumbnail is set
-            if self.derive_thumbnail and len(list(filter(lambda f: isinstance(f, ThumbnailFile), self.files))) == 0:
-                videos = list(filter(lambda f: isinstance(f, VideoFile), self.files))
-                assert len(videos) > 0 and videos[0].filename, "No videos downloaded for this node"
+        # Extract thumbnail if one hasn't been provided and derive_thumbnail is set
+        if self.derive_thumbnail and any(f for f in self.files if isinstance(f, ThumbnailFile)):
+            videos = list(filter(lambda f: isinstance(f, VideoFile) or isinstance(f, YouTubeVideoFile), self.files))
 
+            if len(videos) > 0 and videos[0].filename:
                 thumbnail = ExtractedVideoThumbnailFile(config.get_storage_path(videos[0].filename))
                 self.add_file(thumbnail)
                 downloaded.append(thumbnail.process_file())
-
-        except AssertionError as ae:
-            config.LOGGER.warning("\tWARNING: Cannot extract thumbnail ({0})".format(ae))
-
+            else:
+                config.LOGGER.warning("\tWARNING: Cannot extract thumbnail (No videos found on node {0})".format(self.source_id))
         return downloaded
 
     def validate(self):
@@ -421,10 +391,15 @@ class VideoNode(ContentNode):
             Args: None
             Returns: boolean indicating if video is valid
         """
+        from .files import VideoFile, WebVideoFile
         try:
             assert self.kind == content_kinds.VIDEO, "Assumption Failed: Node should be a video"
             assert self.questions == [], "Assumption Failed: Video should not have questions"
             assert len(self.files) > 0, "Assumption Failed: Video must have at least one video file"
+
+            # Check if there are any .mp4 files if there are video files (other video types don't have paths)
+            assert any(f for f in self.files if isinstance(f, VideoFile) or isinstance(f, WebVideoFile)), "Assumption Failed: Video should have at least one .mp4 file"
+
             return super(VideoNode, self).validate()
         except AssertionError as ae:
             raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
