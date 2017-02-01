@@ -297,7 +297,7 @@ SAMPLE_TREE = [
                     {
                         "id": "ddddd",
                         "type":exercises.PERSEUS_QUESTION,
-                        "item_data":SAMPLE_PERSEUS_2,
+                        "item_data":SAMPLE_PERSEUS,
                     },
                 ],
             },
@@ -540,6 +540,7 @@ def create_question(raw_question):
         return questions.PerseusQuestion(
             id=raw_question["id"],
             raw_data=raw_question["item_data"],
+            source_url="https://www.google.com/",
         )
     else:
         raise UnknownQuestionTypeError("Unrecognized question type '{0}': accepted types are {1}".format(raw_question["type"], [key for key, value in exercises.question_choices]))
