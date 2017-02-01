@@ -226,11 +226,11 @@ Once you have created the appropriate question object, add it to an exercise obj
 
 ### Step 5: Running the Rice Cooker ###
 
-Run `python -m ricecooker uploadchannel [-huv] "<path-to-py-file>" [--warn] [--compress] [--max-retries=<n>] [--token=<token>] [--resume [--step=<step>] | --reset] [--prompt] [--publish]  [[OPTIONS] ...]`
+Run `python -m ricecooker uploadchannel [-huv] "<path-to-py-file>" [--warn] [--compress] [--download-attempts=<n>] [--token=<token>] [--resume [--step=<step>] | --reset] [--prompt] [--publish]  [[OPTIONS] ...]`
 - -h (help) will print how to use the rice cooker
 - -v (verbose) will print what the rice cooker is doing
 - -u (update) will force the ricecooker to redownload all files (skip checking the cache)
-- --max-retries will set the maximum number of times to retry downloading files
+- --download-attempts will set the maximum number of times to retry downloading files
 - --warn will print out warnings during rice cooking session
 - --compress will compress your high resolution videos to save space
 - --token will authorize you to create your channel (obtained in Step 1)
