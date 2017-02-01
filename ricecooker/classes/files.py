@@ -27,7 +27,7 @@ DOWNLOAD_SESSION.mount('file://', FileAdapter())
 FILECACHE = FileCache(config.FILECACHE_DIRECTORY, forever=True)
 
 def generate_key(action, path_or_id, settings, default=" (default)"):
-    settings = " {}".format(str(sorted(settings.items()))) if settings else " (default)"
+    settings = " {}".format(str(sorted(settings.items()))) if settings else default
     return "{}: {}{}".format(action.upper(), path_or_id, settings)
 
 def download(path, default_ext=None):
