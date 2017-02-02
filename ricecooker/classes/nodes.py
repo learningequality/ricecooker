@@ -10,12 +10,12 @@ from .licenses import License
 
 class Node(object):
     license = None
-    descendants = []
 
     """ Node: model to represent all nodes in the tree """
     def __init__(self, title, description=None, thumbnail=None, files=None):
         self.files = []
         self.children = []
+        self.descendants = []
         self.parent = None
         self.node_id = None
         self.content_id = None
@@ -101,13 +101,12 @@ class Node(object):
             total += child.count()
         return total
 
-    def get_non_topic_descendants(self, node=None):
-        node = node or self
+    def get_non_topic_descendants(self):
         if len(self.descendants) == 0:
-            for child_node in node.children:
+            for child_node in self.children:
                 if child_node.kind == content_kinds.TOPIC:
-                    self.descendants += self.get_non_topic_descendants(child_node)
-                else:
+                    self.descendants += child_node.get_non_topic_descendants()
+                elif child_node not in self.descendants:
                     self.descendants.append(child_node)
         return self.descendants
 

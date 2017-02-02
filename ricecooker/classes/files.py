@@ -198,9 +198,7 @@ class File(object):
         raise NotImplementedError("preset must be set if preset isn't specified when creating File object")
 
     def get_filename(self):
-        if self.filename:
-            return self.filename
-        return self.process_file()
+        return self.filename or self.process_file()
 
     def to_dict(self):
         filename = self.get_filename()
@@ -289,8 +287,8 @@ class ExtractedVideoThumbnailFile(ThumbnailFile):
 
     def derive_thumbnail(self):
         key = "EXTRACTED: {}".format(self.path)
-        # if not config.UPDATE and FILECACHE.get(key):
-        #     return FILECACHE.get(key).decode('utf-8')
+        if not config.UPDATE and FILECACHE.get(key):
+            return FILECACHE.get(key).decode('utf-8')
 
         config.LOGGER.info("\t--- Extracting thumbnail from {}".format(self.path))
         with tempfile.NamedTemporaryFile(suffix=".{}".format(file_formats.PNG)) as tempf:
@@ -480,9 +478,10 @@ class TiledThumbnailFile(ThumbnailPresetMixin, File):
     def __init__(self, source_nodes, **kwargs):
         self.sources = []
         for n in source_nodes:
-            images = [f for f in n.files if isinstance(f, ThumbnailFile)]
+            images = [f for f in n.files if isinstance(f, ThumbnailFile) and f.get_filename()]
             if len(images) > 0:
                 self.sources.append(images[0])
+        super(TiledThumbnailFile, self).__init__(**kwargs)
 
     def process_file(self):
         self.filename = self.generate_tiled_image()
@@ -495,9 +494,11 @@ class TiledThumbnailFile(ThumbnailPresetMixin, File):
             num_pictures = 4
         elif len(self.sources) >= 1:
             num_pictures = 1
+        else:
+            return None
 
         images = [config.get_storage_path(f.get_filename()) for f in self.sources[:num_pictures]]
-        key = "TILED {}".format(str(sorted(images)))
+        key = "TILED {}".format("+".join(sorted(images)))
         if not config.UPDATE and FILECACHE.get(key):
             return FILECACHE.get(key).decode('utf-8')
 
