@@ -1,31 +1,40 @@
 # Node models to represent channel's tree
+from __future__ import unicode_literals
 
 import os
 import copy
 import hashlib
 import tempfile
 import shutil
+import youtube_dl
 import requests
 import math
 import zipfile
 from PIL import Image, ImageOps
 from subprocess import CalledProcessError
-from cachecontrol.caches.file_cache import FileCache
-from requests_file import FileAdapter
 from le_utils.constants import content_kinds,file_formats, format_presets, exercises
 from .. import config
 from .nodes import ChannelNode, TopicNode, VideoNode, AudioNode, DocumentNode, ExerciseNode, HTML5AppNode
 from ..exceptions import UnknownFileTypeError
+from cachecontrol.caches.file_cache import FileCache
 from pressurecooker.videos import extract_thumbnail_from_video, guess_video_preset_by_resolution, compress_video
 from pressurecooker.encodings import get_base64_encoding, write_base64_to_file
 from requests.exceptions import MissingSchema, HTTPError, ConnectionError, InvalidURL, InvalidSchema
 
-# Session for downloading files
-DOWNLOAD_SESSION = requests.Session()
-DOWNLOAD_SESSION.mount('file://', FileAdapter())
-
 # Cache for filenames
 FILECACHE = FileCache(config.FILECACHE_DIRECTORY, forever=True)
+
+def generate_key(action, path_or_id, settings=None, default=" (default)"):
+    """ generate_key: generate key used for caching
+        Args:
+            action (str): how video is being processed (e.g. COMPRESSED or DOWNLOADED)
+            path_or_id (str): path to video or youtube_id
+            settings (dict): settings for compression or downloading passed in by user
+            default (str): if settings are None, default to this extension (avoid overwriting keys)
+        Returns: filename
+    """
+    settings = " {}".format(str(sorted(settings.items()))) if settings else default
+    return "{}: {}{}".format(action.upper(), path_or_id, settings)
 
 def download(path, default_ext=None):
     """ download: downloads file
@@ -67,7 +76,7 @@ def write_and_get_hash(path, write_to_file, hash=None):
     hash = hash or hashlib.md5()
     try:
         # Access path
-        r = DOWNLOAD_SESSION.get(path, stream=True)
+        r = config.DOWNLOAD_SESSION.get(path, stream=True)
         r.raise_for_status()
         for chunk in r:
             write_to_file.write(chunk)
@@ -103,11 +112,11 @@ def get_hash(filepath):
             hash.update(chunk)
     return hash.hexdigest()
 
+
 def compress_video_file(filename, ffmpeg_settings):
-    # Generate key for compressed file
-    setting_list = ffmpeg_settings if ffmpeg_settings else {}
-    settings = " {}".format(str(sorted(setting_list.items()))) if ffmpeg_settings else " (default compression)"
-    key = "COMPRESSED: {0}{1}".format(filename, settings)
+    ffmpeg_settings = ffmpeg_settings or {}
+    key = generate_key("COMPRESSED", filename, settings=ffmpeg_settings, default=" (default compression)")
+
     if not config.UPDATE and FILECACHE.get(key):
         return FILECACHE.get(key).decode('utf-8')
 
@@ -115,11 +124,32 @@ def compress_video_file(filename, ffmpeg_settings):
 
     with tempfile.NamedTemporaryFile(suffix=".{}".format(file_formats.MP4)) as tempf:
         tempf.close() # Need to close so pressure cooker can write to file
-        compress_video(config.get_storage_path(filename), tempf.name, overwrite=True, **setting_list)
-
+        compress_video(config.get_storage_path(filename), tempf.name, overwrite=True, **ffmpeg_settings)
         filename = "{}.{}".format(get_hash(tempf.name), file_formats.MP4)
 
         copy_file_to_storage(filename, tempf.name)
+
+        FILECACHE.set(key, bytes(filename, "utf-8"))
+        return filename
+
+def download_from_web(web_url, download_settings):
+    key = generate_key("DOWNLOADED", web_url, settings=download_settings)
+    if not config.UPDATE and FILECACHE.get(key):
+        return FILECACHE.get(key).decode('utf-8')
+
+    # Get hash of web_url to act as temporary storage name
+    url_hash = hashlib.md5()
+    url_hash.update(web_url.encode('utf-8'))
+    destination_path = os.path.join(tempfile.gettempdir(), "{}.{}".format(url_hash.hexdigest(), file_formats.MP4))
+    download_settings["outtmpl"] = destination_path
+
+    with youtube_dl.YoutubeDL(download_settings) as ydl:
+        ydl.download([web_url])
+        filename = "{}.{}".format(get_hash(destination_path), file_formats.MP4)
+
+        # Write file to local storage
+        with open(destination_path, "rb") as dlf, open(config.get_storage_path(filename), 'wb') as destf:
+            shutil.copyfileobj(dlf, destf)
 
         FILECACHE.set(key, bytes(filename, "utf-8"))
         return filename
@@ -153,10 +183,11 @@ class File(object):
     language = None
     assessment_item = None
 
-    def __init__(self, preset=None, language=None, default_ext=None):
+    def __init__(self, preset=None, language=None, default_ext=None, source_url=None):
         self.preset = preset
         self.language = language
         self.default_ext = default_ext or self.default_ext
+        self.source_url = source_url
 
     def validate(self):
         pass
@@ -183,6 +214,7 @@ class File(object):
                 'filename' : filename,
                 'original_filename' : self.original_filename,
                 'language' : self.language,
+                'source_url': self.source_url,
             }
         return None
 
@@ -199,9 +231,9 @@ class DownloadFile(File):
 
     def validate(self):
         assert self.path, "{} must have a path".format(self.__class__.__name__)
-        if os.path.splitext(self.path)[1][1:] != "":
-            assert os.path.splitext(self.path)[1][1:] in self.allowed_formats, "{} must have one of the following extensions: {}".format(self.__class__.__name__, self.allowed_formats)
-
+        _basename, ext = os.path.splitext(self.path)
+        if ext:
+            assert ext.lstrip('.') in self.allowed_formats, "{} must have one of the following extensions: {}".format(self.__class__.__name__, self.allowed_formats)
 
     def process_file(self):
         try:
@@ -292,8 +324,34 @@ class VideoFile(DownloadFile):
             return self.filename
         # Catch errors related to ffmpeg and handle silently
         except (BrokenPipeError, CalledProcessError, IOError) as err:
-            error = err
+            self.error = err
             config.FAILED_FILES.append(self)
+
+
+class WebVideoFile(File):
+    # In future, look into postprocessors and progress_hooks
+    def __init__(self, web_url, download_settings=None, high_resolution=True, **kwargs):
+        self.web_url = web_url
+        self.download_settings = download_settings or {}
+        self.download_settings['format'] = "22/best" if high_resolution else "18/worst"
+
+        super(WebVideoFile, self).__init__(**kwargs)
+
+    def get_preset(self):
+        return self.preset or guess_video_preset_by_resolution(config.get_storage_path(self.filename))
+
+    def process_file(self):
+        try:
+            self.filename = download_from_web(self.web_url, self.download_settings)
+            config.LOGGER.info("\t--- Downloaded (YouTube) {}".format(self.filename))
+            return self.filename
+        except youtube_dl.utils.DownloadError as err:
+            self.error = str(err)
+            config.FAILED_FILES.append(self)
+
+class YouTubeVideoFile(WebVideoFile):
+    def __init__(self, youtube_id, **kwargs):
+        super(YouTubeVideoFile, self).__init__('http://www.youtube.com/watch?v={}'.format(youtube_id), **kwargs)
 
 class SubtitleFile(DownloadFile):
     default_ext = file_formats.VTT
@@ -409,7 +467,6 @@ class _ExerciseGraphieFile(DownloadFile):
             hash = write_and_get_hash(self.path + "-data.json", tempf, hash)
             tempf.seek(0)
             filename = "{}.{}".format(hash.hexdigest(), file_formats.GRAPHIE)
-
 
             copy_file_to_storage(filename, tempf)
 

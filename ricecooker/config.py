@@ -6,6 +6,7 @@ import logging
 import hashlib
 import requests
 import logging
+from requests_file import FileAdapter
 
 UPDATE = False
 COMPRESS = False
@@ -19,6 +20,9 @@ FILE_STORE_LOCATION =  hashlib.md5(DOMAIN.encode('utf-8')).hexdigest()
 
 # URL for authenticating user on Kolibri Studio
 AUTHENTICATION_URL = "{domain}/api/internal/authenticate_user_internal"
+
+# URL for checking compatible version on Kolibri Studio
+VERSION_CHECK_URL = "{domain}/api/internal/check_version"
 
 # URL for getting file diff
 FILE_DIFF_URL = "{domain}/api/internal/file_diff"
@@ -54,6 +58,11 @@ SESSION = requests.Session()
 FILECACHE_DIRECTORY = ".ricecookerfilecache"
 
 FAILED_FILES = []
+
+# Session for downloading files
+DOWNLOAD_SESSION = requests.Session()
+DOWNLOAD_SESSION.mount('file://', FileAdapter())
+
 
 def get_storage_path(filename):
     """ get_storage_path: returns path to storage directory for downloading content
@@ -94,6 +103,14 @@ def get_restore_path(filename):
     if not os.path.exists(path):
         os.makedirs(path)
     return os.path.join(path, filename + '.pickle')
+
+
+def check_version_url():
+    """ check_version_url: returns url to check ricecooker version
+        Args: None
+        Returns: string url to check version endpoint
+    """
+    return VERSION_CHECK_URL.format(domain=DOMAIN)
 
 
 def file_diff_url():
