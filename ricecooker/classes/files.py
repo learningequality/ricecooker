@@ -289,8 +289,8 @@ class ExtractedVideoThumbnailFile(ThumbnailFile):
 
     def derive_thumbnail(self):
         key = "EXTRACTED: {}".format(self.path)
-        if not config.UPDATE and FILECACHE.get(key):
-            return FILECACHE.get(key).decode('utf-8')
+        # if not config.UPDATE and FILECACHE.get(key):
+        #     return FILECACHE.get(key).decode('utf-8')
 
         config.LOGGER.info("\t--- Extracting thumbnail from {}".format(self.path))
         with tempfile.NamedTemporaryFile(suffix=".{}".format(file_formats.PNG)) as tempf:
@@ -485,17 +485,23 @@ class TiledThumbnailFile(ThumbnailPresetMixin, File):
                 self.sources.append(images[0])
 
     def process_file(self):
+        self.filename = self.generate_tiled_image()
+        config.LOGGER.info("\t--- Tiled image {}".format(self.filename))
+        return self.filename
+
+    def generate_tiled_image(self):
         num_pictures = 0
         if len(self.sources) >= 4:
             num_pictures = 4
         elif len(self.sources) >= 1:
             num_pictures = 1
-        images = [config.get_storage_path(f.get_filename()) for f in self.sources[:num_pictures]]
 
+        images = [config.get_storage_path(f.get_filename()) for f in self.sources[:num_pictures]]
         key = "TILED {}".format(str(sorted(images)))
         if not config.UPDATE and FILECACHE.get(key):
             return FILECACHE.get(key).decode('utf-8')
 
+        config.LOGGER.info("\tTiling thumbnail for {}".format(self.node.title))
         with tempfile.NamedTemporaryFile(suffix=".{}".format(file_formats.PNG)) as tempf:
             tempf.close()
             create_tiled_image(images, tempf.name)
@@ -504,8 +510,6 @@ class TiledThumbnailFile(ThumbnailPresetMixin, File):
             copy_file_to_storage(filename, tempf.name)
             FILECACHE.set(key, bytes(filename, "utf-8"))
             return filename
-
-        # self.node.set_thumbnail(copy.copy(self.sources[0]))
 
 def create_tiled_image(source_images, fpath_in):
     root = math.sqrt(len(source_images))
