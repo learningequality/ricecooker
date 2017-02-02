@@ -78,7 +78,15 @@ class Node(object):
             Returns: None
         """
         file_to_add.node = self
-        self.files.append(file_to_add)
+        if file_to_add not in self.files:
+            self.files.append(file_to_add)
+
+    def derive_thumbnail(self):
+        pass
+
+    def has_thumbnail(self):
+        from .files import ThumbnailFile
+        return any(f for f in self.files if isinstance(f, ThumbnailFile))
 
     def set_thumbnail(self, thumbnail):
         """ set_thumbnail: Set node's thumbnail
@@ -91,9 +99,7 @@ class Node(object):
             self.thumbnail = ThumbnailFile(path=self.thumbnail)
 
         if self.thumbnail:
-            self.thumbnail.node = self
-            if self.thumbnail not in self.files:
-                self.files.append(self.thumbnail)
+            self.add_file(self.thumbnail)
 
     def process_files(self):
         """ process_files: Process node's files
@@ -103,6 +109,10 @@ class Node(object):
         filenames = []
         for f in self.files:
             filenames.append(f.process_file())
+
+        if not self.has_thumbnail():
+            self.derive_thumbnail()
+
         return filenames
 
     def count(self):
@@ -326,12 +336,17 @@ class TopicNode(ContentNode):
             Args: None
             Returns: None
         """
-        from .files import ThumbnailFile, TiledThumbnailFile
-        if len([f for f in self.files if isinstance(f, ThumbnailFile)]) == 0 and config.THUMBNAILS:
+        from .files import ThumbnailFile
+        if and config.THUMBNAILS:
             self.thumbnail = TiledThumbnailFile(self.get_non_topic_descendants(self))
-            self.add_file(self.thumbnail)
+            self.set_thumbnail(self.thumbnail)
 
         return super(TopicNode, self).process_files()
+
+    def derive_thumbnail(self):
+        from .files import TiledThumbnailFile
+        self.thumbnail = TiledThumbnailFile(self.get_non_topic_descendants(self))
+        self.set_thumbnail(self.thumbnail)
 
     def get_non_topic_descendants(self, node):
         if len(self.descendants) == 0:
@@ -396,13 +411,13 @@ class VideoNode(ContentNode):
 
         try:
             # Extract thumbnail if one hasn't been provided and derive_thumbnail is set
-            if self.derive_thumbnail and len(list(filter(lambda f: isinstance(f, ThumbnailFile), self.files))) == 0:
-                videos = list(filter(lambda f: isinstance(f, VideoFile), self.files))
+            if self.derive_thumbnail and not any(f for f in self.files if isinstance(f, ThumbnailFile)):
+                videos = [f for f in self.files if isinstance(f, VideoFile)]
                 assert len(videos) > 0 and videos[0].filename, "No videos downloaded for this node"
 
-                thumbnail = ExtractedVideoThumbnailFile(config.get_storage_path(videos[0].filename))
-                self.add_file(thumbnail)
-                downloaded.append(thumbnail.process_file())
+                self.thumbnail = ExtractedVideoThumbnailFile(config.get_storage_path(videos[0].filename))
+                self.add_file(self.thumbnail)
+                downloaded.append(self.thumbnail.process_file())
 
         except AssertionError as ae:
             config.LOGGER.warning("\tWARNING: Cannot extract thumbnail ({0})".format(ae))

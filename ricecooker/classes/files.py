@@ -6,8 +6,9 @@ import hashlib
 import tempfile
 import shutil
 import requests
+import math
 import zipfile
-from PIL import Image
+from PIL import Image, ImageOps
 from subprocess import CalledProcessError
 from cachecontrol.caches.file_cache import FileCache
 from requests_file import FileAdapter
@@ -427,31 +428,52 @@ class TiledThumbnailFile(ThumbnailPresetMixin, File):
                 self.sources.append(images[0])
 
     def process_file(self):
+        num_pictures = 0
         if len(self.sources) >= 4:
-            print("TILED!")
-            import pdb; pdb.set_trace()
-            images = map(Image.open, [config.get_storage_path(f.get_filename()) for f in self.sources[:4]])
-            widths, heights = zip(*(i.size for i in images))
-
-            total_width = sum(widths)
-            max_height = max(heights)
-
-            new_im = Image.new('RGB', (total_width, max_height))
-
-            x_offset = 0
-            for im in images:
-                import pdb; pdb.set_trace()
-                new_im.paste(im, (x_offset,0))
-                x_offset += im.size[0]
-
-            new_im.save('test.jpg')
-
+            num_pictures = 4
         elif len(self.sources) >= 1:
-            self.node.set_thumbnail(copy.copy(self.sources[0]))
+            num_pictures = 1
+        images = [config.get_storage_path(f.get_filename()) for f in self.sources[:num_pictures]]
 
+        key = "TILED {}".format(str(sorted(images)))
+        if not config.UPDATE and FILECACHE.get(key):
+            return FILECACHE.get(key).decode('utf-8')
 
-        # images = [source.get_file() for source in self.sources]
-        # thumbnail_storage_path = create_tiled_image(images)
+        with tempfile.NamedTemporaryFile(suffix=".{}".format(file_formats.PNG)) as tempf:
+            tempf.close()
+            create_tiled_image(images, tempf.name)
+            filename = "{}.{}".format(get_hash(tempf.name), file_formats.PNG)
+
+            copy_file_to_storage(filename, tempf.name)
+            FILECACHE.set(key, bytes(filename, "utf-8"))
+            return filename
+
+        # self.node.set_thumbnail(copy.copy(self.sources[0]))
+
+def create_tiled_image(source_images, fpath_in):
+    root = math.sqrt(len(source_images))
+    assert int(root + 0.5) ** 2 == len(source_images), "Number of pictures must be a perfect square"
+
+    images = list(map(Image.open, source_images))
+    widths, heights = zip(*(i.size for i in images))
+
+    max_dimension = min(max(widths), max(heights))
+    offset = max_dimension / int(root)
+
+    new_im = Image.new('RGB', (max_dimension, max_dimension))
+
+    y_offset = 0
+    index = 0
+    while y_offset < max_dimension and index < len(images):
+        x_offset = 0
+        while x_offset < max_dimension:
+            im = ImageOps.fit(images[index], (int(offset), int(offset)), Image.ANTIALIAS)
+            new_im.paste(im, (int(x_offset), int(y_offset)))
+            x_offset += offset
+            index += 1
+        y_offset += offset
+    new_im.save(fpath_in)
+
 
 # VectorizedVideoFile
 # UniversalSubsSubtitleFile
