@@ -8,9 +8,7 @@ import tempfile
 import shutil
 import youtube_dl
 import requests
-import math
 import zipfile
-from PIL import Image, ImageOps
 from subprocess import CalledProcessError
 from le_utils.constants import content_kinds,file_formats, format_presets, exercises
 from .. import config
@@ -19,6 +17,7 @@ from ..exceptions import UnknownFileTypeError
 from cachecontrol.caches.file_cache import FileCache
 from pressurecooker.videos import extract_thumbnail_from_video, guess_video_preset_by_resolution, compress_video
 from pressurecooker.encodings import get_base64_encoding, write_base64_to_file
+from pressurecooker.images import create_tiled_image
 from requests.exceptions import MissingSchema, HTTPError, ConnectionError, InvalidURL, InvalidSchema
 
 # Cache for filenames
@@ -511,30 +510,6 @@ class TiledThumbnailFile(ThumbnailPresetMixin, File):
             copy_file_to_storage(filename, tempf.name)
             FILECACHE.set(key, bytes(filename, "utf-8"))
             return filename
-
-def create_tiled_image(source_images, fpath_in):
-    root = math.sqrt(len(source_images))
-    assert int(root + 0.5) ** 2 == len(source_images), "Number of pictures must be a perfect square"
-
-    images = list(map(Image.open, source_images))
-    widths, heights = zip(*(i.size for i in images))
-
-    max_dimension = min(max(widths), max(heights))
-    offset = max_dimension / int(root)
-
-    new_im = Image.new('RGB', (max_dimension, max_dimension))
-
-    y_offset = 0
-    index = 0
-    while y_offset < max_dimension and index < len(images):
-        x_offset = 0
-        while x_offset < max_dimension:
-            im = ImageOps.fit(images[index], (int(offset), int(offset)), Image.ANTIALIAS)
-            new_im.paste(im, (int(x_offset), int(y_offset)))
-            x_offset += offset
-            index += 1
-        y_offset += offset
-    new_im.save(fpath_in)
 
 
 # VectorizedVideoFile
