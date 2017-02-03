@@ -203,14 +203,18 @@ class File(object):
         # If file was successfully downloaded, return dict
         # Otherwise return None
         if filename:
-            return {
-                'size' : os.path.getsize(config.get_storage_path(filename)),
-                'preset' : self.get_preset(),
-                'filename' : filename,
-                'original_filename' : self.original_filename,
-                'language' : self.language,
-                'source_url': self.source_url,
-            }
+            if os.path.isfile(config.get_storage_path(filename)):
+                return {
+                    'size' : os.path.getsize(config.get_storage_path(filename)),
+                    'preset' : self.get_preset(),
+                    'filename' : filename,
+                    'original_filename' : self.original_filename,
+                    'language' : self.language,
+                    'source_url': self.source_url,
+                }
+            else:
+                config.LOGGER.warning("File not found: {}".format(config.get_storage_path(filename)))
+
         return None
 
     def process_file(self):
