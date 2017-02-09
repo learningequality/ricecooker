@@ -5,9 +5,8 @@ import click
 @click.command()
 def main(args=None):
     """Console script for ricecooker"""
-    click.echo("Replace this message by putting your code into "
-                "ricecooker.cli.main")
-    click.echo("See click documentation at http://click.pocoo.org/")
+    click.echo("Ricecooker is installed")
+    click.echo("See click documentation at https://github.com/learningequality/ricecooker")
 
 
 if __name__ == "__main__":
