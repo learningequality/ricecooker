@@ -227,8 +227,10 @@ class DownloadFile(File):
     def validate(self):
         assert self.path, "{} must have a path".format(self.__class__.__name__)
         _basename, ext = os.path.splitext(self.path)
-        if ext:
-            assert ext.lstrip('.') in self.allowed_formats, "{} must have one of the following extensions: {}".format(self.__class__.__name__, self.allowed_formats)
+        plain_ext = ext.lstrip('.')
+        # don't validate for single-digit extension, or no extension
+        if len(plain_ext) > 1:
+            assert plain_ext in self.allowed_formats, "{} must have one of the following extensions: {} (instead, got '{}' from '{}')".format(self.__class__.__name__, self.allowed_formats, plain_ext, self.path)
 
     def process_file(self):
         try:
@@ -239,6 +241,10 @@ class DownloadFile(File):
         except (HTTPError, ConnectionError, InvalidURL, UnicodeDecodeError, UnicodeError, InvalidSchema, IOError, AssertionError) as err:
             self.error = err
             config.FAILED_FILES.append(self)
+
+    def __str__(self):
+        return self.path
+
 
 class ThumbnailFile(ThumbnailPresetMixin, DownloadFile):
     default_ext = file_formats.PNG

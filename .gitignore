@@ -96,3 +96,4 @@ restore/
 node_modules/
 
 sushi_chefs/
+.webcache
