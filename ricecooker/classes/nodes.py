@@ -319,11 +319,12 @@ class ContentNode(TreeNode):
         """
         from .files import DownloadFile
         assert isinstance(self.license, str) or isinstance(self.license, License), "Assumption Failed: License is not a string or empty"
-        if self.required_file_format:
-            files_valid = not any(f for f in self.files if isinstance(f, DownloadFile))
-            for f in self.files:
-                files_valid = files_valid or f.path.endswith(self.required_file_format)
-            assert files_valid , "Assumption Failed: Node should have at least one {} file".format(self.required_file_format)
+        # if self.required_file_format:
+        #     files_valid = False
+        #     #not any(f for f in self.files if isinstance(f, DownloadFile))
+        #     for f in self.files:
+        #         files_valid = files_valid or (f.path.endswith(self.required_file_format)
+        #     assert files_valid , "Assumption Failed: Node should have at least one {} file".format(self.required_file_format)
         return super(ContentNode, self).validate()
 
     def to_dict(self):
