@@ -3,7 +3,7 @@ import tempfile
 import zipfile
 
 def _read_file(path):
-    with open(path) as f:
+    with open(path, "rb") as f:
         return f.read()
 
 def create_predictable_zip(path):
@@ -34,7 +34,6 @@ def create_predictable_zip(path):
         # loop over the file paths in sorted order, to ensure a predictable zip
         for filepath in sorted(paths):
             write_file_to_zip_with_neutral_metadata(outputzip, filepath, reader(filepath))
-
     return zippath
 
 
@@ -49,7 +48,7 @@ def write_file_to_zip_with_neutral_metadata(zfile, filename, content):
 
     info = zipfile.ZipInfo(filename, date_time=(2015, 10, 21, 7, 28, 0))
     info.compress_type = zipfile.ZIP_DEFLATED
-    info.comment = ''
+    info.comment = "".encode()
     info.create_system = 0
     zfile.writestr(info, content)
 
