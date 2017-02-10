@@ -128,9 +128,6 @@ class BaseQuestion:
         file_reg = re.compile(FILE_REGEX, flags=re.IGNORECASE)
         tags = bs.findAll('img')
 
-        if len(tags) == 0:
-            return text
-
         for tag in tags:
             # Look for src attribute, remove formatting if added to image
             src_text = tag.get("src") or ""
@@ -139,7 +136,7 @@ class BaseQuestion:
 
             alt_text = tag.get("alt") or ""
             tag.replaceWith("![{alt}]({src})".format(alt=alt_text, src=src_text))
-        return str(bs)
+        return bs.find('body').renderContents().decode('utf-8')
 
     def set_image(self, text):
         """ set_image: Replace image string with downloaded image checksum
