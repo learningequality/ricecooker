@@ -139,6 +139,10 @@ def download_from_web(web_url, download_settings):
     url_hash.update(web_url.encode('utf-8'))
     destination_path = os.path.join(tempfile.gettempdir(), "{}.{}".format(url_hash.hexdigest(), file_formats.MP4))
     download_settings["outtmpl"] = destination_path
+    try:
+        os.remove(destination_path)
+    except:
+        pass
 
     with youtube_dl.YoutubeDL(download_settings) as ydl:
         ydl.download([web_url])
@@ -331,10 +335,13 @@ class VideoFile(DownloadFile):
 
 class WebVideoFile(File):
     # In future, look into postprocessors and progress_hooks
-    def __init__(self, web_url, download_settings=None, high_resolution=True, **kwargs):
+    def __init__(self, web_url, download_settings=None, high_resolution=True, maxheight=None, **kwargs):
         self.web_url = web_url
         self.download_settings = download_settings or {}
-        self.download_settings['format'] = "22/best" if high_resolution else "18/worst"
+        if "format" not in self.download_settings:
+            maxheight = maxheight or (720 if high_resolution else 480)
+            self.download_settings['format'] = "bestvideo[height<={maxheight}][ext=mp4]+bestaudio[ext=m4a]/best[height<={maxheight}][ext=mp4]".format(maxheight=maxheight)
+        # self.download_settings["outtmpl"] = "%(title)s (%(format)s)-%(display_id)s.%(ext)s"
 
         super(WebVideoFile, self).__init__(**kwargs)
 
