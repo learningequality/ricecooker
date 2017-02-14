@@ -119,15 +119,15 @@ def compress_video_file(filename, ffmpeg_settings):
 
     config.LOGGER.info("\t--- Compressing {}".format(filename))
 
-    with tempfile.NamedTemporaryFile(suffix=".{}".format(file_formats.MP4)) as tempf:
-        tempf.close() # Need to close so pressure cooker can write to file
-        compress_video(config.get_storage_path(filename), tempf.name, overwrite=True, **ffmpeg_settings)
-        filename = "{}.{}".format(get_hash(tempf.name), file_formats.MP4)
+    tempf = tempfile.NamedTemporaryFile(suffix=".{}".format(file_formats.MP4), delete=False)
+    tempf.close() # Need to close so pressure cooker can write to file
+    compress_video(config.get_storage_path(filename), tempf.name, overwrite=True, **ffmpeg_settings)
+    filename = "{}.{}".format(get_hash(tempf.name), file_formats.MP4)
 
-        copy_file_to_storage(filename, tempf.name)
-
-        FILECACHE.set(key, bytes(filename, "utf-8"))
-        return filename
+    copy_file_to_storage(filename, tempf.name)
+    os.unlink(tempf.name)
+    FILECACHE.set(key, bytes(filename, "utf-8"))
+    return filename
 
 def download_from_web(web_url, download_settings):
     key = generate_key("DOWNLOADED", web_url, settings=download_settings)
@@ -203,14 +203,18 @@ class File(object):
         # If file was successfully downloaded, return dict
         # Otherwise return None
         if filename:
-            return {
-                'size' : os.path.getsize(config.get_storage_path(filename)),
-                'preset' : self.get_preset(),
-                'filename' : filename,
-                'original_filename' : self.original_filename,
-                'language' : self.language,
-                'source_url': self.source_url,
-            }
+            if os.path.isfile(config.get_storage_path(filename)):
+                return {
+                    'size' : os.path.getsize(config.get_storage_path(filename)),
+                    'preset' : self.get_preset(),
+                    'filename' : filename,
+                    'original_filename' : self.original_filename,
+                    'language' : self.language,
+                    'source_url': self.source_url,
+                }
+            else:
+                config.LOGGER.warning("File not found: {}".format(config.get_storage_path(filename)))
+
         return None
 
     def process_file(self):
@@ -294,15 +298,15 @@ class ExtractedVideoThumbnailFile(ThumbnailFile):
             return FILECACHE.get(key).decode('utf-8')
 
         config.LOGGER.info("\t--- Extracting thumbnail from {}".format(self.path))
-        with tempfile.NamedTemporaryFile(suffix=".{}".format(file_formats.PNG)) as tempf:
-            tempf.close()
-            extract_thumbnail_from_video(self.path, tempf.name, overwrite=True)
-            filename = "{}.{}".format(get_hash(tempf.name), file_formats.PNG)
+        tempf = tempfile.NamedTemporaryFile(suffix=".{}".format(file_formats.PNG), delete=False)
+        tempf.close()
+        extract_thumbnail_from_video(self.path, tempf.name, overwrite=True)
+        filename = "{}.{}".format(get_hash(tempf.name), file_formats.PNG)
 
-            copy_file_to_storage(filename, tempf.name)
-
-            FILECACHE.set(key, bytes(filename, "utf-8"))
-            return filename
+        copy_file_to_storage(filename, tempf.name)
+        os.unlink(tempf.name)
+        FILECACHE.set(key, bytes(filename, "utf-8"))
+        return filename
 
 class VideoFile(DownloadFile):
     default_ext = file_formats.MP4
@@ -396,14 +400,15 @@ class Base64ImageFile(ThumbnailPresetMixin, File):
         extension = get_base64_encoding(self.encoding).group(1)
         assert extension in [file_formats.PNG, file_formats.JPG, file_formats.JPEG], "Base64 files must be images in jpg or png format"
 
-        with tempfile.NamedTemporaryFile(suffix=".{}".format(extension)) as tempf:
-            tempf.close()
-            write_base64_to_file(self.encoding, tempf.name)
-            filename = "{}.{}".format(get_hash(tempf.name), file_formats.PNG)
+        tempf = tempfile.NamedTemporaryFile(suffix=".{}".format(extension), delete=False)
+        tempf.close()
+        write_base64_to_file(self.encoding, tempf.name)
+        filename = "{}.{}".format(get_hash(tempf.name), file_formats.PNG)
 
-            copy_file_to_storage(filename, tempf.name)
-            FILECACHE.set(key, bytes(filename, "utf-8"))
-            return filename
+        copy_file_to_storage(filename, tempf.name)
+        os.unlink(tempf.name)
+        FILECACHE.set(key, bytes(filename, "utf-8"))
+        return filename
 
 class _ExerciseBase64ImageFile(Base64ImageFile):
     default_ext = file_formats.PNG
