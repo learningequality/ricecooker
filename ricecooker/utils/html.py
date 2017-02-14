@@ -18,7 +18,8 @@ basic_adapter = CacheControlAdapter(cache=cache)
 sess.mount('http://', basic_adapter)
 sess.mount('https://', basic_adapter)
 
-PHANTOMJS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "node_modules", "phantomjs-prebuilt", "bin", "phantomjs")
+PHANTOMJS_PATH = os.path.join(os.getcwd(), "node_modules", "phantomjs-prebuilt", "bin", "phantomjs")
+
 
 class WebDriver(object):
 
@@ -28,6 +29,9 @@ class WebDriver(object):
 
     def __enter__(self):
         # self.driver = webdriver.Firefox()
+        if not os.path.isfile(PHANTOMJS_PATH):
+            raise Exception("You must first install phantomjs-prebuilt in the directory you're running from, with `npm install phantomjs-prebuilt`")
+
         self.driver = webdriver.PhantomJS(executable_path=PHANTOMJS_PATH)
         self.driver.get(self.url)
         time.sleep(self.delay / 1000.0)
