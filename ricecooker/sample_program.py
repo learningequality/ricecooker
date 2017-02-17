@@ -151,15 +151,15 @@ SAMPLE_TREE = [
                     {
                         "path": "https://ia600209.us.archive.org/27/items/RiceChef/Rice Chef.mp4",
                     },
-                    {
-                        "path": "C:/users/jordan/Videos/testfolder/captions.vtt",
-                        "language": languages.getlang('en').code,
-                    }
-                    ,
-                    {
-                        "path": "C:/users/jordan/Videos/testfolder/captions.vtt",
-                        "language": languages.getlang('es').code,
-                    }
+                    # {
+                    #     "path": "C:/users/jordan/Videos/testfolder/captions.vtt",
+                    #     "language": languages.getlang('en').code,
+                    # }
+                    # ,
+                    # {
+                    #     "path": "C:/users/jordan/Videos/testfolder/captions.vtt",
+                    #     "language": languages.getlang('es').code,
+                    # }
                 ],
             },
             {
@@ -200,7 +200,7 @@ SAMPLE_TREE = [
                         "path" : "https://ia801407.us.archive.org/21/items/ah_Rice/Rice.mp3",
                     },
                 ],
-                "thumbnail": "https://upload.wikimedia.org/wikipedia/commons/b/ba/Rice_grains_(IRRI)",
+                "thumbnail": "https://upload.wikimedia.org/wikipedia/commons/b/ba/Rice_grains_(IRRI).jpg",
                 "description": "Get online updates regarding world's leading long grain rice distributors, broken rice distributors, rice suppliers, parboiled rice exporter on our online B2B marketplace TradeBanq.",
                 "license": licenses.PUBLIC_DOMAIN,
             },
@@ -275,7 +275,7 @@ SAMPLE_TREE = [
                         "type":exercises.SINGLE_SELECTION,
                         "correct_answer": "Rice Krispies \n![](https://upload.wikimedia.org/wikipedia/commons/c/cd/RKTsquares.jpg)",
                         "all_answers": [
-                            "White rice \n![](web+graphie:file:///C:/users/jordan/contentcuration-dump/0a0c0f1a1a40226d8d227a07dd143f8c08a4b8a5)![](web+graphie:file:///C:/users/jordan/contentcuration-dump/0a0c0f1a1a40226d8d227a07dd143f8c08a4b8a5 - Copy)![](web+graphie:file:///C:/users/jordan/contentcuration-dump/0a0c0f1a1a40226d8d227a07dd143f8c08a4b8a5)",
+                            "White rice \n![](web+graphie:file:///C:/users/jordan/contentcuration-dump/0a0c0f1a1a40226d8d227a07dd143f8c08a4b8a5)![](web+graphie:file:///C:/users/jordan/contentcuration-dump/0a0c0f1a1a40226d8d227a07dd143f8c08a4b8a5)",
                             "Brown rice \n![](https://c2.staticflickr.com/4/3159/2889140143_b99fd8dd4c_z.jpg?zz=1)",
                             "Rice Krispies \n![](https://upload.wikimedia.org/wikipedia/commons/c/cd/RKTsquares.jpg)"
                         ],
@@ -338,6 +338,9 @@ SAMPLE_TREE = [
                 "files": [
                     {
                         "path": "C:/users/jordan/Videos/testfolder/htmltest.zip",
+                    },
+                    {
+                        "path": "https://upload.wikimedia.org/wikipedia/commons/b/b7/Rice_p1160004.jpg",
                     }
                 ]
             },

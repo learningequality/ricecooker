@@ -18,12 +18,13 @@ try:
 except NameError:
     pass
 
-def uploadchannel(path, verbose=False, update=False, download_attempts=3, resume=False, reset=False, step=Status.LAST.name, token="#", prompt=False, publish=False, warnings=False, compress=False, **kwargs):
+def uploadchannel(path, verbose=False, update=False, thumbnails=False, download_attempts=3, resume=False, reset=False, step=Status.LAST.name, token="#", prompt=False, publish=False, warnings=False, compress=False, **kwargs):
     """ uploadchannel: Upload channel to Kolibri Studio server
         Args:
             path (str): path to file containing construct_channel method
             verbose (bool): indicates whether to print process (optional)
             update (bool): indicates whether to re-download files (optional)
+            thumbnails (bool): indicates whether to automatically derive thumbnails from content (optional)
             download_attempts (int): number of times to retry downloading files (optional)
             resume (bool): indicates whether to resume last session automatically (optional)
             step (str): step to resume process from (optional)
@@ -47,6 +48,7 @@ def uploadchannel(path, verbose=False, update=False, download_attempts=3, resume
     config.SESSION.headers.update({"Authorization": "Token {0}".format(token)})
     config.UPDATE = update
     config.COMPRESS = compress
+    config.THUMBNAILS = thumbnails
 
     # Set max retries for downloading
     config.DOWNLOAD_SESSION.mount('http://', requests.adapters.HTTPAdapter(max_retries=int(download_attempts)))
