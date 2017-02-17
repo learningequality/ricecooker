@@ -3,13 +3,13 @@ import requests
 import time
 import urllib
 
+from bs4 import BeautifulSoup
+from css_html_js_minify.minify import process_multiple_files, walk2list, Pool, cpu_count, partial
+from selenium import webdriver
 from urllib.parse import urlparse, unquote
 
-from bs4 import BeautifulSoup
-
-from selenium import webdriver
-
 from .caching import FileCache, CacheControlAdapter
+
 
 # create a default session with basic caching mechanisms (similar to what a browser would do)
 sess = requests.Session()
@@ -18,7 +18,8 @@ basic_adapter = CacheControlAdapter(cache=cache)
 sess.mount('http://', basic_adapter)
 sess.mount('https://', basic_adapter)
 
-PHANTOMJS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "node_modules", "phantomjs-prebuilt", "bin", "phantomjs")
+PHANTOMJS_PATH = os.path.join(os.getcwd(), "node_modules", "phantomjs-prebuilt", "bin", "phantomjs")
+
 
 class WebDriver(object):
 
@@ -28,6 +29,9 @@ class WebDriver(object):
 
     def __enter__(self):
         # self.driver = webdriver.Firefox()
+        if not os.path.isfile(PHANTOMJS_PATH):
+            raise Exception("You must first install phantomjs-prebuilt in the directory you're running from, with `npm install phantomjs-prebuilt`")
+
         self.driver = webdriver.PhantomJS(executable_path=PHANTOMJS_PATH)
         self.driver.get(self.url)
         time.sleep(self.delay / 1000.0)
@@ -117,3 +121,27 @@ def download_file(url, destpath, filename=None, baseurl=None, subpath=None, midd
         f.write(content)
 
     return relative_file_url, response
+
+import logging
+
+def minimize_html_css_js(directory, blacklist=None):
+
+    original_log_level = logging.getLogger().getLevel()
+    logging.getLogger().setLevel(logging.ERROR)
+
+    blacklist = tuple(blacklist or []) + (".min.css", ".min.js")
+
+    list_of_files = walk2list(directory, (".css", ".js", ".html"), blacklist)
+
+    pool = Pool(cpu_count())  # Multiprocessing Async
+    pool.map_async(partial(
+            process_multiple_files, watch=False,
+            wrap=False, timestamp=False,
+            comments=False, sort=True,
+            overwrite=True, zipy=False,
+            prefix="", add_hash=False),
+        list_of_files)
+    pool.close()
+    pool.join()
+
+    logging.getLogger().setLevel(original_log_level)

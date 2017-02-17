@@ -24,7 +24,7 @@ requirements = [
     "selenium==3.0.1",
     "youtube-dl",
     "html5lib",
-    "cachecontrol==0.11.7",
+    "cachecontrol==0.12.0",
     "lockfile==0.12.2",
 ]
 

@@ -535,7 +535,11 @@ class ExerciseNode(ContentNode):
         self.questions = questions or []
 
         # Set mastery model defaults if none provided
-        exercise_data = {} if exercise_data is None else exercise_data
+        if not exercise_data:
+            exercise_data = {}
+        if isinstance(exercise_data, str):
+            exercise_data = {"mastery_model": exercise_data}
+
         exercise_data.update({
             'mastery_model': exercise_data.get('mastery_model') or exercises.M_OF_N,
             'randomize': exercise_data.get('randomize') or True,
@@ -564,15 +568,35 @@ class ExerciseNode(ContentNode):
         for question in self.questions:
             downloaded += question.process_question()
 
-        # Update mastery model if parameters were not provided
-        if self.extra_fields['mastery_model'] == exercises.M_OF_N:
-            if 'n' not in self.extra_fields:
-                self.extra_fields.update({'n':self.extra_fields.get('m') or max(len(self.questions), 1)})
-            if 'm' not in self.extra_fields:
-                self.extra_fields.update({'m':self.extra_fields.get('n') or max(len(self.questions), 1)})
+        self.process_exercise_data()
 
         config.LOGGER.info("\t*** Images for {} have been processed".format(self.title))
         return downloaded
+
+    def process_exercise_data(self):
+        mastery_model = self.extra_fields['mastery_model']
+
+        # Keep original m/n values or other n/m values if specified
+        m_value = self.extra_fields.get('m') or self.extra_fields.get('n')
+        n_value = self.extra_fields.get('n') or self.extra_fields.get('m')
+
+        # Update mastery model if parameters were not provided
+        if mastery_model == exercises.M_OF_N:
+            m_value = m_value or max(min(5, len(self.questions)), 1)
+            n_value = n_value or max(min(5, len(self.questions)), 1)
+        elif mastery_model == exercises.DO_ALL:
+            m_value = n_value = max(len(self.questions), 1)
+        elif mastery_model == exercises.NUM_CORRECT_IN_A_ROW_10:
+            m_value = n_value = 10
+        elif mastery_model == exercises.NUM_CORRECT_IN_A_ROW_5:
+            m_value = n_value = 5
+        elif mastery_model == exercises.NUM_CORRECT_IN_A_ROW_3:
+            m_value = n_value = 3
+        elif mastery_model == exercises.SKILL_CHECK:
+            m_value = n_value = 1
+
+        self.extra_fields.update({'m': m_value})
+        self.extra_fields.update({'n': n_value})
 
     def validate(self):
         """ validate: Makes sure exercise is valid
@@ -581,7 +605,6 @@ class ExerciseNode(ContentNode):
         """
         try:
             assert self.kind == content_kinds.EXERCISE, "Assumption Failed: Node should be an exercise"
-            assert "mastery_model" in self.extra_fields, "Assumption Failed: Exercise must have a mastery model in extra_fields"
 
             # Check if questions are correct
             questions_valid = True

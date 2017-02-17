@@ -23,8 +23,7 @@ class CacheForeverHeuristic(BaseHeuristic):
     """
     def update_headers(self, response):
         headers = {}
-        date = parsedate(response.headers['date'])
-        expires = expire_after(timedelta(weeks=10*52), date=datetime(*date[:6]))
+        expires = expire_after(timedelta(weeks=10*52), date=datetime.now())
         headers['expires'] = datetime_to_header(expires)
         headers['cache-control'] = 'public'
         

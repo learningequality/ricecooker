@@ -31,7 +31,7 @@ class BaseQuestion:
             hints (str or [str]): optional hints on how to answer question
             raw_data (str): raw data for perseus file
     """
-    def __init__(self, id, question, question_type, answers=None, hints=None, raw_data="", source_url=None):
+    def __init__(self, id, question, question_type, answers=None, hints=None, raw_data="", source_url=None, randomize=False):
         self.question = question
         self.question_type = question_type
         self.files=[]
@@ -40,6 +40,7 @@ class BaseQuestion:
         self.raw_data = raw_data
         self.source_id=id
         self.source_url = source_url
+        self.randomize = randomize
         self.id = uuid.uuid5(uuid.NAMESPACE_DNS, id)
 
     def to_dict(self):
@@ -56,6 +57,7 @@ class BaseQuestion:
             "answers": json.dumps(self.answers, ensure_ascii=False),
             "raw_data": self.raw_data,
             "source_url": self.source_url,
+            "randomize": self.randomize,
         }
 
     def create_answer(self, answer, correct=True):
@@ -128,9 +130,6 @@ class BaseQuestion:
         file_reg = re.compile(FILE_REGEX, flags=re.IGNORECASE)
         tags = bs.findAll('img')
 
-        if len(tags) == 0:
-            return text
-
         for tag in tags:
             # Look for src attribute, remove formatting if added to image
             src_text = tag.get("src") or ""
@@ -139,7 +138,7 @@ class BaseQuestion:
 
             alt_text = tag.get("alt") or ""
             tag.replaceWith("![{alt}]({src})".format(alt=alt_text, src=src_text))
-        return str(bs)
+        return bs.find('body').renderContents().decode('utf-8')
 
     def set_image(self, text):
         """ set_image: Replace image string with downloaded image checksum
@@ -290,9 +289,7 @@ class MultipleSelectQuestion(BaseQuestion):
             images ({key:str, ...}): a dict mapping image placeholder names to path to image
     """
 
-    def __init__(self, id, question, correct_answers, all_answers, hints=None):
-        hints = [] if hints is None else hints
-
+    def __init__(self, id, question, correct_answers, all_answers, **kwargs):
         # Put answers into standard format
         set_all_answers = set(all_answers)
         all_answers += [answer for answer in correct_answers if answer not in set_all_answers]
@@ -300,7 +297,7 @@ class MultipleSelectQuestion(BaseQuestion):
         if len(answers) == 0:
             answers = [self.create_answer('No answers provided.')]
             config.LOGGER.warning("\tWARNING: Question {id} does not have any answers (set to default)".format(id=id))
-        super(MultipleSelectQuestion, self).__init__(id, question, exercises.MULTIPLE_SELECTION, answers, hints)
+        super(MultipleSelectQuestion, self).__init__(id, question, exercises.MULTIPLE_SELECTION, answers, **kwargs)
 
     def validate(self):
         """ validate: Makes sure multiple selection question is valid
@@ -334,9 +331,7 @@ class SingleSelectQuestion(BaseQuestion):
             all_answers ([str]): list of all possible answers
             hint (str): optional hint on how to answer question
     """
-    def __init__(self, id, question, correct_answer, all_answers, hints=None):
-        hints = [] if hints is None else hints
-
+    def __init__(self, id, question, correct_answer, all_answers, **kwargs):
         # Put answers into standard format
         if correct_answer not in all_answers:
             all_answers += [correct_answer]
@@ -344,7 +339,7 @@ class SingleSelectQuestion(BaseQuestion):
         if len(answers) == 0:
             answers = [self.create_answer('No answers provided.')]
             config.LOGGER.warning("\tWARNING: Question {id} does not have any answers (set to default)".format(id=id))
-        super(SingleSelectQuestion, self).__init__(id, question, exercises.SINGLE_SELECTION, answers, hints)
+        super(SingleSelectQuestion, self).__init__(id, question, exercises.SINGLE_SELECTION, answers, **kwargs)
 
     def validate(self):
         """ validate: Makes sure single selection question is valid
@@ -367,37 +362,6 @@ class SingleSelectQuestion(BaseQuestion):
             raise InvalidQuestionException("Invalid question: {0}".format(self.__dict__))
 
 
-class FreeResponseQuestion(BaseQuestion):
-    """ Model representing free response questions
-
-        Free response questions are open-ended questions
-        that have no set answer (e.g. Prove that the sum of
-        every triangle's angles is 360 degrees.)
-
-        Attributes:
-            id (str): question's unique id
-            question (str): question text
-            hint (str): optional hint on how to answer question
-    """
-    def __init__(self, id, question, hints=None):
-        hints = [] if hints is None else hints
-        super(FreeResponseQuestion, self).__init__(id, question, exercises.FREE_RESPONSE, [], hints)
-
-    def validate(self):
-        """ validate: Makes sure free response question is valid
-            Args: None
-            Returns: boolean indicating if free response question is valid
-        """
-        try:
-            assert self.question_type == exercises.FREE_RESPONSE, "Assumption Failed: Question should be free response type"
-            for h in self.hints:
-                assert isinstance(h, str), "Assumption Failed: Hint in hint list is not a string"
-            assert self.answers == [], "Assumption Failed: Free response question should not have defined answers"
-            return super(FreeResponseQuestion, self).validate()
-        except AssertionError as ae:
-            raise InvalidQuestionException("Invalid question: {0}".format(self.__dict__))
-
-
 class InputQuestion(BaseQuestion):
     """ Model representing input questions
 
@@ -411,13 +375,12 @@ class InputQuestion(BaseQuestion):
             hint (str): optional hint on how to answer question
             images ({key:str, ...}): a dict mapping image placeholder names to path to image
     """
-    def __init__(self, id, question, answers, hints=None):
-        hints = [] if hints is None else hints
+    def __init__(self, id, question, answers, **kwargs):
         answers = [self.create_answer(answer) for answer in answers]
         if len(answers) == 0:
             answers = [self.create_answer('No answers provided.')]
             config.LOGGER.warning("\tWARNING: Question {id} does not have any answers (set to default)".format(id=id))
-        super(InputQuestion, self).__init__(id, question, exercises.INPUT_QUESTION, answers, hints)
+        super(InputQuestion, self).__init__(id, question, exercises.INPUT_QUESTION, answers, **kwargs)
 
     def validate(self):
         """ validate: Makes sure input question is valid
@@ -428,7 +391,11 @@ class InputQuestion(BaseQuestion):
             assert self.question_type == exercises.INPUT_QUESTION, "Assumption Failed: Question should be input answer type"
             assert len(self.answers) > 0, "Assumption Failed: Multiple selection question should have answers"
             for a in self.answers:
-                assert 'answer' in a and isinstance(a['answer'], str), "Assumption Failed: Answer in answer list is not a string"
+                assert 'answer' in a, "Assumption Failed: Answers must have an answer field"
+                try:
+                    float(a['answer'])
+                except ValueError:
+                    assert False, "Assumption Failed: Answer {} must be numeric".format(a['answer'])
             for h in self.hints:
                 assert isinstance(h, str), "Assumption Failed: Hint in hint list is not a string"
             return super(InputQuestion, self).validate()
