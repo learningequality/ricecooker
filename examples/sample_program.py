@@ -197,13 +197,6 @@ EXERCISES_NODES = [
                         "hints": "It's delicious",
                     },
                     {
-                        "id": "ccccc",
-                        "question": "Why a rice cooker? ![bb8](https://media.giphy.com/media/9fbYYzdf6BbQA/giphy.gif)",
-                        "type":exercises.FREE_RESPONSE,
-                        "answers": [],
-                        "images": None,
-                    },
-                    {
                         "id": "aaaaa",
                         "question": "How many minutes does it take to cook rice? ![](https://upload.wikimedia.org/wikipedia/commons/5/5e/Jeera-rice.JPG)",
                         "type":exercises.INPUT_QUESTION,
@@ -456,12 +449,6 @@ def create_question(raw_question):
             id=raw_question["id"],
             question=raw_question["question"],
             answers=raw_question["answers"],
-            hints=raw_question.get("hints"),
-        )
-    if raw_question["type"] == exercises.FREE_RESPONSE:
-        return questions.FreeResponseQuestion(
-            id=raw_question["id"],
-            question=raw_question["question"],
             hints=raw_question.get("hints"),
         )
     if raw_question["type"] == exercises.PERSEUS_QUESTION:
