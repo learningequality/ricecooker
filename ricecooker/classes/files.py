@@ -141,7 +141,7 @@ def download_from_web(web_url, download_settings):
     download_settings["outtmpl"] = destination_path
     try:
         os.remove(destination_path)
-    except:
+    except Exception:
         pass
 
     with youtube_dl.YoutubeDL(download_settings) as ydl:
@@ -390,7 +390,7 @@ class YouTubeSubtitleFile(File):
         destination_path = os.path.join(tempfile.gettempdir(), "{}".format(url_hash.hexdigest()))
         try:
             os.remove(destination_path)
-        except:
+        except Exception:
             pass
 
         settings = {
