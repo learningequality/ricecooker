@@ -20,7 +20,7 @@ requirements = [
     "validators",
     "requests_file",
     "beautifulsoup4==4.5.1",
-    "pressurecooker==0.0.9",
+    "pressurecooker==0.0.11",
     "selenium==3.0.1",
     "youtube-dl",
     "html5lib",

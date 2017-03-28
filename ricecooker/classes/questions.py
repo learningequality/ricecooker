@@ -80,18 +80,22 @@ class BaseQuestion:
         # Process answers
         answers = []
         answer_files = []
+        answer_index = 0
         for answer in self.answers:
             processed_string, afiles = self.set_images(answer['answer'])
-            answers += [{"answer": processed_string, "correct": answer['correct']}]
+            answers.append({"answer": processed_string, "correct": answer['correct'], "order": answer_index})
+            answer_index += 1
             answer_files += afiles
         self.answers = answers
 
         # Process hints
         hints = []
         hint_files = []
+        hint_index = 0
         for hint in self.hints:
             processed_string, hfiles = self.set_images(hint)
-            hints += [{"hint": processed_string}]
+            hints.append({"hint": processed_string, "order": hint_index})
+            hint_index += 1
             hint_files += hfiles
         self.hints = hints
 
@@ -203,9 +207,9 @@ class PerseusQuestion(BaseQuestion):
             images ({key:str, ...}): a dict mapping image string to replace to path to image
     """
 
-    def __init__(self, id, raw_data, source_url=None):
+    def __init__(self, id, raw_data, source_url=None, **kwargs):
         raw_data = raw_data if isinstance(raw_data, str) else json.dumps(raw_data)
-        super(PerseusQuestion, self).__init__(id, "", exercises.PERSEUS_QUESTION, [], [], raw_data, source_url=source_url)
+        super(PerseusQuestion, self).__init__(id, "", exercises.PERSEUS_QUESTION, [], [], raw_data, source_url=source_url, **kwargs)
 
     def validate(self):
         """ validate: Makes sure perseus question is valid
