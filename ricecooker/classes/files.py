@@ -368,7 +368,7 @@ class YouTubeVideoFile(WebVideoFile):
 
 class YouTubeSubtitleFile(File):
     def __init__(self, youtube_id, language=None, **kwargs):
-        self.youtube_id = youtube_id
+        self.youtube_url = 'http://www.youtube.com/watch?v={}'.format(youtube_id)
         super(YouTubeSubtitleFile, self).__init__(language=language, **kwargs)
         assert self.language, "Subtitles must have a language"
 
@@ -381,12 +381,12 @@ class YouTubeSubtitleFile(File):
         return self.filename
 
     def download_subtitle(self):
-        key = "DOWNLOADED YOUTUBE {}-{}".format(self.youtube_id, self.language)
+        key = "DOWNLOADED YOUTUBE {}-{}".format(self.youtube_url, self.language)
         if not config.UPDATE and FILECACHE.get(key):
             return FILECACHE.get(key).decode('utf-8')
 
         url_hash = hashlib.md5()
-        url_hash.update(self.youtube_id.encode('utf-8'))
+        url_hash.update(self.youtube_url.encode('utf-8'))
         destination_path = os.path.join(tempfile.gettempdir(), "{}".format(url_hash.hexdigest()))
         try:
             os.remove(destination_path)
@@ -401,19 +401,22 @@ class YouTubeSubtitleFile(File):
             'subtitlesformat': "best[ext={}]".format(file_formats.VTT),
             'quiet': True,
         }
+        try:
+            with youtube_dl.YoutubeDL(settings) as ydl:
+                ydl.download([self.youtube_url])
+                youtube_download_path = "{destpath}.{lang}.{ext}".format(destpath=destination_path, lang=self.language, ext=file_formats.VTT)
 
-        with youtube_dl.YoutubeDL(settings) as ydl:
-            ydl.download(['http://www.youtube.com/watch?v={}'.format(self.youtube_id)])
-            youtube_download_path = "{destpath}.{lang}.{ext}".format(destpath=destination_path, lang=self.language, ext=file_formats.VTT)
+                filename = "{}.{}".format(get_hash(youtube_download_path), file_formats.VTT)
 
-            filename = "{}.{}".format(get_hash(youtube_download_path), file_formats.VTT)
+                # Write file to local storage
+                with open(youtube_download_path, "rb") as dlf, open(config.get_storage_path(filename), 'wb') as destf:
+                    shutil.copyfileobj(dlf, destf)
 
-            # Write file to local storage
-            with open(youtube_download_path, "rb") as dlf, open(config.get_storage_path(filename), 'wb') as destf:
-                shutil.copyfileobj(dlf, destf)
-
-            FILECACHE.set(key, bytes(filename, "utf-8"))
-            return filename
+                FILECACHE.set(key, bytes(filename, "utf-8"))
+                return filename
+        except FileNotFoundError:
+            self.error = str("Subtitle with langauge {} is not available for {}".format(self.language, self.youtube_url))
+            config.FAILED_FILES.append(self)
 
 class SubtitleFile(DownloadFile):
     default_ext = file_formats.VTT
