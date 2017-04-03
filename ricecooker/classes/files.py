@@ -402,18 +402,21 @@ class YouTubeSubtitleFile(File):
             'quiet': True,
         }
 
-        with youtube_dl.YoutubeDL(settings) as ydl:
-            ydl.download(['http://www.youtube.com/watch?v={}'.format(self.youtube_id)])
-            youtube_download_path = "{destpath}.{lang}.{ext}".format(destpath=destination_path, lang=self.language, ext=file_formats.VTT)
+        try:
+            with youtube_dl.YoutubeDL(settings) as ydl:
+                ydl.download(['http://www.youtube.com/watch?v={}'.format(self.youtube_id)])
+                youtube_download_path = "{destpath}.{lang}.{ext}".format(destpath=destination_path, lang=self.language, ext=file_formats.VTT)
 
-            filename = "{}.{}".format(get_hash(youtube_download_path), file_formats.VTT)
+                filename = "{}.{}".format(get_hash(youtube_download_path), file_formats.VTT)
 
-            # Write file to local storage
-            with open(youtube_download_path, "rb") as dlf, open(config.get_storage_path(filename), 'wb') as destf:
-                shutil.copyfileobj(dlf, destf)
+                # Write file to local storage
+                with open(youtube_download_path, "rb") as dlf, open(config.get_storage_path(filename), 'wb') as destf:
+                    shutil.copyfileobj(dlf, destf)
 
-            FILECACHE.set(key, bytes(filename, "utf-8"))
-            return filename
+                FILECACHE.set(key, bytes(filename, "utf-8"))
+                return filename
+        except FileNotFoundError:
+            return None
 
 class SubtitleFile(DownloadFile):
     default_ext = file_formats.VTT
