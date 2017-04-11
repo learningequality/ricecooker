@@ -2,6 +2,7 @@
 from __future__ import unicode_literals
 
 import os
+import copy
 import hashlib
 import tempfile
 import shutil
@@ -16,6 +17,7 @@ from ..exceptions import UnknownFileTypeError
 from cachecontrol.caches.file_cache import FileCache
 from pressurecooker.videos import extract_thumbnail_from_video, guess_video_preset_by_resolution, compress_video
 from pressurecooker.encodings import get_base64_encoding, write_base64_to_file
+from pressurecooker.images import create_tiled_image
 from requests.exceptions import MissingSchema, HTTPError, ConnectionError, InvalidURL, InvalidSchema
 
 # Cache for filenames
@@ -160,6 +162,8 @@ class ThumbnailPresetMixin(object):
     def get_preset(self):
         if isinstance(self.node, ChannelNode):
             return format_presets.CHANNEL_THUMBNAIL
+        elif isinstance(self.node, TopicNode):
+            return format_presets.TOPIC_THUMBNAIL
         elif isinstance(self.node, VideoNode):
             return format_presets.VIDEO_THUMBNAIL
         elif isinstance(self.node, AudioNode):
@@ -197,9 +201,7 @@ class File(object):
         raise NotImplementedError("preset must be set if preset isn't specified when creating File object")
 
     def get_filename(self):
-        if self.filename:
-            return self.filename
-        return self.process_file()
+        return self.filename or self.process_file()
 
     def to_dict(self):
         filename = self.get_filename()
@@ -361,7 +363,6 @@ class WebVideoFile(File):
             self.error = str(err)
             config.FAILED_FILES.append(self)
 
-
 class YouTubeVideoFile(WebVideoFile):
     def __init__(self, youtube_id, **kwargs):
         super(YouTubeVideoFile, self).__init__('http://www.youtube.com/watch?v={}'.format(youtube_id), **kwargs)
@@ -405,7 +406,7 @@ class YouTubeSubtitleFile(File):
             'subtitlesformat': "best[ext={}]".format(file_formats.VTT),
             'quiet': True,
         }
-        
+
         with youtube_dl.YoutubeDL(settings) as ydl:
             ydl.download([self.youtube_url])
             youtube_download_path = "{destpath}.{lang}.{ext}".format(destpath=destination_path, lang=self.language, ext=file_formats.VTT)
@@ -418,7 +419,6 @@ class YouTubeSubtitleFile(File):
 
             FILECACHE.set(key, bytes(filename, "utf-8"))
             return filename
-        
 
 class SubtitleFile(DownloadFile):
     default_ext = file_formats.VTT
@@ -542,20 +542,54 @@ class _ExerciseGraphieFile(DownloadFile):
             FILECACHE.set(key, bytes(filename, "utf-8"))
             return filename
 
-# VectorizedVideoFile
-# TiledThumbnailFile
-# UniversalSubsSubtitleFile
-# class TiledThumbnailFile(ThumbnailFile):
-#     def __init__(self, sources):
-#         assert len(sources) == 4, "Please provide 4 sources for creating tiled thumbnail"
-#         self.sources = [ThumbnailFile(path=source) if isinstance(source, str) else source for source in sources]
 
-#     def get_file(self):
-#         images = [source.get_file() for source in self.sources]
-#         thumbnail_storage_path = create_tiled_image(images)
+class TiledThumbnailFile(ThumbnailPresetMixin, File):
+    allowed_formats = [file_formats.JPG, file_formats.JPEG, file_formats.PNG]
+
+    def __init__(self, source_nodes, **kwargs):
+        self.sources = []
+        for n in source_nodes:
+            images = [f for f in n.files if isinstance(f, ThumbnailFile) and f.get_filename()]
+            if len(images) > 0:
+                self.sources.append(images[0])
+        super(TiledThumbnailFile, self).__init__(**kwargs)
+
+    def process_file(self):
+        self.filename = self.generate_tiled_image()
+        config.LOGGER.info("\t--- Tiled image {}".format(self.filename))
+        return self.filename
+
+    def generate_tiled_image(self):
+        num_pictures = 0
+        if len(self.sources) >= 4:
+            num_pictures = 4
+        elif len(self.sources) >= 1:
+            num_pictures = 1
+        else:
+            return None
+
+        images = [config.get_storage_path(f.get_filename()) for f in self.sources[:num_pictures]]
+        key = "TILED {}".format("+".join(sorted(images)))
+        if not config.UPDATE and FILECACHE.get(key):
+            return FILECACHE.get(key).decode('utf-8')
+
+        config.LOGGER.info("\tTiling thumbnail for {}".format(self.node.title))
+        with tempfile.NamedTemporaryFile(suffix=".{}".format(file_formats.PNG)) as tempf:
+            tempf.close()
+            create_tiled_image(images, tempf.name)
+            filename = "{}.{}".format(get_hash(tempf.name), file_formats.PNG)
+
+            copy_file_to_storage(filename, tempf.name)
+            FILECACHE.set(key, bytes(filename, "utf-8"))
+            return filename
+
+
+# VectorizedVideoFile
+# UniversalSubsSubtitleFile
 
 # class UniversalSubsSubtitleFile(SubtitleFile):
 #     def __init__(self, us_id, language):
 #         response = sess.get("http://usubs.org/api/{}".format(us_id))
 #         path = json.loads(response.content)["subtitle_url"]
 #         return super(UniversalSubsSubtitleFile, self).__init__(path=path, language=language)
+

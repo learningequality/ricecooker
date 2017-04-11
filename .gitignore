@@ -97,3 +97,5 @@ node_modules/
 
 sushi_chefs/
 .webcache
+ricecooker/sample_program.py
+.ricecookerfilecache/*
