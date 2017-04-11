@@ -330,8 +330,8 @@ class ContentNode(TreeNode):
     """
     required_file_format = None
 
-    def __init__(self, source_id, title, license, **kwargs):
-        self.set_license(license)
+    def __init__(self, source_id, title, license, license_description=None, copyright_holder=None, **kwargs):
+        self.set_license(license, copyright_holder=copyright_holder, description=license_description)
         super(ContentNode, self).__init__(source_id, title, **kwargs)
 
     def __str__(self):
