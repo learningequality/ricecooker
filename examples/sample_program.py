@@ -131,6 +131,8 @@ def guess_content_kind(path=None, web_video_data=None, questions=None):
     else:
         return content_kinds.TOPIC
 
+
+
 # LOAD sample_tree.json (as dict)
 with open(join(DATA_DIR,'sample_tree.json'),'r') as json_file:
     SAMPLE_TREE = json.load(json_file)
@@ -141,47 +143,6 @@ SAMPLE_PERSEUS_1_JSON = open(join(DATA_DIR,'sample_perseus01.json'),'r').read()
 
 # ADD EXERCISES
 EXERCISES_NODES = [
-    {
-        "title": "Rice 101",
-        "id": "abd115",
-        "description": "Learn about how rice",
-        "children": [
-            {
-                "title": "Rice Distribution",
-                "id": "aaaa4d",
-                "files": [
-                    {
-                        "path" : "https://ia801407.us.archive.org/21/items/ah_Rice/Rice.mp3",
-                    },
-                ],
-                "thumbnail": "https://upload.wikimedia.org/wikipedia/commons/b/ba/Rice_grains_(IRRI)",
-                "description": "Get online updates regarding world's leading long grain rice distributors, broken rice distributors, rice suppliers, parboiled rice exporter on our online B2B marketplace TradeBanq.",
-                "license": licenses.PUBLIC_DOMAIN,
-            },
-            {
-                "title": "Rice History",
-                "id": "6ef99c",
-                "description": "Discover the history of rice",
-                "children": [
-                    {
-                        "title": "The History of Japanese Rice",
-                        "id": "418799",
-                        "author": "Sandra Lopez-Richter",
-                        "license": licenses.CC_BY_NC_SA,
-                        "files":[
-                            {
-                                "path" : "https://ia601301.us.archive.org/31/items/The_History_of_Japanese_Rice_Lopez-Richter/The_History_of_Japanese_Rice_Lopez-Richter.pdf",
-                            },
-                            {
-                                "path" : "http://res.freestockphotos.biz/pictures/17/17321-a-bowl-of-rice-with-chopsticks-pv.jpg",
-                            },
-                        ],
-                        "license": licenses.CC_BY,
-                    },
-                ]
-            },
-        ]
-    },
     {
         "title": "Rice Cookers",
         "id": "d98752",
@@ -368,7 +329,7 @@ def _build_tree(node, sourcetree):
             child_node = nodes.VideoNode(
                 source_id=child_source_node["id"],
                 title=child_source_node["title"],
-                license=get_license(child_source_node.get("license"), description="DESCRIPTION"),
+                license=get_license(child_source_node.get("license"), description="Description of license"),
                 author=child_source_node.get("author"),
                 description=child_source_node.get("description"),
                 derive_thumbnail=True, # video-specific data
