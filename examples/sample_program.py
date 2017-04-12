@@ -1,10 +1,37 @@
-import os
 from enum import Enum
+import json
+import os
+from os.path import join
+import re
+
 from ricecooker.classes import nodes, questions, files
 from ricecooker.classes.licenses import get_license
 from ricecooker.exceptions import UnknownContentKindError, UnknownFileTypeError, UnknownQuestionTypeError, raise_for_invalid_channel
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises, languages
 from pressurecooker.encodings import get_base64_encoding
+
+
+# CHANNEL SETTINGS
+SOURCE_DOMAIN = "<yourdomain.org>"                 # content provider's domain
+SOURCE_ID = "<yourid>"                             # an alphanumeric channel ID
+CHANNEL_TITLE = "Testing Ricecooker Channel"       # a humand-readbale title
+
+
+# LOCAL DIRS
+EXAMPLES_DIR = os.path.dirname(os.path.realpath(__file__))
+DATA_DIR = join(EXAMPLES_DIR, 'data/')              # will this work on Windows?
+CONTENT_DIR = join(EXAMPLES_DIR, 'content/')        # will this work on Windows?
+#
+# A utility function to manage absolute paths that allows us to refer to files
+# in the CONTENT_DIR (subdirectory `content/' in current directory) using content://
+def get_abspath(path, content_dir=CONTENT_DIR):
+    """
+    Replaces `content://` with absolute path of `content_dir`.
+    By default looks for content in subdirectory `content` in current directory.
+    """
+    return re.sub('content://', content_dir, path)
+
+
 
 class FileTypes(Enum):
     """ Enum containing all file types Ricecooker can have
@@ -104,101 +131,16 @@ def guess_content_kind(path=None, web_video_data=None, questions=None):
     else:
         return content_kinds.TOPIC
 
-SAMPLE_PERSEUS = '{"answerArea":{"chi2Table":false,"periodicTable":false,"tTable":false,"zTable":false,"calculator":false},' + \
-'"hints":[{"widgets":{},"images":{"web+graphie:C:/users/jordan/contentcuration-dump/0a0c0f1a1a40226d8d227a07dd143f8c08a4b8a5": {}},"content":"Hint #1","replace":false},{"widgets":{},"images":{},"content":"Hint #2","replace":false}],' +\
-'"question":{"widgets":{"radio 1":{"type":"radio","alignment":"default","graded":true,"static":false,' +\
-'"options":{"deselectEnabled":false,"multipleSelect":false,"choices":[{"correct":true,"content":"Yes"},{"correct":false,"content":"No"}],' +\
-'"displayCount":null,"hasNoneOfTheAbove":false,"randomize":false,"onePerLine":true},"version":{"minor":0,"major":1}}},"images":{"web+graphie:C:/users/jordan/contentcuration-dump/0a0c0f1a1a40226d8d227a07dd143f8c08a4b8a5": {}},' +\
-'"content":"Do you like rice?\\\"\\n\\n![](web+graphie:file:///C:/users/jordan/contentcuration-dump/0a0c0f1a1a40226d8d227a07dd143f8c08a4b8a5)\\n\\n[[\\u2603 radio 1]]"},"itemDataVersion":{"minor":1,"major":0}}'
+# LOAD sample_tree.json (as dict)
+with open(join(DATA_DIR,'sample_tree.json'),'r') as json_file:
+    SAMPLE_TREE = json.load(json_file)
 
-SAMPLE_PERSEUS_2 = '{"hints":[{"replace":false,"content":"Numbers are equivalent when they are located at the same point on the number line.\\n\\nLet\'s ' +\
-'see what fraction is at the same location as $\\\\tealD{\\\\dfrac48}$ on the number line.\\n","widgets":{},"images":{"web+graphie:file:///C:/Users/Jordan/contentcuration-dump/ddb3feb4c8e3740ca4f10c2ebad70b5797f60ebd":' +\
-'{"width":460,"height":120}}},{"replace":false,"content":"![](web+graphie:file:///home/ralphie/Desktop/ka-sushi-chef-sw/build/a61/a61ac6f4038cb3e2c3bd6e69f6e75da10632a3d4\\n)\\n\\n $\\\\purpleC{\\\\dfrac24}$ is at the same location on the ' +\
-'number line as  $\\\\tealD{\\\\dfrac48}$.\\n","widgets":{},"images":{}},{"replace":false,"content":" $\\\\purpleC{\\\\dfrac24}$ is equivalent to $\\\\tealD{\\\\dfrac48}$.\\n\\n![]( web+graphie:file:///home/ralphie/Desktop/ka-sushi-chef-sw/' +\
-'build/e84/e84b6d5fa1410f002ef8f9446a999d4a09266edd)","widgets":{},"images":{"web+graphie:file:///home/ralphie/Desktop/ka-sushi-chef-sw/build/6a1/6a1bf04c8df3d217c846362e8902008d84d10ff4":{"width":460,"height":120}}}],"question":{"content"' +\
-':"![](web+graphie:file:///home/ralphie/Desktop/ka-sushi-chef-sw/build/749/749d2d16db0cfc94e8685f3eb7302394448d8c8c)\\n\\n**Move the dot to a fraction equivalent to $\\\\tealD{\\\\dfrac48}$ on the number line.**\\n\\n\\n[[\\u2603 number-line ' +\
-'1]]\\n","widgets":{"number-line 1":{"type":"number-line","static":false,"options":{"initialX":null,"labelRange":[null,null],"divisionRange":[null,null],"correctX":0.5,"labelStyle":"non-reduced","labelTicks":true,"snapDivisions":2,"correctRel":' +\
-'"eq","static":false,"numDivisions":null,"range":[null,null],"tickStep":0.25},"graded":true,"version":{"minor":0,"major":0},"alignment":"default"}},"images":{}},"itemDataVersion":{"minor":1,"major":0},"answerArea":{"periodicTable":false,"zTable":' +\
-'false,"chi2Table":false,"calculator":false,"tTable":false}}'
+# LOAD JSON DATA (as string) FOR PERSEUS QUESTIONS
+SAMPLE_PERSEUS_1_JSON = open(join(DATA_DIR,'sample_perseus01.json'),'r').read()
+# SAMPLE_PERSEUS_2_JSON = open(join(DATA_DIR,'sample_perseus02.json'),'r').read()
 
-SAMPLE_TREE = [
-    {
-        "title": "TEST SUBTITLES",
-        "id": "7cafe6",
-        "author": "Revision 3",
-        "description": "Subtitle Test",
-        "license": licenses.SPECIAL_PERMISSIONS,
-        "files": [
-            {
-                "path": "https://ia600209.us.archive.org/27/items/RiceChef/Rice Chef.mp4",
-            }
-        ],
-    },
-    {
-        "title": "Video Tests",
-        "id": "abd116",
-        "description": "Tests for different videos",
-        "children": [
-            {
-                "title": "TEST COMPRESSION",
-                "id": "6cafe7",
-                "author": "Revision 3",
-                "description": "Compression Test",
-                "license": licenses.CC_BY_NC_SA,
-                "files": [
-                    {
-                        "path": "C:/users/jordan/contentcuration-dump/high resolution.mp4",
-                        "ffmpeg_settings": {"max_width": 480, "crf": 20},
-                    }
-                ],
-                "thumbnail": "https://cdn.kastatic.org/googleusercontent/5QUfMdnHfeSlnm4mI-2T1cnyn7xLC8hL_Ye9sSVufVma8FLQOrJ55nCkeRG50jp6lNiY_aCvVEzMPqDmxR6ccncqfA"
-            },
-            {
-                "title": "TEST SUBTITLES",
-                "id": "7cafe6",
-                "author": "Revision 3",
-                "description": "Subtitle Test",
-                "license": licenses.CC_BY_NC_SA,
-                "files": [
-                    {
-                        "path": "https://ia600209.us.archive.org/27/items/RiceChef/Rice Chef.mp4",
-                    },
-                    {
-                        "path": "C:/users/jordan/Videos/testfolder/captions.vtt",
-                        "language": languages.getlang('en').code,
-                    }
-                    ,
-                    {
-                        "path": "C:/users/jordan/Videos/testfolder/captions.vtt",
-                        "language": languages.getlang('es').code,
-                    }
-                ],
-            },
-            {
-                "title": "TEST YOUTUBE",
-                "id": "6cafe8",
-                "description": "Youtube Test",
-                "license": licenses.CC_BY_NC_SA,
-                "files": [
-                    {
-                        "youtube_id": "kpCJyQ2usJ4",
-                        "high_resolution": False,
-                    }
-                ],
-            },
-            {
-                "title": "TEST VIMEO",
-                "id": "6cafe9",
-                "description": "Vimeo Test",
-                "license": licenses.CC_BY_NC_SA,
-                "files": [
-                    {
-                        "web_url": "https://vimeo.com/188609325",
-                    }
-                ],
-            },
-        ],
-    },
+# ADD EXERCISES
+EXERCISES_NODES = [
     {
         "title": "Rice 101",
         "id": "abd115",
@@ -294,13 +236,7 @@ SAMPLE_TREE = [
                         "hints": "It's delicious",
                     },
                     {
-                        "id": "ccccc",
-                        "question": "Why a rice cooker? ![bb8](https://media.giphy.com/media/9fbYYzdf6BbQA/giphy.gif)",
-                        "type":exercises.INPUT_QUESTION,
-                        "answers": [124],
-                        "images": None,
-                    },
-                    {
+
                         "id": "aaaaa",
                         "question": "How many minutes does it take to cook rice? ![](https://upload.wikimedia.org/wikipedia/commons/5/5e/Jeera-rice.JPG)",
                         "type":exercises.INPUT_QUESTION,
@@ -310,7 +246,7 @@ SAMPLE_TREE = [
                     {
                         "id": "ddddd",
                         "type":exercises.PERSEUS_QUESTION,
-                        "item_data":SAMPLE_PERSEUS,
+                        "item_data":SAMPLE_PERSEUS_1_JSON,
                     },
                 ],
             },
@@ -349,10 +285,7 @@ SAMPLE_TREE = [
                 "license": licenses.PUBLIC_DOMAIN,
                 "files": [
                     {
-                        "path": "C:/users/jordan/Videos/testfolder/htmltest.zip",
-                    },
-                    {
-                        "path": "https://upload.wikimedia.org/wikipedia/commons/b/b7/Rice_p1160004.jpg",
+                        "path": "content://htmltest.zip",
                     }
                 ]
             },
@@ -387,13 +320,16 @@ SAMPLE_TREE = [
         ]
     },
 ]
+SAMPLE_TREE.extend(EXERCISES_NODES)
+
+
 
 def construct_channel(**kwargs):
 
     channel = nodes.ChannelNode(
-        source_domain="learningequality.org",
-        source_id="testing-ricecooker-channel",
-        title="Testing Ricecooker Channel",
+        source_domain=SOURCE_DOMAIN,
+        source_id=SOURCE_ID,
+        title=CHANNEL_TITLE,
         thumbnail="https://upload.wikimedia.org/wikipedia/commons/thumb/5/50/Banaue_Philippines_Banaue-Rice-Terraces-01.jpg/640px-Banaue_Philippines_Banaue-Rice-Terraces-01.jpg",
     )
 
@@ -404,7 +340,9 @@ def construct_channel(**kwargs):
 
 
 def _build_tree(node, sourcetree):
-
+    """
+    Parse nodes given in `sourcetree` and add as children of `node`.
+    """
     for child_source_node in sourcetree:
         try:
             main_file = child_source_node['files'][0] if 'files' in child_source_node else {}
@@ -498,21 +436,27 @@ def _build_tree(node, sourcetree):
 
 def add_files(node, file_list):
     for f in file_list:
-        file_type = guess_file_type(node.kind, filepath=f.get('path'), youtube_id=f.get('youtube_id'), web_url=f.get('web_url'), encoding=f.get('encoding'))
+
+        path = f.get('path')
+        if path is not None:
+            abspath = get_abspath(path)      # NEW: expand  content://  -->  ./content/  in file paths
+        else:
+            abspath = None
+
+        file_type = guess_file_type(node.kind, filepath=abspath, youtube_id=f.get('youtube_id'), web_url=f.get('web_url'), encoding=f.get('encoding'))
 
         if file_type == FileTypes.AUDIO_FILE:
-            node.add_file(files.AudioFile(path=f['path'], language=f.get('language')))
+            node.add_file(files.AudioFile(path=abspath, language=f.get('language')))
         elif file_type == FileTypes.THUMBNAIL:
-            node.add_file(files.ThumbnailFile(path=f['path']))
+            node.add_file(files.ThumbnailFile(path=abspath))
         elif file_type == FileTypes.DOCUMENT_FILE:
-            node.add_file(files.DocumentFile(path=f['path'], language=f.get('language')))
+            node.add_file(files.DocumentFile(path=abspath, language=f.get('language')))
         elif file_type == FileTypes.HTML_ZIP_FILE:
-            node.add_file(files.HTMLZipFile(path=f['path'], language=f.get('language')))
+            node.add_file(files.HTMLZipFile(path=abspath, language=f.get('language')))
         elif file_type == FileTypes.VIDEO_FILE:
-            node.add_file(files.VideoFile(path=f['path'], language=f.get('language'), ffmpeg_settings=f.get('ffmpeg_settings')))
-            node.add_file(files.YouTubeSubtitleFile('kpCJyQ2usJ4', language="asdfasf"))
+            node.add_file(files.VideoFile(path=abspath, language=f.get('language'), ffmpeg_settings=f.get('ffmpeg_settings')))
         elif file_type == FileTypes.SUBTITLE_FILE:
-            node.add_file(files.SubtitleFile(path=f['path'], language=f['language']))
+            node.add_file(files.SubtitleFile(path=abspath, language=f['language']))
         elif file_type == FileTypes.BASE64_FILE:
             node.add_file(files.Base64ImageFile(encoding=f['encoding']))
         elif file_type == FileTypes.WEB_VIDEO_FILE:
@@ -545,12 +489,6 @@ def create_question(raw_question):
             id=raw_question["id"],
             question=raw_question["question"],
             answers=raw_question["answers"],
-            hints=raw_question.get("hints"),
-        )
-    if raw_question["type"] == exercises.FREE_RESPONSE:
-        return questions.FreeResponseQuestion(
-            id=raw_question["id"],
-            question=raw_question["question"],
             hints=raw_question.get("hints"),
         )
     if raw_question["type"] == exercises.PERSEUS_QUESTION:

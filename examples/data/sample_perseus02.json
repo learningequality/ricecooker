@@ -1,0 +1,92 @@
+{
+   "hints":[
+      {
+         "replace":false,
+         "content":"Numbers are equivalent when they are located at the same point on the number line.\n\nLet's see what fraction is at the same location as $\\\\tealD{\\\\dfrac48}$ on the number line.\n",
+         "widgets":{
+
+         },
+         "images":{
+            "web+graphie:file:///C:/Users/Jordan/contentcuration-dump/ddb3feb4c8e3740ca4f10c2ebad70b5797f60ebd":{
+               "width":460,
+               "height":120
+            }
+         }
+      },
+      {
+         "replace":false,
+         "content":"![](web+graphie:file:///home/ralphie/Desktop/ka-sushi-chef-sw/build/a61/a61ac6f4038cb3e2c3bd6e69f6e75da10632a3d4\\n)\\n\\n $\\\\purpleC{\\\\dfrac24}$ is at the same location on the number line as  $\\\\tealD{\\\\dfrac48}$.\\n",
+         "widgets":{
+
+         },
+         "images":{
+
+         }
+      },
+      {
+         "replace":false,
+         "content":" $\\\\purpleC{\\\\dfrac24}$ is equivalent to $\\\\tealD{\\\\dfrac48}$.\\n\\n![]( web+graphie:file:///home/ralphie/Desktop/ka-sushi-chef-sw/build/e84/e84b6d5fa1410f002ef8f9446a999d4a09266edd)",
+         "widgets":{
+
+         },
+         "images":{
+            "web+graphie:file:///home/ralphie/Desktop/ka-sushi-chef-sw/build/6a1/6a1bf04c8df3d217c846362e8902008d84d10ff4":{
+               "width":460,
+               "height":120
+            }
+         }
+      }
+   ],
+   "question":{
+      "content":"![](web+graphie:file:///home/ralphie/Desktop/ka-sushi-chef-sw/build/749/749d2d16db0cfc94e8685f3eb7302394448d8c8c)\\n\\n**Move the dot to a fraction equivalent to $\\\\tealD{\\\\dfrac48}$ on the number line.**\\n\\n\\n[[\\u2603 number-line 1]]\\n",
+      "widgets":{
+         "number-line 1":{
+            "type":"number-line",
+            "static":false,
+            "options":{
+               "initialX":null,
+               "labelRange":[
+                  null,
+                  null
+               ],
+               "divisionRange":[
+                  null,
+                  null
+               ],
+               "correctX":0.5,
+               "labelStyle":"non-reduced",
+               "labelTicks":true,
+               "snapDivisions":2,
+               "correctRel":"eq",
+               "static":false,
+               "numDivisions":null,
+               "range":[
+                  null,
+                  null
+               ],
+               "tickStep":0.25
+            },
+            "graded":true,
+            "version":{
+               "minor":0,
+               "major":0
+            },
+            "alignment":"default"
+         }
+      },
+      "images":{
+
+      }
+   },
+   "itemDataVersion":{
+      "minor":1,
+      "major":0
+   },
+   "answerArea":{
+      "periodicTable":false,
+      "zTable":false,
+      "chi2Table":false,
+      "calculator":false,
+      "tTable":false
+   }
+}
