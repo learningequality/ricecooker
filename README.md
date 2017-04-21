@@ -18,7 +18,7 @@ A framework for creating channels on [Kolibri Studio](https://contentworkshop.le
 
 The rice cooker is a framework you can use to translate content into Kolibri-compatible objects.
 The following steps will guide you through how to create a program, or sushi chef, to utilize this framework.
-A sample sushi chef has been created [here](https://github.com/learningequality/ricecooker/blob/master/ricecooker/sample_program.py)
+A sample sushi chef has been created [here](https://github.com/learningequality/ricecooker/blob/master/examples/sample_program.py)
 
 
 
