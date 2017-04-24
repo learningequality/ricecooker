@@ -165,9 +165,9 @@ ExerciseNodes are special objects that have questions used for assessment. To ad
 
 Each question class has the following attributes that can be set at initialization:
 - __id__ (str): question's unique id
-- __question__ (str): question text
-- __answers__ ([{'answer':str, 'correct':bool}]): answers to question
-- __hints__ (str or [str]): optional hints on how to answer question
+- __question__ (str): question body, in plaintext or Markdown format; math expressions must be in Latex format, surrounded by `$`, e.g. `$ f(x) = 2 ^ 3 $`.
+- __answers__ ([{'answer':str, 'correct':bool}]): answers to question, also in plaintext or Markdown
+- __hints__ (str or [str]): optional hints on how to answer question, also in plaintext or Markdown
 
 
 FreeResponseQuestions do not need any answers set.
