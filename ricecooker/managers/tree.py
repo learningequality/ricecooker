@@ -183,18 +183,22 @@ class ChannelManager:
             return
 
         config.LOGGER.info("{indent}Processing {title} ({kind})".format(indent="   " * indent, title=current_node.title, kind=current_node.__class__.__name__))
-        payload = {
-            'root_id': root_id,
-            'content_data': [child.to_dict() for child in current_node.children]
-        }
-        response = config.SESSION.post(config.add_nodes_url(), data=json.dumps(payload))
-        if response.status_code != 200:
-            self.failed_node_builds += [(root_id, current_node, response.reason)]
-        else:
-            response_json = json.loads(response._content.decode("utf-8"))
 
-            for child in current_node.children:
-                self.add_nodes(response_json['root_ids'][child.get_node_id().hex], child, indent + 1)
+        node_dicts = [child.to_dict() for child in current_node.children]
+        chunks = [node_dicts[x:x+10] for x in range(0, len(node_dicts), 10)]
+        for chunk in chunks:
+            payload = {
+                'root_id': root_id,
+                'content_data': chunk
+            }
+            response = config.SESSION.post(config.add_nodes_url(), data=json.dumps(payload))
+            if response.status_code != 200:
+                self.failed_node_builds += [(root_id, current_node, response.reason)]
+            else:
+                response_json = json.loads(response._content.decode("utf-8"))
+
+                for child in current_node.children:
+                    self.add_nodes(response_json['root_ids'][child.get_node_id().hex], child, indent + 1)
 
     def commit_channel(self, channel_id):
         """ commit_channel: commits channel to Kolibri Studio

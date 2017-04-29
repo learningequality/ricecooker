@@ -12,7 +12,7 @@
 
          },
          "images":{
-            "web+graphie:C:/users/jordan/contentcuration-dump/0a0c0f1a1a40226d8d227a07dd143f8c08a4b8a5":{
+            "web+graphie:content://0a0c0f1a1a40226d8d227a07dd143f8c08a4b8a5":{
 
             }
          },
@@ -48,6 +48,10 @@
                   {
                      "correct":false,
                      "content":"No"
+                  },
+                  {
+                     "correct":false,
+                     "content":">"
                   }
                ],
                "displayCount":null,
@@ -62,11 +66,11 @@
          }
       },
       "images":{
-         "web+graphie:C:/users/jordan/contentcuration-dump/0a0c0f1a1a40226d8d227a07dd143f8c08a4b8a5":{
+         "web+graphie:content://0a0c0f1a1a40226d8d227a07dd143f8c08a4b8a5":{
 
          }
       },
-      "content":"Do you like rice?\\\"\\n\\n![](web+graphie:file:///C:/users/jordan/contentcuration-dump/0a0c0f1a1a40226d8d227a07dd143f8c08a4b8a5)\\n\\n[[\\u2603 radio 1]]"
+      "content":"Do you like rice?\\\"\\n\\n![](web+graphie:content://0a0c0f1a1a40226d8d227a07dd143f8c08a4b8a5)\\n\\n[[\\u2603 radio 1]]"
    },
    "itemDataVersion":{
       "minor":1,

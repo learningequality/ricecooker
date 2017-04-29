@@ -12,7 +12,7 @@
                 "license": "CC BY-NC-SA",
                 "files": [
                     {
-                        "path": "C:/users/jordan/contentcuration-dump/high resolution.mp4",
+                        "path": "content://video.mp4",
                         "ffmpeg_settings": {"max_width": 480, "crf": 20}
                     }
                 ],
@@ -29,12 +29,12 @@
                         "path": "https://ia600209.us.archive.org/27/items/RiceChef/Rice Chef.mp4"
                     },
                     {
-                        "path": "C:/users/jordan/Videos/testfolder/captions.vtt",
+                        "path": "content://captions.vtt",
                         "language": "en"
                     }
                     ,
                     {
-                        "path": "C:/users/jordan/Videos/testfolder/captions.vtt",
+                        "path": "content://captions.vtt",
                         "language": "es"
                     }
                 ]
