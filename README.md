@@ -86,8 +86,8 @@ Each node has the following attributes:
 - __extra_fields__ (dict): any additional data needed for node (optional)
 - __domain_ns__ (uuid): who is providing the content (e.g. learningequality.org) (optional)
 
-**IMPORTANT**: `source_id` MUST be unique among all nodes in the channel. 
-Each node has a `content_id` (which is used to indicate duplicate nodes) and a `node_id` (which is used to keep node references consistent across Ricecooker runs). The `content_id` is calculated using the given `source_id` and the domain, and the `node_id` is calculated using the parent node's `node_id` and the generated `content_id`.
+**IMPORTANT**: nodes representing distinct pieces of content MUST have distinct `source_id`s. 
+Each node has a `content_id` (computed as a function of the `source_domain` and the node's `source_id`) that uniquely identifies a piece of content within Kolibri for tracking purposes. For example, if the same video occurs in multiple places in the tree, you would use the same `source_id` for those nodes -- but content nodes that aren't for that video need to have different `source_id`s.
 
 All non-topic nodes must be assigned a license upon initialization. You can use the license's id (found under `le_utils.constants.licenses`) or create a license object from `ricecooker.classes.licenses` (recommended). When initializing a license object, you  can specify a __copyright_holder__ (str), or the person or organization who owns the license. If you are unsure which license class to use, a `get_license` method has been provided that takes in a license id and returns a corresponding license object.
 
