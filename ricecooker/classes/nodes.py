@@ -370,6 +370,8 @@ class ContentNode(TreeNode):
             "description": self.description,
             "node_id": self.get_node_id().hex,
             "content_id": self.get_content_id().hex,
+            "source_domain": self.domain_ns.hex,
+            "source_id": self.source_id,
             "author": self.author,
             "files" : [f.to_dict() for f in filter(lambda x: x and x.filename, self.files)], # Filter out failed downloads
             "kind": self.kind,
@@ -643,7 +645,9 @@ class ExerciseNode(ContentNode):
             assert self.kind == content_kinds.EXERCISE, "Assumption Failed: Node should be an exercise"
 
             # Check if questions are correct
-            questions_valid = True
+            import pdb; pdb.set_trace()
+            questions_valid = any(lambda q: q.validate())
+
             for q in self.questions:
                 questions_valid = questions_valid and q.validate()
             assert questions_valid, "Assumption Failed: Exercise does not have a question"

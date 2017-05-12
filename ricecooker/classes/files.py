@@ -131,7 +131,7 @@ def compress_video_file(filename, ffmpeg_settings):
     FILECACHE.set(key, bytes(filename, "utf-8"))
     return filename
 
-def download_from_web(web_url, download_settings):
+def download_from_web(web_url, download_settings, file_format=file_formats.MP4, ext="", download_ext=""):
     key = generate_key("DOWNLOADED", web_url, settings=download_settings)
     if not config.UPDATE and FILECACHE.get(key):
         return FILECACHE.get(key).decode('utf-8')
@@ -139,7 +139,7 @@ def download_from_web(web_url, download_settings):
     # Get hash of web_url to act as temporary storage name
     url_hash = hashlib.md5()
     url_hash.update(web_url.encode('utf-8'))
-    destination_path = os.path.join(tempfile.gettempdir(), "{}.{}".format(url_hash.hexdigest(), file_formats.MP4))
+    destination_path = os.path.join(tempfile.gettempdir(), "{}{ext}".format(url_hash.hexdigest(), ext=ext))
     download_settings["outtmpl"] = destination_path
     try:
         os.remove(destination_path)
@@ -148,7 +148,8 @@ def download_from_web(web_url, download_settings):
 
     with youtube_dl.YoutubeDL(download_settings) as ydl:
         ydl.download([web_url])
-        filename = "{}.{}".format(get_hash(destination_path), file_formats.MP4)
+        destination_path += download_ext
+        filename = "{}.{}".format(get_hash(destination_path), file_format)
 
         # Write file to local storage
         with open(destination_path, "rb") as dlf, open(config.get_storage_path(filename), 'wb') as destf:
@@ -255,7 +256,6 @@ class DownloadFile(File):
     def __str__(self):
         return self.path
 
-
 class ThumbnailFile(ThumbnailPresetMixin, DownloadFile):
     default_ext = file_formats.PNG
     allowed_formats = [file_formats.JPG, file_formats.JPEG, file_formats.PNG]
@@ -338,7 +338,6 @@ class VideoFile(DownloadFile):
             self.error = err
             config.FAILED_FILES.append(self)
 
-
 class WebVideoFile(File):
     # In future, look into postprocessors and progress_hooks
     def __init__(self, web_url, download_settings=None, high_resolution=True, maxheight=None, **kwargs):
@@ -347,7 +346,7 @@ class WebVideoFile(File):
         if "format" not in self.download_settings:
             maxheight = maxheight or (720 if high_resolution else 480)
             self.download_settings['format'] = "bestvideo[height<={maxheight}][ext=mp4]+bestaudio[ext=m4a]/best[height<={maxheight}][ext=mp4]".format(maxheight=maxheight)
-        # self.download_settings["outtmpl"] = "%(title)s (%(format)s)-%(display_id)s.%(ext)s"
+            # self.download_settings['recodevideo'] = file_formats.MP4
 
         super(WebVideoFile, self).__init__(**kwargs)
 
@@ -356,7 +355,7 @@ class WebVideoFile(File):
 
     def process_file(self):
         try:
-            self.filename = download_from_web(self.web_url, self.download_settings)
+            self.filename = download_from_web(self.web_url, self.download_settings, ext=".{}".format(file_formats.MP4))
             config.LOGGER.info("\t--- Downloaded (YouTube) {}".format(self.filename))
             return self.filename
         except youtube_dl.utils.DownloadError as err:
@@ -386,39 +385,16 @@ class YouTubeSubtitleFile(File):
             config.FAILED_FILES.append(self)
 
     def download_subtitle(self):
-        key = "DOWNLOADED YOUTUBE {}-{}".format(self.youtube_url, self.language)
-        if not config.UPDATE and FILECACHE.get(key):
-            return FILECACHE.get(key).decode('utf-8')
-
-        url_hash = hashlib.md5()
-        url_hash.update(self.youtube_url.encode('utf-8'))
-        destination_path = os.path.join(tempfile.gettempdir(), "{}".format(url_hash.hexdigest()))
-        try:
-            os.remove(destination_path)
-        except Exception:
-            pass
-
         settings = {
             'skip_download': True,
             'writesubtitles': True,
             'subtitleslangs': [self.language],
-            'outtmpl': destination_path,
             'subtitlesformat': "best[ext={}]".format(file_formats.VTT),
             'quiet': True,
+            'no_warnings': True
         }
-
-        with youtube_dl.YoutubeDL(settings) as ydl:
-            ydl.download([self.youtube_url])
-            youtube_download_path = "{destpath}.{lang}.{ext}".format(destpath=destination_path, lang=self.language, ext=file_formats.VTT)
-
-            filename = "{}.{}".format(get_hash(youtube_download_path), file_formats.VTT)
-
-            # Write file to local storage
-            with open(youtube_download_path, "rb") as dlf, open(config.get_storage_path(filename), 'wb') as destf:
-                shutil.copyfileobj(dlf, destf)
-
-            FILECACHE.set(key, bytes(filename, "utf-8"))
-            return filename
+        download_ext = ".{lang}.{ext}".format(lang=self.language, ext=file_formats.VTT)
+        return download_from_web(self.youtube_url, settings, file_format=file_formats.VTT, download_ext=download_ext)
 
 class SubtitleFile(DownloadFile):
     default_ext = file_formats.VTT
