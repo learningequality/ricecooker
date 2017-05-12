@@ -318,7 +318,7 @@ class ContentNode(TreeNode):
             Returns: boolean indicating if content node is valid
         """
         from .files import DownloadFile
-        assert isinstance(self.license, str) or isinstance(self.license, License), "Assumption Failed: License is not a string or empty"
+        assert isinstance(self.license, str) or isinstance(self.license, License), "Assumption Failed: License is not a string or license object"
         # if self.required_file_format:
         #     files_valid = False
         #     #not any(f for f in self.files if isinstance(f, DownloadFile))
