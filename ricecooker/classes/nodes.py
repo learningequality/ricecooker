@@ -351,7 +351,7 @@ class ContentNode(TreeNode):
             Returns: boolean indicating if content node is valid
         """
         from .files import DownloadFile
-        assert isinstance(self.license, str) or isinstance(self.license, License), "Assumption Failed: License is not a string or empty"
+        assert isinstance(self.license, str) or isinstance(self.license, License), "Assumption Failed: License is not a string or license object"
         # if self.required_file_format:
         #     files_valid = False
         #     #not any(f for f in self.files if isinstance(f, DownloadFile))
@@ -647,12 +647,8 @@ class ExerciseNode(ContentNode):
             assert self.kind == content_kinds.EXERCISE, "Assumption Failed: Node should be an exercise"
 
             # Check if questions are correct
-            import pdb; pdb.set_trace()
-            questions_valid = any(lambda q: q.validate())
-
-            for q in self.questions:
-                questions_valid = questions_valid and q.validate()
-            assert questions_valid, "Assumption Failed: Exercise does not have a question"
+            assert any(self.questions), "Assumption Failed: Exercise does not have a question"
+            assert all(filter(lambda q: q.validate(), self.questions)), "Assumption Failed: Exercise has invalid question"
             return super(ExerciseNode, self).validate()
         except AssertionError as ae:
             raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
