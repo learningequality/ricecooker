@@ -630,6 +630,8 @@ class ExerciseNode(ContentNode):
             m_value = n_value = 5
         elif mastery_model == exercises.NUM_CORRECT_IN_A_ROW_3:
             m_value = n_value = 3
+        elif mastery_model == exercises.NUM_CORRECT_IN_A_ROW_2:
+            m_value = n_value = 2
         elif mastery_model == exercises.SKILL_CHECK:
             m_value = n_value = 1
 
