@@ -15,23 +15,17 @@ class Node(object):
     def __init__(self, title, description=None, thumbnail=None, files=None):
         self.files = []
         self.children = []
+        self.descendants = []
         self.parent = None
         self.node_id = None
         self.content_id = None
         self.title = title
         self.description = description or ""
-        self.thumbnail = thumbnail
 
         for f in files or []:
             self.add_file(f)
 
-        # Add thumbnail (create model if it's just a path)
-        if isinstance(self.thumbnail, str):
-            from .files import ThumbnailFile
-            self.thumbnail = ThumbnailFile(path=self.thumbnail)
-
-        if self.thumbnail:
-            self.add_file(self.thumbnail)
+        self.set_thumbnail(thumbnail)
 
     def __str__(self):
         count = self.count()
@@ -62,7 +56,28 @@ class Node(object):
         from .files import File
         assert isinstance(file_to_add, File), "Files being added must be instances of a subclass of File class"
         file_to_add.node = self
-        self.files.append(file_to_add)
+        if file_to_add not in self.files:
+            self.files.append(file_to_add)
+
+    def derive_thumbnail(self):
+        pass
+
+    def has_thumbnail(self):
+        from .files import ThumbnailFile
+        return any(f for f in self.files if isinstance(f, ThumbnailFile))
+
+    def set_thumbnail(self, thumbnail):
+        """ set_thumbnail: Set node's thumbnail
+            Args: thumbnail (ThumbnailFile): file model to add to node
+            Returns: None
+        """
+        self.thumbnail = thumbnail
+        if isinstance(self.thumbnail, str):
+            from .files import ThumbnailFile
+            self.thumbnail = ThumbnailFile(path=self.thumbnail)
+
+        if self.thumbnail:
+            self.add_file(self.thumbnail)
 
     def process_files(self):
         """ process_files: Process node's files
@@ -72,6 +87,10 @@ class Node(object):
         filenames = []
         for f in self.files:
             filenames.append(f.process_file())
+
+        if not self.has_thumbnail() and config.THUMBNAILS:
+            filenames.append(self.derive_thumbnail())
+
         return filenames
 
     def count(self):
@@ -83,6 +102,15 @@ class Node(object):
         for child in self.children:
             total += child.count()
         return total
+
+    def get_non_topic_descendants(self):
+        if len(self.descendants) == 0:
+            for child_node in self.children:
+                if child_node.kind == content_kinds.TOPIC:
+                    self.descendants += child_node.get_non_topic_descendants()
+                elif child_node not in self.descendants:
+                    self.descendants.append(child_node)
+        return self.descendants
 
     def print_tree(self, indent=2):
         """ print_tree: prints out structure of tree
@@ -234,9 +262,10 @@ class TreeNode(Node):
             "source_domain": self.domain_ns.hex,
             "source_id": self.source_id,
             "author": self.author,
-            "files" : [f.to_dict() for f in filter(lambda x: x and x.filename, self.files)], # Filter out failed downloads
+            "files" : [f.to_dict() for f in self.files if f and f.filename], # Filter out failed downloads
             "kind": self.kind,
             "license": None,
+            "license_description": None,
             "copyright_holder": "",
             "questions": [],
             "extra_fields": {},
@@ -266,6 +295,10 @@ class TopicNode(TreeNode):
             thumbnail (str): local path or url to thumbnail image (optional)
     """
     kind = content_kinds.TOPIC
+    def derive_thumbnail(self):
+        from .files import TiledThumbnailFile
+        self.set_thumbnail(TiledThumbnailFile(self.get_non_topic_descendants()))
+        return self.thumbnail.get_filename()
 
     def validate(self):
         """ validate: Makes sure topic is valid
@@ -297,19 +330,19 @@ class ContentNode(TreeNode):
     """
     required_file_format = None
 
-    def __init__(self, source_id, title, license, **kwargs):
-        self.set_license(license)
+    def __init__(self, source_id, title, license, license_description=None, copyright_holder=None, **kwargs):
+        self.set_license(license, copyright_holder=copyright_holder, description=license_description)
         super(ContentNode, self).__init__(source_id, title, **kwargs)
 
     def __str__(self):
         metadata = "{0} {1}".format(len(self.files), "file" if len(self.files) == 1 else "files")
         return "{title} ({kind}): {metadata}".format(title=self.title, kind=self.__class__.__name__, metadata=metadata)
 
-    def set_license(self, license):
+    def set_license(self, license, copyright_holder=None, description=None):
         # Add license (create model if it's just a path)
         if isinstance(license, str):
             from .licenses import get_license
-            license = get_license(license)
+            license = get_license(license, copyright_holder=copyright_holder, description=description)
         self.license = license
 
     def validate(self):
@@ -341,6 +374,7 @@ class ContentNode(TreeNode):
             "files" : [f.to_dict() for f in filter(lambda x: x and x.filename, self.files)], # Filter out failed downloads
             "kind": self.kind,
             "license": self.license.license_id,
+            "license_description": self.license.description,
             "copyright_holder": self.license.copyright_holder,
             "questions": [question.to_dict() for question in self.questions],
             "extra_fields": json.dumps(self.extra_fields),
@@ -368,7 +402,7 @@ class VideoNode(ContentNode):
     required_file_format = file_formats.MP4
 
     def __init__(self, source_id, title, license, derive_thumbnail=False, **kwargs):
-        self.derive_thumbnail = derive_thumbnail
+        self.generate_thumbnail = derive_thumbnail
         super(VideoNode, self).__init__(source_id, title, license, **kwargs)
 
     def process_files(self):
@@ -376,20 +410,22 @@ class VideoNode(ContentNode):
             Args: None
             Returns: None
         """
-        from .files import VideoFile, ThumbnailFile, ExtractedVideoThumbnailFile, YouTubeVideoFile
+        from .files import VideoFile, ExtractedVideoThumbnailFile, WebVideoFile
 
         downloaded = super(VideoNode, self).process_files()
 
-        # Extract thumbnail if one hasn't been provided and derive_thumbnail is set
-        if self.derive_thumbnail and any(f for f in self.files if isinstance(f, ThumbnailFile)):
-            videos = list(filter(lambda f: isinstance(f, VideoFile) or isinstance(f, YouTubeVideoFile), self.files))
+        try:
+            # Extract thumbnail if one hasn't been provided and derive_thumbnail is set
+            if self.generate_thumbnail and not self.has_thumbnail():
+                videos = [f for f in self.files if isinstance(f, VideoFile) or isinstance(f, WebVideoFile)]
+                assert len(videos) > 0 and videos[0].filename, "Cannot extract thumbnail (No videos found on node {0})".format(self.source_id)
 
-            if len(videos) > 0 and videos[0].filename:
-                thumbnail = ExtractedVideoThumbnailFile(config.get_storage_path(videos[0].filename))
-                self.add_file(thumbnail)
-                downloaded.append(thumbnail.process_file())
-            else:
-                config.LOGGER.warning("\tWARNING: Cannot extract thumbnail (No videos found on node {0})".format(self.source_id))
+                self.set_thumbnail(ExtractedVideoThumbnailFile(config.get_storage_path(videos[0].filename)))
+                downloaded.append(self.thumbnail.get_filename())
+
+        except AssertionError as ae:
+            config.LOGGER.warning(ae)
+
         return downloaded
 
     def validate(self):

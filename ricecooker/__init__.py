@@ -2,4 +2,4 @@
 
 __author__ = 'Learning Equality'
 __email__ = 'jordan@learningequality.org'
-__version__ = '0.5.1'
+__version__ = '0.5.4'

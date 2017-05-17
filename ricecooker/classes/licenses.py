@@ -3,7 +3,7 @@
 from ..exceptions import UnknownLicenseError
 from le_utils.constants import licenses
 
-def get_license(license_id, copyright_holder=None):
+def get_license(license_id, copyright_holder=None, description=None):
     if license_id == licenses.CC_BY:
         return CC_BYLicense(copyright_holder=copyright_holder)
     elif license_id == licenses.CC_BY_SA:
@@ -20,6 +20,8 @@ def get_license(license_id, copyright_holder=None):
         return AllRightsLicense(copyright_holder=copyright_holder)
     elif license_id == licenses.PUBLIC_DOMAIN:
         return PublicDomainLicense(copyright_holder=copyright_holder)
+    elif license_id == licenses.SPECIAL_PERMISSIONS:
+        return SpecialPermissionsLicense(copyright_holder=copyright_holder, description=description)
     else:
         raise UnknownLicenseError("{} is not a valid license id. (Valid license are {})".format(license_id, [l[0] for l in licenses.choices]))
 
@@ -27,9 +29,11 @@ def get_license(license_id, copyright_holder=None):
 class License(object):
     license_id = None # (str): content's license based on le_utils.constants.licenses
     copyright_holder = None # (str): name of person or organization who owns license (optional)
+    description = None # (str): description of the license (optional)
 
-    def __init__(self, copyright_holder=None):
+    def __init__(self, copyright_holder=None, description=None):
         self.copyright_holder = copyright_holder or ""
+        self.description = description
 
     def get_id(self):
         return self.license_id
@@ -125,3 +129,15 @@ class PublicDomainLicense(License):
         Reference: https://creativecommons.org/publicdomain/mark/1.0
     """
     license_id = licenses.PUBLIC_DOMAIN
+
+class SpecialPermissionsLicense(License):
+    """
+        Special Permissions is a custom license to use when the current licenses
+        do not apply to the content. The owner of this license is responsible for
+        creating a description of what this license entails.
+    """
+    license_id = licenses.SPECIAL_PERMISSIONS
+
+    def __init__(self, copyright_holder=None, description=None):
+        assert description, "Special Permissions licenses must have a description"
+        super(SpecialPermissionsLicense, self).__init__(copyright_holder=copyright_holder, description=description)

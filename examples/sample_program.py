@@ -190,13 +190,14 @@ EXERCISES_NODES = [
                         "type":exercises.SINGLE_SELECTION,
                         "correct_answer": "Rice Krispies \n![](https://upload.wikimedia.org/wikipedia/commons/c/cd/RKTsquares.jpg)",
                         "all_answers": [
-                            "White rice \n![](web+graphie:file:///C:/users/jordan/contentcuration-dump/0a0c0f1a1a40226d8d227a07dd143f8c08a4b8a5)![](web+graphie:file:///C:/users/jordan/contentcuration-dump/0a0c0f1a1a40226d8d227a07dd143f8c08a4b8a5 - Copy)![](web+graphie:file:///C:/users/jordan/contentcuration-dump/0a0c0f1a1a40226d8d227a07dd143f8c08a4b8a5)",
+                            "White rice \n![](web+graphie:file:///C:/users/jordan/contentcuration-dump/0a0c0f1a1a40226d8d227a07dd143f8c08a4b8a5)![](web+graphie:file:///C:/users/jordan/contentcuration-dump/0a0c0f1a1a40226d8d227a07dd143f8c08a4b8a5)",
                             "Brown rice \n![](https://c2.staticflickr.com/4/3159/2889140143_b99fd8dd4c_z.jpg?zz=1)",
                             "Rice Krispies \n![](https://upload.wikimedia.org/wikipedia/commons/c/cd/RKTsquares.jpg)"
                         ],
                         "hints": "It's delicious",
                     },
                     {
+
                         "id": "aaaaa",
                         "question": "How many minutes does it take to cook rice? ![](https://upload.wikimedia.org/wikipedia/commons/5/5e/Jeera-rice.JPG)",
                         "type":exercises.INPUT_QUESTION,
@@ -328,7 +329,7 @@ def _build_tree(node, sourcetree):
             child_node = nodes.VideoNode(
                 source_id=child_source_node["id"],
                 title=child_source_node["title"],
-                license=child_source_node.get("license"),
+                license=get_license(child_source_node.get("license"), description="Description of license"),
                 author=child_source_node.get("author"),
                 description=child_source_node.get("description"),
                 derive_thumbnail=True, # video-specific data

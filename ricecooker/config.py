@@ -10,6 +10,7 @@ from requests_file import FileAdapter
 
 UPDATE = False
 COMPRESS = False
+THUMBNAILS = False
 PROGRESS_MANAGER = None
 LOGGER = logging.getLogger()
 
