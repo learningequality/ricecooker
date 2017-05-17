@@ -370,6 +370,8 @@ class ContentNode(TreeNode):
             "description": self.description,
             "node_id": self.get_node_id().hex,
             "content_id": self.get_content_id().hex,
+            "source_domain": self.domain_ns.hex,
+            "source_id": self.source_id,
             "author": self.author,
             "files" : [f.to_dict() for f in filter(lambda x: x and x.filename, self.files)], # Filter out failed downloads
             "kind": self.kind,
@@ -628,6 +630,8 @@ class ExerciseNode(ContentNode):
             m_value = n_value = 5
         elif mastery_model == exercises.NUM_CORRECT_IN_A_ROW_3:
             m_value = n_value = 3
+        elif mastery_model == exercises.NUM_CORRECT_IN_A_ROW_2:
+            m_value = n_value = 2
         elif mastery_model == exercises.SKILL_CHECK:
             m_value = n_value = 1
 
