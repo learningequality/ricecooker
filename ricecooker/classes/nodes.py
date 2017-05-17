@@ -643,10 +643,8 @@ class ExerciseNode(ContentNode):
             assert self.kind == content_kinds.EXERCISE, "Assumption Failed: Node should be an exercise"
 
             # Check if questions are correct
-            questions_valid = True
-            for q in self.questions:
-                questions_valid = questions_valid and q.validate()
-            assert questions_valid, "Assumption Failed: Exercise does not have a question"
+            assert any(self.questions), "Assumption Failed: Exercise does not have a question"
+            assert all(filter(lambda q: q.validate(), self.questions)), "Assumption Failed: Exercise has invalid question"
             return super(ExerciseNode, self).validate()
         except AssertionError as ae:
             raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
