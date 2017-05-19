@@ -1,5 +1,5 @@
 
-"""Usage: ricecooker uploadchannel [-huv] <file_path> [--warn] [--compress] [--token=<t>] [--thumbnails] [--download-attempts=<n>] [--resume [--step=<step>] | --reset] [--prompt] [--publish] [[OPTIONS] ...]
+"""Usage: ricecooker uploadchannel [-huv] <file_path> [--warn] [--do-not-activate] [--compress] [--token=<t>] [--thumbnails] [--download-attempts=<n>] [--resume [--step=<step>] | --reset] [--prompt] [--publish] [[OPTIONS] ...]
 
 Arguments:
   file_path        Path to file with channel data
@@ -9,6 +9,7 @@ Options:
   -v                          Verbose mode
   -u                          Re-download files from file paths
   --warn                      Print out warnings to stderr
+  --do-not-activate           Don't commit tree until user verifies it through Kolibri Studio
   --compress                  Compress high resolution videos to low resolution videos
   --thumbnails                Automatically generate thumbnails for topics
   --token=<t>                 Authorization token (can be token or path to file with token) [default: #]
@@ -81,4 +82,5 @@ if __name__ == '__main__':
                   publish=arguments['--publish'],
                   warnings=arguments['--warn'],
                   compress=arguments['--compress'],
+                  no_activate=arguments['--do-not-activate'],
                   **kwargs)

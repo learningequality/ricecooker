@@ -112,24 +112,29 @@ class ChannelManager:
             config.LOGGER.info("\nReattempting to upload {0} file(s)...".format(len(self.failed_uploads)))
             self.upload_files(self.failed_uploads)
 
-    def upload_tree(self):
+    def upload_tree(self, no_activate):
         """ upload_tree: sends processed channel data to server to create tree
-            Args: None
+            Args: no_activate (bool) determine whether to make tree live
             Returns: link to uploadedchannel
         """
+        from datetime import datetime
+        start_time = datetime.now()
         root, channel_id = self.add_channel()
+        self.node_count_dict = {"upload_count": 0, "total_count": self.channel.count()}
         self.add_nodes(root, self.channel)
         if self.check_failed(print_warning=False):
             failed = self.failed_node_builds
             self.failed_node_builds = []
             self.reattempt_failed(failed)
             self.check_failed()
-        channel_id, channel_link = self.commit_channel(channel_id)
+        channel_id, channel_link = self.commit_channel(channel_id, no_activate)
+        end_time = datetime.now()
+        logging.info("Upload time: {time}s".format(time=(end_time - start_time).total_seconds()))
         return channel_id, channel_link
 
     def reattempt_failed(self, failed):
         for node in failed:
-            config.LOGGER.info("\tReattempting {0}".format(str(node[1])))
+            config.LOGGER.info("\tReattempting {0}s".format(str(node[1])))
             for f in node[1].files:
                 # Attempt to upload file
                 try:
@@ -183,7 +188,13 @@ class ChannelManager:
         if not current_node.children:
             return
 
-        config.LOGGER.info("{indent}Processing {title} ({kind})".format(indent="   " * indent, title=current_node.title, kind=current_node.__class__.__name__))
+        config.LOGGER.info("({count} of {total} uploaded) {indent}Processing {title} ({kind})".format(
+            count=self.node_count_dict['upload_count'],
+            total=self.node_count_dict['total_count'],
+            indent="   " * indent,
+            title=current_node.title,
+            kind=current_node.__class__.__name__)
+        )
 
         # Send children in chunks to avoid gateway errors
         try:
@@ -198,13 +209,14 @@ class ChannelManager:
                     self.failed_node_builds += [(root_id, current_node, response.reason)]
                 else:
                     response_json = json.loads(response._content.decode("utf-8"))
+                    self.node_count_dict['upload_count'] += len(chunk)
 
                     for child in chunk:
                         self.add_nodes(response_json['root_ids'].get(child.get_node_id().hex), child, indent + 1)
         except ConnectionError as ce:
             self.failed_node_builds += [(root_id, current_node, ce)]
 
-    def commit_channel(self, channel_id):
+    def commit_channel(self, channel_id, no_activate):
         """ commit_channel: commits channel to Kolibri Studio
             Args:
                 channel_id (str): channel's id on Kolibri Studio
@@ -212,6 +224,7 @@ class ChannelManager:
         """
         payload = {
             "channel_id":channel_id,
+            "no_activate": no_activate,
         }
         response = config.SESSION.post(config.finish_channel_url(), data=json.dumps(payload))
         response.raise_for_status()

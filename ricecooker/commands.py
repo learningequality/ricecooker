@@ -18,7 +18,7 @@ try:
 except NameError:
     pass
 
-def uploadchannel(path, verbose=False, update=False, thumbnails=False, download_attempts=3, resume=False, reset=False, step=Status.LAST.name, token="#", prompt=False, publish=False, warnings=False, compress=False, **kwargs):
+def uploadchannel(path, verbose=False, update=False, thumbnails=False, download_attempts=3, resume=False, reset=False, step=Status.LAST.name, token="#", prompt=False, publish=False, warnings=False, compress=False, no_activate=False, **kwargs):
     """ uploadchannel: Upload channel to Kolibri Studio server
         Args:
             path (str): path to file containing construct_channel method
@@ -107,7 +107,7 @@ def uploadchannel(path, verbose=False, update=False, thumbnails=False, download_
 
     # Create channel on Kolibri Studio if it hasn't been created already
     if config.PROGRESS_MANAGER.get_status_val() <= Status.UPLOAD_CHANNEL.value:
-        config.PROGRESS_MANAGER.set_channel_created(*create_tree(tree))
+        config.PROGRESS_MANAGER.set_channel_created(*create_tree(tree, no_activate))
     channel_link = config.PROGRESS_MANAGER.channel_link
     channel_id = config.PROGRESS_MANAGER.channel_id
 
@@ -258,7 +258,7 @@ def upload_files(tree, file_diff):
     tree.reattempt_upload_fails()
     return file_diff
 
-def create_tree(tree):
+def create_tree(tree, no_activate):
     """ create_tree: Upload tree to Kolibri Studio
         Args:
             tree (ChannelManager): manager to handle communication to Kolibri Studio
@@ -266,7 +266,7 @@ def create_tree(tree):
     """
     # Create tree
     config.LOGGER.info("\nCreating tree on Kolibri Studio...")
-    channel_id, channel_link = tree.upload_tree()
+    channel_id, channel_link = tree.upload_tree(no_activate)
 
     return channel_link, channel_id
 
