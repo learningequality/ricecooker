@@ -49,6 +49,7 @@ def uploadchannel(path, verbose=False, update=False, thumbnails=False, download_
     config.UPDATE = update
     config.COMPRESS = compress
     config.THUMBNAILS = thumbnails
+    config.NO_ACTIVATE = no_activate
 
     # Set max retries for downloading
     config.DOWNLOAD_SESSION.mount('http://', requests.adapters.HTTPAdapter(max_retries=int(download_attempts)))

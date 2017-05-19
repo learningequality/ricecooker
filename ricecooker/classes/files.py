@@ -10,7 +10,7 @@ import youtube_dl
 import requests
 import zipfile
 from subprocess import CalledProcessError
-from le_utils.constants import content_kinds,file_formats, format_presets, exercises
+from le_utils.constants import content_kinds,file_formats, format_presets, exercises, languages
 from .. import config
 from .nodes import ChannelNode, TopicNode, VideoNode, AudioNode, DocumentNode, ExerciseNode, HTML5AppNode
 from ..exceptions import UnknownFileTypeError
@@ -189,9 +189,16 @@ class File(object):
 
     def __init__(self, preset=None, language=None, default_ext=None, source_url=None):
         self.preset = preset
-        self.language = language
+        self.set_language(language)
         self.default_ext = default_ext or self.default_ext
         self.source_url = source_url
+
+    def set_language(self, language):
+        self.language = language
+        if isinstance(self.language, str):
+            self.language = languages.getlang(language)
+        if isinstance(self.language, languages.Language):
+            self.language = self.language.code
 
     def validate(self):
         pass
