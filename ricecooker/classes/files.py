@@ -197,6 +197,8 @@ class File(object):
         self.language = language
         if isinstance(self.language, str):
             self.language = languages.getlang(language)
+            if not self.language:
+                raise TypeError("Language {} is not found".format(language))
         if isinstance(self.language, languages.Language):
             self.language = self.language.code
 
@@ -288,15 +290,20 @@ class HTMLZipFile(DownloadFile):
     def get_preset(self):
         return self.preset or format_presets.HTML5_ZIP
 
-    def validate(self):
-        super(HTMLZipFile, self).validate()
+     def process_file(self):
+        self.filename = super(HTMLZipFile, self).process_file()
 
         # make sure index.html exists
-        with zipfile.ZipFile(self.path) as zf:
+        with zipfile.ZipFile(config.get_storage_path(self.filename)) as zf:
             try:
                 info = zf.getinfo('index.html')
             except KeyError:
-                assert False, "Assumption Failed: HTML zip must have an `index.html` file at topmost level"
+                raise IOError("HTML zip must have an `index.html` file at topmost level")
+
+        return self.filename
+
+    def validate(self):
+        super(HTMLZipFile, self).validate()
 
 class ExtractedVideoThumbnailFile(ThumbnailFile):
 
