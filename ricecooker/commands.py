@@ -83,7 +83,6 @@ def uploadchannel(path, verbose=False, update=False, thumbnails=False, download_
     if config.PROGRESS_MANAGER.get_status_val() <= Status.CONSTRUCT_CHANNEL.value:
         config.PROGRESS_MANAGER.set_channel(run_construct_channel(path, kwargs))
     channel = config.PROGRESS_MANAGER.channel
-    config.MONITOR.set_source_id(channel.source_id)
 
     # Set initial tree if it hasn't been set already
     if config.PROGRESS_MANAGER.get_status_val() <= Status.CREATE_TREE.value:
@@ -208,6 +207,7 @@ def run_construct_channel(path, kwargs):
     # Create channel (using method from imported file)
     config.LOGGER.info("Constructing channel... ")
     channel = mod.construct_channel(**kwargs)
+    config.MONITOR.set_source_id(channel.get_node_id().hex)
     return channel
 
 def create_initial_tree(channel):
