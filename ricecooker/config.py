@@ -12,6 +12,7 @@ UPDATE = False
 COMPRESS = False
 THUMBNAILS = False
 PROGRESS_MANAGER = None
+MONITOR = None
 LOGGER = logging.getLogger()
 
 # Domain and file store location for uploading to production server
@@ -62,6 +63,13 @@ FAILED_FILES = []
 # Session for downloading files
 DOWNLOAD_SESSION = requests.Session()
 DOWNLOAD_SESSION.mount('file://', FileAdapter())
+
+# Monitor/control server
+DASHBOARD_DOMAIN = os.getenv('RICECOOKER_DASHBOARD_URL', "http://127.0.0.1:8000")
+DASHBOARD_USER = os.getenv('RICECOOKER_DASHBOARD_USER', "demo")
+DASHBOARD_PASSWORD = os.getenv('RICECOOKER_DASHBOARD_PASSWORD', "demodemo")
+
+DASHBOARD_PROGRESS_URL = "{domain}/api/run_event/"
 
 
 def get_storage_path(filename):
@@ -162,3 +170,9 @@ def publish_channel_url():
         Returns: string url to publish channel
     """
     return PUBLISH_CHANNEL_URL.format(domain=DOMAIN)
+
+def dashboard_progress_url():
+    """
+    Returns the url to report the progress of a sushi chef 
+    """
+    return DASHBOARD_PROGRESS_URL.format(domain=DASHBOARD_DOMAIN)

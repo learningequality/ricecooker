@@ -98,3 +98,6 @@ node_modules/
 sushi_chefs/
 .webcache
 .ricecookerfilecache
+
+# Pycharm project settings
+.idea/

@@ -1,6 +1,5 @@
 import pickle
 import os
-import sys
 from enum import Enum
 from .. import config
 
@@ -85,6 +84,7 @@ class RestoreManager:
             Args: None
             Returns: None
         """
+        config.MONITOR.report_progress(self.get_status())
         with open(self.get_restore_path(Status.LAST), 'wb') as handle, open(self.get_restore_path(), 'wb') as step_handle:
             pickle.dump(self, handle)
             pickle.dump(self, step_handle)
