@@ -207,7 +207,7 @@ def run_construct_channel(path, kwargs):
     # Create channel (using method from imported file)
     config.LOGGER.info("Constructing channel... ")
     channel = mod.construct_channel(**kwargs)
-    config.MONITOR.set_source_id(channel.get_node_id().hex)
+    config.MONITOR.set_channel_id(channel.get_node_id().hex)
     return channel
 
 def create_initial_tree(channel):
