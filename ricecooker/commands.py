@@ -9,7 +9,7 @@ from .classes import nodes, questions
 from requests.exceptions import HTTPError
 from .managers.progress import RestoreManager, Status
 from .managers.tree import ChannelManager
-from .monitor import Monitor
+from .dashboard_client import DashboardClient
 from importlib.machinery import SourceFileLoader
 
 # Fix to support Python 2.x.
@@ -39,14 +39,14 @@ def uploadchannel(path, verbose=False, update=False, thumbnails=False, download_
         Returns: (str) link to access newly created channel
     """
 
+    # Set dashboard client settings
+    config.DASHBOARD_CLIENT = DashboardClient(token)
+
     # Set configuration settings
     level = logging.INFO if verbose else logging.WARNING if warnings else logging.ERROR
     config.LOGGER.addHandler(logging.StreamHandler())
     logging.getLogger("requests").setLevel(logging.WARNING)
     config.LOGGER.setLevel(level)
-
-    #Set monitor settings
-    config.MONITOR = Monitor(token)
 
     # Mount file:// to allow local path requests
     config.SESSION.headers.update({"Authorization": "Token {0}".format(token)})
@@ -83,7 +83,7 @@ def uploadchannel(path, verbose=False, update=False, thumbnails=False, download_
     if config.PROGRESS_MANAGER.get_status_val() <= Status.CONSTRUCT_CHANNEL.value:
         config.PROGRESS_MANAGER.set_channel(run_construct_channel(path, kwargs))
     channel = config.PROGRESS_MANAGER.channel
-    config.MONITOR.set_channel_id(channel.get_node_id().hex)
+    config.DASHBOARD_CLIENT.set_channel_id(channel.get_node_id().hex)
 
     # Set initial tree if it hasn't been set already
     if config.PROGRESS_MANAGER.get_status_val() <= Status.CREATE_TREE.value:
@@ -208,7 +208,6 @@ def run_construct_channel(path, kwargs):
     # Create channel (using method from imported file)
     config.LOGGER.info("Constructing channel... ")
     channel = mod.construct_channel(**kwargs)
-    config.MONITOR.set_channel_id(channel.get_node_id().hex)
     return channel
 
 def create_initial_tree(channel):

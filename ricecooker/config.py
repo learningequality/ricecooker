@@ -12,7 +12,7 @@ UPDATE = False
 COMPRESS = False
 THUMBNAILS = False
 PROGRESS_MANAGER = None
-MONITOR = None
+DASHBOARD_CLIENT = None
 LOGGER = logging.getLogger()
 
 # Domain and file store location for uploading to production server
