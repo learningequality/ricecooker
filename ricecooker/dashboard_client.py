@@ -12,15 +12,13 @@ class DashboardClient(object):
     """Sends events/logs to the dashboard server."""
 
     def __init__(self, token):
-        """Sends a post request to create the channel run."""
         self.token = token
         self.channel_id = None
-        self.run_id = None
-        self.log_handler = None
-        self.get_run_id()
-        self.config_logger()
+        self.run_id = self.__get_run_id()
+        self.log_handler = self.__config_logger()
 
-    def get_run_id(self):
+    def __get_run_id(self):
+        """Sends a post request to create the channel run."""
         data = {'token': self.token}
         try:
             response = requests.post(
@@ -28,15 +26,17 @@ class DashboardClient(object):
                 data=data,
                 auth=AUTH)
             config.LOGGER.info('Create channel run: %s' % response.status_code)
-            self.run_id = response.json()['id']
+            return response.json()['id']
         except Exception as e:
             config.LOGGER.error('Error channel run: %s' % e)
+        return None
 
-    def config_logger(self):
+    def __config_logger(self):
         if not self.run_id:
-            return
-        self.log_handler = LoggingHandler(self.run_id)
-        config.LOGGER.addHandler(self.log_handler)
+            return None
+        log_handler = LoggingHandler(self.run_id)
+        config.LOGGER.addHandler(log_handler)
+        return log_handler
 
     def set_channel_id(self, channel_id):
         """Updates the channel run with the channel id"""
@@ -73,10 +73,13 @@ class DashboardClient(object):
             config.LOGGER.error('Error event: %s' % e)
 
     def report_construct_channel_progress(self, progress):
+        """Helper function that allows a sushi chef to report its progress
+        while constructing a channel."""
         self.report_event(Status.CONSTRUCT_CHANNEL, progress)
 
 
 class LoggingHandler(logging.Handler):
+    """Sends logs to the dashboard server."""
     def __init__(self, run_id):
         logging.Handler.__init__(self)
         self.run_id = run_id
