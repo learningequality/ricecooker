@@ -3,7 +3,6 @@ import requests
 import logging.handlers
 
 from . import config
-from .managers.progress import Status
 
 AUTH = (config.DASHBOARD_USER, config.DASHBOARD_PASSWORD)
 
@@ -11,14 +10,14 @@ AUTH = (config.DASHBOARD_USER, config.DASHBOARD_PASSWORD)
 class SushiBarClient(object):
     """Sends events/logs to the dashboard server."""
 
-    def __init__(self, token):
-        self.token = token
-        self.run_id = None
-        self.log_handler = None
+    def __init__(self, channel, token):
+        channel_pk = self.__create_channel(channel)
+        self.run_id = self.__create_channel_run(channel_pk, token)
+        self.log_handler = self.__config_logger()
 
-    def __create_channel(self, channel_id):
+    def __create_channel(self, channel):
         data = {
-            'channel_id': channel_id,
+            'channel_id': channel.get_node_id().hex,
         }
         try:
             response = requests.post(
@@ -31,9 +30,9 @@ class SushiBarClient(object):
             config.LOGGER.error('Error channel: %s' % e)
         return None
 
-    def __create_run(self, channel_pk):
+    def __create_channel_run(self, channel_pk, token):
         """Sends a post request to create the channel run."""
-        data = {'channel': channel_pk, 'chef_name': 'x', 'token': self.token}
+        data = {'channel': channel_pk, 'chef_name': 'x', 'token': token}
         try:
             response = requests.post(
                 config.dashboard_channel_runs_url(),
@@ -51,12 +50,6 @@ class SushiBarClient(object):
         log_handler = LoggingHandler(self.run_id)
         config.LOGGER.addHandler(log_handler)
         return log_handler
-
-    def set_channel_id(self, channel_id):
-        """Updates the channel run with the channel id"""
-        channel_pk = self.__create_channel(channel_id)
-        self.run_id = self.__create_run(channel_pk)
-        self.log_handler = self.__config_logger()
 
     def report_stage(self, stage, duration):
         if not self.run_id:

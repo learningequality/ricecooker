@@ -40,7 +40,8 @@ def uploadchannel(path, verbose=False, update=False, thumbnails=False, download_
     """
 
     # Set dashboard client settings
-    config.DASHBOARD_CLIENT = SushiBarClient(token)
+    channel = run_construct_channel(path, kwargs)
+    config.DASHBOARD_CLIENT = SushiBarClient(channel, token)
 
     # Set configuration settings
     level = logging.INFO if verbose else logging.WARNING if warnings else logging.ERROR
@@ -81,9 +82,8 @@ def uploadchannel(path, verbose=False, update=False, thumbnails=False, download_
 
     # Construct channel if it hasn't been constructed already
     if config.PROGRESS_MANAGER.get_status_val() <= Status.CONSTRUCT_CHANNEL.value:
-        config.PROGRESS_MANAGER.set_channel(run_construct_channel(path, kwargs))
+        config.PROGRESS_MANAGER.set_channel(run_populate_channel(channel, path, kwargs))
     channel = config.PROGRESS_MANAGER.channel
-    config.DASHBOARD_CLIENT.set_channel_id(channel.get_node_id().hex)
 
     # Set initial tree if it hasn't been set already
     if config.PROGRESS_MANAGER.get_status_val() <= Status.CREATE_TREE.value:
@@ -200,7 +200,7 @@ def run_construct_channel(path, kwargs):
         Args:
             path (str): path to sushi chef file
             kwargs (dict): additional keyword arguments
-        Returns: channel created from contruct_channel method
+        Returns: channel created from construct_channel method
     """
     # Read in file to access create_channel method
     mod = SourceFileLoader("mod", path).load_module()
@@ -208,6 +208,21 @@ def run_construct_channel(path, kwargs):
     # Create channel (using method from imported file)
     config.LOGGER.info("Constructing channel... ")
     channel = mod.construct_channel(**kwargs)
+    return channel
+
+def run_populate_channel(channel, path, kwargs):
+    """ run_populate_channel: Run sushi chef's populate_channel method
+        Args:
+            path (str): path to sushi chef file
+            kwargs (dict): additional keyword arguments
+        Returns: channel populated from populate_channel method
+    """
+    # Read in file to access create_channel method
+    mod = SourceFileLoader("mod", path).load_module()
+
+    # Create channel (using method from imported file)
+    config.LOGGER.info("Populating channel... ")
+    channel = mod.populate_channel(channel, **kwargs)
     return channel
 
 def create_initial_tree(channel):
