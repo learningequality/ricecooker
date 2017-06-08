@@ -9,7 +9,7 @@ from .classes import nodes, questions
 from requests.exceptions import HTTPError
 from .managers.progress import RestoreManager, Status
 from .managers.tree import ChannelManager
-from .dashboard_client import DashboardClient
+from .sushi_bar_client import SushiBarClient
 from importlib.machinery import SourceFileLoader
 
 # Fix to support Python 2.x.
@@ -40,7 +40,7 @@ def uploadchannel(path, verbose=False, update=False, thumbnails=False, download_
     """
 
     # Set dashboard client settings
-    config.DASHBOARD_CLIENT = DashboardClient(token)
+    config.DASHBOARD_CLIENT = SushiBarClient(token)
 
     # Set configuration settings
     level = logging.INFO if verbose else logging.WARNING if warnings else logging.ERROR

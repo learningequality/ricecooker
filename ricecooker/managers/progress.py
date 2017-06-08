@@ -84,7 +84,7 @@ class RestoreManager:
             Args: None
             Returns: None
         """
-        config.DASHBOARD_CLIENT.report_event(self.get_status(), 0)
+        config.DASHBOARD_CLIENT.report_stage(self.get_status(), 0)
         with open(self.get_restore_path(Status.LAST), 'wb') as handle, open(self.get_restore_path(), 'wb') as step_handle:
             pickle.dump(self, handle)
             pickle.dump(self, step_handle)

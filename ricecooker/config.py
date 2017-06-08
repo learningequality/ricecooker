@@ -69,8 +69,9 @@ DASHBOARD_DOMAIN = os.getenv('RICECOOKER_DASHBOARD_URL', "http://127.0.0.1:8000"
 DASHBOARD_USER = os.getenv('RICECOOKER_DASHBOARD_USER', "demo")
 DASHBOARD_PASSWORD = os.getenv('RICECOOKER_DASHBOARD_PASSWORD', "demodemo")
 
+DASHBOARD_CHANNEL_URL = "{domain}/api/channels/"
 DASHBOARD_CHANNEL_RUNS_URL = "{domain}/api/channelruns/"
-DASHBOARD_EVENTS_URL = "{domain}/api/events/"
+DASHBOARD_STAGES_URL = "{domain}/api/stages/"
 DASHBOARD_LOGS_URL = "{domain}/api/logs/"
 
 
@@ -173,6 +174,12 @@ def publish_channel_url():
     """
     return PUBLISH_CHANNEL_URL.format(domain=DOMAIN)
 
+def dashboard_channels_url():
+    """
+    Returns the url to report the progress of a sushi chef 
+    """
+    return DASHBOARD_CHANNEL_URL.format(domain=DASHBOARD_DOMAIN)
+
 def dashboard_channel_runs_url():
     """
     Returns the url to report the progress of a sushi chef 
@@ -183,7 +190,7 @@ def dashboard_events_url():
     """
     Returns the url to report the progress of a sushi chef 
     """
-    return DASHBOARD_EVENTS_URL.format(domain=DASHBOARD_DOMAIN)
+    return DASHBOARD_STAGES_URL.format(domain=DASHBOARD_DOMAIN)
 
 def dashboard_logs_url():
     """

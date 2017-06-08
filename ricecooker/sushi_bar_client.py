@@ -8,25 +8,39 @@ from .managers.progress import Status
 AUTH = (config.DASHBOARD_USER, config.DASHBOARD_PASSWORD)
 
 
-class DashboardClient(object):
+class SushiBarClient(object):
     """Sends events/logs to the dashboard server."""
 
     def __init__(self, token):
         self.token = token
-        self.channel_id = None
-        self.run_id = self.__get_run_id()
-        self.log_handler = self.__config_logger()
+        self.run_id = None
+        self.log_handler = None
 
-    def __get_run_id(self):
+    def __create_channel(self, channel_id):
+        data = {
+            'channel_id': channel_id,
+        }
+        try:
+            response = requests.post(
+                config.dashboard_channels_url(),
+                data=data,
+                auth=AUTH)
+            config.LOGGER.info('Create channel: %s' % response.status_code)
+            return response.json()['id']
+        except Exception as e:
+            config.LOGGER.error('Error channel: %s' % e)
+        return None
+
+    def __create_run(self, channel_pk):
         """Sends a post request to create the channel run."""
-        data = {'token': self.token}
+        data = {'channel': channel_pk, 'chef_name': 'x', 'token': self.token}
         try:
             response = requests.post(
                 config.dashboard_channel_runs_url(),
                 data=data,
                 auth=AUTH)
             config.LOGGER.info('Create channel run: %s' % response.status_code)
-            return response.json()['id']
+            return response.json()['run_id']
         except Exception as e:
             config.LOGGER.error('Error channel run: %s' % e)
         return None
@@ -40,28 +54,18 @@ class DashboardClient(object):
 
     def set_channel_id(self, channel_id):
         """Updates the channel run with the channel id"""
-        if not self.run_id:
-            return
-        self.channel_id = channel_id
-        data = {'token': self.token, 'channel_id': self.channel_id}
-        try:
-            response = requests.put(
-                config.dashboard_channel_runs_url() + str(self.run_id) + '/',
-                data=data,
-                auth=AUTH)
-            config.LOGGER.info('Update channel run : %s' % response.status_code)
-        except Exception as e:
-            config.LOGGER.error('Error channel run: %s' % e)
+        channel_pk = self.__create_channel(channel_id)
+        self.run_id = self.__create_run(channel_pk)
+        self.log_handler = self.__config_logger()
 
-    def report_event(self, event, progress):
+    def report_stage(self, stage, duration):
         if not self.run_id:
             return
         now = datetime.datetime.now()
         data = {
             'run_id': self.run_id,
-            'event': event,
-            'progress': progress,
-            'timestamp': now
+            'stage': stage,
+            'duration': duration,
         }
         try:
             response = requests.post(
@@ -72,14 +76,10 @@ class DashboardClient(object):
         except Exception as e:
             config.LOGGER.error('Error event: %s' % e)
 
-    def report_construct_channel_progress(self, progress):
-        """Helper function that allows a sushi chef to report its progress
-        while constructing a channel."""
-        self.report_event(Status.CONSTRUCT_CHANNEL, progress)
-
 
 class LoggingHandler(logging.Handler):
     """Sends logs to the dashboard server."""
+
     def __init__(self, run_id):
         logging.Handler.__init__(self)
         self.run_id = run_id
