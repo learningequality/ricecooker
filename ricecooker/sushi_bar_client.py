@@ -3,6 +3,7 @@ import requests
 import logging.handlers
 
 from . import config
+from . import __version__
 
 AUTH = (config.DASHBOARD_USER, config.DASHBOARD_PASSWORD)
 
@@ -10,35 +11,59 @@ AUTH = (config.DASHBOARD_USER, config.DASHBOARD_PASSWORD)
 class SushiBarClient(object):
     """Sends events/logs to the dashboard server."""
 
-    def __init__(self, channel, token):
-        channel_pk = self.__create_channel(channel)
-        self.run_id = self.__create_channel_run(channel_pk, token)
+    def __init__(self, channel, username, token):
+        self.run_id = None
+        if self.__create_channel_if_needed(channel, username, token):
+            self.run_id = self.__create_channel_run(channel, token)
         self.log_handler = self.__config_logger()
 
-    def __create_channel(self, channel):
+    def __create_channel_if_needed(self, channel, username, token):
+        if not self.__channel_exists(channel):
+            return self.__create_channel(channel, username, token)
+        return True
+
+    def __channel_exists(self, channel):
+        url = config.dashboard_channels_url() + channel.get_node_id().hex +'/'
+        try:
+            response = requests.get(url, auth=AUTH)
+            return True if response.status_code == 200 else False
+        except Exception as e:
+            config.LOGGER.error('Error channel exists: %s' % e)
+        return False, None
+
+    def __create_channel(self, channel, username, token):
         data = {
             'channel_id': channel.get_node_id().hex,
+            'name': channel.title,
+            'description': channel.description,
+            'source_domain': channel.source_domain,
+            'source_id': channel.source_id,
+            'user_registered_by': username,
+            'user_token': token,
+            'content_server': config.DOMAIN
         }
         try:
             response = requests.post(
                 config.dashboard_channels_url(),
                 data=data,
                 auth=AUTH)
-            config.LOGGER.info('Create channel: %s' % response.status_code)
-            return response.json()['id']
+            return True
         except Exception as e:
             config.LOGGER.error('Error channel: %s' % e)
-        return None
+        return False
 
-    def __create_channel_run(self, channel_pk, token):
+    def __create_channel_run(self, channel, token):
         """Sends a post request to create the channel run."""
-        data = {'channel': channel_pk, 'chef_name': 'x', 'token': token}
+        data = {
+            'channel_id': channel.get_node_id().hex,
+            'chef_name': 'x',
+            'token': token
+        }
         try:
             response = requests.post(
                 config.dashboard_channel_runs_url(),
                 data=data,
                 auth=AUTH)
-            config.LOGGER.info('Create channel run: %s' % response.status_code)
             return response.json()['run_id']
         except Exception as e:
             config.LOGGER.error('Error channel run: %s' % e)
@@ -54,7 +79,6 @@ class SushiBarClient(object):
     def report_stage(self, stage, duration):
         if not self.run_id:
             return
-        now = datetime.datetime.now()
         data = {
             'run_id': self.run_id,
             'stage': stage,
@@ -62,12 +86,11 @@ class SushiBarClient(object):
         }
         try:
             response = requests.post(
-                config.dashboard_events_url(),
+                config.dashboard_stages_url(self.run_id),
                 data=data,
                 auth=AUTH)
-            config.LOGGER.info('Create event: %s' % response.status_code)
         except Exception as e:
-            config.LOGGER.error('Error event: %s' % e)
+            config.LOGGER.error('Error stage: %s' % e)
 
 
 class LoggingHandler(logging.Handler):
@@ -82,7 +105,7 @@ class LoggingHandler(logging.Handler):
         data = self.format(record)
         try:
             requests.post(
-                config.dashboard_logs_url(),
+                config.dashboard_logs_url(self.run_id),
                 data=data,
                 auth=AUTH)
         except Exception as e:

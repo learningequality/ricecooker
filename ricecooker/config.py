@@ -66,13 +66,13 @@ DOWNLOAD_SESSION.mount('file://', FileAdapter())
 
 # Monitor/control server
 DASHBOARD_DOMAIN = os.getenv('RICECOOKER_DASHBOARD_URL', "http://127.0.0.1:8000")
-DASHBOARD_USER = os.getenv('RICECOOKER_DASHBOARD_USER', "demo")
-DASHBOARD_PASSWORD = os.getenv('RICECOOKER_DASHBOARD_PASSWORD', "demodemo")
+DASHBOARD_USER = os.getenv('RICECOOKER_DASHBOARD_USER', "acp")
+DASHBOARD_PASSWORD = os.getenv('RICECOOKER_DASHBOARD_PASSWORD', "test1234")
 
 DASHBOARD_CHANNEL_URL = "{domain}/api/channels/"
 DASHBOARD_CHANNEL_RUNS_URL = "{domain}/api/channelruns/"
-DASHBOARD_STAGES_URL = "{domain}/api/stages/"
-DASHBOARD_LOGS_URL = "{domain}/api/logs/"
+DASHBOARD_STAGES_URL = "{domain}/api/channelruns/{run_id}/stages/"
+DASHBOARD_LOGS_URL = "{domain}/api/channelruns/{run_id}/logs/"
 
 
 def get_storage_path(filename):
@@ -186,14 +186,14 @@ def dashboard_channel_runs_url():
     """
     return DASHBOARD_CHANNEL_RUNS_URL.format(domain=DASHBOARD_DOMAIN)
 
-def dashboard_events_url():
+def dashboard_stages_url(run_id):
     """
     Returns the url to report the progress of a sushi chef 
     """
-    return DASHBOARD_STAGES_URL.format(domain=DASHBOARD_DOMAIN)
+    return DASHBOARD_STAGES_URL.format(domain=DASHBOARD_DOMAIN, run_id=run_id)
 
-def dashboard_logs_url():
+def dashboard_logs_url(run_id):
     """
     Returns the url to report the progress of a sushi chef 
     """
-    return DASHBOARD_LOGS_URL.format(domain=DASHBOARD_DOMAIN)
+    return DASHBOARD_LOGS_URL.format(domain=DASHBOARD_DOMAIN, run_id=run_id)

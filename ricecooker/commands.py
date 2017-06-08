@@ -39,10 +39,6 @@ def uploadchannel(path, verbose=False, update=False, thumbnails=False, download_
         Returns: (str) link to access newly created channel
     """
 
-    # Set dashboard client settings
-    channel = run_construct_channel(path, kwargs)
-    config.DASHBOARD_CLIENT = SushiBarClient(channel, token)
-
     # Set configuration settings
     level = logging.INFO if verbose else logging.WARNING if warnings else logging.ERROR
     config.LOGGER.addHandler(logging.StreamHandler())
@@ -63,8 +59,12 @@ def uploadchannel(path, verbose=False, update=False, thumbnails=False, download_
     config.init_file_mapping_store()
 
     # Authenticate user and check current Ricecooker version
-    authenticate_user(token)
+    username, token = authenticate_user(token)
     check_version_number()
+
+    # Set dashboard client settings
+    channel = run_construct_channel(path, kwargs)
+    config.DASHBOARD_CLIENT = SushiBarClient(channel, username, token)
 
     config.LOGGER.info("\n\n***** Starting channel build process *****\n\n")
 
@@ -140,17 +140,17 @@ def authenticate_user(token):
             response.raise_for_status()
             user = json.loads(response._content.decode("utf-8"))
             config.LOGGER.info("Logged in with username {0}".format(user['username']))
-
+            return user['username'], token
         except HTTPError:
             config.LOGGER.error("Invalid token: Credentials not found")
             sys.exit()
     else:
-        prompt_token(config.DOMAIN)
+        return prompt_token(config.DOMAIN)
 
 def prompt_token(domain):
     """ prompt_token: Prompt user to enter authentication token
         Args: domain (str): domain to authenticate user
-        Returns: Authenticated response
+        Returns: username and token
     """
     token = input("\nEnter authentication token ('q' to quit):").lower()
     if token == 'q':
@@ -160,7 +160,9 @@ def prompt_token(domain):
             config.SESSION.headers.update({"Authorization": "Token {0}".format(token)})
             response = config.SESSION.post(config.authentication_url())
             response.raise_for_status()
-            return token
+            user = json.loads(response._content.decode("utf-8"))
+            config.LOGGER.info("Logged in with username {0}".format(user['username']))
+            return user['username'], token
         except HTTPError:
             config.LOGGER.error("Invalid token. Please login to {0}/settings/tokens to retrieve your authorization token.".format(domain))
             prompt_token(domain)
