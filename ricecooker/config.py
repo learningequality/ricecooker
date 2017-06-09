@@ -71,6 +71,7 @@ SUSHI_BAR_PASSWORD = os.getenv('SUSHI_BAR_PASSWORD', "admin123")
 
 SUSHI_BAR_CHANNEL_URL = "{domain}/api/channels/"
 SUSHI_BAR_CHANNEL_RUNS_URL = "{domain}/api/channelruns/"
+SUSHI_BAR_CHANNEL_RUNS_DETAIL_URL = "{domain}/api/channelruns/{run_id}/"
 SUSHI_BAR_STAGES_URL = "{domain}/api/channelruns/{run_id}/stages/"
 SUSHI_BAR_PROGRESS_URL = "{domain}/api/channelruns/{run_id}/progress/"
 SUSHI_BAR_LOGS_URL = "{domain}/api/channelruns/{run_id}/logs/"
@@ -186,6 +187,13 @@ def sushi_bar_channel_runs_url():
     Returns the url to report the progress of a sushi chef 
     """
     return SUSHI_BAR_CHANNEL_RUNS_URL.format(domain=SUSHI_BAR_DOMAIN)
+
+def sushi_bar_channel_runs_detail_url(run_id):
+    """
+    Returns the url to patch a channel run. 
+    """
+    return SUSHI_BAR_CHANNEL_RUNS_DETAIL_URL.format(domain=SUSHI_BAR_DOMAIN,
+                                                    run_id=run_id)
 
 def sushi_bar_stages_url(run_id):
     """

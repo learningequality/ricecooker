@@ -256,6 +256,7 @@ def process_tree_files(tree):
     # Fill in values necessary for next steps
     config.LOGGER.info("Processing content...")
     files_to_diff = tree.process_tree(tree.channel)
+    config.SUSHI_BAR_CLIENT.report_statistics(files_to_diff)
     tree.check_for_files_failed()
     return files_to_diff, config.FAILED_FILES
 

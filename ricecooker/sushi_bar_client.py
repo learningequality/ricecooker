@@ -1,6 +1,8 @@
+import json
+import logging.handlers
+import os
 import requests
 import subprocess
-import logging.handlers
 
 from . import config
 from . import __version__
@@ -125,6 +127,34 @@ class SushiBarClient(object):
                 auth=AUTH)
         except Exception as e:
             config.LOGGER.error('Error stage: %s' % e)
+
+    def report_statistics(self, files):
+        if not self.run_id:
+            return
+        resource_counts = {}
+        resource_sizes = {}
+        total_size = 0
+        for f in files:
+            path = config.get_storage_path(f)
+            size = os.path.getsize(path)
+            _, ext = os.path.splitext(f)
+            resource_counts[ext] = resource_counts.get(ext, 0) + 1
+            resource_sizes[ext] = resource_sizes.get(ext, 0) + size
+            total_size += size
+        resource_counts['total'] = len(files)
+        resource_sizes['total'] = total_size
+        data = {
+            'run_id': self.run_id,
+            'resource_counts': json.dumps(resource_counts),
+            'resource_sizes': json.dumps(resource_sizes),
+        }
+        try:
+            response = requests.patch(
+                config.sushi_bar_channel_runs_detail_url(self.run_id),
+                data=data,
+                auth=AUTH)
+        except Exception as e:
+            config.LOGGER.error('Error statistics: %s' % e)
 
 
 class LoggingHandler(logging.Handler):
