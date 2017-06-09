@@ -66,8 +66,8 @@ DOWNLOAD_SESSION.mount('file://', FileAdapter())
 
 # Monitor/control server
 DASHBOARD_DOMAIN = os.getenv('RICECOOKER_DASHBOARD_URL', "http://127.0.0.1:8000")
-DASHBOARD_USER = os.getenv('RICECOOKER_DASHBOARD_USER', "acp")
-DASHBOARD_PASSWORD = os.getenv('RICECOOKER_DASHBOARD_PASSWORD', "test1234")
+DASHBOARD_USER = os.getenv('RICECOOKER_DASHBOARD_USER', "admin")
+DASHBOARD_PASSWORD = os.getenv('RICECOOKER_DASHBOARD_PASSWORD', "admin123")
 
 DASHBOARD_CHANNEL_URL = "{domain}/api/channels/"
 DASHBOARD_CHANNEL_RUNS_URL = "{domain}/api/channelruns/"
