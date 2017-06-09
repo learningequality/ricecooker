@@ -13,6 +13,8 @@ class SushiBarClient(object):
 
     def __init__(self, channel, username, token):
         self.run_id = None
+        if not channel:
+            return
         if self.__create_channel_if_needed(channel, username, token):
             self.run_id = self.__create_channel_run(channel, token)
         self.log_handler = self.__config_logger()
@@ -23,13 +25,13 @@ class SushiBarClient(object):
         return True
 
     def __channel_exists(self, channel):
-        url = config.dashboard_channels_url() + channel.get_node_id().hex +'/'
+        url = config.dashboard_channels_url() + channel.get_node_id().hex + '/'
         try:
             response = requests.get(url, auth=AUTH)
             return True if response.status_code == 200 else False
         except Exception as e:
             config.LOGGER.error('Error channel exists: %s' % e)
-        return False, None
+        return False
 
     def __create_channel(self, channel, username, token):
         data = {
