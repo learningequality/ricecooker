@@ -1,5 +1,6 @@
 import pickle
 import os
+import time
 from enum import Enum
 from .. import config
 
@@ -60,6 +61,7 @@ class RestoreManager:
         self.channel_link = None
         self.channel_id = None
         self.status = Status.INIT
+        self.timestamp = time.time()
 
     def check_for_session(self, status=None):
         """ check_for_session: see if session is in progress
@@ -79,12 +81,16 @@ class RestoreManager:
         status = self.get_status() if status is None else status
         return config.get_restore_path(status.name.lower())
 
-    def record_progress(self):
-        """ record_progress: save progress to respective restoration file
+    def __record_progress(self, next_step=None):
+        """ __record_progress: save progress to respective restoration file
             Args: None
             Returns: None
         """
-        config.DASHBOARD_CLIENT.report_stage(self.get_status(), 0)
+        if next_step:
+            now = time.time()
+            config.DASHBOARD_CLIENT.report_stage(self.get_status(), now - self.timestamp)
+            self.timestamp = now
+            self.status = next_step
         with open(self.get_restore_path(Status.LAST), 'wb') as handle, open(self.get_restore_path(), 'wb') as step_handle:
             pickle.dump(self, handle)
             pickle.dump(self, step_handle)
@@ -141,27 +147,24 @@ class RestoreManager:
             if os.path.isfile(path):
                 os.remove(path)
 
-        self.record_progress()
-        self.status = Status.CONSTRUCT_CHANNEL # Set status to next step
-        self.record_progress()
+        self.__record_progress()
+        self.__record_progress(Status.CONSTRUCT_CHANNEL)
 
     def set_channel(self, channel):
         """ set_channel: records progress from constructed channel
             Args: channel (Channel): channel Ricecooker is creating
             Returns: None
         """
-        self.status = Status.CREATE_TREE # Set status to next step
         self.channel = channel
-        self.record_progress()
+        self.__record_progress(Status.CREATE_TREE)
 
     def set_tree(self, tree):
         """ set_channel: records progress from creating the tree
             Args: tree (ChannelManager): manager Ricecooker is using
             Returns: None
         """
-        self.status = Status.DOWNLOAD_FILES # Set status to next step
         self.tree = tree
-        self.record_progress()
+        self.__record_progress(Status.DOWNLOAD_FILES)
 
     def set_files(self, files_downloaded, files_failed):
         """ set_files: records progress from downloading files
@@ -170,28 +173,25 @@ class RestoreManager:
                 files_failed ([str]): list of files that failed to download
             Returns: None
         """
-        self.status = Status.GET_FILE_DIFF # Set status to next step
         self.files_downloaded = files_downloaded
         self.files_failed = files_failed
-        self.record_progress()
+        self.__record_progress(Status.GET_FILE_DIFF)
 
     def set_diff(self, file_diff):
         """ set_diff: records progress from getting file diff
             Args: file_diff ([str]): list of files that don't exist on Kolibri Studio
             Returns: None
         """
-        self.status = Status.START_UPLOAD # Set status to next step
         self.file_diff = file_diff
-        self.record_progress()
+        self.__record_progress(Status.START_UPLOAD)
 
     def set_uploading(self, files_uploaded):
         """ set_uploading: records progress during uploading files
             Args: files_uploaded ([str]): list of files that have been successfully uploaded
             Returns: None
         """
-        self.status = Status.UPLOADING_FILES
         self.files_uploaded = files_uploaded
-        self.record_progress()
+        self.__record_progress(Status.UPLOADING_FILES)
 
     def set_uploaded(self, files_uploaded):
         """ set_uploaded: records progress after uploading files
@@ -199,8 +199,7 @@ class RestoreManager:
             Returns: None
         """
         self.files_uploaded = files_uploaded
-        self.status = Status.UPLOAD_CHANNEL # Set status to next step
-        self.record_progress()
+        self.__record_progress(Status.UPLOAD_CHANNEL)
 
     def set_channel_created(self, channel_link, channel_id):
         """ set_channel_created: records progress after creating channel on Kolibri Studio
@@ -209,26 +208,23 @@ class RestoreManager:
                 channel_id (str): id of channel that has been uploaded
             Returns: None
         """
-        self.status = Status.PUBLISH_CHANNEL
         self.channel_link = channel_link
         self.channel_id = channel_id
-        self.record_progress()
+        self.__record_progress(Status.PUBLISH_CHANNEL)
 
     def set_published(self):
         """ set_published: records progress after channel has been published
             Args: None
             Returns: None
         """
-        self.status = Status.DONE
-        self.record_progress()
+        self.__record_progress(Status.DONE)
 
     def set_done(self):
         """ set_done: records progress after Ricecooker process has been completed
             Args: None
             Returns: None
         """
-        self.status = Status.DONE
-        self.record_progress()
+        self.__record_progress(Status.DONE)
 
         # Delete restoration point for last step to indicate process has been completed
         os.remove(self.get_restore_path(Status.LAST))
