@@ -86,11 +86,11 @@ class RestoreManager:
             Args: None
             Returns: None
         """
-        config.DASHBOARD_CLIENT.report_progress(
+        config.SUSHI_BAR_CLIENT.report_progress(
             self.get_status(), self.get_status().value/Status.DONE.value)
         if next_step:
             now = time.time()
-            config.DASHBOARD_CLIENT.report_stage(self.get_status(), now - self.timestamp)
+            config.SUSHI_BAR_CLIENT.report_stage(self.get_status(), now - self.timestamp)
             self.timestamp = now
             self.status = next_step
         with open(self.get_restore_path(Status.LAST), 'wb') as handle, open(self.get_restore_path(), 'wb') as step_handle:

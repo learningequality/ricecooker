@@ -12,7 +12,7 @@ UPDATE = False
 COMPRESS = False
 THUMBNAILS = False
 PROGRESS_MANAGER = None
-DASHBOARD_CLIENT = None
+SUSHI_BAR_CLIENT = None
 LOGGER = logging.getLogger()
 
 # Domain and file store location for uploading to production server
@@ -64,16 +64,16 @@ FAILED_FILES = []
 DOWNLOAD_SESSION = requests.Session()
 DOWNLOAD_SESSION.mount('file://', FileAdapter())
 
-# Monitor/control server
-DASHBOARD_DOMAIN = os.getenv('RICECOOKER_DASHBOARD_URL', "http://127.0.0.1:8000")
-DASHBOARD_USER = os.getenv('RICECOOKER_DASHBOARD_USER', "admin")
-DASHBOARD_PASSWORD = os.getenv('RICECOOKER_DASHBOARD_PASSWORD', "admin123")
+# Sushi bar server
+SUSHI_BAR_DOMAIN = os.getenv('SUSHI_BAR_URL', "http://127.0.0.1:8000")
+SUSHI_BAR_USER = os.getenv('SUSHI_BAR_USER', "admin")
+SUSHI_BAR_PASSWORD = os.getenv('SUSHI_BAR_PASSWORD', "admin123")
 
-DASHBOARD_CHANNEL_URL = "{domain}/api/channels/"
-DASHBOARD_CHANNEL_RUNS_URL = "{domain}/api/channelruns/"
-DASHBOARD_STAGES_URL = "{domain}/api/channelruns/{run_id}/stages/"
-DASHBOARD_PROGRESS_URL = "{domain}/api/channelruns/{run_id}/progress/"
-DASHBOARD_LOGS_URL = "{domain}/api/channelruns/{run_id}/logs/"
+SUSHI_BAR_CHANNEL_URL = "{domain}/api/channels/"
+SUSHI_BAR_CHANNEL_RUNS_URL = "{domain}/api/channelruns/"
+SUSHI_BAR_STAGES_URL = "{domain}/api/channelruns/{run_id}/stages/"
+SUSHI_BAR_PROGRESS_URL = "{domain}/api/channelruns/{run_id}/progress/"
+SUSHI_BAR_LOGS_URL = "{domain}/api/channelruns/{run_id}/logs/"
 
 
 def get_storage_path(filename):
@@ -175,32 +175,32 @@ def publish_channel_url():
     """
     return PUBLISH_CHANNEL_URL.format(domain=DOMAIN)
 
-def dashboard_channels_url():
+def sushi_bar_channels_url():
     """
     Returns the url to report the progress of a sushi chef 
     """
-    return DASHBOARD_CHANNEL_URL.format(domain=DASHBOARD_DOMAIN)
+    return SUSHI_BAR_CHANNEL_URL.format(domain=SUSHI_BAR_DOMAIN)
 
-def dashboard_channel_runs_url():
+def sushi_bar_channel_runs_url():
     """
     Returns the url to report the progress of a sushi chef 
     """
-    return DASHBOARD_CHANNEL_RUNS_URL.format(domain=DASHBOARD_DOMAIN)
+    return SUSHI_BAR_CHANNEL_RUNS_URL.format(domain=SUSHI_BAR_DOMAIN)
 
-def dashboard_stages_url(run_id):
+def sushi_bar_stages_url(run_id):
     """
     Returns the url to report the progress of a sushi chef 
     """
-    return DASHBOARD_STAGES_URL.format(domain=DASHBOARD_DOMAIN, run_id=run_id)
+    return SUSHI_BAR_STAGES_URL.format(domain=SUSHI_BAR_DOMAIN, run_id=run_id)
 
-def dashboard_progress_url(run_id):
+def sushi_bar_progress_url(run_id):
     """
     Returns the url to report the progress of a sushi chef 
     """
-    return DASHBOARD_PROGRESS_URL.format(domain=DASHBOARD_DOMAIN, run_id=run_id)
+    return SUSHI_BAR_PROGRESS_URL.format(domain=SUSHI_BAR_DOMAIN, run_id=run_id)
 
-def dashboard_logs_url(run_id):
+def sushi_bar_logs_url(run_id):
     """
     Returns the url to report the progress of a sushi chef 
     """
-    return DASHBOARD_LOGS_URL.format(domain=DASHBOARD_DOMAIN, run_id=run_id)
+    return SUSHI_BAR_LOGS_URL.format(domain=SUSHI_BAR_DOMAIN, run_id=run_id)

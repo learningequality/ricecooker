@@ -5,7 +5,7 @@ import logging.handlers
 from . import config
 from . import __version__
 
-AUTH = (config.DASHBOARD_USER, config.DASHBOARD_PASSWORD)
+AUTH = (config.SUSHI_BAR_USER, config.SUSHI_BAR_PASSWORD)
 
 
 class SushiBarClient(object):
@@ -25,7 +25,7 @@ class SushiBarClient(object):
         return True
 
     def __channel_exists(self, channel):
-        url = config.dashboard_channels_url() + channel.get_node_id().hex + '/'
+        url = config.sushi_bar_channels_url() + channel.get_node_id().hex + '/'
         try:
             response = requests.get(url, auth=AUTH)
             return True if response.status_code == 200 else False
@@ -46,7 +46,7 @@ class SushiBarClient(object):
         }
         try:
             response = requests.post(
-                config.dashboard_channels_url(),
+                config.sushi_bar_channels_url(),
                 data=data,
                 auth=AUTH)
             return True
@@ -66,7 +66,7 @@ class SushiBarClient(object):
         }
         try:
             response = requests.post(
-                config.dashboard_channel_runs_url(),
+                config.sushi_bar_channel_runs_url(),
                 data=data,
                 auth=AUTH)
             return response.json()['run_id']
@@ -104,7 +104,7 @@ class SushiBarClient(object):
         }
         try:
             response = requests.post(
-                config.dashboard_stages_url(self.run_id),
+                config.sushi_bar_stages_url(self.run_id),
                 data=data,
                 auth=AUTH)
         except Exception as e:
@@ -120,7 +120,7 @@ class SushiBarClient(object):
         }
         try:
             response = requests.post(
-                config.dashboard_progress_url(self.run_id),
+                config.sushi_bar_progress_url(self.run_id),
                 data=data,
                 auth=AUTH)
         except Exception as e:
@@ -139,7 +139,7 @@ class LoggingHandler(logging.Handler):
         data = self.format(record)
         try:
             requests.post(
-                config.dashboard_logs_url(self.run_id),
+                config.sushi_bar_logs_url(self.run_id),
                 data=data,
                 auth=AUTH)
         except Exception as e:

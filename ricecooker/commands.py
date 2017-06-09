@@ -64,7 +64,7 @@ def uploadchannel(path, verbose=False, update=False, thumbnails=False, download_
 
     # Set dashboard client settings
     channel = run_create_channel(path, kwargs)
-    config.DASHBOARD_CLIENT = SushiBarClient(channel, username, token)
+    config.SUSHI_BAR_CLIENT = SushiBarClient(channel, username, token)
 
     config.LOGGER.info("\n\n***** Starting channel build process *****\n\n")
 
