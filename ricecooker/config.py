@@ -72,6 +72,7 @@ DASHBOARD_PASSWORD = os.getenv('RICECOOKER_DASHBOARD_PASSWORD', "admin123")
 DASHBOARD_CHANNEL_URL = "{domain}/api/channels/"
 DASHBOARD_CHANNEL_RUNS_URL = "{domain}/api/channelruns/"
 DASHBOARD_STAGES_URL = "{domain}/api/channelruns/{run_id}/stages/"
+DASHBOARD_PROGRESS_URL = "{domain}/api/channelruns/{run_id}/progress/"
 DASHBOARD_LOGS_URL = "{domain}/api/channelruns/{run_id}/logs/"
 
 
@@ -191,6 +192,12 @@ def dashboard_stages_url(run_id):
     Returns the url to report the progress of a sushi chef 
     """
     return DASHBOARD_STAGES_URL.format(domain=DASHBOARD_DOMAIN, run_id=run_id)
+
+def dashboard_progress_url(run_id):
+    """
+    Returns the url to report the progress of a sushi chef 
+    """
+    return DASHBOARD_PROGRESS_URL.format(domain=DASHBOARD_DOMAIN, run_id=run_id)
 
 def dashboard_logs_url(run_id):
     """

@@ -110,6 +110,22 @@ class SushiBarClient(object):
         except Exception as e:
             config.LOGGER.error('Error stage: %s' % e)
 
+    def report_progress(self, stage, progress):
+        if not self.run_id:
+            return
+        data = {
+            'run_id': self.run_id,
+            'stage': stage,
+            'progress': progress,
+        }
+        try:
+            response = requests.post(
+                config.dashboard_progress_url(self.run_id),
+                data=data,
+                auth=AUTH)
+        except Exception as e:
+            config.LOGGER.error('Error stage: %s' % e)
+
 
 class LoggingHandler(logging.Handler):
     """Sends logs to the dashboard server."""
