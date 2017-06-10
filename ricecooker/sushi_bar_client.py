@@ -30,7 +30,8 @@ class SushiBarClient(object):
         url = config.sushi_bar_channels_url() + channel.get_node_id().hex + '/'
         try:
             response = requests.get(url, auth=AUTH)
-            return True if response.status_code == 200 else False
+            response.raise_for_status()
+            return True
         except Exception as e:
             config.LOGGER.error('Error channel exists: %s' % e)
         return False
@@ -51,6 +52,7 @@ class SushiBarClient(object):
                 config.sushi_bar_channels_url(),
                 data=data,
                 auth=AUTH)
+            response.raise_for_status()
             return True
         except Exception as e:
             config.LOGGER.error('Error channel: %s' % e)
@@ -71,6 +73,7 @@ class SushiBarClient(object):
                 config.sushi_bar_channel_runs_url(),
                 data=data,
                 auth=AUTH)
+            response.raise_for_status()
             return response.json()['run_id']
         except Exception as e:
             config.LOGGER.error('Error channel run: %s' % e)
@@ -109,6 +112,7 @@ class SushiBarClient(object):
                 config.sushi_bar_stages_url(self.run_id),
                 data=data,
                 auth=AUTH)
+            response.raise_for_status()
         except Exception as e:
             config.LOGGER.error('Error stage: %s' % e)
 
@@ -125,6 +129,7 @@ class SushiBarClient(object):
                 config.sushi_bar_progress_url(self.run_id),
                 data=data,
                 auth=AUTH)
+            response.raise_for_status()
         except Exception as e:
             config.LOGGER.error('Error stage: %s' % e)
 
@@ -153,6 +158,7 @@ class SushiBarClient(object):
                 config.sushi_bar_channel_runs_detail_url(self.run_id),
                 data=data,
                 auth=AUTH)
+            response.raise_for_status()
         except Exception as e:
             config.LOGGER.error('Error statistics: %s' % e)
 
@@ -168,22 +174,27 @@ class LoggingHandler(logging.Handler):
     def emit(self, record):
         data = self.format(record)
         try:
-            requests.post(
+            response = requests.post(
                 config.sushi_bar_logs_url(self.run_id),
                 data=data,
                 auth=AUTH)
+            response.raise_for_status()
         except Exception as e:
             print('Logging error: %s' % e)
 
 
 class LoggingFormatter(logging.Formatter):
     def __init__(self, run_id):
+        fmt = '%(levelname)s - %(asctime)s - %(filename)s - %(funcName)s - '
+        fmt += '%(lineno)d - %(message)s'
+        super(LoggingFormatter, self).__init__(fmt)
         self.run_id = run_id
 
     def format(self, record):
+        msg = super(LoggingFormatter, self).format(record)
         data = {
             'run_id': self.run_id,
             'created': record.created,
-            'message': record.msg
+            'message': msg
         }
         return data
