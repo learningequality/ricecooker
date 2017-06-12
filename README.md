@@ -35,7 +35,8 @@ You will need an authorization token to create a channel on Kolibri Studio. In o
 
 ### Step 2: Initializing the Channel ###
 
-To run the Ricecooker, you must include a `construct_channel` method in your sushi chef file that returns a ChannelNode object. This function will be responsible for building the structure of your channel.
+To run the Ricecooker, you must include `create_channel` and `construct_channel` methods in your sushi chef file.
+`create_channel` should return only a ChannelNode object. `construct_channel` will be responsible for building the structure of your channel.
 
 Start by importing `ChannelNode` from `ricecooker.classes.nodes` and create a ChannelNode object. The ChannelNode class has the following fields:
 - __source_id__ (str): channel's unique id
@@ -49,7 +50,7 @@ For example:
 ```
 from ricecooker.classes.nodes import ChannelNode
 
-def construct_channel(args):
+def create_channel(args):
 
     channel = ChannelNode(
         source_domain = "learningequality.org",
@@ -57,7 +58,13 @@ def construct_channel(args):
         title = "Rice Channel",
         thumbnail = "http://path/to/some/image.png"
     )
-    build_tree() 	# see sample_program.py for example build_tree function
+
+    return channel
+
+def construct_channel(args):
+
+    channel = create_channel(args)
+    build_tree(channel) 	# see sample_program.py for example build_tree function
 
     return channel
 ```
@@ -86,7 +93,7 @@ Each node has the following attributes:
 - __extra_fields__ (dict): any additional data needed for node (optional)
 - __domain_ns__ (uuid): who is providing the content (e.g. learningequality.org) (optional)
 
-**IMPORTANT**: nodes representing distinct pieces of content MUST have distinct `source_id`s. 
+**IMPORTANT**: nodes representing distinct pieces of content MUST have distinct `source_id`s.
 Each node has a `content_id` (computed as a function of the `source_domain` and the node's `source_id`) that uniquely identifies a piece of content within Kolibri for tracking purposes. For example, if the same video occurs in multiple places in the tree, you would use the same `source_id` for those nodes -- but content nodes that aren't for that video need to have different `source_id`s.
 
 All non-topic nodes must be assigned a license upon initialization. You can use the license's id (found under `le_utils.constants.licenses`) or create a license object from `ricecooker.classes.licenses` (recommended). When initializing a license object, you  can specify a __copyright_holder__ (str), or the person or organization who owns the license. If you are unsure which license class to use, a `get_license` method has been provided that takes in a license id and returns a corresponding license object.
