@@ -7,7 +7,7 @@ import subprocess
 from . import config
 from . import __version__
 
-AUTH = (config.SUSHI_BAR_USER, config.SUSHI_BAR_PASSWORD)
+AUTH = None
 
 
 class SushiBarClient(object):
