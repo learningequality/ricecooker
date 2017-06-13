@@ -3,7 +3,6 @@ import logging.handlers
 import os
 import requests
 import subprocess
-import time
 import websocket
 
 from . import config
@@ -170,7 +169,8 @@ class LoggingHandler(logging.Handler):
 
     def __init__(self, run_id):
         logging.Handler.__init__(self)
-        self.ws = websocket.create_connection('ws://127.0.0.1:8000/logs/'+run_id, timeout=600)
+        self.ws = websocket.create_connection(
+            config.sushi_bar_logs_url(run_id))
         self.run_id = run_id
 
     def __del__(self):
