@@ -3,6 +3,8 @@ import logging.handlers
 import os
 import requests
 import subprocess
+import time
+import websocket
 
 from . import config
 from . import __version__
@@ -168,33 +170,14 @@ class LoggingHandler(logging.Handler):
 
     def __init__(self, run_id):
         logging.Handler.__init__(self)
+        self.ws = websocket.create_connection('ws://127.0.0.1:8000/logs/'+run_id, timeout=600)
         self.run_id = run_id
-        self.setFormatter(LoggingFormatter(run_id))
+
+    def __del__(self):
+        self.ws.close()
 
     def emit(self, record):
-        data = self.format(record)
         try:
-            response = requests.post(
-                config.sushi_bar_logs_url(self.run_id),
-                data=data,
-                auth=AUTH)
-            response.raise_for_status()
+            self.ws.send(json.dumps(record.__dict__))
         except Exception as e:
-            print('Logging error: %s' % e)
-
-
-class LoggingFormatter(logging.Formatter):
-    def __init__(self, run_id):
-        fmt = '%(levelname)s - %(asctime)s - %(filename)s - %(funcName)s - '
-        fmt += '%(lineno)d - %(message)s'
-        super(LoggingFormatter, self).__init__(fmt)
-        self.run_id = run_id
-
-    def format(self, record):
-        msg = super(LoggingFormatter, self).format(record)
-        data = {
-            'run_id': self.run_id,
-            'created': record.created,
-            'message': msg
-        }
-        return data
+            print('Logging error: %s, %s' % (self.ws.status, e))
