@@ -178,6 +178,8 @@ class LoggingHandler(logging.Handler):
 
     def emit(self, record):
         try:
-            self.ws.send(json.dumps(record.__dict__))
+            log_data = record.__dict__
+            log_data['run_id'] = self.run_id
+            self.ws.send(json.dumps(log_data))
         except Exception as e:
             print('Logging error: %s, %s' % (self.ws.status, e))
