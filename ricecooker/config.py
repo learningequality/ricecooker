@@ -72,7 +72,7 @@ SUSHI_BAR_CHANNEL_URL = "{domain}/api/channels/"
 SUSHI_BAR_CHANNEL_RUNS_URL = "{domain}/api/channelruns/"
 SUSHI_BAR_CHANNEL_RUNS_DETAIL_URL = "{domain}/api/channelruns/{run_id}/"
 SUSHI_BAR_STAGES_URL = "{domain}/api/channelruns/{run_id}/stages/"
-SUSHI_BAR_PROGRESS_URL = "{domain}/api/channelruns/{run_id}/progressj/"
+SUSHI_BAR_PROGRESS_URL = "{domain}/api/channelruns/{run_id}/progress/"
 SUSHI_BAR_LOGS_URL = "{domain}/logs/{run_id}/"
 
 

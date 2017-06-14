@@ -67,18 +67,23 @@ if __name__ == '__main__':
     except ValueError:
       raise InvalidUsageException("Invalid argument: Download-attempts must be an integer.")
 
-
-    uploadchannel(arguments["<file_path>"],
-                  verbose=arguments["-v"],
-                  update=arguments['-u'],
-                  thumbnails=arguments["--thumbnails"],
-                  download_attempts=arguments['--download-attempts'],
-                  resume=arguments['--resume'],
-                  reset=arguments['--reset'],
-                  token=arguments['--token'],
-                  step=step,
-                  prompt=arguments['--prompt'],
-                  publish=arguments['--publish'],
-                  warnings=arguments['--warn'],
-                  compress=arguments['--compress'],
-                  **kwargs)
+    try:
+        uploadchannel(arguments["<file_path>"],
+                      verbose=arguments["-v"],
+                      update=arguments['-u'],
+                      thumbnails=arguments["--thumbnails"],
+                      download_attempts=arguments['--download-attempts'],
+                      resume=arguments['--resume'],
+                      reset=arguments['--reset'],
+                      token=arguments['--token'],
+                      step=step,
+                      prompt=arguments['--prompt'],
+                      publish=arguments['--publish'],
+                      warnings=arguments['--warn'],
+                      compress=arguments['--compress'],
+                      **kwargs)
+    except Exception as e:
+        config.SUSHI_BAR_CLIENT.report_stage('ERROR', 0)
+        config.LOGGER.critical(str(e))
+    finally:
+        del config.SUSHI_BAR_CLIENT

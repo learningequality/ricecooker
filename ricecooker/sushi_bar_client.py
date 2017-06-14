@@ -3,12 +3,11 @@ import logging.handlers
 import os
 import requests
 import subprocess
+import threading
 import websocket
 
 from . import config
 from . import __version__
-from threading import Thread, Event
-from queue import Empty, Queue
 
 AUTH = None
 
@@ -22,7 +21,13 @@ class SushiBarClient(object):
             return
         if self.__create_channel_if_needed(channel, username, token):
             self.run_id = self.__create_channel_run(channel, username, token)
-        self.log_handler = self.__config_logger()
+            config.LOGGER.info('run_id: %s' % self.run_id)
+        self.log_ws, self.log_handler = self.__config_logger()
+
+    def __del__(self):
+        config.LOGGER.removeHandler(self.log_handler)
+        del self.log_handler
+        self.log_ws.close()
 
     def __create_channel_if_needed(self, channel, username, token):
         if not self.__channel_exists(channel):
@@ -85,9 +90,10 @@ class SushiBarClient(object):
     def __config_logger(self):
         if not self.run_id:
             return None
-        log_handler = LoggingHandler(self.run_id)
+        log_ws = WebSocketHandler(config.sushi_bar_logs_url(self.run_id))
+        log_handler = LoggingHandler(self.run_id, log_ws)
         config.LOGGER.addHandler(log_handler)
-        return log_handler
+        return log_ws, log_handler
 
     def __get_chef_name(self):
         chef_name = None
@@ -166,40 +172,55 @@ class SushiBarClient(object):
             config.LOGGER.error('Error statistics: %s' % e)
 
 
-class LoggingHandler(logging.Handler):
-    """Sends logs to the dashboard server."""
+class WebSocketHandler(object):
+    """WebSocket with re-connection logic."""
 
-    def __init__(self, run_id, queue):
+    def __init__(self, url):
+        self.url = url
+        self.ws_opened = False
+        self.ws = None
+        self.wst = None
+
+    def __connect(self):
+        self.ws = websocket.WebSocketApp(
+            self.url,
+            on_open=self.__on_open,
+            on_close=self.__on_close,
+        )
+        self.wst = threading.Thread(target=self.ws.run_forever)
+        self.wst.start()
+        while not self.ws_opened:
+            pass
+
+    def __on_open(self, message):
+        self.ws_opened = True
+
+    def __on_close(self, message):
+        self.ws_opened = False
+
+    def send(self, data):
+        if not self.ws_opened:
+            self.__connect()
+        self.ws.send(data)
+
+    def close(self):
+        if self.ws:
+            self.ws.close()
+            self.wst.join()
+
+
+class LoggingHandler(logging.Handler):
+    """Sends logs to the Sushi Bar server via a websocket."""
+
+    def __init__(self, run_id, ws):
         logging.Handler.__init__(self)
         self.run_id = run_id
-        self.queue = queue
-
-    def __del__(self):
-        self.ws.close()
+        self.ws = ws
 
     def emit(self, record):
         try:
             log_data = record.__dict__
             log_data['run_id'] = self.run_id
-            self.queue.put(json.dumps(log_data))
+            self.ws.send(json.dumps(log_data))
         except Exception as e:
-            print('Logging error: %s, %s' % (self.ws.status, e))
-
-class LoggingProxy(Thread):
-    """
-    Sends logs to the Sushi Bar server.
-    """
-
-    def __init__(self, run_id, queue):
-        self.ws = websocket.create_connection(
-            config.sushi_bar_logs_url(run_id))
-        self.run_id = run_id
-        self.queue = queue
-
-    def run(self):
-        while True:
-            item = self.queue.get()
-            self.ws.send(item)
-            self.queue.task_done()
-
-    def _stop(self):
+            print('Logging error: %s' % e)
