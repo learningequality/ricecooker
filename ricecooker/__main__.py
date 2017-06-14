@@ -83,7 +83,7 @@ if __name__ == '__main__':
                       compress=arguments['--compress'],
                       **kwargs)
     except Exception as e:
-        config.SUSHI_BAR_CLIENT.report_stage('ERROR', 0)
+        config.SUSHI_BAR_CLIENT.report_stage('FAILURE', 0)
         config.LOGGER.critical(str(e))
     finally:
         del config.SUSHI_BAR_CLIENT
