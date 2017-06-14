@@ -1,10 +1,5 @@
-
 import json
-import logging
-import os
-import sys
 from .. import config
-from le_utils.constants import file_formats, format_presets
 from requests.exceptions import ConnectionError
 
 
@@ -27,22 +22,29 @@ class ChannelManager:
         """
         return self.channel.test_tree()
 
-    def process_tree(self, node):
-        """ process_tree: processes files
-            Args:
-                node (Node): node to process
-                parent (Node): parent of node being processed
-            Returns: None
+    def process_tree(self, tree_root):
         """
-        filenames = []
+        Returns a list of all file names associated with a tree. Profiling suggests using a global list with `extend`
+        is faster than using a global set or deque.
+        :param tree_root: Root node of the tree being processed
+        :return: The list of unique file names in `tree_root`.
+        """
+        file_names = []
+        self.process_tree_recur(self, file_names, tree_root)
+        return [x for x in set(file_names) if x]  # Remove any duplicate or null files
 
+    def process_tree_recur(self, file_names, node):
+        """
+        Adds the names of all the files associated with the sub-tree rooted by `node` to `file_names` in post-order.
+        :param file_names: A global list containing all file names associated with a tree
+        :param node: The root of the current sub-tree being processed
+        :return: None.
+        """
         # Process node's children
         for child_node in node.children:
-            filenames += self.process_tree(child_node)
+            self.process_tree_recur(child_node)  # Call children first in case we need to create a tiled thumbnail
 
-        filenames += node.process_files() # Call children first in case need to create tiled thumbnail
-
-        return [x for x in set(filenames) if x] # Remove any duplicate or null files
+        file_names.extend(node.process_files())
 
     def check_for_files_failed(self):
         """ check_for_files_failed: print any files that failed during download process
