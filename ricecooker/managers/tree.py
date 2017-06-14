@@ -22,15 +22,15 @@ class ChannelManager:
         """
         return self.channel.test_tree()
 
-    def process_tree(self, tree_root):
+    def process_tree(self, channel_node):
         """
         Returns a list of all file names associated with a tree. Profiling suggests using a global list with `extend`
         is faster than using a global set or deque.
-        :param tree_root: Root node of the tree being processed
-        :return: The list of unique file names in `tree_root`.
+        :param channel_node: Root node of the channel being processed
+        :return: The list of unique file names in `channel_node`.
         """
         file_names = []
-        self.process_tree_recur(self, file_names, tree_root)
+        self.process_tree_recur(file_names, channel_node)
         return [x for x in set(file_names) if x]  # Remove any duplicate or null files
 
     def process_tree_recur(self, file_names, node):
@@ -42,7 +42,7 @@ class ChannelManager:
         """
         # Process node's children
         for child_node in node.children:
-            self.process_tree_recur(child_node)  # Call children first in case we need to create a tiled thumbnail
+            self.process_tree_recur(file_names, child_node)  # Call children first in case we need to create a tiled thumbnail
 
         file_names.extend(node.process_files())
 
