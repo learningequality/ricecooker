@@ -7,6 +7,8 @@ import websocket
 
 from . import config
 from . import __version__
+from threading import Thread, Event
+from queue import Empty, Queue
 
 AUTH = None
 
@@ -167,11 +169,10 @@ class SushiBarClient(object):
 class LoggingHandler(logging.Handler):
     """Sends logs to the dashboard server."""
 
-    def __init__(self, run_id):
+    def __init__(self, run_id, queue):
         logging.Handler.__init__(self)
-        self.ws = websocket.create_connection(
-            config.sushi_bar_logs_url(run_id))
         self.run_id = run_id
+        self.queue = queue
 
     def __del__(self):
         self.ws.close()
@@ -180,6 +181,25 @@ class LoggingHandler(logging.Handler):
         try:
             log_data = record.__dict__
             log_data['run_id'] = self.run_id
-            self.ws.send(json.dumps(log_data))
+            self.queue.put(json.dumps(log_data))
         except Exception as e:
             print('Logging error: %s, %s' % (self.ws.status, e))
+
+class LoggingProxy(Thread):
+    """
+    Sends logs to the Sushi Bar server.
+    """
+
+    def __init__(self, run_id, queue):
+        self.ws = websocket.create_connection(
+            config.sushi_bar_logs_url(run_id))
+        self.run_id = run_id
+        self.queue = queue
+
+    def run(self):
+        while True:
+            item = self.queue.get()
+            self.ws.send(item)
+            self.queue.task_done()
+
+    def _stop(self):
