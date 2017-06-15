@@ -100,7 +100,8 @@ class ControlWebSocket(WebSocketHandler):
         self.channel = run_create_channel(arguments["<file_path>"], self.kwargs)
         self.thread = None
         print('channel id %s' % self.channel.get_node_id().hex)
-        WebSocketHandler.__init__(self, 'ws://127.0.0.1:8000/control/' + self.channel.get_node_id().hex)
+        url = config.sushi_bar_control_url(self.channel.get_node_id().hex)
+        WebSocketHandler.__init__(self, url)
 
     def on_message(self, ws, message):
         message = json.loads(message)

@@ -78,6 +78,7 @@ SUSHI_BAR_CHANNEL_RUNS_DETAIL_URL = "{domain}/api/channelruns/{run_id}/"
 SUSHI_BAR_STAGES_URL = "{domain}/api/channelruns/{run_id}/stages/"
 SUSHI_BAR_PROGRESS_URL = "{domain}/api/channelruns/{run_id}/progress/"
 SUSHI_BAR_LOGS_URL = "{domain}/logs/{run_id}/"
+SUSHI_BAR_CONTROL_URL = "{domain}/control/{channel_id}/"
 
 
 def get_storage_path(filename):
@@ -223,3 +224,9 @@ def sushi_bar_logs_url(run_id):
     Returns the url to report the progress of a sushi chef
     """
     return SUSHI_BAR_LOGS_URL.format(domain=SUSHI_BAR_WEBSOCKET, run_id=run_id)
+
+def sushi_bar_control_url(channel_id):
+    """
+    Returns the url to report the progress of a sushi chef
+    """
+    return SUSHI_BAR_CONTROL_URL.format(domain=SUSHI_BAR_WEBSOCKET, channel_id=channel_id)
