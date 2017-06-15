@@ -22,9 +22,11 @@ class SushiBarClient(object):
         if self.__create_channel_if_needed(channel, username, token):
             self.run_id = self.__create_channel_run(channel, username, token)
             config.LOGGER.info('run_id: %s' % self.run_id)
-        self.log_ws, self.log_handler = self.__config_logger()
+            self.log_ws, self.log_handler = self.__config_logger()
 
-    def __del__(self):
+    def close(self):
+        if not self.run_id:
+            return
         config.LOGGER.removeHandler(self.log_handler)
         del self.log_handler
         self.log_ws.close()
