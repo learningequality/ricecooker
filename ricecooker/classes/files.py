@@ -1,24 +1,24 @@
 # Node models to represent channel's tree
 from __future__ import unicode_literals
 
-import os
-import copy
 import hashlib
-import tempfile
+import json
+import os
 import shutil
-import youtube_dl
-import requests
+import tempfile
 import zipfile
 from subprocess import CalledProcessError
-from le_utils.constants import content_kinds,file_formats, format_presets, exercises
-from .. import config
-from .nodes import ChannelNode, TopicNode, VideoNode, AudioNode, DocumentNode, ExerciseNode, HTML5AppNode
-from ..exceptions import UnknownFileTypeError
+
+import youtube_dl
 from cachecontrol.caches.file_cache import FileCache
-from pressurecooker.videos import extract_thumbnail_from_video, guess_video_preset_by_resolution, compress_video
+from le_utils.constants import file_formats, format_presets, exercises
 from pressurecooker.encodings import get_base64_encoding, write_base64_to_file
 from pressurecooker.images import create_tiled_image
+from pressurecooker.videos import extract_thumbnail_from_video, guess_video_preset_by_resolution, compress_video
 from requests.exceptions import MissingSchema, HTTPError, ConnectionError, InvalidURL, InvalidSchema
+
+from .. import config
+from ..exceptions import UnknownFileTypeError
 
 # Cache for filenames
 FILECACHE = FileCache(config.FILECACHE_DIRECTORY, forever=True)
@@ -67,6 +67,7 @@ def download(path, default_ext=None):
 
         return filename
 
+
 def write_and_get_hash(path, write_to_file, hash=None):
     """ write_and_get_hash: write file
         Args: None
@@ -92,6 +93,7 @@ def write_and_get_hash(path, write_to_file, hash=None):
 
     return hash
 
+
 def copy_file_to_storage(filename, srcfile, delete_original=False):
     # Some files might have been closed, so only filepath will work
     if isinstance(srcfile, str):
@@ -104,12 +106,13 @@ def copy_file_to_storage(filename, srcfile, delete_original=False):
         else:
             shutil.copyfileobj(srcfile, destf)
 
+
 def get_hash(filepath):
-    hash = hashlib.md5()
+    file_hash = hashlib.md5()
     with open(filepath, 'rb') as fobj:
         for chunk in iter(lambda: fobj.read(2097152), b""):
-            hash.update(chunk)
-    return hash.hexdigest()
+            file_hash.update(chunk)
+    return file_hash.hexdigest()
 
 
 def compress_video_file(filename, ffmpeg_settings):
@@ -158,25 +161,15 @@ def download_from_web(web_url, download_settings, file_format=file_formats.MP4, 
         FILECACHE.set(key, bytes(filename, "utf-8"))
         return filename
 
+
 class ThumbnailPresetMixin(object):
 
     def get_preset(self):
-        if isinstance(self.node, ChannelNode):
-            return format_presets.CHANNEL_THUMBNAIL
-        elif isinstance(self.node, TopicNode):
-            return format_presets.TOPIC_THUMBNAIL
-        elif isinstance(self.node, VideoNode):
-            return format_presets.VIDEO_THUMBNAIL
-        elif isinstance(self.node, AudioNode):
-            return format_presets.AUDIO_THUMBNAIL
-        elif isinstance(self.node, DocumentNode):
-            return format_presets.DOCUMENT_THUMBNAIL
-        elif isinstance(self.node, ExerciseNode):
-            return format_presets.EXERCISE_THUMBNAIL
-        elif isinstance(self.node, HTML5AppNode):
-            return format_presets.HTML5_THUMBNAIL
-        else:
-            raise UnknownFileTypeError("Thumbnails are not supported for node kind.")
+        thumbnail_preset = self.node.get_thumbnail_preset()
+        if thumbnail_preset is None:
+            UnknownFileTypeError("Thumbnails are not supported for node kind.")
+        return thumbnail_preset
+
 
 class File(object):
     original_filename = None
@@ -227,6 +220,34 @@ class File(object):
     def process_file(self):
         # Overwrite in subclasses
         pass
+
+
+class NodeFile(File):
+    default_ext = file_formats.JSON
+    allowed_formats = [file_formats.JSON]
+
+    def __init__(self, node_metadata, **kwargs):
+        self.metadata_json = json.dumps(node_metadata, ensure_ascii=False)
+        super(NodeFile, self).__init__(**kwargs)
+
+    def process_file(self):
+        assert self.metadata_json, "{} must have node metadata".format(self.__class__.__name__)
+
+        byte_data = self.metadata_json.encode('utf-8')
+        with tempfile.TemporaryFile() as temp_file:
+            file_hash = hashlib.md5(byte_data)
+            temp_file.write(byte_data)
+
+            assert temp_file.tell() > 0, "File failed to write (corrupted)."
+            temp_file.seek(0)
+
+            extension = self.default_ext
+            file_name = '{0}.{ext}'.format(file_hash.hexdigest(), ext=extension)
+
+            copy_file_to_storage(file_name, temp_file)
+
+            return file_name
+
 
 class DownloadFile(File):
     allowed_formats = []

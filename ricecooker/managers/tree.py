@@ -1,6 +1,8 @@
 import json
-from .. import config
+
 from requests.exceptions import ConnectionError
+
+from .. import config
 
 
 class ChannelManager:
@@ -10,10 +12,10 @@ class ChannelManager:
             channel (Channel): channel that manager is handling
     """
     def __init__(self, channel):
-        self.channel = channel # Channel to process
-        self.uploaded_files=[]
-        self.failed_node_builds=[]
-        self.failed_uploads=[]
+        self.channel = channel  # Channel to process
+        self.uploaded_files = []
+        self.failed_node_builds = []
+        self.failed_uploads = []
 
     def validate(self):
         """ validate: checks if tree structure is valid
@@ -42,9 +44,10 @@ class ChannelManager:
         """
         # Process node's children
         for child_node in node.children:
-            self.process_tree_recur(file_names, child_node)  # Call children first in case we need to create a tiled thumbnail
+            self.process_tree_recur(file_names, child_node)  # Call children first in case a tiled thumbnail is needed
 
         file_names.extend(node.process_files())
+
 
     def check_for_files_failed(self):
         """ check_for_files_failed: print any files that failed during download process
@@ -93,7 +96,7 @@ class ChannelManager:
         files_to_upload = list(set(file_list) - set(self.uploaded_files)) # In case restoring from previous session
         try:
             for f in files_to_upload:
-                with  open(config.get_storage_path(f), 'rb') as file_obj:
+                with open(config.get_storage_path(f), 'rb') as file_obj:
                     response = config.SESSION.post(config.file_upload_url(), files={'file': file_obj})
                     if response.status_code == 200:
                         response.raise_for_status()
