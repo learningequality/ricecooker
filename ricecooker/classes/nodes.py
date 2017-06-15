@@ -23,6 +23,7 @@ class Node(object):
         self.node_id = None
         self.content_id = None
         self.title = title
+        self.hashed_file_name = None
         self.description = description or ""
 
         for f in files or []:
@@ -117,7 +118,8 @@ class Node(object):
             file_names.append(self.derive_thumbnail())
 
         node_file = NodeFile(self.to_dict())
-        file_names.append(node_file.process_file())
+        self.hashed_file_name = node_file.process_file()
+        file_names.append(self.hashed_file_name)
 
         return file_names
 

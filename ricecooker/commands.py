@@ -284,6 +284,7 @@ def upload_files(tree, file_diff):
     tree.reattempt_upload_fails()
     return file_diff
 
+
 def create_tree(tree):
     """ create_tree: Upload tree to Kolibri Studio
         Args:
@@ -292,9 +293,11 @@ def create_tree(tree):
     """
     # Create tree
     config.LOGGER.info("\nCreating tree on Kolibri Studio...")
+    # channel_id, channel_link = tree.upload_channel_structure()
     channel_id, channel_link = tree.upload_tree()
 
     return channel_link, channel_id
+
 
 def publish_tree(tree, channel_id):
     """ publish_tree: Publish tree to Kolibri

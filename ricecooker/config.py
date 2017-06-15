@@ -31,6 +31,9 @@ FILE_DIFF_URL = "{domain}/api/internal/file_diff"
 # URL for uploading files to server
 FILE_UPLOAD_URL = "{domain}/api/internal/file_upload"
 
+# URL for uploading channel structure to server
+CHANNEL_STRUCTURE_UPLOAD_URL = "{domain}/api/internal/channel_structure_upload"
+
 # URL for creating channel on server
 CREATE_CHANNEL_URL = "{domain}/api/internal/create_channel"
 
@@ -137,6 +140,14 @@ def file_upload_url():
     """
     return FILE_UPLOAD_URL.format(domain=DOMAIN)
 
+
+def channel_structure_upload_url():
+    """
+    Returns a string representation of the API endpoint for uploading a channel's structure.
+    """
+    return CHANNEL_STRUCTURE_UPLOAD_URL.format(domain=DOMAIN)
+
+
 def create_channel_url():
     """ create_channel_url: returns url to create channel
         Args: None
@@ -175,37 +186,37 @@ def publish_channel_url():
 
 def sushi_bar_channels_url():
     """
-    Returns the url to report the progress of a sushi chef 
+    Returns the url to report the progress of a sushi chef
     """
     return SUSHI_BAR_CHANNEL_URL.format(domain=SUSHI_BAR_DOMAIN)
 
 def sushi_bar_channel_runs_url():
     """
-    Returns the url to report the progress of a sushi chef 
+    Returns the url to report the progress of a sushi chef
     """
     return SUSHI_BAR_CHANNEL_RUNS_URL.format(domain=SUSHI_BAR_DOMAIN)
 
 def sushi_bar_channel_runs_detail_url(run_id):
     """
-    Returns the url to patch a channel run. 
+    Returns the url to patch a channel run.
     """
     return SUSHI_BAR_CHANNEL_RUNS_DETAIL_URL.format(domain=SUSHI_BAR_DOMAIN,
                                                     run_id=run_id)
 
 def sushi_bar_stages_url(run_id):
     """
-    Returns the url to report the progress of a sushi chef 
+    Returns the url to report the progress of a sushi chef
     """
     return SUSHI_BAR_STAGES_URL.format(domain=SUSHI_BAR_DOMAIN, run_id=run_id)
 
 def sushi_bar_progress_url(run_id):
     """
-    Returns the url to report the progress of a sushi chef 
+    Returns the url to report the progress of a sushi chef
     """
     return SUSHI_BAR_PROGRESS_URL.format(domain=SUSHI_BAR_DOMAIN, run_id=run_id)
 
 def sushi_bar_logs_url(run_id):
     """
-    Returns the url to report the progress of a sushi chef 
+    Returns the url to report the progress of a sushi chef
     """
     return SUSHI_BAR_LOGS_URL.format(domain=SUSHI_BAR_DOMAIN, run_id=run_id)

@@ -117,6 +117,27 @@ class ChannelManager:
             config.LOGGER.info("\nReattempting to upload {0} file(s)...".format(len(self.failed_uploads)))
             self.upload_files(self.failed_uploads)
 
+    def upload_channel_structure(self):
+        config.LOGGER.info('   Uploading structure of channel {0}'.format(self.channel.title))
+
+        channel_structure = {}
+        self.fill_channel_structure(channel_structure, self.channel)
+        payload = {
+            'channel_structure': json.dumps(channel_structure, ensure_ascii=False),
+        }
+        response = config.SESSION.post(config.channel_structure_upload_url(), data=json.dumps(payload))
+        response.raise_for_status()
+
+        new_channel = json.loads(response._content.decode('utf-8'))
+
+        return None, None  # new_channel['channel_id'], new_channel['channel_link']
+
+    def fill_channel_structure(self, cur_dict, cur_node):
+        children_dict = {}
+        for child in cur_node.children:
+            self.fill_channel_structure(children_dict, child)
+        cur_dict[cur_node.hashed_file_name] = children_dict
+
     def upload_tree(self):
         """ upload_tree: sends processed channel data to server to create tree
             Args: None
