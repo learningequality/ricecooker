@@ -24,7 +24,9 @@ class SushiBarClient(object):
             config.LOGGER.info('run_id: %s' % self.run_id)
         self.log_ws, self.log_handler = self.__config_logger()
 
-    def __del__(self):
+    def close(self):
+        if not self.run_id:
+            return
         config.LOGGER.removeHandler(self.log_handler)
         del self.log_handler
         self.log_ws.close()

@@ -86,4 +86,4 @@ if __name__ == '__main__':
         config.SUSHI_BAR_CLIENT.report_stage('FAILURE', 0)
         config.LOGGER.critical(str(e))
     finally:
-        del config.SUSHI_BAR_CLIENT
+        config.SUSHI_BAR_CLIENT.close()
