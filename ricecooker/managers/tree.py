@@ -112,9 +112,9 @@ class ChannelManager:
             config.LOGGER.info("\nReattempting to upload {0} file(s)...".format(len(self.failed_uploads)))
             self.upload_files(self.failed_uploads)
 
-    def upload_tree(self, no_activate):
+    def upload_tree(self):
         """ upload_tree: sends processed channel data to server to create tree
-            Args: no_activate (bool) determine whether to make tree live
+            Args: None
             Returns: link to uploadedchannel
         """
         from datetime import datetime
@@ -127,7 +127,7 @@ class ChannelManager:
             self.failed_node_builds = []
             self.reattempt_failed(failed)
             self.check_failed()
-        channel_id, channel_link = self.commit_channel(channel_id, no_activate)
+        channel_id, channel_link = self.commit_channel(channel_id)
         end_time = datetime.now()
         logging.info("Upload time: {time}s".format(time=(end_time - start_time).total_seconds()))
         return channel_id, channel_link
@@ -216,7 +216,7 @@ class ChannelManager:
         except ConnectionError as ce:
             self.failed_node_builds += [(root_id, current_node, ce)]
 
-    def commit_channel(self, channel_id, no_activate):
+    def commit_channel(self, channel_id):
         """ commit_channel: commits channel to Kolibri Studio
             Args:
                 channel_id (str): channel's id on Kolibri Studio
@@ -224,7 +224,7 @@ class ChannelManager:
         """
         payload = {
             "channel_id":channel_id,
-            "no_activate": no_activate,
+            "stage": config.STAGE,
         }
         response = config.SESSION.post(config.finish_channel_url(), data=json.dumps(payload))
         response.raise_for_status()

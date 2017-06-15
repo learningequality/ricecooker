@@ -290,7 +290,7 @@ class HTMLZipFile(DownloadFile):
     def get_preset(self):
         return self.preset or format_presets.HTML5_ZIP
 
-     def process_file(self):
+    def process_file(self):
         self.filename = super(HTMLZipFile, self).process_file()
 
         # make sure index.html exists
