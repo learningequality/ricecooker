@@ -212,7 +212,7 @@ class RestoreManager:
         """
         self.channel_link = channel_link
         self.channel_id = channel_id
-        self.__record_progress(Status.PUBLISH_CHANNEL)
+        self.__record_progress(Status.PUBLISH_CHANNEL if config.PUBLISH else Status.DONE)
 
     def set_published(self):
         """ set_published: records progress after channel has been published
