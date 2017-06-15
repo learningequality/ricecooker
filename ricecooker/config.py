@@ -11,6 +11,7 @@ from requests_file import FileAdapter
 UPDATE = False
 COMPRESS = False
 THUMBNAILS = False
+PUBLISH = False
 PROGRESS_MANAGER = None
 SUSHI_BAR_CLIENT = None
 LOGGER = logging.getLogger()
