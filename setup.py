@@ -28,7 +28,6 @@ requirements = [
     "lockfile==0.12.2",
     "css-html-js-minify==2.2.2",
     "websocket-client==0.40.0",
-    "daemonize==2.4.7",
 ]
 
 test_requirements = [

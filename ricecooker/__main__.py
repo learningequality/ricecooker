@@ -40,11 +40,9 @@ from .commands import uploadchannel
 from . import config
 from .exceptions import InvalidUsageException
 from .managers.progress import Status
-from daemonize import Daemonize
 from docopt import docopt
 import json
 import threading
-import time
 import websocket
 
 commands = ["uploadchannel"]
@@ -68,10 +66,6 @@ class WebSocketHandler(threading.Thread):
             on_close=self.__on_close,
             on_message=self.on_message
         )
-        #print('waiting')
-        #while not self.ws_opened:
-        #    pass
-        #print('done')
 
     def __on_open(self, message):
         self.ws_opened = True
@@ -165,8 +159,6 @@ if __name__ == '__main__':
       raise InvalidUsageException("Invalid argument: Download-attempts must be an integer.")
 
     if arguments['--daemon']:
-        #daemon = Daemonize(app='sushi_chef', pid='chef.pid', action=lambda : daemon_mode(arguments,**kwargs), chdir='.')
-        #daemon.start()
         daemon_mode(arguments,**kwargs)
     else:
         single_run(arguments, **kwargs)
