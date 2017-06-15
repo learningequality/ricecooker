@@ -19,7 +19,38 @@ try:
 except NameError:
     pass
 
-def uploadchannel(path, verbose=False, update=False, thumbnails=False, download_attempts=3, resume=False, reset=False, step=Status.LAST.name, token="#", prompt=False, publish=False, warnings=False, compress=False, **kwargs):
+
+__logging_handler = None
+
+
+def uploadchannel(arguments, **kwargs):
+    try:
+        __uploadchannel(arguments["<file_path>"],
+                        verbose=arguments["-v"],
+                        update=arguments['-u'],
+                        thumbnails=arguments["--thumbnails"],
+                        download_attempts=arguments['--download-attempts'],
+                        resume=arguments['--resume'],
+                        reset=arguments['--reset'],
+                        token=arguments['--token'],
+                        step=arguments['--step'],
+                        prompt=arguments['--prompt'],
+                        publish=arguments['--publish'],
+                        warnings=arguments['--warn'],
+                        compress=arguments['--compress'],
+                        **kwargs)
+        config.SUSHI_BAR_CLIENT.report_stage('COMPLETED', 0)
+    except Exception as e:
+        config.SUSHI_BAR_CLIENT.report_stage('FAILURE', 0)
+        config.LOGGER.critical(e)
+        raise
+    finally:
+        config.SUSHI_BAR_CLIENT.close()
+        config.LOGGER.removeHandler(__logging_handler)
+
+
+
+def __uploadchannel(path, verbose=False, update=False, thumbnails=False, download_attempts=3, resume=False, reset=False, step=Status.LAST.name, token="#", prompt=False, publish=False, warnings=False, compress=False, **kwargs):
     """ uploadchannel: Upload channel to Kolibri Studio server
         Args:
             path (str): path to file containing construct_channel method
@@ -40,8 +71,10 @@ def uploadchannel(path, verbose=False, update=False, thumbnails=False, download_
     """
 
     # Set configuration settings
+    global __logging_handler
     level = logging.INFO if verbose else logging.WARNING if warnings else logging.ERROR
-    config.LOGGER.addHandler(logging.StreamHandler())
+    __logging_handler = logging.StreamHandler()
+    config.LOGGER.addHandler(__logging_handler)
     logging.getLogger("requests").setLevel(logging.WARNING)
     config.LOGGER.setLevel(level)
 
