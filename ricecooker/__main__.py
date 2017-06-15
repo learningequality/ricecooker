@@ -42,9 +42,70 @@ from .exceptions import InvalidUsageException
 from .managers.progress import Status
 from daemonize import Daemonize
 from docopt import docopt
+import json
+import threading
 import time
+import websocket
 
 commands = ["uploadchannel"]
+
+
+class WebSocketHandler(threading.Thread):
+    """WebSocket with re-connection logic."""
+
+    def __init__(self, url):
+        threading.Thread.__init__(self)
+        self.url = url
+        self.ws_opened = False
+        self.ws = None
+        self._stop_event = threading.Event()
+
+    def __connect(self):
+        print('########### CONNECTING ##############')
+        self.ws = websocket.WebSocketApp(
+            self.url,
+            on_open=self.__on_open,
+            on_close=self.__on_close,
+            on_message=self.on_message
+        )
+        #print('waiting')
+        #while not self.ws_opened:
+        #    pass
+        #print('done')
+
+    def __on_open(self, message):
+        self.ws_opened = True
+
+    def __on_close(self, message):
+        self.ws_opened = False
+
+    def run(self):
+        while not self.stopped():
+            self.__connect()
+            self.ws.run_forever()
+
+    def on_message(self, ws, message):
+        pass
+
+    def send(self, data):
+        if self.ws_opened:
+            self.ws.send(data)
+
+    def stop(self):
+        self._stop_event.set()
+        self.ws.close()
+
+    def stopped(self):
+        return self._stop_event.is_set()
+
+
+class ControlWebSocket(WebSocketHandler):
+    def __init__(self):
+        WebSocketHandler.__init__(self, 'ws://127.0.0.1:8000/control/12345')
+
+    def on_message(self, ws, message):
+        message = json.loads(message)
+        print(message['command'])
 
 
 def single_run(arguments, **kwargs):
@@ -73,9 +134,9 @@ def single_run(arguments, **kwargs):
 
 
 def daemon_mode(arguments, **kwargs):
-    while True:
-        print('sushi chef')
-        time.sleep(5)
+    cws = ControlWebSocket()
+    cws.start()
+    cws.join()
 
 
 if __name__ == '__main__':
@@ -104,7 +165,8 @@ if __name__ == '__main__':
       raise InvalidUsageException("Invalid argument: Download-attempts must be an integer.")
 
     if arguments['--daemon']:
-        daemon = Daemonize(app='sushi_chef', pid='chef.pid', action=lambda : daemon_mode(arguments,**kwargs), chdir='.')
-        daemon.start()
+        #daemon = Daemonize(app='sushi_chef', pid='chef.pid', action=lambda : daemon_mode(arguments,**kwargs), chdir='.')
+        #daemon.start()
+        daemon_mode(arguments,**kwargs)
     else:
         single_run(arguments, **kwargs)
