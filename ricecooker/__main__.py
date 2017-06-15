@@ -84,6 +84,7 @@ if __name__ == '__main__':
                       **kwargs)
     except Exception as e:
         config.SUSHI_BAR_CLIENT.report_stage('FAILURE', 0)
-        config.LOGGER.critical(str(e))
+        config.LOGGER.critical(e)
+        raise
     finally:
-        del config.SUSHI_BAR_CLIENT
+        config.SUSHI_BAR_CLIENT.close()
