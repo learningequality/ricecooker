@@ -1,5 +1,5 @@
 
-"""Usage: ricecooker uploadchannel [-huv] <file_path> [--warn] [--compress] [--token=<t>] [--thumbnails] [--download-attempts=<n>] [--resume [--step=<step>] | --reset] [--prompt] [--publish] [[OPTIONS] ...]
+"""Usage: ricecooker uploadchannel [-huv] <file_path> [--warn] [--compress] [--token=<t>] [--thumbnails] [--download-attempts=<n>] [--resume [--step=<step>] | --reset] [--prompt] [--publish] [--daemon] [[OPTIONS] ...]
 
 Arguments:
   file_path        Path to file with channel data
@@ -18,6 +18,7 @@ Options:
   --reset                     Restart session, overwriting previous session (cannot be used with --resume flag)
   --prompt                    Receive prompt to open the channel once it's uploaded
   --publish                   Automatically publish channel once it's been created
+  --daemon                    Runs in daemon mode
   [OPTIONS]                   Extra arguments to add to command line (e.g. key='field')
 
 Steps (for restoring session):
@@ -68,6 +69,9 @@ if __name__ == '__main__':
       raise InvalidUsageException("Invalid argument: Download-attempts must be an integer.")
 
     try:
+        if arguments['--daemon']:
+            print('daemon')
+            exit(0)
         uploadchannel(arguments["<file_path>"],
                       verbose=arguments["-v"],
                       update=arguments['-u'],
