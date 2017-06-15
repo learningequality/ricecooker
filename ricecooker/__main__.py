@@ -40,9 +40,43 @@ from .commands import uploadchannel
 from . import config
 from .exceptions import InvalidUsageException
 from .managers.progress import Status
+from daemonize import Daemonize
 from docopt import docopt
+import time
 
 commands = ["uploadchannel"]
+
+
+def single_run(arguments, **kwargs):
+    try:
+        uploadchannel(arguments["<file_path>"],
+                      verbose=arguments["-v"],
+                      update=arguments['-u'],
+                      thumbnails=arguments["--thumbnails"],
+                      download_attempts=arguments['--download-attempts'],
+                      resume=arguments['--resume'],
+                      reset=arguments['--reset'],
+                      token=arguments['--token'],
+                      step=arguments['--step'],
+                      prompt=arguments['--prompt'],
+                      publish=arguments['--publish'],
+                      warnings=arguments['--warn'],
+                      compress=arguments['--compress'],
+                      **kwargs)
+        config.SUSHI_BAR_CLIENT.report_stage('COMPLETED', 0)
+    except Exception as e:
+        config.SUSHI_BAR_CLIENT.report_stage('FAILURE', 0)
+        config.LOGGER.critical(e)
+        raise
+    finally:
+        config.SUSHI_BAR_CLIENT.close()
+
+
+def daemon_mode(arguments, **kwargs):
+    while True:
+        print('sushi chef')
+        time.sleep(5)
+
 
 if __name__ == '__main__':
     arguments = docopt(__doc__)
@@ -61,6 +95,7 @@ if __name__ == '__main__':
     all_steps = [s.name for s in Status]
     if step.upper() not in all_steps:
       raise InvalidUsageException("Invalid step '{0}': Valid steps are {1}".format(step, all_steps))
+    arguments['--step'] = step
 
     # Make sure max-retries can be cast as an integer
     try:
@@ -68,30 +103,8 @@ if __name__ == '__main__':
     except ValueError:
       raise InvalidUsageException("Invalid argument: Download-attempts must be an integer.")
 
-    try:
-        if arguments['--daemon']:
-            print('daemon')
-            exit(0)
-        uploadchannel(arguments["<file_path>"],
-                      verbose=arguments["-v"],
-                      update=arguments['-u'],
-                      thumbnails=arguments["--thumbnails"],
-                      download_attempts=arguments['--download-attempts'],
-                      resume=arguments['--resume'],
-                      reset=arguments['--reset'],
-                      token=arguments['--token'],
-                      step=step,
-                      prompt=arguments['--prompt'],
-                      publish=arguments['--publish'],
-                      warnings=arguments['--warn'],
-                      compress=arguments['--compress'],
-                      **kwargs)
-        config.SUSHI_BAR_CLIENT.report_stage('COMPLETED', 0)
-    except Exception as e:
-        if config.SUSHI_BAR_CLIENT:
-            config.SUSHI_BAR_CLIENT.report_stage('FAILURE', 0)
-        config.LOGGER.critical(e)
-        raise
-    finally:
-        if config.SUSHI_BAR_CLIENT:
-            config.SUSHI_BAR_CLIENT.close()
+    if arguments['--daemon']:
+        daemon = Daemonize(app='sushi_chef', pid='chef.pid', action=lambda : daemon_mode(arguments,**kwargs), chdir='.')
+        daemon.start()
+    else:
+        single_run(arguments, **kwargs)
