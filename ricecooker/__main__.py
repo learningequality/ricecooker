@@ -82,9 +82,12 @@ if __name__ == '__main__':
                       warnings=arguments['--warn'],
                       compress=arguments['--compress'],
                       **kwargs)
+        config.SUSHI_BAR_CLIENT.report_stage('COMPLETED', 0)
     except Exception as e:
-        config.SUSHI_BAR_CLIENT.report_stage('FAILURE', 0)
+        if config.SUSHI_BAR_CLIENT:
+            config.SUSHI_BAR_CLIENT.report_stage('FAILURE', 0)
         config.LOGGER.critical(e)
         raise
     finally:
-        config.SUSHI_BAR_CLIENT.close()
+        if config.SUSHI_BAR_CLIENT:
+            config.SUSHI_BAR_CLIENT.close()
