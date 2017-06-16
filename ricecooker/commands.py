@@ -51,6 +51,7 @@ def uploadchannel(path, verbose=False, update=False, thumbnails=False, download_
     config.UPDATE = update
     config.COMPRESS = compress
     config.THUMBNAILS = thumbnails
+    config.PUBLISH = publish
 
     # Set max retries for downloading
     config.DOWNLOAD_SESSION.mount('http://', requests.adapters.HTTPAdapter(max_retries=int(download_attempts)))
@@ -123,7 +124,7 @@ def uploadchannel(path, verbose=False, update=False, thumbnails=False, download_
     channel_id = config.PROGRESS_MANAGER.channel_id
 
     # Publish tree if flag is set to True
-    if publish and config.PROGRESS_MANAGER.get_status_val() <= Status.PUBLISH_CHANNEL.value:
+    if config.PUBLISH and config.PROGRESS_MANAGER.get_status_val() <= Status.PUBLISH_CHANNEL.value:
         print("Publishing channel...")
         publish_tree(tree, channel_id)
         config.PROGRESS_MANAGER.set_published()
