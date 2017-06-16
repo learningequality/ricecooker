@@ -1,16 +1,17 @@
-import os
-import sys
-import requests
 import json
 import logging
+import os
+import sys
 import webbrowser
-from . import config, __version__
-from .classes import nodes, questions
+from importlib.machinery import SourceFileLoader
+
+import requests
 from requests.exceptions import HTTPError
+
+from . import config, __version__
 from .managers.progress import RestoreManager, Status
 from .managers.tree import ChannelManager
 from .sushi_bar_client import SushiBarClient
-from importlib.machinery import SourceFileLoader
 
 # Fix to support Python 2.x.
 # http://stackoverflow.com/questions/954834/how-do-i-use-raw-input-in-python-3
@@ -82,6 +83,7 @@ def uploadchannel(path, verbose=False, update=False, thumbnails=False, download_
 
     # Construct channel if it hasn't been constructed already
     if config.PROGRESS_MANAGER.get_status_val() <= Status.CONSTRUCT_CHANNEL.value:
+        print("Running sushi chef...")
         config.PROGRESS_MANAGER.set_channel(run_construct_channel(path, kwargs))
     channel = config.PROGRESS_MANAGER.channel
 
@@ -92,6 +94,7 @@ def uploadchannel(path, verbose=False, update=False, thumbnails=False, download_
 
     # Download files if they haven't been downloaded already
     if config.PROGRESS_MANAGER.get_status_val() <= Status.DOWNLOAD_FILES.value:
+        print("Downloading files...")
         config.PROGRESS_MANAGER.set_files(*process_tree_files(tree))
 
     # Set download manager in case steps were skipped
@@ -100,6 +103,7 @@ def uploadchannel(path, verbose=False, update=False, thumbnails=False, download_
 
     # Get file diff if it hasn't been generated already
     if config.PROGRESS_MANAGER.get_status_val() <= Status.GET_FILE_DIFF.value:
+        print("Getting file diff...")
         config.PROGRESS_MANAGER.set_diff(get_file_diff(tree, files_to_diff))
     file_diff = config.PROGRESS_MANAGER.file_diff
 
@@ -108,16 +112,19 @@ def uploadchannel(path, verbose=False, update=False, thumbnails=False, download_
 
     # Upload files if they haven't been uploaded already
     if config.PROGRESS_MANAGER.get_status_val() <= Status.UPLOADING_FILES.value:
+        print("Uploading files...")
         config.PROGRESS_MANAGER.set_uploaded(upload_files(tree, file_diff))
 
     # Create channel on Kolibri Studio if it hasn't been created already
     if config.PROGRESS_MANAGER.get_status_val() <= Status.UPLOAD_CHANNEL.value:
+        print("Creating channel...")
         config.PROGRESS_MANAGER.set_channel_created(*create_tree(tree))
     channel_link = config.PROGRESS_MANAGER.channel_link
     channel_id = config.PROGRESS_MANAGER.channel_id
 
     # Publish tree if flag is set to True
     if publish and config.PROGRESS_MANAGER.get_status_val() <= Status.PUBLISH_CHANNEL.value:
+        print("Publishing channel...")
         publish_tree(tree, channel_id)
         config.PROGRESS_MANAGER.set_published()
 
@@ -293,8 +300,7 @@ def create_tree(tree):
     """
     # Create tree
     config.LOGGER.info("\nCreating tree on Kolibri Studio...")
-    # channel_id, channel_link = tree.upload_channel_structure()
-    channel_id, channel_link = tree.upload_tree()
+    channel_id, channel_link = tree.upload_channel_structure()
 
     return channel_link, channel_id
 
