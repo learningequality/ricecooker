@@ -3,6 +3,7 @@ import sys
 import requests
 import json
 import logging
+import threading
 import webbrowser
 from . import config, __version__
 from .classes import nodes, questions
@@ -10,6 +11,8 @@ from requests.exceptions import HTTPError
 from .managers.progress import RestoreManager, Status
 from .managers.tree import ChannelManager
 from .sushi_bar_client import SushiBarClient
+from .sushi_bar_client import ReconnectingWebSocket
+from .sushi_bar_client import SushiBarNotSupportedException
 from importlib.machinery import SourceFileLoader
 
 # Fix to support Python 2.x.
@@ -18,6 +21,72 @@ try:
     input = raw_input
 except NameError:
     pass
+
+
+__logging_handler = None
+
+
+def uploadchannel_wrapper(arguments, **kwargs):
+    try:
+        uploadchannel(arguments["<file_path>"],
+                        verbose=arguments["-v"],
+                        update=arguments['-u'],
+                        thumbnails=arguments["--thumbnails"],
+                        download_attempts=arguments['--download-attempts'],
+                        resume=arguments['--resume'],
+                        reset=arguments['--reset'],
+                        token=arguments['--token'],
+                        step=arguments['--step'],
+                        prompt=arguments['--prompt'],
+                        publish=arguments['--publish'],
+                        warnings=arguments['--warn'],
+                        compress=arguments['--compress'],
+                        **kwargs)
+        config.SUSHI_BAR_CLIENT.report_stage('COMPLETED', 0)
+    except Exception as e:
+        if config.SUSHI_BAR_CLIENT:
+            config.SUSHI_BAR_CLIENT.report_stage('FAILURE', 0)
+        config.LOGGER.critical(e)
+        raise
+    finally:
+        if config.SUSHI_BAR_CLIENT:
+            config.SUSHI_BAR_CLIENT.close()
+        config.LOGGER.removeHandler(__logging_handler)
+
+
+def daemon_mode(arguments, **kwargs):
+    cws = ControlWebSocket(arguments, **kwargs)
+    cws.start()
+    cws.join()
+
+
+class ControlWebSocket(ReconnectingWebSocket):
+    def __init__(self, arguments, **kwargs):
+        self.arguments = arguments
+        self.kwargs = kwargs
+        self.channel = run_create_channel(arguments["<file_path>"], self.kwargs)
+        if not self.channel:
+            raise SushiBarNotSupportedException(
+                'Chef does not implement create_channel')
+        self.thread = None
+        print('Channel id %s' % self.channel.get_node_id().hex)
+        url = config.sushi_bar_control_url(self.channel.get_node_id().hex)
+        ReconnectingWebSocket.__init__(self, url)
+
+    def on_message(self, ws, message):
+        message = json.loads(message)
+        if message['command'] == 'start':
+            if not self.thread or not self.thread.isAlive():
+                self.thread = threading.Thread(
+                    target=uploadchannel_wrapper,
+                    args=(self.arguments, ),
+                    kwargs=self.kwargs)
+                self.thread.start()
+            else:
+                print('Already running')
+        else:
+            print('Command not supported: %s' % message['command'])
+
 
 def uploadchannel(path, verbose=False, update=False, thumbnails=False, download_attempts=3, resume=False, reset=False, step=Status.LAST.name, token="#", prompt=False, publish=False, warnings=False, compress=False, **kwargs):
     """ uploadchannel: Upload channel to Kolibri Studio server
@@ -40,8 +109,10 @@ def uploadchannel(path, verbose=False, update=False, thumbnails=False, download_
     """
 
     # Set configuration settings
+    global __logging_handler
     level = logging.INFO if verbose else logging.WARNING if warnings else logging.ERROR
-    config.LOGGER.addHandler(logging.StreamHandler())
+    __logging_handler = logging.StreamHandler()
+    config.LOGGER.addHandler(__logging_handler)
     logging.getLogger("requests").setLevel(logging.WARNING)
     config.LOGGER.setLevel(level)
 
