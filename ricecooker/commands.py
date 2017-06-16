@@ -41,13 +41,14 @@ def uploadchannel(arguments, **kwargs):
                         **kwargs)
         config.SUSHI_BAR_CLIENT.report_stage('COMPLETED', 0)
     except Exception as e:
-        config.SUSHI_BAR_CLIENT.report_stage('FAILURE', 0)
+        if config.SUSHI_BAR_CLIENT:
+            config.SUSHI_BAR_CLIENT.report_stage('FAILURE', 0)
         config.LOGGER.critical(e)
         raise
     finally:
-        config.SUSHI_BAR_CLIENT.close()
+        if config.SUSHI_BAR_CLIENT:
+            config.SUSHI_BAR_CLIENT.close()
         config.LOGGER.removeHandler(__logging_handler)
-
 
 
 def __uploadchannel(path, verbose=False, update=False, thumbnails=False, download_attempts=3, resume=False, reset=False, step=Status.LAST.name, token="#", prompt=False, publish=False, warnings=False, compress=False, **kwargs):
