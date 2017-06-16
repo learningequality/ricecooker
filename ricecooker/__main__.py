@@ -36,89 +36,14 @@ Steps (for restoring session):
 
 """
 
-from .commands import uploadchannel, run_create_channel
+from .commands import daemon_mode, uploadchannel_wrapper
 from . import config
 from .exceptions import InvalidUsageException
 from .managers.progress import Status
 from docopt import docopt
-import json
-import threading
-import websocket
+
 
 commands = ["uploadchannel"]
-
-
-class WebSocketHandler(threading.Thread):
-    """WebSocket with re-connection logic."""
-
-    def __init__(self, url):
-        threading.Thread.__init__(self)
-        self.url = url
-        self.ws_opened = False
-        self.ws = None
-        self._stop_event = threading.Event()
-
-    def __connect(self):
-        print('########### CONNECTING ##############')
-        self.ws = websocket.WebSocketApp(
-            self.url,
-            on_open=self.__on_open,
-            on_close=self.__on_close,
-            on_message=self.on_message
-        )
-
-    def __on_open(self, message):
-        self.ws_opened = True
-
-    def __on_close(self, message):
-        self.ws_opened = False
-
-    def run(self):
-        while not self.stopped():
-            self.__connect()
-            self.ws.run_forever()
-
-    def on_message(self, ws, message):
-        pass
-
-    def send(self, data):
-        if self.ws_opened:
-            self.ws.send(data)
-
-    def stop(self):
-        self._stop_event.set()
-        self.ws.close()
-
-    def stopped(self):
-        return self._stop_event.is_set()
-
-
-class ControlWebSocket(WebSocketHandler):
-    def __init__(self, arguments, **kwargs):
-        self.arguments = arguments
-        self.kwargs = kwargs
-        self.channel = run_create_channel(arguments["<file_path>"], self.kwargs)
-        self.thread = None
-        print('channel id %s' % self.channel.get_node_id().hex)
-        url = config.sushi_bar_control_url(self.channel.get_node_id().hex)
-        WebSocketHandler.__init__(self, url)
-
-    def on_message(self, ws, message):
-        message = json.loads(message)
-        if message['command'] == 'start':
-            if not self.thread or not self.thread.isAlive():
-                self.thread = threading.Thread(target=uploadchannel, args=(self.arguments, ), kwargs=self.kwargs)
-                self.thread.start()
-            else:
-                print('Already running')
-        else:
-            print('Command not supported: %s' % message['command'])
-
-
-def daemon_mode(arguments, **kwargs):
-    cws = ControlWebSocket(arguments, **kwargs)
-    cws.start()
-    cws.join()
 
 
 if __name__ == '__main__':
@@ -149,4 +74,4 @@ if __name__ == '__main__':
     if arguments['--daemon']:
         daemon_mode(arguments,**kwargs)
     else:
-        uploadchannel(arguments, **kwargs)
+        uploadchannel_wrapper(arguments, **kwargs)

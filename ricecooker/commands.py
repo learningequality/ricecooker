@@ -3,13 +3,14 @@ import sys
 import requests
 import json
 import logging
+import threading
 import webbrowser
 from . import config, __version__
 from .classes import nodes, questions
 from requests.exceptions import HTTPError
 from .managers.progress import RestoreManager, Status
 from .managers.tree import ChannelManager
-from .sushi_bar_client import SushiBarClient
+from .sushi_bar_client import SushiBarClient, ReconnectingWebSocket
 from importlib.machinery import SourceFileLoader
 
 # Fix to support Python 2.x.
@@ -23,9 +24,9 @@ except NameError:
 __logging_handler = None
 
 
-def uploadchannel(arguments, **kwargs):
+def uploadchannel_wrapper(arguments, **kwargs):
     try:
-        __uploadchannel(arguments["<file_path>"],
+        uploadchannel(arguments["<file_path>"],
                         verbose=arguments["-v"],
                         update=arguments['-u'],
                         thumbnails=arguments["--thumbnails"],
@@ -51,7 +52,35 @@ def uploadchannel(arguments, **kwargs):
         config.LOGGER.removeHandler(__logging_handler)
 
 
-def __uploadchannel(path, verbose=False, update=False, thumbnails=False, download_attempts=3, resume=False, reset=False, step=Status.LAST.name, token="#", prompt=False, publish=False, warnings=False, compress=False, **kwargs):
+def daemon_mode(arguments, **kwargs):
+    cws = ControlWebSocket(arguments, **kwargs)
+    cws.start()
+    cws.join()
+
+
+class ControlWebSocket(ReconnectingWebSocket):
+    def __init__(self, arguments, **kwargs):
+        self.arguments = arguments
+        self.kwargs = kwargs
+        self.channel = run_create_channel(arguments["<file_path>"], self.kwargs)
+        self.thread = None
+        print('Channel id %s' % self.channel.get_node_id().hex)
+        url = config.sushi_bar_control_url(self.channel.get_node_id().hex)
+        ReconnectingWebSocket.__init__(self, url)
+
+    def on_message(self, ws, message):
+        message = json.loads(message)
+        if message['command'] == 'start':
+            if not self.thread or not self.thread.isAlive():
+                self.thread = threading.Thread(target=uploadchannel, args=(self.arguments, ), kwargs=self.kwargs)
+                self.thread.start()
+            else:
+                print('Already running')
+        else:
+            print('Command not supported: %s' % message['command'])
+
+
+def uploadchannel(path, verbose=False, update=False, thumbnails=False, download_attempts=3, resume=False, reset=False, step=Status.LAST.name, token="#", prompt=False, publish=False, warnings=False, compress=False, **kwargs):
     """ uploadchannel: Upload channel to Kolibri Studio server
         Args:
             path (str): path to file containing construct_channel method
