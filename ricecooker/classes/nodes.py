@@ -502,10 +502,12 @@ class AudioNode(ContentNode):
             Args: None
             Returns: boolean indicating if audio is valid
         """
+        from .files import AudioFile
         try:
             assert self.kind == content_kinds.AUDIO, "Assumption Failed: Node should be audio"
             assert self.questions == [], "Assumption Failed: Audio should not have questions"
             assert len(self.files) > 0, "Assumption Failed: Audio should have at least one file"
+            assert any(filter(lambda f: isinstance(f, AudioFile), self.files)), "Assumption Failed: Audio should have at least one audio file"
             return super(AudioNode, self).validate()
         except AssertionError as ae:
             raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
@@ -535,10 +537,12 @@ class DocumentNode(ContentNode):
             Args: None
             Returns: boolean indicating if document is valid
         """
+        from .files import DocumentFile
         try:
             assert self.kind == content_kinds.DOCUMENT, "Assumption Failed: Node should be a document"
             assert self.questions == [], "Assumption Failed: Document should not have questions"
             assert len(self.files) > 0, "Assumption Failed: Document should have at least one file"
+            assert any(filter(lambda f: isinstance(f, DocumentFile), self.files)), "Assumption Failed: Document should have at least one document file"
             return super(DocumentNode, self).validate()
         except AssertionError as ae:
             raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
@@ -569,9 +573,11 @@ class HTML5AppNode(ContentNode):
             Args: None
             Returns: boolean indicating if HTML5 app is valid
         """
+        from .files import HTMLZipFile
         try:
             assert self.kind == content_kinds.HTML5, "Assumption Failed: Node should be an HTML5 app"
             assert self.questions == [], "Assumption Failed: HTML should not have questions"
+            assert any(filter(lambda f: isinstance(f, HTMLZipFile), self.files)), "Assumption Failed: HTML should have at least one html file"
             return super(HTML5AppNode, self).validate()
 
         except AssertionError as ae:
