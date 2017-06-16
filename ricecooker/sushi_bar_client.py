@@ -241,3 +241,10 @@ class LoggingHandler(logging.Handler):
             self.ws.send(json.dumps(log_data))
         except Exception as e:
             print('Logging error: %s' % e)
+
+
+class SushiBarNotSupportedException(Exception):
+    """
+    Sushi chef is not updated to report to the sushi bar.
+    """
+    pass

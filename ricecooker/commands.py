@@ -10,7 +10,9 @@ from .classes import nodes, questions
 from requests.exceptions import HTTPError
 from .managers.progress import RestoreManager, Status
 from .managers.tree import ChannelManager
-from .sushi_bar_client import SushiBarClient, ReconnectingWebSocket
+from .sushi_bar_client import SushiBarClient
+from .sushi_bar_client import ReconnectingWebSocket
+from .sushi_bar_client import SushiBarNotSupportedException
 from importlib.machinery import SourceFileLoader
 
 # Fix to support Python 2.x.
@@ -63,6 +65,9 @@ class ControlWebSocket(ReconnectingWebSocket):
         self.arguments = arguments
         self.kwargs = kwargs
         self.channel = run_create_channel(arguments["<file_path>"], self.kwargs)
+        if not self.channel:
+            raise SushiBarNotSupportedException(
+                'Chef does not implement create_channel')
         self.thread = None
         print('Channel id %s' % self.channel.get_node_id().hex)
         url = config.sushi_bar_control_url(self.channel.get_node_id().hex)
@@ -72,7 +77,10 @@ class ControlWebSocket(ReconnectingWebSocket):
         message = json.loads(message)
         if message['command'] == 'start':
             if not self.thread or not self.thread.isAlive():
-                self.thread = threading.Thread(target=uploadchannel, args=(self.arguments, ), kwargs=self.kwargs)
+                self.thread = threading.Thread(
+                    target=uploadchannel_wrapper,
+                    args=(self.arguments, ),
+                    kwargs=self.kwargs)
                 self.thread.start()
             else:
                 print('Already running')
