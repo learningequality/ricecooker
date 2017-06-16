@@ -128,8 +128,8 @@ class ChannelManager:
         response.raise_for_status()
 
         new_channel = json.loads(response._content.decode('utf-8'))
-
-        return None, None  # new_channel['channel_id'], new_channel['channel_link']
+        import pdb; pdb.set_trace()
+        return new_channel['channel_id'], new_channel['channel_link']
 
     def fill_channel_structure(self, cur_dict, cur_node, sort_order):
         children_dict = {}

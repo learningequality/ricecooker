@@ -20,7 +20,7 @@ try:
 except NameError:
     pass
 
-def uploadchannel(path, verbose=False, update=False, thumbnails=False, download_attempts=3, resume=False, reset=False, step=Status.LAST.name, token="#", prompt=False, publish=False, warnings=False, compress=False, **kwargs):
+def uploadchannel(path, verbose=False, update=False, thumbnails=False, download_attempts=3, resume=False, reset=False, step=Status.LAST.name, token="#", prompt=False, publish=False, warnings=False, compress=False, stage=False, **kwargs):
     """ uploadchannel: Upload channel to Kolibri Studio server
         Args:
             path (str): path to file containing construct_channel method
@@ -36,6 +36,7 @@ def uploadchannel(path, verbose=False, update=False, thumbnails=False, download_
             publish (bool): indicates whether to automatically publish channel (optional)
             warnings (bool): indicates whether to print out warnings (optional)
             compress (bool): indicates whether to compress larger files (optional)
+            stage (bool): indicates whether to stage rather than deploy channel (optional)
             kwargs (dict): keyword arguments to pass to sushi chef (optional)
         Returns: (str) link to access newly created channel
     """
@@ -52,6 +53,7 @@ def uploadchannel(path, verbose=False, update=False, thumbnails=False, download_
     config.COMPRESS = compress
     config.THUMBNAILS = thumbnails
     config.PUBLISH = publish
+    config.STAGE = stage
 
     # Set max retries for downloading
     config.DOWNLOAD_SESSION.mount('http://', requests.adapters.HTTPAdapter(max_retries=int(download_attempts)))

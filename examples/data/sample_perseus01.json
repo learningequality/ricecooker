@@ -12,9 +12,6 @@
 
          },
          "images":{
-            "web+graphie:content://0a0c0f1a1a40226d8d227a07dd143f8c08a4b8a5":{
-
-            }
          },
          "content":"Hint #1",
          "replace":false
@@ -66,11 +63,8 @@
          }
       },
       "images":{
-         "web+graphie:content://0a0c0f1a1a40226d8d227a07dd143f8c08a4b8a5":{
-
-         }
       },
-      "content":"Do you like rice?\\\"\\n\\n![](web+graphie:content://0a0c0f1a1a40226d8d227a07dd143f8c08a4b8a5)\\n\\n[[\\u2603 radio 1]]"
+      "content":"Do you like rice?\\\"\\n\\n![](web+graphie:ka-perseus-graphie.s3.amazonaws.com/907dec1b45fb177f0937fa521b7af03fb837f0bd)\\n\\n[[\\u2603 radio 1]]"
    },
    "itemDataVersion":{
       "minor":1,
