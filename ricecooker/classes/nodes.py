@@ -1,12 +1,15 @@
 # Node models to represent channel's tree
 
-import uuid
 import json
-import sys
-from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
-from ..exceptions import InvalidNodeException, InvalidFormatException
-from .. import config, __version__
+import uuid
+
+from le_utils.constants import content_kinds, file_formats, exercises, format_presets
+
+from ricecooker.classes.files import NodeFile
 from .licenses import License
+from .. import config, __version__
+from ..exceptions import InvalidNodeException
+
 
 class Node(object):
     license = None
@@ -20,6 +23,7 @@ class Node(object):
         self.node_id = None
         self.content_id = None
         self.title = title
+        self.hashed_file_name = None
         self.description = description or ""
 
         for f in files or []:
@@ -79,19 +83,45 @@ class Node(object):
         if self.thumbnail:
             self.add_file(self.thumbnail)
 
-    def process_files(self):
-        """ process_files: Process node's files
-            Args: None
-            Returns: None
+    def get_thumbnail_preset(self):
         """
-        filenames = []
+        Returns the format preset corresponding to this Node's type, or None if the node doesn't have a format preset.
+        """
+        if isinstance(self, ChannelNode):
+            return format_presets.CHANNEL_THUMBNAIL
+        elif isinstance(self, TopicNode):
+            return format_presets.TOPIC_THUMBNAIL
+        elif isinstance(self, VideoNode):
+            return format_presets.VIDEO_THUMBNAIL
+        elif isinstance(self, AudioNode):
+            return format_presets.AUDIO_THUMBNAIL
+        elif isinstance(self, DocumentNode):
+            return format_presets.DOCUMENT_THUMBNAIL
+        elif isinstance(self, ExerciseNode):
+            return format_presets.EXERCISE_THUMBNAIL
+        elif isinstance(self, HTML5AppNode):
+            return format_presets.HTML5_THUMBNAIL
+        else:
+            return None
+
+    def process_files(self):
+        """
+        Processes all the files associated with this Node. Files are downloaded if not present in the local storage.
+        Creates and processes a NodeFile containing this Node's metadata.
+        :return: A list of names of all the processed files.
+        """
+        file_names = []
         for f in self.files:
-            filenames.append(f.process_file())
+            file_names.append(f.process_file())
 
         if not self.has_thumbnail() and config.THUMBNAILS:
-            filenames.append(self.derive_thumbnail())
+            file_names.append(self.derive_thumbnail())
 
-        return filenames
+        node_file = NodeFile(self.to_dict())
+        self.hashed_file_name = node_file.process_file()
+        file_names.append(self.hashed_file_name)
+
+        return file_names
 
     def count(self):
         """ count: get number of nodes in tree
@@ -350,7 +380,6 @@ class ContentNode(TreeNode):
             Args: None
             Returns: boolean indicating if content node is valid
         """
-        from .files import DownloadFile
         assert isinstance(self.license, str) or isinstance(self.license, License), "Assumption Failed: License is not a string or license object"
         # if self.required_file_format:
         #     files_valid = False

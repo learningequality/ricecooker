@@ -3,12 +3,16 @@ import sys
 import requests
 import json
 import logging
+import threading
 import webbrowser
 from . import config, __version__
 from .classes import nodes, questions
 from requests.exceptions import HTTPError
 from .managers.progress import RestoreManager, Status
 from .managers.tree import ChannelManager
+from .sushi_bar_client import SushiBarClient
+from .sushi_bar_client import ReconnectingWebSocket
+from .sushi_bar_client import SushiBarNotSupportedException
 from importlib.machinery import SourceFileLoader
 
 # Fix to support Python 2.x.
@@ -17,6 +21,72 @@ try:
     input = raw_input
 except NameError:
     pass
+
+__logging_handler = None
+
+
+def uploadchannel_wrapper(arguments, **kwargs):
+    try:
+        uploadchannel(arguments["<file_path>"],
+                        verbose=arguments["-v"],
+                        update=arguments['-u'],
+                        thumbnails=arguments["--thumbnails"],
+                        download_attempts=arguments['--download-attempts'],
+                        resume=arguments['--resume'],
+                        reset=arguments['--reset'],
+                        token=arguments['--token'],
+                        step=arguments['--step'],
+                        prompt=arguments['--prompt'],
+                        publish=arguments['--publish'],
+                        warnings=arguments['--warn'],
+                        compress=arguments['--compress'],
+                        stage=arguments['--stage'],
+                        **kwargs)
+        config.SUSHI_BAR_CLIENT.report_stage('COMPLETED', 0)
+    except Exception as e:
+        if config.SUSHI_BAR_CLIENT:
+            config.SUSHI_BAR_CLIENT.report_stage('FAILURE', 0)
+        config.LOGGER.critical(e)
+        raise
+    finally:
+        if config.SUSHI_BAR_CLIENT:
+            config.SUSHI_BAR_CLIENT.close()
+        config.LOGGER.removeHandler(__logging_handler)
+
+
+def daemon_mode(arguments, **kwargs):
+    cws = ControlWebSocket(arguments, **kwargs)
+    cws.start()
+    cws.join()
+
+
+class ControlWebSocket(ReconnectingWebSocket):
+    def __init__(self, arguments, **kwargs):
+        self.arguments = arguments
+        self.kwargs = kwargs
+        self.channel = run_create_channel(arguments["<file_path>"], self.kwargs)
+        if not self.channel:
+            raise SushiBarNotSupportedException(
+                'Chef does not implement create_channel')
+        self.thread = None
+        print('Channel id %s' % self.channel.get_node_id().hex)
+        url = config.sushi_bar_control_url(self.channel.get_node_id().hex)
+        ReconnectingWebSocket.__init__(self, url)
+
+    def on_message(self, ws, message):
+        message = json.loads(message)
+        if message['command'] == 'start':
+            if not self.thread or not self.thread.isAlive():
+                self.thread = threading.Thread(
+                    target=uploadchannel_wrapper,
+                    args=(self.arguments, ),
+                    kwargs=self.kwargs)
+                self.thread.start()
+            else:
+                print('Already running')
+        else:
+            print('Command not supported: %s' % message['command'])
+
 
 def uploadchannel(path, verbose=False, update=False, thumbnails=False, download_attempts=3, resume=False, reset=False, step=Status.LAST.name, token="#", prompt=False, publish=False, warnings=False, compress=False, stage=False, **kwargs):
     """ uploadchannel: Upload channel to Kolibri Studio server
@@ -40,8 +110,10 @@ def uploadchannel(path, verbose=False, update=False, thumbnails=False, download_
     """
 
     # Set configuration settings
+    global __logging_handler
     level = logging.INFO if verbose else logging.WARNING if warnings else logging.ERROR
-    config.LOGGER.addHandler(logging.StreamHandler())
+    __logging_handler = logging.StreamHandler()
+    config.LOGGER.addHandler(__logging_handler)
     logging.getLogger("requests").setLevel(logging.WARNING)
     config.LOGGER.setLevel(level)
 
@@ -51,6 +123,7 @@ def uploadchannel(path, verbose=False, update=False, thumbnails=False, download_
     config.COMPRESS = compress
     config.THUMBNAILS = thumbnails
     config.STAGE = stage
+    config.PUBLISH = publish
 
     # Set max retries for downloading
     config.DOWNLOAD_SESSION.mount('http://', requests.adapters.HTTPAdapter(max_retries=int(download_attempts)))
@@ -60,8 +133,12 @@ def uploadchannel(path, verbose=False, update=False, thumbnails=False, download_
     config.init_file_mapping_store()
 
     # Authenticate user and check current Ricecooker version
-    authenticate_user(token)
+    username, token = authenticate_user(token)
     check_version_number()
+
+    # Set dashboard client settings
+    channel = run_create_channel(path, kwargs)
+    config.SUSHI_BAR_CLIENT = SushiBarClient(channel, username, token)
 
     config.LOGGER.info("\n\n***** Starting channel build process *****\n\n")
 
@@ -114,7 +191,7 @@ def uploadchannel(path, verbose=False, update=False, thumbnails=False, download_
     channel_id = config.PROGRESS_MANAGER.channel_id
 
     # Publish tree if flag is set to True
-    if publish and config.PROGRESS_MANAGER.get_status_val() <= Status.PUBLISH_CHANNEL.value:
+    if config.PUBLISH and config.PROGRESS_MANAGER.get_status_val() <= Status.PUBLISH_CHANNEL.value:
         publish_tree(tree, channel_id)
         config.PROGRESS_MANAGER.set_published()
 
@@ -137,17 +214,17 @@ def authenticate_user(token):
             response.raise_for_status()
             user = json.loads(response._content.decode("utf-8"))
             config.LOGGER.info("Logged in with username {0}".format(user['username']))
-
+            return user['username'], token
         except HTTPError:
             config.LOGGER.error("Invalid token: Credentials not found")
             sys.exit()
     else:
-        prompt_token(config.DOMAIN)
+        return prompt_token(config.DOMAIN)
 
 def prompt_token(domain):
     """ prompt_token: Prompt user to enter authentication token
         Args: domain (str): domain to authenticate user
-        Returns: Authenticated response
+        Returns: username and token
     """
     token = input("\nEnter authentication token ('q' to quit):").lower()
     if token == 'q':
@@ -157,7 +234,9 @@ def prompt_token(domain):
             config.SESSION.headers.update({"Authorization": "Token {0}".format(token)})
             response = config.SESSION.post(config.authentication_url())
             response.raise_for_status()
-            return token
+            user = json.loads(response._content.decode("utf-8"))
+            config.LOGGER.info("Logged in with username {0}".format(user['username']))
+            return user['username'], token
         except HTTPError:
             config.LOGGER.error("Invalid token. Please login to {0}/settings/tokens to retrieve your authorization token.".format(domain))
             prompt_token(domain)
@@ -192,18 +271,36 @@ def prompt_yes_or_no(message):
     else:
         return prompt_yes_or_no(message)
 
-def run_construct_channel(path, kwargs):
-    """ run_construct_channel: Run sushi chef's construct_channel method
+def run_create_channel(path, kwargs):
+    """ run_create_channel: Run sushi chef's create_channel method
         Args:
             path (str): path to sushi chef file
             kwargs (dict): additional keyword arguments
-        Returns: channel created from contruct_channel method
+        Returns: channel created from create_channel method
     """
     # Read in file to access create_channel method
     mod = SourceFileLoader("mod", path).load_module()
 
     # Create channel (using method from imported file)
-    config.LOGGER.info("Constructing channel... ")
+    config.LOGGER.info("Creating channel... ")
+    # Backward compatibility.
+    if hasattr(mod, 'create_channel'):
+        return mod.create_channel(**kwargs)
+    else:
+        return None
+
+def run_construct_channel(path, kwargs):
+    """ run_construct_channel: Run sushi chef's construct_channel method
+        Args:
+            path (str): path to sushi chef file
+            kwargs (dict): additional keyword arguments
+        Returns: channel populated from construct_channel method
+    """
+    # Read in file to access create_channel method
+    mod = SourceFileLoader("mod", path).load_module()
+
+    # Create channel (using method from imported file)
+    config.LOGGER.info("Populating channel... ")
     channel = mod.construct_channel(**kwargs)
     return channel
 
@@ -233,6 +330,7 @@ def process_tree_files(tree):
     # Fill in values necessary for next steps
     config.LOGGER.info("Processing content...")
     files_to_diff = tree.process_tree(tree.channel)
+    config.SUSHI_BAR_CLIENT.report_statistics(files_to_diff)
     tree.check_for_files_failed()
     return files_to_diff, config.FAILED_FILES
 
@@ -260,6 +358,7 @@ def upload_files(tree, file_diff):
     tree.reattempt_upload_fails()
     return file_diff
 
+
 def create_tree(tree):
     """ create_tree: Upload tree to Kolibri Studio
         Args:
@@ -268,9 +367,11 @@ def create_tree(tree):
     """
     # Create tree
     config.LOGGER.info("\nCreating tree on Kolibri Studio...")
+    # channel_id, channel_link = tree.upload_channel_structure()
     channel_id, channel_link = tree.upload_tree()
 
     return channel_link, channel_id
+
 
 def publish_tree(tree, channel_id):
     """ publish_tree: Publish tree to Kolibri

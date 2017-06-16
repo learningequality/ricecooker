@@ -1,11 +1,8 @@
-
 import json
-import logging
-import os
-import sys
-from .. import config
-from le_utils.constants import file_formats, format_presets
+
 from requests.exceptions import ConnectionError
+
+from .. import config
 
 
 class ChannelManager:
@@ -15,10 +12,10 @@ class ChannelManager:
             channel (Channel): channel that manager is handling
     """
     def __init__(self, channel):
-        self.channel = channel # Channel to process
-        self.uploaded_files=[]
-        self.failed_node_builds=[]
-        self.failed_uploads=[]
+        self.channel = channel  # Channel to process
+        self.uploaded_files = []
+        self.failed_node_builds = []
+        self.failed_uploads = []
 
     def validate(self):
         """ validate: checks if tree structure is valid
@@ -27,22 +24,30 @@ class ChannelManager:
         """
         return self.channel.test_tree()
 
-    def process_tree(self, node):
-        """ process_tree: processes files
-            Args:
-                node (Node): node to process
-                parent (Node): parent of node being processed
-            Returns: None
+    def process_tree(self, channel_node):
         """
-        filenames = []
+        Returns a list of all file names associated with a tree. Profiling suggests using a global list with `extend`
+        is faster than using a global set or deque.
+        :param channel_node: Root node of the channel being processed
+        :return: The list of unique file names in `channel_node`.
+        """
+        file_names = []
+        self.process_tree_recur(file_names, channel_node)
+        return [x for x in set(file_names) if x]  # Remove any duplicate or null files
 
+    def process_tree_recur(self, file_names, node):
+        """
+        Adds the names of all the files associated with the sub-tree rooted by `node` to `file_names` in post-order.
+        :param file_names: A global list containing all file names associated with a tree
+        :param node: The root of the current sub-tree being processed
+        :return: None.
+        """
         # Process node's children
         for child_node in node.children:
-            filenames += self.process_tree(child_node)
+            self.process_tree_recur(file_names, child_node)  # Call children first in case a tiled thumbnail is needed
 
-        filenames += node.process_files() # Call children first in case need to create tiled thumbnail
+        file_names.extend(node.process_files())
 
-        return [x for x in set(filenames) if x] # Remove any duplicate or null files
 
     def check_for_files_failed(self):
         """ check_for_files_failed: print any files that failed during download process
@@ -91,7 +96,7 @@ class ChannelManager:
         files_to_upload = list(set(file_list) - set(self.uploaded_files)) # In case restoring from previous session
         try:
             for f in files_to_upload:
-                with  open(config.get_storage_path(f), 'rb') as file_obj:
+                with open(config.get_storage_path(f), 'rb') as file_obj:
                     response = config.SESSION.post(config.file_upload_url(), files={'file': file_obj})
                     if response.status_code == 200:
                         response.raise_for_status()
@@ -111,6 +116,27 @@ class ChannelManager:
         if len(self.failed_uploads) > 0:
             config.LOGGER.info("\nReattempting to upload {0} file(s)...".format(len(self.failed_uploads)))
             self.upload_files(self.failed_uploads)
+
+    def upload_channel_structure(self):
+        config.LOGGER.info('   Uploading structure of channel {0}'.format(self.channel.title))
+
+        channel_structure = {}
+        self.fill_channel_structure(channel_structure, self.channel)
+        payload = {
+            'channel_structure': json.dumps(channel_structure, ensure_ascii=False),
+        }
+        response = config.SESSION.post(config.channel_structure_upload_url(), data=json.dumps(payload))
+        response.raise_for_status()
+
+        new_channel = json.loads(response._content.decode('utf-8'))
+
+        return None, None  # new_channel['channel_id'], new_channel['channel_link']
+
+    def fill_channel_structure(self, cur_dict, cur_node):
+        children_dict = {}
+        for child in cur_node.children:
+            self.fill_channel_structure(children_dict, child)
+        cur_dict[cur_node.hashed_file_name] = children_dict
 
     def upload_tree(self):
         """ upload_tree: sends processed channel data to server to create tree

@@ -45,7 +45,7 @@ def get_parsed_html_from_url(url, *args, **kwargs):
     html = make_request(url, *args, **kwargs).content
     return BeautifulSoup(html, "html.parser")
 
-def construct_channel(*args, **kwargs):
+def create_channel(*args, **kwargs):
 
     channel = ChannelNode(
         source_domain=SOURCE_DOMAIN,
@@ -54,10 +54,15 @@ def construct_channel(*args, **kwargs):
         thumbnail="https://lh3.googleusercontent.com/zwwddqxgFlP14DlucvBV52RUMA-cV3vRvmjf-iWqxuVhYVmB-l8XN9NDirb0687DSw=w300",
     )
 
+    return channel
+
+def construct_channel(*args, **kwargs):
+
+    channel = create_channel(*args, **kwargs)
     citrus_topic = TopicNode(source_id="List_of_citrus_fruits", title="Citrus!")
     channel.add_child(citrus_topic)
     add_subpages_from_wikipedia_list(citrus_topic, "https://en.wikipedia.org/wiki/List_of_citrus_fruits")
-    
+
     potato_topic = TopicNode(source_id="List_of_potato_cultivars", title="Potatoes!")
     channel.add_child(potato_topic)
     add_subpages_from_wikipedia_list(potato_topic, "https://en.wikipedia.org/wiki/List_of_potato_cultivars")

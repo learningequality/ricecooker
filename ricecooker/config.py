@@ -11,8 +11,10 @@ from requests_file import FileAdapter
 UPDATE = False
 COMPRESS = False
 THUMBNAILS = False
+PUBLISH = False
 PROGRESS_MANAGER = None
 STAGE = False
+SUSHI_BAR_CLIENT = None
 LOGGER = logging.getLogger()
 
 # Domain and file store location for uploading to production server
@@ -30,6 +32,9 @@ FILE_DIFF_URL = "{domain}/api/internal/file_diff"
 
 # URL for uploading files to server
 FILE_UPLOAD_URL = "{domain}/api/internal/file_upload"
+
+# URL for uploading channel structure to server
+CHANNEL_STRUCTURE_UPLOAD_URL = "{domain}/api/internal/channel_structure_upload"
 
 # URL for creating channel on server
 CREATE_CHANNEL_URL = "{domain}/api/internal/create_channel"
@@ -63,6 +68,18 @@ FAILED_FILES = []
 # Session for downloading files
 DOWNLOAD_SESSION = requests.Session()
 DOWNLOAD_SESSION.mount('file://', FileAdapter())
+
+# Sushi bar server
+SUSHI_BAR_DOMAIN = os.getenv('SUSHI_BAR_URL', "127.0.0.1:8000")
+SUSHI_BAR_HTTP = 'http://' + SUSHI_BAR_DOMAIN
+SUSHI_BAR_WEBSOCKET = 'ws://' + SUSHI_BAR_DOMAIN
+SUSHI_BAR_CHANNEL_URL = "{domain}/api/channels/"
+SUSHI_BAR_CHANNEL_RUNS_URL = "{domain}/api/channelruns/"
+SUSHI_BAR_CHANNEL_RUNS_DETAIL_URL = "{domain}/api/channelruns/{run_id}/"
+SUSHI_BAR_STAGES_URL = "{domain}/api/channelruns/{run_id}/stages/"
+SUSHI_BAR_PROGRESS_URL = "{domain}/api/channelruns/{run_id}/progress/"
+SUSHI_BAR_LOGS_URL = "{domain}/logs/{run_id}/"
+SUSHI_BAR_CONTROL_URL = "{domain}/control/{channel_id}/"
 
 
 def get_storage_path(filename):
@@ -128,6 +145,14 @@ def file_upload_url():
     """
     return FILE_UPLOAD_URL.format(domain=DOMAIN)
 
+
+def channel_structure_upload_url():
+    """
+    Returns a string representation of the API endpoint for uploading a channel's structure.
+    """
+    return CHANNEL_STRUCTURE_UPLOAD_URL.format(domain=DOMAIN)
+
+
 def create_channel_url():
     """ create_channel_url: returns url to create channel
         Args: None
@@ -163,3 +188,46 @@ def publish_channel_url():
         Returns: string url to publish channel
     """
     return PUBLISH_CHANNEL_URL.format(domain=DOMAIN)
+
+def sushi_bar_channels_url():
+    """
+    Returns the url to report the progress of a sushi chef
+    """
+    return SUSHI_BAR_CHANNEL_URL.format(domain=SUSHI_BAR_HTTP)
+
+def sushi_bar_channel_runs_url():
+    """
+    Returns the url to report the progress of a sushi chef
+    """
+    return SUSHI_BAR_CHANNEL_RUNS_URL.format(domain=SUSHI_BAR_HTTP)
+
+def sushi_bar_channel_runs_detail_url(run_id):
+    """
+    Returns the url to patch a channel run.
+    """
+    return SUSHI_BAR_CHANNEL_RUNS_DETAIL_URL.format(domain=SUSHI_BAR_HTTP,
+                                                    run_id=run_id)
+
+def sushi_bar_stages_url(run_id):
+    """
+    Returns the url to report the progress of a sushi chef
+    """
+    return SUSHI_BAR_STAGES_URL.format(domain=SUSHI_BAR_HTTP, run_id=run_id)
+
+def sushi_bar_progress_url(run_id):
+    """
+    Returns the url to report the progress of a sushi chef
+    """
+    return SUSHI_BAR_PROGRESS_URL.format(domain=SUSHI_BAR_HTTP, run_id=run_id)
+
+def sushi_bar_logs_url(run_id):
+    """
+    Returns the url to report the progress of a sushi chef
+    """
+    return SUSHI_BAR_LOGS_URL.format(domain=SUSHI_BAR_WEBSOCKET, run_id=run_id)
+
+def sushi_bar_control_url(channel_id):
+    """
+    Returns the url to report the progress of a sushi chef
+    """
+    return SUSHI_BAR_CONTROL_URL.format(domain=SUSHI_BAR_WEBSOCKET, channel_id=channel_id)
