@@ -46,7 +46,7 @@ def uploadchannel_wrapper(arguments, **kwargs):
     except Exception as e:
         if config.SUSHI_BAR_CLIENT:
             config.SUSHI_BAR_CLIENT.report_stage('FAILURE', 0)
-        config.LOGGER.critical(e)
+        config.LOGGER.critical(str(e))
         raise
     finally:
         if config.SUSHI_BAR_CLIENT:

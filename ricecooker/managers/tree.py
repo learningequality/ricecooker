@@ -155,7 +155,7 @@ class ChannelManager:
             self.check_failed()
         channel_id, channel_link = self.commit_channel(channel_id)
         end_time = datetime.now()
-        logging.info("Upload time: {time}s".format(time=(end_time - start_time).total_seconds()))
+        config.LOGGER.info("Upload time: {time}s".format(time=(end_time - start_time).total_seconds()))
         return channel_id, channel_link
 
     def reattempt_failed(self, failed):

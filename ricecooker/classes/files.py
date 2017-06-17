@@ -8,10 +8,7 @@ import shutil
 import tempfile
 import zipfile
 from subprocess import CalledProcessError
-from le_utils.constants import content_kinds,file_formats, format_presets, exercises, languages
-from .. import config
-from .nodes import ChannelNode, TopicNode, VideoNode, AudioNode, DocumentNode, ExerciseNode, HTML5AppNode
-from ..exceptions import UnknownFileTypeError
+from le_utils.constants import languages
 import youtube_dl
 from cachecontrol.caches.file_cache import FileCache
 from le_utils.constants import file_formats, format_presets, exercises
