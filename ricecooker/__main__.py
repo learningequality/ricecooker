@@ -1,5 +1,5 @@
 
-"""Usage: ricecooker uploadchannel [-huv] <file_path> [--warn] [--stage] [--compress] [--token=<t>] [--thumbnails] [--download-attempts=<n>] [--resume [--step=<step>] | --reset] [--prompt] [--publish] [[OPTIONS] ...]
+"""Usage: ricecooker uploadchannel [-huv] <file_path> [--warn] [--stage] [--compress] [--token=<t>] [--thumbnails] [--download-attempts=<n>] [--resume [--step=<step>] | --reset] [--prompt] [--publish] [--daemon] [[OPTIONS] ...]
 
 Arguments:
   file_path        Path to file with channel data
@@ -19,6 +19,7 @@ Options:
   --reset                     Restart session, overwriting previous session (cannot be used with --resume flag)
   --prompt                    Receive prompt to open the channel once it's uploaded
   --publish                   Automatically publish channel once it's been created
+  --daemon                    Runs in daemon mode
   [OPTIONS]                   Extra arguments to add to command line (e.g. key='field')
 
 Steps (for restoring session):
@@ -36,13 +37,15 @@ Steps (for restoring session):
 
 """
 
-from .commands import uploadchannel
+from .commands import daemon_mode, uploadchannel_wrapper
 from . import config
 from .exceptions import InvalidUsageException
 from .managers.progress import Status
 from docopt import docopt
 
+
 commands = ["uploadchannel"]
+
 
 if __name__ == '__main__':
     arguments = docopt(__doc__)
@@ -61,6 +64,7 @@ if __name__ == '__main__':
     all_steps = [s.name for s in Status]
     if step.upper() not in all_steps:
       raise InvalidUsageException("Invalid step '{0}': Valid steps are {1}".format(step, all_steps))
+    arguments['--step'] = step
 
     # Make sure max-retries can be cast as an integer
     try:
@@ -68,26 +72,7 @@ if __name__ == '__main__':
     except ValueError:
       raise InvalidUsageException("Invalid argument: Download-attempts must be an integer.")
 
-    try:
-        uploadchannel(arguments["<file_path>"],
-                      verbose=arguments["-v"],
-                      update=arguments['-u'],
-                      thumbnails=arguments["--thumbnails"],
-                      download_attempts=arguments['--download-attempts'],
-                      resume=arguments['--resume'],
-                      reset=arguments['--reset'],
-                      token=arguments['--token'],
-                      step=step,
-                      prompt=arguments['--prompt'],
-                      publish=arguments['--publish'],
-                      warnings=arguments['--warn'],
-                      compress=arguments['--compress'],
-                      stage=arguments['--stage'],
-                      **kwargs)
-    except Exception as e:
-        config.SUSHI_BAR_CLIENT.report_stage('FAILURE', 0)
-        config.LOGGER.critical(e)
-        raise
-    finally:
-        config.SUSHI_BAR_CLIENT.close()
-
+    if arguments['--daemon']:
+        daemon_mode(arguments,**kwargs)
+    else:
+        uploadchannel_wrapper(arguments, **kwargs)

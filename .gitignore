@@ -96,6 +96,7 @@ restore/
 node_modules/
 
 sushi_chefs/
+tests/testcontent/
 .webcache
 .ricecookerfilecache
 
