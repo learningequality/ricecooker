@@ -138,6 +138,8 @@ class ChannelManager:
             self.fill_channel_structure(children_dict, child, child_sort_order)
             child_sort_order += 1
         cur_dict[cur_node.hashed_file_name] = (sort_order, children_dict)
+            self.fill_channel_structure(children_dict, child)
+        cur_dict[cur_node.hashed_file_name] = children_dict
 
     def publish(self, channel_id):
         """ publish: publishes tree to Kolibri

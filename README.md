@@ -251,6 +251,8 @@ Run `python -m ricecooker uploadchannel [-huv] "<path-to-py-file>" [--warn] [--c
 - --reset will automatically start the rice cooker from the beginning
 - --prompt will prompt you to open your channel once it's been uploaded
 - --publish will automatically publish your channel once it's been uploaded
+- --daemon will start the chef in daemon mode (i.e. the chef will not execute
+           immediately; instead, it will wait to receive commands via the Sushi Bar)
 - [OPTIONS] any additional keyword arguments you would like to pass to your construct_channel method
 
 

@@ -13,6 +13,7 @@ COMPRESS = False
 THUMBNAILS = False
 PUBLISH = False
 PROGRESS_MANAGER = None
+STAGE = False
 SUSHI_BAR_CLIENT = None
 LOGGER = logging.getLogger()
 
@@ -45,7 +46,7 @@ ADD_NODES_URL = "{domain}/api/internal/add_nodes"
 FINISH_CHANNEL_URL = "{domain}/api/internal/finish_channel"
 
 # URL to return after channel is created
-OPEN_CHANNEL_URL = "{domain}/channels/{channel_id}/edit"
+OPEN_CHANNEL_URL = "{domain}/channels/{channel_id}/{access}"
 
 # URL for publishing channel
 PUBLISH_CHANNEL_URL = "{domain}/api/internal/publish_channel"
@@ -78,6 +79,7 @@ SUSHI_BAR_CHANNEL_RUNS_DETAIL_URL = "{domain}/api/channelruns/{run_id}/"
 SUSHI_BAR_STAGES_URL = "{domain}/api/channelruns/{run_id}/stages/"
 SUSHI_BAR_PROGRESS_URL = "{domain}/api/channelruns/{run_id}/progress/"
 SUSHI_BAR_LOGS_URL = "{domain}/logs/{run_id}/"
+SUSHI_BAR_CONTROL_URL = "{domain}/control/{channel_id}/"
 
 
 def get_storage_path(filename):
@@ -178,7 +180,7 @@ def open_channel_url(channel):
             channel (str): channel id of uploaded channel
         Returns: string url to open channel
     """
-    return OPEN_CHANNEL_URL.format(domain=DOMAIN, channel_id=channel)
+    return OPEN_CHANNEL_URL.format(domain=DOMAIN, channel_id=channel, access='staging' if STAGE else 'edit')
 
 def publish_channel_url():
     """ open_channel_url: returns url to publish channel
@@ -223,3 +225,9 @@ def sushi_bar_logs_url(run_id):
     Returns the url to report the progress of a sushi chef
     """
     return SUSHI_BAR_LOGS_URL.format(domain=SUSHI_BAR_WEBSOCKET, run_id=run_id)
+
+def sushi_bar_control_url(channel_id):
+    """
+    Returns the url to report the progress of a sushi chef
+    """
+    return SUSHI_BAR_CONTROL_URL.format(domain=SUSHI_BAR_WEBSOCKET, channel_id=channel_id)
