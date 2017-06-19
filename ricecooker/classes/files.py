@@ -11,7 +11,6 @@ from subprocess import CalledProcessError
 import youtube_dl
 from le_utils.constants import content_kinds,file_formats, format_presets, exercises, languages
 from .. import config
-from .nodes import ChannelNode, TopicNode, VideoNode, AudioNode, DocumentNode, ExerciseNode, HTML5AppNode
 from ..exceptions import UnknownFileTypeError
 from cachecontrol.caches.file_cache import FileCache
 from le_utils.constants import file_formats, format_presets, exercises

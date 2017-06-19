@@ -375,7 +375,8 @@ def create_tree(tree):
     """
     # Create tree
     config.LOGGER.info("\nCreating tree on Kolibri Studio...")
-    channel_id, channel_link = tree.upload_channel_structure()
+    channel_id, channel_link = tree.upload_tree()
+    # channel_id, channel_link = tree.upload_channel_structure()
 
     return channel_link, channel_id
 

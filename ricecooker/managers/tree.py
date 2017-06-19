@@ -116,6 +116,8 @@ class ChannelManager:
             self.upload_files(self.failed_uploads)
 
     def upload_channel_structure(self):
+        from datetime import datetime
+        start_time = datetime.now()
         config.LOGGER.info('   Uploading structure of channel {0}'.format(self.channel.title))
 
         channel_structure = {}
@@ -123,13 +125,15 @@ class ChannelManager:
         payload = {
             'channel_id': self.channel.to_dict()['id'],
             'channel_structure': channel_structure,
+            'stage': config.STAGE,
         }
         response = config.SESSION.post(config.channel_structure_upload_url(), data=json.dumps(payload, sort_keys=False))
         response.raise_for_status()
 
         new_channel = json.loads(response._content.decode('utf-8'))
-        import pdb; pdb.set_trace()
-        return new_channel['channel_id'], new_channel['channel_link']
+        end_time = datetime.now()
+        config.LOGGER.info("Upload time: {time}s".format(time=(end_time - start_time).total_seconds()))
+        return new_channel['channel_id'], config.open_channel_url(new_channel['channel_id'])
 
     def fill_channel_structure(self, cur_dict, cur_node, sort_order):
         children_dict = {}
