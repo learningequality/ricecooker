@@ -13,8 +13,8 @@ COMPRESS = False
 THUMBNAILS = False
 PUBLISH = False
 PROGRESS_MANAGER = None
-STAGE = False
 SUSHI_BAR_CLIENT = None
+STAGE = False
 LOGGER = logging.getLogger()
 
 # Domain and file store location for uploading to production server
