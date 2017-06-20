@@ -186,6 +186,7 @@ class ReconnectingWebSocket(threading.Thread):
         self.stop_event = threading.Event()
         self.url = url
         self.ws = None
+        self.connect_lock = threading.Lock()
 
     def __connect(self):
         self.ws = websocket.WebSocketApp(
@@ -195,11 +196,15 @@ class ReconnectingWebSocket(threading.Thread):
 
     def run(self):
         """
-        If the connection drops, then run_forever will terminate and a reconnection
-        attempt will be made.
+        If the connection drops, then run_forever will terminate and a
+        reconnection attempt will be made.
         """
-        while not self.stopped():
+        while True:
+            self.connect_lock.acquire()
+            if self.stopped():
+                return
             self.__connect()
+            self.connect_lock.release()
             self.ws.run_forever()
 
     def on_message(self, ws, message):
@@ -207,7 +212,7 @@ class ReconnectingWebSocket(threading.Thread):
 
     def send(self, data):
         """
-        This method keeps trying to send a message relying on the run method 
+        This method keeps trying to send a message relying on the run method
         to reopen the websocket in case it was closed.
         """
         while not self.stopped():
@@ -219,8 +224,10 @@ class ReconnectingWebSocket(threading.Thread):
                 time.sleep(0.1)
 
     def stop(self):
+        self.connect_lock.acquire()
         self.stop_event.set()
         self.ws.close()
+        self.connect_lock.release()
 
     def stopped(self):
         return self.stop_event.is_set()
