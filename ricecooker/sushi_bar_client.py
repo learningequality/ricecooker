@@ -196,8 +196,8 @@ class ReconnectingWebSocket(threading.Thread):
 
     def run(self):
         """
-        If the connection drops, then run_forever will terminate and a reconnection
-        attempt will be made.
+        If the connection drops, then run_forever will terminate and a
+        reconnection attempt will be made.
         """
         while True:
             self.connect_lock.acquire()
@@ -212,7 +212,7 @@ class ReconnectingWebSocket(threading.Thread):
 
     def send(self, data):
         """
-        This method keeps trying to send a message relying on the run method 
+        This method keeps trying to send a message relying on the run method
         to reopen the websocket in case it was closed.
         """
         while not self.stopped():
