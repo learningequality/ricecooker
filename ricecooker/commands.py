@@ -25,7 +25,7 @@ def uploadchannel_wrapper(chef, args, options):
     """
     Call `uploadchannel` with SushiBar monitoring and progress reporting enabled.
     Args:
-        
+
     """
     try:
         args_and_options = args.copy()
@@ -54,7 +54,7 @@ def uploadchannel(chef, verbose=False, update=False, thumbnails=False, download_
             resume (bool): indicates whether to resume last session automatically (optional)
             step (str): step to resume process from (optional)
             reset (bool): indicates whether to start session from beginning automatically (optional)
-            token (str): authorization token (optional)
+            token (str): content server authorization token
             prompt (bool): indicates whether to prompt user to open channel when done (optional)
             publish (bool): indicates whether to automatically publish channel (optional)
             warnings (bool): indicates whether to print out warnings (optional)

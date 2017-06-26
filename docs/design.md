@@ -91,7 +91,7 @@ Changes
                 args, options = self.parse_args_and_options()
                 self.run(args, options)
 
-  -  The chef's `run` method is calls `uploadchannel` (or `uploadchannel_wrapper`)
+  -  The chef's `run` method calls `uploadchannel` (or `uploadchannel_wrapper`)
 
          class BaseChef():
              ...
@@ -151,7 +151,7 @@ Args, options, and kwargs
 -------------------------
 There are three types of arguments involved in a chef run:
 
-  - `args` (Namespace): command line args as parsed by the sushi chef class and its parents
+  - `args` (dict): command line args as parsed by the sushi chef class and its parents
     - BaseChef: the method ` BaseChef.__init__` configures argparse for the following:
         - `compress`, `download_attempts`, `prompt`, `publish`, `reset`, `resume`,
           `stage`, `step`, `thumbnails`, `token`, `update`, `verbose`, `warn`
@@ -191,3 +191,22 @@ Then the handler  `ControlWebSocket.on_message` will start a new run:
 
 After finishing the run, a chef started with the `--daemon` option remains connected
 to the SushiBar server and listens for more commands.
+
+
+
+
+Possible alternative to get_channel method API
+----------------------------------------------
+
+Instead of `get_channel` we can rely on the info in `self.channel_info` (dict).
+If they need extensibility, they can define a `get_channel_info` method that
+returns a dict (this way users don't need to know what a `ChannelNode` is to provide the info).
+
+The sushi bar integration code can get the channel_id using
+
+    uuid.uuid5(
+        uuid.uuid5(uuid.NAMESPACE_DNS, channel_info['CHANNEL_SOURCE_DOMAIN']),
+        channel_info['CHANNEL_SOURCE_ID']
+    ).hex
+
+
