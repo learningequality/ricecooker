@@ -1,9 +1,10 @@
 """ Tests for handling requests to Kolibri Studio """
 
+import copy
 import pytest
 import uuid
 import tempfile
-from le_utils import constants
+from le_utils.constants import licenses
 import base64
 from ricecooker.classes.nodes import *
 from ricecooker.classes.files import *
@@ -34,14 +35,24 @@ def channel_content_id(channel_domain_namespace, channel_node_id):
 
 @pytest.fixture
 def channel(domain_namespace, source_id):
-    return ChannelNode(source_id, domain_namespace, "Channel")
+    channel = ChannelNode(
+        source_id,
+        domain_namespace,
+        "Channel",
+        language="en"
+    )
+    return channel
 
 @pytest.fixture
 def invalid_channel(domain_namespace, source_id):
-    channel = ChannelNode(source_id, domain_namespace, "Channel")
+    channel = ChannelNode(
+        source_id,
+        domain_namespace,
+        "Channel",
+        language="en"
+    )
     channel.source_id = None
     return channel
-
 
 """ *********** TOPIC FIXTURES *********** """
 @pytest.fixture
