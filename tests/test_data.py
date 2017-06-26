@@ -284,7 +284,7 @@ def html(html_file, args_data, contentnode_kwargs, channel):
 def html_invalid_file():
     if not os.path.exists("tests/testcontent/testinvalidhtml.zip"):
         with zipfile.ZipFile("tests/testcontent/testinvalidhtml.zip", 'w', zipfile.ZIP_DEFLATED) as archive:
-            archive.writestr(info, '<div></div>')
+            archive.writestr("notindex.html", '<div></div>')
     return HTMLZipFile("tests/testcontent/testinvalidhtml.zip")
 
 
