@@ -92,6 +92,18 @@ Ready to contribute? Here's how to set up `ricecooker` for local development.
 
 7. Submit a pull request through the GitHub website.
 
+
+
+Code conventions
+----------------
+You can run the code linting tools by using the `pre-commit` package.
+
+To use them, run::
+
+    pip install pre-commit
+    pre-commit install
+
+
 Pull Request Guidelines
 -----------------------
 
