@@ -62,8 +62,16 @@ class BaseChef(object):
     def parse_args_and_options(self):
         """
         Parses all known command line args and also additional key=value options.
+        NOTE: this should be the only place cli args are parsed in order to have
+              a single consistent interface for all chef scripts.
+
+        Args: None, but implicitly depends on `self.arg_parser` and `sys.argv
+        Returns: tuple (args, options)
+          args (dict): chef command line arguments
+          options (dict): extra compatibility-mode options given on command line
         """
-        args, options_list = self.arg_parser.parse_known_args()
+        args_namespace, options_list = self.arg_parser.parse_known_args()
+        args = args_namespace.__dict__
 
         # Make sure token is provided. There are four possible ways to specify:
         #   --token=path to token-containing file
@@ -72,7 +80,7 @@ class BaseChef(object):
         #     - try environment variable CONTENT_CURATION_TOKEN
         #     - else prompt user
         # If ALL of these fail, this call will raise and chef run will stop
-        args.token = get_content_curation_token(args.token)
+        args['token'] = get_content_curation_token(args['token'])
 
         # Parse additional compatibility mode keyword arguments from `options_list`
         options = {}
@@ -88,7 +96,7 @@ class BaseChef(object):
         if self.compatibility_mode:
             try:
                 # Try to load the chef_script as a module
-                self.chef_module = SourceFileLoader("mod", args.chef_script).load_module()
+                self.chef_module = SourceFileLoader("mod", args['chef_script']).load_module()
             except FileNotFoundError as e:
                 raise InvalidUsageException('Error: must specify `chef_module` for compatibility_mode')
 
@@ -100,8 +108,9 @@ class BaseChef(object):
         This function is called before the Chef's `run` mehod is called.
         By default this function does nothing, but subclass can use this hook to
         run prerequisite tasks.
-            args: command line
-            options (dict): additional options passed to chef
+        Args:
+            args (dict): chef command line arguments
+            options (dict): extra compatibility-mode options given on command line
         """
         pass
 
@@ -120,7 +129,9 @@ class BaseChef(object):
             options (dict): additional compatibility mode options given on command line
         """
         self.pre_run(args, options)
-        uploadchannel(self, **args.__dict__, **options)
+        args_and_options = args.copy()
+        args_and_options.update(options)
+        uploadchannel(self, **args_and_options)
 
 
     def get_channel(self, **kwargs):
@@ -153,10 +164,11 @@ class BaseChef(object):
             # If a sublass has an `channel_info` attribute (a dict) it doesn't need
             # to define a `get_channel` method and instead rely on this code:
             channel = ChannelNode(
-                source_domain=self.channel_info['SOURCE_DOMAIN'],
-                source_id=self.channel_info['SOURCE_ID'],
+                source_domain=self.channel_info['CHANNEL_SOURCE_DOMAIN'],
+                source_id=self.channel_info['CHANNEL_SOURCE_ID'],
                 title=self.channel_info['CHANNEL_TITLE'],
-                thumbnail=self.channel_info.get('THUMBNAIL'),
+                thumbnail=self.channel_info.get('CHANNEL_THUMBNAIL'),
+                description=self.channel_info.get('CHANNEL_DESCRIPTION'),
             )
             return channel
 
@@ -252,7 +264,7 @@ class SushiChef(BaseChef):
         args, options = self.parse_args_and_options()
         print('In SushiChef.main method. args=', args, 'options=', options)
 
-        if args.daemon:
+        if args['daemon']:
             self.daemon_mode(args, options)
         else:
             self.run(args, options)

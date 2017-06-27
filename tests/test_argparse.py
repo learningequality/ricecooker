@@ -169,11 +169,11 @@ def test_same_as_docopt(command_line_inputs):
         # pp.pprint(kwargs)
 
         args, options = new_arg_parser(line)
-        delattr(args, 'command')
+        del args['command']
         # print("AFTER")
         # pp.pprint(args.__dict__)
         # pp.pprint(options)
 
         # print('different', added, removed, modified)
-        assert orig_args == args.__dict__, 'docopt arguments differ from argparse args'
+        assert orig_args == args, 'docopt arguments differ from argparse args'
         assert kwargs == options, 'extra key=value options differ'
