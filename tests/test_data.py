@@ -313,7 +313,8 @@ def mastery_model():
 @pytest.fixture
 def exercise_data(contentnode_base_data, mastery_model, exercise_question):
     exercise_data = copy.deepcopy(contentnode_base_data)
-    exercise_data.update({ "kind": content_kinds.EXERCISE, "questions":[exercise_question], "extra_fields": json.dumps(mastery_model)})
+    exercise_data.update({ "kind": content_kinds.EXERCISE,
+                           "questions":[exercise_question], "extra_fields": json.dumps(mastery_model)})
     return exercise_data
 
 @pytest.fixture

@@ -1,9 +1,10 @@
 """ Tests for handling requests to Kolibri Studio """
 
+import copy
 import pytest
 import uuid
 import tempfile
-from le_utils import constants
+from le_utils.constants import licenses
 import base64
 from ricecooker.classes.nodes import *
 from ricecooker.classes.files import *
