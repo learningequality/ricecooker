@@ -13,6 +13,69 @@ from . import __version__
 AUTH = None
 
 
+
+# COMMON
+################################################################################
+
+class ReconnectingWebSocket(threading.Thread):
+    """WebSocket with re-connection logic."""
+
+    def __init__(self, url):
+        threading.Thread.__init__(self)
+        self.stop_event = threading.Event()
+        self.url = url
+        self.ws = None
+        self.connect_lock = threading.Lock()
+
+    def __connect(self):
+        self.ws = websocket.WebSocketApp(
+            self.url,
+            on_message=self.on_message
+        )
+
+    def run(self):
+        """
+        If the connection drops, then run_forever will terminate and a
+        reconnection attempt will be made.
+        """
+        while True:
+            self.connect_lock.acquire()
+            if self.stopped():
+                return
+            self.__connect()
+            self.connect_lock.release()
+            self.ws.run_forever()
+
+    def on_message(self, ws, message):
+        pass
+
+    def send(self, data):
+        """
+        This method keeps trying to send a message relying on the run method
+        to reopen the websocket in case it was closed.
+        """
+        while not self.stopped():
+            try:
+                self.ws.send(data)
+                return
+            except websocket.WebSocketConnectionClosedException:
+                print('WebSocket closed, retrying send.')
+                time.sleep(0.1)
+
+    def stop(self):
+        self.connect_lock.acquire()
+        self.stop_event.set()
+        self.ws.close()
+        self.connect_lock.release()
+
+    def stopped(self):
+        return self.stop_event.is_set()
+
+
+
+# MONITORING
+################################################################################
+
 class SushiBarClient(object):
     """Sends events/logs to the dashboard server."""
 
@@ -178,61 +241,6 @@ class SushiBarClient(object):
             config.LOGGER.error('Error statistics: %s' % e)
 
 
-class ReconnectingWebSocket(threading.Thread):
-    """WebSocket with re-connection logic."""
-
-    def __init__(self, url):
-        threading.Thread.__init__(self)
-        self.stop_event = threading.Event()
-        self.url = url
-        self.ws = None
-        self.connect_lock = threading.Lock()
-
-    def __connect(self):
-        self.ws = websocket.WebSocketApp(
-            self.url,
-            on_message=self.on_message
-        )
-
-    def run(self):
-        """
-        If the connection drops, then run_forever will terminate and a
-        reconnection attempt will be made.
-        """
-        while True:
-            self.connect_lock.acquire()
-            if self.stopped():
-                return
-            self.__connect()
-            self.connect_lock.release()
-            self.ws.run_forever()
-
-    def on_message(self, ws, message):
-        pass
-
-    def send(self, data):
-        """
-        This method keeps trying to send a message relying on the run method
-        to reopen the websocket in case it was closed.
-        """
-        while not self.stopped():
-            try:
-                self.ws.send(data)
-                return
-            except websocket.WebSocketConnectionClosedException:
-                print('WebSocket closed, retrying send.')
-                time.sleep(0.1)
-
-    def stop(self):
-        self.connect_lock.acquire()
-        self.stop_event.set()
-        self.ws.close()
-        self.connect_lock.release()
-
-    def stopped(self):
-        return self.stop_event.is_set()
-
-
 class LoggingHandler(logging.Handler):
     """Sends logs to the Sushi Bar server via a websocket."""
 
@@ -250,8 +258,51 @@ class LoggingHandler(logging.Handler):
             print('Logging error: %s' % e)
 
 
+
+# CONTROL
+################################################################################
+
+class ControlWebSocket(ReconnectingWebSocket):
+    def __init__(self, chef, args, options):
+        self.chef = chef
+        self.cliargs = args
+        self.clioptions = options
+        self.channel = chef.get_channel()
+        if not self.channel:
+            raise SushiBarNotSupportedException(
+                'Chef does not implement get_channel')
+        self.thread = None
+        print('Channel id %s' % self.channel.get_node_id().hex)
+        url = config.sushi_bar_control_url(self.channel.get_node_id().hex)
+        ReconnectingWebSocket.__init__(self, url)
+
+    def on_message(self, ws, message):
+        message = json.loads(message)
+
+        # args and options from SushiBar overrride command line args and options
+        args = self.cliargs
+        options = self.clioptions
+        if 'args' in message:
+            args.update(message['args'])
+        if 'options' in message:
+            options.update(message['options'])
+
+        if message['command'] == 'start':
+            if not self.thread or not self.thread.isAlive():
+                self.thread = threading.Thread(
+                    target=self.chef.run,
+                    args=(args, options),
+                )
+                self.thread.start()
+            else:
+                print('Already running')
+        else:
+            print('Command not supported: %s' % message['command'])
+
+
 class SushiBarNotSupportedException(Exception):
     """
     Sushi chef is not updated to report to the sushi bar.
     """
     pass
+

@@ -1,21 +1,15 @@
 import json
 import logging
-import os
 import sys
-import threading
-import webbrowser
-from importlib.machinery import SourceFileLoader
 
 import requests
 from requests.exceptions import HTTPError
+import webbrowser
 
 from . import config, __version__
 from .managers.progress import RestoreManager, Status
 from .managers.tree import ChannelManager
 from .sushi_bar_client import SushiBarClient
-from .sushi_bar_client import ReconnectingWebSocket
-from .sushi_bar_client import SushiBarNotSupportedException
-from importlib.machinery import SourceFileLoader
 
 # Fix to support Python 2.x.
 # http://stackoverflow.com/questions/954834/how-do-i-use-raw-input-in-python-3
@@ -27,23 +21,16 @@ except NameError:
 __logging_handler = None
 
 
-def uploadchannel_wrapper(arguments, **kwargs):
+def uploadchannel_wrapper(chef, args, options):
+    """
+    Call `uploadchannel` with SushiBar monitoring and progress reporting enabled.
+    Args:
+
+    """
     try:
-        uploadchannel(arguments["<file_path>"],
-                        verbose=arguments["-v"],
-                        update=arguments['-u'],
-                        thumbnails=arguments["--thumbnails"],
-                        download_attempts=arguments['--download-attempts'],
-                        resume=arguments['--resume'],
-                        reset=arguments['--reset'],
-                        token=arguments['--token'],
-                        step=arguments['--step'],
-                        prompt=arguments['--prompt'],
-                        publish=arguments['--publish'],
-                        warnings=arguments['--warn'],
-                        compress=arguments['--compress'],
-                        stage=arguments['--stage'],
-                        **kwargs)
+        args_and_options = args.copy()
+        args_and_options.update(options)
+        uploadchannel(chef, **args_and_options)
         config.SUSHI_BAR_CLIENT.report_stage('COMPLETED', 0)
     except Exception as e:
         if config.SUSHI_BAR_CLIENT:
@@ -56,44 +43,10 @@ def uploadchannel_wrapper(arguments, **kwargs):
         config.LOGGER.removeHandler(__logging_handler)
 
 
-def daemon_mode(arguments, **kwargs):
-    cws = ControlWebSocket(arguments, **kwargs)
-    cws.start()
-    cws.join()
-
-
-class ControlWebSocket(ReconnectingWebSocket):
-    def __init__(self, arguments, **kwargs):
-        self.arguments = arguments
-        self.kwargs = kwargs
-        self.channel = run_create_channel(arguments["<file_path>"], self.kwargs)
-        if not self.channel:
-            raise SushiBarNotSupportedException(
-                'Chef does not implement create_channel')
-        self.thread = None
-        print('Channel id %s' % self.channel.get_node_id().hex)
-        url = config.sushi_bar_control_url(self.channel.get_node_id().hex)
-        ReconnectingWebSocket.__init__(self, url)
-
-    def on_message(self, ws, message):
-        message = json.loads(message)
-        if message['command'] == 'start':
-            if not self.thread or not self.thread.isAlive():
-                self.thread = threading.Thread(
-                    target=uploadchannel_wrapper,
-                    args=(self.arguments, ),
-                    kwargs=self.kwargs)
-                self.thread.start()
-            else:
-                print('Already running')
-        else:
-            print('Command not supported: %s' % message['command'])
-
-
-def uploadchannel(path, verbose=False, update=False, thumbnails=False, download_attempts=3, resume=False, reset=False, step=Status.LAST.name, token="#", prompt=False, publish=False, warnings=False, compress=False, stage=False, **kwargs):
+def uploadchannel(chef, verbose=False, update=False, thumbnails=False, download_attempts=3, resume=False, reset=False, step=Status.LAST.name, token="#", prompt=False, publish=False, warnings=False, compress=False, stage=False, **kwargs):
     """ uploadchannel: Upload channel to Kolibri Studio server
         Args:
-            path (str): path to file containing construct_channel method
+            chef (BaseChef or subclass): class that implements the construct_channel method
             verbose (bool): indicates whether to print process (optional)
             update (bool): indicates whether to re-download files (optional)
             thumbnails (bool): indicates whether to automatically derive thumbnails from content (optional)
@@ -101,13 +54,13 @@ def uploadchannel(path, verbose=False, update=False, thumbnails=False, download_
             resume (bool): indicates whether to resume last session automatically (optional)
             step (str): step to resume process from (optional)
             reset (bool): indicates whether to start session from beginning automatically (optional)
-            token (str): authorization token (optional)
+            token (str): content server authorization token
             prompt (bool): indicates whether to prompt user to open channel when done (optional)
             publish (bool): indicates whether to automatically publish channel (optional)
             warnings (bool): indicates whether to print out warnings (optional)
             compress (bool): indicates whether to compress larger files (optional)
             stage (bool): indicates whether to stage rather than deploy channel (optional)
-            kwargs (dict): keyword arguments to pass to sushi chef (optional)
+            kwargs (dict): extra keyword args will be passed to get_channel and construct_channel (optional)
         Returns: (str) link to access newly created channel
     """
 
@@ -119,8 +72,6 @@ def uploadchannel(path, verbose=False, update=False, thumbnails=False, download_
     logging.getLogger("requests").setLevel(logging.WARNING)
     config.LOGGER.setLevel(level)
 
-    # Mount file:// to allow local path requests
-    config.SESSION.headers.update({"Authorization": "Token {0}".format(token)})
     config.UPDATE = update
     config.COMPRESS = compress
     config.THUMBNAILS = thumbnails
@@ -139,7 +90,8 @@ def uploadchannel(path, verbose=False, update=False, thumbnails=False, download_
     check_version_number()
 
     # Set dashboard client settings
-    channel = run_create_channel(path, kwargs)
+    config.LOGGER.info("Running get_channel... ")
+    channel = chef.get_channel(**kwargs)
     config.SUSHI_BAR_CLIENT = SushiBarClient(channel, username, token)
 
     config.LOGGER.info("\n\n***** Starting channel build process *****\n\n")
@@ -158,8 +110,9 @@ def uploadchannel(path, verbose=False, update=False, thumbnails=False, download_
 
     # Construct channel if it hasn't been constructed already
     if config.PROGRESS_MANAGER.get_status_val() <= Status.CONSTRUCT_CHANNEL.value:
-        print("Running sushi chef...")
-        config.PROGRESS_MANAGER.set_channel(run_construct_channel(path, kwargs))
+        config.LOGGER.info("Calling construct_channel... ")
+        channel = chef.construct_channel(**kwargs)
+        config.PROGRESS_MANAGER.set_channel(channel)
     channel = config.PROGRESS_MANAGER.channel
 
     # Set initial tree if it hasn't been set already
@@ -213,41 +166,19 @@ def uploadchannel(path, verbose=False, update=False, thumbnails=False, download_
     return channel_link
 
 def authenticate_user(token):
-    if token != "#":
-        if os.path.isfile(token):
-            with open(token, 'r') as fobj:
-                config.SESSION.headers.update({"Authorization": "Token {0}".format(fobj.read())})
-        try:
-            response = config.SESSION.post(config.authentication_url())
-            response.raise_for_status()
-            user = json.loads(response._content.decode("utf-8"))
-            config.LOGGER.info("Logged in with username {0}".format(user['username']))
-            return user['username'], token
-        except HTTPError:
-            config.LOGGER.error("Invalid token: Credentials not found")
-            sys.exit()
-    else:
-        return prompt_token(config.DOMAIN)
-
-def prompt_token(domain):
-    """ prompt_token: Prompt user to enter authentication token
-        Args: domain (str): domain to authenticate user
-        Returns: username and token
     """
-    token = input("\nEnter authentication token ('q' to quit):").lower()
-    if token == 'q':
+    Add the content curation Authorizatino `token` header to `config.SESSION`.
+    """
+    config.SESSION.headers.update({"Authorization": "Token {0}".format(token)})
+    try:
+        response = config.SESSION.post(config.authentication_url())
+        response.raise_for_status()
+        user = json.loads(response._content.decode("utf-8"))
+        config.LOGGER.info("Logged in with username {0}".format(user['username']))
+        return user['username'], token
+    except HTTPError:
+        config.LOGGER.error("Invalid token: Credentials not found")
         sys.exit()
-    else:
-        try:
-            config.SESSION.headers.update({"Authorization": "Token {0}".format(token)})
-            response = config.SESSION.post(config.authentication_url())
-            response.raise_for_status()
-            user = json.loads(response._content.decode("utf-8"))
-            config.LOGGER.info("Logged in with username {0}".format(user['username']))
-            return user['username'], token
-        except HTTPError:
-            config.LOGGER.error("Invalid token. Please login to {0}/settings/tokens to retrieve your authorization token.".format(domain))
-            prompt_token(domain)
 
 def check_version_number():
     response = config.SESSION.post(config.check_version_url(), data=json.dumps({"version": __version__}))
@@ -279,38 +210,6 @@ def prompt_yes_or_no(message):
     else:
         return prompt_yes_or_no(message)
 
-def run_create_channel(path, kwargs):
-    """ run_create_channel: Run sushi chef's create_channel method
-        Args:
-            path (str): path to sushi chef file
-            kwargs (dict): additional keyword arguments
-        Returns: channel created from create_channel method
-    """
-    # Read in file to access create_channel method
-    mod = SourceFileLoader("mod", path).load_module()
-
-    # Create channel (using method from imported file)
-    config.LOGGER.info("Creating channel... ")
-    # Backward compatibility.
-    if hasattr(mod, 'create_channel'):
-        return mod.create_channel(**kwargs)
-    else:
-        return None
-
-def run_construct_channel(path, kwargs):
-    """ run_construct_channel: Run sushi chef's construct_channel method
-        Args:
-            path (str): path to sushi chef file
-            kwargs (dict): additional keyword arguments
-        Returns: channel populated from construct_channel method
-    """
-    # Read in file to access create_channel method
-    mod = SourceFileLoader("mod", path).load_module()
-
-    # Create channel (using method from imported file)
-    config.LOGGER.info("Populating channel... ")
-    channel = mod.construct_channel(**kwargs)
-    return channel
 
 def create_initial_tree(channel):
     """ create_initial_tree: Create initial tree structure
