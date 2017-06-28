@@ -4,7 +4,7 @@ History
 
 
 
-0.6.0 (2017-06-27)
+0.6.0 (2017-06-28)
 ------------------
 
 * remote progress reporting and logging to SushiBar (MVP version)
