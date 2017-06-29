@@ -281,21 +281,16 @@ SAMPLE_TREE.extend(EXERCISES_NODES)
 
 
 
-def create_channel(**kwargs):
-
+def construct_channel(**kwargs):
+    """
+    Create ChannelNode and build topic tree.
+    """
     channel = nodes.ChannelNode(
         source_domain=SOURCE_DOMAIN,
         source_id=SOURCE_ID,
         title=CHANNEL_TITLE,
         thumbnail="https://upload.wikimedia.org/wikipedia/commons/thumb/5/50/Banaue_Philippines_Banaue-Rice-Terraces-01.jpg/640px-Banaue_Philippines_Banaue-Rice-Terraces-01.jpg",
     )
-
-    return channel
-
-
-def construct_channel(**kwargs):
-
-    channel = create_channel(**kwargs)
     _build_tree(channel, SAMPLE_TREE)
     raise_for_invalid_channel(channel)
 

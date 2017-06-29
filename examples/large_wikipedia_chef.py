@@ -47,19 +47,15 @@ def get_parsed_html_from_url(url, *args, **kwargs):
     return BeautifulSoup(html, "html.parser")
 
 
-def create_channel(*args, **kwargs):
+
+
+def construct_channel(*args, **kwargs):
     channel = ChannelNode(
         source_domain=SOURCE_DOMAIN,
         source_id=SOURCE_ID,
         title=CHANNEL_TITLE,
         thumbnail="https://lh3.googleusercontent.com/zwwddqxgFlP14DlucvBV52RUMA-cV3vRvmjf-iWqxuVhYVmB-l8XN9NDirb0687DSw=w300",
     )
-
-    return channel
-
-
-def construct_channel(*args, **kwargs):
-    channel = create_channel(*args, **kwargs)
 
     city_topic = TopicNode(source_id="List_of_largest_cities", title="Cities!")
     channel.add_child(city_topic)
