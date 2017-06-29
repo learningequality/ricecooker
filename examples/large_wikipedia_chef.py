@@ -12,7 +12,7 @@ from ricecooker.utils.zip import create_predictable_zip
 
 # CHANNEL SETTINGS
 SOURCE_DOMAIN = "<yourdomain.org>"  #
-SOURCE_ID = "<yourid>"  # an alphanumeric ID refering to this channel
+SOURCE_ID = "<youasasrid>"  # an alphanumeric ID refering to this channel
 CHANNEL_TITLE = "<channeltitle>"  # a humand-readbale title
 
 sess = requests.Session()
@@ -49,19 +49,19 @@ def get_parsed_html_from_url(url, *args, **kwargs):
 
 
 
-def construct_channel(*args, **kwargs):
-    channel = ChannelNode(
-        source_domain=SOURCE_DOMAIN,
-        source_id=SOURCE_ID,
-        title=CHANNEL_TITLE,
-        thumbnail="https://lh3.googleusercontent.com/zwwddqxgFlP14DlucvBV52RUMA-cV3vRvmjf-iWqxuVhYVmB-l8XN9NDirb0687DSw=w300",
-    )
+    def construct_channel(*args, **kwargs):
+        channel = ChannelNode(
+            source_domain=SOURCE_DOMAIN,
+            source_id=SOURCE_ID,
+            title=CHANNEL_TITLE,
+            thumbnail="https://lh3.googleusercontent.com/zwwddqxgFlP14DlucvBV52RUMA-cV3vRvmjf-iWqxuVhYVmB-l8XN9NDirb0687DSw=w300",
+        )
 
-    city_topic = TopicNode(source_id="List_of_largest_cities", title="Cities!")
-    channel.add_child(city_topic)
-    add_subpages_from_wikipedia_list(city_topic, "https://en.wikipedia.org/wiki/List_of_largest_cities")
+        city_topic = TopicNode(source_id="List_of_largest_cities", title="Cities!")
+        channel.add_child(city_topic)
+        add_subpages_from_wikipedia_list(city_topic, "https://en.wikipedia.org/wiki/List_of_largest_cities")
 
-    return channel
+        return channel
 
 
 def add_subpages_from_wikipedia_list(topic, list_url):

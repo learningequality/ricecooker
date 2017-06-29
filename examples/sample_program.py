@@ -13,7 +13,7 @@ from pressurecooker.encodings import get_base64_encoding
 
 # CHANNEL SETTINGS
 SOURCE_DOMAIN = "<yourdomain.org>"                 # content provider's domain
-SOURCE_ID = "<yourid>"                             # an alphanumeric channel ID
+SOURCE_ID = "<yoasasurid>"                             # an alphanumeric channel ID
 CHANNEL_TITLE = "Testing Ricecooker Channel"       # a humand-readbale title
 
 
@@ -281,20 +281,20 @@ SAMPLE_TREE.extend(EXERCISES_NODES)
 
 
 
-def construct_channel(**kwargs):
-    """
-    Create ChannelNode and build topic tree.
-    """
-    channel = nodes.ChannelNode(
-        source_domain=SOURCE_DOMAIN,
-        source_id=SOURCE_ID,
-        title=CHANNEL_TITLE,
-        thumbnail="https://upload.wikimedia.org/wikipedia/commons/thumb/5/50/Banaue_Philippines_Banaue-Rice-Terraces-01.jpg/640px-Banaue_Philippines_Banaue-Rice-Terraces-01.jpg",
-    )
-    _build_tree(channel, SAMPLE_TREE)
-    raise_for_invalid_channel(channel)
+    def construct_channel(**kwargs):
+        """
+        Create ChannelNode and build topic tree.
+        """
+        channel = nodes.ChannelNode(
+            source_domain=SOURCE_DOMAIN,
+            source_id=SOURCE_ID,
+            title=CHANNEL_TITLE,
+            thumbnail="https://upload.wikimedia.org/wikipedia/commons/thumb/5/50/Banaue_Philippines_Banaue-Rice-Terraces-01.jpg/640px-Banaue_Philippines_Banaue-Rice-Terraces-01.jpg",
+        )
+        _build_tree(channel, SAMPLE_TREE)
+        raise_for_invalid_channel(channel)
 
-    return channel
+        return channel
 
 
 def _build_tree(node, sourcetree):
