@@ -71,8 +71,8 @@ DOWNLOAD_SESSION.mount('file://', FileAdapter())
 
 # Sushi bar server
 SUSHI_BAR_DOMAIN = os.getenv('SUSHI_BAR_URL', "127.0.0.1:8000")
-SUSHI_BAR_HTTP = 'http://' + SUSHI_BAR_DOMAIN
-SUSHI_BAR_WEBSOCKET = 'ws://' + SUSHI_BAR_DOMAIN
+SUSHI_BAR_HTTP = 'https://' + SUSHI_BAR_DOMAIN
+SUSHI_BAR_WEBSOCKET = 'wss://' + SUSHI_BAR_DOMAIN
 SUSHI_BAR_CHANNEL_URL = "{domain}/api/channels/"
 SUSHI_BAR_CHANNEL_RUNS_URL = "{domain}/api/channelruns/"
 SUSHI_BAR_CHANNEL_RUNS_DETAIL_URL = "{domain}/api/channelruns/{run_id}/"
