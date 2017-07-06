@@ -16,7 +16,7 @@ from pressurecooker.encodings import get_base64_encoding
 
 # CHANNEL SETTINGS
 SOURCE_DOMAIN = "<yourdomain.org>"                 # content provider's domain
-SOURCE_ID = "<yoasasurid>"                             # an alphanumeric channel ID
+SOURCE_ID = "<yourid>"                             # an alphanumeric channel ID
 CHANNEL_TITLE = "Testing Ricecooker Channel"       # a humand-readbale title
 
 
