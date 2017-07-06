@@ -15,8 +15,8 @@ from ricecooker.utils.zip import create_predictable_zip
 
 # CHANNEL SETTINGS
 SOURCE_DOMAIN = "<yourdomain.org>"  #
-SOURCE_ID = "<youasasrid>"  # an alphanumeric ID refering to this channel
-CHANNEL_TITLE = "Large wikipedia chef"  # a humand-readbale title
+SOURCE_ID = "<yourid>"  # an alphanumeric ID refering to this channel
+CHANNEL_TITLE = "<channeltitle>"  # a humand-readbale title
 
 sess = requests.Session()
 cache = FileCache('.webcache')
@@ -51,7 +51,7 @@ def get_parsed_html_from_url(url, *args, **kwargs):
 
 
 
-class LargeWikipdeiaChef(SushiChef):
+class LargeWikipediaChef(SushiChef):
     """
     The chef class that takes care of uploading channel to the content curation server.
 
@@ -176,5 +176,5 @@ if __name__ == '__main__':
     """
     This code will run when the sushi chef is called from the command line.
     """
-    chef = LargeWikipdeiaChef()
+    chef = LargeWikipediaChef()
     chef.main()
