@@ -4,7 +4,7 @@ from ricecooker.chefs import SushiChef
 from ricecooker.classes.nodes import ChannelNode, HTML5AppNode, TopicNode, VideoNode, DocumentNode, AudioNode
 from ricecooker.classes.files import DocumentFile, VideoFile, AudioFile
 from le_utils.constants import licenses
-
+from ricecooker.classes.licenses import get_license
 
 class TutorialChef(SushiChef):
     """
@@ -65,15 +65,19 @@ class TutorialChef(SushiChef):
         # You can add pdfs, videos, and audio files to your channel
         ########################################################################
         # let's create a document file called 'Example PDF'
-        examplepdf = DocumentNode(title="Example PDF", source_id="example-pdf", files=[DocumentFile(path="http://www.pdf995.com/samples/pdf.pdf")], license=licenses.CC_BY_SA)
+        document_file = DocumentFile(path="http://www.pdf995.com/samples/pdf.pdf")
+        examplepdf = DocumentNode(title="Example PDF", source_id="example-pdf", files=[document_file], license=get_license(licenses.CC_BY_SA))
         # TODO: Create your pdf file here (use any url to a .pdf file)
 
         # We are also going to add a video file called 'Example Video'
-        examplevideo = VideoNode(title="Example Video", source_id="example-video", files=[VideoFile(path="https://ia600209.us.archive.org/27/items/RiceChef/Rice Chef.mp4")], license=licenses.CC_BY_SA)
+        video_file = VideoFile(path="https://ia600209.us.archive.org/27/items/RiceChef/Rice Chef.mp4")
+        fancy_license = get_license(licenses.SPECIAL_PERMISSIONS, description='Special license for ricecooker fans only.', copyright_holder='The chef video makers')
+        examplevideo = VideoNode(title="Example Video", source_id="example-video", files=[video_file], license=fancy_license)
         # TODO: Create your video file here (use any url to a .mp4 file)
 
         # Finally, we are creating an audio file called 'Example Audio'
-        exampleaudio = AudioNode(title="Example Audio", source_id="example-audio", files=[AudioFile(path="https://ia802508.us.archive.org/5/items/testmp3testfile/mpthreetest.mp3")], license=licenses.CC_BY_SA)
+        audio_file = AudioFile(path="https://ia802508.us.archive.org/5/items/testmp3testfile/mpthreetest.mp3")
+        exampleaudio = AudioNode(title="Example Audio", source_id="example-audio", files=[audio_file], license=get_license(licenses.CC_BY_SA))
         # TODO: Create your audio file here (use any url to a .mp3 file)
 
         # Now that we have our files, let's add them to our channel
