@@ -3,7 +3,7 @@ History
 =======
 
 
-0.6.1 (2017-07-07)
+0.6.2 (2017-07-07)
 ------------------
 * Clarify ricecooker is Python3 only (for now)
 * Use https:// and wss:// for SuhiBar reporting
