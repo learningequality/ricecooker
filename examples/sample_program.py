@@ -1,9 +1,12 @@
+#!/usr/bin/env python
+
 from enum import Enum
 import json
 import os
 from os.path import join
 import re
 
+from ricecooker.chefs import SushiChef
 from ricecooker.classes import nodes, questions, files
 from ricecooker.classes.licenses import get_license
 from ricecooker.exceptions import UnknownContentKindError, UnknownFileTypeError, UnknownQuestionTypeError, raise_for_invalid_channel
@@ -280,26 +283,36 @@ EXERCISES_NODES = [
 SAMPLE_TREE.extend(EXERCISES_NODES)
 
 
+class SampleChef(SushiChef):
+    """
+    The chef class that takes care of uploading channel to the content curation server.
 
-def create_channel(**kwargs):
+    We'll call its `main()` method from the command line script.
+    """
+    channel_info = {    #
+        'CHANNEL_SOURCE_DOMAIN': SOURCE_DOMAIN,       # who is providing the content (e.g. learningequality.org)
+        'CHANNEL_SOURCE_ID': SOURCE_ID,                   # channel's unique id
+        'CHANNEL_TITLE': CHANNEL_TITLE,
+        'CHANNEL_THUMBNAIL': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/50/Banaue_Philippines_Banaue-Rice-Terraces-01.jpg/640px-Banaue_Philippines_Banaue-Rice-Terraces-01.jpg', # (optional) local path or url to image file
+        'CHANNEL_DESCRIPTION': 'A sample sushi chef to demo content types.',      # (optional) description of the channel (optional)
+    }
 
-    channel = nodes.ChannelNode(
-        source_domain=SOURCE_DOMAIN,
-        source_id=SOURCE_ID,
-        title=CHANNEL_TITLE,
-        thumbnail="https://upload.wikimedia.org/wikipedia/commons/thumb/5/50/Banaue_Philippines_Banaue-Rice-Terraces-01.jpg/640px-Banaue_Philippines_Banaue-Rice-Terraces-01.jpg",
-    )
+    def construct_channel(self, **kwargs):
+        """
+        Create ChannelNode and build topic tree.
+        """
+        channel_info = self.channel_info
+        channel = nodes.ChannelNode(
+            source_domain = channel_info['CHANNEL_SOURCE_DOMAIN'],
+            source_id = channel_info['CHANNEL_SOURCE_ID'],
+            title = channel_info['CHANNEL_TITLE'],
+            thumbnail = channel_info.get('CHANNEL_THUMBNAIL'),
+            description = channel_info.get('CHANNEL_DESCRIPTION'),
+        )
+        _build_tree(channel, SAMPLE_TREE)
+        raise_for_invalid_channel(channel)
 
-    return channel
-
-
-def construct_channel(**kwargs):
-
-    channel = create_channel(**kwargs)
-    _build_tree(channel, SAMPLE_TREE)
-    raise_for_invalid_channel(channel)
-
-    return channel
+        return channel
 
 
 def _build_tree(node, sourcetree):
@@ -478,3 +491,12 @@ def parse_images(content):
                 path = graphie.group(1)
             content = content.replace(path, get_abspath(path).replace('\\', '\\\\'))
     return content
+
+
+
+if __name__ == '__main__':
+    """
+    This code will run when the sushi chef is called from the command line.
+    """
+    chef = SampleChef()
+    chef.main()

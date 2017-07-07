@@ -1,8 +1,11 @@
+#!/usr/bin/env python
+
 import tempfile
 
 import requests
 from bs4 import BeautifulSoup
 
+from ricecooker.chefs import SushiChef
 from ricecooker.classes import licenses
 from ricecooker.classes.files import HTMLZipFile
 from ricecooker.classes.nodes import ChannelNode, HTML5AppNode, TopicNode
@@ -47,25 +50,38 @@ def get_parsed_html_from_url(url, *args, **kwargs):
     return BeautifulSoup(html, "html.parser")
 
 
-def create_channel(*args, **kwargs):
-    channel = ChannelNode(
-        source_domain=SOURCE_DOMAIN,
-        source_id=SOURCE_ID,
-        title=CHANNEL_TITLE,
-        thumbnail="https://lh3.googleusercontent.com/zwwddqxgFlP14DlucvBV52RUMA-cV3vRvmjf-iWqxuVhYVmB-l8XN9NDirb0687DSw=w300",
-    )
 
-    return channel
+class LargeWikipediaChef(SushiChef):
+    """
+    The chef class that takes care of uploading channel to the content curation server.
 
+    We'll call its `main()` method from the command line script.
+    """
+    channel_info = {    #
+        'CHANNEL_SOURCE_DOMAIN': SOURCE_DOMAIN,       # who is providing the content (e.g. learningequality.org)
+        'CHANNEL_SOURCE_ID': SOURCE_ID,                   # channel's unique id
+        'CHANNEL_TITLE': CHANNEL_TITLE,
+        'CHANNEL_THUMBNAIL': 'https://lh3.googleusercontent.com/zwwddqxgFlP14DlucvBV52RUMA-cV3vRvmjf-iWqxuVhYVmB-l8XN9NDirb0687DSw=w300', # (optional) local path or url to image file
+        'CHANNEL_DESCRIPTION': 'A large channel created from Wikipedia content.',      # (optional) description of the channel (optional)
+    }
 
-def construct_channel(*args, **kwargs):
-    channel = create_channel(*args, **kwargs)
+    def construct_channel(self, *args, **kwargs):
+        """
+        Create ChannelNode and build topic tree.
+        """
+        channel_info = self.channel_info
+        channel = ChannelNode(
+            source_domain = channel_info['CHANNEL_SOURCE_DOMAIN'],
+            source_id = channel_info['CHANNEL_SOURCE_ID'],
+            title = channel_info['CHANNEL_TITLE'],
+            thumbnail = channel_info.get('CHANNEL_THUMBNAIL'),
+            description = channel_info.get('CHANNEL_DESCRIPTION'),
+        )
+        city_topic = TopicNode(source_id="List_of_largest_cities", title="Cities!")
+        channel.add_child(city_topic)
+        add_subpages_from_wikipedia_list(city_topic, "https://en.wikipedia.org/wiki/List_of_largest_cities")
 
-    city_topic = TopicNode(source_id="List_of_largest_cities", title="Cities!")
-    channel.add_child(city_topic)
-    add_subpages_from_wikipedia_list(city_topic, "https://en.wikipedia.org/wiki/List_of_largest_cities")
-
-    return channel
+        return channel
 
 
 def add_subpages_from_wikipedia_list(topic, list_url):
@@ -153,3 +169,12 @@ def process_wikipedia_page(content, baseurl, destpath, **kwargs):
         image["src"] = relpath
 
     return str(page)
+
+
+
+if __name__ == '__main__':
+    """
+    This code will run when the sushi chef is called from the command line.
+    """
+    chef = LargeWikipediaChef()
+    chef.main()
