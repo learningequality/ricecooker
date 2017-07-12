@@ -32,14 +32,7 @@ class TutorialChef(SushiChef):
         """
         # Create channel
         ########################################################################
-        channel_info = self.channel_info
-        channel = ChannelNode(
-            source_domain = channel_info['CHANNEL_SOURCE_DOMAIN'],
-            source_id = channel_info['CHANNEL_SOURCE_ID'],
-            title = channel_info['CHANNEL_TITLE'],
-            thumbnail = channel_info.get('CHANNEL_THUMBNAIL'),
-            description = channel_info.get('CHANNEL_DESCRIPTION'),
-        )
+        channel = self.get_channel(*args, **kwargs)     # uses self.channel_info
 
         # Create topics to add to your channel
         ########################################################################

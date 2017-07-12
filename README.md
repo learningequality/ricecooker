@@ -90,19 +90,12 @@ class MySushiChef(SushiChef):
     }
 
     def construct_channel(self, **kwargs):
-        channel_info = self.channel_info
         # create channel
-        channel = ChannelNode(
-            source_domain = channel_info['CHANNEL_SOURCE_DOMAIN'],
-            source_id = channel_info['CHANNEL_SOURCE_ID'],
-            title = channel_info['CHANNEL_TITLE'],
-            thumbnail = channel_info.get('CHANNEL_THUMBNAIL'),
-            description = channel_info.get('CHANNEL_DESCRIPTION'),
-       )
-       # create a topic and add it to channel
-       potato_topic = TopicNode(source_id="<potatos_id>", title="Potatoes!")
-       channel.add_child(potato_topic)
-       return channel
+        channel = self.get_channel(**kwargs)
+        # create a topic and add it to channel
+        potato_topic = TopicNode(source_id="<potatos_id>", title="Potatoes!")
+        channel.add_child(potato_topic)
+        return channel
 
 ```
 
