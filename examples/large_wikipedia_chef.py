@@ -54,7 +54,6 @@ def get_parsed_html_from_url(url, *args, **kwargs):
 class LargeWikipediaChef(SushiChef):
     """
     The chef class that takes care of uploading channel to the content curation server.
-
     We'll call its `main()` method from the command line script.
     """
     channel_info = {    #
@@ -69,14 +68,7 @@ class LargeWikipediaChef(SushiChef):
         """
         Create ChannelNode and build topic tree.
         """
-        channel_info = self.channel_info
-        channel = ChannelNode(
-            source_domain = channel_info['CHANNEL_SOURCE_DOMAIN'],
-            source_id = channel_info['CHANNEL_SOURCE_ID'],
-            title = channel_info['CHANNEL_TITLE'],
-            thumbnail = channel_info.get('CHANNEL_THUMBNAIL'),
-            description = channel_info.get('CHANNEL_DESCRIPTION'),
-        )
+        channel = self.get_channel(*args, **kwargs)  # creates ChannelNode from data in self.channel_info
         city_topic = TopicNode(source_id="List_of_largest_cities", title="Cities!")
         channel.add_child(city_topic)
         add_subpages_from_wikipedia_list(city_topic, "https://en.wikipedia.org/wiki/List_of_largest_cities")

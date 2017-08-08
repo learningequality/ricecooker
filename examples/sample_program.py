@@ -301,14 +301,7 @@ class SampleChef(SushiChef):
         """
         Create ChannelNode and build topic tree.
         """
-        channel_info = self.channel_info
-        channel = nodes.ChannelNode(
-            source_domain = channel_info['CHANNEL_SOURCE_DOMAIN'],
-            source_id = channel_info['CHANNEL_SOURCE_ID'],
-            title = channel_info['CHANNEL_TITLE'],
-            thumbnail = channel_info.get('CHANNEL_THUMBNAIL'),
-            description = channel_info.get('CHANNEL_DESCRIPTION'),
-        )
+        channel = self.get_channel(*args, **kwargs)   # creates ChannelNode from data in self.channel_info
         _build_tree(channel, SAMPLE_TREE)
         raise_for_invalid_channel(channel)
 
