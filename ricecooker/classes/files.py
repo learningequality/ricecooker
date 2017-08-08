@@ -417,7 +417,7 @@ class YouTubeSubtitleFile(File):
             self.filename = self.download_subtitle()
             config.LOGGER.info("\t--- Downloaded subtitle {}".format(self.filename))
             return self.filename
-        except FileNotFoundError:
+        except (FileNotFoundError, youtube_dl.utils.DownloadError):
             self.error = str("Subtitle with langauge {} is not available for {}".format(self.language, self.youtube_url))
             config.FAILED_FILES.append(self)
 
@@ -605,4 +605,3 @@ class TiledThumbnailFile(ThumbnailPresetMixin, File):
 #         response = sess.get("http://usubs.org/api/{}".format(us_id))
 #         path = json.loads(response.content)["subtitle_url"]
 #         return super(UniversalSubsSubtitleFile, self).__init__(path=path, language=language)
-

@@ -7,6 +7,7 @@ import re
 import copy
 import sys
 from bs4 import BeautifulSoup
+from functools import partial
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises
 from .. import config
 from ..exceptions import UnknownQuestionTypeError, InvalidQuestionException
@@ -234,8 +235,11 @@ class PerseusQuestion(BaseQuestion):
             Args: None
             Returns: list of all downloaded files
         """
-        image_files=[]
+        image_files = []
         image_data = json.loads(self.raw_data)
+
+        # process urls for widgets
+        self._recursive_url_find(image_data, image_files)
 
         # Process question
         if 'question' in image_data and 'images' in image_data['question']:
@@ -278,6 +282,32 @@ class PerseusQuestion(BaseQuestion):
             files += fs
             new_data[new_key] = new_data.pop(k)
         return new_data, files
+
+    def _recursive_url_find(self, item, image_list):
+        """ Utility function specifically for Khan Academy assessment items. Recursively iterates item
+            to find and replace all url image tags.
+            Args:
+                item (dict): KA assessment item
+                image_list (list): list of image file objects
+            Returns: None
+        """
+
+        recursive_fn = partial(self._recursive_url_find, image_list=image_list)
+
+        if isinstance(item, list):
+            list(map(recursive_fn, item))
+
+        elif isinstance(item, dict):
+            if 'url' in item:
+                if item['url']:
+                    item['url'], image_file = self.set_image(item['url'])
+                    image_list += image_file
+
+            for field, field_data in item.items():
+                if isinstance(field_data, dict):
+                    self._recursive_url_find(field_data, image_list)
+                elif isinstance(field_data, list):
+                    list(map(recursive_fn, field_data))
 
 
 class MultipleSelectQuestion(BaseQuestion):
