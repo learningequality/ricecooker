@@ -297,7 +297,7 @@ class SampleChef(SushiChef):
         'CHANNEL_DESCRIPTION': 'A sample sushi chef to demo content types.',      # (optional) description of the channel (optional)
     }
 
-    def construct_channel(self, **kwargs):
+    def construct_channel(self, *args, **kwargs):
         """
         Create ChannelNode and build topic tree.
         """
@@ -486,10 +486,13 @@ def parse_images(content):
     return content
 
 
-
+chef = SampleChef()
 if __name__ == '__main__':
     """
     This code will run when the sushi chef is called from the command line.
     """
-    chef = SampleChef()
+
     chef.main()
+
+def construct_channel(*args, **kwargs):
+    return chef.construct_channel(*args, **kwargs)
