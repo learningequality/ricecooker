@@ -50,8 +50,6 @@ class BaseQuestion:
             Args: None
             Returns: dict of node's data
         """
-        print("TO_DICT: ", self.id.hex, self.hints)
-
         return {
             "assessment_id": self.id.hex,
             "type": self.question_type,
@@ -102,7 +100,6 @@ class BaseQuestion:
             hint_index += 1
             hint_files += hfiles
         self.hints = hints
-        print("PROCESS QUESTION: ", self.id.hex, self.hints)
 
         self.files += question_files + answer_files + hint_files
         return [f.filename for f in self.files]
