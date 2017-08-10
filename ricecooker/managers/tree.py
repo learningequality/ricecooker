@@ -12,8 +12,8 @@ class ChannelManager:
     def __init__(self, channel):
         self.channel = channel  # Channel to process
         self.uploaded_files = []
-        self.failed_node_builds = []
-        self.failed_uploads = []
+        self.failed_node_builds = {}
+        self.failed_uploads = {}
 
     def validate(self):
         """ validate: checks if tree structure is valid
@@ -102,7 +102,7 @@ class ChannelManager:
                         counter += 1
                         config.LOGGER.info("\tUploaded {0} ({count}/{total}) ".format(f, count=counter, total=len(files_to_upload)))
                     else:
-                        self.failed_uploads.append(f)
+                        self.failed_uploads[f] = response._content.decode('utf-8')
         finally:
             config.PROGRESS_MANAGER.set_uploading(self.uploaded_files)
 
@@ -113,7 +113,9 @@ class ChannelManager:
         """
         if len(self.failed_uploads) > 0:
             config.LOGGER.info("\nReattempting to upload {0} file(s)...".format(len(self.failed_uploads)))
-            self.upload_files(self.failed_uploads)
+            current_fails = [k for k in self.failed_uploads]
+            self.failed_uploads = {}
+            self.upload_files(current_fails)
 
     def upload_channel_structure(self):
         from datetime import datetime
@@ -154,7 +156,7 @@ class ChannelManager:
         self.add_nodes(root, self.channel)
         if self.check_failed(print_warning=False):
             failed = self.failed_node_builds
-            self.failed_node_builds = []
+            self.failed_node_builds = {}
             self.reattempt_failed(failed)
             self.check_failed()
         channel_id, channel_link = self.commit_channel(channel_id)
@@ -163,9 +165,10 @@ class ChannelManager:
         return channel_id, channel_link
 
     def reattempt_failed(self, failed):
-        for node in failed:
-            config.LOGGER.info("\tReattempting {0}s".format(str(node[1])))
-            for f in node[1].files:
+        for node_id in failed:
+            node = failed[node_id]
+            config.LOGGER.info("\tReattempting {0}s".format(str(node['node'])))
+            for f in node['node'].files:
                 # Attempt to upload file
                 try:
                     assert f.filename, "File failed to download (cannot be uploaded)"
@@ -176,14 +179,15 @@ class ChannelManager:
                 except AssertionError as ae:
                     config.LOGGER.warning(ae)
             # Attempt to create node
-            self.add_nodes(node[0], node[1])
+            self.add_nodes(node_id, node['node'])
 
     def check_failed(self, print_warning=True):
         if len(self.failed_node_builds) > 0:
             if print_warning:
                 config.LOGGER.warning("WARNING: The following nodes have one or more descendants that could not be created:")
-                for node in self.failed_node_builds:
-                    config.LOGGER.warning("\t{} ({})".format(str(node[1]), node[2]))
+                for node_id in self.failed_node_builds:
+                    node = self.failed_node_builds[node_id]
+                    config.LOGGER.warning("\t{} ({})".format(str(node['node']), node['error']))
             else:
                 config.LOGGER.error("Failed to create descendants for {} node(s).".format(len(self.failed_node_builds)))
             return True
@@ -230,21 +234,35 @@ class ChannelManager:
         try:
             chunks = [current_node.children[x:x+10] for x in range(0, len(current_node.children), 10)]
             for chunk in chunks:
+                payload_children = []
+
+                for child in chunk:
+                    failed = [f for f in child.files if f.is_primary and (not f.filename or self.failed_uploads.get(f.filename))]
+                    if any(failed):
+                        if not self.failed_node_builds.get(root_id):
+                            error_message = ""
+                            for fail in failed:
+                                reason = fail.filename + ": " + self.failed_uploads.get(fail.filename) if fail.filename else "File failed to download"
+                                error_message = error_message + reason + ", "
+                            self.failed_node_builds[root_id] = {'node': current_node, 'error': error_message[:-2]}
+                    else:
+                        payload_children.append(child.to_dict())
                 payload = {
                     'root_id': root_id,
-                    'content_data': [child.to_dict() for child in chunk]
+                    'content_data': payload_children
                 }
                 response = config.SESSION.post(config.add_nodes_url(), data=json.dumps(payload))
                 if response.status_code != 200:
-                    self.failed_node_builds += [(root_id, current_node, response.reason)]
+                    self.failed_node_builds[root_id] = {'node': current_node, 'error': response.reason}
                 else:
                     response_json = json.loads(response._content.decode("utf-8"))
                     self.node_count_dict['upload_count'] += len(chunk)
 
-                    for child in chunk:
-                        self.add_nodes(response_json['root_ids'].get(child.get_node_id().hex), child, indent + 1)
+                    if response_json['root_ids'].get(child.get_node_id().hex):
+                        for child in chunk:
+                            self.add_nodes(response_json['root_ids'].get(child.get_node_id().hex), child, indent + 1)
         except ConnectionError as ce:
-            self.failed_node_builds += [(root_id, current_node, ce)]
+            self.failed_node_builds[root_id] = {'node': current_node, 'error': ce}
 
     def commit_channel(self, channel_id):
         """ commit_channel: commits channel to Kolibri Studio
