@@ -174,13 +174,13 @@ def finish_channel_url():
     """
     return FINISH_CHANNEL_URL.format(domain=DOMAIN)
 
-def open_channel_url(channel):
+def open_channel_url(channel, staging=False):
     """ open_channel_url: returns url to uploaded channel
         Args:
             channel (str): channel id of uploaded channel
         Returns: string url to open channel
     """
-    return OPEN_CHANNEL_URL.format(domain=DOMAIN, channel_id=channel, access='staging' if STAGE else 'edit')
+    return OPEN_CHANNEL_URL.format(domain=DOMAIN, channel_id=channel, access='staging' if staging or STAGE else 'edit')
 
 def publish_channel_url():
     """ open_channel_url: returns url to publish channel

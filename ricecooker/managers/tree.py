@@ -1,4 +1,5 @@
 import json
+import sys
 
 from .. import config
 
@@ -275,6 +276,11 @@ class ChannelManager:
             "stage": config.STAGE,
         }
         response = config.SESSION.post(config.finish_channel_url(), data=json.dumps(payload))
+        if response.status_code != 200:
+            config.LOGGER.error("\n\nCould not activate channel: {}\n".format(response._content.decode('utf-8')))
+            if response.status_code == 403:
+                config.LOGGER.error("Channel can be viewed at {}\n\n".format(config.open_channel_url(channel_id, staging=True)))
+                sys.exit()
         response.raise_for_status()
         new_channel = json.loads(response._content.decode("utf-8"))
         channel_link = config.open_channel_url(new_channel['new_channel'])
