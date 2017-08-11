@@ -154,6 +154,10 @@ class ChannelManager:
         start_time = datetime.now()
         root, channel_id = self.add_channel()
         self.node_count_dict = {"upload_count": 0, "total_count": self.channel.count()}
+
+        config.LOGGER.info("\tPreparing fields...")
+        self.truncate_fields(self.channel)
+
         self.add_nodes(root, self.channel)
         if self.check_failed(print_warning=False):
             failed = self.failed_node_builds
@@ -164,6 +168,11 @@ class ChannelManager:
         end_time = datetime.now()
         config.LOGGER.info("Upload time: {time}s".format(time=(end_time - start_time).total_seconds()))
         return channel_id, channel_link
+
+    def truncate_fields(self, node):
+        node.truncate_fields()
+        for child in node.children:
+            self.truncate_fields(child)
 
     def reattempt_failed(self, failed):
         for node_id in failed:

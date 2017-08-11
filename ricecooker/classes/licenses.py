@@ -1,7 +1,9 @@
 # License models
 
 from ..exceptions import UnknownLicenseError
+from .. import config
 from le_utils.constants import licenses
+
 
 def get_license(license_id, copyright_holder=None, description=None):
     if license_id == licenses.CC_BY:
@@ -40,6 +42,15 @@ class License(object):
 
     def validate(self):
         assert isinstance(copyright_holder, str), "Assertion Failed: Copyright holder must be a string"
+
+    def truncate_fields(self):
+        if self.description and len(self.description) > config.MAX_LICENSE_DESCRIPTION_LENGTH:
+            config.print_truncate("license_description", self.license_id, self.description)
+            self.description = self.description[:config.MAX_LICENSE_DESCRIPTION_LENGTH]
+
+        if self.copyright_holder and len(self.copyright_holder) > config.MAX_COPYRIGHT_HOLDER_LENGTH:
+            config.print_truncate("copyright_holder", self.license_id, self.copyright_holder)
+            self.copyright_holder = self.copyright_holder[:config.MAX_COPYRIGHT_HOLDER_LENGTH]
 
 class CC_BYLicense(License):
     """

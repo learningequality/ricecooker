@@ -209,6 +209,15 @@ class File(object):
     def get_filename(self):
         return self.filename or self.process_file()
 
+    def truncate_fields(self):
+        if self.original_filename and len(self.original_filename) > config.MAX_ORIGINAL_FILENAME_LENGTH:
+            config.print_truncate("original_filename", self.node.source_id, self.original_filename)
+            self.original_filename = self.original_filename[:config.MAX_ORIGINAL_FILENAME_LENGTH]
+
+        if self.source_url and len(self.source_url) > config.MAX_SOURCE_URL_LENGTH:
+            config.print_truncate("file_source_url", self.node.source_id, self.source_url)
+            self.source_url = self.source_url[:config.MAX_SOURCE_URL_LENGTH]
+
     def to_dict(self):
         filename = self.get_filename()
 

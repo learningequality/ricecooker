@@ -45,6 +45,11 @@ class BaseQuestion:
         self.randomize = randomize
         self.id = uuid.uuid5(uuid.NAMESPACE_DNS, id)
 
+    def truncate_fields(self):
+        if self.source_url and len(self.source_url) > config.MAX_SOURCE_URL_LENGTH:
+            config.print_truncate("question_source_url", self.source_id, self.source_url)
+            self.source_url = self.source_url[:config.MAX_SOURCE_URL_LENGTH]
+
     def to_dict(self):
         """ to_dict: puts data in format CC expects
             Args: None
