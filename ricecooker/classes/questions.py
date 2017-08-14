@@ -45,13 +45,16 @@ class BaseQuestion:
         self.randomize = randomize
         self.id = uuid.uuid5(uuid.NAMESPACE_DNS, id)
 
+    def truncate_fields(self):
+        if self.source_url and len(self.source_url) > config.MAX_SOURCE_URL_LENGTH:
+            config.print_truncate("question_source_url", self.source_id, self.source_url)
+            self.source_url = self.source_url[:config.MAX_SOURCE_URL_LENGTH]
+
     def to_dict(self):
         """ to_dict: puts data in format CC expects
             Args: None
             Returns: dict of node's data
         """
-        print("TO_DICT: ", self.id.hex, self.hints)
-
         return {
             "assessment_id": self.id.hex,
             "type": self.question_type,
@@ -102,7 +105,6 @@ class BaseQuestion:
             hint_index += 1
             hint_files += hfiles
         self.hints = hints
-        print("PROCESS QUESTION: ", self.id.hex, self.hints)
 
         self.files += question_files + answer_files + hint_files
         return [f.filename for f in self.files]

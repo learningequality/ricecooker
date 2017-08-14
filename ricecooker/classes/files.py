@@ -181,6 +181,7 @@ class File(object):
     filename = None
     language = None
     assessment_item = None
+    is_primary = False
 
     def __init__(self, preset=None, language=None, default_ext=None, source_url=None):
         self.preset = preset
@@ -209,6 +210,15 @@ class File(object):
 
     def get_filename(self):
         return self.filename or self.process_file()
+
+    def truncate_fields(self):
+        if self.original_filename and len(self.original_filename) > config.MAX_ORIGINAL_FILENAME_LENGTH:
+            config.print_truncate("original_filename", self.node.source_id, self.original_filename)
+            self.original_filename = self.original_filename[:config.MAX_ORIGINAL_FILENAME_LENGTH]
+
+        if self.source_url and len(self.source_url) > config.MAX_SOURCE_URL_LENGTH:
+            config.print_truncate("file_source_url", self.node.source_id, self.source_url)
+            self.source_url = self.source_url[:config.MAX_SOURCE_URL_LENGTH]
 
     def to_dict(self):
         filename = self.get_filename()
@@ -297,6 +307,7 @@ class ThumbnailFile(ThumbnailPresetMixin, DownloadFile):
 class AudioFile(DownloadFile):
     default_ext = file_formats.MP3
     allowed_formats = [file_formats.MP3]
+    is_primary = True
 
     def get_preset(self):
         return self.preset or format_presets.AUDIO
@@ -304,6 +315,7 @@ class AudioFile(DownloadFile):
 class DocumentFile(DownloadFile):
     default_ext = file_formats.PDF
     allowed_formats = [file_formats.PDF]
+    is_primary = True
 
     def get_preset(self):
         return self.preset or format_presets.DOCUMENT
@@ -311,6 +323,7 @@ class DocumentFile(DownloadFile):
 class HTMLZipFile(DownloadFile):
     default_ext = file_formats.HTML5
     allowed_formats = [file_formats.HTML5]
+    is_primary = True
 
     def get_preset(self):
         return self.preset or format_presets.HTML5_ZIP
@@ -356,6 +369,7 @@ class ExtractedVideoThumbnailFile(ThumbnailFile):
 class VideoFile(DownloadFile):
     default_ext = file_formats.MP4
     allowed_formats = [file_formats.MP4]
+    is_primary = True
 
     def __init__(self, path, ffmpeg_settings=None, **kwargs):
         self.ffmpeg_settings = ffmpeg_settings
@@ -378,6 +392,7 @@ class VideoFile(DownloadFile):
             config.FAILED_FILES.append(self)
 
 class WebVideoFile(File):
+    is_primary = True
     # In future, look into postprocessors and progress_hooks
     def __init__(self, web_url, download_settings=None, high_resolution=True, maxheight=None, **kwargs):
         self.web_url = web_url

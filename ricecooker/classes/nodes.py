@@ -10,6 +10,8 @@ from .licenses import License
 from .. import config, __version__
 from ..exceptions import InvalidNodeException
 
+MASTERY_MODELS = [id for id, name in exercises.MASTERY_MODELS]
+
 
 class Node(object):
     """ Node: model to represent all nodes in the tree """
@@ -48,6 +50,18 @@ class Node(object):
         count = self.count()
         metadata = "{0} {1}".format(count, "descendant" if count == 1 else "descendants")
         return "{title} ({kind}): {metadata}".format(title=self.title, kind=self.__class__.__name__, metadata=metadata)
+
+    def truncate_fields(self):
+        if len(self.title) > config.MAX_TITLE_LENGTH:
+            config.print_truncate("title", self.source_id, self.title, kind=self.kind)
+            self.title = self.title[:config.MAX_TITLE_LENGTH]
+
+        if self.source_id and len(self.source_id) > config.MAX_SOURCE_ID_LENGTH:
+            config.print_truncate("source_id", self.source_id, self.source_id, kind=self.kind)
+            self.source_id = self.source_id[:config.MAX_SOURCE_ID_LENGTH]
+
+        for f in self.files:
+            f.truncate_fields()
 
     def to_dict(self):
         """ to_dict: puts data in format CC expects
@@ -221,6 +235,12 @@ class ChannelNode(Node):
     def get_node_id(self):
         return uuid.uuid5(self.get_domain_namespace(), self.source_id)
 
+    def truncate_fields(self):
+        if self.description and len(self.description) > config.MAX_DESCRIPTION_LENGTH:
+            config.print_truncate("description", self.source_id, self.description, kind=self.kind)
+            self.description = self.description[:config.MAX_DESCRIPTION_LENGTH]
+        super(ChannelNode, self).truncate_fields()
+
     def to_dict(self):
         """ to_dict: puts data in format CC expects
             Args: None
@@ -292,6 +312,17 @@ class TreeNode(Node):
         if not self.node_id:
             self.node_id = uuid.uuid5(self.parent.get_node_id(), self.get_content_id().hex)
         return self.node_id
+
+
+    def truncate_fields(self):
+        if self.author and len(self.author) > config.MAX_AUTHOR_LENGTH:
+            config.print_truncate("author", self.source_id, self.author, kind=self.kind)
+            self.author = self.author[:config.MAX_AUTHOR_LENGTH]
+
+        self.license and self.license.truncate_fields()
+
+        super(TreeNode, self).truncate_fields()
+
 
     def to_dict(self):
         """ to_dict: puts data in format CC expects
@@ -700,6 +731,13 @@ class ExerciseNode(ContentNode):
             # Check if questions are correct
             assert any(self.questions), "Assumption Failed: Exercise does not have a question"
             assert all(filter(lambda q: q.validate(), self.questions)), "Assumption Failed: Exercise has invalid question"
+            assert self.extra_fields['mastery_model'] in MASTERY_MODELS, "Assumption Failed: Unrecognized mastery model {}".format(self.extra_fields['mastery_model'])
             return super(ExerciseNode, self).validate()
         except AssertionError as ae:
             raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
+
+    def truncate_fields(self):
+        for q in self.questions:
+            q.truncate_fields()
+
+        super(ExerciseNode, self).truncate_fields()

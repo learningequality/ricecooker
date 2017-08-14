@@ -82,6 +82,71 @@ SUSHI_BAR_LOGS_URL = "{domain}/logs/{run_id}/"
 SUSHI_BAR_CONTROL_URL = "{domain}/control/{channel_id}/"
 
 
+# Character limits based on Kolibri models
+TRUNCATE_MSG = "\t\t{kind} {id}: {field} {value} is too long - max {max} characters (truncating)"
+
+MAX_TITLE_LENGTH = 200
+MAX_SOURCE_ID_LENGTH = 200
+MAX_DESCRIPTION_LENGTH = 400
+MAX_AUTHOR_LENGTH = 200
+MAX_SOURCE_URL_LENGTH = 400
+MAX_ORIGINAL_FILENAME_LENGTH = 255
+MAX_LICENSE_DESCRIPTION_LENGTH = 400
+MAX_COPYRIGHT_HOLDER_LENGTH = 200
+
+MAX_CHAR_LIMITS = {
+    "title": {
+        "kind": "Node",
+        "field": "title",
+        "max": MAX_TITLE_LENGTH
+    },
+    "source_id": {
+        "kind": "Node",
+        "field": "source_id",
+        "max": MAX_SOURCE_ID_LENGTH
+    },
+    "description": {
+        "kind": "Node",
+        "field": "description",
+        "max": MAX_DESCRIPTION_LENGTH
+    },
+    "author": {
+        "kind": "Node",
+        "field": "source_id",
+        "max": MAX_AUTHOR_LENGTH
+    },
+    "question_source_url": {
+        "kind": "Question",
+        "field": "source url",
+        "max": MAX_SOURCE_URL_LENGTH
+    },
+    "original_filename": {
+        "kind": "File",
+        "field": "original filename",
+        "max": MAX_ORIGINAL_FILENAME_LENGTH
+    },
+    "file_source_url": {
+        "kind": "File",
+        "field": "source url",
+        "max": MAX_SOURCE_URL_LENGTH
+    },
+    "license_description": {
+        "kind": "License",
+        "field": "license description",
+        "max": MAX_LICENSE_DESCRIPTION_LENGTH
+    },
+    "copyright_holder": {
+        "kind": "License",
+        "field": "copyright holder",
+        "max": MAX_COPYRIGHT_HOLDER_LENGTH
+    },
+}
+
+
+def print_truncate(field, id, value, kind=None):
+    limit = MAX_CHAR_LIMITS.get(field)
+    LOGGER.warning(TRUNCATE_MSG.format(kind=kind or limit["kind"], id=id, field=limit["field"], value=value, max=limit["max"]))
+
 def get_storage_path(filename):
     """ get_storage_path: returns path to storage directory for downloading content
         Args: filename (str): Name of file to store
@@ -174,13 +239,13 @@ def finish_channel_url():
     """
     return FINISH_CHANNEL_URL.format(domain=DOMAIN)
 
-def open_channel_url(channel):
+def open_channel_url(channel, staging=False):
     """ open_channel_url: returns url to uploaded channel
         Args:
             channel (str): channel id of uploaded channel
         Returns: string url to open channel
     """
-    return OPEN_CHANNEL_URL.format(domain=DOMAIN, channel_id=channel, access='staging' if STAGE else 'edit')
+    return OPEN_CHANNEL_URL.format(domain=DOMAIN, channel_id=channel, access='staging' if staging or STAGE else 'edit')
 
 def publish_channel_url():
     """ open_channel_url: returns url to publish channel
