@@ -421,8 +421,21 @@ class YouTubeVideoFile(WebVideoFile):
         super(YouTubeVideoFile, self).__init__('http://www.youtube.com/watch?v={}'.format(youtube_id), **kwargs)
 
 class YouTubeSubtitleFile(File):
+    """
+    Helper class for downloading youtube subtitles.
+    Args:
+       youtube_id (string): YouTube ID of video
+       language (string): internal language id format `{primary_code}` or `{primary_code}-{subcode}` (required)
+                          alternatively, can proviede two-letter language code recognized by youtube
+    """
     def __init__(self, youtube_id, language=None, **kwargs):
         self.youtube_url = 'http://www.youtube.com/watch?v={}'.format(youtube_id)
+        self.youtube_language = language  # two-letter code, sometimes different from internal repr.
+        language_obj = languages.getlang(language)   # lookup `language` using internal representation
+        # if language_obj not None, we know `language` is a valid language_id in internal repr.
+        if language_obj is None:  # if `language` not found using internal repr.
+            language_obj = languages.getlang_by_alpha2(language)  # try to match by two-letter ISO code
+            language = language_obj.id  # update `language` argument from internal repr. language_id
         super(YouTubeSubtitleFile, self).__init__(language=language, **kwargs)
         assert self.language, "Subtitles must have a language"
 
@@ -442,12 +455,12 @@ class YouTubeSubtitleFile(File):
         settings = {
             'skip_download': True,
             'writesubtitles': True,
-            'subtitleslangs': [self.language],
+            'subtitleslangs': [self.youtube_language],
             'subtitlesformat': "best[ext={}]".format(file_formats.VTT),
             'quiet': True,
             'no_warnings': True
         }
-        download_ext = ".{lang}.{ext}".format(lang=self.language, ext=file_formats.VTT)
+        download_ext = ".{lang}.{ext}".format(lang=self.youtube_language, ext=file_formats.VTT)
         return download_from_web(self.youtube_url, settings, file_format=file_formats.VTT, download_ext=download_ext)
 
 class SubtitleFile(DownloadFile):
