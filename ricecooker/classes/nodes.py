@@ -3,7 +3,7 @@
 import json
 import uuid
 
-from le_utils.constants import content_kinds, file_formats, exercises, format_presets
+from le_utils.constants import content_kinds, exercises, file_formats, format_presets, languages
 
 from ricecooker.classes.files import NodeFile
 from .licenses import License
@@ -12,10 +12,11 @@ from ..exceptions import InvalidNodeException
 
 
 class Node(object):
-    license = None
-
     """ Node: model to represent all nodes in the tree """
-    def __init__(self, title, description=None, thumbnail=None, files=None):
+    license = None
+    language = None
+
+    def __init__(self, title, language=None, description=None, thumbnail=None, files=None):
         self.files = []
         self.children = []
         self.descendants = []
@@ -24,12 +25,24 @@ class Node(object):
         self.content_id = None
         self.title = title
         self.hashed_file_name = None
+        self.set_language(language)
         self.description = description or ""
 
         for f in files or []:
             self.add_file(f)
 
         self.set_thumbnail(thumbnail)
+
+    def set_language(self, language):
+        """ Set self.language to internal lang. repr. code from str or Language object. """
+        if isinstance(language, str):
+            language_obj = languages.getlang(language)
+            if language_obj:
+                self.language = language_obj.code
+            else:
+                raise TypeError("Language code {} not found".format(language))
+        if isinstance(language, languages.Language):
+            self.language = language.code
 
     def __str__(self):
         count = self.count()
@@ -217,6 +230,7 @@ class ChannelNode(Node):
             "id": self.get_node_id().hex,
             "name": self.title,
             "thumbnail": self.thumbnail.filename if self.thumbnail else None,
+            "language" : self.language,
             "description": self.description or "",
             "license": self.license,
             "source_domain": self.source_domain,
@@ -286,6 +300,7 @@ class TreeNode(Node):
         """
         return {
             "title": self.title,
+            "language" : self.language,
             "description": self.description,
             "node_id": self.get_node_id().hex,
             "content_id": self.get_content_id().hex,
@@ -396,6 +411,7 @@ class ContentNode(TreeNode):
         """
         return {
             "title": self.title,
+            "language" : self.language,
             "description": self.description,
             "node_id": self.get_node_id().hex,
             "content_id": self.get_content_id().hex,

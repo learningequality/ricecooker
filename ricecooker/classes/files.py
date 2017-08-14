@@ -189,13 +189,15 @@ class File(object):
         self.source_url = source_url
 
     def set_language(self, language):
-        self.language = language
-        if isinstance(self.language, str):
-            self.language = languages.getlang(language)
-            if not self.language:
-                raise TypeError("Language {} is not found".format(language))
-        if isinstance(self.language, languages.Language):
-            self.language = self.language.code
+        """ Set self.language to internal lang. repr. code from str or Language object. """
+        if isinstance(language, str):
+            language_obj = languages.getlang(language)
+            if language_obj:
+                self.language = language_obj.code
+            else:
+                raise TypeError("Language code {} not found".format(language))
+        if isinstance(language, languages.Language):
+            self.language = language.code
 
     def validate(self):
         pass
