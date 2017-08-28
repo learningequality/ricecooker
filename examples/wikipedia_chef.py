@@ -13,9 +13,10 @@ from ricecooker.utils.zip import create_predictable_zip
 
 
 # CHANNEL SETTINGS
-SOURCE_DOMAIN = "<yourdomain.org>" # 
+SOURCE_DOMAIN = "<yourdomain.org>" #
 SOURCE_ID = "<yourid>"             # an alphanumeric ID refering to this channel
 CHANNEL_TITLE = "<channeltitle>"   # a humand-readbale title
+CHANNEL_LANGUAGE = "en"            # language of channel
 
 
 sess = requests.Session()
@@ -57,6 +58,7 @@ class WikipediaChef(SushiChef):
             source_id=SOURCE_ID,
             title=CHANNEL_TITLE,
             thumbnail="https://lh3.googleusercontent.com/zwwddqxgFlP14DlucvBV52RUMA-cV3vRvmjf-iWqxuVhYVmB-l8XN9NDirb0687DSw=w300",
+            language=CHANNEL_LANGUAGE,
         )
 
         return channel
