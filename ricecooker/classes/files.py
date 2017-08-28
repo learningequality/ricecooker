@@ -424,18 +424,18 @@ class YouTubeSubtitleFile(File):
     """
     Helper class for downloading youtube subtitles.
     Args:
-       youtube_id (string): YouTube ID of video
+       youtube_id (string): YouTube ID of video (required)
        language (string): internal language id format `{primary_code}` or `{primary_code}-{subcode}` (required)
-                          alternatively, can proviede two-letter language code recognized by youtube
+                          alternatively, you can provide the language code recognized by YouTube
     """
     def __init__(self, youtube_id, language=None, **kwargs):
         self.youtube_url = 'http://www.youtube.com/watch?v={}'.format(youtube_id)
-        self.youtube_language = language  # two-letter code, sometimes different from internal repr.
+        self.youtube_language = language  # youtube language code (can differ from internal repr.)
         language_obj = languages.getlang(language)   # lookup `language` using internal representation
-        # if language_obj not None, we know `language` is a valid language_id in internal repr.
+        # if language_obj not None, we know `language` is a valid language_id in the internal repr.
         if language_obj is None:  # if `language` not found using internal repr.
             language_obj = languages.getlang_by_alpha2(language)  # try to match by two-letter ISO code
-            language = language_obj.id  # update `language` argument from internal repr. language_id
+            language = language_obj.code   # update `language` argument from internal repr. language_id
         super(YouTubeSubtitleFile, self).__init__(language=language, **kwargs)
         assert self.language, "Subtitles must have a language"
 
