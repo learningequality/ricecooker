@@ -17,6 +17,7 @@ from ricecooker.utils.zip import create_predictable_zip
 SOURCE_DOMAIN = "<yourdomain.org>"  #
 SOURCE_ID = "<yourid>"  # an alphanumeric ID refering to this channel
 CHANNEL_TITLE = "<channeltitle>"  # a humand-readbale title
+CHANNEL_LANGUAGE = "en"            # language of channel
 
 sess = requests.Session()
 cache = FileCache('.webcache')
@@ -60,6 +61,7 @@ class LargeWikipediaChef(SushiChef):
         'CHANNEL_SOURCE_DOMAIN': SOURCE_DOMAIN,       # who is providing the content (e.g. learningequality.org)
         'CHANNEL_SOURCE_ID': SOURCE_ID,                   # channel's unique id
         'CHANNEL_TITLE': CHANNEL_TITLE,
+        'CHANNEL_LANGUAGE': CHANNEL_LANGUAGE,
         'CHANNEL_THUMBNAIL': 'https://lh3.googleusercontent.com/zwwddqxgFlP14DlucvBV52RUMA-cV3vRvmjf-iWqxuVhYVmB-l8XN9NDirb0687DSw=w300', # (optional) local path or url to image file
         'CHANNEL_DESCRIPTION': 'A large channel created from Wikipedia content.',      # (optional) description of the channel (optional)
     }
