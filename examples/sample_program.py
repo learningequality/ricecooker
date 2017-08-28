@@ -18,6 +18,7 @@ from pressurecooker.encodings import get_base64_encoding
 SOURCE_DOMAIN = "<yourdomain.org>"                 # content provider's domain
 SOURCE_ID = "<yourid>"                             # an alphanumeric channel ID
 CHANNEL_TITLE = "Testing Ricecooker Channel"       # a humand-readbale title
+CHANNEL_LANGUAGE = "en"                            # language code of channel
 
 
 # LOCAL DIRS
@@ -293,6 +294,7 @@ class SampleChef(SushiChef):
         'CHANNEL_SOURCE_DOMAIN': SOURCE_DOMAIN,       # who is providing the content (e.g. learningequality.org)
         'CHANNEL_SOURCE_ID': SOURCE_ID,                   # channel's unique id
         'CHANNEL_TITLE': CHANNEL_TITLE,
+        'CHANNEL_LANGUAGE': CHANNEL_LANGUAGE,
         'CHANNEL_THUMBNAIL': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/50/Banaue_Philippines_Banaue-Rice-Terraces-01.jpg/640px-Banaue_Philippines_Banaue-Rice-Terraces-01.jpg', # (optional) local path or url to image file
         'CHANNEL_DESCRIPTION': 'A sample sushi chef to demo content types.',      # (optional) description of the channel (optional)
     }
