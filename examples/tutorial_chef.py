@@ -19,6 +19,7 @@ class TutorialChef(SushiChef):
         'CHANNEL_SOURCE_DOMAIN': '<yourdomain.org>',       # who is providing the content (e.g. learningequality.org)
         'CHANNEL_SOURCE_ID': '<yourid>',                   # channel's unique id
         'CHANNEL_TITLE': 'The tutorial channel',
+        'CHANNEL_LANGUAGE': 'en'
         # 'CHANNEL_THUMBNAIL': 'http://yourdomain.org/img/logo.jpg', # (optional) local path or url to image file
         # 'CHANNEL_DESCRIPTION': 'What is this channel about?',      # (optional) description of the channel (optional)
      }
