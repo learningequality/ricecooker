@@ -177,7 +177,7 @@ EXERCISES_NODES = [
                 "id": "6cafe3",
                 "description": "Test how well you know your rice",
                 "license": licenses.CC_BY_NC_SA,
-                "mastery_model": exercises.M_OF_N,
+                "mastery_model": exercises.DO_ALL,
                 "files": [
                     {
                         "path": "http://www.publicdomainpictures.net/pictures/110000/nahled/bowl-of-rice.jpg",
@@ -299,11 +299,11 @@ class SampleChef(SushiChef):
         'CHANNEL_DESCRIPTION': 'A sample sushi chef to demo content types.',      # (optional) description of the channel (optional)
     }
 
-    def construct_channel(self, **kwargs):
+    def construct_channel(self, *args, **kwargs):
         """
         Create ChannelNode and build topic tree.
         """
-        channel = self.get_channel(**kwargs)   # creates ChannelNode from data in self.channel_info
+        channel = self.get_channel(*args, **kwargs)   # creates ChannelNode from data in self.channel_info
         _build_tree(channel, SAMPLE_TREE)
         raise_for_invalid_channel(channel)
 
@@ -380,7 +380,7 @@ def _build_tree(node, sourcetree):
                 license=child_source_node.get("license"),
                 author=child_source_node.get("author"),
                 description=child_source_node.get("description"),
-                exercise_data={}, # Just set to default
+                exercise_data=mastery_model,
                 thumbnail=child_source_node.get("thumbnail"),
             )
             add_files(child_node, child_source_node.get("files") or [])

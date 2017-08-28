@@ -4,6 +4,7 @@ from ..exceptions import UnknownLicenseError
 from .. import config
 from le_utils.constants import licenses
 
+
 def get_license(license_id, copyright_holder=None, description=None):
     if license_id == licenses.CC_BY:
         return CC_BYLicense(copyright_holder=copyright_holder)

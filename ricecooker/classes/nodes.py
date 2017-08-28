@@ -12,6 +12,7 @@ from ..exceptions import InvalidNodeException
 
 MASTERY_MODELS = [id for id, name in exercises.MASTERY_MODELS]
 
+
 class Node(object):
     """ Node: model to represent all nodes in the tree """
     license = None
