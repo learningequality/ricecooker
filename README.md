@@ -50,7 +50,7 @@ The sushi chef class for your channel must have the following attributes:
             'CHANNEL_SOURCE_DOMAIN': '<yourdomain.org>',       # who is providing the content (e.g. learningequality.org)
             'CHANNEL_SOURCE_ID': '<some unique identifier>',   # channel's unique id
             'CHANNEL_TITLE': 'Channel name shown in UI',
-            'CHANNEL_LANGUAGE': 'Channel language code',
+            'CHANNEL_LANGUAGE': 'en',                          # Use language codes from le_utils
             'CHANNEL_THUMBNAIL': 'http://yourdomain.org/img/logo.jpg', # (optional) local path or url to image file
             'CHANNEL_DESCRIPTION': 'What is this channel about?',      # (optional) description of the channel (optional)
          }
