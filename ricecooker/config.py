@@ -19,6 +19,8 @@ LOGGER = logging.getLogger()
 
 # Domain and file store location for uploading to production server
 DOMAIN = os.getenv('CONTENTWORKSHOP_URL', "https://contentworkshop.learningequality.org")
+if DOMAIN.endswith('/'):
+    DOMAIN = DOMAIN.rstrip('/')
 FILE_STORE_LOCATION =  hashlib.md5(DOMAIN.encode('utf-8')).hexdigest()
 
 # URL for authenticating user on Kolibri Studio
@@ -71,8 +73,10 @@ DOWNLOAD_SESSION.mount('file://', FileAdapter())
 
 # Sushi bar server
 SUSHIBAR_URL = os.getenv('SUSHIBAR_URL', "https://sushibar.learningequality.org")
+if SUSHIBAR_URL.endswith('/'):
+    SUSHIBAR_URL = SUSHIBAR_URL.rstrip('/')
 if not SUSHIBAR_URL.startswith('http'):
-   SUSHIBAR_URL = 'https://' + SUSHIBAR_URL   # in case only domain given
+   SUSHIBAR_URL = 'https://' + SUSHIBAR_URL        # in case only hostname given
 SUSHI_BAR_HTTP = SUSHIBAR_URL
 SUSHI_BAR_WEBSOCKET = SUSHIBAR_URL.replace('http', 'ws', 1)
 SUSHI_BAR_CHANNEL_URL = "{domain}/api/channels/"
