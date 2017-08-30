@@ -70,9 +70,11 @@ DOWNLOAD_SESSION = requests.Session()
 DOWNLOAD_SESSION.mount('file://', FileAdapter())
 
 # Sushi bar server
-SUSHI_BAR_DOMAIN = os.getenv('SUSHI_BAR_URL', "127.0.0.1:8000")
-SUSHI_BAR_HTTP = 'https://' + SUSHI_BAR_DOMAIN
-SUSHI_BAR_WEBSOCKET = 'wss://' + SUSHI_BAR_DOMAIN
+SUSHIBAR_URL = os.getenv('SUSHIBAR_URL', "https://sushibar.learningequality.org")
+if not SUSHIBAR_URL.startswith('http'):
+   SUSHIBAR_URL = 'https://' + SUSHIBAR_URL   # in case only domain given
+SUSHI_BAR_HTTP = SUSHIBAR_URL
+SUSHI_BAR_WEBSOCKET = SUSHIBAR_URL.replace('http', 'ws', 1)
 SUSHI_BAR_CHANNEL_URL = "{domain}/api/channels/"
 SUSHI_BAR_CHANNEL_RUNS_URL = "{domain}/api/channelruns/"
 SUSHI_BAR_CHANNEL_RUNS_DETAIL_URL = "{domain}/api/channelruns/{run_id}/"
