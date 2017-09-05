@@ -160,6 +160,18 @@ class Node(object):
             total += child.count()
         return total
 
+    def get_topic_count(self):
+        """ get_topic_count: get number of topics in tree
+            Args: None
+            Returns: int
+        """
+        total = 0
+        if self.kind == content_kinds.TOPIC or self.kind == "Channel":
+            total = 1
+            for child in self.children:
+                total += child.count()
+        return total
+
     def get_non_topic_descendants(self):
         if len(self.descendants) == 0:
             for child_node in self.children:
