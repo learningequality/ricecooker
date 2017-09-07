@@ -430,6 +430,8 @@ class YouTubeSubtitleFile(File):
     """
     def __init__(self, youtube_id, language=None, **kwargs):
         self.youtube_url = 'http://www.youtube.com/watch?v={}'.format(youtube_id)
+        if isinstance(language, languages.Language):  # for backward compatibility
+            language = language.code
         self.youtube_language = language  # youtube language code (can differ from internal repr.)
         language_obj = languages.getlang(language)   # lookup `language` using internal representation
         # if language_obj not None, we know `language` is a valid language_id in the internal repr.
