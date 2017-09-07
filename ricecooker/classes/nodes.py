@@ -144,9 +144,9 @@ class Node(object):
         if not self.has_thumbnail() and config.THUMBNAILS:
             file_names.append(self.derive_thumbnail())
 
-        node_file = NodeFile(self.to_dict())
-        self.hashed_file_name = node_file.process_file()
-        file_names.append(self.hashed_file_name)
+        # node_file = NodeFile(self.to_dict())
+        # self.hashed_file_name = node_file.process_file()
+        # file_names.append(self.hashed_file_name)
 
         return file_names
 

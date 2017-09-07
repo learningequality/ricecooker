@@ -44,6 +44,9 @@ CREATE_CHANNEL_URL = "{domain}/api/internal/create_channel"
 # URL for adding nodes to channel
 ADD_NODES_URL = "{domain}/api/internal/add_nodes"
 
+# URL for adding nodes to channel from file
+ADD_NODES_FROM_FILE_URL = "{domain}/api/internal/api_add_nodes_from_file"
+
 # URL for making final changes to channel
 FINISH_CHANNEL_URL = "{domain}/api/internal/finish_channel"
 
@@ -237,6 +240,13 @@ def add_nodes_url():
         Returns: string url to add_nodes endpoint
     """
     return ADD_NODES_URL.format(domain=DOMAIN)
+
+def add_nodes_from_file_url():
+    """ add_nodes_from_file_url: returns url to add nodes to channel using json file
+        Args: None
+        Returns: string url to add_nodes endpoint
+    """
+    return ADD_NODES_FROM_FILE_URL.format(domain=DOMAIN)
 
 def finish_channel_url():
     """ finish_channel_url: returns url to finish uploading a channel

@@ -261,6 +261,10 @@ class ChannelManager:
                     'root_id': root_id,
                     'content_data': payload_children
                 }
+
+                # When iceqube is integrated, use this method to utilize upload file optimizations
+                # response = config.SESSION.post(config.add_nodes_from_file_url(), files={'file': json.dumps(payload)})
+
                 response = config.SESSION.post(config.add_nodes_url(), data=json.dumps(payload))
                 if response.status_code != 200:
                     self.failed_node_builds[root_id] = {'node': current_node, 'error': response.reason}
