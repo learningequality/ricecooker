@@ -211,12 +211,14 @@ class SushiBarClient(object):
         except Exception as e:
             config.LOGGER.error('Error stage: %s' % e)
 
-    def report_statistics(self, files):
+    def report_statistics(self, files, topic_count=None):
         if not self.run_id:
             return
         resource_counts = {}
         resource_sizes = {}
         total_size = 0
+        resource_counts['topic'] = topic_count
+        resource_sizes['topic'] = None
         for f in files:
             path = config.get_storage_path(f)
             size = os.path.getsize(path)

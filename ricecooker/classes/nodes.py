@@ -144,9 +144,9 @@ class Node(object):
         if not self.has_thumbnail() and config.THUMBNAILS:
             file_names.append(self.derive_thumbnail())
 
-        node_file = NodeFile(self.to_dict())
-        self.hashed_file_name = node_file.process_file()
-        file_names.append(self.hashed_file_name)
+        # node_file = NodeFile(self.to_dict())
+        # self.hashed_file_name = node_file.process_file()
+        # file_names.append(self.hashed_file_name)
 
         return file_names
 
@@ -158,6 +158,18 @@ class Node(object):
         total = len(self.children)
         for child in self.children:
             total += child.count()
+        return total
+
+    def get_topic_count(self):
+        """ get_topic_count: get number of topics in tree
+            Args: None
+            Returns: int
+        """
+        total = 0
+        if self.kind == content_kinds.TOPIC or self.kind == "Channel":
+            total = 1
+            for child in self.children:
+                total += child.get_topic_count()
         return total
 
     def get_non_topic_descendants(self):
