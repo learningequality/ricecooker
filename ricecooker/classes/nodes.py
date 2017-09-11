@@ -169,7 +169,7 @@ class Node(object):
         if self.kind == content_kinds.TOPIC or self.kind == "Channel":
             total = 1
             for child in self.children:
-                total += child.count()
+                total += child.get_topic_count()
         return total
 
     def get_non_topic_descendants(self):
