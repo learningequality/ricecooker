@@ -3,6 +3,16 @@ History
 =======
 
 
+
+0.6.4 (2017-08-31)
+------------------
+* Added `language` attribute for `ContentNode`s (string key in internal repr. defined in le-utils)
+* Made `language` a required attribute for ChannelNode
+* Enabled sushibar.learningequality.org progress monitoring by default
+  Set SUSHIBAR_URL env. var to control where progress is reported (e.g. http://localhost:8001)
+* Updated le-utils and pressurecooker dependencies to latest
+
+
 0.6.2 (2017-07-07)
 ------------------
 * Clarify ricecooker is Python3 only (for now)
