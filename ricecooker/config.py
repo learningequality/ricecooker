@@ -1,11 +1,9 @@
 # Settings for rice cooker
-
-import os
-import json
-import logging
 import hashlib
-import requests
 import logging
+import os
+
+import requests
 from requests_file import FileAdapter
 
 UPDATE = False

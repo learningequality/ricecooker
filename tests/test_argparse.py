@@ -164,16 +164,13 @@ def test_same_as_docopt(command_line_inputs):
         orig_args = arguments_to_args_renames(arguments)
         del orig_args['uploadchannel']
         del orig_args['OPTIONS']
-        # print("BEFORE")
-        # pp.pprint(orig_args)
-        # pp.pprint(kwargs)
 
         args, options = new_arg_parser(line)
         del args['command']
-        # print("AFTER")
-        # pp.pprint(args.__dict__)
-        # pp.pprint(options)
+        del args['quiet']  # new logging option was not present in docopt parser
+        del args['debug']  # new logging option was not present in docopt parser
 
-        # print('different', added, removed, modified)
+        added, removed, modified, same = dict_compare(orig_args, args)
+        print('different', added, removed, modified)
         assert orig_args == args, 'docopt arguments differ from argparse args'
         assert kwargs == options, 'extra key=value options differ'
