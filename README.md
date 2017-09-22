@@ -336,7 +336,9 @@ Here the full list of the supported command line args:
    - `-v` (verbose) will print what the rice cooker is doing
    - `-u` (update) will force the ricecooker to redownload all files (skip checking the cache)
    - `--download-attempts=3` will set the maximum number of times to retry downloading files
+   - `--debug` will print out debugging statements during rice cooking session
    - `--warn` will print out warnings during rice cooking session
+   - `--quiet` will print out errors during rice cooking session
    - `--compress` will compress your high resolution videos to save space
    - `--token` will authorize you to create your channel (obtained in Step 1)
    - `--resume` will resume your previous rice cooking session

@@ -43,11 +43,10 @@ def uploadchannel_wrapper(chef, args, options):
         config.LOGGER.removeHandler(__logging_handler)
 
 
-def uploadchannel(chef, verbose=False, update=False, thumbnails=False, download_attempts=3, resume=False, reset=False, step=Status.LAST.name, token="#", prompt=False, publish=False, warnings=False, compress=False, stage=False, **kwargs):
+def uploadchannel(chef, update=False, thumbnails=False, download_attempts=3, resume=False, reset=False, step=Status.LAST.name, token="#", prompt=False, publish=False,  debug=False, verbose=True, warn=False, quiet=False, compress=False, stage=False, **kwargs):
     """ uploadchannel: Upload channel to Kolibri Studio server
         Args:
             chef (BaseChef or subclass): class that implements the construct_channel method
-            verbose (bool): indicates whether to print process (optional)
             update (bool): indicates whether to re-download files (optional)
             thumbnails (bool): indicates whether to automatically derive thumbnails from content (optional)
             download_attempts (int): number of times to retry downloading files (optional)
@@ -57,7 +56,10 @@ def uploadchannel(chef, verbose=False, update=False, thumbnails=False, download_
             token (str): content server authorization token
             prompt (bool): indicates whether to prompt user to open channel when done (optional)
             publish (bool): indicates whether to automatically publish channel (optional)
+            debug (bool): indicates whether to print out debugging statements (optional)
+            verbose (bool): indicates whether to print out info statements (optional)
             warnings (bool): indicates whether to print out warnings (optional)
+            quiet (bool): indicates whether to print out errors (optional)
             compress (bool): indicates whether to compress larger files (optional)
             stage (bool): indicates whether to stage rather than deploy channel (optional)
             kwargs (dict): extra keyword args will be passed to get_channel and construct_channel (optional)
@@ -66,7 +68,17 @@ def uploadchannel(chef, verbose=False, update=False, thumbnails=False, download_
 
     # Set configuration settings
     global __logging_handler
-    level = logging.INFO if verbose else logging.WARNING if warnings else logging.ERROR
+
+    level = logging.NOTSET
+    if debug:
+        level = logging.DEBUG
+    elif verbose:
+        level = logging.INFO
+    elif warn:
+        level = logging.WARNING
+    elif quiet:
+        level = logging.ERROR
+
     __logging_handler = logging.StreamHandler()
     config.LOGGER.addHandler(__logging_handler)
     logging.getLogger("requests").setLevel(logging.WARNING)
@@ -122,7 +134,7 @@ def uploadchannel(chef, verbose=False, update=False, thumbnails=False, download_
 
     # Download files if they haven't been downloaded already
     if config.PROGRESS_MANAGER.get_status_val() <= Status.DOWNLOAD_FILES.value:
-        print("Downloading files...")
+        config.LOGGER.info("Downloading files...")
         config.PROGRESS_MANAGER.set_files(*process_tree_files(tree))
 
     # Set download manager in case steps were skipped
@@ -131,7 +143,7 @@ def uploadchannel(chef, verbose=False, update=False, thumbnails=False, download_
 
     # Get file diff if it hasn't been generated already
     if config.PROGRESS_MANAGER.get_status_val() <= Status.GET_FILE_DIFF.value:
-        print("Getting file diff...")
+        config.LOGGER.info("Getting file diff...")
         config.PROGRESS_MANAGER.set_diff(get_file_diff(tree, files_to_diff))
     file_diff = config.PROGRESS_MANAGER.file_diff
 
@@ -140,19 +152,19 @@ def uploadchannel(chef, verbose=False, update=False, thumbnails=False, download_
 
     # Upload files if they haven't been uploaded already
     if config.PROGRESS_MANAGER.get_status_val() <= Status.UPLOADING_FILES.value:
-        print("Uploading files...")
+        config.LOGGER.info("Uploading files...")
         config.PROGRESS_MANAGER.set_uploaded(upload_files(tree, file_diff))
 
     # Create channel on Kolibri Studio if it hasn't been created already
     if config.PROGRESS_MANAGER.get_status_val() <= Status.UPLOAD_CHANNEL.value:
-        print("Creating channel...")
+        config.LOGGER.info("Creating channel...")
         config.PROGRESS_MANAGER.set_channel_created(*create_tree(tree))
     channel_link = config.PROGRESS_MANAGER.channel_link
     channel_id = config.PROGRESS_MANAGER.channel_id
 
     # Publish tree if flag is set to True
     if config.PUBLISH and config.PROGRESS_MANAGER.get_status_val() <= Status.PUBLISH_CHANNEL.value:
-        print("Publishing channel...")
+        config.LOGGER.info("Publishing channel...")
         publish_tree(tree, channel_id)
         config.PROGRESS_MANAGER.set_published()
 
