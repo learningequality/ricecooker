@@ -43,7 +43,7 @@ def uploadchannel_wrapper(chef, args, options):
         config.LOGGER.removeHandler(__logging_handler)
 
 
-def uploadchannel(chef, update=False, thumbnails=False, download_attempts=3, resume=False, reset=False, step=Status.LAST.name, token="#", prompt=False, publish=False,  debug=False, warn=False, quiet=False, compress=False, stage=False,**kwargs):
+def uploadchannel(chef, update=False, thumbnails=False, download_attempts=3, resume=False, reset=False, step=Status.LAST.name, token="#", prompt=False, publish=False,  debug=False, verbose=True, warn=False, quiet=False, compress=False, stage=False,**kwargs):
     """ uploadchannel: Upload channel to Kolibri Studio server
         Args:
             chef (BaseChef or subclass): class that implements the construct_channel method
@@ -57,6 +57,7 @@ def uploadchannel(chef, update=False, thumbnails=False, download_attempts=3, res
             prompt (bool): indicates whether to prompt user to open channel when done (optional)
             publish (bool): indicates whether to automatically publish channel (optional)
             debug (bool): indicates whether to print out debugging statements (optional)
+            verbose (bool): indicates whether to print out info statements (optional)
             warnings (bool): indicates whether to print out warnings (optional)
             quiet (bool): indicates whether to print out errors (optional)
             compress (bool): indicates whether to compress larger files (optional)
@@ -68,10 +69,11 @@ def uploadchannel(chef, update=False, thumbnails=False, download_attempts=3, res
     # Set configuration settings
     global __logging_handler
 
-    level = logging.INFO
-
+    level = logging.NOTSET
     if debug:
         level = logging.DEBUG
+    elif verbose:
+        level = logging.INFO
     elif warn:
         level = logging.WARNING
     elif quiet:

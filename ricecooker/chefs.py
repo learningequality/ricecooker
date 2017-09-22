@@ -40,6 +40,7 @@ class BaseChef(object):
             parser.add_argument('command', choices=['uploadchannel'], help='Main command for the chef script.')
             parser.add_argument('chef_script', help='Path to chef script file')
         #                    -h                                             Help documentation      # NO NEED BECAUSE AUTOMATIC
+        parser.add_argument('-v', '--verbose', action='store_true',   help='Verbose mode')
         parser.add_argument('-u', '--update', action='store_true',    help='Re-download files from file paths')
         parser.add_argument('--warn', action='store_true',            help='Print out warnings to stderr')
         parser.add_argument('--debug', action='store_true',           help='Print out debugging statements to stderr')
