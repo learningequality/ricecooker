@@ -118,7 +118,7 @@ def arguments_to_args_renames(arguments):
         elif k == '-u':
             args['update'] = v
         elif k == '-v':
-            args['verbose'] = v
+            args['verbose'] = True # Should default to true
         elif k == '<file_path>':
             args['chef_script'] = v
         elif k == '-h':
