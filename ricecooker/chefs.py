@@ -40,9 +40,10 @@ class BaseChef(object):
             parser.add_argument('command', choices=['uploadchannel'], help='Main command for the chef script.')
             parser.add_argument('chef_script', help='Path to chef script file')
         #                    -h                                             Help documentation      # NO NEED BECAUSE AUTOMATIC
-        parser.add_argument('-v', '--verbose', action='store_true',   help='Verbose mode')
         parser.add_argument('-u', '--update', action='store_true',    help='Re-download files from file paths')
         parser.add_argument('--warn', action='store_true',            help='Print out warnings to stderr')
+        parser.add_argument('--debug', action='store_true',           help='Print out debugging statements to stderr')
+        parser.add_argument('--quiet', action='store_true',           help='Print out errors to stderr')
         parser.add_argument('--stage', action='store_true',           help='Stage updates rather than deploying them for manual verification on Kolibri Studio')
         parser.add_argument('--compress', action='store_true',        help='Compress high resolution videos to low resolution videos')
         parser.add_argument('--thumbnails', action='store_true',      help='Automatically generate thumbnails for topics')
