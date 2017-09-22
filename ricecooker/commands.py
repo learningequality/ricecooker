@@ -43,7 +43,7 @@ def uploadchannel_wrapper(chef, args, options):
         config.LOGGER.removeHandler(__logging_handler)
 
 
-def uploadchannel(chef, update=False, thumbnails=False, download_attempts=3, resume=False, reset=False, step=Status.LAST.name, token="#", prompt=False, publish=False,  debug=False, verbose=True, warn=False, quiet=False, compress=False, stage=False,**kwargs):
+def uploadchannel(chef, update=False, thumbnails=False, download_attempts=3, resume=False, reset=False, step=Status.LAST.name, token="#", prompt=False, publish=False,  debug=False, verbose=True, warn=False, quiet=False, compress=False, stage=False, **kwargs):
     """ uploadchannel: Upload channel to Kolibri Studio server
         Args:
             chef (BaseChef or subclass): class that implements the construct_channel method
