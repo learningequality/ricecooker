@@ -425,7 +425,7 @@ class YouTubeSubtitleFile(File):
     Helper class for downloading youtube subtitles.
     Args:
        youtube_id (string): YouTube ID of video (required)
-       language (string): internal language id format `{primary_code}` or `{primary_code}-{subcode}` (required)
+       language (string): internal language id format `{primary_code}` or `{primary_code}-{subcode}` (required) \
                           alternatively, you can provide the language code recognized by YouTube
     """
     def __init__(self, youtube_id, language=None, **kwargs):

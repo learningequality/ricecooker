@@ -45,7 +45,7 @@ script should call when it runs on the command line.
 The sushi chef class for your channel must have the following attributes:
 
   - `channel_info` (dict) that looks like this:
-
+        
         channel_info = {
             'CHANNEL_SOURCE_DOMAIN': '<yourdomain.org>',       # who is providing the content (e.g. learningequality.org)
             'CHANNEL_SOURCE_ID': '<some unique identifier>',   # channel's unique id
@@ -53,11 +53,10 @@ The sushi chef class for your channel must have the following attributes:
             'CHANNEL_LANGUAGE': 'en',                          # Use language codes from le_utils
             'CHANNEL_THUMBNAIL': 'http://yourdomain.org/img/logo.jpg', # (optional) local path or url to image file
             'CHANNEL_DESCRIPTION': 'What is this channel about?',      # (optional) description of the channel (optional)
-         }
+        }
 
   - `construct_channel(**kwargs) -> ChannelNode`: This method is responsible for
     building the structure of your channel (to be discussed below).
-
 
 To write the `construct_channel` method of your chef class, start by importing
 `ChannelNode` from `ricecooker.classes.nodes` and create a `ChannelNode` using
