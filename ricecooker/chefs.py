@@ -1,16 +1,28 @@
 import argparse
+import os
 from importlib.machinery import SourceFileLoader
+
 
 from . import config
 from .classes.nodes import ChannelNode
 from .commands import uploadchannel, uploadchannel_wrapper
-from .exceptions import InvalidUsageException
+from .exceptions import InvalidUsageException, raise_for_invalid_channel
 from .managers.progress import Status
 from .sushi_bar_client import ControlWebSocket
 from .utils.tokens import get_content_curation_token
 
+# for JsonTreeChef chef
+from .utils.jsontrees import read_tree_from_json
+from .utils.jsontrees import get_channel_node_from_json, build_tree_from_json
+
+# for LineCook chef
+from .utils.metadata_provider import CsvMetadataProvider
+from .utils.metadata_provider import DEFAULT_CHANNEL_INFO_FILENAME, DEFAULT_CONTENT_INFO_FILENAME
+from .utils.linecook import build_ricecooker_json_tree, FolderExistsAction
 
 
+# SUSHI CHEF BASE CLASS (and backward compatibiliry)
+################################################################################
 
 class BaseChef(object):
     """
@@ -205,7 +217,8 @@ class BaseChef(object):
 
 
 
-
+# THE DEFAULT SUSHI CHEF
+################################################################################
 
 class SushiChef(BaseChef):
     """
@@ -225,8 +238,9 @@ class SushiChef(BaseChef):
         super(SushiChef, self).__init__(*args, **kwargs)
 
         # We don't want to add argparse help if subclass has an __init__ method
-        if "__init__" in self.__class__.__dict__.keys():
-            add_parser_help = False     # assume subclass __init__ will add help
+        subclasses = self.__class__.__mro__[:-3]     # all subclasses after this
+        if any(['__init__' in c.__dict__.keys() for c in subclasses]):
+            add_parser_help = False    # assume subclass' __init__ will add help
         else:
             add_parser_help = True
 
@@ -272,5 +286,154 @@ class SushiChef(BaseChef):
             self.daemon_mode(args, options)
         else:
             self.run(args, options)
+
+
+
+
+
+
+# JSON TREE CHEF
+################################################################################
+
+class JsonTreeChef(SushiChef):
+    """
+    This sushi chef loads the data from a channel from a ricecooker json tree file
+    which conatins the json representation of a full ricecooker node tree.
+    For example the content hierarchy with two levels of subfolders and a PDF
+    content node looks like this:
+
+        {
+          "title": "Open Stax",
+          "source_domain": "openstax.org",
+          "source_id": "open-stax",
+          "language": "en",
+          "children": [
+            {
+              "kind": "topic",
+              "title": "Humanities",
+              "children": [
+                {
+                  "kind": "topic",
+                  "title": "U.S. History",
+                  "children": [
+                    {
+                      "kind": "document",
+                      "source_id": "Open Stax/Humanities/U.S. History/Student Handbook.pdf",
+                      "title": "Student Handbook",
+                      "author": "P. Scott Corbett, Volker Janssen, ..."",
+                      "license": {
+                        "license_id": "CC BY"
+                      },
+                      "files": [
+                        {
+                          "file_type": "document",
+                          "path": "content/open_stax_zip/Open Stax/Humanities/U.S. History/Student Handbook.pdf"
+                        }
+                      ]
+                    }]}]}]}
+
+    Each object in the json tree correponds to a TopicNode, a ContentNode that
+    contains a Files or an Exercise that contains Question.
+    """
+    DATA_DIR = 'chefdata'
+    TREES_DATA_DIR = os.path.join(DATA_DIR, 'trees')
+    RICECOOKER_JSON_TREE = 'ricecooker_json_tree.json'
+
+    def pre_run(self, args, options):
+        """
+        This function is called before `run` to create the json tree file.
+        """
+        raise NotImplementedError('JsonTreeChef subclass must implement the `pre_run` method.')
+
+    def get_json_tree_path(self, *args, **kwargs):
+        """
+        Return path to ricecooker json tree file. Override this method to use
+        a custom filename, e.g., for channel with multiple languages.
+        """
+        json_tree_path = os.path.join(self.TREES_DATA_DIR, self.RICECOOKER_JSON_TREE)
+        return json_tree_path
+
+    def get_channel(self, **kwargs):
+        # Load channel info from json_tree
+        json_tree_path = self.get_json_tree_path(**kwargs)
+        json_tree = read_tree_from_json(json_tree_path)
+        channel = get_channel_node_from_json(json_tree)
+        return channel
+
+    def construct_channel(self, **kwargs):
+        """
+        Build the channel tree by adding TopicNodes and ContentNode children.
+        """
+        channel = self.get_channel(**kwargs)
+        json_tree_path = self.get_json_tree_path(**kwargs)
+        json_tree = read_tree_from_json(json_tree_path)
+        build_tree_from_json(channel, json_tree['children'])
+        raise_for_invalid_channel(channel)
+        return channel
+
+
+
+
+# SOUSCHEF LINECOOK
+################################################################################
+
+class LineCook(JsonTreeChef):
+    """
+    This sushi chef uses os.walk to import the content in `channeldir` folder
+    `directory structure + CSV metadata files  -->  Kolibri channel`.
+    Assumes folders and CSV metadata files were creaed by a `souschef` script.
+    """
+    metadata_provider = None
+
+    def __init__(self, *args, **kwargs):
+        super(LineCook, self).__init__(*args, **kwargs)
+
+        # We don't want to add argparse help if subclass has an __init__ method
+        subclasses = self.__class__.__mro__[:-5]     # all subclasses after this
+        if any(['__init__' in c.__dict__.keys() for c in subclasses]):
+            add_parser_help = False    # assume subclass' __init__ will add help
+        else:
+            add_parser_help = True
+
+        self.arg_parser = argparse.ArgumentParser(
+            description="Upload the folder hierarchy to the content workshop.",
+            add_help=add_parser_help,
+            parents=[self.arg_parser]
+        )
+        self.arg_parser.add_argument('--channeldir', required=True,
+            action=FolderExistsAction,
+            help='The dir that corresponds to the root of the channel.')
+        self.arg_parser.add_argument('--channelinfo',
+            default=DEFAULT_CHANNEL_INFO_FILENAME,
+            help='The filename that conains the channel metadata (assumed to be sibling of channeldir)')
+        self.arg_parser.add_argument('--contentinfo',
+            default=DEFAULT_CONTENT_INFO_FILENAME,
+            help='The filename that conains the content metadata (assumed to be sibling of channeldir)')
+
+    def _init_metadata_provider(self, args, options):
+        if args['contentinfo'].endswith('.csv'):
+            metadata_provider = CsvMetadataProvider(args['channeldir'],
+                                                    channelinfo=args['channelinfo'],
+                                                    contentinfo=args['contentinfo'])
+        else:
+            raise ValueError('Uknown contentinfo file format ' + args['contentinfo'])
+        self.metadata_provider = metadata_provider
+
+    def pre_run(self, args, options):
+        """
+        This function is called before `run` in order to build the json tree.
+        """
+        if self.metadata_provider is None:
+            self._init_metadata_provider(args, options)
+        kwargs = {}   # combined dictionary of argparse args and extra options
+        kwargs.update(args)
+        kwargs.update(options)
+        json_tree_path = self.get_json_tree_path(**kwargs)
+        build_ricecooker_json_tree(args, options, self.metadata_provider, json_tree_path)
+
+    # UNCOMMENT BELOW TO DISABLE CHANNEL UPLOAD
+    # def run(self, args, options):
+    #     self.pre_run(args, options)
+
 
 
