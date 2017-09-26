@@ -41,7 +41,7 @@ class License(object):
         return self.license_id
 
     def validate(self):
-        assert isinstance(copyright_holder, str), "Assertion Failed: Copyright holder must be a string"
+        assert isinstance(self.copyright_holder, str), "Assertion Failed: Copyright holder must be a string"
 
     def truncate_fields(self):
         if self.description and len(self.description) > config.MAX_LICENSE_DESCRIPTION_LENGTH:
@@ -51,6 +51,11 @@ class License(object):
         if self.copyright_holder and len(self.copyright_holder) > config.MAX_COPYRIGHT_HOLDER_LENGTH:
             config.print_truncate("copyright_holder", self.license_id, self.copyright_holder)
             self.copyright_holder = self.copyright_holder[:config.MAX_COPYRIGHT_HOLDER_LENGTH]
+
+    def __dict__(self):
+        return {'license_id': self.license_id,
+                'copyright_holder': self.copyright_holder,
+                'description': self.description }
 
 class CC_BYLicense(License):
     """
