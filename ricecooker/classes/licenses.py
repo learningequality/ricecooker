@@ -52,7 +52,7 @@ class License(object):
             config.print_truncate("copyright_holder", self.license_id, self.copyright_holder)
             self.copyright_holder = self.copyright_holder[:config.MAX_COPYRIGHT_HOLDER_LENGTH]
 
-    def __dict__(self):
+    def as_dict(self):
         return {'license_id': self.license_id,
                 'copyright_holder': self.copyright_holder,
                 'description': self.description }

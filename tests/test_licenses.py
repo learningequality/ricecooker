@@ -86,7 +86,7 @@ def test_license_serilizibility(license_objects, special_license):
     orig_licenses.append(special_license)
     for licence_orig in orig_licenses:
         # serizlize
-        license_dict = licence_orig.__dict__()
+        license_dict = licence_orig.as_dict()
         license_json = json.dumps(license_dict)
         # deserizlize
         license_copy_dict = json.loads(license_json)

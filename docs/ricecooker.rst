@@ -1,53 +1,54 @@
 ricecooker package
 ==================
 
+Subpackages
+-----------
+
+.. toctree::
+
+    ricecooker.classes
+    ricecooker.managers
+    ricecooker.utils
+
 Submodules
 ----------
 
-ricecooker.classes module
--------------------------
+ricecooker\.chefs module
+------------------------
 
-.. automodule:: ricecooker.classes
+.. automodule:: ricecooker.chefs
     :members:
     :undoc-members:
     :show-inheritance:
 
-ricecooker.commands module
---------------------------
+ricecooker\.commands module
+---------------------------
 
 .. automodule:: ricecooker.commands
     :members:
     :undoc-members:
     :show-inheritance:
 
-ricecooker.config module
-------------------------
+ricecooker\.config module
+-------------------------
 
 .. automodule:: ricecooker.config
     :members:
     :undoc-members:
     :show-inheritance:
 
-ricecooker.exceptions module
-----------------------------
+ricecooker\.exceptions module
+-----------------------------
 
 .. automodule:: ricecooker.exceptions
     :members:
     :undoc-members:
     :show-inheritance:
 
-ricecooker.managers module
---------------------------
+ricecooker\.sushi\_bar\_client module
+-------------------------------------
 
-.. automodule:: ricecooker.managers
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-ricecooker.sample_program module
---------------------------------
-
-.. automodule:: ricecooker.sample_program
+.. automodule:: ricecooker.sushi_bar_client
     :members:
     :undoc-members:
     :show-inheritance:

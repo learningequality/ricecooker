@@ -19,7 +19,7 @@ class BaseChef(object):
     calls the `run` method to performs all the work (see `uploadchannel`).
 
     This class also provides backward compaibility with old chef scripts.
-    When invoking the a sushi chef script using the old API
+    When invoking the a sushi chef script using the old API: \
         python -m ricecooker uploadchannel chef_script.py --token=123 ...
     an instance of this class with `compatibility_mode = True` will be created.
     Calling `BaseChef.run` will call the function `construct_channel` in `chef_module`.
@@ -65,12 +65,13 @@ class BaseChef(object):
         """
         Parses all known command line args and also additional key=value options.
         NOTE: this should be the only place cli args are parsed in order to have
-              a single consistent interface for all chef scripts.
+        a single consistent interface for all chef scripts.
 
-        Args: None, but implicitly depends on `self.arg_parser` and `sys.argv
-        Returns: tuple (args, options)
-          args (dict): chef command line arguments
-          options (dict): extra compatibility-mode options given on command line
+        Args: None, but implicitly depends on `self.arg_parser` and `sys.argv`
+        Returns:
+          tuple (`args`, `options`)
+            args (dict): chef command line arguments
+            options (dict): extra compatibility-mode options given on command line
         """
         args_namespace, options_list = self.arg_parser.parse_known_args()
         args = args_namespace.__dict__

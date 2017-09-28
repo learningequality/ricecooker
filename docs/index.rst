@@ -11,7 +11,23 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
+   README
+   installation
+   usage
+   tutorial/index
+   design
+   nodes
+   files
+   exercises
+   parsing_html
+   modules
+   history
+   authors
+   contributing
+
 .. automodule:: ricecooker.classes
+
+
 
 Indices and tables
 ==================
