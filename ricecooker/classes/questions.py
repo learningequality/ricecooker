@@ -36,11 +36,11 @@ class BaseQuestion:
     def __init__(self, id, question, question_type, answers=None, hints=None, raw_data="", source_url=None, randomize=False):
         self.question = question
         self.question_type = question_type
-        self.files=[]
+        self.files = []
         self.answers = answers if answers is not None else []
         self.hints = [] if hints is None else [hints] if isinstance(hints,str) else hints
         self.raw_data = raw_data
-        self.source_id=id
+        self.source_id = id
         self.source_url = source_url
         self.randomize = randomize
         self.id = uuid.uuid5(uuid.NAMESPACE_DNS, id)
@@ -197,7 +197,7 @@ class BaseQuestion:
         for a in self.answers:
             assert isinstance(a, dict), "Assumption Failed: Answer in answer list is not a dict"
         for h in self.hints:
-            assert isinstance(h, str), "Assumption Failed: Hint in hint list is not a string"
+            assert isinstance(h, str), "Assumption Failed: Hint in hints list is not a string"
         return True
 
 
@@ -227,7 +227,7 @@ class PerseusQuestion(BaseQuestion):
             assert self.question == "", "Assumption Failed: Perseus question should not have a question"
             assert self.question_type == exercises.PERSEUS_QUESTION, "Assumption Failed: Question should be perseus type"
             assert self.answers == [], "Assumption Failed: Answer list should be empty for perseus question"
-            assert self.hints == [], "Assumption Failed: Hint list should be empty for perseus question"
+            assert self.hints == [], "Assumption Failed: Hints list should be empty for perseus question"
             return super(PerseusQuestion, self).validate()
         except AssertionError as ae:
             raise InvalidQuestionException("Invalid question: {0}".format(self.__dict__))
@@ -325,7 +325,7 @@ class MultipleSelectQuestion(BaseQuestion):
             question (str): question text
             correct_answers ([str]): list of correct answers
             all_answers ([str]): list of all possible answers
-            hint (str): optional hint on how to answer question
+            hints ([str]): optional hints on how to answer question
             images ({key:str, ...}): a dict mapping image placeholder names to path to image
     """
 
@@ -369,7 +369,7 @@ class SingleSelectQuestion(BaseQuestion):
             question (str): question text
             correct_answer (str): correct answer
             all_answers ([str]): list of all possible answers
-            hint (str): optional hint on how to answer question
+            hints ([str]): optional hints on how to answer question
     """
     def __init__(self, id, question, correct_answer, all_answers, **kwargs):
         # Put answers into standard format
@@ -396,7 +396,7 @@ class SingleSelectQuestion(BaseQuestion):
                 correct_answers += 1 if a['correct'] else 0
             assert correct_answers == 1, "Assumption Failed: Single selection question should have only one correct answer"
             for h in self.hints:
-                assert isinstance(h, str), "Assumption Failed: Hint in hint list is not a string"
+                assert isinstance(h, str), "Assumption Failed: Hint in hints list is not a string"
             return super(SingleSelectQuestion, self).validate()
         except AssertionError as ae:
             raise InvalidQuestionException("Invalid question: {0}".format(self.__dict__))
@@ -412,7 +412,7 @@ class InputQuestion(BaseQuestion):
             id (str): question's unique id
             question (str): question text
             answers ([{'answer':str, 'hint':str}]): answers to question
-            hint (str): optional hint on how to answer question
+            hints ([str]): optional hints on how to answer question
             images ({key:str, ...}): a dict mapping image placeholder names to path to image
     """
     def __init__(self, id, question, answers, **kwargs):
@@ -437,7 +437,7 @@ class InputQuestion(BaseQuestion):
                 except ValueError:
                     assert False, "Assumption Failed: Answer {} must be numeric".format(a['answer'])
             for h in self.hints:
-                assert isinstance(h, str), "Assumption Failed: Hint in hint list is not a string"
+                assert isinstance(h, str), "Assumption Failed: Hint in hints list is not a string"
             return super(InputQuestion, self).validate()
         except AssertionError as ae:
             raise InvalidQuestionException("Invalid question: {0}".format(self.__dict__))
