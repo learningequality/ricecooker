@@ -742,8 +742,6 @@ class ExerciseNode(ContentNode):
             assert self.kind == content_kinds.EXERCISE, "Assumption Failed: Node should be an exercise"
 
             # Check if questions are correct
-            if not any(self.questions):
-                print(self.__dict__)
             assert any(self.questions), "Assumption Failed: Exercise does not have a question"
             assert all(filter(lambda q: q.validate(), self.questions)), "Assumption Failed: Exercise has invalid question"
             assert self.extra_fields['mastery_model'] in MASTERY_MODELS, "Assumption Failed: Unrecognized mastery model {}".format(self.extra_fields['mastery_model'])
