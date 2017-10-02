@@ -60,7 +60,7 @@ class TutorialChef(SushiChef):
         ########################################################################
         # let's create a document file called 'Example PDF'
         document_file = DocumentFile(path="http://www.pdf995.com/samples/pdf.pdf")
-        examplepdf = DocumentNode(title="Example PDF", source_id="example-pdf", files=[document_file], license=get_license(licenses.CC_BY_SA))
+        examplepdf = DocumentNode(title="Example PDF", source_id="example-pdf", files=[document_file], license=get_license(licenses.PUBLIC_DOMAIN))
         # TODO: Create your pdf file here (use any url to a .pdf file)
 
         # We are also going to add a video file called 'Example Video'
@@ -71,7 +71,7 @@ class TutorialChef(SushiChef):
 
         # Finally, we are creating an audio file called 'Example Audio'
         audio_file = AudioFile(path="https://ia802508.us.archive.org/5/items/testmp3testfile/mpthreetest.mp3")
-        exampleaudio = AudioNode(title="Example Audio", source_id="example-audio", files=[audio_file], license=get_license(licenses.CC_BY_SA))
+        exampleaudio = AudioNode(title="Example Audio", source_id="example-audio", files=[audio_file], license=get_license(licenses.PUBLIC_DOMAIN))
         # TODO: Create your audio file here (use any url to a .mp3 file)
 
         # Now that we have our files, let's add them to our channel

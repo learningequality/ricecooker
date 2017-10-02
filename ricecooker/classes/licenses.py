@@ -32,6 +32,7 @@ class License(object):
     license_id = None # (str): content's license based on le_utils.constants.licenses
     copyright_holder = None # (str): name of person or organization who owns license (optional)
     description = None # (str): description of the license (optional)
+    require_copyright_holder = True
 
     def __init__(self, copyright_holder=None, description=None):
         self.copyright_holder = copyright_holder or ""
@@ -41,6 +42,7 @@ class License(object):
         return self.license_id
 
     def validate(self):
+        assert not self.require_copyright_holder or self.copyright_holder != "", "Assertion Failed: {} License requires a copyright holder".format(self.license_id)
         assert isinstance(self.copyright_holder, str), "Assertion Failed: Copyright holder must be a string"
 
     def truncate_fields(self):
@@ -144,6 +146,7 @@ class PublicDomainLicense(License):
 
         Reference: https://creativecommons.org/publicdomain/mark/1.0
     """
+    require_copyright_holder = False
     license_id = licenses.PUBLIC_DOMAIN
 
 class SpecialPermissionsLicense(License):
