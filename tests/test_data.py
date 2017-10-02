@@ -369,7 +369,6 @@ def test_init(channel, topic, video, audio, document, html, exercise):
 
 def test_validate(channel, invalid_channel, topic, contentnode_invalid_license, contentnode_invalid_files, contentnode_no_source_id, video, video_invalid_files,
     audio, audio_invalid_files, document, document_invalid_files, html, html_invalid_files, html_invalid_zip, exercise, exercise_invalid_question):
-    assert channel.validate(), "Valid channel should pass validation"
     pytest.raises(InvalidNodeException, invalid_channel.validate)
     assert topic.validate(), "Valid topics should pass validation"
 
