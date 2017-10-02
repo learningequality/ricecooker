@@ -214,6 +214,10 @@ class Node(object):
         for f in self.files:
             assert isinstance(f, File), "Assumption Failed: files must be file class"
             f.validate()
+
+        source_ids = [c.source_id for c in self.children]
+        duplicates = set([x for x in source_ids if source_ids.count(x) > 1])
+        assert len(duplicates) == 0, "Assumption Failed: Node must have unique source id among siblings ({} appears multiple times)".format(duplicates)
         return True
 
 
