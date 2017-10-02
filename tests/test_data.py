@@ -57,16 +57,28 @@ def channel_data(channel_node_id, channel_content_id, domain_namespace, channel_
         "license": None,
         "source_domain": domain_namespace,
         "source_id": channel_source_id,
+        "language": "en",
         "ricecooker_version": __version__,
     }
 
 @pytest.fixture
 def channel(domain_namespace, channel_source_id, channel_data):
-    return ChannelNode(channel_source_id, domain_namespace, channel_data["name"], description = channel_data['description'])
+    channel = ChannelNode(
+        channel_source_id,
+        domain_namespace,
+        title=channel_data['name'],
+        description=channel_data['description'],
+        language=channel_data['language']
+    )
+    return channel
 
 @pytest.fixture
 def invalid_channel(domain_namespace, channel_source_id):
-    channel = ChannelNode(channel_source_id, domain_namespace, "Channel")
+    channel = ChannelNode(
+        channel_source_id,
+        domain_namespace,
+        title='Channel'
+    )
     channel.source_id = None
     return channel
 

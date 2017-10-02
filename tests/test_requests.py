@@ -35,14 +35,24 @@ def channel_content_id(channel_domain_namespace, channel_node_id):
 
 @pytest.fixture
 def channel(domain_namespace, source_id):
-    return ChannelNode(source_id, domain_namespace, "Channel")
+    channel = ChannelNode(
+        source_id,
+        domain_namespace,
+        "Channel",
+        language="en"
+    )
+    return channel
 
 @pytest.fixture
 def invalid_channel(domain_namespace, source_id):
-    channel = ChannelNode(source_id, domain_namespace, "Channel")
+    channel = ChannelNode(
+        source_id,
+        domain_namespace,
+        "Channel",
+        language="en"
+    )
     channel.source_id = None
     return channel
-
 
 """ *********** TOPIC FIXTURES *********** """
 @pytest.fixture

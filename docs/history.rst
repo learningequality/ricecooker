@@ -3,10 +3,15 @@ History
 =======
 
 
+0.6.6 (2017-09-29)
+------------------
+* Added `JsonTreeChef` class for creating channels from ricecooker json trees
+* Added `LineCook` chef class to support souschef-based channel workflows
+
 
 0.6.4 (2017-08-31)
 ------------------
-* Added `language` attribute for `ContentNode`s (string key in internal repr. defined in le-utils)
+* Added `language` attribute for `ContentNode` (string key in internal repr. defined in le-utils)
 * Made `language` a required attribute for ChannelNode
 * Enabled sushibar.learningequality.org progress monitoring by default
   Set SUSHIBAR_URL env. var to control where progress is reported (e.g. http://localhost:8001)
@@ -36,5 +41,5 @@ History
 
 0.1.0 (2016-09-30)
 ------------------
-
 * First release on PyPI.
+
