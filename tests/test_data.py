@@ -90,7 +90,7 @@ def title():
 
 @pytest.fixture
 def license_id():
-    return licenses.CC_BY
+    return licenses.PUBLIC_DOMAIN
 
 @pytest.fixture
 def topic_kwargs_data():
@@ -155,7 +155,7 @@ def contentnode_kwargs(kwargs_data):
 @pytest.fixture
 def contentnode_base_data(base_data, contentnode_kwargs):
     data = copy.deepcopy(base_data)
-    data.update({ "license": licenses.CC_BY})
+    data.update({ "license": licenses.PUBLIC_DOMAIN})
     data.update(contentnode_kwargs)
     return data
 
