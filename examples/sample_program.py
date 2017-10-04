@@ -163,6 +163,7 @@ EXERCISES_NODES = [
                 "description": "Become a master rice cooker",
                 "file": "https://ia600209.us.archive.org/27/items/RiceChef/Rice Chef.mp4",
                 "license": licenses.CC_BY_NC_SA,
+                "copyright_holder": "Learning Equality",
                 "files": [
                     {
                         "path": "https://ia600209.us.archive.org/27/items/RiceChef/Rice Chef.mp4",
@@ -177,6 +178,7 @@ EXERCISES_NODES = [
                 "id": "6cafe3",
                 "description": "Test how well you know your rice",
                 "license": licenses.CC_BY_NC_SA,
+                "copyright_holder": "Learning Equality",
                 "mastery_model": exercises.DO_ALL,
                 "files": [
                     {
@@ -223,6 +225,7 @@ EXERCISES_NODES = [
                 "id": "6cafe4",
                 "description": "Test how well you know your rice",
                 "license": licenses.CC_BY_NC_SA,
+                "copyright_holder": "Learning Equality",
                 "mastery_model": exercises.M_OF_N,
                 "files": [
                     {
@@ -262,6 +265,7 @@ EXERCISES_NODES = [
                 "id": "6cafe5",
                 "description": "Test how well you know your rice",
                 "license": licenses.CC_BY_NC_SA,
+                "copyright_holder": "Learning Equality",
                 "mastery_model": exercises.M_OF_N,
                 "files": [
                     {
@@ -339,7 +343,7 @@ def _build_tree(node, sourcetree):
             child_node = nodes.VideoNode(
                 source_id=child_source_node["id"],
                 title=child_source_node["title"],
-                license=get_license(child_source_node.get("license"), description="Description of license"),
+                license=get_license(child_source_node.get("license"), description="Description of license", copyright_holder=child_source_node.get('copyright_holder')),
                 author=child_source_node.get("author"),
                 description=child_source_node.get("description"),
                 derive_thumbnail=True, # video-specific data
@@ -356,6 +360,7 @@ def _build_tree(node, sourcetree):
                 author=child_source_node.get("author"),
                 description=child_source_node.get("description"),
                 thumbnail=child_source_node.get("thumbnail"),
+                copyright_holder=child_source_node.get("copyright_holder"),
             )
             add_files(child_node, child_source_node.get("files") or [])
             node.add_child(child_node)
@@ -368,6 +373,7 @@ def _build_tree(node, sourcetree):
                 author=child_source_node.get("author"),
                 description=child_source_node.get("description"),
                 thumbnail=child_source_node.get("thumbnail"),
+                copyright_holder=child_source_node.get("copyright_holder"),
             )
             add_files(child_node, child_source_node.get("files") or [])
             node.add_child(child_node)
@@ -382,6 +388,7 @@ def _build_tree(node, sourcetree):
                 description=child_source_node.get("description"),
                 exercise_data=mastery_model,
                 thumbnail=child_source_node.get("thumbnail"),
+                copyright_holder=child_source_node.get("copyright_holder"),
             )
             add_files(child_node, child_source_node.get("files") or [])
             for q in child_source_node.get("questions"):
@@ -397,6 +404,7 @@ def _build_tree(node, sourcetree):
                 author=child_source_node.get("author"),
                 description=child_source_node.get("description"),
                 thumbnail=child_source_node.get("thumbnail"),
+                copyright_holder=child_source_node.get("copyright_holder"),
             )
             add_files(child_node, child_source_node.get("files") or [])
             node.add_child(child_node)

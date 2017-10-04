@@ -214,6 +214,10 @@ class Node(object):
         for f in self.files:
             assert isinstance(f, File), "Assumption Failed: files must be file class"
             f.validate()
+
+        source_ids = [c.source_id for c in self.children]
+        duplicates = set([x for x in source_ids if source_ids.count(x) > 1])
+        assert len(duplicates) == 0, "Assumption Failed: Node must have unique source id among siblings ({} appears multiple times)".format(duplicates)
         return True
 
 
@@ -440,6 +444,7 @@ class ContentNode(TreeNode):
             Returns: boolean indicating if content node is valid
         """
         assert isinstance(self.license, str) or isinstance(self.license, License), "Assumption Failed: License is not a string or license object"
+        self.license.validate()
         # if self.required_file_format:
         #     files_valid = False
         #     #not any(f for f in self.files if isinstance(f, DownloadFile))

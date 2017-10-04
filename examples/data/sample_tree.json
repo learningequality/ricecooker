@@ -10,6 +10,7 @@
                 "author": "Revision 3",
                 "description": "Compression Test",
                 "license": "CC BY-NC-SA",
+                "copyright_holder": "Khan Academy",
                 "files": [
                     {
                         "path": "content://video.mp4",
@@ -23,7 +24,7 @@
                 "id": "7cafe6",
                 "author": "Revision 3",
                 "description": "Subtitle Test",
-                "license": "CC BY-NC-SA",
+                "license": "Public Domain",
                 "files": [
                     {
                         "path": "https://ia600209.us.archive.org/27/items/RiceChef/Rice Chef.mp4"
@@ -44,6 +45,7 @@
                 "id": "6cafe8",
                 "description": "Youtube Test",
                 "license": "CC BY-NC-SA",
+                "copyright_holder": "Khan Academy",
                 "files": [
                     {
                         "youtube_id": "kpCJyQ2usJ4",
@@ -55,7 +57,7 @@
                 "title": "TEST VIMEO",
                 "id": "6cafe9",
                 "description": "Vimeo Test",
-                "license": "CC BY-NC-SA",
+                "license": "Public Domain",
                 "files": [
                     {
                         "web_url": "https://vimeo.com/188609325"
@@ -91,6 +93,7 @@
                         "id": "418799",
                         "author": "Sandra Lopez-Richter",
                         "license": "CC BY-NC-SA",
+                        "copyright_holder": "Sandra Lopez-Richter",
                         "files":[
                             {
                                 "path" : "https://ia601301.us.archive.org/31/items/The_History_of_Japanese_Rice_Lopez-Richter/The_History_of_Japanese_Rice_Lopez-Richter.pdf"
@@ -98,14 +101,14 @@
                             {
                                 "path" : "http://res.freestockphotos.biz/pictures/17/17321-a-bowl-of-rice-with-chopsticks-pv.jpg"
                             }
-                        ],
-                        "license": "CC BY"
+                        ]
                     },
                     {
                         "title": "Three sushi rolls",
                         "id": "412323",
                         "author": "EHRENBERG Kommunikation",
                         "license": "CC BY-SA",
+                        "copyright_holder": "EHRENBERG Kommunikation",
                         "files":[
                             {
                                 "path" : "content://sushirolls.pdf"
