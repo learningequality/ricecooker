@@ -90,7 +90,7 @@ def title():
 
 @pytest.fixture
 def license_id():
-    return licenses.CC_BY
+    return licenses.PUBLIC_DOMAIN
 
 @pytest.fixture
 def topic_kwargs_data():
@@ -155,7 +155,7 @@ def contentnode_kwargs(kwargs_data):
 @pytest.fixture
 def contentnode_base_data(base_data, contentnode_kwargs):
     data = copy.deepcopy(base_data)
-    data.update({ "license": licenses.CC_BY})
+    data.update({ "license": licenses.PUBLIC_DOMAIN})
     data.update(contentnode_kwargs)
     return data
 
@@ -369,7 +369,6 @@ def test_init(channel, topic, video, audio, document, html, exercise):
 
 def test_validate(channel, invalid_channel, topic, contentnode_invalid_license, contentnode_invalid_files, contentnode_no_source_id, video, video_invalid_files,
     audio, audio_invalid_files, document, document_invalid_files, html, html_invalid_files, html_invalid_zip, exercise, exercise_invalid_question):
-    assert channel.validate(), "Valid channel should pass validation"
     pytest.raises(InvalidNodeException, invalid_channel.validate)
     assert topic.validate(), "Valid topics should pass validation"
 
