@@ -1,5 +1,6 @@
 
 import json
+import os
 import re
 
 from ricecooker.classes import files, nodes, questions
@@ -43,6 +44,9 @@ def write_tree_to_json_tree(destpath, json_tree):
     """
     Save contents of `json_tree` (dict) to json file at `destpath`.
     """
+    parent_dir, _ = os.path.split(destpath)
+    if not os.path.exists(parent_dir):
+        os.makedirs(parent_dir, exist_ok=True)
     with open(destpath, 'w') as json_file:
         json.dump(json_tree, json_file, indent=2)
 
