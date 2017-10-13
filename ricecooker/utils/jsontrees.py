@@ -84,7 +84,7 @@ def build_tree_from_json(parent_node, sourcetree):
 
         if kind == TOPIC:
             child_node = nodes.TopicNode(
-                source_id=source_node["source_id"],
+                source_id=source_node.get("source_id", None),
                 title=source_node["title"],
                 author=source_node.get("author"),
                 description=source_node.get("description"),
