@@ -169,6 +169,7 @@ def test_same_as_docopt(command_line_inputs):
         del args['command']
         del args['quiet']  # new logging option was not present in docopt parser
         del args['debug']  # new logging option was not present in docopt parser
+        del args['verbose']  # should default to true
 
         added, removed, modified, same = dict_compare(orig_args, args)
         print('different', added, removed, modified)
