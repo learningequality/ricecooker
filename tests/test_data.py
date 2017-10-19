@@ -76,7 +76,9 @@ def invalid_channel(channel_source_id, domain_namespace):
 
 
 
+
 """ *********** ID, ARGS, AND KWARGS FIXTURE HELPERS *********** """
+
 @pytest.fixture
 def base_data(channel_domain_namespace, title):
     """
@@ -181,7 +183,6 @@ def contentnode_base_data(base_data):
     Shared data for all ContentNode fixtures.
     """
     data = copy.deepcopy(base_data)
-    data.update(contentnode_kwargs)
     data.update({ "license": licenses.CC_BY,
                   "copyright_holder": "Copyright Holder",
                   "license_description": None})
