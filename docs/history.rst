@@ -2,6 +2,10 @@
 History
 =======
 
+0.6.7 (2017-10-04)
+------------------
+* Sibling content nodes are now required to have unique source_id 
+* The field `copyright_holder` is required for all licenses other than public domain
 
 0.6.6 (2017-09-29)
 ------------------
