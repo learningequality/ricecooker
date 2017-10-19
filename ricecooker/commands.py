@@ -82,6 +82,8 @@ def uploadchannel(chef, update=False, thumbnails=False, download_attempts=3, res
     __logging_handler = logging.StreamHandler()
     config.LOGGER.addHandler(__logging_handler)
     logging.getLogger("requests").setLevel(logging.WARNING)
+    logging.getLogger("cachecontrol.controller").setLevel(logging.WARNING)
+    logging.getLogger("requests.packages").setLevel(logging.WARNING)
     config.LOGGER.setLevel(level)
 
     config.UPDATE = update
