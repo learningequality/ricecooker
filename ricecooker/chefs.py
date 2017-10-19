@@ -52,7 +52,7 @@ class BaseChef(object):
             parser.add_argument('command', choices=['uploadchannel'], help='Main command for the chef script.')
             parser.add_argument('chef_script', help='Path to chef script file')
         #                    -h                                             Help documentation      # NO NEED BECAUSE AUTOMATIC
-        parser.add_argument('-v', '--verbose', action='store_true',   help='Verbose mode')
+        parser.add_argument('-v', '--verbose', action='store_true', default=True, help='Verbose mode')
         parser.add_argument('-u', '--update', action='store_true',    help='Re-download files from file paths')
         parser.add_argument('--warn', action='store_true',            help='Print out warnings to stderr')
         parser.add_argument('--debug', action='store_true',           help='Print out debugging statements to stderr')
@@ -210,7 +210,7 @@ class BaseChef(object):
 
     def main(self):
         args, options = self.parse_args_and_options()
-        print('In BaseChef.main method. args=', args, 'options=', options)
+        config.LOGGER.debug('In BaseChef.main method. args=', args, 'options=', options)
         self.run(args, options)
 
 
@@ -280,7 +280,7 @@ class SushiChef(BaseChef):
 
     def main(self):
         args, options = self.parse_args_and_options()
-        print('In SushiChef.main method. args=', args, 'options=', options)
+        config.LOGGER.debug('In SushiChef.main method. args=', args, 'options=', options)
 
         if args['daemon']:
             self.daemon_mode(args, options)
