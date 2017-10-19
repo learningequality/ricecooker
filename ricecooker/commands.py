@@ -72,12 +72,13 @@ def uploadchannel(chef, update=False, thumbnails=False, download_attempts=3, res
     level = logging.NOTSET
     if debug:
         level = logging.DEBUG
-    elif verbose:
-        level = logging.INFO
     elif warn:
         level = logging.WARNING
     elif quiet:
         level = logging.ERROR
+    elif verbose:
+        level = logging.INFO
+
 
     __logging_handler = logging.StreamHandler()
     config.LOGGER.addHandler(__logging_handler)

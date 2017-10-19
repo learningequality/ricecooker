@@ -118,7 +118,7 @@ def arguments_to_args_renames(arguments):
         elif k == '-u':
             args['update'] = v
         elif k == '-v':
-            args['verbose'] = v
+            args['verbose'] = True # Should default to true
         elif k == '<file_path>':
             args['chef_script'] = v
         elif k == '-h':
@@ -169,7 +169,6 @@ def test_same_as_docopt(command_line_inputs):
         del args['command']
         del args['quiet']  # new logging option was not present in docopt parser
         del args['debug']  # new logging option was not present in docopt parser
-        del args['verbose']  # should default to true
 
         added, removed, modified, same = dict_compare(orig_args, args)
         print('different', added, removed, modified)
