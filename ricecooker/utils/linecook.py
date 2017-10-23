@@ -4,8 +4,11 @@ import os
 from ricecooker.config import LOGGER
 from le_utils.constants import content_kinds
 from .metadata_provider import path_to_tuple
+from .jsontrees import (TOPIC_NODE, VIDEO_NODE, AUDIO_NODE, EXERCISE_NODE,
+                        DOCUMENT_NODE, HTML5_NODE)
+from .jsontrees import (VIDEO_FILE, AUDIO_FILE, DOCUMENT_FILE, HTML5_FILE,
+                        THUMBNAIL_FILE, SUBTITLES_FILE)
 from .jsontrees import write_tree_to_json_tree
-
 
 
 # LINECOOK CONFIGS
@@ -149,7 +152,7 @@ def process_folder(channel, rel_path, filenames, metadata_provider):
         thumbnail_rel_path = None
     # create TopicNode for this folder
     topic = dict(
-        kind=content_kinds.TOPIC,
+        kind=TOPIC_NODE,
         dirname=dirname,
         source_id='sourceid:' + rel_path,
         title=topic_metadata.get('title', dirname),
@@ -230,7 +233,7 @@ def make_content_node(channeldir, rel_path, filename, metadata):
 
     kind = None
     if ext in content_kinds.MAPPING:
-        kind = content_kinds.MAPPING[ext]
+        kind = content_kinds.MAPPING[ext]  # guess what kind based on file extension
     else:
         raise ValueError('Could not find kind for extension ' + str(ext) + ' in content_kinds.MAPPING')
 
@@ -251,9 +254,9 @@ def make_content_node(channeldir, rel_path, filename, metadata):
     else:
         thumbnail_rel_path = None
 
-    if kind == content_kinds.VIDEO:
+    if kind == VIDEO_NODE:
         content_node = dict(
-            kind=content_kinds.VIDEO,
+            kind=VIDEO_NODE,
             source_id=source_id,
             title=title,
             author=author,
@@ -262,12 +265,12 @@ def make_content_node(channeldir, rel_path, filename, metadata):
             license=license_dict,
             derive_thumbnail=True,  # video-specific option
             thumbnail=thumbnail_rel_path,
-            files=[{'file_type':content_kinds.VIDEO, 'path':filepath, 'language':lang}], # ffmpeg_settings={"crf": 24},
+            files=[{'file_type':VIDEO_FILE, 'path':filepath, 'language':lang}], # ffmpeg_settings={"crf": 24},
         )
 
-    elif kind == content_kinds.AUDIO:
+    elif kind == AUDIO_NODE:
         content_node = dict(
-            kind=content_kinds.AUDIO,
+            kind=AUDIO_NODE,
             source_id=source_id,
             title=title,
             author=author,
@@ -275,12 +278,12 @@ def make_content_node(channeldir, rel_path, filename, metadata):
             language=lang,
             license=license_dict,
             thumbnail=thumbnail_rel_path,
-            files=[{'file_type':content_kinds.AUDIO, 'path':filepath, 'language':lang}],
+            files=[{'file_type':AUDIO_FILE, 'path':filepath, 'language':lang}],
         )
 
-    elif kind == content_kinds.DOCUMENT:
+    elif kind == DOCUMENT_NODE:
         content_node = dict(
-            kind=content_kinds.DOCUMENT,
+            kind=DOCUMENT_NODE,
             source_id=source_id,
             title=title,
             author=author,
@@ -288,7 +291,20 @@ def make_content_node(channeldir, rel_path, filename, metadata):
             language=lang,
             license=license_dict,
             thumbnail=thumbnail_rel_path,
-            files=[{'file_type':content_kinds.DOCUMENT, 'path':filepath, 'language':lang}],
+            files=[{'file_type':DOCUMENT_FILE, 'path':filepath, 'language':lang}],
+        )
+
+    elif kind == HTML5_NODE:
+        content_node = dict(
+            kind=HTML5_NODE,
+            source_id=source_id,
+            title=title,
+            author=author,
+            description=description,
+            language=lang,
+            license=license_dict,
+            thumbnail=thumbnail_rel_path,
+            files=[{'file_type':HTML5_FILE, 'path':filepath, 'language':lang}],
         )
 
     else:
