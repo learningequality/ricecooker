@@ -5,7 +5,9 @@ import requests
 import subprocess
 import threading
 import time
+import socket
 import websocket
+
 
 from . import config
 from . import __version__
@@ -59,7 +61,7 @@ class ReconnectingWebSocket(threading.Thread):
                 self.ws.send(data)
                 return
             except websocket.WebSocketConnectionClosedException:
-                print('WebSocket closed, retrying send.')
+                config.LOGGER.debug('WebSocket closed, retrying send.')
                 time.sleep(0.1)
 
     def stop(self):
@@ -109,7 +111,7 @@ class SushiBarClient(object):
             response.raise_for_status()
             return True
         except Exception as e:
-            config.LOGGER.error('Error channel exists: %s' % e)
+            config.LOGGER.info('Channel exists: %s' % e)
         return False
 
     def __create_channel(self, channel, username, token):
@@ -261,7 +263,41 @@ class LoggingHandler(logging.Handler):
 
 
 
-# CONTROL
+# CONTROL SERVICE
+################################################################################
+
+def execute_command_in_message(controller, cliargs, clioptions, message):
+    """
+    Runs the command in message['command'], which is one of: 'start' / 'stop'.
+    Updates the chef's initial command line args and options with args and options
+    provided in message['args'] and message['options'].
+    """
+    SUPPORTED_COMMANDS = ['start'] # , 'stop'] # TODO
+    print(message)
+
+    # args and options from SushiBar overrride command line args and options
+    args = cliargs
+    options = clioptions
+    if 'args' in message:
+        args.update(message['args'])
+    if 'options' in message:
+        options.update(message['options'])
+
+    if message['command'] == 'start':
+        if not controller.thread or not controller.thread.isAlive():
+            controller.thread = threading.Thread(
+                target=controller.chef.run,
+                args=(args, options),
+            )
+            controller.thread.start()
+        else:
+            config.LOGGER.info('Not starting because chef is already running.')
+    else:
+        config.LOGGER.info('Command not supported: %s' % message['command'])
+
+
+
+# REMOTE CONTROL (via WebSocket control connection to sushibar)
 ################################################################################
 
 class ControlWebSocket(ReconnectingWebSocket):
@@ -273,33 +309,14 @@ class ControlWebSocket(ReconnectingWebSocket):
         if not self.channel:
             raise SushiBarNotSupportedException(
                 'Chef does not implement get_channel')
-        self.thread = None
-        print('Channel id %s' % self.channel.get_node_id().hex)
+        self.thread = None  # thread we'll use for remotely-started chef run
+        config.LOGGER.info('Channel id %s' % self.channel.get_node_id().hex)
         url = config.sushi_bar_control_url(self.channel.get_node_id().hex)
         ReconnectingWebSocket.__init__(self, url)
 
     def on_message(self, ws, message):
         message = json.loads(message)
-
-        # args and options from SushiBar overrride command line args and options
-        args = self.cliargs
-        options = self.clioptions
-        if 'args' in message:
-            args.update(message['args'])
-        if 'options' in message:
-            options.update(message['options'])
-
-        if message['command'] == 'start':
-            if not self.thread or not self.thread.isAlive():
-                self.thread = threading.Thread(
-                    target=self.chef.run,
-                    args=(args, options),
-                )
-                self.thread.start()
-            else:
-                print('Already running')
-        else:
-            print('Command not supported: %s' % message['command'])
+        execute_command_in_message(self, self.cliargs, self.clioptions, message)
 
 
 class SushiBarNotSupportedException(Exception):
@@ -307,4 +324,83 @@ class SushiBarNotSupportedException(Exception):
     Sushi chef is not updated to report to the sushi bar.
     """
     pass
+
+
+
+
+# LOCAL CONTROL (via UNIX domain docket)
+################################################################################
+
+class LocalControlSocket(threading.Thread):
+
+    def __init__(self, chef, args, options):
+        config.LOGGER.debug('__init__ of LocalControlSocket')
+        self.chef = chef
+        self.cliargs = args
+        self.clioptions = options
+        self.stop_event = threading.Event()
+        self.cmdsock = args['cmdsock']
+        self.sock = None
+        self.open_lock = threading.Lock()
+        self.thread = None  # thread we'll use for cronjob-started chef run
+        threading.Thread.__init__(self)  # needed???
+
+    def __open(self):
+        # Make sure the socket does not already exist
+        try:
+            os.unlink(self.cmdsock)
+        except OSError:
+            if os.path.exists(self.cmdsock):
+                raise
+
+        # Create a UDS socket (needs to be created with address family AF_UNIX)
+        self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+
+        # Bind the socket
+        config.LOGGER.debug('starting up on %s' % self.cmdsock)
+        self.sock.bind(self.cmdsock)
+
+        # Listen for incoming connections
+        self.sock.listen(1)
+
+        while True:
+            # Wait for a connection
+            config.LOGGER.debug('waiting for commands')
+            connection, client_address = self.sock.accept()
+            try:
+                config.LOGGER.debug('connection from', client_address)
+                message_str = ''
+                while True:
+                    # Receive data in big chunks
+                    data_raw = connection.recv(5000)
+                    if not data_raw:
+                        break
+                    data = data_raw.decode('ascii')
+                    config.LOGGER.debug('received "%s"' % data)
+                    message_str += data
+                # decode message dict from json string and execute
+                message = json.loads(message_str)
+                execute_command_in_message(self, self.cliargs, self.clioptions, message)
+            finally:
+                connection.close()  # clean up the connection
+
+    def run(self):
+        """
+        This override threading.Thread to open socket and wait for messages.
+        """
+        while True:
+            self.open_lock.acquire()
+            if self.stopped():
+                return
+            self.__open()
+            self.open_lock.release()
+
+    def stop(self):
+        self.open_lock.acquire()
+        self.stop_event.set()
+        self.sock.close()
+        self.open_lock.release()
+
+    def stopped(self):
+        return self.stop_event.is_set()
 
