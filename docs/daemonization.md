@@ -22,11 +22,11 @@ To also enable local UNIX domain sockets commands, start the chef script using
 
 Once the chef is running, a chef run can be scheduled using the following command:
 
-    echo '{"command":"start"}' | /bin/nc -U /var/run/chefname.sock
+    /bin/echo '{"command":"start"}' | /bin/nc -U /var/run/chefname.sock
 
 If you need to override chef run `args` or `options` use:
 
-    echo '{"command":"start", "args":{"publish":true}, "options":{"lang":"en"} }' | /bin/nc -U /var/run/chefname.sock
+    /bin/echo '{"command":"start", "args":{"publish":true}, "options":{"lang":"en"} }' | /bin/nc -U /var/run/chefname.sock
 
 The above command will run the chef, re-using the command line args and options,
 but setting `publish` to `True` and also providing the keyword option `lang=en`.
