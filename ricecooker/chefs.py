@@ -8,7 +8,7 @@ from .classes.nodes import ChannelNode
 from .commands import uploadchannel, uploadchannel_wrapper
 from .exceptions import InvalidUsageException, raise_for_invalid_channel
 from .managers.progress import Status
-from .sushi_bar_client import ControlWebSocket
+from .sushi_bar_client import ControlWebSocket, LocalControlSocket
 from .utils.tokens import get_content_curation_token
 
 # for JsonTreeChef chef
@@ -245,12 +245,13 @@ class SushiChef(BaseChef):
             add_parser_help = True
 
         self.arg_parser = argparse.ArgumentParser(
-            description="Ricecooker scripts put your content on the content server.",
+            description="Chef scripts upload content to the Kolibri Studio server.",
             add_help=add_parser_help,
             parents=[self.arg_parser]
         )
-        self.arg_parser.add_argument('--daemon', action='store_true', help='Runs in daemon mode')
+        self.arg_parser.add_argument('--daemon', action='store_true', help='Run chef in daemon mode')
         self.arg_parser.add_argument('--nomonitor', action='store_true', help='Disable SushiBar progress monitoring')
+        self.arg_parser.add_argument('--cmdsock', help='Local command socket (for cronjobs)')
         # self.arg_parser.add_argument('--sushibar', help='Hostname of SushiBar server (e.g. "sushibar.learningequality.org")')
         # TODO: --bartoken
 
@@ -264,6 +265,10 @@ class SushiChef(BaseChef):
         """
         cws = ControlWebSocket(self, args, options)
         cws.start()
+        if 'cmdsock' in args:
+            lcs = LocalControlSocket(self, args, options)
+            lcs.start()
+            lcs.join()
         cws.join()
 
 
@@ -274,19 +279,18 @@ class SushiChef(BaseChef):
             args (dict): chef command line arguments
             options (dict): additional compatibility mode options given on command line
         """
+        config.LOGGER.info('In SushiChef.run method. args=' + str(args) + 'options=' + str(options))
         self.pre_run(args, options)
         uploadchannel_wrapper(self, args, options)
 
 
     def main(self):
         args, options = self.parse_args_and_options()
-        config.LOGGER.debug('In SushiChef.main method. args=', args, 'options=', options)
-
+        config.LOGGER.debug('In SushiChef.main method. args=' + str(args) + 'options=' + str(options))
         if args['daemon']:
             self.daemon_mode(args, options)
         else:
             self.run(args, options)
-
 
 
 
@@ -434,6 +438,4 @@ class LineCook(JsonTreeChef):
     # UNCOMMENT BELOW TO DISABLE CHANNEL UPLOAD
     # def run(self, args, options):
     #     self.pre_run(args, options)
-
-
 
