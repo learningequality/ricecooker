@@ -61,7 +61,7 @@ class ReconnectingWebSocket(threading.Thread):
                 self.ws.send(data)
                 return
             except websocket.WebSocketConnectionClosedException:
-                config.LOGGER.debug('WebSocket closed, retrying send.')
+                # config.LOGGER.debug('WebSocket closed, retrying send.') # TODO(investigate infinite loop)
                 time.sleep(0.1)
 
     def stop(self):
