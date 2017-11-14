@@ -2,10 +2,29 @@
 History
 =======
 
+
+0.6.9 (2017-11-14)
+------------------
+* Changed default logging level to --verbose
+* Added support for cronjobs scripts via `--cmdsock` (see docs/daemonization.md)
+* Added tools for creating HTML5Zip files in utils/html_writer.py
+* Added utility for downloading HTML with optional js support in utils/downloader.py
+* Added utils/path_builder.py and utils/data_writer.py for creating souschef archives
+  (zip archive that contains files in a folder hierarchy + Channel.csv + Content.csv)
+
+
+
 0.6.7 (2017-10-04)
 ------------------
-* Sibling content nodes are now required to have unique source_id 
+* Sibling content nodes are now required to have unique source_id
 * The field `copyright_holder` is required for all licenses other than public domain
+
+
+0.6.7 (2017-10-04)
+------------------
+* Sibling content nodes are now required to have unique source_id
+* The field `copyright_holder` is required for all licenses other than public domain
+
 
 0.6.6 (2017-09-29)
 ------------------
