@@ -37,9 +37,7 @@ which will then be imported into Kolibri Studio.
 ## Description
 
 A sous chef is responsible for scraping content from a source and putting it into a folder
-and csv structure (see example `examples/Sample Channel.zip`)
-
-A sous chef skeleton script has been started for you, see [`souschef.py`](./souschef.py).
+and csv structure.
 
 
 ## Getting started
@@ -67,9 +65,6 @@ depend on JavaScript to build the page DOM tree.
 
 If you need to use a custom session, you can also use the `session` option. This can
 be useful for sites that require login information.
-
-For more examples, see `examples/openstax_souschef.py` (json) and `examples/wikipedia_souschef.py` (html).
-
 
 
 ### HTML parsing using BeautifulSoup
