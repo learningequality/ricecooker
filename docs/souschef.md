@@ -110,7 +110,7 @@ For more info about BeautifulSoup, see [the docs](https://www.crummy.com/softwar
 
 ## Using the DataWriter
 
-The DataWriter (`utils.data_writer.DataWriter`) is a tool for creating channel
+The DataWriter (`ricecooker.utils.data_writer.DataWriter`) is a tool for creating channel
 `.zip` files in a standardized format. This includes creating folders, files,
 and `CSV` metadata files that will be used to create the channel on Kolibri Studio.
 
@@ -249,7 +249,7 @@ Note: Files with `licenses.PUBLIC_DOMAIN` do not require a `copyright_holder`.
 
 ## Extra Tools
 
-### PathBuilder
+### PathBuilder (ricecooker.utils.path_builder.py)
 
 The `PathBuilder` clas is a tool for tracking folder and file paths to write to
 the zip file. To initialize a PathBuilder object, you need to specify a channel name:
@@ -294,7 +294,7 @@ PATH.reset()                      # str(PATH): 'Channel'
 
 
 
-### Downloader (utils.downloader.py)
+### Downloader (ricecooker.utils.downloader.py)
 
 `downloader.py` has a `read` function that can read from both urls and file paths.
 To use:
@@ -316,7 +316,7 @@ be useful for sites that require login information.
 
 
 
-### HTMLWriter
+### HTMLWriter (ricecooker.utils.html_writer.py)
 
 The HTMLWriter is a tool for generating zip files to be uploaded to Kolibri Studio
 
