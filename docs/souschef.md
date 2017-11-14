@@ -17,7 +17,7 @@ which will then be imported into Kolibri Studio.
 * Install [pip](https://pypi.python.org/pypi/pip) if you don't have it already.
 
 * Create a Python virtual environment for this project (optional, but recommended):
-   * Install the virtualenv package: `pip install vritualenv`
+   * Install the virtualenv package: `pip install virtualenv`
    * The next steps depends if you're using UNIX (Mac/Linux) or Windows:
       * For UNIX systems:
          * Create a virtual env called `venv` in the current directory using the
