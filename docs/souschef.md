@@ -6,7 +6,7 @@ which is a platform for organizing content to import from the Kolibri applicatio
 of this project is to create a *chef*, or a program that scrapes a content source and puts it
 into a format that can be imported into Kolibri Studio. This project will read a
 given source's content and parse and organize that content into a folder + csv structure,
-which will then be imported into Kolibri Studio. (example can be found under `examples` directory.
+which will then be imported into Kolibri Studio.
 
 
 
