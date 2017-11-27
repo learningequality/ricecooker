@@ -1,5 +1,6 @@
 import os
 import requests
+import signal
 import time
 import urllib
 
@@ -38,7 +39,11 @@ class WebDriver(object):
         return self.driver
 
     def __exit__(self ,type, value, traceback):
-        self.driver.close()
+        # driver.quit() by itself doesn't suffice to fully terminate spawned
+        # PhantomJS processes:
+        # see https://github.com/seleniumhq/selenium/issues/767
+        self.driver.service.process.send_signal(signal.SIGTERM)
+        self.driver.quit()
 
 
 def get_generated_html_from_driver(driver, tagname="html"):
