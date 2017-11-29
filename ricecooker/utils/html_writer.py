@@ -64,7 +64,7 @@ class HTMLWriter():
         """
         return filename in self.zf.namelist()
 
-    def write_contents(self, filename, contents, directory="."):
+    def write_contents(self, filename, contents, directory=None):
         """ write_contents: Write contents to filename in zip
             Args:
                 contents: (str) contents of file
@@ -72,7 +72,7 @@ class HTMLWriter():
                 directory: (str) directory in zipfile to write file to (optional)
             Returns: path to file in zip
         """
-        filepath = "{}/{}".format(directory, filename)
+        filepath = "{}/{}".format(directory.rstrip("/"), filename) if directory else filename
         self._write_to_zipfile(filepath, contents)
         return filepath
 
@@ -93,7 +93,7 @@ class HTMLWriter():
         self._copy_to_zipfile(filepath, arcname=arcname)
         return arcname or filepath
 
-    def write_url(self, url, filename, directory="."):
+    def write_url(self, url, filename, directory=None):
         """ write_url: Write contents from url to filename in zip
             Args:
                 url: (str) url to file to download
