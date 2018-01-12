@@ -210,14 +210,14 @@ def build_ricecooker_json_tree(args, options, metadata_provider, json_tree_path)
         children=[],
     )
     channeldir = args['channeldir']
-    content_folders = list(os.walk(channeldir))
+    content_folders = sorted(os.walk(channeldir))
 
     # MAIN PROCESSING OF os.walk OUTPUT
     ############################################################################
     _ = content_folders.pop(0)  # Skip over channel folder because handled above
     for rel_path, _subfolders, filenames in content_folders:
         LOGGER.info('processing folder ' + str(rel_path))
-        process_folder(ricecooker_json_tree, rel_path, filenames, metadata_provider)
+        process_folder(ricecooker_json_tree, rel_path, sorted(filenames), metadata_provider)
 
     # Write out ricecooker_json_tree.json
     write_tree_to_json_tree(json_tree_path, ricecooker_json_tree)
