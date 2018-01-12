@@ -1,5 +1,6 @@
 import csv
 import os
+from unicodedata import normalize
 
 from ricecooker.config import LOGGER
 
@@ -54,12 +55,16 @@ CONTENT_INFO_HEADER = [
 
 def path_to_tuple(path, windows=False):
     """
-    Used to split a `chan_path`
+    Split `chan_path` into individual parts and form a tuple (used as key).
     """
     if windows:
         path_tup = tuple(path.split('\\'))
     else:
         path_tup = tuple(path.split('/'))
+    #
+    # Normalize UTF-8 encoding to consistent form so cache lookups will work, see
+    # https://docs.python.org/3.6/library/unicodedata.html#unicodedata.normalize
+    path_tup = tuple(normalize('NFD', part) for part in path_tup)
     return path_tup
 
 def get_metadata_file_path(channeldir, filename):
@@ -244,10 +249,10 @@ class CsvMetadataProvider(MetadataProvider):
                 thumbnail_path_tuples.append(thumbnail_path_tuple)
         # channel thumbnail
         channel_info = self.get_channel_info()
-        thumbnail_path = channel_info.get('thumbnail_chan_path', None)
-        if thumbnail_path:
-            thumbnail_path_tuple = path_to_tuple(thumbnail_path, windows=self.winpaths)
-            thumbnail_path_tuples.append(thumbnail_path_tuple)
+        chthumbnail_path = channel_info.get('thumbnail_chan_path', None)
+        if chthumbnail_path:
+            chthumbnail_path_tuple = path_to_tuple(chthumbnail_path, windows=self.winpaths)
+            thumbnail_path_tuples.append(chthumbnail_path_tuple)
         return thumbnail_path_tuples
 
 

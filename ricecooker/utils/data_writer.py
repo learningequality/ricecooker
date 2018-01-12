@@ -171,6 +171,7 @@ class DataWriter():
         self._parse_path(path)
         if not ext:
             _name, ext = os.path.splitext(download_url or "")
+            ext = ext.lower()  # normalize to lowercase extensions inside zip archive
         filepath = "{}/{}{}".format(path, title, ext)
         if download_url and filepath:
             self._write_to_zip(filepath, read(download_url))
