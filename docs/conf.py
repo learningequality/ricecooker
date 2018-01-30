@@ -50,12 +50,6 @@ extensions = [
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
-# The suffix(es) of source filenames.
-# You can specify multiple suffix as a list of string:
-#
-# source_suffix = ['.rst', '.md']
-source_suffix = '.rst'
-
 # The encoding of source files.
 #
 # source_encoding = 'utf-8-sig'
@@ -65,8 +59,8 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'ricecooker'
-copyright = '2017, Learning Equality'
-author = 'Learning Equality'
+copyright = '2018, Learning Equality'
+author = 'Learning Equality Content Team'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -317,8 +311,10 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'ricecooker', 'ricecooker Documentation',
-     [author], 1)
+    (master_doc,
+    'ricecooker',
+    'ricecooker Documentation',
+    [author], 1)
 ]
 
 # If true, show URL addresses after external links.
@@ -332,8 +328,12 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'ricecooker', 'ricecooker Documentation',
-     author, 'ricecooker', 'One line description of project.',
+    (master_doc,
+     'ricecooker',
+     'ricecooker Documentation',
+     author,
+     'ricecooker',
+     'One line description of project.',
      'Miscellaneous'),
 ]
 
@@ -439,12 +439,22 @@ epub_exclude_files = ['search.html']
 # epub_use_index = True
 
 
-# Example configuration for intersphinx: refer to the Python standard library.
-intersphinx_mapping = {'https://docs.python.org/': None}
+# Configuration for intersphinx for various LE projects
+
+intersphinx_mapping = {
+    'python':       ('https://docs.python.org/3.6/', None),
+    'django':       ('https://django.readthedocs.org/en/latest/', None),
+    'kolibri-user': ('http://kolibri.readthedocs.io/en/latest/', None),
+    'kolibri':      ('http://kolibri-dev.readthedocs.io/en/latest/', None),
+    'studio-user':  ('http://kolibri-studio.readthedocs.io/en/latest/', None),
+}
+
 
 # Also accept .md files  (via https://github.com/rtfd/recommonmark)
 source_parsers = {
     '.md': CommonMarkParser,
 }
 
+# The suffix(es) of source filenames.
+# You can specify multiple suffix as a list of string:
 source_suffix = ['.rst', '.md']

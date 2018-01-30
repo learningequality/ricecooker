@@ -12,7 +12,7 @@ The currently supported question types for the CSV workflow are:
 
 
 To prepare a CSV content channel with exercises, you need the usual things
-(A channel directory `channeldir`,  `Channel.csv`, and `Content.csv`) and two
+(A channel directory `channeldir`, `Channel.csv`, and `Content.csv`) and two
 additional metadata files `Exercises.csv` and `ExerciseQuestions.csv`, the format
 of which is defined below.
 

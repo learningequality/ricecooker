@@ -26,10 +26,11 @@ FILE_SKIP_THUMBNAILS = []  # global list of paths that correspond to thumbails f
 def chan_path_from_rel_path(rel_path, channeldir):
     """
     Convert `rel_path` form os.walk tuple format to a tuple of directories and
-    subdirectories, starting with the `channeldir` folder, e.g.,
-    >>> chan_path_from_rel_path('content/open_stax_zip/Open Stax/Math/Elementary',
+    subdirectories, starting with the `channeldir` folder, e.g.,::
+
+        >>> chan_path_from_rel_path('content/open_stax_zip/Open Stax/Math/Elementary',
                                 'content/open_stax_zip/Open Stax')
-    'Open Stax/Math/Elementary'
+        'Open Stax/Math/Elementary'
     """
     rel_path_parts = rel_path.split(os.path.sep)
     dirs_before_channeldir = channeldir.split(os.path.sep)[:-1]
