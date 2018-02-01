@@ -402,7 +402,7 @@ class ExtractedVideoThumbnailFile(ThumbnailFile):
         config.LOGGER.info("\t--- Extracting thumbnail from {}".format(self.path))
         tempf = tempfile.NamedTemporaryFile(suffix=".{}".format(file_formats.PNG), delete=False)
         tempf.close()
-        # extract_thumbnail_from_video(self.path, tempf.name, overwrite=True)
+        extract_thumbnail_from_video(self.path, tempf.name, overwrite=True)
         filename = "{}.{}".format(get_hash(tempf.name), file_formats.PNG)
 
         copy_file_to_storage(filename, tempf.name)
