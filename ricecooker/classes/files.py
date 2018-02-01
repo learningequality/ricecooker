@@ -24,6 +24,7 @@ from ..exceptions import UnknownFileTypeError
 
 # Cache for filenames
 FILECACHE = FileCache(config.FILECACHE_DIRECTORY, forever=True)
+HTTP_CAUGHT_EXCEPTIONS = (HTTPError, ConnectionError, InvalidURL, UnicodeDecodeError, UnicodeError, InvalidSchema, IOError, AssertionError)
 
 def generate_key(action, path_or_id, settings=None, default=" (default)"):
     """ generate_key: generate key used for caching
@@ -64,6 +65,49 @@ def download(path, default_ext=None):
         filename = '{0}.{ext}'.format(hash.hexdigest(), ext=extension)
 
         copy_file_to_storage(filename, tempf)
+
+        FILECACHE.set(key, bytes(filename, "utf-8"))
+
+        return filename
+
+def download_and_convert_video(path, default_ext=file_formats.MP4, ffmpeg_settings=None):
+    """ download: downloads file
+        Args: None
+        Returns: filename
+    """
+    ffmpeg_settings = ffmpeg_settings or {}
+    key = "DOWNLOAD:{}".format(path)
+    if not config.UPDATE and FILECACHE.get(key):
+        return FILECACHE.get(key).decode('utf-8')
+
+    config.LOGGER.info("\tDownloading {}".format(path))
+
+    # Get extension of file or default if none found
+    extension = os.path.splitext(path)[1][1:].lower()
+    converted_path = None
+
+    # Convert video to temporary file
+    with tempfile.NamedTemporaryFile(suffix=".{}".format(extension), delete=False) as tempf:
+        # Write unsupported video to temporary file
+        write_and_get_hash(path, tempf)
+        tempf.seek(0)
+
+        # Compress video into mp4 file
+        path, _ext = os.path.splitext(tempf.name)
+        converted_path = "{}.{}".format(path, file_formats.MP4)
+        tempf.close()
+        compress_video(tempf.name, converted_path, overwrite=True, **ffmpeg_settings)
+        os.unlink(tempf.name)
+
+    # Write file to temporary file
+    with tempfile.TemporaryFile() as tempf:
+        hash = write_and_get_hash(converted_path, tempf)
+        tempf.seek(0)
+
+        filename = '{0}.{ext}'.format(hash.hexdigest(), ext=file_formats.MP4)
+
+        copy_file_to_storage(filename, tempf)
+        os.unlink(converted_path)
 
         FILECACHE.set(key, bytes(filename, "utf-8"))
 
@@ -293,7 +337,7 @@ class DownloadFile(File):
             config.LOGGER.info("\t--- Downloaded {}".format(self.filename))
             return self.filename
         # Catch errors related to reading file path and handle silently
-        except (HTTPError, ConnectionError, InvalidURL, UnicodeDecodeError, UnicodeError, InvalidSchema, IOError, AssertionError) as err:
+        except HTTP_CAUGHT_EXCEPTIONS as err:
             self.error = err
             config.FAILED_FILES.append(self)
 
@@ -358,7 +402,7 @@ class ExtractedVideoThumbnailFile(ThumbnailFile):
         config.LOGGER.info("\t--- Extracting thumbnail from {}".format(self.path))
         tempf = tempfile.NamedTemporaryFile(suffix=".{}".format(file_formats.PNG), delete=False)
         tempf.close()
-        extract_thumbnail_from_video(self.path, tempf.name, overwrite=True)
+        # extract_thumbnail_from_video(self.path, tempf.name, overwrite=True)
         filename = "{}.{}".format(get_hash(tempf.name), file_formats.PNG)
 
         copy_file_to_storage(filename, tempf.name)
@@ -368,7 +412,7 @@ class ExtractedVideoThumbnailFile(ThumbnailFile):
 
 class VideoFile(DownloadFile):
     default_ext = file_formats.MP4
-    allowed_formats = [file_formats.MP4]
+    allowed_formats = [file_formats.MP4, 'avi', 'mov', 'mpg', 'wmv', 'swf', 'webm', 'mkv', 'flv']
     is_primary = True
 
     def __init__(self, path, ffmpeg_settings=None, **kwargs):
@@ -378,14 +422,32 @@ class VideoFile(DownloadFile):
     def get_preset(self):
         return self.preset or guess_video_preset_by_resolution(config.get_storage_path(self.filename))
 
+    def process_unsupported_video_file(self):
+        try:
+            self.filename = download_and_convert_video(self.path, ffmpeg_settings=self.ffmpeg_settings)
+            config.LOGGER.info("\t--- Downloaded and converted {}".format(self.filename))
+            return self.filename
+        except HTTP_CAUGHT_EXCEPTIONS as err:
+            self.error = err
+            config.FAILED_FILES.append(self)
+
     def process_file(self):
         try:
-            # Get copy of video before compression (if specified)
-            self.filename = super(VideoFile, self).process_file()
-            if self.filename and (self.ffmpeg_settings or config.COMPRESS):
-                self.filename = compress_video_file(self.filename, self.ffmpeg_settings)
-                config.LOGGER.info("\t--- Compressed {}".format(self.filename))
-            return self.filename
+            # Handle videos that don't have a .mp4 extension
+            _, ext = os.path.splitext(self.path)
+            if ext and not ext.endswith(self.default_ext):
+                self.filename = self.process_unsupported_video_file()
+                return self.filename
+            else:
+                # Get copy of video before compression (if specified)
+                self.filename = super(VideoFile, self).process_file()
+
+                # Compress the video if compress flag is set or ffmpeg settings were given
+                if self.filename and (self.ffmpeg_settings or config.COMPRESS):
+                    self.filename = compress_video_file(self.filename, self.ffmpeg_settings)
+                    config.LOGGER.info("\t--- Compressed {}".format(self.filename))
+                return self.filename
+
         # Catch errors related to ffmpeg and handle silently
         except (BrokenPipeError, CalledProcessError, IOError) as err:
             self.error = err
