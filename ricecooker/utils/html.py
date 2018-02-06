@@ -10,6 +10,8 @@ from selenium import webdriver
 from urllib.parse import urlparse, unquote
 
 from .caching import FileCache, CacheControlAdapter
+from ricecooker.config import PHANTOMJS_PATH
+
 
 
 # create a default session with basic caching mechanisms (similar to what a browser would do)
@@ -19,8 +21,8 @@ basic_adapter = CacheControlAdapter(cache=cache)
 sess.mount('http://', basic_adapter)
 sess.mount('https://', basic_adapter)
 
-PHANTOMJS_PATH = os.path.join(os.getcwd(), "node_modules", "phantomjs-prebuilt", "bin", "phantomjs")
-
+if PHANTOMJS_PATH is None:
+    PHANTOMJS_PATH = os.path.join(os.getcwd(), "node_modules", "phantomjs-prebuilt", "bin", "phantomjs")
 
 class WebDriver(object):
 
@@ -29,10 +31,10 @@ class WebDriver(object):
         self.delay = delay
 
     def __enter__(self):
-        # self.driver = webdriver.Firefox()
         if not os.path.isfile(PHANTOMJS_PATH):
-            raise Exception("You must first install phantomjs-prebuilt in the directory you're running from, with `npm install phantomjs-prebuilt`")
-
+            raise Exception("You must install phantomjs-prebuilt in the directory"
+                            " you're running in with `npm install phantomjs-prebuilt`"
+                            " or set the environment variable `PHANTOMJS_PATH`")
         self.driver = webdriver.PhantomJS(executable_path=PHANTOMJS_PATH)
         self.driver.get(self.url)
         time.sleep(self.delay / 1000.0)

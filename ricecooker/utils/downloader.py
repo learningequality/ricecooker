@@ -2,6 +2,7 @@ import requests
 import time
 from selenium import webdriver
 from requests_file import FileAdapter
+from ricecooker.config import PHANTOMJS_PATH
 from ricecooker.utils.caching import CacheForeverHeuristic, FileCache, CacheControlAdapter, InvalidatingCacheControlAdapter
 
 DOWNLOAD_SESSION = requests.Session()                          # Session for downloading content from urls
@@ -26,7 +27,10 @@ def read(path, loadjs=False, session=None, driver=None):
     session = session or DOWNLOAD_SESSION
     try:
         if loadjs:                                              # Wait until js loads then return contents
-            driver = driver or webdriver.PhantomJS()
+            if PHANTOMJS_PATH:
+                driver = driver or webdriver.PhantomJS(executable_path=PHANTOMJS_PATH)
+            else:
+                driver = driver or webdriver.PhantomJS()
             driver.get(path)
             time.sleep(5)
             return driver.page_source

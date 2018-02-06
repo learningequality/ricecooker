@@ -21,6 +21,9 @@ if DOMAIN.endswith('/'):
     DOMAIN = DOMAIN.rstrip('/')
 FILE_STORE_LOCATION =  hashlib.md5(DOMAIN.encode('utf-8')).hexdigest()
 
+# Allow users to choose which phantomjs they use
+PHANTOMJS_PATH = os.getenv('PHANTOMJS_PATH', None)
+
 # URL for authenticating user on Kolibri Studio
 AUTHENTICATION_URL = "{domain}/api/internal/authenticate_user_internal"
 
