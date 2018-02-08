@@ -17,7 +17,10 @@ from .utils.jsontrees import get_channel_node_from_json, build_tree_from_json
 
 # for LineCook chef
 from .utils.metadata_provider import CsvMetadataProvider
-from .utils.metadata_provider import DEFAULT_CHANNEL_INFO_FILENAME, DEFAULT_CONTENT_INFO_FILENAME
+from .utils.metadata_provider import (DEFAULT_CHANNEL_INFO_FILENAME,
+                                      DEFAULT_CONTENT_INFO_FILENAME,
+                                      DEFAULT_EXERCISES_INFO_FILENAME,
+                                      DEFAULT_EXERCISE_QUESTIONS_INFO_FILENAME)
 from .utils.linecook import build_ricecooker_json_tree, FolderExistsAction
 
 
@@ -385,7 +388,7 @@ class LineCook(JsonTreeChef):
     """
     This sushi chef uses os.walk to import the content in `channeldir` folder
     `directory structure + CSV metadata files  -->  Kolibri channel`.
-    Assumes folders and CSV metadata files were creaed by a `souschef` script.
+    Folders and CSV files can be creaed by hand or by a `souschef` script.
     """
     metadata_provider = None
 
@@ -406,19 +409,27 @@ class LineCook(JsonTreeChef):
         )
         self.arg_parser.add_argument('--channeldir', required=True,
             action=FolderExistsAction,
-            help='The dir that corresponds to the root of the channel.')
+            help='The directory that corresponds to the root of the channel.')
         self.arg_parser.add_argument('--channelinfo',
             default=DEFAULT_CHANNEL_INFO_FILENAME,
-            help='The filename that conains the channel metadata (assumed to be sibling of channeldir)')
+            help='Filename for the channel metadata (assumed to be sibling of channeldir)')
         self.arg_parser.add_argument('--contentinfo',
             default=DEFAULT_CONTENT_INFO_FILENAME,
-            help='The filename that conains the content metadata (assumed to be sibling of channeldir)')
+            help='Filename for content metadata (assumed to be sibling of channeldir)')
+        self.arg_parser.add_argument('--exercisesinfo',
+            default=DEFAULT_EXERCISES_INFO_FILENAME,
+            help='Filename for execises metadata (assumed to be sibling of channeldir)')
+        self.arg_parser.add_argument('--questionsinfo',
+            default=DEFAULT_EXERCISE_QUESTIONS_INFO_FILENAME,
+            help='Filename for execise questions metadata (assumed to be sibling of channeldir)')
 
     def _init_metadata_provider(self, args, options):
         if args['contentinfo'].endswith('.csv'):
             metadata_provider = CsvMetadataProvider(args['channeldir'],
                                                     channelinfo=args['channelinfo'],
-                                                    contentinfo=args['contentinfo'])
+                                                    contentinfo=args['contentinfo'],
+                                                    exercisesinfo=args['exercisesinfo'],
+                                                    questionsinfo=args['questionsinfo'])
         else:
             raise ValueError('Uknown contentinfo file format ' + args['contentinfo'])
         self.metadata_provider = metadata_provider
@@ -438,4 +449,3 @@ class LineCook(JsonTreeChef):
     # UNCOMMENT BELOW TO DISABLE CHANNEL UPLOAD
     # def run(self, args, options):
     #     self.pre_run(args, options)
-
