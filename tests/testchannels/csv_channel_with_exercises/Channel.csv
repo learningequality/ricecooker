@@ -1,0 +1,2 @@
+Title,Description,Domain,Source ID,Language,Thumbnail
+Test CSV channel with Exercises,This channel was created from the files in the channeldir/ directory and the metadata stored in CSV files,source.org,csv_channel_with_exercises,en,channeldir/channel_thumbnail.jpg
