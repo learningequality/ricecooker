@@ -170,7 +170,7 @@ class BaseQuestion:
         # If it is a web+graphie, download svg and json files,
         # Otherwise, download like other files
         if graphie_match:
-            path_text = graphie_match.group().replace("web+graphie:", "")
+            path_text = graphie_match.group().replace("web+graphie:", "http:")
             exercise_file = _ExerciseGraphieFile(path_text)
         elif get_base64_encoding(text):
             exercise_file = _ExerciseBase64ImageFile(path_text)
