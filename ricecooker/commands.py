@@ -104,10 +104,10 @@ def uploadchannel(chef, update=False, thumbnails=False, download_attempts=3, res
     username, token = authenticate_user(token)
     check_version_number()
 
-    # Set dashboard client settings
+    # Setup Sushibar client based on channel info in `get_channel`
     config.LOGGER.info("Running get_channel... ")
     channel = chef.get_channel(**kwargs)
-    config.SUSHI_BAR_CLIENT = SushiBarClient(channel, username, token)
+    config.SUSHI_BAR_CLIENT = SushiBarClient(channel, username, token, nomonitor=kwargs['nomonitor'])
 
     config.LOGGER.info("\n\n***** Starting channel build process *****\n\n")
 

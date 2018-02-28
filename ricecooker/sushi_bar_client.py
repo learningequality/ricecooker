@@ -81,9 +81,9 @@ class ReconnectingWebSocket(threading.Thread):
 class SushiBarClient(object):
     """Sends events/logs to the dashboard server."""
 
-    def __init__(self, channel, username, token):
+    def __init__(self, channel, username, token, nomonitor=False):
         self.run_id = None
-        if not channel:
+        if nomonitor or not channel:
             return
         if self.__create_channel_if_needed(channel, username, token):
             self.run_id = self.__create_channel_run(channel, username, token)
