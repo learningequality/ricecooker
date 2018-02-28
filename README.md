@@ -1,6 +1,6 @@
 # Rice Cooker
 
-A framework for creating channels on [Kolibri Studio](https://contentworkshop.learningequality.org/).
+A framework for creating channels on [Kolibri Studio](https://studio.learningequality.org/).
 
 
 ## Installation
@@ -25,7 +25,7 @@ A sample sushi chef has been created [here](https://github.com/learningequality/
 ### Step 1: Obtaining an Authorization Token ###
 You will need an authorization token to create a channel on Kolibri Studio. In order to obtain one:
 
-1. Create an account on [Kolibri Studio](https://contentworkshop.learningequality.org/).
+1. Create an account on [Kolibri Studio](https://studio.learningequality.org/).
 2. Navigate to the Tokens tab under your Settings page.
 3. Copy the given authorization token.
 4. Set `token="auth-token"` in your call to uploadchannel (alternatively, you can create a file with your
