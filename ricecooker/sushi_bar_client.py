@@ -95,8 +95,9 @@ class SushiBarClient(object):
             return
         config.LOGGER.removeHandler(self.log_handler)
         del self.log_handler
-        self.log_ws.stop()
-        self.log_ws.join()
+        if self.log_ws:
+            self.log_ws.stop()
+            self.log_ws.join()
         self.run_id = None
 
     def __create_channel_if_needed(self, channel, username, token):
@@ -159,7 +160,7 @@ class SushiBarClient(object):
 
     def __config_logger(self):
         if not self.run_id:
-            return None
+            return None, None
         log_ws = ReconnectingWebSocket(config.sushi_bar_logs_url(self.run_id))
         log_ws.start()
         log_handler = LoggingHandler(self.run_id, log_ws)
@@ -167,16 +168,15 @@ class SushiBarClient(object):
         return log_ws, log_handler
 
     def __get_chef_name(self):
-        chef_name = None
         try:
-            origin = subprocess.check_output(['git', 'config', '--get',
-                                              'remote.origin.url'])
+            origin = subprocess.check_output(['git', 'config', '--get', 'remote.origin.url'])
             origin = origin.decode('UTF-8').strip()
             head = subprocess.check_output(['git', 'rev-parse', 'HEAD'])
             head = head.decode('UTF-8').strip()
             chef_name = origin + ':' + head
         except Exception as e:
-            config.LOGGER.error('Chef name: %s' % e)
+            config.LOGGER.error('Could not get chef name from git repo: %s' % e)
+            chef_name = 'Unknown'
         return chef_name
 
     def report_stage(self, stage, duration):
@@ -403,4 +403,3 @@ class LocalControlSocket(threading.Thread):
 
     def stopped(self):
         return self.stop_event.is_set()
-
