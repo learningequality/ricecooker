@@ -1,0 +1,12 @@
+Source ID *,Question ID *,Question type *,Question *,Option A,Option B,Option C,Option D,Option E,Options F...,Correct Answer *,Correct Answer 2,Correct Answer 3,Hint 1,Hint 2,Hint 3,Hint 4,Hint 5,Hint 6+
+exrc1,1,single_selection,What is your 2+2?,1,2,3,4,5,,4,,,Add the two numbers together.,,,,,
+exrc1,2,multiple_selection,Select all the solution to x^2=4?,-2,-1,0,1,2,,-2,2,,Quadratic equations have multiple solutoins.,Which number times itself gives 4?,Is there another number that also works?,,,
+exrc1,3,input_question,What is the next integer after 2?,,,,,,,3,,,"Imagine the number line, what comes to the right of the number two?",,,,,
+exrc2,1,single_selection,What is your 2+2?,1,2,3,4,5,,4,,,Add the two numbers together.,,,,,
+exrc2,2,multiple_selection,Select all the solution to x^2=4?,-2,-1,0,1,2,,-2,2,,Quadratic equations have multiple solutoins.,Which number times itself gives 4?,Is there another number that also works?,,,
+exrc2,3,input_question,What is the next integer after 2?,,,,,,,3,,,"Imagine the number line, what comes to the right of the number two?",,,,,
+exrc3,1,single_selection,What is your 2+2?,1,2,3,4,5,,4,,,Add the two numbers together.,,,,,
+exrc4,2,single_selection,"What is the area of the circle shown below
+
+![](figures/exrc4/circle-of-radius-2.png)",$\pi$,$2\pi$,$3\pi$,$4\pi$,$5\pi$,,$4\pi$,,,The area of a circle is proportional to the square of its radius.,The formula is $A=\pi r^2$.,In this case the circle has radius $r=2$ so the area of the circle is $A=4\pi$.,,,
+exrc5,3,multiple_selection,Select all the triangles.,![](figures/exrc5/triangle1.png),![](figures/exrc5/hexagon.png),![](figures/exrc5/triangle2.png),![](figures/exrc5/triangle3.png),![](figures/exrc5/octagon.png),![](figures/exrc5/square.png),![](figures/exrc5/triangle1.png),![](figures/exrc5/triangle2.png),![](figures/exrc5/triangle3.png),A triangle is a geometrical shape with three sides and three vertices.,,,,,

@@ -145,6 +145,7 @@ def build_tree_from_json(parent_node, sourcetree):
                 description=source_node.get("description"),
                 language=source_node.get('language', None),
                 thumbnail=source_node.get("thumbnail"),
+                exercise_data=source_node["exercise_data"],
                 questions=[],
             )
             add_questions(child_node, source_node.get("questions") or [])
@@ -338,4 +339,3 @@ def add_questions(exercise_node, question_list):
 
         else:
             raise UnknownQuestionTypeError("Unrecognized question type '{0}': accepted types are {1}".format(question_type, [key for key, value in exercises.question_choices]))
-

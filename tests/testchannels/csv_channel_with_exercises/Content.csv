@@ -1,0 +1,4 @@
+Path *,Title *,Source ID,Description,Author,Language,License ID *,License Description,Copyright Holder,Thumbnail
+channeldir/contentnodes,Content Nodes,3be352f9,Put folder description here,,en,,,,
+channeldir/contentnodes/audio,Audio Files,09219f2e,Put folder description here,,en,,,,
+channeldir/exercises,Exercises,fafafa007,"This doesn’t contain any files, but will be populated with some of the exercises from Exercises.csv",First Last (author's name),en,CC BY,,Copyright holder name,

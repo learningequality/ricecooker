@@ -14,7 +14,7 @@ from .jsontrees import write_tree_to_json_tree
 # LINECOOK CONFIGS
 ################################################################################
 DIR_EXCLUDE_PATTERNS = []
-FILE_EXCLUDE_EXTENTIONS = ['.DS_Store', 'Thumbs.db', 'ehthumbs.db', 'ehthumbs_vista.db']
+FILE_EXCLUDE_EXTENTIONS = ['.DS_Store', 'Thumbs.db', 'ehthumbs.db', 'ehthumbs_vista.db', '.gitkeep']
 FILE_SKIP_PATTENRS = []
 FILE_SKIP_THUMBNAILS = []  # global list of paths that correspond to thumbails for other content nodes
 
@@ -28,7 +28,7 @@ def chan_path_from_rel_path(rel_path, channeldir):
     Convert `rel_path` form os.walk tuple format to a tuple of directories and
     subdirectories, starting with the `channeldir` folder, e.g.,
     >>> chan_path_from_rel_path('content/open_stax_zip/Open Stax/Math/Elementary',
-                               'content/open_stax_zip/Open Stax')
+                                'content/open_stax_zip/Open Stax')
     'Open Stax/Math/Elementary'
     """
     rel_path_parts = rel_path.split(os.path.sep)
@@ -71,7 +71,7 @@ def get_topic_for_path(channel, chan_path_tuple):
 
     current = channel
     for subtopic in chan_path_list:
-        current = list(filter(lambda d: d['dirname'] == subtopic, current['children']))[0]
+        current = list(filter(lambda d: 'dirname' in d and d['dirname'] == subtopic, current['children']))[0]
     return current
 
 
@@ -129,54 +129,60 @@ def process_folder(channel, rel_path, filenames, metadata_provider):
     Create `ContentNode`s from each file in this folder and the node to `channel`
     under the path `rel_path`.
     """
+    LOGGER.debug('IN process_folder ' + str(rel_path) + '     ' + str(filenames))
     if not keep_folder(rel_path):
         return
 
     chan_path = chan_path_from_rel_path(rel_path, metadata_provider.channeldir)
     chan_path_tuple = path_to_tuple(chan_path)
     chan_path_list = list(chan_path_tuple)
+    LOGGER.debug('chan_path_list=' + str(chan_path_list))
 
-    # A. FIND PARENT TOPIC
+    # FIND THE CONTAINING NODE (channel or topic)
     if len(chan_path_list) == 1:
-        parent_node = channel
-    else:
-        dirname = chan_path_list.pop()
-        parent_node = get_topic_for_path(channel, chan_path_list)
+        # CASE CHANNEL ROOT: `rel_path` points to `channeldir`
+        # No need to create a topic node here since channel already exists
+        containing_node = channel  # attach content nodes in filenames directly to channel
 
-    # read topic metadata to get title and description for the TopicNode
-    topic_metadata = metadata_provider.get(chan_path_tuple)
-    thumbnail_chan_path =  topic_metadata.get('thumbnail_chan_path', None)
-    if thumbnail_chan_path:
-        thumbnail_rel_path = rel_path_from_chan_path(thumbnail_chan_path, metadata_provider.channeldir)
     else:
-        thumbnail_rel_path = None
-    # create TopicNode for this folder
-    topic = dict(
-        kind=TOPIC_NODE,
-        dirname=dirname,
-        source_id='sourceid:' + rel_path,
-        title=topic_metadata.get('title', dirname),
-        description=topic_metadata.get('description', None),
-        author=topic_metadata.get('author', None),
-        language=topic_metadata.get('language', None),
-        license=topic_metadata.get('license', None),
-        thumbnail=thumbnail_rel_path,
-        children=[],
-    )
-    parent_node['children'].append(topic)
+        # CASE TOPIC FOLDER: `rel_path` points to a channelroot subfolder (a.k.a TopicNode)
+        dirname = chan_path_list.pop()  # name of the folder (used as ID for internal lookup)
+        topic_parent_node = get_topic_for_path(channel, chan_path_list)
+
+        # read topic metadata to get title and description for the TopicNode
+        topic_metadata = metadata_provider.get(chan_path_tuple)
+        thumbnail_chan_path =  topic_metadata.get('thumbnail_chan_path', None)
+        if thumbnail_chan_path:
+            thumbnail_rel_path = rel_path_from_chan_path(thumbnail_chan_path, metadata_provider.channeldir)
+        else:
+            thumbnail_rel_path = None
+        # create TopicNode for this folder
+        topic = dict(
+            kind=TOPIC_NODE,
+            dirname=dirname,
+            source_id='sourceid:' + rel_path,
+            title=topic_metadata.get('title', dirname),
+            description=topic_metadata.get('description', None),
+            author=topic_metadata.get('author', None),
+            language=topic_metadata.get('language', None),
+            license=topic_metadata.get('license', None),
+            thumbnail=thumbnail_rel_path,
+            children=[],
+        )
+        topic_parent_node['children'].append(topic)
+        containing_node = topic  # attach content nodes in filenames to the newly created topic
 
     # filter filenames
     filenames_cleaned = filter_filenames(filenames)
     filenames_cleaned2 = filter_thumbnail_files(chan_path, filenames_cleaned, metadata_provider)
 
-    # B. PROCESS FILES
+    # PROCESS FILES
     for filename in filenames_cleaned2:
         chan_filepath = os.path.join(chan_path, filename)
         chan_filepath_tuple = path_to_tuple(chan_filepath)
         metadata = metadata_provider.get(chan_filepath_tuple)
         node = make_content_node(metadata_provider.channeldir, rel_path, filename, metadata)
-        # attach content node to containing topic
-        topic['children'].append(node)
+        containing_node['children'].append(node)  # attach content node to containing_node
 
 
 def build_ricecooker_json_tree(args, options, metadata_provider, json_tree_path):
@@ -214,10 +220,24 @@ def build_ricecooker_json_tree(args, options, metadata_provider, json_tree_path)
 
     # MAIN PROCESSING OF os.walk OUTPUT
     ############################################################################
-    _ = content_folders.pop(0)  # Skip over channel folder because handled above
+    # TODO(ivan): figure out all the implications of the
+    # _ = content_folders.pop(0)  # Skip over channel folder because handled above
     for rel_path, _subfolders, filenames in content_folders:
         LOGGER.info('processing folder ' + str(rel_path))
-        process_folder(ricecooker_json_tree, rel_path, sorted(filenames), metadata_provider)
+
+        # IMPLEMENTATION DETAIL:
+        #   - `filenames` contains real files in the `channeldir` folder
+        #   - `exercises_filenames` contains virtual files whose sole purpse is to set the
+        #     order of nodes within a given topic. Since alphabetical order is used to
+        #     walk the files in the `channeldir`, we must "splice in" the exercises here
+        if metadata_provider.has_exercises():
+            dir_chan_path = chan_path_from_rel_path(rel_path, metadata_provider.channeldir)
+            dir_path_tuple = path_to_tuple(dir_chan_path)
+            exercises_filenames = metadata_provider.get_exercises_for_dir(dir_path_tuple)
+            filenames.extend(exercises_filenames)
+
+        sorted_filenames = sorted(filenames)
+        process_folder(ricecooker_json_tree, rel_path, sorted_filenames, metadata_provider)
 
     # Write out ricecooker_json_tree.json
     write_tree_to_json_tree(json_tree_path, ricecooker_json_tree)
@@ -230,10 +250,11 @@ def make_content_node(channeldir, rel_path, filename, metadata):
     """
     file_key, file_ext = os.path.splitext(filename)
     ext = file_ext[1:]
-
     kind = None
     if ext in content_kinds.MAPPING:
-        kind = content_kinds.MAPPING[ext]  # guess what kind based on file extension
+        kind = content_kinds.MAPPING[ext]   # guess what kind based on file extension
+    elif 'questions' in metadata:
+        kind = content_kinds.EXERCISE
     else:
         raise ValueError('Could not find kind for extension ' + str(ext) + ' in content_kinds.MAPPING')
 
@@ -305,6 +326,21 @@ def make_content_node(channeldir, rel_path, filename, metadata):
             license=license_dict,
             thumbnail=thumbnail_rel_path,
             files=[{'file_type':HTML5_FILE, 'path':filepath, 'language':lang}],
+        )
+
+    elif kind == EXERCISE_NODE:
+        content_node = dict(
+            kind=EXERCISE_NODE,
+            source_id=source_id,
+            title=title,
+            author=author,
+            description=description,
+            language=lang,
+            license=license_dict,
+            exercise_data=metadata['exercise_data'],
+            questions=metadata['questions'],
+            thumbnail=thumbnail_rel_path,
+            files=[],
         )
 
     else:

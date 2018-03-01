@@ -1,0 +1,6 @@
+Path *,Title *,Source ID *,Description,Author,Language,License ID *,License Description,Copyright Holder,Number Correct,Out of Total,Randomize,Thumbnail
+channeldir/exercise1,First Exercise,exrc1,This is a really math exercise that will appear in the channel root.,Ivan Savov,en,CC BY,,Learning Equality,1,2,TRUE,channeldir/algebra_exercise_thumb.png
+channeldir/contentnodes/audio/Wzexercise,Second Exercise,exrc2,An exrcise ,Ivan Savov,fr,CC BY,,Learning Equality,,,FALSE,channeldir/contentnodes/audio/WZ_exercise_thumbnail.png
+channeldir/exercises/exercise3,Third Exercise,exrc3,An exercise in the subfolder exercsies/,Ivan Savov,en,CC BY,,Learning Equality,,,FALSE,
+channeldir/exercises/exercise4,Fourth Exercise,exrc4,An exercise that shows figures in question and use of LaTeX markup,Ivan Savov,en,CC BY,,Learning Equality,,,FALSE,
+channeldir/exercises/exercise5,Fifth Exercise,exrc5,An exercise which shows figures as answers,Ivan Savov,en,CC BY,,Learning Equality,,,FALSE,
