@@ -1,6 +1,7 @@
 import requests
 import time
 from selenium import webdriver
+import selenium.webdriver.support.ui as selenium_ui
 from requests_file import FileAdapter
 from ricecooker.config import PHANTOMJS_PATH
 from ricecooker.utils.caching import CacheForeverHeuristic, FileCache, CacheControlAdapter, InvalidatingCacheControlAdapter
@@ -15,13 +16,22 @@ DOWNLOAD_SESSION.mount('http://', forever_adapter)
 DOWNLOAD_SESSION.mount('https://', forever_adapter)
 
 
-def read(path, loadjs=False, session=None, driver=None):
+def read(path, loadjs=False, session=None, driver=None, loadjs_wait_time=3,
+        loadjs_wait_for_callback=None):
     """ read: Reads from source and returns contents
         Args:
             path: (str) url or local path to download
             loadjs: (boolean) indicates whether to load js (optional)
             session: (requests.Session) session to use to download (optional)
             driver: (selenium.webdriver) webdriver to use to download (optional)
+            loadjs_wait_time: (int) if loading JS, seconds to wait after the
+                page has loaded before grabbing the page source
+            loadjs_wait_for_callback: (function<selenium.webdriver>) if loading
+                JS, a callback that will be invoked to determine when we can
+                grab the page source. The callback will be called with the
+                webdriver, and should return True when we're ready to grab the
+                page source. For example, pass in an argument like:
+                    lambda driver: driver.find_element_by_id('list-container')
         Returns: str content from file or page
     """
     session = session or DOWNLOAD_SESSION
@@ -32,7 +42,9 @@ def read(path, loadjs=False, session=None, driver=None):
             else:
                 driver = driver or webdriver.PhantomJS()
             driver.get(path)
-            time.sleep(5)
+            if loadjs_wait_for_callback:
+                selenium_ui.WebDriverWait(driver, 60).until(loadjs_wait_for_callback)
+            time.sleep(loadjs_wait_time)
             return driver.page_source
         else:                                                   # Read page contents from url
             response = DOWNLOAD_SESSION.get(path, stream=True)
