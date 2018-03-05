@@ -2,14 +2,14 @@ import os
 import re
 import requests
 import time
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse, parse_qs, urljoin
 import uuid
 
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from requests_file import FileAdapter
 from ricecooker.config import PHANTOMJS_PATH
-from ricecooker.utils.html import download_file, WebDriver
+from ricecooker.utils.html import download_file
 from ricecooker.utils.caching import CacheForeverHeuristic, FileCache, CacheControlAdapter, InvalidatingCacheControlAdapter
 
 DOWNLOAD_SESSION = requests.Session()                          # Session for downloading content from urls
@@ -74,7 +74,7 @@ def make_request(url, clear_cookies=True, timeout=60, *args, **kwargs):
                   .format(msg=str(e), count=retry_count, trymax=max_retries))
             time.sleep(retry_count * 1)
             if retry_count >= max_retries:
-                return Dummy404ResponseObject(url=url)
+                raise e
 
     if response.status_code != 200:
         print("NOT FOUND:", url)
@@ -128,7 +128,7 @@ def download_static_assets(doc, destination, base_url,
                     print('        Skipping node with src ', src)
                     continue
 
-            url = make_fully_qualified_url(node[attr], base_url)
+            url = urljoin(base_url, node[attr])
 
             if _is_blacklisted(url, url_blacklist):
                 print('        Skipping downloading blacklisted url', url)
@@ -173,7 +173,7 @@ def download_static_assets(doc, destination, base_url,
             # Don't download data: files
             if src.startswith('data:'):
                 return match.group(0)
-            src_url = make_fully_qualified_url(os.path.join(file_dir, src), base_url)
+            src_url = urljoin(base_url, os.path.join(file_dir, src))
 
             if _is_blacklisted(src_url, url_blacklist):
                 print('        Skipping downloading blacklisted url', src_url)
@@ -216,18 +216,3 @@ def _is_blacklisted(url, url_blacklist):
 def _derive_filename(url):
     name = os.path.basename(urlparse(url).path).replace('%', '_')
     return ("%s.%s" % (uuid.uuid4().hex, name)).lower()
-
-
-def make_fully_qualified_url(url, base):
-    # TODO(davidhu): This is some hacky special-casing for 3asafeer ...
-    if url.startswith("../images"):
-        return base + url[2:]
-    if url.startswith("../scripts"):
-        return base + url[2:]
-    if url.startswith("//"):
-        return "http:" + url
-    if url.startswith("/"):
-        return base + url
-    if not url.startswith("http"):
-        return "%s/%s" % (base, url)
-    return url
