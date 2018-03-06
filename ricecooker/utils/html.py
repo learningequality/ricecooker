@@ -5,7 +5,6 @@ import time
 import urllib
 
 from bs4 import BeautifulSoup
-from css_html_js_minify.minify import process_multiple_files, walk2list, Pool, cpu_count, partial
 from selenium import webdriver
 from urllib.parse import urlparse, unquote
 
@@ -128,27 +127,3 @@ def download_file(url, destpath, filename=None, baseurl=None, subpath=None, midd
         f.write(content)
 
     return relative_file_url, response
-
-import logging
-
-def minimize_html_css_js(directory, blacklist=None):
-
-    original_log_level = logging.getLogger().getLevel()
-    logging.getLogger().setLevel(logging.ERROR)
-
-    blacklist = tuple(blacklist or []) + (".min.css", ".min.js")
-
-    list_of_files = walk2list(directory, (".css", ".js", ".html"), blacklist)
-
-    pool = Pool(cpu_count())  # Multiprocessing Async
-    pool.map_async(partial(
-            process_multiple_files, watch=False,
-            wrap=False, timestamp=False,
-            comments=False, sort=True,
-            overwrite=True, zipy=False,
-            prefix="", add_hash=False),
-        list_of_files)
-    pool.close()
-    pool.join()
-
-    logging.getLogger().setLevel(original_log_level)
