@@ -19,7 +19,7 @@ LOGGER = logging.getLogger()
 DOMAIN_ENV = os.getenv('STUDIO_URL', None)
 if DOMAIN_ENV is None:  # check old ENV varable for backward compatibility
     DOMAIN_ENV = os.getenv('CONTENTWORKSHOP_URL', None)
-DOMAIN = DOMAIN_ENV if DOMAIN_ENV else "https://studio.learningequality.org"
+DOMAIN = DOMAIN_ENV if DOMAIN_ENV else "https://contentworkshop.learningequality.org"
 if DOMAIN.endswith('/'):
     DOMAIN = DOMAIN.rstrip('/')
 FILE_STORE_LOCATION =  hashlib.md5(DOMAIN.encode('utf-8')).hexdigest()
