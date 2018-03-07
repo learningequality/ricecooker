@@ -3,6 +3,19 @@ History
 =======
 
 
+0.6.15 (2018-03-06)
+-------------------
+* Added support for non-mp4 video files, with auto-conversion using ffmpeg. See ``git diff b1d15fa 87f2528``
+* Added CSV exercises workflow support to ``LineCook`` chef class
+* Added --nomonitor CLI argument to disable sushibar functionality
+* Defined new ENV variables:
+  * PHANTOMJS_PATH: set this to a phantomjs binary (instead of assuming one in node_modules)
+  * STUDIO_URL (alias CONTENTWORKSHOP_URL): set to URL of Kolibri Studio server where to upload files
+* Various fixes to support sushi chefs
+* Removed ``minimize_html_css_js`` utility function from ``ricecooker/utils/html.py``
+  to remove dependency on ``css_html_js_minify`` and support Py3.4 fully.
+
+
 0.6.9 (2017-11-14)
 ------------------
 * Changed default logging level to --verbose
@@ -11,7 +24,6 @@ History
 * Added utility for downloading HTML with optional js support in utils/downloader.py
 * Added utils/path_builder.py and utils/data_writer.py for creating souschef archives
   (zip archive that contains files in a folder hierarchy + Channel.csv + Content.csv)
-
 
 
 0.6.7 (2017-10-04)
