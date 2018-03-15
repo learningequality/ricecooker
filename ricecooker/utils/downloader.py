@@ -121,9 +121,15 @@ def make_request(url, clear_cookies=True, timeout=60, *args, **kwargs):
 _CSS_URL_RE = re.compile(r"url\(['\"]?(.*?)['\"]?\)")
 
 
+# TODO(davidhu): Use MD5 hash of URL (ideally file) instead.
+def _derive_filename(url):
+    name = os.path.basename(urlparse(url).path).replace('%', '_')
+    return ("%s.%s" % (uuid.uuid4().hex, name)).lower()
+
+
 def download_static_assets(doc, destination, base_url,
         request_fn=make_request, url_blacklist=[], js_middleware=None,
-        css_middleware=None):
+        css_middleware=None, derive_filename=_derive_filename):
     """Download all static assets referenced from an HTML page.
 
     The goal is to easily create HTML5 apps! Downloads JS, CSS, images, and
@@ -142,6 +148,8 @@ def download_static_assets(doc, destination, base_url,
         which is expected to return JS content with any modifications.
     css_middleware: If specificed, CSS content will be passed into this callback
         which is expected to return CSS content with any modifications.
+    derive_filename: A callback that is passed the URL to fetch and returns the
+        filename to save the file as. (optional)
 
     Return the modified page HTML with links rewritten to the locations of the
     downloaded static files, as a BeautifulSoup object. (Call str() on it to
@@ -164,6 +172,9 @@ def download_static_assets(doc, destination, base_url,
                     print('        Skipping node with src ', src)
                     continue
 
+            if node[attr].startswith('data:'):
+                continue
+
             url = urljoin(base_url, node[attr])
 
             if _is_blacklisted(url, url_blacklist):
@@ -174,11 +185,11 @@ def download_static_assets(doc, destination, base_url,
             if url_middleware:
                 url = url_middleware(url)
 
-            filename = _derive_filename(url)
+            filename = derive_filename(url)
             node[attr] = filename
 
             print("        Downloading", url, "to filename", filename)
-            download_file(url, destination, request_fn=make_request,
+            download_file(url, destination, request_fn=request_fn,
                     filename=filename, middleware_callbacks=content_middleware)
 
     def js_content_middleware(content, url, **kwargs):
@@ -215,8 +226,8 @@ def download_static_assets(doc, destination, base_url,
                 print('        Skipping downloading blacklisted url', src_url)
                 return 'url()'
 
-            derived_filename = _derive_filename(src_url)
-            download_file(src_url, destination, request_fn=make_request,
+            derived_filename = derive_filename(src_url)
+            download_file(src_url, destination, request_fn=request_fn,
                     filename=derived_filename)
             return 'url("%s")' % derived_filename
 
@@ -246,9 +257,3 @@ def download_static_assets(doc, destination, base_url,
 
 def _is_blacklisted(url, url_blacklist):
     return any((item in url.lower()) for item in url_blacklist)
-
-
-# TODO(davidhu): Use MD5 hash of URL (ideally file) instead.
-def _derive_filename(url):
-    name = os.path.basename(urlparse(url).path).replace('%', '_')
-    return ("%s.%s" % (uuid.uuid4().hex, name)).lower()
