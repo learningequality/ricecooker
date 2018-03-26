@@ -1,12 +1,14 @@
-Tutorial
-========
+Tutorials
+=========
 
 This folder contains interactive tutorials that demonstrate how to build sushi chefs.
 
-  - quickstart : basic steps for creating a channel from the README
+  - [quickstart](quikstart.ipynb) : basic steps for creating a channel from the README
+  - [languages](languages.ipynb): examples of how to work with the internal language codes
   - nodes [TODO]
   - files [TODO]
   - exercises [TODO]
+
 
 
 Install
@@ -16,8 +18,8 @@ Install
 
 then run
 
-    cd ricecooker/docs/tutorial
     jupyter notebook
 
+and go to the directory `docs/tutorial/` to see the notebooks
 
 
