@@ -1,7 +1,7 @@
 SushOps
 =======
 SushOps engineers (also called ETL engineers) are responsible for making sure
-the overall content pipeline runs smoothly. Assuming the [chefops][./chefops.md]
+the overall content pipeline runs smoothly. Assuming the [chefops](./chefops.md)
 is done right, running the chef script should be as simple as running a single command.
 SushOps engineers need to make sure not only that chef is running correctly,
 but also monitor content on the Sushibar dashboard, in Kolibri Studio, and in 
