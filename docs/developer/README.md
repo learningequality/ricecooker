@@ -69,16 +69,5 @@ The `content_id` identifier is computed based on the channel source domain,
 and the `source_id` attribute of the content node. To find the `content_id` hex
 value for a content node `node`, use `content_id = node.get_content_id().hex`.
 
-
-The `node_id` of a content nodes in a tree is computed based on the parent node's
-`node_id` and current node's `content_id`
-
-
-    
-    def get_node_id(self):
-        return uuid.uuid5(self.get_domain_namespace(), self.source_id)
-
-    return uuid.uuid5(self.get_domain_namespace(), self.source_id)
-
-
-    
+The `node_id` of a content nodes within a tree is computed based on the parent
+node's `node_id` and current node's `content_id`.
