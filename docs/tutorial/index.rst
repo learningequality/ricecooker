@@ -7,3 +7,4 @@ Tutorial
    README
    quickstart
    languages
+   exercises

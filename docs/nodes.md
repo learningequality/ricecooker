@@ -256,7 +256,7 @@ to see a samples of questions in the perseus json format.
 To following code creates an exercise node with a single perseus question in it:
 
     # LOAD JSON DATA (as string) FOR PERSEUS QUESTIONS    
-    RAW_PERSEUS_JSON_STR = open('../ricecooker/examples/perseus_graph_question.json', 'r').read()
+    RAW_PERSEUS_JSON_STR = open('ricecooker/examples/data/perseus_graph_question.json', 'r').read()
     # or
     # import requests
     # RAW_PERSEUS_JSON_STR = requests.get('https://github.com/learningequality/sample-channels/blob/master/contentnodes/exercise/perseus_graph_question.json').text
