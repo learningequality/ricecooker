@@ -68,7 +68,7 @@ docs: ## generate Sphinx HTML documentation, including API docs
 	pip install sphinx recommonmark nbsphinx ipython
 	pandoc -f gfm README.md -t rst -o docs/README.rst
 	sed -i '' 's/docs\///g' docs/README.rst
-	sed -i '' 's/\.md/\.html/g' docs/README.rst
+	#sed -i '' 's/\.md/\.html/g' docs/README.rst
 	rm -f docs/ricecooker.rst
 	rm -f docs/modules.rst
 	rm -f docs/ricecooker.classes.rst
