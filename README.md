@@ -36,42 +36,42 @@ documentation depending on your role:
 
   - **Content specialists and Administrators** can read the non-technical part
     of the documentation to learn about how content works in the Kolibri platform.
-    - The best place to start is the [Kolibri Platform overview](docs/platform/README.md).
-    - Read more about the supported [content types here](docs/platform/content_types.md)
+    - The best place to start is the [Kolibri Platform overview](https://github.com/learningequality/ricecooker/blob/master/docs/platform/README.md).
+    - Read more about the supported [content types here](https://github.com/learningequality/ricecooker/blob/master/docs/platform/content_types.md)
     - Content curators can consult [this document](https://docs.google.com/document/d/1slwoNT90Wqu0Rr8MJMAEsA-9LWLRvSeOgdg9u7HrZB8/edit?usp=sharing)
       for information about how to prepare "spec sheets" that guide developers how
       to import content into the Kolibri ecosystem.
-    - The Non-technical of particular interest is the [CSV workflow](docs/csv_metadata/README.md)
+    - The Non-technical of particular interest is the [CSV workflow](https://github.com/learningequality/ricecooker/blob/master/docs/csv_metadata/README.md)
       channel metadata as spreadsheets
 
 
   - **Chef authors** can read the remainder of this README, and get started using
     the `ricecooker` library by following these first steps:
-      - [Quickstart](docs/tutorial/quickstart.ipynb), which will introduce you to
+      - [Quickstart](https://github.com/learningequality/ricecooker/blob/master/docs/tutorial/quickstart.ipynb), which will introduce you to
         the steps needed to create a sushi chef script.
       - After the quickstart, you should be ready to take things into your own
         hands, and complete all steps in the [ricecooker tutorial](https://gist.github.com/jayoshih/6678546d2a2fa3e7f04fc9090d81aff6).
-      - The next step after that is to read the [ricecooker usage docs](docs/usage.md),
-        which is also available Jupyter notebooks under [docs/tutorial/](docs/tutorial/).
+      - The next step after that is to read the [ricecooker usage docs](https://github.com/learningequality/ricecooker/blob/master/docs/usage.md),
+        which is also available Jupyter notebooks under [docs/tutorial/](https://github.com/learningequality/ricecooker/blob/master/docs/tutorial/).
     More detailed technical documentation is available on the following topics:
-      - [Installation](docs/installation.md)
-      - [Content Nodes](docs/nodes.md)
-      - [File types](docs/files.md)
-      - [Exercises](docs/exercises.md)
-      - [HTML5 apps](docs/htmlapps.md)
-      - [Parsing HTML](docs/parsing_html.md)
-      - [Running chef scripts](docs/chefops.md) to learn about the command line args,
+      - [Installation](https://github.com/learningequality/ricecooker/blob/master/docs/installation.md)
+      - [Content Nodes](https://github.com/learningequality/ricecooker/blob/master/docs/nodes.md)
+      - [File types](https://github.com/learningequality/ricecooker/blob/master/docs/files.md)
+      - [Exercises](https://github.com/learningequality/ricecooker/blob/master/docs/exercises.md)
+      - [HTML5 apps](https://github.com/learningequality/ricecooker/blob/master/docs/htmlapps.md)
+      - [Parsing HTML](https://github.com/learningequality/ricecooker/blob/master/docs/parsing_html.md)
+      - [Running chef scripts](https://github.com/learningequality/ricecooker/blob/master/docs/chefops.md) to learn about the command line args,
         for controlling chef operation, managing caches, and other options. 
       - [Sushi chef style guide](https://docs.google.com/document/d/1_Wh7IxPmFScQSuIb9k58XXMbXeSM0ZQLkoXFnzKyi_s/edit)
 
 
   - **Ricecooker developers** should read all the documentation for chef authors,
-    and also consult the docs in the [developer/](docs/developer) folder for
+    and also consult the docs in the [developer/](https://github.com/learningequality/ricecooker/blob/master/docs/developer) folder for
     additional information info about the "behind the scenes" work needed to
     support the Kolibri content pipeline:
     - [Running chef scripts](chefops.md), also known as **chefops**.
-    - [Running chef scripts in daemon mode](docs/developer/daemonization.md)
-    - [Managing the content pipeline](docs/developer/sushops.md), also known as **sushops**.
+    - [Running chef scripts in daemon mode](https://github.com/learningequality/ricecooker/blob/master/docs/developer/daemonization.md)
+    - [Managing the content pipeline](https://github.com/learningequality/ricecooker/blob/master/docs/developer/sushops.md), also known as **sushops**.
 
 
 
@@ -90,7 +90,7 @@ The `ricecooker` library is a standard Python library distributed through PyPI:
      - Running javascript code while scraping webpages requires the phantomJS browser.
        You can run `npm install phantomjs-prebuilt` in your chef's working directory.
 
-For more details and install options, see [docs/installation.md](docs/installation.md).
+For more details and install options, see [docs/installation.md](https://github.com/learningequality/ricecooker/blob/master/docs/installation.md).
 
 
 
@@ -158,7 +158,7 @@ These make sure the chef script will start the process from scratch and displays
 useful debugging information on the command line.
 
 To see all the `ricecooker` command line options, run `python simple_chef.py -h`.
-For more details about running chef scripts see [the chefops page](docs/chefops.md).
+For more details about running chef scripts see [the chefops page](https://github.com/learningequality/ricecooker/blob/master/docs/chefops.md).
 
 If you get an error when running the chef, make sure you've replaced 
 `YOURTOKENHERE9139139f3a23232` by the token you obtained from Studio.
@@ -169,9 +169,9 @@ and `channel_info['CHANNEL_SOURCE_ID']` instead of using the default values.
 
 ## Next steps
 
-  - See the [usage docs](docs/usage.md) for more explanations about the above code.
-  - See [nodes](docs/nodes.md) to learn how to create different content node types.
-  - See [file](docs/files.md) to learn about the file types supported, and how to create them.
+  - See the [usage docs](https://github.com/learningequality/ricecooker/blob/master/docs/usage.md) for more explanations about the above code.
+  - See [nodes](https://github.com/learningequality/ricecooker/blob/master/docs/nodes.md) to learn how to create different content node types.
+  - See [file](https://github.com/learningequality/ricecooker/blob/master/docs/files.md) to learn about the file types supported, and how to create them.
 
 
 ## Further reading

@@ -443,7 +443,7 @@ epub_exclude_files = ['search.html']
 
 intersphinx_mapping = {
     'python':       ('https://docs.python.org/3.6/', None),
-    'django':       ('https://django.readthedocs.org/en/latest/', None),
+    'django':       ('https://django.readthedocs.io/en/latest/', None),
     'kolibri-user': ('http://kolibri.readthedocs.io/en/latest/', None),
     'kolibri':      ('http://kolibri-dev.readthedocs.io/en/latest/', None),
     'studio-user':  ('http://kolibri-studio.readthedocs.io/en/latest/', None),
@@ -451,10 +451,7 @@ intersphinx_mapping = {
 
 
 # Also accept .md files  (via https://github.com/rtfd/recommonmark)
+source_suffix = ['.rst', '.md']     # The suffix(es) of source filenames
 source_parsers = {
     '.md': CommonMarkParser,
 }
-
-# The suffix(es) of source filenames.
-# You can specify multiple suffix as a list of string:
-source_suffix = ['.rst', '.md']

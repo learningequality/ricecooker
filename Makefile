@@ -67,7 +67,7 @@ coverage: ## check code coverage quickly with the default Python
 docs: ## generate Sphinx HTML documentation, including API docs
 	pip install sphinx recommonmark nbsphinx ipython
 	pandoc -f gfm README.md -t rst -o docs/README.rst
-	sed -i '' 's/docs\///g' docs/README.rst
+	sed -i '' 's/https:\/\/github\.com\/learningequality\/ricecooker\/blob\/master\/docs\///g' docs/README.rst
 	#sed -i '' 's/\.md/\.html/g' docs/README.rst
 	rm -f docs/ricecooker.rst
 	rm -f docs/modules.rst
