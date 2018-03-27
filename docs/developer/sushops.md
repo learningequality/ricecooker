@@ -62,6 +62,4 @@ Some of the more repetitive system administration tasks have been automated usin
     fab -R cloud-kitchen   run_chef:chef_name       # runs the chef
     fab -R cloud-kitchen   schedule_chef:chef_name  # set up chef to run as cronjob
 
-TODO: decide where to put sharable fab commands `ricecooker.utils.fabfile` ?
-
-
+You can import the reusable fab commands from `ricecooker.utils.fabfile`. [WIP]

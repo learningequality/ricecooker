@@ -67,8 +67,7 @@ Changes
                 ...
 
   - Each chef script is a standalone python executable.
-    The `main` method of the chef instance is the entry point used by a chef script
-    to start the ricecooker:
+    The `main` method of the chef instance is the entry point used by a chef script:
 
         #!/usr/bin/env python
         ...

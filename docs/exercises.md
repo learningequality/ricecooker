@@ -6,8 +6,10 @@ Exercise and exercise questions
 
 
 In order to set the criteria for completing exercises, you must set __exercise_data__
-to equal a dict containing a mastery_model field based on the mastery models provided under `le_utils.constants.exercises`.
-If no data is provided, the rice cooker will default to mastery at 3 of 5 correct. For example:
+to a dict containing a `mastery_model` field based on the mastery models provided
+in `le_utils.constants.exercises`.
+If no data is provided, `ricecooker` will default to mastery at 3 of 5 correct.
+For example:
 ```
 node = ExerciseNode(
     exercise_data={
@@ -21,10 +23,9 @@ node = ExerciseNode(
 ```
 
 
-
-To add a question to your exercise, you must first create a question model from `ricecooker.classes.questions`.
-Your sushi chef is responsible for determining which question type to create.
-Here are the available question types:
+To add a question to your exercise, you must first create a question model from
+`ricecooker.classes.questions`. Your sushi chef is responsible for determining
+which question type to create. Here are the available question types:
   - __SingleSelectQuestion__: questions that only have one right answer (e.g. radio button questions)
   - __MultipleSelectQuestion__: questions that have multiple correct answers (e.g. check all that apply)
   - __InputQuestion__: questions that have text-based answers (e.g. fill in the blank)
@@ -74,7 +75,7 @@ question = InputQuestion(
 ```
 
 To add images to a question's question, answers, or hints, format the image path
-with `'![](path/to/some/file.png)'` and the rice cooker will parse them automatically.
+with `'![](path/to/some/file.png)'` and `ricecooker` will parse them automatically.
 
 
 Once you have created the appropriate question object, add it to an exercise object

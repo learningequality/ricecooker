@@ -3,7 +3,6 @@ Running chef scrips
 The base class `SushiChef` provides a lot of command line arguments that control
 the chef script's operation. It is expected that **every chef script will come
 with a README** that explains the desired command line arguments for the chef script.
-We call "chef ops" all this additional context necessary to run the chef.
 
 
 Executable scripts
@@ -91,15 +90,13 @@ For example, a script started using `./chef.py ... lang=fr` could:
 
 
 ### Resuming interrupted chef runs
-If your rice cooking session gets interrupted, you can resume from any step that
-has already completed using `--resume --step=<step>` option. If step is not specified,
-the rice cooker will resume from the last step you ran. If the specified step has
-not been reached, the rice cooker will resume from.
-
+If your `ricecooker` session gets interrupted, you can resume from any step that
+has already completed using `--resume --step=<step>` option.
+If step is not specified, `ricecooker` will resume from the last step you ran.
 The "state" necessary to support these checkpoints is stored in the directory
 `restore` in the folder where the chef runs.
-Use the `--reset` flag to skip the auto-resume prompt.
 
+Use the `--reset` flag to skip the auto-resume prompt.
 
 
 ### Caching

@@ -196,8 +196,8 @@ but it feels kind of empty. Let's add more nodes to it!
 
 ## Step 3: Add more content nodes and files
 
-Once your channel is created, you can start adding nodes. To do this, you need to
-convert your data to the rice cooker's objects. Here are the classes that are
+Once your channel is created, you can start adding nodes. To do this, you need
+to convert your data to `ricecooker` objects. Here are the classes that are
 available to you (import from `ricecooker.classes.nodes`):
 
   - __TopicNode__: folders to organize to the channel's content
@@ -223,8 +223,8 @@ Here are the available file models:
   - __WebVideoFile__: video downloaded from site such as YouTube or Vimeo
   - __YouTubeVideoFile__: video downloaded from YouTube using a youtube video id
   - __SubtitleFile__: .vtt subtitle files to be used with VideoFiles
-  - __ThumbnailFile__: png or jpg files to add to any kind of node
-
+  - __YouTubeSubtitleFile__: subtitles downloaded based on youtube video id and language code
+  - __ThumbnailFile__: png or jpg thumbnail files to add to any kind of node
 
 Each file class can be passed a __preset__ and __language__ at initialization
 (SubtitleFiles must have a language set at initialization).

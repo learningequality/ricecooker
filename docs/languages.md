@@ -29,7 +29,7 @@ representation language code from the language object's `code` attribute:
 >>> language_obj.code
 'en'
 ```
-The Ricecooker API expects these internal representation language codes will be
+The `ricecooker` API expects these internal representation language codes will be
 supplied for all `language` attributes (channel language, node language, and files language).
 
 
@@ -50,4 +50,3 @@ The module `le_utils.constants.languages` defines two other language lookup meth
  -  Use `getlang_by_alpha2` to perform lookups using the standard two-letter codes
     defined in [ISO_639-1](https://en.wikipedia.org/wiki/ISO_639-1) that are
     supported by the `pycountries` library.
-  
