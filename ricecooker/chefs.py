@@ -55,15 +55,14 @@ class BaseChef(object):
             parser.add_argument('command', choices=['uploadchannel'], help='Main command for the chef script.')
             parser.add_argument('chef_script', help='Path to chef script file')
         #                    -h                                             Help documentation      # NO NEED BECAUSE AUTOMATIC
+        parser.add_argument('--token', default='#',                   help='Authorization token (can be token or path to file with token)')
+        parser.add_argument('-u', '--update', action='store_true',    help='Force re-download of files (skip .ricecookerfilecache/ check)')
         parser.add_argument('-v', '--verbose', action='store_true', default=True, help='Verbose mode')
-        parser.add_argument('-u', '--update', action='store_true',    help='Re-download files from file paths')
-        parser.add_argument('--warn', action='store_true',            help='Print out warnings to stderr')
-        parser.add_argument('--debug', action='store_true',           help='Print out debugging statements to stderr')
-        parser.add_argument('--quiet', action='store_true',           help='Print out errors to stderr')
-        parser.add_argument('--stage', action='store_true',           help='Stage updates rather than deploying them for manual verification on Kolibri Studio')
+        parser.add_argument('--quiet', action='store_true',           help='Print only errors to stderr')
+        parser.add_argument('--warn', action='store_true',            help='Print warnings to stderr')
+        parser.add_argument('--debug', action='store_true',           help='Print debugging log info to stderr')
         parser.add_argument('--compress', action='store_true',        help='Compress high resolution videos to low resolution videos')
         parser.add_argument('--thumbnails', action='store_true',      help='Automatically generate thumbnails for topics')
-        parser.add_argument('--token', default='#',                   help='Authorization token (can be token or path to file with token)')
         parser.add_argument('--download-attempts',type=int,default=3, help='Maximum number of times to retry downloading files')
         rrgroup = parser.add_mutually_exclusive_group()
         rrgroup.add_argument('--reset', action='store_true',          help='Restart session, overwriting previous session (cannot be used with --resume flag)')
@@ -71,7 +70,8 @@ class BaseChef(object):
         allsteps = [step.name.upper() for step in Status]
         parser.add_argument('--step',choices=allsteps,default='LAST', help='Step to resume progress from (must be used with --resume flag)')
         parser.add_argument('--prompt', action='store_true',          help='Prompt user to open the channel after creating it')
-        parser.add_argument('--publish', action='store_true',         help='Publish channel after creating it')
+        parser.add_argument('--stage', action='store_true',           help='Upload to staging tree to allow for manual verification before replacing main tree')
+        parser.add_argument('--publish', action='store_true',         help='Publish newly uploaded version of the channel')
         # [OPTIONS] --- extra key=value options are supported, but do not appear in help
         self.arg_parser = parser
 
@@ -307,7 +307,7 @@ class JsonTreeChef(SushiChef):
     This sushi chef loads the data from a channel from a ricecooker json tree file
     which conatins the json representation of a full ricecooker node tree.
     For example the content hierarchy with two levels of subfolders and a PDF
-    content node looks like this:
+    content node looks like this::
 
         {
           "title": "Open Stax",

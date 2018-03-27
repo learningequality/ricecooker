@@ -13,40 +13,40 @@ Subpackages
 Submodules
 ----------
 
-ricecooker\.chefs module
-------------------------
+ricecooker.chefs module
+-----------------------
 
 .. automodule:: ricecooker.chefs
     :members:
     :undoc-members:
     :show-inheritance:
 
-ricecooker\.commands module
----------------------------
+ricecooker.commands module
+--------------------------
 
 .. automodule:: ricecooker.commands
     :members:
     :undoc-members:
     :show-inheritance:
 
-ricecooker\.config module
--------------------------
+ricecooker.config module
+------------------------
 
 .. automodule:: ricecooker.config
     :members:
     :undoc-members:
     :show-inheritance:
 
-ricecooker\.exceptions module
------------------------------
+ricecooker.exceptions module
+----------------------------
 
 .. automodule:: ricecooker.exceptions
     :members:
     :undoc-members:
     :show-inheritance:
 
-ricecooker\.sushi\_bar\_client module
--------------------------------------
+ricecooker.sushi\_bar\_client module
+------------------------------------
 
 .. automodule:: ricecooker.sushi_bar_client
     :members:

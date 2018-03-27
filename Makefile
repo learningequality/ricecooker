@@ -66,6 +66,9 @@ coverage: ## check code coverage quickly with the default Python
 
 docs: ## generate Sphinx HTML documentation, including API docs
 	pip install sphinx recommonmark nbsphinx ipython
+	pandoc -f gfm README.md -t rst -o docs/README.rst
+	sed -i '' 's/docs\///g' docs/README.rst
+	#sed -i '' 's/\.md/\.html/g' docs/README.rst
 	rm -f docs/ricecooker.rst
 	rm -f docs/modules.rst
 	rm -f docs/ricecooker.classes.rst
@@ -76,6 +79,20 @@ docs: ## generate Sphinx HTML documentation, including API docs
 	$(MAKE) -C docs html
 	# $(MAKE) -C docs latex
 	$(BROWSER) docs/build/html/index.html
+
+latexdocs: ## generate Sphinx HTML documentation, including API docs
+	pip install sphinx recommonmark nbsphinx ipython
+	pandoc -f gfm README.md -t rst -o docs/README.rst
+	sed -i '' 's/docs\///g' docs/README.rst
+	sed -i '' 's/\.md//g' docs/README.rst
+	rm -f docs/ricecooker.rst
+	rm -f docs/modules.rst
+	rm -f docs/ricecooker.classes.rst
+	rm -f docs/ricecooker.managers.rst
+	rm -f docs/ricecooker.utils.rst
+	sphinx-apidoc -o docs/ ricecooker
+	$(MAKE) -C docs clean
+	$(MAKE) -C docs latex
 
 servedocs: docs ## compile the docs watching for changes
 	watchmedo shell-command -p '*.rst' -c '$(MAKE) -C docs html' -R -D .

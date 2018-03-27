@@ -1,29 +1,79 @@
-.. ricecooker documentation master file, created by
-   sphinx-quickstart on Wed Sep 21 19:57:19 2016.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+Welcome to the ricecooker docs!
+===============================
 
-Welcome to ricecooker's documentation!
-======================================
 
-Contents:
+Quickstart
+----------
+Developers who are new to the ``ricecooker`` library can get started here.
+
+.. toctree::
+   :maxdepth: 1
+
+   README <README>
+   tutorial/index
+
+
+   
+Kolibri content platform
+------------------------
+The Kolibri content platform is described in the following docs, which should be
+accessible to both technical and non-technical audiences.
+
+.. toctree::
+   :maxdepth: 1
+
+   platform/README
+   platform/content_types
+
+
+
+Ricecooker API reference
+------------------------
+The detailed information for content developers (chef authors) is presented here:
 
 .. toctree::
    :maxdepth: 2
 
-   README
-   installation
    usage
-   tutorial/index
-   design
    nodes
    files
+   languages
+   htmlapps
    exercises
+   installation
+   chefops
+
+
+Ricecooker Utils
+----------------
+The ``ricecooker`` library includes a number of utilities and helper functions:
+
+.. toctree::
+   :maxdepth: 1
+
    parsing_html
+   csv_metadata/README
+   csv_metadata/csv_exercises
+   csv_metadata/souschef
+
+
+
+Ricecooker developer docs
+-------------------------
+To learn about the inner workings of the ``ricecooker`` library, consult the following:
+
+.. toctree::
+   :maxdepth: 1
+
+   developer/README
+   chefops
+   developer/daemonization
+   developer/sushops
+   developer/design_cli
+   developer/contributing
+   developer/authors
    modules
    history
-   authors
-   contributing
 
 .. automodule:: ricecooker.classes
 

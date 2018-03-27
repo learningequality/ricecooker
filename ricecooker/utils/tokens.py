@@ -23,11 +23,11 @@ def get_env(envvar):
 def get_content_curation_token(args_token):
     """
     Get the token through one of four possible ways. Input `args_token` can be
-      1. path to a token-containing file (path)
-      2. actual token (str) in which case there's nothing to get just pass along
-      3. `#` (default value when no --token is given on command line)
-        3a: if environment variable CONTENT_CURATION_TOKEN exists, we'll use that
-        3b: else we prompt the user interactively
+    1. path to a token-containing file (path)
+    2. actual token (str) in which case there's nothing to get just pass along
+    3. `#` (default value when no --token is given on command line)
+    3a. if environment variable CONTENT_CURATION_TOKEN exists, we'll use that
+    3b. else we prompt the user interactively
     """
     if args_token != "#":                               # retrieval methods 1, 2
         if os.path.isfile(args_token):

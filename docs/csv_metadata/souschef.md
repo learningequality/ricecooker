@@ -1,12 +1,19 @@
 # Writing a SousChef
 
 Kolibri is an open source educational platform to distribute content to areas with
-little or no internet connectivity. Educational content is created and edited on [Kolibri Studio](https://studio.learningequality.org),
-which is a platform for organizing content to import from the Kolibri applications. The purpose
-of this project is to create a *chef*, or a program that scrapes a content source and puts it
-into a format that can be imported into Kolibri Studio. This project will read a
-given source's content and parse and organize that content into a folder + csv structure,
-which will then be imported into Kolibri Studio.
+little or no internet connectivity. Educational content is created and edited on
+[Kolibri Studio](https://studio.learningequality.org), which is a platform for
+organizing content to import from the Kolibri applications.
+
+A *souchef* is a program that scrapes content from a source website source and
+puts the content into a format that can be imported into Kolibri Studio.
+This project will read a given source's content and parse and organize that content
+into a folder + csv structure, which will then be imported into Kolibri Studio.
+
+
+## Definitions
+A `sous chef` script is responsible for scraping content from a source and putting
+it into a folder and CSV structure.
 
 
 
@@ -34,21 +41,17 @@ which will then be imported into Kolibri Studio.
 * Run `pip install -r requirements.txt` to install the required python libraries.
 
 
-## Description
-
-A sous chef is responsible for scraping content from a source and putting it into a folder
-and csv structure.
-
 
 ## Getting started
 
-Here are some notes and sample code to help you get started.
+Here are some notes and sample code to help you get started writing a sous chef.
+
 
 
 ### Downloader
 
-The Ricecooker script `utils/downloader.py` has a `read` function that can read from both
-urls and file paths. To use:
+The Ricecooker module `utils/downloader.py` provides a `read` function that can
+read from both urls and file paths. To use:
 
 ```
 from ricecooker.utils.downloader import read
@@ -56,7 +59,6 @@ from ricecooker.utils.downloader import read
 local_file_content = read('/path/to/local/file.pdf')            # Load local file
 web_content = read('https://example.com/page')                  # Load web page contents
 js_content = read('https://example.com/loadpage', loadjs=True)  # Load js before getting contents
-
 ```
 
 The `loadjs` option will run the JavaScript code on the webpage before reading
@@ -350,5 +352,8 @@ zipper.contains('index.html')     # Returns True
 zipper.contains('css/style.css')  # Returns False
 ```
 
+See the above example on BeautifulSoup on how to parse html.
 
-(See above example on BeautifulSoup on how to parse html)
+
+
+

@@ -1,372 +1,184 @@
-# Rice Cooker
+ricecooker
+==========
+The `ricecooker` library is a framework for creating Kolibri content channels and
+uploading them to [Kolibri Studio](https://studio.learningequality.org/), which
+is the central content server that [Kolibri](http://learningequality.org/kolibri/)
+applications talk to when they import content.
 
-A framework for creating channels on [Kolibri Studio](https://studio.learningequality.org/).
+The Kolibri content pipeline is pictured below:
+
+![The Kolibri Content Pipeline](docs/figures/content_pipeline_diagram.png)
+
+This `ricecooker` framework is the "main actor" in the first part of the content
+pipeline, and touches all aspects of the pipeline within the region highlighted
+in blue in the above diagram.
+
+
+Before we continue, let's have some definitions:
+  - A **Kolibri channel** is a tree-like data structure that consist of the following content nodes:
+    - Topic nodes (folders)
+    - Content types:
+      - Document (PDF files)
+      - Audio (mp3 files)
+      - Video (mp4 files)
+      - HTML5App zip files (generic container for web content: HTML+JS+CSS)
+      - Exercises
+  - A **sushi chef** is a Python script that uses the `ricecooker` library to
+    import content from various sources, organize content into Kolibri channels
+    and upload the channel to Kolibri Studio.
+
+
+
+## Overview
+
+Use the following shortcuts to jump to the most relevant parts of the `ricecooker`
+documentation depending on your role:
+
+  - **Content specialists and Administrators** can read the non-technical part
+    of the documentation to learn about how content works in the Kolibri platform.
+    - The best place to start is the [Kolibri Platform overview](platform/README.md).
+    - Read more about the supported [content types here](platform/content_types.md)
+    - Content curators can consult [this document](https://docs.google.com/document/d/1slwoNT90Wqu0Rr8MJMAEsA-9LWLRvSeOgdg9u7HrZB8/edit?usp=sharing)
+      for information about how to prepare "spec sheets" that guide developers how
+      to import content into the Kolibri ecosystem.
+    - The Non-technical of particular interest is the [CSV workflow](docs/csv_exercises.md)
+      channel metadata as spreadsheets
+
+
+  - **Chef authors** can read the remainder of this README, and get started using
+    the `ricecooker` library by following these first steps:
+      - [Quickstart](docs/tutorial/quickstart.ipynb), which will introduce you to
+        the steps needed to create a sushi chef script.
+      - After the quickstart, you should be ready to take things into your own
+        hands, and complete all steps in the [ricecooker tutorial](https://gist.github.com/jayoshih/6678546d2a2fa3e7f04fc9090d81aff6).
+      - The next step after that is to read the [ricecooker usage docs](docs/usage.md),
+        which is also available Jupyter notebooks under [docs/tutorial/](docs/tutorial/).
+    More detailed technical documentation is available on the following topics:
+      - [Installation](docs/installation.md)
+      - [Content Nodes](docs/nodes.md)
+      - [File types](docs/files.md)
+      - [Exercises](docs/exercises.md)
+      - [HTML5 apps](docs/htmlapps.md)
+      - [Parsing HTML](docs/parsing_html.md)
+      - [Running chef scripts](chefops.md) to learn about the command line args,
+        for controlling chef operation, managing caches, and other options. 
+      - [Sushi chef style guide](https://docs.google.com/document/d/1_Wh7IxPmFScQSuIb9k58XXMbXeSM0ZQLkoXFnzKyi_s/edit)
+
+
+  - **Ricecooker developers** should read all the documentation for chef authors,
+    and also consult the docs in the [developer/](docs/developer) folder for
+    additional information info about the "behind the scenes" work needed to
+    support the Kolibri content pipeline:
+    - [Running chef scripts](chefops.md), also known as **chefops**.
+    - [Running chef scripts in daemon mode](developer/daemonization.md)
+    - [Managing the content pipeline](developer/sushops.md), also known as **sushops**.
+
 
 
 ## Installation
 
-* [Install ffmpeg](https://ffmpeg.org/) if you don't have it already.
+We'll assume you have a Python 3 installation on your computer and are familiar
+with best practices for working with Python codes (e.g. `virtualenv` or `pipenv`).
+If this is not the case, you can consult the Kolibri developer docs as a guide for
+[setting up a Python virtualenv](http://kolibri-dev.readthedocs.io/en/latest/start/getting_started.html#virtual-environment).
 
-* [Install pip](https://pypi.python.org/pypi/pip) if you don't have it already.
+The `ricecooker` library is a standard Python library distributed through PyPI:
+  - Run `pip install ricecooker` to install
+    You can then use `import ricecooker` in your chef script.
+  - Some of functions in `ricecooker.utils` require additional software:
+     - Make sure you install the command line tool [ffmpeg](https://ffmpeg.org/)
+     - Running javascript code while scraping webpages requires the phantomJS browser.
+       You can run `npm install phantomjs-prebuilt` in your chef's working directory.
 
-* Run `pip install ricecooker`
-
-* You can now reference ricecooker using `import ricecooker` in your .py files
-
-
-## Using the Rice Cooker
-
-The rice cooker is a framework you can use to translate content into Kolibri-compatible objects.
-The following steps will guide you through the creation of a program, or sushi chef,
-that uses the `ricecooker` framework.
-A sample sushi chef has been created [here](https://github.com/learningequality/ricecooker/blob/master/examples/sample_program.py).
-
-
-### Step 1: Obtaining an Authorization Token ###
-You will need an authorization token to create a channel on Kolibri Studio. In order to obtain one:
-
-1. Create an account on [Kolibri Studio](https://studio.learningequality.org/).
-2. Navigate to the Tokens tab under your Settings page.
-3. Copy the given authorization token.
-4. Set `token="auth-token"` in your call to uploadchannel (alternatively, you can create a file with your
-    authorization token and set `token="path/to/file.txt"`).
+For more details and install options, see [docs/installation.md](docs/installation.md).
 
 
 
-### Step 2: Creating a Sushi Chef class ###
+## Simple chef example
 
-To use the Ricecooker, your chef script must define a sushi chef class that is a
-subclass of the class `ricecooker.chefs.SushiChef`. Since it inheriting from the
-`SushiChef` class, your chef class will have the method `run` which performs all
-the work of uploading your channel to the content curation server.
-Your sushi chef class will also inherit the method `main`, which your sushi chef
-script should call when it runs on the command line.
-
-The sushi chef class for your channel must have the following attributes:
-
-  - `channel_info` (dict) that looks like this:
-        
-        channel_info = {
-            'CHANNEL_SOURCE_DOMAIN': '<yourdomain.org>',       # who is providing the content (e.g. learningequality.org)
-            'CHANNEL_SOURCE_ID': '<some unique identifier>',   # channel's unique id
-            'CHANNEL_TITLE': 'Channel name shown in UI',
-            'CHANNEL_LANGUAGE': 'en',                          # Use language codes from le_utils
-            'CHANNEL_THUMBNAIL': 'http://yourdomain.org/img/logo.jpg', # (optional) local path or url to image file
-            'CHANNEL_DESCRIPTION': 'What is this channel about?',      # (optional) description of the channel (optional)
-        }
-
-  - `construct_channel(**kwargs) -> ChannelNode`: This method is responsible for
-    building the structure of your channel (to be discussed below).
-
-To write the `construct_channel` method of your chef class, start by importing
-`ChannelNode` from `ricecooker.classes.nodes` and create a `ChannelNode` using
-the data in `self.channel_info`. Once you have the `ChannelNode` instance, the
-rest of your chef's `construct_channel` method is responsible for constructing
-the channel by adding various `Node`s using the method `add_child`.
-`TopicNode`s correspond to folders, while `ContentNode`s correspond to different
-type of content nodes.
-
-`ContentNode` objects (and subclasses like `VideoNode`, `AudioNode`, ...) store
-the metadata associate with the content, and are associated with one or more
-`File` objects (`VideoFile`, `AudioFile`, ...).
-
-For example, here is a simple sushi chef class whose `construct_channel` builds
-a tree with a single topic.
+This is a sushi chef script that uses the `ricecooker` library to create a Kolibri
+channel with a single topic node (Folder), and puts a single PDF content node inside that folder.
 
 ```
+#!/usr/bin/env python
 from ricecooker.chefs import SushiChef
-from ricecooker.classes.nodes import ChannelNode, TopicNode
+from ricecooker.classes.nodes import ChannelNode, TopicNode, DocumentNode
+from ricecooker.classes.files import DocumentFile
+from ricecooker.classes.licenses import get_license
 
-class MySushiChef(SushiChef):
-    """
-    This is my sushi chef...
-    """
+
+class SimpleChef(SushiChef):
     channel_info = {
-        'CHANNEL_SOURCE_DOMAIN': '<yourdomain.org>',       # make sure to change this when testing
-        'CHANNEL_SOURCE_ID': '<some unique identifier>',   # channel's unique id
-        'CHANNEL_TITLE': 'Channel name shown in UI',
-        'CHANNEL_THUMBNAIL': 'http://yourdomain.org/img/logo.jpg', # (optional) local path or url to image file
-        'CHANNEL_DESCRIPTION': 'What is this channel about?',      # (optional) description of the channel (optional)
+        'CHANNEL_TITLE': 'Potatoes info channel',
+        'CHANNEL_SOURCE_DOMAIN': '<domain.org>',         # where you got the content (change me!!)
+        'CHANNEL_SOURCE_ID': '<unique id for channel>',  # channel's unique id (change me!!)
+        'CHANNEL_LANGUAGE': 'en',                        # le_utils language code
+        'CHANNEL_THUMBNAIL': 'https://upload.wikimedia.org/wikipedia/commons/b/b7/A_Grande_Batata.jpg', # (optional)
+        'CHANNEL_DESCRIPTION': 'What is this channel about?',      # (optional)
     }
 
     def construct_channel(self, **kwargs):
-        # create channel
         channel = self.get_channel(**kwargs)
-        # create a topic and add it to channel
-        potato_topic = TopicNode(source_id="<potatos_id>", title="Potatoes!")
+        potato_topic = TopicNode(title="Potatoes!", source_id="<potatos_id>")
         channel.add_child(potato_topic)
+        doc_node = DocumentNode(
+            title='Growing potatoes',
+            description='An article about growing potatoes on your rooftop.',
+            source_id='pubs/mafri-potatoe',
+            license=get_license('CC BY', copyright_holder='University of Alberta'),
+            language='en',
+            files=[DocumentFile(path='https://www.gov.mb.ca/inr/pdf/pubs/mafri-potatoe.pdf',
+                                language='en')],
+        )
+        potato_topic.add_child(doc_node)
         return channel
 
+
+if __name__ == '__main__':
+    """
+    Run this script on the command line using:
+        python simple_chef.py -v --reset --token=YOURTOKENHERE9139139f3a23232
+    """
+    simple_chef = SimpleChef()
+    simple_chef.main()
 ```
 
-You can now run of you chef by creating an instance of the chef class and calling
-it's `run` method:
+Let's assume the above code snippet is saved as the file `simple_chef.py`.
 
+You can run the chef script by passing the appropriate command line arguments:
 
-```
-mychef = MySushiChef()
-args = {'token': 'YOURTOKENHERE9139139f3a23232', 'reset': True, 'verbose': True}
-options = {}
-mychef.run(args, options)
-```
+    python simple_chef.py -v --reset --token=YOURTOKENHERE9139139f3a23232
 
-Note: Normally you'll pass `args` and `options` on the command line, but you can
-pass dict objects with the necessary parameters for testing.
+The most important argument when running a chef script is `--token` which is used
+to pass in the Studio Access Token which you can obtain from your profile's
+[settings page](http://studio.learningequality.org/settings/tokens).
 
-If you get an error, make sure you've replaced `YOURTOKENHERE9139139f3a23232` by
-the token you obtained from the content curation server and you've changed
-`channel_info['CHANNEL_SOURCE_DOMAIN']` and/or `channel_info['CHANNEL_SOURCE_ID']`
-instead of using the default values.
+The flags `-v` (verbose) and `--reset` are generally useful in development.
+These make sure the chef script will start the process from scratch and displays
+useful debugging information on the command line.
 
-If the channel run was successful, you should be able to see your single-topic
-channel on the content curation server. The topic node "Potatoes!" is nice to
-look at, but it feels kind of empty. Let's add more nodes to it!
+To see all the `ricecooker` command line options, run `python simple_chef.py -h`.
+For more details about running chef scripts see [the chefops page](docs/chefops.md).
 
+If you get an error when running the chef, make sure you've replaced 
+`YOURTOKENHERE9139139f3a23232` by the token you obtained from Studio.
+Also make sure you've changed the value of `channel_info['CHANNEL_SOURCE_DOMAIN']`
+and `channel_info['CHANNEL_SOURCE_ID']` instead of using the default values.
 
-### Step 3: Creating Nodes ###
 
-Once your channel is created, you can start adding nodes. To do this, you need to
-convert your data to the rice cooker's objects. Here are the classes that are
-available to you (import from `ricecooker.classes.nodes`):
 
-  - __TopicNode__: folders to organize to the channel's content
-  - __VideoNode__: content containing mp4 file
-  - __AudioNode__: content containing mp3 file
-  - __DocumentNode__: content containing pdf file
-  - __HTML5AppNode__: content containing zip of html files (html, js, css, etc.)
-  - __ExerciseNode__: assessment-based content with questions
+## Next steps
 
+  - See the [usage docs](docs/usage.md) for more explanations about the above code.
+  - See [nodes](docs/nodes.md) to learn how to create different content node types.
+  - See [file](docs/files.md) to learn about the file types supported, and how to create them.
 
-Each node has the following attributes:
 
-  - __source_id__ (str): content's original id
-  - __title__ (str): content's title
-  - __license__ (str or License): content's license id or object
-  - __description__ (str): description of content (optional)
-  - __author__ (str): who created the content (optional)
-  - __thumbnail__ (str or ThumbnailFile): path to thumbnail or file object (optional)
-  - __files__ ([FileObject]): list of file objects for node (optional)
-  - __extra_fields__ (dict): any additional data needed for node (optional)
-  - __domain_ns__ (uuid): who is providing the content (e.g. learningequality.org) (optional)
+## Further reading
 
-**IMPORTANT**: nodes representing distinct pieces of content MUST have distinct `source_id`s.
-Each node has a `content_id` (computed as a function of the `source_domain` and the node's `source_id`) that uniquely identifies a piece of content within Kolibri for progress tracking purposes. For example, if the same video occurs in multiple places in the tree, you would use the same `source_id` for those nodes -- but content nodes that aren't for that video need to have different `source_id`s.
-
-All non-topic nodes must be assigned a license upon initialization. You can use the license's id (found under `le_utils.constants.licenses`) or create a license object from `ricecooker.classes.licenses` (recommended). When initializing a license object, you  can specify a __copyright_holder__ (str), or the person or organization who owns the license. If you are unsure which license class to use, a `get_license` method has been provided that takes in a license id and returns a corresponding license object.
-
-For example:
-```
-from ricecooker.classes.licenses import get_license
-from le_utils.constants import licenses
-
-node = VideoNode(
-    license = get_license(licenses.CC_BY, copyright_holder="Khan Academy"),
-    ...
-)
-```
-
-Thumbnails can also be passed in as a path to an image (str) or a ThumbnailFile object. Files can be passed in upon initialization, but can also be added at a later time. More details about how to create a file object can be found in the next section. VideoNodes also have a __derive_thumbnail__ (boolean) argument, which will automatically extract a thumbnail from the video if no thumbnails are provided.
-
-Once you have created the node, add it to a parent node with `parent_node.add_child(child_node)`
-
-
-
-### Step 4a: Adding Files ###
-
-To add a file to your node, you must start by creating a file object from `ricecooker.classes.files`. Your sushi chef is responsible for determining which file object to create. Here are the available file models:
-
-  - __ThumbnailFile__: png or jpg files to add to any kind of node
-  - __AudioFile__: mp3 file
-  - __DocumentFile__: pdf file
-  - __HTMLZipFile__: zip of html files (must have `index.html` file at topmost level)
-  - __VideoFile__: mp4 file (can be high resolution or low resolution)
-  - __SubtitleFile__: vtt files to be used with VideoFiles
-  - __WebVideoFile__: video downloaded from site such as YouTube or Vimeo
-  - __YouTubeVideoFile__: video downloaded from YouTube using a youtube video id
-
-
-Each file class can be passed a __preset__ and __language__ at initialization (SubtitleFiles must have a language set at initialization). A preset determines what kind of file the object is (e.g. high resolution video vs. low resolution video). A list of available presets can be found at `le_utils.constants.format_presets`. A list of available languages can be found at `le_utils.constants.languages`.
-
-ThumbnailFiles, AudioFiles, DocumentFiles, HTMLZipFiles, VideoFiles, and SubtitleFiles must be initialized with a __path__ (str). This path can be a url or a local path to a file.
-```
-from le_utils.constants import languages
-
-file_object = SubtitleFile(
-    path = "file:///path/to/file.vtt",
-    language = languages.getlang('en').code,
-    ...
-)
-```
-
-VideoFiles can also be initialized with __ffmpeg_settings__ (dict), which will be used to determine compression settings for the video file.
-```
-file_object = VideoFile(
-    path = "file:///path/to/file.mp3",
-    ffmpeg_settings = {"max_width": 480, "crf": 20},
-    ...
-)
-```
-
-WebVideoFiles must be given a __web_url__ (str) to a video on YouTube or Vimeo, and YouTubeVideoFiles must be given a __youtube_id__ (str). WebVideoFiles and YouTubeVideoFiles can also take in __download_settings__ (dict) to determine how the video will be downloaded and __high_resolution__ (boolean) to determine what resolution to download.
-```
-file_object = WebVideoFile(
-    web_url = "https://vimeo.com/video-id",
-    ...
-)
-
-file_object = YouTubeVideoFile(
-    youtube_id = "abcdef",
-    ...
-)
-```
-
-
-
-### Step 4b: Adding Exercises ###
-
-ExerciseNodes are special objects that have questions used for assessment. To add a question to your exercise, you must first create a question model from `ricecooker.classes.questions`. Your sushi chef is responsible for determining which question type to create. Here are the available question types:
-
-  - __PerseusQuestion__: special question type for pre-formatted perseus questions
-  - __MultipleSelectQuestion__: questions that have multiple correct answers (e.g. check all that apply)
-  - __SingleSelectQuestion__: questions that only have one right answer (e.g. radio button questions)
-  - __InputQuestion__: questions that have text-based answers (e.g. fill in the blank)
-
-
-Each question class has the following attributes that can be set at initialization:
-
-  - __id__ (str): question's unique id
-  - __question__ (str): question body, in plaintext or Markdown format; math expressions must be in Latex format, surrounded by `$`, e.g. `$ f(x) = 2 ^ 3 $`.
-  - __answers__ ([{'answer':str, 'correct':bool}]): answers to question, also in plaintext or Markdown
-  - __hints__ (str or [str]): optional hints on how to answer question, also in plaintext or Markdown
-
-
-To set the correct answer(s) for MultipleSelectQuestions, you must provide a list of all of the possible choices as well as an array of the correct answers (`all_answers [str]`) and `correct_answers [str]` respectively).
-```
-question = MultipleSelectQuestion(
-    question = "Select all prime numbers.",
-    correct_answers = ["2", "3", "5"],
-    all_answers = ["1", "2", "3", "4", "5"],
-    ...
-)
-```
-
-To set the correct answer(s) for SingleSelectQuestions, you must provide a list of all possible choices as well as the correct answer (`all_answers [str]` and `correct_answer str` respectively).
-```
-question = SingleSelectQuestion(
-    question = "What is 2 x 3?",
-    correct_answer = "6",
-    all_answers = ["2", "3", "5", "6"],
-    ...
-)
-```
-
-To set the correct answer(s) for InputQuestions, you must provide an array of all of the accepted answers (`answers [str]`).
-```
-question = InputQuestion(
-    question = "Name a factor of 10.",
-    answers = ["1", "2", "5", "10"],
-)
-```
-
-To add images to a question's question, answers, or hints, format the image path with `'![](path/to/some/file.png)'` and the rice cooker will parse them automatically.
-
-
-In order to set the criteria for completing exercises, you must set __exercise_data__ to equal a dict containing a mastery_model field based on the mastery models provided under `le_utils.constants.exercises`. If no data is provided, the rice cooker will default to mastery at 3 of 5 correct. For example:
-```
-node = ExerciseNode(
-    exercise_data={
-        'mastery_model': exercises.M_OF_N,
-        'randomize': True,
-        'm': 3,
-        'n': 5,
-    },
-    ...
-)
-```
-
-Once you have created the appropriate question object, add it to an exercise object with `exercise_node.add_question(question)`
-
-
-
-### Step 5: Running your chef script ###
-
-Your sushi chef scripts will run as standalone command line application
-`mychef.py` which you can call from the command line.
-
-To make the script file `mychef.py` a command line program, you need to do three things:
-
-  - Add the line `#!/usr/bin/env python` as the first line of `mychef.py`
-  - Add this code block at the bottom of `mychef.py`:
-
-        if __name__ == '__main__':
-            chef = MySushiChef()
-            chef.main()
-
-  - Make the file `mychef.py` executable by running `chmod +x mychef.py` on the
-    command line.
-
-The final chef script file `mychef.py` should look like this:
-
-    #!/usr/bin/env python
-    ...
-    ...
-    class MySushiChef(SushiChef):
-        channel_info = { ... }
-        def construct_channel(**kwargs):
-            ...
-            ...
-    ...
-    ...
-    if __name__ == '__main__':
-        chef = MySushiChef()
-        chef.main()
-
-You can now call the script by passing the appropriate command line arguments:
-
-    ./mychef.py -v --token=YOURTOKENHERE9139139f3a23232 --reset
-
-To see the help menu, type
-
-    ./mychef.py -h
-
-Here the full list of the supported command line args:
-
-   - `-h` (help) will print how to use the rice cooker
-   - `-v` (verbose) will print what the rice cooker is doing
-   - `-u` (update) will force the ricecooker to redownload all files (skip checking the cache)
-   - `--download-attempts=3` will set the maximum number of times to retry downloading files
-   - `--debug` will print out debugging statements during rice cooking session
-   - `--warn` will print out warnings during rice cooking session
-   - `--quiet` will print out errors during rice cooking session
-   - `--compress` will compress your high resolution videos to save space
-   - `--token` will authorize you to create your channel (obtained in Step 1)
-   - `--resume` will resume your previous rice cooking session
-   - `--step=LAST` will specify at which step to resume your session
-   - `--reset` will automatically start the rice cooker from the beginning
-   - `--prompt` will prompt you to open your channel once it's been uploaded
-   - `--publish` will automatically publish your channel once it's been uploaded
-   - `--daemon` will start the chef in daemon mode (i.e. the chef will not execute
-      immediately; instead, it will wait to receive commands via the Sushi Bar)
-   - `[OPTIONS]` any additional key=value options you would like to pass to your construct_channel method
-
-
-
-### Optional: Resuming the Rice Cooker ###
-
-If your rice cooking session gets interrupted, you can resume from any step that
-has already completed using `--resume --step=<step>` option. If step is not specified,
-the rice cooker will resume from the last step you ran. If the specified step has
-not been reached, the rice cooker will resume from. Other choices for `--step`:
-
-  - __LAST__:                 Resume where the session left off (default)
-  - __INIT__:                 Resume at beginning of session
-  - __CONSTRUCT_CHANNEL__:    Resume with call to construct channel
-  - __CREATE_TREE__:          Resume at set tree relationships
-  - __DOWNLOAD_FILES__:       Resume at beginning of download process
-  - __GET_FILE_DIFF__:        Resume at call to get file diff from Kolibri Studio
-  - __START_UPLOAD__:         Resume at beginning of uploading files to Kolibri Studio
-  - __UPLOADING_FILES__:      Resume at last upload request
-  - __UPLOAD_CHANNEL__:       Resume at beginning of uploading tree to Kolibri Studio
-  - __PUBLISH_CHANNEL__:      Resume at option to publish channel
-  - __DONE__:                 Resume at prompt to open channel
-
+  - Read the [Kolibri Studio docs](http://kolibri-studio.readthedocs.io/en/latest/)
+    to learn more about the Kolibri Studio features
+  - Read the [Kolibri user guide](http://kolibri.readthedocs.io/en/latest/) to learn
+    how to install Kolibri on your machine (useful for testing channels)
+  - Read the [Kolibri developer docs](http://kolibri-dev.readthedocs.io/en/latest/)
+    to learn about the inner workings of Kolibri.

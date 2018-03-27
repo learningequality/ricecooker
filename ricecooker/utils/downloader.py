@@ -31,26 +31,25 @@ headers = {
 
 def read(path, loadjs=False, session=None, driver=None, timeout=60,
         clear_cookies=True, loadjs_wait_time=3, loadjs_wait_for_callback=None):
-    """ read: Reads from source and returns contents
-        Args:
-            path: (str) url or local path to download
-            loadjs: (boolean) indicates whether to load js (optional)
-            session: (requests.Session) session to use to download (optional)
-            driver: (selenium.webdriver) webdriver to use to download (optional)
-            timeout: (int) Maximum number of seconds to wait for the request to
-                complete.
-            clear_cookies: (boolean) whether to clear cookies.
-            loadjs_wait_time: (int) if loading JS, seconds to wait after the
-                page has loaded before grabbing the page source
-            loadjs_wait_for_callback: (function<selenium.webdriver>) if loading
-                JS, a callback that will be invoked to determine when we can
-                grab the page source. The callback will be called with the
-                webdriver, and should return True when we're ready to grab the
-                page source. For example, pass in an argument like:
-                    lambda driver: driver.find_element_by_id('list-container')
-                to wait for the #list-container element to be present before
-                rendering.
-        Returns: str content from file or page
+    """Reads from source and returns contents
+    
+    Args:
+        path: (str) url or local path to download
+        loadjs: (boolean) indicates whether to load js (optional)
+        session: (requests.Session) session to use to download (optional)
+        driver: (selenium.webdriver) webdriver to use to download (optional)
+        timeout: (int) Maximum number of seconds to wait for the request to complete.
+        clear_cookies: (boolean) whether to clear cookies.
+        loadjs_wait_time: (int) if loading JS, seconds to wait after the
+            page has loaded before grabbing the page source
+        loadjs_wait_for_callback: (function<selenium.webdriver>) if loading
+            JS, a callback that will be invoked to determine when we can
+            grab the page source. The callback will be called with the
+            webdriver, and should return True when we're ready to grab the
+            page source. For example, pass in an argument like:
+            ``lambda driver: driver.find_element_by_id('list-container')``
+            to wait for the #list-container element to be present before rendering.
+    Returns: str content from file or page
     """
     session = session or DOWNLOAD_SESSION
 
@@ -131,25 +130,22 @@ def download_static_assets(doc, destination, base_url,
         request_fn=make_request, url_blacklist=[], js_middleware=None,
         css_middleware=None, derive_filename=_derive_filename):
     """Download all static assets referenced from an HTML page.
-
     The goal is to easily create HTML5 apps! Downloads JS, CSS, images, and
     audio clips.
-
-    doc: The HTML page source as a string or BeautifulSoup instance.
-    destination: The folder to download the static assets to!
-    base_url: The base URL where assets will be downloaded from.
-    request_fn: The function to be called to make requests, passed to
-        ricecooker.utils.html.download_file(). Pass in a custom one for custom
-        caching logic.
-    url_blacklist: A list of keywords of files to not include in downloading.
-        Will do substring matching, so e.g. 'acorn.js' will match
-        '/some/path/to/acorn.js'.
-    js_middleware: If specificed, JS content will be passed into this callback
-        which is expected to return JS content with any modifications.
-    css_middleware: If specificed, CSS content will be passed into this callback
-        which is expected to return CSS content with any modifications.
-    derive_filename: A callback that is passed the URL to fetch and returns the
-        filename to save the file as. (optional)
+    Args:
+        doc: The HTML page source as a string or BeautifulSoup instance.
+        destination: The folder to download the static assets to!
+        base_url: The base URL where assets will be downloaded from.
+        request_fn: The function to be called to make requests, passed to
+            ricecooker.utils.html.download_file(). Pass in a custom one for custom
+            caching logic.
+        url_blacklist: A list of keywords of files to not include in downloading.
+            Will do substring matching, so e.g. 'acorn.js' will match
+            '/some/path/to/acorn.js'.
+        js_middleware: If specificed, JS content will be passed into this callback
+            which is expected to return JS content with any modifications.
+        css_middleware: If specificed, CSS content will be passed into this callback
+            which is expected to return CSS content with any modifications.
 
     Return the modified page HTML with links rewritten to the locations of the
     downloaded static files, as a BeautifulSoup object. (Call str() on it to

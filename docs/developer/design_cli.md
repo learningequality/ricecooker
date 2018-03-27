@@ -1,16 +1,16 @@
-New `ricecooker` API
-====================
+Command line interface
+======================
 
-What: a new way to parse command line arguments and use the ricecooker
-
-Why: need new command line options for sushibar, and to allow chef scripts to define their own
-
-How: subclassing and `argparse` parsers linked via `parents`
+This document describes logic `ricecooker` uses to parse command line arguments.
+Under normal use cases you shouldn't need modify the command line parsing, but 
+you need to understand how `argparse` works if you want to add new command line
+arguments for your chef script.
 
 
 Summary
 -------
 A sushi chef script using the new API looks like this:
+
 
     #!/usr/bin/env python
     ...
@@ -36,11 +36,11 @@ The call to `chef.main()` results in the following sequence of six calls:
                                   1. main()
                                   2. parse_args_and_options()
                                   3. run(args, options)
-                                                             4. uploadchannel(chef, **args, **options)
+                                                             4. uploadchannel(chef, *args, **options)
                                                              ...
-    5. get_channel(*kwargs)
+    5. get_channel(**kwargs)
                                                              ...
-    6. construct_channel(*kwargs)
+    6. construct_channel(**kwargs)
                                                              ...
                                                              ...
                                                              DONE
@@ -67,8 +67,7 @@ Changes
                 ...
 
   - Each chef script is a standalone python executable.
-    The `main` method of the chef instance is the entry point used by a chef script
-    to start the ricecooker:
+    The `main` method of the chef instance is the entry point used by a chef script:
 
         #!/usr/bin/env python
         ...
@@ -134,11 +133,11 @@ The call to `chef.main()` results in the following sequence of events:
                                   1. main()
                                   2. parse_args_and_options()
                                   3. run(args, options)
-                                                             4. uploadchannel(chef, **args, **options)
+                                                             4. uploadchannel(chef, *args, **options)
                                                              ...
                                                              ...
-                                  5. construct_channel(*kwargs)
-    5'. construct_channel(*kwargs)
+                                  5. construct_channel(**kwargs)
+    5'. construct_channel(**kwargs)
                                                              ...
                                                              ...
                                                              DONE
@@ -193,20 +192,5 @@ After finishing the run, a chef started with the `--daemon` option remains conne
 to the SushiBar server and listens for more commands.
 
 
-
-
-Possible alternative to get_channel method API
-----------------------------------------------
-
-Instead of `get_channel` we can rely on the info in `self.channel_info` (dict).
-If they need extensibility, they can define a `get_channel_info` method that
-returns a dict (this way users don't need to know what a `ChannelNode` is to provide the info).
-
-The sushi bar integration code can get the channel_id using
-
-    uuid.uuid5(
-        uuid.uuid5(uuid.NAMESPACE_DNS, channel_info['CHANNEL_SOURCE_DOMAIN']),
-        channel_info['CHANNEL_SOURCE_ID']
-    ).hex
 
 
