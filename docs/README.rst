@@ -53,7 +53,7 @@ Use the following shortcuts to jump to the most relevant parts of the
       for information about how to prepare "spec sheets" that guide
       developers how to import content into the Kolibri ecosystem.
    -  The Non-technical of particular interest is the `CSV
-      workflow <csv_exercises.md>`__ channel metadata as
+      workflow <csv_metadata/README.md>`__ channel metadata as
       spreadsheets
 
 -  **Chef authors** can read the remainder of this README, and get
@@ -75,9 +75,9 @@ Use the following shortcuts to jump to the most relevant parts of the
    -  `Exercises <exercises.md>`__
    -  `HTML5 apps <htmlapps.md>`__
    -  `Parsing HTML <parsing_html.md>`__
-   -  `Running chef scripts <chefops.md>`__ to learn about the command
-      line args, for controlling chef operation, managing caches, and
-      other options.
+   -  `Running chef scripts <chefops.md>`__ to learn about the
+      command line args, for controlling chef operation, managing
+      caches, and other options.
    -  `Sushi chef style
       guide <https://docs.google.com/document/d/1_Wh7IxPmFScQSuIb9k58XXMbXeSM0ZQLkoXFnzKyi_s/edit>`__
 
@@ -90,8 +90,8 @@ Use the following shortcuts to jump to the most relevant parts of the
    -  `Running chef scripts <chefops.md>`__, also known as **chefops**.
    -  `Running chef scripts in daemon
       mode <developer/daemonization.md>`__
-   -  `Managing the content pipeline <developer/sushops.md>`__, also
-      known as **sushops**.
+   -  `Managing the content pipeline <developer/sushops.md>`__,
+      also known as **sushops**.
 
 Installation
 ------------
@@ -223,5 +223,5 @@ Further reading
    docs <http://kolibri-dev.readthedocs.io/en/latest/>`__ to learn about
    the inner workings of Kolibri.
 
-.. |The Kolibri Content Pipeline| image:: figures/content_pipeline_diagram.png
+.. |The Kolibri Content Pipeline| image:: https://raw.githubusercontent.com/learningequality/ricecooker/master/figures/content_pipeline_diagram.png
 

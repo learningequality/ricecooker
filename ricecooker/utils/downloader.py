@@ -129,9 +129,11 @@ def _derive_filename(url):
 def download_static_assets(doc, destination, base_url,
         request_fn=make_request, url_blacklist=[], js_middleware=None,
         css_middleware=None, derive_filename=_derive_filename):
-    """Download all static assets referenced from an HTML page.
+    """
+    Download all static assets referenced from an HTML page.
     The goal is to easily create HTML5 apps! Downloads JS, CSS, images, and
     audio clips.
+
     Args:
         doc: The HTML page source as a string or BeautifulSoup instance.
         destination: The folder to download the static assets to!

@@ -7,7 +7,7 @@ applications talk to when they import content.
 
 The Kolibri content pipeline is pictured below:
 
-![The Kolibri Content Pipeline](docs/figures/content_pipeline_diagram.png)
+![The Kolibri Content Pipeline](https://raw.githubusercontent.com/learningequality/ricecooker/master/docs/figures/content_pipeline_diagram.png)
 
 This `ricecooker` framework is the "main actor" in the first part of the content
 pipeline, and touches all aspects of the pipeline within the region highlighted
@@ -36,12 +36,12 @@ documentation depending on your role:
 
   - **Content specialists and Administrators** can read the non-technical part
     of the documentation to learn about how content works in the Kolibri platform.
-    - The best place to start is the [Kolibri Platform overview](platform/README.md).
-    - Read more about the supported [content types here](platform/content_types.md)
+    - The best place to start is the [Kolibri Platform overview](docs/platform/README.md).
+    - Read more about the supported [content types here](docs/platform/content_types.md)
     - Content curators can consult [this document](https://docs.google.com/document/d/1slwoNT90Wqu0Rr8MJMAEsA-9LWLRvSeOgdg9u7HrZB8/edit?usp=sharing)
       for information about how to prepare "spec sheets" that guide developers how
       to import content into the Kolibri ecosystem.
-    - The Non-technical of particular interest is the [CSV workflow](docs/csv_exercises.md)
+    - The Non-technical of particular interest is the [CSV workflow](docs/csv_metadata/README.md)
       channel metadata as spreadsheets
 
 
@@ -60,7 +60,7 @@ documentation depending on your role:
       - [Exercises](docs/exercises.md)
       - [HTML5 apps](docs/htmlapps.md)
       - [Parsing HTML](docs/parsing_html.md)
-      - [Running chef scripts](chefops.md) to learn about the command line args,
+      - [Running chef scripts](docs/chefops.md) to learn about the command line args,
         for controlling chef operation, managing caches, and other options. 
       - [Sushi chef style guide](https://docs.google.com/document/d/1_Wh7IxPmFScQSuIb9k58XXMbXeSM0ZQLkoXFnzKyi_s/edit)
 
@@ -70,8 +70,8 @@ documentation depending on your role:
     additional information info about the "behind the scenes" work needed to
     support the Kolibri content pipeline:
     - [Running chef scripts](chefops.md), also known as **chefops**.
-    - [Running chef scripts in daemon mode](developer/daemonization.md)
-    - [Managing the content pipeline](developer/sushops.md), also known as **sushops**.
+    - [Running chef scripts in daemon mode](docs/developer/daemonization.md)
+    - [Managing the content pipeline](docs/developer/sushops.md), also known as **sushops**.
 
 
 
