@@ -8,7 +8,7 @@ import string
 import uuid
 import zipfile
 
-from le_utils.constants import licenses, content_kinds, exercises
+from le_utils.constants import licenses, content_kinds, exercises, roles
 from ricecooker.classes.nodes import ChannelNode, TopicNode, VideoNode, AudioNode, DocumentNode, HTML5AppNode, ExerciseNode
 from ricecooker.classes.files import VideoFile, AudioFile, DocumentFile, HTMLZipFile
 from ricecooker.classes.questions import SingleSelectQuestion, InputQuestion
@@ -185,7 +185,8 @@ def contentnode_base_data(base_data):
     data = copy.deepcopy(base_data)
     data.update({ "license": licenses.CC_BY,
                   "copyright_holder": "Copyright Holder",
-                  "license_description": None})
+                  "license_description": None,
+                  "role": roles.LEARNER})
     return data
 
 
