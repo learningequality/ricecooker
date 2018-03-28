@@ -3,7 +3,7 @@
 import json
 import uuid
 
-from le_utils.constants import content_kinds, exercises, file_formats, format_presets, languages
+from le_utils.constants import content_kinds, exercises, file_formats, format_presets, languages, roles
 
 from ricecooker.classes.files import NodeFile
 from .licenses import License
@@ -11,7 +11,7 @@ from .. import config, __version__
 from ..exceptions import InvalidNodeException
 
 MASTERY_MODELS = [id for id, name in exercises.MASTERY_MODELS]
-
+ROLES = [id for id, name in roles.choices]
 
 class Node(object):
     """ Node: model to represent all nodes in the tree """
@@ -423,7 +423,8 @@ class ContentNode(TreeNode):
     """
     required_file_format = None
 
-    def __init__(self, source_id, title, license, license_description=None, copyright_holder=None, **kwargs):
+    def __init__(self, source_id, title, license, role=roles.LEARNER, license_description=None, copyright_holder=None, **kwargs):
+        self.role = role
         self.set_license(license, copyright_holder=copyright_holder, description=license_description)
         super(ContentNode, self).__init__(source_id, title, **kwargs)
 
@@ -443,6 +444,7 @@ class ContentNode(TreeNode):
             Args: None
             Returns: boolean indicating if content node is valid
         """
+        assert self.role in ROLES, "Assumption Failed: Role must be one of the following {}".format(ROLES)
         assert isinstance(self.license, str) or isinstance(self.license, License), "Assumption Failed: License is not a string or license object"
         self.license.validate()
         # if self.required_file_format:
@@ -474,6 +476,7 @@ class ContentNode(TreeNode):
             "copyright_holder": self.license.copyright_holder,
             "questions": [question.to_dict() for question in self.questions],
             "extra_fields": json.dumps(self.extra_fields),
+            "role": self.role,
         }
 
 
