@@ -145,7 +145,7 @@ def build_tree_from_json(parent_node, sourcetree):
                 description=source_node.get("description"),
                 language=source_node.get('language', None),
                 thumbnail=source_node.get("thumbnail"),
-                exercise_data=source_node["exercise_data"],
+                exercise_data=source_node.get("exercise_data"),
                 questions=[],
             )
             add_questions(child_node, source_node.get("questions") or [])
