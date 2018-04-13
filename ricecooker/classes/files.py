@@ -16,7 +16,7 @@ from cachecontrol.caches.file_cache import FileCache
 from le_utils.constants import file_formats, format_presets, exercises
 from pressurecooker.encodings import get_base64_encoding, write_base64_to_file
 from pressurecooker.images import create_tiled_image
-from pressurecooker.videos import extract_thumbnail_from_video, guess_video_preset_by_resolution, compress_video
+from pressurecooker.videos import extract_thumbnail_from_video, guess_video_preset_by_resolution, compress_video, VideoCompressionError
 from requests.exceptions import MissingSchema, HTTPError, ConnectionError, InvalidURL, InvalidSchema
 
 from .. import config
@@ -449,7 +449,7 @@ class VideoFile(DownloadFile):
                 return self.filename
 
         # Catch errors related to ffmpeg and handle silently
-        except (BrokenPipeError, CalledProcessError, IOError) as err:
+        except (BrokenPipeError, CalledProcessError, IOError, VideoCompressionError) as err:
             self.error = err
             config.FAILED_FILES.append(self)
 
