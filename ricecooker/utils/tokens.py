@@ -36,7 +36,7 @@ def get_content_curation_token(args_token):
         else:
             return args_token
     else:                                               # retrieval strategies 3
-        token = get_env('CONTENT_CURATION_TOKEN')
+        token = get_env('STUDIO_TOKEN') or get_env('CONTENT_CURATION_TOKEN')
         if token is not None:
             return token                                # 3a
         else:
