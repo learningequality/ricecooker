@@ -547,7 +547,6 @@ def test_audio_to_dict(audio, audio_data):
     audio_dict = audio.to_dict()
     audio_dict.pop('files')
     expected_files = audio_data.pop('files')
-    print('zzz', audio.files, expected_files)
     assert audio.files == expected_files, "Audio files do not match"
     for key, _ in audio_data.items():
         assert key in audio_dict, "Key {} is not found in to_dict method".format(key)
