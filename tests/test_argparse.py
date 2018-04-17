@@ -171,6 +171,6 @@ def test_same_as_docopt(command_line_inputs):
         del args['debug']  # new logging option was not present in docopt parser
 
         added, removed, modified, same = dict_compare(orig_args, args)
-        print('different', added, removed, modified)
+        # print('different', added, removed, modified)
         assert orig_args == args, 'docopt arguments differ from argparse args'
         assert kwargs == options, 'extra key=value options differ'
