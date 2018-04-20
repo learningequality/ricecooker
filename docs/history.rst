@@ -3,6 +3,13 @@ History
 =======
 
 
+0.6.17 (2018-04-20)
+-------------------
+* Added support for ``role`` attribute on ConentNodes (currently ``coach`` || ``learner``) 
+* Update pressurecooker dependency (to catch compression errors)
+* Docs improvements, see https://github.com/learningequality/ricecooker/tree/master/docs
+
+
 0.6.15 (2018-03-06)
 -------------------
 * Added support for non-mp4 video files, with auto-conversion using ffmpeg. See ``git diff b1d15fa 87f2528``
