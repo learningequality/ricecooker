@@ -300,14 +300,16 @@ class TreeNode(Node):
             author (str): who created the content (optional)
             thumbnail (str): local path or url to thumbnail image (optional)
             files ([<File>]): list of file objects for node (optional)
+            tags ([str]): list of tags for node (optional)
             extra_fields (dict): any additional data needed for node (optional)
             domain_ns (str): who is providing the content (e.g. learningequality.org) (optional)
     """
-    def __init__(self, source_id, title, author="", extra_fields=None, domain_ns=None, **kwargs):
+    def __init__(self, source_id, title, author="", tags=None, extra_fields=None, domain_ns=None, **kwargs):
         # Map parameters to model variables
         assert isinstance(source_id, str), "source_id must be a string"
         self.source_id = source_id
         self.author = author or ""
+        self.tags = tags or []
         self.domain_ns = domain_ns
         self.questions = self.questions if hasattr(self, 'questions') else [] # Needed for to_dict method
         self.extra_fields = extra_fields or {}
@@ -356,6 +358,7 @@ class TreeNode(Node):
             "source_id": self.source_id,
             "author": self.author,
             "files" : [f.to_dict() for f in self.files if f and f.filename], # Filter out failed downloads
+            "tags": self.tags,
             "kind": self.kind,
             "license": None,
             "license_description": None,
@@ -470,6 +473,7 @@ class ContentNode(TreeNode):
             "source_id": self.source_id,
             "author": self.author,
             "files" : [f.to_dict() for f in filter(lambda x: x and x.filename, self.files)], # Filter out failed downloads
+            "tags": self.tags,
             "kind": self.kind,
             "license": self.license.license_id,
             "license_description": self.license.description,

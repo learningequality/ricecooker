@@ -91,6 +91,7 @@ def base_data(channel_domain_namespace, title):
         "author": "Author",
         "source_domain": channel_domain_namespace.hex,
         "files" : [],
+        "tags": [],
         "questions": [],
         "extra_fields": "{}",  # because Ricecookr uses `json.dumps` for this field
         "license": None,
