@@ -22,7 +22,7 @@ and shows the associated file and question classes that content nodes can contai
           ricecooker.classes.nodes
           |
           |                                               ricecooker.classes.files
-    class Node(object)                                    |    
+    class Node(object)                                    |
         class ChannelNode(Node)                           |
         class TreeNode(Node)                              |
             class TopicNode(TreeNode)                     |
@@ -70,6 +70,12 @@ for progress tracking purposes. For example, if the same video occurs in multipl
 places in the tree, you would use the same `source_id` for those nodes -- but
 content nodes that aren't for that video need to have different `source_id`s.
 
+### Usability guidelines
+
+- Thumbnails: 16:9 aspect ratio ideally (e.g. 420x236 pixels)
+- Titles: Aim for titles that make content items reusable independently of their containing folder, since curators could copy content items to other topics or channels.  e.g. title for pdf doc "{lesson_name} - instructions.pdf" is better than just "Instructions.pdf" since that PDF could show up somewhere else.
+- Descriptions: aim for about 400 characters (about 3-4 sentences)
+- Licenses: Any non-public domain license must have a copyright holder, and any special permissions licenses must have a license description.
 
 
 ### Licenses
@@ -120,7 +126,7 @@ See [languages][./languages.md] to read more about language codes.
 
 ### Thumbnails
 Thumbnails can be passed in as a local filesystem path to an image file (str) or
-a `ThumbnailFile` object. 
+a `ThumbnailFile` object.
 The recommended size for thumbnail images is 420px by 236px (aspect ratio 16:9).
 
 
@@ -154,7 +160,7 @@ topic nodes based on the thumbnails of the content nodes they contain.
 Content nodes
 -------------
 The table summarizes summarizes the content node classes, their associated files,
-and the file formats supported by each file class: 
+and the file formats supported by each file class:
 
       ricecooker.classes.nodes  ricecooker.classes.files
       |                         |
@@ -255,7 +261,7 @@ to see a samples of questions in the perseus json format.
 
 To following code creates an exercise node with a single perseus question in it:
 
-    # LOAD JSON DATA (as string) FOR PERSEUS QUESTIONS    
+    # LOAD JSON DATA (as string) FOR PERSEUS QUESTIONS
     RAW_PERSEUS_JSON_STR = open('ricecooker/examples/data/perseus_graph_question.json', 'r').read()
     # or
     # import requests
