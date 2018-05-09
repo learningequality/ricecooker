@@ -64,8 +64,8 @@ See the source code:
 
 
 
-Static assets download utilty
------------------------------
+Static assets download utility
+------------------------------
 
 We have a handy function for fetching all of a webpage's static assets (JS, CSS, images, etc.), so that, in theory, you could scrape a webpage and display it in Kolibri exactly as you see it in the website itself in your browser. See:
 
