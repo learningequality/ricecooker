@@ -24,6 +24,20 @@ Example of HTML5App nodes
 
 
 
+Usability guidelines
+--------------------
+
+- There _must_ be an index.html file at the topmost level of the zip file, otherwise no app will be shown
+- Text should be legible (high contrast, reasonable font size)
+- Responsive: text should reflow to fit screens of different sizes. You can preview on a mobile device (or use Chrome’s mobile emulation mode) and ensure that the text fits in the viewport and doesn’t require horizontal scrolling (a maximum width is OK but minimum widths can cause trouble).
+- Ensure navigation within HTML5App is easy to use:
+    - consistent use of navigation links (e.g. side menu with sections)
+    - consistent use of prev/next links
+- Ensure links to external websites are disabled (remove `<a></a>` tag), and instead show the `href` in brackets next to the link text (so that potentially users could access URL by other means)
+    - e.g., "some other text  link text (http://link.url)  and more text continues"
+
+
+
 Links and navigation
 --------------------
 It's currently not possible to have navigation links between different HTML5App nodes,
@@ -70,4 +84,4 @@ It also includes a sidebar for those apps where you may want internal navigation
 
 How to decide between the static assets downloader (above) and this starter template? Prefer the static assets downloader if it makes sense to keep the source styling or JS, such as in the case of an interactive app (e.g. [Blockly Games](https://github.com/learningequality/sushi-chef-blockly-games)) or an app-like reader (e.g. [African Storybook](https://github.com/learningequality/sushi-chef-african-storybook)). If the source is mostly a text blob or an article -- and particularly if the source styling is not readable or appealing -- using the template could make sense, especially given that the template is designed for readability.
 
-The general principles are that content should be legible, responsive, easy to navigate, and in "look good" (you define "good" :P). Use your judgement on whatever approach makes sense and that you can use effectively!
+The bottom line is ensure the content meets the guidelines layed out above -- legible, responsive, easy to navigate, and "look good" (you define "good" :P). Fulfilling that, use your judgement on whatever approach makes sense and that you can use effectively!
