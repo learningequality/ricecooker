@@ -154,7 +154,10 @@ subs_file = SubtitleFile(
 
 You can also get subtitles using `YouTubeSubtitleFile` which takes a `youtube_id`
 and youtube `language` code (may be different from internal language codes).
-
+Use the helper method `is_youtube_subtitle_file_supported_language` to test if
+a given youtube language code is supported by `YouTubeSubtitleFile` and skip the
+ones that are not currently supported. Please let the LE content team know when
+you run into language codes that are not supported so we can add them.
 
 
 
