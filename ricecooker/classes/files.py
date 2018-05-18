@@ -499,7 +499,12 @@ class YouTubeSubtitleFile(File):
         # if language_obj not None, we know `language` is a valid language_id in the internal repr.
         if language_obj is None:  # if `language` not found using internal repr.
             language_obj = languages.getlang_by_alpha2(language)  # try to match by two-letter ISO code
-            language = language_obj.code   # update `language` argument from internal repr. language_id
+            # no matches were found
+            if language_obj is None:
+                config.LOGGER.error("Missing language code {}".format(language))
+                language = 'en'
+            else:
+                language = language_obj.code   # update `language` argument from internal repr. language_id
         super(YouTubeSubtitleFile, self).__init__(language=language, **kwargs)
         assert self.language, "Subtitles must have a language"
 
