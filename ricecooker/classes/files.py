@@ -509,6 +509,7 @@ def is_youtube_subtitle_file_supported_language(language):
     """
     language_obj = _get_language_with_alpha2_fallback(language)
     if language_obj is None:
+        config.LOGGER.warning("Found unsupported language code {}".format(language))
         return False
     else:
         return True
