@@ -180,7 +180,8 @@ class BaseQuestion:
         exercise_file.assessment_item = self
         filename = exercise_file.process_file()
 
-        text = text.replace(path_text, exercises.CONTENT_STORAGE_FORMAT.format(exercise_file.get_replacement_str()))
+        # Need to replace text's web+graphie with https to get text matches
+        text = text.replace("web+graphie://", "https://").replace(path_text, exercises.CONTENT_STORAGE_FORMAT.format(exercise_file.get_replacement_str()))
 
         return text, [exercise_file]
 
@@ -283,6 +284,7 @@ class PerseusQuestion(BaseQuestion):
             new_key, fs = self.set_image(k)
             files += fs
             new_data[new_key] = new_data.pop(k)
+            data['content'] = data['content'].replace(k, new_key) # Need to replace urls in content
         return new_data, files
 
     def _recursive_url_find(self, item, image_list):
