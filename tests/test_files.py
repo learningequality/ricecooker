@@ -7,6 +7,7 @@ import tempfile
 from le_utils.constants import content_kinds, languages
 from ricecooker.classes.nodes import *
 from ricecooker.classes.files import *
+from ricecooker.classes.files import _get_language_with_alpha2_fallback
 from ricecooker import config
 
 
@@ -223,6 +224,45 @@ def test_youtubevideo_to_dict():
 
 
 """ *********** YOUTUBESUBTITLEFILE TESTS *********** """
+
+@pytest.fixture
+def subtitles_langs_internal():
+    return ['en', 'es', 'pt-BR']
+
+@pytest.fixture
+def subtitles_langs_pycountry_mappable():
+    return ['zu']
+
+@pytest.fixture
+def subtitles_langs_youtube_custom():
+    return ['iw', 'zh-Hans', 'pt-BR']
+
+@pytest.fixture
+def subtitles_langs_ubsupported():
+    return ['sgn', 'zzzza', 'ab-dab', 'bbb-qqq']
+
+def test_is_youtube_subtitle_file_supported_language(subtitles_langs_internal,
+                                                     subtitles_langs_pycountry_mappable,
+                                                     subtitles_langs_youtube_custom):
+    for lang in subtitles_langs_internal:
+        assert is_youtube_subtitle_file_supported_language(lang), 'should be supported'
+        lang_obj = _get_language_with_alpha2_fallback(lang)
+        assert lang_obj is not None, 'lookup should return Language object'
+    for lang in subtitles_langs_pycountry_mappable:
+        assert is_youtube_subtitle_file_supported_language(lang), 'should be supported'
+        lang_obj = _get_language_with_alpha2_fallback(lang)
+        assert lang_obj is not None, 'lookup should return Language object'
+    for lang in subtitles_langs_youtube_custom:
+        assert is_youtube_subtitle_file_supported_language(lang), 'should be supported'
+        lang_obj = _get_language_with_alpha2_fallback(lang)
+        assert lang_obj is not None, 'lookup should return Language object'
+
+def test_is_youtube_subtitle_file_unsupported_language(subtitles_langs_ubsupported):
+    for lang in subtitles_langs_ubsupported:
+        assert not is_youtube_subtitle_file_supported_language(lang), 'should not be supported'
+        lang_obj = _get_language_with_alpha2_fallback(lang)
+        assert lang_obj is None, 'lookup should fail'
+
 def test_youtubesubtitle_process_file():
     assert True
 

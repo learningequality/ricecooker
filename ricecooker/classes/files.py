@@ -482,25 +482,54 @@ class YouTubeVideoFile(WebVideoFile):
     def __init__(self, youtube_id, **kwargs):
         super(YouTubeVideoFile, self).__init__('http://www.youtube.com/watch?v={}'.format(youtube_id), **kwargs)
 
+
+
+
+def _get_language_with_alpha2_fallback(language_code):
+    """
+    Lookup language code `language_code` (string) in the internal language codes,
+    and if that fails, try to map map `language_code` to the internal represention
+    using the `getlang_by_alpha2` helper method.
+    Returns either a le-utils Language object or None if both lookups fail.
+    """
+    # 1. try to lookup `language` using internal representation
+    language_obj = languages.getlang(language_code)
+    # if language_obj not None, we know `language` is a valid language_id in the internal repr.
+    if language_obj is None:
+        # 2. try to match by two-letter ISO code
+        language_obj = languages.getlang_by_alpha2(language_code)
+    return language_obj
+
+def is_youtube_subtitle_file_supported_language(language):
+    """
+    Check if the language code `language` (string) is a valid language code in the 
+    internal language id format `{primary_code}` or `{primary_code}-{subcode}`
+    ot alternatively if it s YouTube language code that can be mapped to one of
+    the languages in the internal represention.
+    """
+    language_obj = _get_language_with_alpha2_fallback(language)
+    if language_obj is None:
+        return False
+    else:
+        return True
+
 class YouTubeSubtitleFile(File):
     """
     Helper class for downloading youtube subtitles.
     Args:
        youtube_id (string): YouTube ID of video (required)
        language (string): internal language id format `{primary_code}` or `{primary_code}-{subcode}` (required) \
-                          alternatively, you can provide the language code recognized by YouTube
+                          alternatively, you can provide the language code recognized by YouTube.
+    Use the helper method `is_youtube_subtitle_file_supported_language` to check
+    if `language` is a supported code before creating the `YouTubeSubtitleFile`.
     """
     def __init__(self, youtube_id, language=None, **kwargs):
         self.youtube_url = 'http://www.youtube.com/watch?v={}'.format(youtube_id)
-        if isinstance(language, languages.Language):  # for backward compatibility
+        if isinstance(language, languages.Language):
             language = language.code
-        self.youtube_language = language  # youtube language code (can differ from internal repr.)
-        language_obj = languages.getlang(language)   # lookup `language` using internal representation
-        # if language_obj not None, we know `language` is a valid language_id in the internal repr.
-        if language_obj is None:  # if `language` not found using internal repr.
-            language_obj = languages.getlang_by_alpha2(language)  # try to match by two-letter ISO code
-            language = language_obj.code   # update `language` argument from internal repr. language_id
-        super(YouTubeSubtitleFile, self).__init__(language=language, **kwargs)
+        self.youtube_language = language  # save youtube language code (can differ from internal repr.)
+        language_obj = _get_language_with_alpha2_fallback(language)
+        super(YouTubeSubtitleFile, self).__init__(language=language_obj.code, **kwargs)
         assert self.language, "Subtitles must have a language"
 
     def get_preset(self):
