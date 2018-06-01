@@ -2,85 +2,10 @@
 
 import pytest
 import os.path
-import uuid
-import tempfile
 from le_utils.constants import content_kinds, languages
-from ricecooker.classes.nodes import *
 from ricecooker.classes.files import *
 from ricecooker.classes.files import _get_language_with_alpha2_fallback
 from ricecooker import config
-
-
-""" *********** CHANNEL FIXTURES *********** """
-@pytest.fixture
-def document_file():
-    if not os.path.exists("tests/testcontent/testdocument.pdf"):
-        with open("tests/testcontent/testdocument.pdf", 'wb') as docfile:
-            docfile.write(b'testing')
-    return DocumentFile("tests/testcontent/testdocument.pdf")
-
-@pytest.fixture
-def document_filename():
-    return 'ae2b1fca515949e5d54fb22b8ed95575.pdf'
-
-@pytest.fixture
-def audio_file():
-    if not os.path.exists("tests/testcontent/testaudio.mp3"):
-        with open("tests/testcontent/testaudio.mp3", 'wb') as audiofile:
-            audiofile.write(b'testing')
-    return AudioFile("tests/testcontent/testaudio.mp3")
-
-@pytest.fixture
-def audio_filename():
-    return 'ae2b1fca515949e5d54fb22b8ed95575.mp3'
-
-@pytest.fixture
-def video_file():
-    if not os.path.exists("tests/testcontent/testvideo.mp4"):
-        with open("tests/testcontent/testvideo.mp4", 'wb') as videofile:
-            videofile.write(b'testing')
-    return VideoFile("tests/testcontent/testvideo.mp4")
-
-@pytest.fixture
-def video_filename():
-    return 'ae2b1fca515949e5d54fb22b8ed95575.mp4'
-
-@pytest.fixture
-def thumbnail_file():
-    if not os.path.exists("tests/testcontent/testimage.png"):
-        with open("tests/testcontent/testimage.png", 'wb') as imgfile:
-            imgfile.write(b'testing')
-    return ThumbnailFile("tests/testcontent/testimage.png")
-
-@pytest.fixture
-def thumbnail_filename():
-    return 'ae2b1fca515949e5d54fb22b8ed95575.png'
-
-@pytest.fixture
-def subtitle_file():
-    if not os.path.exists("tests/testcontent/testsubtitles.vtt"):
-        with open("tests/testcontent/testsubtitles.vtt", 'wb') as subtitlefile:
-            subtitlefile.write(b'testing')
-    return SubtitleFile("tests/testcontent/testsubtitles.vtt", language='en')
-
-@pytest.fixture
-def subtitle_filename():
-    return 'ae2b1fca515949e5d54fb22b8ed95575.vtt'
-
-@pytest.fixture
-def html_file():
-    if not os.path.exists("tests/testcontent/testhtml.zip"):
-        with zipfile.ZipFile("tests/testcontent/testhtml.zip", 'w', zipfile.ZIP_DEFLATED) as archive:
-            info = zipfile.ZipInfo('index.html', date_time=(2013, 3, 14, 1, 59, 26))
-            info.comment = "test file".encode()
-            info.compress_type = zipfile.ZIP_STORED
-            info.create_system = 0
-            archive.writestr(info, '<div></div>')
-    return HTMLZipFile("tests/testcontent/testhtml.zip")
-
-@pytest.fixture
-def html_filename():
-    return '3ce367dc18043e18429432677e19e7c2.zip'
 
 
 # Process all of the files

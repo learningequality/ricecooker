@@ -12,48 +12,6 @@ from ricecooker.managers.tree import ChannelManager
 from ricecooker.exceptions import InvalidNodeException
 
 
-""" *********** CHANNEL FIXTURES *********** """
-@pytest.fixture
-def domain_namespace():
-    return "learningequality.org"
-
-@pytest.fixture
-def source_id():
-    return "sample-channel"
-
-@pytest.fixture
-def channel_domain_namespace(domain_namespace):
-    return uuid.uuid5(uuid.NAMESPACE_DNS, domain_namespace)
-
-@pytest.fixture
-def channel_node_id(channel_domain_namespace, source_id):
-    return uuid.uuid5(channel_domain_namespace, source_id)
-
-@pytest.fixture
-def channel_content_id(channel_domain_namespace, channel_node_id):
-    return uuid.uuid5(channel_domain_namespace, channel_node_id.hex)
-
-@pytest.fixture
-def channel(domain_namespace, source_id):
-    channel = ChannelNode(
-        source_id,
-        domain_namespace,
-        "Channel",
-        language="en"
-    )
-    return channel
-
-@pytest.fixture
-def invalid_channel(domain_namespace, source_id):
-    channel = ChannelNode(
-        source_id,
-        domain_namespace,
-        "Channel",
-        language="en"
-    )
-    channel.source_id = None
-    return channel
-
 """ *********** TOPIC FIXTURES *********** """
 @pytest.fixture
 def topic_id():
