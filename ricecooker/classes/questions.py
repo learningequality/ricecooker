@@ -181,7 +181,7 @@ class BaseQuestion:
         filename = exercise_file.process_file()
 
         # Need to replace text's web+graphie with https to get text matches
-        text = text.replace("web+graphie://", "https://").replace(path_text, exercises.CONTENT_STORAGE_FORMAT.format(exercise_file.get_replacement_str()))
+        text = text.replace("web+graphie://", "web+graphie:https://").replace(path_text, exercises.CONTENT_STORAGE_FORMAT.format(exercise_file.get_replacement_str()))
 
         return text, [exercise_file]
 
