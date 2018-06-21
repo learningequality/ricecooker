@@ -298,8 +298,8 @@ class TreeNode(Node):
             license (str or <License>): content's license
             description (str): description of content (optional)
             author (str): who created the content (optional)
-            aggregator (str): who gathered the content together (optional)
-            provider (str): who distributed the content (optional)
+            aggregator (str): website or org hosting the content collection but not necessarily the creator or copyright holder (optional)
+            provider (str): organization that commissioned or is distributing the content (optional)
             thumbnail (str): local path or url to thumbnail image (optional)
             files ([<File>]): list of file objects for node (optional)
             tags ([str]): list of tags for node (optional)
@@ -435,8 +435,8 @@ class ContentNode(TreeNode):
             license (str or <License>): content's license
             description (str): description of content (optional)
             author (str): who created the content (optional)
-            aggregator (str): who gathered the content together (optional)
-            provider (str): who distributed the content (optional)
+            aggregator (str): website or org hosting the content collection but not necessarily the creator or copyright holder (optional)
+            provider (str): organization that commissioned or is distributing the content (optional)
             thumbnail (str): local path or url to thumbnail image (optional)
             files ([<File>]): list of file objects for node (optional)
             extra_fields (dict): any additional data needed for node (optional)
@@ -514,8 +514,8 @@ class VideoNode(ContentNode):
             title (str): content's title
             license (str or <License>): content's license
             author (str): who created the content (optional)
-            aggregator (str): who gathered the content together (optional)
-            provider (str): who distributed the content (optional)
+            aggregator (str): website or org hosting the content collection but not necessarily the creator or copyright holder (optional)
+            provider (str): organization that commissioned or is distributing the content (optional)
             description (str): description of content (optional)
             derive_thumbnail (bool): indicates whether to derive thumbnail from video (optional)
             thumbnail (str): local path or url to thumbnail image (optional)
@@ -582,8 +582,8 @@ class AudioNode(ContentNode):
             title (str): content's title
             license (str or <License>): content's license
             author (str): who created the content (optional)
-            aggregator (str): who gathered the content together (optional)
-            provider (str): who distributed the content (optional)
+            aggregator (str): website or org hosting the content collection but not necessarily the creator or copyright holder (optional)
+            provider (str): organization that commissioned or is distributing the content (optional)
             description (str): description of content (optional)
             thumbnail (str): local path or url to thumbnail image (optional)
             extra_fields (dict): any additional data needed for node (optional)
@@ -619,8 +619,8 @@ class DocumentNode(ContentNode):
             title (str): content's title
             license (str or <License>): content's license
             author (str): who created the content (optional)
-            aggregator (str): who gathered the content together (optional)
-            provider (str): who distributed the content (optional)
+            aggregator (str): website or org hosting the content collection but not necessarily the creator or copyright holder (optional)
+            provider (str): organization that commissioned or is distributing the content (optional)
             description (str): description of content (optional)
             thumbnail (str): local path or url to thumbnail image (optional)
             extra_fields (dict): any additional data needed for node (optional)
@@ -657,8 +657,8 @@ class HTML5AppNode(ContentNode):
             title (str): content's title
             license (str or <License>): content's license
             author (str): who created the content (optional)
-            aggregator (str): who gathered the content together (optional)
-            provider (str): who distributed the content (optional)
+            aggregator (str): website or org hosting the content collection but not necessarily the creator or copyright holder (optional)
+            provider (str): organization that commissioned or is distributing the content (optional)
             description (str): description of content (optional)
             thumbnail (str): local path or url to thumbnail image (optional)
             extra_fields (dict): any additional data needed for node (optional)
@@ -695,8 +695,8 @@ class ExerciseNode(ContentNode):
             title (str): content's title
             license (str or <License>): content's license
             author (str): who created the content (optional)
-            aggregator (str): who gathered the content together (optional)
-            provider (str): who distributed the content (optional)
+            aggregator (str): website or org hosting the content collection but not necessarily the creator or copyright holder (optional)
+            provider (str): organization that commissioned or is distributing the content (optional)
             description (str): description of content (optional)
             exercise_data ({mastery_model:str, randomize:bool, m:int, n:int}): data on mastery requirements (optional)
             thumbnail (str): local path or url to thumbnail image (optional)
