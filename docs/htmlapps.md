@@ -24,6 +24,20 @@ Example of HTML5App nodes
 
 
 
+Usability guidelines
+--------------------
+
+- There _must_ be an index.html file at the topmost level of the zip file, otherwise no app will be shown
+- Text should be legible (high contrast, reasonable font size)
+- Responsive: text should reflow to fit screens of different sizes. You can preview on a mobile device (or use Chrome’s mobile emulation mode) and ensure that the text fits in the viewport and doesn’t require horizontal scrolling (a maximum width is OK but minimum widths can cause trouble).
+- Ensure navigation within HTML5App is easy to use:
+    - consistent use of navigation links (e.g. side menu with sections)
+    - consistent use of prev/next links
+- Ensure links to external websites are disabled (remove `<a></a>` tag), and instead show the `href` in brackets next to the link text (so that potentially users could access URL by other means)
+    - e.g., "some other text  link text (http://link.url)  and more text continues"
+
+
+
 Links and navigation
 --------------------
 It's currently not possible to have navigation links between different HTML5App nodes,
@@ -48,3 +62,26 @@ methods for creating files within a zip file.
 See the source code:
 [ricecooker/utils/html_writer.py](https://github.com/learningequality/ricecooker/blob/master/ricecooker/utils/html_writer.py#L5)
 
+
+
+Static assets download utility
+------------------------------
+
+We have a handy function for fetching all of a webpage's static assets (JS, CSS, images, etc.), so that, in theory, you could scrape a webpage and display it in Kolibri exactly as you see it in the website itself in your browser. See:
+
+- the source: [`ricecooker.utils.downloader.download_static_assets()`](https://github.com/learningequality/ricecooker/blob/428bfde98e0f76310eccd367886aebe62cd9ae5a/ricecooker/utils/downloader.py#L129)
+- [example usage in a simple app: MEET chef](https://github.com/learningequality/sushi-chef-MEET/blob/425327ad552f9f25f582a2057048f6d4475382c1/chef.py#L205), which comprises articles with text and images
+- [example usage in a complex app: Blockly Games chef](https://github.com/learningequality/sushi-chef-blockly-games/blob/270e8bc620be0ed883f40e2739878db54f7243b7/chef.py#L193), an interactive JS game with images and sounds
+
+
+
+Starter template
+----------------
+
+We also have a [starter template](https://github.com/learningequality/html-app-starter) for apps, particularly helpful for displaying content that's mostly text and images, such as articles. It applies some default styling on text to ensure readability, consistency, and mobile responsiveness.
+
+It also includes a sidebar for those apps where you may want internal navigation. However, consider if it would be more appropriate to turn each page into its own content item and grouping them together into a single folder (topic).
+
+How to decide between the static assets downloader (above) and this starter template? Prefer the static assets downloader if it makes sense to keep the source styling or JS, such as in the case of an interactive app (e.g. [Blockly Games](https://github.com/learningequality/sushi-chef-blockly-games)) or an app-like reader (e.g. [African Storybook](https://github.com/learningequality/sushi-chef-african-storybook)). If the source is mostly a text blob or an article -- and particularly if the source styling is not readable or appealing -- using the template could make sense, especially given that the template is designed for readability.
+
+The bottom line is ensure the content meets the guidelines layed out above -- legible, responsive, easy to navigate, and "look good" (you define "good" :P). Fulfilling that, use your judgement on whatever approach makes sense and that you can use effectively!
