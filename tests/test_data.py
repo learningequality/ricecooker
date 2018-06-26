@@ -89,6 +89,8 @@ def base_data(channel_domain_namespace, title):
         "title": title,
         "description": "Description",
         "author": "Author",
+        "aggregator": "Aggregator",
+        "provider": "Provider",
         "source_domain": channel_domain_namespace.hex,
         "files" : [],
         "tags": [],

@@ -298,17 +298,21 @@ class TreeNode(Node):
             license (str or <License>): content's license
             description (str): description of content (optional)
             author (str): who created the content (optional)
+            aggregator (str): website or org hosting the content collection but not necessarily the creator or copyright holder (optional)
+            provider (str): organization that commissioned or is distributing the content (optional)
             thumbnail (str): local path or url to thumbnail image (optional)
             files ([<File>]): list of file objects for node (optional)
             tags ([str]): list of tags for node (optional)
             extra_fields (dict): any additional data needed for node (optional)
             domain_ns (str): who is providing the content (e.g. learningequality.org) (optional)
     """
-    def __init__(self, source_id, title, author="", tags=None, extra_fields=None, domain_ns=None, **kwargs):
+    def __init__(self, source_id, title, author="", aggregator="", provider="", tags=None, extra_fields=None, domain_ns=None, **kwargs):
         # Map parameters to model variables
         assert isinstance(source_id, str), "source_id must be a string"
         self.source_id = source_id
         self.author = author or ""
+        self.aggregator = aggregator or ""
+        self.provider = provider or ""
         self.tags = tags or []
         self.domain_ns = domain_ns
         self.questions = self.questions if hasattr(self, 'questions') else [] # Needed for to_dict method
@@ -338,6 +342,14 @@ class TreeNode(Node):
             config.print_truncate("author", self.source_id, self.author, kind=self.kind)
             self.author = self.author[:config.MAX_AUTHOR_LENGTH]
 
+        if self.aggregator and len(self.aggregator) > config.MAX_AGGREGATOR_LENGTH:
+            config.print_truncate("aggregator", self.source_id, self.aggregator, kind=self.kind)
+            self.aggregator = self.aggregator[:config.MAX_AGGREGATOR_LENGTH]
+
+        if self.provider and len(self.provider) > config.MAX_PROVIDER_LENGTH:
+            config.print_truncate("provider", self.source_id, self.provider, kind=self.kind)
+            self.provider = self.provider[:config.MAX_PROVIDER_LENGTH]
+
         self.license and self.license.truncate_fields()
 
         super(TreeNode, self).truncate_fields()
@@ -357,6 +369,8 @@ class TreeNode(Node):
             "source_domain": self.domain_ns.hex,
             "source_id": self.source_id,
             "author": self.author,
+            "aggregator": self.aggregator,
+            "provider": self.provider,
             "files" : [f.to_dict() for f in self.files if f and f.filename], # Filter out failed downloads
             "tags": self.tags,
             "kind": self.kind,
@@ -373,6 +387,8 @@ class TreeNode(Node):
             Returns: boolean indicating if content node is valid
         """
         assert isinstance(self.author, str) , "Assumption Failed: Author is not a string"
+        assert isinstance(self.aggregator, str) , "Assumption Failed: Aggregator is not a string"
+        assert isinstance(self.provider, str) , "Assumption Failed: Provider is not a string"
         assert isinstance(self.files, list), "Assumption Failed: Files is not a list"
         assert isinstance(self.questions, list), "Assumption Failed: Questions is not a list"
         assert isinstance(self.extra_fields, dict), "Assumption Failed: Extra fields is not a dict"
@@ -419,6 +435,8 @@ class ContentNode(TreeNode):
             license (str or <License>): content's license
             description (str): description of content (optional)
             author (str): who created the content (optional)
+            aggregator (str): website or org hosting the content collection but not necessarily the creator or copyright holder (optional)
+            provider (str): organization that commissioned or is distributing the content (optional)
             thumbnail (str): local path or url to thumbnail image (optional)
             files ([<File>]): list of file objects for node (optional)
             extra_fields (dict): any additional data needed for node (optional)
@@ -472,6 +490,8 @@ class ContentNode(TreeNode):
             "source_domain": self.domain_ns.hex,
             "source_id": self.source_id,
             "author": self.author,
+            "aggregator": self.aggregator,
+            "provider": self.provider,
             "files" : [f.to_dict() for f in filter(lambda x: x and x.filename, self.files)], # Filter out failed downloads
             "tags": self.tags,
             "kind": self.kind,
@@ -494,6 +514,8 @@ class VideoNode(ContentNode):
             title (str): content's title
             license (str or <License>): content's license
             author (str): who created the content (optional)
+            aggregator (str): website or org hosting the content collection but not necessarily the creator or copyright holder (optional)
+            provider (str): organization that commissioned or is distributing the content (optional)
             description (str): description of content (optional)
             derive_thumbnail (bool): indicates whether to derive thumbnail from video (optional)
             thumbnail (str): local path or url to thumbnail image (optional)
@@ -560,6 +582,8 @@ class AudioNode(ContentNode):
             title (str): content's title
             license (str or <License>): content's license
             author (str): who created the content (optional)
+            aggregator (str): website or org hosting the content collection but not necessarily the creator or copyright holder (optional)
+            provider (str): organization that commissioned or is distributing the content (optional)
             description (str): description of content (optional)
             thumbnail (str): local path or url to thumbnail image (optional)
             extra_fields (dict): any additional data needed for node (optional)
@@ -595,6 +619,8 @@ class DocumentNode(ContentNode):
             title (str): content's title
             license (str or <License>): content's license
             author (str): who created the content (optional)
+            aggregator (str): website or org hosting the content collection but not necessarily the creator or copyright holder (optional)
+            provider (str): organization that commissioned or is distributing the content (optional)
             description (str): description of content (optional)
             thumbnail (str): local path or url to thumbnail image (optional)
             extra_fields (dict): any additional data needed for node (optional)
@@ -631,6 +657,8 @@ class HTML5AppNode(ContentNode):
             title (str): content's title
             license (str or <License>): content's license
             author (str): who created the content (optional)
+            aggregator (str): website or org hosting the content collection but not necessarily the creator or copyright holder (optional)
+            provider (str): organization that commissioned or is distributing the content (optional)
             description (str): description of content (optional)
             thumbnail (str): local path or url to thumbnail image (optional)
             extra_fields (dict): any additional data needed for node (optional)
@@ -667,6 +695,8 @@ class ExerciseNode(ContentNode):
             title (str): content's title
             license (str or <License>): content's license
             author (str): who created the content (optional)
+            aggregator (str): website or org hosting the content collection but not necessarily the creator or copyright holder (optional)
+            provider (str): organization that commissioned or is distributing the content (optional)
             description (str): description of content (optional)
             exercise_data ({mastery_model:str, randomize:bool, m:int, n:int}): data on mastery requirements (optional)
             thumbnail (str): local path or url to thumbnail image (optional)
