@@ -94,6 +94,8 @@ def base_data(channel_domain_namespace, title):
         "license": None,
         "copyright_holder": "",
         "license_description": None,
+        "aggregator": "",           # New in ricecooker 0.6.20
+        "provider": "",             # New in ricecooker 0.6.20
     }
 
 
