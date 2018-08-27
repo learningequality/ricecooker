@@ -14,11 +14,17 @@ from ..exceptions import UnknownQuestionTypeError, InvalidQuestionException
 from .files import _ExerciseImageFile, _ExerciseGraphieFile, _ExerciseBase64ImageFile
 from pressurecooker.encodings import get_base64_encoding
 
-WEB_GRAPHIE_URL_REGEX = r'web\+graphie:([^\)]+)'
-FILE_REGEX = r'!\[([^\]]+)?\]\(([^\)]+)\)'
-IMG_REGEX = r'<\s*img[^>]+>'
-IMG_SRC_REGEX = r'\ssrc\s*=\"([^"]+)\"'
-IMG_ALT_REGEX = r'\salt\s*=\"([^"]+)\"'
+import logging
+# config.LOGGER.setLevel(logging.DEBUG)
+
+
+WEB_GRAPHIE_URL_REGEX = r'web\+graphie:([^\)]+)'  # match web_graphie:{{path}} until closing )
+FILE_REGEX = r'!\[([^\]]+)?\]\(([^\)]+?)\)'       # match ![{{smth}}]({{url}})
+
+# Legacy and unused
+# IMG_REGEX = r'<\s*img[^>]+>'
+# IMG_SRC_REGEX = r'\ssrc\s*=\"([^"]+)\"'
+# IMG_ALT_REGEX = r'\salt\s*=\"([^"]+)\"'
 
 class BaseQuestion:
     """ Base model representing exercise questions
@@ -74,7 +80,7 @@ class BaseQuestion:
                 correct (bool): indicates if answer is correct
             Returns: dict of formatted answer
         """
-        return {"answer": str(answer), "correct":correct}
+        return {"answer": str(answer), "correct": correct}
 
     def process_question(self):
         """ process_question: Parse data that needs to have image strings processed
@@ -109,7 +115,7 @@ class BaseQuestion:
         self.files += question_files + answer_files + hint_files
         return [f.filename for f in self.files]
 
-    def set_images(self, text):
+    def set_images(self, text, parse_html=True):
         """ set_images: Replace image strings with downloaded image checksums
             Args:
                 text (str): text to parse for image strings
@@ -118,7 +124,10 @@ class BaseQuestion:
         """
         # Set up return values and regex
         file_list = []
-        processed_string = self.parse_html(text)
+        if parse_html:
+            processed_string = self.parse_html(text)
+        else:
+            processed_string = text
         reg = re.compile(FILE_REGEX, flags=re.IGNORECASE)
         matches = reg.findall(processed_string)
 
@@ -152,25 +161,39 @@ class BaseQuestion:
         return html.unescape(bs.find('body').renderContents().decode('utf-8'))
 
     def set_image(self, text):
-        """ set_image: Replace image string with downloaded image checksum
-            Args:
-                text (str): text to parse for image strings
-            Returns:string with checksums in place of image strings and
-                list of files that were downloaded from string
         """
+        Save image resource at `text` (path or url) to storage and replace `text`
+        storage checksum path.
+
+        Args:
+          - text (str): path or url to parse as image resource
+        Returns: (new_text, files)
+          - `new_text` (str) storage path replacement for original `text`
+          - `files` (list): list of files that were downloaded from `text`
+        """
+        ### config.LOGGER.debug('    In set_image with text=' + text)
         # Make sure image hasn't already been replaced
         if exercises.CONTENT_STORAGE_PLACEHOLDER in text:
             return text, []
 
+        ### config.LOGGER.debug('\t\t\t1. text=' + text)
+        # e.g. text = web+graphie://SERVER/PATH/FILE
+
         # Set up return values and regex
         exercise_file = None
         path_text = text.strip().replace('\\n', '')
+        ### config.LOGGER.debug('\t\t\t2. path_text=' + path_text)
+        # e.g. path_text = web+graphie://SERVER/PATH/FILE
         graphie_reg = re.compile(WEB_GRAPHIE_URL_REGEX, flags=re.IGNORECASE)
         graphie_match = graphie_reg.match(path_text)
+        # e.g. graphie_match = web+graphie://SERVER/PATH/FILE
+
         # If it is a web+graphie, download svg and json files,
         # Otherwise, download like other files
         if graphie_match:
             path_text = graphie_match.group().replace("web+graphie://", "https://")
+            ### config.LOGGER.debug('\t\t\t3. path_text=' + path_text)
+            # e.g. path_text = https://SERVER/PATH/FILE
             exercise_file = _ExerciseGraphieFile(path_text)
         elif get_base64_encoding(text):
             exercise_file = _ExerciseBase64ImageFile(path_text)
@@ -181,8 +204,14 @@ class BaseQuestion:
         filename = exercise_file.process_file()
 
         # Need to replace text's web+graphie with https to get text matches
-        text = text.replace("web+graphie://", "web+graphie:https://").replace(path_text, exercises.CONTENT_STORAGE_FORMAT.format(exercise_file.get_replacement_str()))
-
+        ### config.LOGGER.debug('\t\t\t4. text=' + text)
+        text = text.replace("web+graphie://", "web+graphie:https://")
+        ### config.LOGGER.debug('\t\t\t5. text=' + text)
+        # e.g. text = web+graphie:https://SERVER/PATH/FILE
+        text = text.replace(path_text, exercises.CONTENT_STORAGE_FORMAT.format(exercise_file.get_replacement_str()))
+        ### config.LOGGER.debug('\t\t\t6. text=' + text)
+        
+        ### config.LOGGER.debug('    exiting set_image with text=' + text)
         return text, [exercise_file]
 
     def validate(self):
@@ -203,16 +232,16 @@ class BaseQuestion:
 
 
 class PerseusQuestion(BaseQuestion):
-    """ Model representing perseus questions
+    """
+    Model representing existing perseus questions. These questions are already
+    formatted in the `.perseus` format and can therefore be created by passing in
+    the `raw_data` (str) attribute, which is a string containing JSON.
+    We parse the `raw_data` in order to extract image resources and rewrite links.
 
-        Perseus questions have already been formatted to the
-        .perseus format and can therefore be created with just
-        raw data (no need to parse the data)
-
-        Attributes:
-            id (str): question's unique id
-            raw_data (str): pre-formatted perseus question
-            images ({key:str, ...}): a dict mapping image string to replace to path to image
+    Attributes:
+        id (str): question's unique id
+        raw_data (str): pre-formatted perseus question
+        images ({key:str, ...}): a dict mapping image string to replace to path to image
     """
 
     def __init__(self, id, raw_data, source_url=None, **kwargs):
@@ -234,66 +263,109 @@ class PerseusQuestion(BaseQuestion):
             raise InvalidQuestionException("Invalid question: {0}".format(self.__dict__))
 
     def process_question(self):
-        """ process_question: Parse data that needs to have image strings processed
-            Args: None
-            Returns: list of all downloaded files
+        """
+        Parse specific fields in `self.raw_data` that needs to have image strings
+        processed: repalced by references to `CONTENTSTORAGE` + added as files.
+        Returns: list of all files needed to render this question.
         """
         image_files = []
-        image_data = json.loads(self.raw_data)
+        question_data = json.loads(self.raw_data)
 
         # process urls for widgets
-        self._recursive_url_find(image_data, image_files)
+        self._recursive_url_find(question_data, image_files)
 
         # Process question
-        if 'question' in image_data and 'images' in image_data['question']:
-            image_data['question']['images'], qfiles = self.process_image_field(image_data['question'])
+        if 'question' in question_data and 'images' in question_data['question']:
+            question_data['question']['images'], qfiles = self.process_image_field(question_data['question'])
             image_files += qfiles
 
         # Process hints
-        if 'hints' in image_data:
-            for hint in image_data['hints']:
+        if 'hints' in question_data:
+            for hint in question_data['hints']:
                 if 'images' in hint:
                     hint['images'], hfiles = self.process_image_field(hint)
                     image_files += hfiles
 
         # Process answers
-        if 'answers' in image_data:
-            for answer in image_data['answers']:
+        if 'answers' in question_data:
+            for answer in question_data['answers']:
                 if 'images' in answer:
                     answer['images'], afiles = self.process_image_field(answer)
                     image_files += afiles
 
         # Process raw data
-        self.raw_data = json.dumps(image_data, ensure_ascii=False)
-        self.raw_data, data_files = super(PerseusQuestion, self).set_images(self.raw_data)
+        self.raw_data = json.dumps(question_data, ensure_ascii=False)
+        # Assume no need for special HTML processing for Persues questions
+        # This avoids probelms with questions that contain < and > inequalities
+        # in formulas that get erroneously parsed as HTML tags
+        self.raw_data, data_files = super(PerseusQuestion, self).set_images(self.raw_data, parse_html=False)
 
-        # Return all files
-        self.files += image_files + data_files
+        # Combine all files processed
+        self.files = image_files + data_files
+
+        # Return all filenames
         return [f.filename for f in self.files]
 
-    def process_image_field(self, data):
-        """ process_image_field: Specifically process perseus question image field
-            Args:
-                data (dict): data that contains 'images' field
-            Returns: list of all downloaded files
-        """
-        files = []
 
-        new_data = copy.deepcopy(data['images'])
-        for k, v in data['images'].items():
-            new_key, fs = self.set_image(k)
-            files += fs
-            new_data[new_key] = new_data.pop(k)
-            data['content'] = data['content'].replace(k, new_key) # Need to replace urls in content
-        return new_data, files
+    def process_image_field(self, data):
+        """
+        Process perseus fields like questions and hints, which look like:
+          {
+             "content": "md string including imgs like ![](URL-key) and ![](URL-key2)",
+             "images": {
+                "URL-key":  {"width": 425, "height": 425},
+                "URL-key2": {"width": 425, "height": 425}
+             }
+          }
+        Replaces `content` attribute and returns (images_dict, image_files), where
+           - `images_dict` is a replacement for the old `images` key
+           - `image_files` is a list image files for the URLs found
+        Note it is possible for assesment items to include images links `content`
+        that are not listed under `images`, so code must handle that case too,
+        see https://github.com/learningequality/ricecooker/issues/178 for details.
+        """
+        new_images_dict = copy.deepcopy(data['images'])
+        image_files = []
+
+        # STEP 1. Compile dict of {old_url-->new_url} image URL replacements
+        image_replacements = {}
+
+        # STEP 1A. get all images specified in data['images']
+        for old_url, image_settings in data['images'].items():
+            new_url, new_image_files = self.set_image(old_url)
+            image_files += new_image_files
+            new_images_dict[new_url] = new_images_dict.pop(old_url)
+            image_replacements[old_url] = new_url
+
+        # STEP 1B. look for additional `FILE_REGEX`-like link in `content` attr.
+        img_link_pat = re.compile(FILE_REGEX, flags=re.IGNORECASE)
+        img_link_matches = img_link_pat.findall(data['content'])
+        for match in img_link_matches:
+            old_url = match[1]
+            if old_url not in image_replacements.keys():
+                new_url, new_image_files = self.set_image(old_url)
+                image_files += new_image_files
+                image_replacements[old_url] = new_url
+
+        # Performd content replacent for all URLs in image_replacements
+        for old_url, new_url in image_replacements.items():
+            data['content'] = data['content'].replace(old_url, new_url)
+
+        return new_images_dict, image_files
+
 
     def _recursive_url_find(self, item, image_list):
-        """ Utility function specifically for Khan Academy assessment items. Recursively iterates item
-            to find and replace all url image tags.
-            Args:
-                item (dict): KA assessment item
-                image_list (list): list of image file objects
-            Returns: None
+        """
+        Recursively traverses a dictionary-like data structure for Khan Academy
+        assessment items in order to search for image links in `url` data attributes,
+        and if it finds any it adds them to `image_list` and rewrites `url` attribute.
+        Use cases:
+          - `backgroundImage.url` attributes for graphs and images
+
+        Args:
+            item (dict): KA assessment item; will be modified in place
+            image_list (list): image files (File objects) found during the traversal
+        Returns: None
         """
 
         recursive_fn = partial(self._recursive_url_find, image_list=image_list)
