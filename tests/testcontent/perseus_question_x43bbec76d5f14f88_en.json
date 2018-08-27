@@ -1,0 +1,75 @@
+{
+  "question": {
+    "content": "![graph](web+graphie://ka-perseus-graphie.s3.amazonaws.com/eb3f3bf7c317408ee90995b5bcf4f3a59606aedd)\n\n**Select the interval where $f(x)>0$.**\n\n[[☃ radio 1]]",
+    "images": {
+      "web+graphie://ka-perseus-graphie.s3.amazonaws.com/eb3f3bf7c317408ee90995b5bcf4f3a59606aedd": {
+        "width": 425,
+        "height": 425
+      }
+    },
+    "widgets": {
+      "radio 1": {
+        "type": "radio",
+        "alignment": "default",
+        "static": false,
+        "graded": true,
+        "options": {
+          "choices": [
+            {
+              "content": "$-2<x<-1$",
+              "correct": true
+            },
+            {
+              "content": "$-1<x<0$"
+            },
+            {
+              "isNoneOfTheAbove": false,
+              "correct": false,
+              "content": "$0<x<1$"
+            }
+          ],
+          "randomize": false,
+          "multipleSelect": false,
+          "displayCount": null,
+          "hasNoneOfTheAbove": false,
+          "onePerLine": true,
+          "deselectEnabled": false
+        },
+        "version": {
+          "major": 1,
+          "minor": 0
+        }
+      }
+    }
+  },
+  "answerArea": {
+    "calculator": false,
+    "chi2Table": false,
+    "periodicTable": false,
+    "tTable": false,
+    "zTable": false
+  },
+  "itemDataVersion": {
+    "major": 0,
+    "minor": 1
+  },
+  "hints": [
+    {
+      "replace": false,
+      "content": "The function $f$ is positive $($i.e. $f(x)>0)$ whenever its graph is above the $x$-axis.\n\nThis is because the positive $y$-values are above the $x$-axis, and $y=f(x)$.\n\n![graph](web+graphie://ka-perseus-graphie.s3.amazonaws.com/d8daa074ec7d09ce3819d6259b3e4670701d2540)",
+      "images": {
+        "web+graphie://ka-perseus-graphie.s3.amazonaws.com/d8daa074ec7d09ce3819d6259b3e4670701d2540": {
+          "width": 425,
+          "height": 425
+        }
+      },
+      "widgets": {}
+    },
+    {
+      "replace": false,
+      "content": "Out of our options, the only correct interval is $-2<x<-1$.",
+      "images": {},
+      "widgets": {}
+    }
+  ]
+}
