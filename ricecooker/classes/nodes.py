@@ -258,7 +258,7 @@ class ChannelNode(Node):
         super(ChannelNode, self).truncate_fields()
 
     def to_dict(self):
-        """ to_dict: puts data in format CC expects
+        """ to_dict: puts channel data into the format that Kolibri Studio expects
             Args: None
             Returns: dict of channel data
         """
@@ -356,7 +356,7 @@ class TreeNode(Node):
 
 
     def to_dict(self):
-        """ to_dict: puts data in format CC expects
+        """ to_dict: puts Topic or Content node data into the format that Kolibri Studio expects
             Args: None
             Returns: dict of channel data
         """
@@ -628,19 +628,19 @@ class DocumentNode(ContentNode):
             files ([<File>]): list of file objects for node (optional)
     """
     kind = content_kinds.DOCUMENT
-    required_file_format = file_formats.PDF
+    required_file_format = file_formats.PDF # TODO(ivan) change ro allowed_formats
 
     def validate(self):
-        """ validate: Makes sure document is valid
+        """ validate: Makes sure document node contains at least one EPUB or PDF
             Args: None
             Returns: boolean indicating if document is valid
         """
-        from .files import DocumentFile
+        from .files import DocumentFile, EPubFile
         try:
             assert self.kind == content_kinds.DOCUMENT, "Assumption Failed: Node should be a document"
             assert self.questions == [], "Assumption Failed: Document should not have questions"
             assert len(self.files) > 0, "Assumption Failed: Document should have at least one file"
-            assert any(filter(lambda f: isinstance(f, DocumentFile), self.files)), "Assumption Failed: Document should have at least one document file"
+            assert any(filter(lambda f: isinstance(f, DocumentFile) or isinstance(f, EPubFile), self.files)), "Assumption Failed: Document should have at least one document file"
             return super(DocumentNode, self).validate()
         except AssertionError as ae:
             raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))

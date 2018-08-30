@@ -344,9 +344,11 @@ class DownloadFile(File):
     def __str__(self):
         return self.path
 
+
 class ThumbnailFile(ThumbnailPresetMixin, DownloadFile):
     default_ext = file_formats.PNG
     allowed_formats = [file_formats.JPG, file_formats.JPEG, file_formats.PNG]
+
 
 class AudioFile(DownloadFile):
     default_ext = file_formats.MP3
@@ -356,13 +358,31 @@ class AudioFile(DownloadFile):
     def get_preset(self):
         return self.preset or format_presets.AUDIO
 
+
 class DocumentFile(DownloadFile):
     default_ext = file_formats.PDF
-    allowed_formats = [file_formats.PDF]
+    allowed_formats = [file_formats.PDF, file_formats.EPUB]
     is_primary = True
 
     def get_preset(self):
         return self.preset or format_presets.DOCUMENT
+
+
+class EPubFile(DownloadFile):
+    default_ext = file_formats.EPUB
+    allowed_formats = [file_formats.EPUB]  # ZEPUB other ???
+    is_primary = True
+
+    def get_preset(self):
+        return self.preset or format_presets.EPUB
+
+    def process_file(self):
+        self.filename = super(EPubFile, self).process_file()
+        return self.filename
+
+    def validate(self):
+        super(EPubFile, self).validate()
+
 
 class HTMLZipFile(DownloadFile):
     default_ext = file_formats.HTML5
