@@ -361,7 +361,7 @@ class AudioFile(DownloadFile):
 
 class DocumentFile(DownloadFile):
     default_ext = file_formats.PDF
-    allowed_formats = [file_formats.PDF, file_formats.EPUB]
+    allowed_formats = [file_formats.PDF]
     is_primary = True
 
     def get_preset(self):
@@ -375,13 +375,6 @@ class EPubFile(DownloadFile):
 
     def get_preset(self):
         return self.preset or format_presets.EPUB
-
-    def process_file(self):
-        self.filename = super(EPubFile, self).process_file()
-        return self.filename
-
-    def validate(self):
-        super(EPubFile, self).validate()
 
 
 class HTMLZipFile(DownloadFile):
@@ -528,7 +521,7 @@ def _get_language_with_alpha2_fallback(language_code):
 
 def is_youtube_subtitle_file_supported_language(language):
     """
-    Check if the language code `language` (string) is a valid language code in the 
+    Check if the language code `language` (string) is a valid language code in the
     internal language id format `{primary_code}` or `{primary_code}-{subcode}`
     ot alternatively if it s YouTube language code that can be mapped to one of
     the languages in the internal represention.
