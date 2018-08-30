@@ -493,6 +493,12 @@ class WebVideoFile(File):
         try:
             self.filename = download_from_web(self.web_url, self.download_settings, ext=".{}".format(file_formats.MP4))
             config.LOGGER.info("\t--- Downloaded (YouTube) {}".format(self.filename))
+
+            # Compress if compression flag is set
+            if self.filename and config.COMPRESS:
+                self.filename = compress_video_file(self.filename, {})
+                config.LOGGER.info("\t--- Compressed {}".format(self.filename))
+
             return self.filename
         except youtube_dl.utils.DownloadError as err:
             self.error = str(err)
