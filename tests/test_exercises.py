@@ -497,6 +497,7 @@ def test_persues_question_process_image_field(persues_contentimages_field_fixtur
         # check 3
         image_hashes = set()
         for image_file in image_files:
+            assert image_file is not None, 'image_file should not be None'
             filehash, ext =  os.path.splitext(image_file.get_filename())
             image_hashes.add(filehash)
         assert image_hashes == expected_image_hashes, 'Unexpected image files set'

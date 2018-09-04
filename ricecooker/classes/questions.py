@@ -15,16 +15,12 @@ from .files import _ExerciseImageFile, _ExerciseGraphieFile, _ExerciseBase64Imag
 from pressurecooker.encodings import get_base64_encoding
 
 import logging
-# config.LOGGER.setLevel(logging.DEBUG)
+config.LOGGER.setLevel(logging.DEBUG)
 
 
-WEB_GRAPHIE_URL_REGEX = r'web\+graphie:([^\)]+)'  # match web_graphie:{{path}} until closing )
+WEB_GRAPHIE_URL_REGEX = r'web\+graphie:(?P<graphie_rawpath>[^\)]+)'  # match web_graphie:{{path}} until closing )
 FILE_REGEX = r'!\[([^\]]+)?\]\(([^\)]+?)\)'       # match ![{{smth}}]({{url}})
 
-# Legacy and unused
-# IMG_REGEX = r'<\s*img[^>]+>'
-# IMG_SRC_REGEX = r'\ssrc\s*=\"([^"]+)\"'
-# IMG_ALT_REGEX = r'\salt\s*=\"([^"]+)\"'
 
 class BaseQuestion:
     """ Base model representing exercise questions
@@ -162,57 +158,42 @@ class BaseQuestion:
 
     def set_image(self, text):
         """
-        Save image resource at `text` (path or url) to storage and replace `text`
-        storage checksum path.
-
+        Save image resource at `text` (path or url) to storage, then return the
+        replacement string and the necessary exercicse image file object.
         Args:
-          - text (str): path or url to parse as image resource
+          - text (str): path or url to parse as an exercise image resource
         Returns: (new_text, files)
-          - `new_text` (str) storage path replacement for original `text`
+          - `new_text` (str): replacement string for the original `text` string
           - `files` (list): list of files that were downloaded from `text`
         """
-        ### config.LOGGER.debug('    In set_image with text=' + text)
-        # Make sure image hasn't already been replaced
+        # Make sure `text` hasn't already been processed
         if exercises.CONTENT_STORAGE_PLACEHOLDER in text:
             return text, []
-
-        ### config.LOGGER.debug('\t\t\t1. text=' + text)
-        # e.g. text = web+graphie://SERVER/PATH/FILE
-
-        # Set up return values and regex
-        exercise_file = None
-        path_text = text.strip().replace('\\n', '')
-        ### config.LOGGER.debug('\t\t\t2. path_text=' + path_text)
-        # e.g. path_text = web+graphie://SERVER/PATH/FILE
-        graphie_reg = re.compile(WEB_GRAPHIE_URL_REGEX, flags=re.IGNORECASE)
-        graphie_match = graphie_reg.match(path_text)
-        # e.g. graphie_match = web+graphie://SERVER/PATH/FILE
-
-        # If it is a web+graphie, download svg and json files,
-        # Otherwise, download like other files
+        # Strip `text` of whitespace
+        stripped_text = text.strip().replace('\\n', '')
+        # If `stripped_text` is a web+graphie: path, we need special processing
+        graphie_regex = re.compile(WEB_GRAPHIE_URL_REGEX, flags=re.IGNORECASE)
+        graphie_match = graphie_regex.match(stripped_text)
         if graphie_match:
-            path_text = graphie_match.group().replace("web+graphie://", "https://")
-            ### config.LOGGER.debug('\t\t\t3. path_text=' + path_text)
-            # e.g. path_text = https://SERVER/PATH/FILE
-            exercise_file = _ExerciseGraphieFile(path_text)
-        elif get_base64_encoding(text):
-            exercise_file = _ExerciseBase64ImageFile(path_text)
+            is_web_plus_graphie = True
+            graphie_rawpath = graphie_match.groupdict()['graphie_rawpath']
+            graphie_path = graphie_rawpath.replace("//", "https://")
+            exercise_image_file = _ExerciseGraphieFile(graphie_path)
+        elif get_base64_encoding(stripped_text):
+            is_web_plus_graphie = False
+            exercise_image_file = _ExerciseBase64ImageFile(stripped_text)
         else:
-            exercise_file = _ExerciseImageFile(path_text)
-
-        exercise_file.assessment_item = self
-        filename = exercise_file.process_file()
-
-        # Need to replace text's web+graphie with https to get text matches
-        ### config.LOGGER.debug('\t\t\t4. text=' + text)
-        text = text.replace("web+graphie://", "web+graphie:https://")
-        ### config.LOGGER.debug('\t\t\t5. text=' + text)
-        # e.g. text = web+graphie:https://SERVER/PATH/FILE
-        text = text.replace(path_text, exercises.CONTENT_STORAGE_FORMAT.format(exercise_file.get_replacement_str()))
-        ### config.LOGGER.debug('\t\t\t6. text=' + text)
-        
-        ### config.LOGGER.debug('    exiting set_image with text=' + text)
-        return text, [exercise_file]
+            is_web_plus_graphie = False
+            exercise_image_file = _ExerciseImageFile(stripped_text)
+        # Setup link to assessment item
+        exercise_image_file.assessment_item = self
+        # Process file to make the replacement_str available
+        _filename = exercise_image_file.process_file()
+        # Get `new_text` = the replacement path for the image resource
+        new_text = exercises.CONTENT_STORAGE_FORMAT.format(exercise_image_file.get_replacement_str())
+        if is_web_plus_graphie:     # need to put back the `web+graphie:` prefix
+            new_text = "web+graphie:" + new_text
+        return new_text, [exercise_image_file]
 
     def validate(self):
         """ validate: Makes sure question is valid
