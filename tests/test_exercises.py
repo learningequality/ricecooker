@@ -219,9 +219,14 @@ def test_inputquestion_validate():
 
 
 
-# Persuesu image assets processing and loading tests
 
-## Regex tests
+################################################################################
+# Perseus image asset processing and image loading tests
+################################################################################
+
+
+# Regex tests
+################################################################################
 
 @pytest.fixture
 def graphie_strings_and_match():
@@ -277,7 +282,7 @@ def test_FILE_REGEX_matches(markdown_link_strings_and_match):
 
 
 ## Tests to make sure BaseQuestion.set_image works correctly
-#########################################################################################
+################################################################################
 
 @pytest.fixture
 def image_texts_fixtures():
@@ -354,7 +359,7 @@ def test_base_question_set_image(image_texts_fixtures):
 
 
 # Test _recursive_url_find method
-#########################################################################################
+################################################################################
 
 def test_perseus__recursive_url_find(persues_question_json_fixtures):
     """
@@ -410,7 +415,7 @@ def test_perseus__recursive_url_find(persues_question_json_fixtures):
 
 
 # Test PerseusQuestion process_image_field method
-#########################################################################################
+################################################################################
 
 @pytest.fixture
 def persues_contentimages_field_fixtures():
@@ -498,6 +503,9 @@ def test_persues_question_process_image_field(persues_contentimages_field_fixtur
 
 
 
+# Test PerseusQuestion process_question method
+################################################################################
+
 @pytest.fixture
 def persues_question_json_fixtures():
     """
@@ -512,9 +520,10 @@ def persues_question_json_fixtures():
             'image_hashes': ['ea2269bb5cf487f8d883144b9c06fbc7', 'db98ca9d35b2fb97cde378a1fabddd26']
         }
         test_data.append(datum)
-
+    # Missing images in the KA BULGARIAN channel BUG
+    # see https://github.com/learningequality/ricecooker/issues/178
     with open(os.path.join(TESTCONTENT_DIR, 'perseus_question_x43bbec76d5f14f88_bg.json')) as inf:
-        # KA BULGARIAN BUG https://github.com/learningequality/ricecooker/issues/178
+        
         item_data_bg = json.load(inf)
         datum = {
             'item': item_data_bg,
@@ -553,3 +562,19 @@ def test_perseus_process_question(persues_question_json_fixtures):
         assert image_hashes == expected_image_hashes, 'Unexpected image file set'
 
 
+# Test exercise images
+################################################################################
+
+def test_exercise_image_file(exercise_image_file, exercise_image_filename):
+    filename = exercise_image_file.get_filename()
+    assert filename == exercise_image_filename, 'wrong filename for _ExerciseImageFile'
+
+def test_exercise_base64_image_file(exercise_base64_image_file, exercise_base64_image_filename):
+    filename = exercise_base64_image_file.get_filename()
+    assert filename == exercise_base64_image_filename, 'wrong filename for _ExerciseBase64ImageFile'
+
+def test_exercise_graphie_filename(exercise_graphie_file, exercise_graphie_replacement_str, exercise_graphie_filename):
+    filename = exercise_graphie_file.get_filename()
+    assert filename == exercise_graphie_filename, 'wrong filename for _ExerciseGraphieFile'
+    replacement_str = exercise_graphie_file.get_replacement_str()
+    assert replacement_str == exercise_graphie_replacement_str, 'wrong replacement string for _ExerciseGraphieFile '
