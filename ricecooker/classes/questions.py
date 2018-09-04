@@ -14,12 +14,9 @@ from ..exceptions import UnknownQuestionTypeError, InvalidQuestionException
 from .files import _ExerciseImageFile, _ExerciseGraphieFile, _ExerciseBase64ImageFile
 from pressurecooker.encodings import get_base64_encoding
 
-import logging
-config.LOGGER.setLevel(logging.DEBUG)
 
-
-WEB_GRAPHIE_URL_REGEX = r'web\+graphie:(?P<graphie_rawpath>[^\)]+)'  # match web_graphie:{{path}} until closing )
-FILE_REGEX = r'!\[([^\]]+)?\]\(([^\)]+?)\)'       # match ![{{smth}}]({{url}})
+WEB_GRAPHIE_URL_REGEX = r'web\+graphie:(?P<rawpath>[^\)]+)'  # match web_graphie:{{path}}
+MARKDOWN_IMAGE_REGEX = r'!\[([^\]]+)?\]\(([^\)]+?)\)'        # match ![{{smth}}]({{url}})
 
 
 class BaseQuestion:
@@ -124,7 +121,7 @@ class BaseQuestion:
             processed_string = self.parse_html(text)
         else:
             processed_string = text
-        reg = re.compile(FILE_REGEX, flags=re.IGNORECASE)
+        reg = re.compile(MARKDOWN_IMAGE_REGEX, flags=re.IGNORECASE)
         matches = reg.findall(processed_string)
 
         # Parse all matches
@@ -143,7 +140,7 @@ class BaseQuestion:
             Returns: string with properly formatted images
         """
         bs = BeautifulSoup(text, "html5lib")
-        file_reg = re.compile(FILE_REGEX, flags=re.IGNORECASE)
+        file_reg = re.compile(MARKDOWN_IMAGE_REGEX, flags=re.IGNORECASE)
         tags = bs.findAll('img')
 
         for tag in tags:
@@ -176,7 +173,7 @@ class BaseQuestion:
         graphie_match = graphie_regex.match(stripped_text)
         if graphie_match:
             is_web_plus_graphie = True
-            graphie_rawpath = graphie_match.groupdict()['graphie_rawpath']
+            graphie_rawpath = graphie_match.groupdict()['rawpath']
             graphie_path = graphie_rawpath.replace("//", "https://")
             exercise_image_file = _ExerciseGraphieFile(graphie_path)
         elif get_base64_encoding(stripped_text):
@@ -318,8 +315,8 @@ class PerseusQuestion(BaseQuestion):
             new_images_dict[new_url] = new_images_dict.pop(old_url)
             image_replacements[old_url] = new_url
 
-        # STEP 1B. look for additional `FILE_REGEX`-like link in `content` attr.
-        img_link_pat = re.compile(FILE_REGEX, flags=re.IGNORECASE)
+        # STEP 1B. look for additional `MARKDOWN_IMAGE_REGEX`-like link in `content` attr.
+        img_link_pat = re.compile(MARKDOWN_IMAGE_REGEX, flags=re.IGNORECASE)
         img_link_matches = img_link_pat.findall(data['content'])
         for match in img_link_matches:
             old_url = match[1]

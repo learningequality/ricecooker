@@ -229,34 +229,34 @@ def test_inputquestion_validate():
 ################################################################################
 
 @pytest.fixture
-def graphie_strings_and_match():
+def graphie_strings_and_rawpath():
     """
     Return patterns that should match the 
-    WEB_GRAPHIE_URL_REGEX = r'web\+graphie:([^\)]+)'
+    WEB_GRAPHIE_URL_REGEX = r'web\+graphie:(?P<rawpath>[^\)]+)'
     """
     test_data = {
-        '![](web+graphie:somechunk)': 'web+graphie:somechunk',
-        'alksjalksj ![](web+graphie:somechunk)': 'web+graphie:somechunk',
-        '![](web+graphie:http://yahoo.com/path/url.png)': 'web+graphie:http://yahoo.com/path/url.png',
-        '![graph](web+graphie://ka.s3.aws.com/fefe)': 'web+graphie://ka.s3.aws.com/fefe',
+        '![](web+graphie:somechunk)': 'somechunk',
+        'alksjalksj ![](web+graphie:somechunk)': 'somechunk',
+        '![](web+graphie:http://yahoo.com/path/url.png)': 'http://yahoo.com/path/url.png',
+        '![graph](web+graphie://ka.s3.aws.com/fefe)': '//ka.s3.aws.com/fefe',
     }
     return test_data
 
-def test_WEB_GRAPHIE_URL_REGEX_matches(graphie_strings_and_match):
+def test_WEB_GRAPHIE_URL_REGEX_matches(graphie_strings_and_rawpath):
     from ricecooker.classes.questions import WEB_GRAPHIE_URL_REGEX
     pat = re.compile(WEB_GRAPHIE_URL_REGEX,  flags=re.IGNORECASE)
-    for sample_str, expected_match in graphie_strings_and_match.items():
+    for sample_str, expected_rawpath in graphie_strings_and_rawpath.items():
         m = pat.search(sample_str)
+        rawpath = m.groupdict()['rawpath']
         assert m, 'WEB_GRAPHIE_URL_REGEX failed to match string ' + sample_str
-        assert m.group() == expected_match, 'found ' + m.group() + ' expected ' + expected_match
-
+        assert rawpath == expected_rawpath, 'found ' + rawpath + ' expected ' + expected_rawpath
 
 
 @pytest.fixture
 def markdown_link_strings_and_match():
     """
     Return patterns that should match the RE for markdown file/image includes:
-    FILE_REGEX = r'!\[([^\]]+)?\]\(([^\)]+)\)'
+    MARKDOWN_IMAGE_REGEX = r'!\[([^\]]+)?\]\(([^\)]+)\)'
     """
     test_data = {
         '![smth](path)': ('smth', 'path'),
@@ -268,12 +268,12 @@ def markdown_link_strings_and_match():
     }
     return test_data
 
-def test_FILE_REGEX_matches(markdown_link_strings_and_match):
-    from ricecooker.classes.questions import FILE_REGEX
-    pat = re.compile(FILE_REGEX,  flags=re.IGNORECASE)
+def test_MARKDOWN_IMAGE_REGEX_matches(markdown_link_strings_and_match):
+    from ricecooker.classes.questions import MARKDOWN_IMAGE_REGEX
+    pat = re.compile(MARKDOWN_IMAGE_REGEX,  flags=re.IGNORECASE)
     for sample_str, expected_matches in markdown_link_strings_and_match.items():
         m = pat.search(sample_str)
-        assert m, 'FILE_REGEX failed to match string ' + sample_str
+        assert m, 'MARKDOWN_IMAGE_REGEX failed to match string ' + sample_str
         assert m.groups() == expected_matches, 'found ' + m.groups() + ' expected ' + expected_matches
 
 
