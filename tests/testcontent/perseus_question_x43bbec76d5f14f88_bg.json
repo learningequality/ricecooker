@@ -1,0 +1,65 @@
+{
+  "itemDataVersion": {
+    "major": 0,
+    "minor": 1
+  },
+  "hints": [
+    {
+      "content": "Функцията $f$ е положителна $($т.е. $f(x)>0)$, когато графиката ѝ е над оста $x$.\n\nТова е така, защото положителните стойности на $y$ са над оста $x$, а $y=f(x)$.\n\n![graph](web+graphie://ka-perseus-graphie.s3.amazonaws.com/d8daa074ec7d09ce3819d6259b3e4670701d2540)",
+      "images": {},
+      "widgets": {},
+      "replace": false
+    },
+    {
+      "content": "От всички изброени варианти единственият верен интервал е $-2<x<-1$.",
+      "images": {},
+      "widgets": {},
+      "replace": false
+    }
+  ],
+  "question": {
+    "content": "![graph](web+graphie://ka-perseus-graphie.s3.amazonaws.com/eb3f3bf7c317408ee90995b5bcf4f3a59606aedd)\n\n**Избери интервала, в който $f(x)>0$.**\n\n[[☃ radio 1]]",
+    "images": {},
+    "widgets": {
+      "radio 1": {
+        "graded": true,
+        "version": {
+          "major": 1,
+          "minor": 0
+        },
+        "static": false,
+        "type": "radio",
+        "options": {
+          "onePerLine": true,
+          "displayCount": null,
+          "choices": [
+            {
+              "content": "$-2<x<-1$",
+              "correct": true
+            },
+            {
+              "content": "$-1<x<0$"
+            },
+            {
+              "content": "$0<x<1$",
+              "isNoneOfTheAbove": false,
+              "correct": false
+            }
+          ],
+          "hasNoneOfTheAbove": false,
+          "multipleSelect": false,
+          "randomize": false,
+          "deselectEnabled": false
+        },
+        "alignment": "default"
+      }
+    }
+  },
+  "answerArea": {
+    "zTable": false,
+    "chi2Table": false,
+    "calculator": false,
+    "periodicTable": false,
+    "tTable": false
+  }
+}

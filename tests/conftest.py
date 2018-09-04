@@ -8,13 +8,16 @@ import pytest
 
 from le_utils.constants import licenses, content_kinds, exercises, roles
 from ricecooker.classes.files import *
+from ricecooker.classes.files import _ExerciseImageFile, _ExerciseBase64ImageFile, _ExerciseGraphieFile
 from ricecooker.classes.nodes import ChannelNode, TopicNode, VideoNode, AudioNode, DocumentNode, HTML5AppNode, ExerciseNode
 from ricecooker.classes.questions import SingleSelectQuestion, InputQuestion
 
 from ricecooker.__init__ import __version__
 
 
-""" *********** CHANNEL FIXTURES *********** """
+
+# CHANNEL FIXTURES
+################################################################################
 
 @pytest.fixture
 def domain_namespace():
@@ -74,7 +77,8 @@ def invalid_channel(channel_source_id, domain_namespace):
 
 
 
-""" *********** ID, ARGS, AND KWARGS FIXTURE HELPERS *********** """
+# ID, ARGS, AND KWARGS FIXTURE HELPERS
+################################################################################
 
 @pytest.fixture
 def base_data(channel_domain_namespace, title):
@@ -116,7 +120,8 @@ def genrate_random_ids(channel_domain_namespace, channel_node_id):
 
 
 
-""" *********** TOPIC FIXTURES *********** """
+# TOPIC FIXTURES
+################################################################################
 
 def get_topic_node_args(node_data):
     """
@@ -171,7 +176,8 @@ def topic(channel, title, topic_data):
     return topic
 
 
-""" *********** CONTENT NODE FIXTURES *********** """
+# CONTENT NODE FIXTURES
+################################################################################
 
 
 @pytest.fixture
@@ -242,7 +248,8 @@ def contentnode_no_source_id(title):
 
 
 
-""" *********** VIDEO FIXTURES *********** """
+# VIDEO FIXTURES
+################################################################################
 
 @pytest.fixture
 def video_file(base_file_path):
@@ -277,7 +284,8 @@ def video_invalid_files(video_data, document_file):
 
 
 
-""" *********** AUDIO FIXTURES *********** """
+# AUDIO FIXTURES
+################################################################################
 
 @pytest.fixture
 def audio_file(base_file_path):
@@ -311,7 +319,8 @@ def audio_invalid_files(audio_data, document_file):
     return audio
 
 
-""" *********** DOCUMENT FIXTURES *********** """
+# DOCUMENT FIXTURES
+################################################################################
 
 @pytest.fixture
 def document_file(base_file_path):
@@ -345,7 +354,8 @@ def document_invalid_files(document_data, audio_file):
     return document
 
 
-""" *********** HTML FIXTURES *********** """
+# HTML FIXTURES
+################################################################################
 
 @pytest.fixture
 def html_file():
@@ -400,7 +410,9 @@ def html_invalid_zip(html_data, html_invalid_file):
     return html
 
 
-""" *********** EXERCISE FIXTURES *********** """
+
+# EXERCISE FIXTURES
+################################################################################
 
 @pytest.fixture
 def exercise_question():
@@ -441,7 +453,8 @@ def exercise_invalid_question(exercise):
     return exercise
 
 
-""" *********** CHANNEL FIXTURES *********** """
+# FILE FIXTURES
+################################################################################
 @pytest.fixture
 def document_file():
     if not os.path.exists("tests/testcontent/testdocument.pdf"):
@@ -511,4 +524,41 @@ def html_file():
 @pytest.fixture
 def html_filename():
     return '3ce367dc18043e18429432677e19e7c2.zip'
+
+
+
+# EXERCISE IMAGES FIXTURES
+################################################################################
+
+@pytest.fixture
+def exercise_image_file():
+    return _ExerciseImageFile('tests/testcontent/no-wifi.png')
+
+@pytest.fixture
+def exercise_image_filename():
+    return '599aa896313be22dea6c0257772a464e.png'
+
+
+@pytest.fixture
+def exercise_base64_image_file():
+    with open('tests/testcontent/test_image_base64.data') as datafile:
+        base64_data = datafile.read()
+        return _ExerciseBase64ImageFile(base64_data)
+
+@pytest.fixture
+def exercise_base64_image_filename():
+    return 'cd9635def904486701e7705ef29ece67.png'
+
+
+@pytest.fixture
+def exercise_graphie_file():
+    return _ExerciseGraphieFile('tests/testcontent/eb3f3bf7c317408ee90995b5bcf4f3a59606aedd')
+
+@pytest.fixture
+def exercise_graphie_replacement_str():
+    return 'eb3f3bf7c317408ee90995b5bcf4f3a59606aedd'
+
+@pytest.fixture
+def exercise_graphie_filename():
+    return 'ea2269bb5cf487f8d883144b9c06fbc7.graphie'
 

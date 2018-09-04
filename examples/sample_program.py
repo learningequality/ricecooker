@@ -486,7 +486,7 @@ def create_question(raw_question):
 
 def parse_images(content):
     if content:
-        reg = re.compile(questions.FILE_REGEX, flags=re.IGNORECASE)
+        reg = re.compile(questions.MARKDOWN_IMAGE_REGEX, flags=re.IGNORECASE)
         matches = reg.findall(content)
         for match in matches:
             path = match[1]
