@@ -107,21 +107,20 @@ def test_htmlfile_validate():
 def test_htmlfile_to_dict():
     assert True
 
-@pytest.mark.skipif(IS_TRAVIS_TESTING, reason="Skipping create_predictable_zip stress test.")
-def test_create_many_predictable_zip_files(ndirs=8193, nfiles=1):
+@pytest.mark.skip('Skipping one-off create_predictable_zip stress test because long running...')
+def test_create_many_predictable_zip_files(ndirs=8193):
     """
     Regression test for `OSError: [Errno 24] Too many open files` when using
     ricecooker.utils.zip.create_predictable_zip helper method:
     https://github.com/learningequality/ricecooker/issues/185
+    Run `ulimit -a` to see the limits for # open files on your system and set ndirs
+    to higher number to use this test. Also comment out the @pytest.mark.skip
     """
     zip_paths = []
-    for i in range(0, ndirs):
+    for _ in range(0, ndirs):
         inputdir = tempfile.mkdtemp()
-        for j in range(0,nfiles):
-            fname = 'file'+str(j)+'.txt'
-            f = open(os.path.join(inputdir,fname), 'w')
-            f.write('something something')
-            f.close()
+        with open(os.path.join(inputdir,'index.html'), 'w') as testf:
+            testf.write('something something')
         zip_path = create_predictable_zip(inputdir)
         zip_paths.append(zip_path)
     assert len(zip_paths) == ndirs, 'wrong number of zip files created'
