@@ -1,12 +1,15 @@
 """ Tests for file downloading and processing """
-
 import pytest
 import os.path
+import tempfile
+
 from le_utils.constants import content_kinds, languages
 from ricecooker.classes.files import *
 from ricecooker.classes.files import _get_language_with_alpha2_fallback
+from ricecooker.utils.zip import create_predictable_zip
 from ricecooker import config
 
+IS_TRAVIS_TESTING = "TRAVIS" in os.environ and os.environ["TRAVIS"] == "true"
 
 # Process all of the files
 def process_files(video_file, html_file, audio_file, document_file, thumbnail_file, subtitle_file):
@@ -103,6 +106,24 @@ def test_htmlfile_validate():
 
 def test_htmlfile_to_dict():
     assert True
+
+@pytest.mark.skip('Skipping one-off create_predictable_zip stress test because long running...')
+def test_create_many_predictable_zip_files(ndirs=8193):
+    """
+    Regression test for `OSError: [Errno 24] Too many open files` when using
+    ricecooker.utils.zip.create_predictable_zip helper method:
+    https://github.com/learningequality/ricecooker/issues/185
+    Run `ulimit -a` to see the limits for # open files on your system and set ndirs
+    to higher number to use this test. Also comment out the @pytest.mark.skip
+    """
+    zip_paths = []
+    for _ in range(0, ndirs):
+        inputdir = tempfile.mkdtemp()
+        with open(os.path.join(inputdir,'index.html'), 'w') as testf:
+            testf.write('something something')
+        zip_path = create_predictable_zip(inputdir)
+        zip_paths.append(zip_path)
+    assert len(zip_paths) == ndirs, 'wrong number of zip files created'
 
 
 """ *********** EXTRACTEDVIDEOTHUMBNAILFILE TESTS *********** """
