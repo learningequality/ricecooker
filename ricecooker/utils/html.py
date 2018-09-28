@@ -4,7 +4,6 @@ import signal
 import time
 import urllib
 
-from bs4 import BeautifulSoup
 from selenium import webdriver
 from urllib.parse import urlparse, unquote
 
