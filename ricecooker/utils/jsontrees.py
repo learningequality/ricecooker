@@ -61,7 +61,7 @@ def write_tree_to_json_tree(destpath, json_tree):
     if not os.path.exists(parent_dir):
         os.makedirs(parent_dir, exist_ok=True)
     with open(destpath, 'w') as json_file:
-        json.dump(json_tree, json_file, indent=2)
+        json.dump(json_tree, json_file, indent=2, sort_keys=True)
 
 
 
