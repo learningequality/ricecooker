@@ -273,13 +273,12 @@ def add_files(node, file_list):
                     )
                 )
             else:
-                node.add_file(
-                    files.SubtitleFile(
-                        path=path,
-                        language=f['language']
-                    )
-                )
-
+                keys = ["language", "subtitlesformat"]
+                params = {'path': path}
+                for key in keys:
+                    if key in f:
+                        params[key] = f[key]
+                node.add_file(files.SubtitleFile(**params))
         else:
             raise UnknownFileTypeError("Unrecognized file type '{0}'".format(f['path']))
 
