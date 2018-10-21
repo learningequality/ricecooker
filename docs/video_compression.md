@@ -185,16 +185,17 @@ depending if your operating systems is Windows or Mac/Linux:
     To convert `inputfile.mp4` to `outputfile.mp4` using the conversion script, open a
     command line prompt, navigate to the folder where `convertvideo.bat` and `ffmpeg.exe`
     are stored, and type the following command:
-
+        
         convertvideo.bat  inputfile.mp4  outputfile.mp4
-    
-    Note video conversion takes a long time, so be prepared to get a coffee or two.
+        
+    See [https://youtu.be/oKbCbuDlRmY](https://www.youtube.com/watch?v=oKbCbuDlRmY)
+    for a video walkthrough of the steps and example usage of the batch script.
 
   - Linux and Mac users should download [convertvideo.sh](../resources/scripts/convertvideo.sh),
     save it to the folder where all the videos are. Next open a command prompt and change
     directory to that folder. Make the script executable using `chmod u+x convertvideo.sh`,
     then you can start converting videos using:
-    
+        
         ./convertvideo.sh  inputfile.mp4  outputfile.mp4
 
 
@@ -202,6 +203,10 @@ The conversion scripts provided are just wrappers for the `ffmpeg` command, to m
 easier for you so you won't have to remember all the command line options. If you need
 to adjust the conversion parameters, you edit the scripts---they are ordinary text files,
 so you can edit them with notepad.
+
+Note video conversion takes a long time, so be prepared to get a coffee or two.
+
+
 
 
 ### Experimenting
