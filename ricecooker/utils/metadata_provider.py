@@ -3,7 +3,7 @@ import csv
 import os
 from unicodedata import normalize
 
-from le_utils.constants import exercises
+from le_utils.constants import content_kinds, exercises
 from ricecooker.config import LOGGER
 
 
@@ -528,7 +528,75 @@ class CsvMetadataProvider(MetadataProvider):
         """
         Checks if provided .csv is valid as a whole.
         """
-        pass
+        pass  # TODO
+
+
+
+    # Generate CSV from folder structure in channeldir
+    ############################################################################
+
+    def generate_contentinfo_from_channeldir(self, args, options):
+        """
+        Create rows in Content.csv for each folder and file in `self.channeldir`.
+        """
+        LOGGER.info('Generating Content.csv rows folders and file in channeldir')
+        file_path = get_metadata_file_path(self.channeldir, self.contentinfo)
+        with open(file_path, 'a') as csv_file:
+            csvwriter = csv.DictWriter(csv_file, CONTENT_INFO_HEADER)
+
+            channeldir = args['channeldir']
+            if channeldir.endswith(os.path.sep):
+                channeldir.rstrip(os.path.sep)
+
+            # MAIN PROCESSING OF os.walk OUTPUT
+            content_folders = sorted(os.walk(channeldir))
+            _ = content_folders.pop(0)           # Skip over channel root folder
+            for rel_path, _subfolders, filenames in content_folders:
+                LOGGER.info('processing folder ' + str(rel_path))
+                sorted_filenames = sorted(filenames)
+                self.generate_contentinfo_from_folder(csvwriter, rel_path, sorted_filenames)
+        LOGGER.info('Generted {} row for all folders and files in {}'.format(self.contentinfo, self.channeldir))
+
+    def generate_contentinfo_from_folder(self, csvwriter, rel_path, filenames):
+        """
+        Create a topic node row in Content.csv for the folder at `rel_path` and
+        add content node rows for all the files in the `rel_path` folder.
+        """
+        LOGGER.debug('IN process_folder ' + str(rel_path) + '     ' + str(filenames))
+        from ricecooker.utils.linecook import filter_filenames, filter_thumbnail_files, chan_path_from_rel_path
+
+        # WRITE TOPIC ROW
+        topicrow = self.channeldir_node_to_row( rel_path.split(os.path.sep) )
+        csvwriter.writerow(topicrow)
+
+        # WRITE CONTENT NODE ROWS
+        chan_path = chan_path_from_rel_path(rel_path, self.channeldir)
+        filenames_cleaned = filter_filenames(filenames)
+        # filenames_cleaned2 = filter_thumbnail_files(chan_path, filenames_cleaned, self)
+        for filename in filenames_cleaned:
+            path_tuple = rel_path.split(os.path.sep)
+            path_tuple.append(filename)
+            filerow = self.channeldir_node_to_row(path_tuple)
+            csvwriter.writerow(filerow)
+
+
+    def channeldir_node_to_row(self, path_tuple):
+        """
+        Return a dict with keys corresponding to Content.csv columns.
+        """
+        row = dict()
+        for key in CONTENT_INFO_HEADER:
+            row[key] = None
+        row[CONTENT_PATH_KEY] = "/".join(path_tuple)  # use / in .csv on Windows and UNIX
+        title = path_tuple[-1].replace('_', ' ')
+        for ext in content_kinds.MAPPING.keys():
+            if title.endswith(ext):
+                title = title.replace('.'+ext, '')
+        row[CONTENT_TITLE_KEY] = title
+        row[CONTENT_SOURCEID_KEY] = path_tuple[-1]
+        return row
+
+
 
 
     # UTILS
@@ -559,10 +627,10 @@ class CsvMetadataProvider(MetadataProvider):
         directory `channeldir` with header fields specified in `header`.
         """
         file_path = get_metadata_file_path(channeldir, filename)
-        with open(file_path, 'w') as csv_file:
-            csvwriter = csv.DictWriter(csv_file, header)
-            csvwriter.writeheader()
-
+        if not os.path.exists(file_path):
+            with open(file_path, 'w') as csv_file:
+                csvwriter = csv.DictWriter(csv_file, header)
+                csvwriter.writeheader()
 
 
 def _read_csv_lines(path):
