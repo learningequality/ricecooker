@@ -189,7 +189,7 @@ Below are some general guidelines for handling video files:
     ```
     ffmpeg_settings = {'crf':32, 'max_width':"'trunc(oh*a/2)*2:min(ih,480)'" }
     ```
-  - The `ffmpeg` option `crf` stands for Constant Rate Factor and is very useful
+  - The `ffmpeg` setting `crf` stands for Constant Rate Factor and is very useful
     for controlling overall video quality. Setting `crf=24` produces high quality
     video (and possibly large file size), `crf=28` is a mid-range quality, and
     values of `crf` above 30 produce highly-compressed videos with small size.
