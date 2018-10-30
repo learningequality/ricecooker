@@ -13,7 +13,9 @@ The `VideoNode` and `VideoFile` are used to store videos.
 
 Documents
 ---------
-The `DocumentNode` and `DocumentFile` are used to store PDF documents.
+The `DocumentNode` class supports two type of files:
+  - Use the `DocumentFile` for `.pdf` documents
+  - Use the `EPubFile` for `.epub` files
 
 
 HTML5Apps

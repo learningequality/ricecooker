@@ -28,7 +28,7 @@ and shows the associated file and question classes that content nodes can contai
             class TopicNode(TreeNode)                     |
             class ContentNode(TreeNode)                   |
                 class AudioNode(ContentNode)     files = [AudioFile]
-                class DocumentNode(ContentNode)  files = [DocumentFile]
+                class DocumentNode(ContentNode)  files = [DocumentFile, EPubFile]
                 class HTML5AppNode(ContentNode)  files = [HTMLZipFile]
                 class VideoNode(ContentNode)     files = [VideoFile, WebVideoFile, YouTubeVideoFile,
                                                           SubtitleFile, YouTubeSubtitleFile]
@@ -166,6 +166,7 @@ and the file formats supported by each file class:
       |                         |
       AudioNode     --files-->  AudioFile                                   # .mp3
       DocumentNode  --files-->  DocumentFile                                # .pdf
+                                EPubFile                                    # .epub
       HTML5AppNode  --files-->  HTMLZipFile                                 # .zip
       VideoNode     --files-->  VideoFile, WebVideoFile, YouTubeVideoFile,  # .mp4
                                 SubtitleFile, YouTubeSubtitleFile           # .vtt
