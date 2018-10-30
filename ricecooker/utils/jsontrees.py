@@ -60,9 +60,8 @@ def write_tree_to_json_tree(destpath, json_tree):
     parent_dir, _ = os.path.split(destpath)
     if not os.path.exists(parent_dir):
         os.makedirs(parent_dir, exist_ok=True)
-    with open(destpath, 'w') as json_file:
-        json.dump(json_tree, json_file, indent=2, sort_keys=True)
-
+    with open(destpath, 'w', encoding='utf8') as json_file:
+        json.dump(json_tree, json_file, indent=2, ensure_ascii=False)
 
 
 # CONSTRUCT CHANNEL FROM RICECOOKER JSON TREE
