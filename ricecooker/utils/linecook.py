@@ -6,7 +6,7 @@ from le_utils.constants import content_kinds
 from .metadata_provider import path_to_tuple
 from .jsontrees import (TOPIC_NODE, VIDEO_NODE, AUDIO_NODE, EXERCISE_NODE,
                         DOCUMENT_NODE, HTML5_NODE)
-from .jsontrees import (VIDEO_FILE, AUDIO_FILE, DOCUMENT_FILE, HTML5_FILE,
+from .jsontrees import (VIDEO_FILE, AUDIO_FILE, DOCUMENT_FILE, EPUB_FILE, HTML5_FILE,
                         THUMBNAIL_FILE, SUBTITLES_FILE)
 from .jsontrees import write_tree_to_json_tree
 
@@ -313,8 +313,24 @@ def make_content_node(channeldir, rel_path, filename, metadata):
             language=lang,
             license=license_dict,
             thumbnail=thumbnail_rel_path,
-            files=[{'file_type':DOCUMENT_FILE, 'path':filepath, 'language':lang}],
+            files=[]
         )
+        if ext == 'pdf':
+            pdf_file = {
+                'file_type':DOCUMENT_FILE,
+                'path':filepath,
+                'language':lang
+            }
+            content_node['files'].append(pdf_file)
+        elif ext == 'epub':
+            epub_file = {
+                'file_type':EPUB_FILE,
+                'path':filepath,
+                'language':lang
+            }
+            content_node['files'].append(epub_file)
+        else:
+            raise ValueError('Ext {} not supported for kind {}'.format(ext, kind))
 
     elif kind == HTML5_NODE:
         content_node = dict(
