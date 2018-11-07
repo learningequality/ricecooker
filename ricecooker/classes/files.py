@@ -448,7 +448,7 @@ class ExtractedVideoThumbnailFile(ThumbnailFile):
 
 class VideoFile(DownloadFile):
     default_ext = file_formats.MP4
-    allowed_formats = [file_formats.MP4, 'avi', 'mov', 'mpg', 'wmv', 'swf', 'webm', 'mkv', 'flv']
+    allowed_formats = [file_formats.MP4]
     is_primary = True
 
     def __init__(self, path, ffmpeg_settings=None, **kwargs):
@@ -468,6 +468,9 @@ class VideoFile(DownloadFile):
             config.FAILED_FILES.append(self)
 
     def process_file(self):
+        ext = extract_path_ext(self.path, default_ext=self.default_ext)
+        if ext not in self.allowed_formats and ext not in CONVERTIBLE_FORMATS[format_presets.VIDEO_HIGH_RES]:
+            raise ValueError('Incompatible extension {} for VideoFile at {}'.format(ext, self.path))
         try:
             # Handle videos that don't have a .mp4 extension
             _, ext = os.path.splitext(self.path)
@@ -601,7 +604,7 @@ class YouTubeSubtitleFile(File):
 
 class SubtitleFile(DownloadFile):
     default_ext = file_formats.VTT
-    allowed_formats = [file_formats.VTT, file_formats.SRT]
+    allowed_formats = [file_formats.VTT]
 
     def __init__(self, path, **kwargs):
         self.subtitlesformat = kwargs.get('subtitlesformat', self.default_ext)
@@ -614,6 +617,9 @@ class SubtitleFile(DownloadFile):
         return self.preset or format_presets.VIDEO_SUBTITLE
 
     def process_file(self):
+        ext = extract_path_ext(self.path, default_ext=self.subtitlesformat)
+        if ext not in self.allowed_formats and ext not in CONVERTIBLE_FORMATS[self.get_preset()]:
+            raise ValueError('Incompatible extension {} for SubtitleFile at {}'.format(ext, self.path))
         try:
             self.filename = self.download_and_transform_file(self.path)
             config.LOGGER.info("\t--- Downloaded {}".format(self.filename))
@@ -624,9 +630,10 @@ class SubtitleFile(DownloadFile):
             config.FAILED_FILES.append(self)
 
     def download_and_transform_file(self, path):
-        """ download: downloads file
-           Args: None
-            Returns: filename
+        """
+        Downlaod subtitles file at `path` and transform it to `.vtt` if necessary.
+        Args: path (URL or local path)
+        Returns: filename of final .vtt file
         """
         key = "DOWNLOAD:{}".format(path)
         if not config.UPDATE and FILECACHE.get(key):
