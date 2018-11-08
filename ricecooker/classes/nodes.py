@@ -716,8 +716,8 @@ class ExerciseNode(ContentNode):
             exercise_data = {"mastery_model": exercise_data}
 
         exercise_data.update({
-            'mastery_model': exercise_data.get('mastery_model') or exercises.M_OF_N,
-            'randomize': exercise_data.get('randomize') or True,
+            'mastery_model': exercise_data.get('mastery_model', exercises.M_OF_N),
+            'randomize': exercise_data.get('randomize', True),
         })
 
         super(ExerciseNode, self).__init__(source_id, title, license, extra_fields=exercise_data, **kwargs)

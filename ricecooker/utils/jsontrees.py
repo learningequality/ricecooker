@@ -22,13 +22,14 @@ DOCUMENT_NODE = content_kinds.DOCUMENT
 HTML5_NODE = content_kinds.HTML5
 
 # TODO(Ivan): add constants.file_types to le_utils and discuss with Jordan
-# from le_utils.constants import file_types
-VIDEO_FILE = "video"        # = file_types.VIDEO
-AUDIO_FILE = "audio"        # = file_types.AUDIO
-DOCUMENT_FILE = "document"  # = file_types.DOCUMENT etc..
-HTML5_FILE = "html5"
-THUMBNAIL_FILE = "thumbnail"
-SUBTITLES_FILE = "subtitles"
+from le_utils.constants import file_types
+VIDEO_FILE = file_types.VIDEO
+AUDIO_FILE = file_types.AUDIO
+DOCUMENT_FILE = file_types.DOCUMENT
+EPUB_FILE = file_types.EPUB
+HTML5_FILE = file_types.HTML5
+THUMBNAIL_FILE = file_types.THUMBNAIL
+SUBTITLES_FILE = file_types.SUBTITLES
 
 from le_utils.constants import exercises
 INPUT_QUESTION = exercises.INPUT_QUESTION
@@ -60,9 +61,8 @@ def write_tree_to_json_tree(destpath, json_tree):
     parent_dir, _ = os.path.split(destpath)
     if not os.path.exists(parent_dir):
         os.makedirs(parent_dir, exist_ok=True)
-    with open(destpath, 'w') as json_file:
-        json.dump(json_tree, json_file, indent=2, sort_keys=True)
-
+    with open(destpath, 'w', encoding='utf8') as json_file:
+        json.dump(json_tree, json_file, indent=2, ensure_ascii=False)
 
 
 # CONSTRUCT CHANNEL FROM RICECOOKER JSON TREE
@@ -185,7 +185,7 @@ def build_tree_from_json(parent_node, sourcetree):
 
 
 def add_files(node, file_list):
-    EXPECTED_FILE_TYPES = [VIDEO_FILE, AUDIO_FILE, DOCUMENT_FILE, HTML5_FILE,
+    EXPECTED_FILE_TYPES = [VIDEO_FILE, AUDIO_FILE, DOCUMENT_FILE, EPUB_FILE, HTML5_FILE,
                            THUMBNAIL_FILE, SUBTITLES_FILE]
 
     for f in file_list:
@@ -240,6 +240,13 @@ def add_files(node, file_list):
                 )
             )
 
+        elif file_type == EPUB_FILE:
+            node.add_file(
+                files.EPubFile(
+                    path=path,
+                    language=f.get('language', None)
+                )
+            )
 
         elif file_type == HTML5_FILE:
             node.add_file(

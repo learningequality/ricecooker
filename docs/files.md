@@ -68,10 +68,17 @@ Use the `AudioFile(DownloadFile)` class to store `mp3` files.
 
 Document files
 --------------
-Use the `DocumentFile` to store PDF documents
+Use the `DocumentFile` class to add PDF documents:
 
     document_file = DocumentFile(
         path='dir/subdir/lecture_slides.mp4',
+        language=getlang('en').code
+    )
+
+Use the `EPubFile` class to add ePub documents:
+
+    document_file = EPubFile(
+        path='dir/subdir/lecture_slides.epub',
         language=getlang('en').code
     )
 

@@ -1,10 +1,16 @@
 from collections import defaultdict
 import csv
+import json
 import os
+import re
+import requests
 from unicodedata import normalize
 
-from le_utils.constants import exercises
+from le_utils.constants import content_kinds, exercises
 from ricecooker.config import LOGGER
+from ricecooker.utils.libstudio import StudioApi
+
+from ricecooker.classes.questions import MARKDOWN_IMAGE_REGEX
 
 
 # CONSTANTS
@@ -382,7 +388,7 @@ class CsvMetadataProvider(MetadataProvider):
             exercise_data['m'] = m_value
         n_value = row_cleaned.get(EXERCISE_N_KEY, None)
         if n_value:
-            exercise_data['m'] = n_value
+            exercise_data['n'] = n_value
 
         exercise_dict = dict(
             chan_path=row_cleaned[CONTENT_PATH_KEY],
@@ -528,7 +534,308 @@ class CsvMetadataProvider(MetadataProvider):
         """
         Checks if provided .csv is valid as a whole.
         """
-        pass
+        pass  # TODO
+
+
+    # Generate CSV metadata from a given studio_id
+    ############################################################################
+
+    def generate_exercises_from_importstudioid(self, args, options):
+        """
+        Create rows in Exercises.csv and ExerciseQuestions.csv from a Studio channel,
+        specified based on a studio_id (e.g. studio_id of main_tree for some channel)'
+        """
+        print('Generating Exercises.csv and ExerciseQuestions.csv from a Studio channel')
+        self.studioapi = StudioApi(token=args['token'])
+        channel_dict = self.studioapi.get_tree_for_studio_id(args['importstudioid'])
+        json.dump(channel_dict, open('chefdata/studiotree.json', 'w'), indent=4, ensure_ascii=False, sort_keys=True)
+
+        soure_ids_seen = []
+        def _generate_source_id(subtree):
+            """
+            Creates a Source ID form title and ensures it is unique withing channel.
+            """
+            candidate = subtree['title'].replace(' ', '_')
+            if candidate not in soure_ids_seen:
+                source_id = candidate
+                soure_ids_seen.append(source_id)
+            else:
+                source_id = candidate + subtree['node_id'][0:7]
+                soure_ids_seen.append(source_id)
+            return source_id
+
+        def _write_subtree(path_tuple, subtree, is_root=False):
+            print('    '*len(path_tuple) + '  - ', subtree['title'])
+            kind = subtree['kind']
+
+            # TOPIC ############################################################
+            if kind == 'topic':
+
+                if is_root:
+                    self.write_topic_row_from_studio_dict(path_tuple, subtree, is_root=is_root)
+                    for child in subtree['children']:
+                        _write_subtree(path_tuple, child)
+                else:
+                    self.write_topic_row_from_studio_dict(path_tuple, subtree)
+                    for child in subtree['children']:
+                        _write_subtree(path_tuple+[subtree['title']], child)
+
+            # EXERCISE #########################################################
+            elif kind == 'exercise':
+                source_id = _generate_source_id(subtree)
+                self.write_exercice_row_from_studio_dict(path_tuple, subtree, source_id)
+                for question_dict in subtree['assessment_items']:
+                    self.write_question_row_from_question_dict(source_id, question_dict)
+
+            else:
+                print('skipping node', subtree['title'])
+
+        path_tuple = [ self.channeldir.split('/')[-1] ]
+        _write_subtree(path_tuple, channel_dict, is_root=True)
+
+    
+    def write_commont_studio_dict_from_row(self, studio_dict, row):
+        if studio_dict['license']:
+            license_dict = self.studioapi.licenses_by_id[studio_dict['license']]
+        else:
+            license_dict = {'license_name': None}
+        row[CONTENT_TITLE_KEY] = studio_dict['title']
+        row[CONTENT_DESCRIPTION_KEY] = studio_dict['description']
+        row[CONTENT_AUTHOR_KEY] = studio_dict['author']
+        row[CONTENT_LANGUAGE_KEY] = 'en'
+        row[CONTENT_LICENSE_ID_KEY] = license_dict['license_name']
+        row[CONTENT_LICENSE_DESCRIPTION_KEY] = None
+        row[CONTENT_LICENSE_COPYRIGHT_HOLDER_KEY] = studio_dict['copyright_holder']
+        row[CONTENT_THUMBNAIL_KEY] = None
+
+
+    def write_topic_row_from_studio_dict(self, path_tuple, studio_dict, is_root=False):
+        if is_root:
+            return
+        # print('Generating Content.csv rows folders and file in channeldir for path_tuple ', path_tuple, studio_dict['title'])
+        file_path = get_metadata_file_path(self.channeldir, self.contentinfo)
+        with open(file_path, 'a') as csv_file:
+            csvwriter = csv.DictWriter(csv_file, CONTENT_INFO_HEADER)
+            title = studio_dict['title']
+            path_with_self = '/'.join(path_tuple+[title])
+            if not os.path.exists(path_with_self):
+                os.makedirs(path_with_self, exist_ok=True)
+            topic_row = {}
+            self.write_commont_studio_dict_from_row(studio_dict, topic_row)
+            # WRITE TOPIC ROW
+            topic_row[CONTENT_PATH_KEY] = path_with_self
+            topic_row[CONTENT_SOURCEID_KEY] = studio_dict['node_id'][0:7]
+            csvwriter.writerow(topic_row)
+
+
+    def write_exercice_row_from_studio_dict(self, path_tuple, studio_dict, source_id):
+        file_path = get_metadata_file_path(self.channeldir, self.exercisesinfo)
+        with open(file_path, 'a') as csv_file:
+            csvwriter = csv.DictWriter(csv_file, EXERCISE_INFO_HEADER)
+            exercise_row = {}
+            self.write_commont_studio_dict_from_row(studio_dict, exercise_row)
+            exercise_title = studio_dict['title']
+            exercise_row[CONTENT_PATH_KEY] = '/'.join(path_tuple+[exercise_title])
+            exercise_row[EXERCISE_SOURCEID_KEY] = source_id
+            # Exercises specifics
+            extra_fields = json.loads(studio_dict['extra_fields'])
+            exercise_row[EXERCISE_M_KEY] = None # extra_fields['m']  TEMPORARY HACK BECAUSE NUMBER OF QUESTIONS WILL CHANGE 
+            exercise_row[EXERCISE_N_KEY] = None # extra_fields['n']  TEMPORARY HACK BECAUSE NUMBER OF QUESTIONS WILL CHANGE 
+            exercise_row[EXERCISE_RANDOMIZE_KEY] = extra_fields['randomize']
+            # WRITE EXERCISE ROW
+            csvwriter.writerow(exercise_row)
+
+
+
+    def _make_local_question_images(self, question_dict):
+        """
+        Process all mardown image links in question_dict:
+          - download them to local files under exerciseimages/
+        """
+        question_dict = question_dict.copy()
+        dest_path = 'exerciseimages/'
+
+        if not os.path.exists(dest_path):
+            os.mkdir(dest_path)
+
+        # helper method
+        def _process_string(string):
+            image_regex = re.compile(MARKDOWN_IMAGE_REGEX, flags=re.IGNORECASE)
+            contentstorage_prefix = '${☣ CONTENTSTORAGE}/'
+            studio_storage = 'https://studio.learningequality.org/content/storage/'
+
+            matches = image_regex.findall(string)
+
+            # Parse all matches
+            for match in matches:
+                file_result = match[1]
+                file_name = file_result.replace(contentstorage_prefix, '')
+                file_url = studio_storage + file_name[0] + '/' + file_name[1] + '/' + file_name
+                file_local_path = os.path.join(dest_path, file_name)
+                response = requests.get(file_url)
+                if response.status_code != 200:
+                    print('Failed for image ' + str(response.status_code) + ' >> ' + file_url)
+                    return string
+                with open(file_local_path, 'wb') as local_file:
+                    local_file.write(response.content)
+                    print('saved image file', file_local_path)
+                string = string.replace(file_result, file_local_path)
+
+            return string
+
+        # Process images in question
+        new_question = _process_string(question_dict['question'])
+        question_dict['question'] = new_question
+
+        # Process images in answers
+        answers = json.loads(question_dict['answers'])
+        new_answers = []
+        for ans in answers:
+            new_ans = ans.copy()
+            new_ans['answer'] = _process_string(new_ans['answer'])
+            new_answers.append(new_ans)
+        question_dict['answers'] = json.dumps(new_answers)
+
+        # TODO: process hint images
+
+        return question_dict
+
+
+
+    def write_question_row_from_question_dict(self, source_id, question_dict):
+        file_path = get_metadata_file_path(self.channeldir, self.questionsinfo)
+        with open(file_path, 'a') as csv_file:
+            csvwriter = csv.DictWriter(csv_file, EXERCISE_QUESTIONS_INFO_HEADER)
+
+            def _safe_list_get(l, idx, default):
+                try:
+                    return l[idx]
+                except IndexError:
+                    return default
+
+            # change image links to local
+            question_dict = self._make_local_question_images(question_dict)
+
+            type_lookup = {
+                'single_selection': exercises.SINGLE_SELECTION,
+                'true_false': exercises.SINGLE_SELECTION,
+                'multiple_selection': exercises.MULTIPLE_SELECTION,
+                'input_question': exercises.INPUT_QUESTION,
+            }
+
+            # ANSWERS
+            answers = json.loads(question_dict['answers'])
+            options = []  # all options
+            correct = []  # correct andwers
+            for ans in answers:
+                options.append(ans['answer'])
+                if ans['correct']:
+                    correct.append(ans['answer'])
+            extra_options = DEFAULT_EXTRA_ITEMS_SEPARATOR.join(options[5:])
+
+            # HINTS
+            hints_raw = json.loads(question_dict['hints'])
+            if hints_raw:
+                raise ValueError('Found hints but not handled..')
+
+            LOGGER.info('     - writing question with studio_id=' + question_dict['assessment_id'])
+            question_row = {}
+            question_row[EXERCISE_SOURCEID_KEY] = source_id
+            question_row[EXERCISE_QUESTIONS_QUESTIONID_KEY] = question_dict['assessment_id'] # question_dict['assessment_id']
+            question_row[EXERCISE_QUESTIONS_TYPE_KEY] = type_lookup[question_dict['type']]
+            question_row[EXERCISE_QUESTIONS_QUESTION_KEY] = question_dict['question']
+            question_row[EXERCISE_QUESTIONS_OPTION_A_KEY] = _safe_list_get(options, 0, None)
+            question_row[EXERCISE_QUESTIONS_OPTION_B_KEY] = _safe_list_get(options, 1, None)
+            question_row[EXERCISE_QUESTIONS_OPTION_C_KEY] = _safe_list_get(options, 2, None)
+            question_row[EXERCISE_QUESTIONS_OPTION_D_KEY] = _safe_list_get(options, 3, None)
+            question_row[EXERCISE_QUESTIONS_OPTION_E_KEY] = _safe_list_get(options, 4, None)
+            question_row[EXERCISE_QUESTIONS_OPTION_FGHI_KEY] = extra_options
+            question_row[EXERCISE_QUESTIONS_CORRECT_ANSWER_KEY] = _safe_list_get(correct, 0, None)
+            question_row[EXERCISE_QUESTIONS_CORRECT_ANSWER2_KEY] = _safe_list_get(correct, 1, None)
+            question_row[EXERCISE_QUESTIONS_CORRECT_ANSWER3_KEY] = _safe_list_get(correct, 2, None)
+            question_row[EXERCISE_QUESTIONS_HINT_1_KEY] = None # TODO
+            question_row[EXERCISE_QUESTIONS_HINT_2_KEY] = None # TODO
+            question_row[EXERCISE_QUESTIONS_HINT_3_KEY] = None # TODO
+            question_row[EXERCISE_QUESTIONS_HINT_4_KEY] = None # TODO
+            question_row[EXERCISE_QUESTIONS_HINT_5_KEY] = None # TODO
+            question_row[EXERCISE_QUESTIONS_HINT_6789_KEY] = None # TODO
+            # WRITE QUESTION ROW
+            csvwriter.writerow(question_row)
+            #            'files': [],
+            #            'raw_data': '',
+            #            'order': 2,
+            #            'source_url': None,
+            #            'randomize': True,
+            #            'deleted': False},
+
+
+
+
+    # Generate CSV from folder structure in channeldir
+    ############################################################################
+
+    def generate_contentinfo_from_channeldir(self, args, options):
+        """
+        Create rows in Content.csv for each folder and file in `self.channeldir`.
+        """
+        LOGGER.info('Generating Content.csv rows folders and file in channeldir')
+        file_path = get_metadata_file_path(self.channeldir, self.contentinfo)
+        with open(file_path, 'a') as csv_file:
+            csvwriter = csv.DictWriter(csv_file, CONTENT_INFO_HEADER)
+
+            channeldir = args['channeldir']
+            if channeldir.endswith(os.path.sep):
+                channeldir.rstrip(os.path.sep)
+
+            # MAIN PROCESSING OF os.walk OUTPUT
+            content_folders = sorted(os.walk(channeldir))
+            _ = content_folders.pop(0)           # Skip over channel root folder
+            for rel_path, _subfolders, filenames in content_folders:
+                LOGGER.info('processing folder ' + str(rel_path))
+                sorted_filenames = sorted(filenames)
+                self.generate_contentinfo_from_folder(csvwriter, rel_path, sorted_filenames)
+        LOGGER.info('Generted {} row for all folders and files in {}'.format(self.contentinfo, self.channeldir))
+
+    def generate_contentinfo_from_folder(self, csvwriter, rel_path, filenames):
+        """
+        Create a topic node row in Content.csv for the folder at `rel_path` and
+        add content node rows for all the files in the `rel_path` folder.
+        """
+        LOGGER.debug('IN process_folder ' + str(rel_path) + '     ' + str(filenames))
+        from ricecooker.utils.linecook import filter_filenames, filter_thumbnail_files, chan_path_from_rel_path
+
+        # WRITE TOPIC ROW
+        topicrow = self.channeldir_node_to_row( rel_path.split(os.path.sep) )
+        csvwriter.writerow(topicrow)
+
+        # WRITE CONTENT NODE ROWS
+        chan_path = chan_path_from_rel_path(rel_path, self.channeldir)
+        filenames_cleaned = filter_filenames(filenames)
+        # filenames_cleaned2 = filter_thumbnail_files(chan_path, filenames_cleaned, self)
+        for filename in filenames_cleaned:
+            path_tuple = rel_path.split(os.path.sep)
+            path_tuple.append(filename)
+            filerow = self.channeldir_node_to_row(path_tuple)
+            csvwriter.writerow(filerow)
+
+
+    def channeldir_node_to_row(self, path_tuple):
+        """
+        Return a dict with keys corresponding to Content.csv columns.
+        """
+        row = dict()
+        for key in CONTENT_INFO_HEADER:
+            row[key] = None
+        row[CONTENT_PATH_KEY] = "/".join(path_tuple)  # use / in .csv on Windows and UNIX
+        title = path_tuple[-1].replace('_', ' ')
+        for ext in content_kinds.MAPPING.keys():
+            if title.endswith(ext):
+                title = title.replace('.'+ext, '')
+        row[CONTENT_TITLE_KEY] = title
+        row[CONTENT_SOURCEID_KEY] = path_tuple[-1]
+        return row
+
+
 
 
     # UTILS
@@ -559,10 +866,10 @@ class CsvMetadataProvider(MetadataProvider):
         directory `channeldir` with header fields specified in `header`.
         """
         file_path = get_metadata_file_path(channeldir, filename)
-        with open(file_path, 'w') as csv_file:
-            csvwriter = csv.DictWriter(csv_file, header)
-            csvwriter.writeheader()
-
+        if not os.path.exists(file_path):
+            with open(file_path, 'w') as csv_file:
+                csvwriter = csv.DictWriter(csv_file, header)
+                csvwriter.writeheader()
 
 
 def _read_csv_lines(path):
