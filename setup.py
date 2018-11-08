@@ -21,6 +21,7 @@ requirements = [
     "le_utils>=0.1.14",
     "validators",
     "requests_file",
+    "requests-cache>=0.4.13",
     "beautifulsoup4==4.5.1",
     "pressurecooker>=0.0.19",
     "selenium==3.0.1",
