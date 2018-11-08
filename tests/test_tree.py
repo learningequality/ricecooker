@@ -48,11 +48,11 @@ def document_node_id(topic_node_id, document_content_id):
 
 @pytest.fixture
 def document_file():
-    return DocumentFile("document_path")
+    return DocumentFile("tests/testcontent/testdocument.pdf")
 
 @pytest.fixture
 def thumbnail_path():
-    return "thumbnail path"
+    return "tests/testcontent/sample_thumbnail.png"
 
 @pytest.fixture
 def copyright_holder():

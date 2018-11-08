@@ -17,6 +17,7 @@ from le_utils.constants import file_formats, format_presets, exercises
 from pressurecooker.encodings import get_base64_encoding, write_base64_to_file
 from pressurecooker.images import create_tiled_image
 from pressurecooker.videos import extract_thumbnail_from_video, guess_video_preset_by_resolution, compress_video, VideoCompressionError
+from pressurecooker.converters import srt2vtt
 from requests.exceptions import MissingSchema, HTTPError, ConnectionError, InvalidURL, InvalidSchema
 
 from .. import config
@@ -25,6 +26,27 @@ from ..exceptions import UnknownFileTypeError
 # Cache for filenames
 FILECACHE = FileCache(config.FILECACHE_DIRECTORY, forever=True)
 HTTP_CAUGHT_EXCEPTIONS = (HTTPError, ConnectionError, InvalidURL, UnicodeDecodeError, UnicodeError, InvalidSchema, IOError, AssertionError)
+
+# Lookup table for convertible file formats for a given preset
+# used for converting avi/flv/etc. videos and srt subtitles
+CONVERTIBLE_FORMATS = {p.id: p.convertible_formats for p in format_presets.PRESETLIST}
+
+
+def extract_path_ext(path, default_ext=None):
+    """
+    Extract file extension (without dot) from `path` or return `default_ext` if
+    path does not contain a valid extension.
+    """
+    ext = None
+    _, dotext = os.path.splitext(path)
+    if dotext:
+        ext = dotext[1:]
+    if not ext and default_ext:
+        ext = default_ext
+    if not ext:
+        raise ValueError('No extension in path {} and default_ext is None'.format(path))
+    return ext
+
 
 def generate_key(action, path_or_id, settings=None, default=" (default)"):
     """ generate_key: generate key used for caching
@@ -324,8 +346,9 @@ class DownloadFile(File):
         super(DownloadFile, self).__init__(**kwargs)
 
     def validate(self):
-        assert self.path, "{} must have a path".format(self.__class__.__name__)
-        _basename, ext = os.path.splitext(self.path)
+        filename = self.get_filename()
+        assert filename, "{} must have a filename".format(self.__class__.__name__)
+        _basename, ext = os.path.splitext(filename)
         plain_ext = ext.lstrip('.')
         # don't validate for single-digit extension, or no extension
         if len(plain_ext) > 1:
@@ -425,7 +448,7 @@ class ExtractedVideoThumbnailFile(ThumbnailFile):
 
 class VideoFile(DownloadFile):
     default_ext = file_formats.MP4
-    allowed_formats = [file_formats.MP4, 'avi', 'mov', 'mpg', 'wmv', 'swf', 'webm', 'mkv', 'flv']
+    allowed_formats = [file_formats.MP4]
     is_primary = True
 
     def __init__(self, path, ffmpeg_settings=None, **kwargs):
@@ -445,6 +468,9 @@ class VideoFile(DownloadFile):
             config.FAILED_FILES.append(self)
 
     def process_file(self):
+        ext = extract_path_ext(self.path, default_ext=self.default_ext)
+        if ext not in self.allowed_formats and ext not in CONVERTIBLE_FORMATS[format_presets.VIDEO_HIGH_RES]:
+            raise ValueError('Incompatible extension {} for VideoFile at {}'.format(ext, self.path))
         try:
             # Handle videos that don't have a .mp4 extension
             _, ext = os.path.splitext(self.path)
@@ -581,11 +607,70 @@ class SubtitleFile(DownloadFile):
     allowed_formats = [file_formats.VTT]
 
     def __init__(self, path, **kwargs):
+        self.subtitlesformat = kwargs.get('subtitlesformat', self.default_ext)
+        if "subtitlesformat" in kwargs:
+            del kwargs["subtitlesformat"]
         super(SubtitleFile, self).__init__(path, **kwargs)
         assert self.language, "Subtitles must have a language"
 
     def get_preset(self):
         return self.preset or format_presets.VIDEO_SUBTITLE
+
+    def process_file(self):
+        ext = extract_path_ext(self.path, default_ext=self.subtitlesformat)
+        if ext not in self.allowed_formats and ext not in CONVERTIBLE_FORMATS[self.get_preset()]:
+            raise ValueError('Incompatible extension {} for SubtitleFile at {}'.format(ext, self.path))
+        try:
+            self.filename = self.download_and_transform_file(self.path)
+            config.LOGGER.info("\t--- Downloaded {}".format(self.filename))
+            return self.filename
+        # Catch errors related to reading file path and handle silently
+        except HTTP_CAUGHT_EXCEPTIONS as err:
+            self.error = err
+            config.FAILED_FILES.append(self)
+
+    def download_and_transform_file(self, path):
+        """
+        Downlaod subtitles file at `path` and transform it to `.vtt` if necessary.
+        Args: path (URL or local path)
+        Returns: filename of final .vtt file
+        """
+        key = "DOWNLOAD:{}".format(path)
+        if not config.UPDATE and FILECACHE.get(key):
+            return FILECACHE.get(key).decode('utf-8')
+
+        config.LOGGER.info("\tDownloading {}".format(path))
+
+        # Write file to temporary file
+        if self.subtitlesformat == file_formats.VTT:
+            with tempfile.TemporaryFile() as tempf:
+                hash = write_and_get_hash(path, tempf)
+                tempf.seek(0)
+
+                # Get extension of file or default if none found
+                filename = '{0}.{ext}'.format(hash.hexdigest(), ext=self.default_ext)
+                copy_file_to_storage(filename, tempf)
+                FILECACHE.set(key, bytes(filename, "utf-8"))
+        elif self.subtitlesformat == file_formats.SRT:
+            with tempfile.NamedTemporaryFile() as tempf_srt,\
+                tempfile.NamedTemporaryFile() as tempf_vtt:
+                hash_srt = write_and_get_hash(path, tempf_srt)
+                tempf_srt.seek(0)
+                filename_tmp_vtt = os.path.join(
+                    "/tmp", '{0}.{ext}'.format(hash_srt.hexdigest(), ext=self.default_ext))
+                error_msg = srt2vtt(tempf_srt.name, filename_tmp_vtt)
+                
+                hash = write_and_get_hash(filename_tmp_vtt, tempf_vtt)
+                tempf_vtt.seek(0)
+                
+                filename = '{0}.{ext}'.format(hash.hexdigest(), ext=self.default_ext)
+                copy_file_to_storage(filename, tempf_vtt.name)
+                if error_msg is not None:
+                    config.LOGGER.error(" An Error found in " + path)
+                    config.LOGGER.error(error_msg)
+                else:
+                    FILECACHE.set(key, bytes(filename, "utf-8"))
+        return filename
 
 
 class Base64ImageFile(ThumbnailPresetMixin, File):
