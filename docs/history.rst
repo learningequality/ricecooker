@@ -2,6 +2,23 @@
 History
 =======
 
+0.6.23 (2018-11-08)
+-------------------
+* Updated ``le-utils`` and ``pressurcooker`` dependencies to latest version
+* Added support for ePub files (``EPubFile``s can be added of ``DocumentNode``s)
+* Added tag support
+* Changed default value for ``STUDIO_URL`` to ``api.studio.learningequality.org``
+* Added ``aggregator`` and ``provider`` fields for content nodes
+* Various bugfixes to image processing in exercises
+* Changed validation logic to use ``self.filename`` to check file format is in ``self.allowed_formats``
+* Added ``is_youtube_subtitle_file_supported_language`` helper function to support importing youtube subs
+* Added ``srt2vtt`` subtitles conversion
+* Added static assets downloader helper method in ``utils.downloader.download_static_assets``
+* Added LineCook chef functions to ``--generate`` CSV from directory structure
+* Fixed the always ``randomize=True`` bug 
+* Docs: general content node metadata guidelines
+* Docs: video compression instructions and helper scripts ``convertvideo.bat`` and ``convertvideo.sh``
+
 
 0.6.17 (2018-04-20)
 -------------------
