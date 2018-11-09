@@ -347,17 +347,16 @@ class DownloadFile(File):
 
     def validate(self):
         """
-        Ensure `filename` has one of the extensions in `self.allowed_formats`.
+        Ensure `self.path` has one of the extensions in `self.allowed_formats`.
         """
-        filename = self.get_filename()
-        if filename:
-            ext = extract_path_ext(filename)
+        assert self.path, "{} must have a path".format(self.__class__.__name__)
+        _, dotext = os.path.splitext(self.path)
+        ext = dotext.lstrip('.')
+        # don't validate for single-digit extension, or no extension
+        if len(ext) > 1:
             assert ext in self.allowed_formats, "{} must have one of the following"
-            "extensions: {} (instead, got '{}' from path '{}')".format(
-                self.__class__.__name__, self.allowed_formats, ext, self.path)
-        else:
-            config.LOGGER.error("\t--- Validation failed for {} with path {}".format(
-                self.__class__.__name__, self.path))
+            "extensions: {} (instead, got '{}' from '{}')".format(
+            self.__class__.__name__, self.allowed_formats, ext, self.path)
 
     def process_file(self):
         try:
@@ -462,6 +461,15 @@ class VideoFile(DownloadFile):
 
     def get_preset(self):
         return self.preset or guess_video_preset_by_resolution(config.get_storage_path(self.filename))
+
+    def validate(self):
+        """
+        Ensure `self.path` has one of the extensions in `self.allowed_formats`.
+        """
+        assert self.path, "{} must have a path".format(self.__class__.__name__)
+        ext = extract_path_ext(self.path, default_ext=self.default_ext)
+        if ext not in self.allowed_formats and ext not in CONVERTIBLE_FORMATS[format_presets.VIDEO_HIGH_RES]:
+            raise ValueError('Incompatible extension {} for VideoFile at {}'.format(ext, self.path))
 
     def process_unsupported_video_file(self):
         try:
@@ -620,6 +628,15 @@ class SubtitleFile(DownloadFile):
 
     def get_preset(self):
         return self.preset or format_presets.VIDEO_SUBTITLE
+
+    def validate(self):
+        """
+        Ensure `self.path` has one of the extensions in `self.allowed_formats`.
+        """
+        assert self.path, "{} must have a path".format(self.__class__.__name__)
+        ext = extract_path_ext(self.path, default_ext=self.subtitlesformat)
+        if ext not in self.allowed_formats and ext not in CONVERTIBLE_FORMATS[self.get_preset()]:
+            raise ValueError('Incompatible extension {} for SubtitleFile at {}'.format(ext, self.path))
 
     def process_file(self):
         ext = extract_path_ext(self.path, default_ext=self.subtitlesformat)
