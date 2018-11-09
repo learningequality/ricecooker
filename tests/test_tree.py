@@ -142,17 +142,17 @@ def test_licenses(channel, topic, document, license_name, copyright_holder):
     assert not channel.license, "Channel should not have a license"
     assert not topic.license, "Topic should not have a license"
 
-def test_tree_validation(tree, invalid_tree, invalid_tree_2):
-    assert tree.test_tree(), "Valid tree should pass validation"
+def test_validate_tree(tree, invalid_tree, invalid_tree_2):
+    assert tree.validate_tree(), "Valid tree should pass validation"
 
     try:
-        invalid_tree.test_tree()
+        invalid_tree.validate_tree()
         assert False, "Invalid tree should fail validation"
     except InvalidNodeException:
         pass
 
     try:
-        invalid_tree_2.test_tree()
+        invalid_tree_2.validate_tree()
         assert False, "Invalid tree should fail validation"
     except InvalidNodeException:
         pass

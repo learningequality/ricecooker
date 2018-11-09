@@ -190,14 +190,15 @@ class Node(object):
         for child in self.children:
             child.print_tree(indent + 1)
 
-    def test_tree(self):
-        """ test_tree: validate all nodes in this tree
-            Args: None
-            Returns: boolean indicating if tree is valid
+    def validate_tree(self):
+        """
+        Validate all nodes in this tree recusively.
+          Args: None
+          Returns: boolean indicating if tree is valid
         """
         self.validate()
         for child in self.children:
-            assert child.test_tree()
+            assert child.validate_tree()
         return True
 
     def validate(self):
@@ -207,7 +208,7 @@ class Node(object):
         """
         from .files import File
 
-        assert self.source_id is not None, "Assumption Failed: Node must have an id"
+        assert self.source_id is not None, "Assumption Failed: Node must have a source_id"
         assert isinstance(self.title, str), "Assumption Failed: Node title is not a string"
         assert isinstance(self.description, str) or self.description is None, "Assumption Failed: Node description is not a string"
         assert isinstance(self.children, list), "Assumption Failed: Node children is not a list"
