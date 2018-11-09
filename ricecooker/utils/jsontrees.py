@@ -93,100 +93,112 @@ def build_tree_from_json(parent_node, sourcetree):
     for source_node in sourcetree:
         kind = source_node['kind']
         if kind not in EXPECTED_NODE_TYPES:
-            LOGGER.critical('Unexpected node type found: ' + kind)
-            raise NotImplementedError('Unexpected node type found in json data.')
+            LOGGER.critical('Unexpected node kind found: ' + kind)
+            raise NotImplementedError('Unexpected node kind found in json data.')
 
         if kind == TOPIC_NODE:
             child_node = nodes.TopicNode(
-                source_id=source_node.get("source_id", None),
-                title=source_node["title"],
-                author=source_node.get("author"),
-                description=source_node.get("description"),
-                language=source_node.get('language', None),
-                thumbnail=source_node.get("thumbnail"),
+                source_id=source_node.get('source_id', None),
+                title=source_node['title'],
+                description=source_node.get('description'),
+                author=source_node.get('author'),
+                aggregator=source_node.get('aggregator'),
+                provider=source_node.get('provider'),
+                language=source_node.get('language'),
+                thumbnail=source_node.get('thumbnail'),
             )
             parent_node.add_child(child_node)
-            source_tree_children = source_node.get("children", [])
+            source_tree_children = source_node.get('children', [])
             build_tree_from_json(child_node, source_tree_children)
 
         elif kind == VIDEO_NODE:
             child_node = nodes.VideoNode(
-                source_id=source_node["source_id"],
-                title=source_node["title"],
+                source_id=source_node['source_id'],
+                title=source_node['title'],
+                description=source_node.get('description'),
                 license=get_license(**source_node['license']),
-                author=source_node.get("author"),
-                description=source_node.get("description"),
-                language=source_node.get('language', None),
+                author=source_node.get('author'),
+                aggregator=source_node.get('aggregator'),
+                provider=source_node.get('provider'),
+                language=source_node.get('language'),
                 derive_thumbnail=source_node.get('derive_thumbnail', True),  # video-specific option
                 thumbnail=source_node.get('thumbnail'),
             )
-            add_files(child_node, source_node.get("files") or [])
+            add_files(child_node, source_node.get('files') or [])
             parent_node.add_child(child_node)
 
         elif kind == AUDIO_NODE:
             child_node = nodes.AudioNode(
-                source_id=source_node["source_id"],
-                title=source_node["title"],
+                source_id=source_node['source_id'],
+                title=source_node['title'],
+                description=source_node.get('description'),
                 license=get_license(**source_node['license']),
-                author=source_node.get("author"),
-                description=source_node.get("description"),
-                language=source_node.get('language', None),
+                author=source_node.get('author'),
+                aggregator=source_node.get('aggregator'),
+                provider=source_node.get('provider'),
+                language=source_node.get('language'),
                 thumbnail=source_node.get('thumbnail'),
             )
-            add_files(child_node, source_node.get("files") or [])
+            add_files(child_node, source_node.get('files') or [])
             parent_node.add_child(child_node)
 
         elif kind == EXERCISE_NODE:
             child_node = nodes.ExerciseNode(
-                source_id=source_node["source_id"],
-                title=source_node["title"],
+                source_id=source_node['source_id'],
+                title=source_node['title'],
+                description=source_node.get('description'),
                 license=get_license(**source_node['license']),
-                author=source_node.get("author"),
-                description=source_node.get("description"),
-                language=source_node.get('language', None),
-                thumbnail=source_node.get("thumbnail"),
-                exercise_data=source_node.get("exercise_data"),
+                author=source_node.get('author'),
+                aggregator=source_node.get('aggregator'),
+                provider=source_node.get('provider'),
+                language=source_node.get('language'),
+                thumbnail=source_node.get('thumbnail'),
+                exercise_data=source_node.get('exercise_data'),
                 questions=[],
             )
-            add_questions(child_node, source_node.get("questions") or [])
+            add_questions(child_node, source_node.get('questions') or [])
             parent_node.add_child(child_node)
 
         elif kind == DOCUMENT_NODE:
             child_node = nodes.DocumentNode(
-                source_id=source_node["source_id"],
-                title=source_node["title"],
+                source_id=source_node['source_id'],
+                title=source_node['title'],
+                description=source_node.get('description'),
                 license=get_license(**source_node['license']),
-                author=source_node.get("author"),
-                description=source_node.get("description"),
-                language=source_node.get('language', None),
-                thumbnail=source_node.get("thumbnail"),
+                author=source_node.get('author'),
+                aggregator=source_node.get('aggregator'),
+                provider=source_node.get('provider'),
+                language=source_node.get('language'),
+                thumbnail=source_node.get('thumbnail'),
             )
-            add_files(child_node, source_node.get("files") or [])
+            add_files(child_node, source_node.get('files') or [])
             parent_node.add_child(child_node)
 
         elif kind == HTML5_NODE:
             child_node = nodes.HTML5AppNode(
-                source_id=source_node["source_id"],
-                title=source_node["title"],
+                source_id=source_node['source_id'],
+                title=source_node['title'],
+                description=source_node.get('description'),
                 license=get_license(**source_node['license']),
-                author=source_node.get("author"),
-                description=source_node.get("description"),
-                language=source_node.get('language', None),
-                thumbnail=source_node.get("thumbnail"),
+                author=source_node.get('author'),
+                aggregator=source_node.get('aggregator'),
+                provider=source_node.get('provider'),
+                language=source_node.get('language'),
+                thumbnail=source_node.get('thumbnail'),
             )
-            add_files(child_node, source_node.get("files") or [])
+            add_files(child_node, source_node.get('files') or [])
             parent_node.add_child(child_node)
 
         else:
-            LOGGER.critical("Encountered an unknown kind: " + str(source_node))
+            LOGGER.critical('Encountered an unknown kind: ' + str(source_node))
             continue
 
     return parent_node
 
 
 def add_files(node, file_list):
-    EXPECTED_FILE_TYPES = [VIDEO_FILE, AUDIO_FILE, DOCUMENT_FILE, EPUB_FILE, HTML5_FILE,
-                           THUMBNAIL_FILE, SUBTITLES_FILE]
+    EXPECTED_FILE_TYPES = [VIDEO_FILE, AUDIO_FILE, DOCUMENT_FILE, EPUB_FILE,
+                           HTML5_FILE, THUMBNAIL_FILE, SUBTITLES_FILE]
 
     for f in file_list:
         file_type = f.get('file_type')
@@ -280,14 +292,14 @@ def add_files(node, file_list):
                     )
                 )
             else:
-                keys = ["language", "subtitlesformat"]
+                keys = ['language', 'subtitlesformat']
                 params = {'path': path}
                 for key in keys:
                     if key in f:
                         params[key] = f[key]
                 node.add_file(files.SubtitleFile(**params))
         else:
-            raise UnknownFileTypeError("Unrecognized file type '{0}'".format(f['path']))
+            raise UnknownFileTypeError('Unrecognized file type "{0}"'.format(f['path']))
 
 
 
@@ -339,9 +351,9 @@ def add_questions(exercise_node, question_list):
             q_obj = questions.PerseusQuestion(
                 id=q['id'],
                 raw_data=q.get('item_data'),
-                source_url=q.get('source_url') or "https://www.khanacademy.org/",
+                source_url=q.get('source_url') or 'https://www.khanacademy.org/',
             )
             exercise_node.add_question(q_obj)
 
         else:
-            raise UnknownQuestionTypeError("Unrecognized question type '{0}': accepted types are {1}".format(question_type, [key for key, value in exercises.question_choices]))
+            raise UnknownQuestionTypeError('Unrecognized question type {0}: accepted types are {1}'.format(question_type, [key for key, value in exercises.question_choices]))
