@@ -346,13 +346,18 @@ class DownloadFile(File):
         super(DownloadFile, self).__init__(**kwargs)
 
     def validate(self):
+        """
+        Ensure `filename` has one of the extensions in `self.allowed_formats`.
+        """
         filename = self.get_filename()
-        assert filename, "{} must have a filename".format(self.__class__.__name__)
-        _basename, ext = os.path.splitext(filename)
-        plain_ext = ext.lstrip('.')
-        # don't validate for single-digit extension, or no extension
-        if len(plain_ext) > 1:
-            assert plain_ext in self.allowed_formats, "{} must have one of the following extensions: {} (instead, got '{}' from '{}')".format(self.__class__.__name__, self.allowed_formats, plain_ext, self.path)
+        if filename:
+            ext = extract_path_ext(filename)
+            assert ext in self.allowed_formats, "{} must have one of the following"
+            "extensions: {} (instead, got '{}' from path '{}')".format(
+                self.__class__.__name__, self.allowed_formats, ext, self.path)
+        else:
+            config.LOGGER.error("\t--- Validation failed for {} with path {}".format(
+                self.__class__.__name__, self.path))
 
     def process_file(self):
         try:
