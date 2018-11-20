@@ -18,10 +18,10 @@ Before we continue, let's have some definitions:
   - A **Kolibri channel** is a tree-like data structure that consist of the following content nodes:
     - Topic nodes (folders)
     - Content types:
-      - Document (PDF files)
-      - Audio (mp3 files)
-      - Video (mp4 files)
-      - HTML5App zip files (generic container for web content: HTML+JS+CSS)
+      - Document (`pdf` and `epub` files)
+      - Audio (`mp3` files)
+      - Video (`mp4` files and subtitles)
+      - HTML5App `zip` files (generic container for web content: HTML+JS+CSS)
       - Exercises
   - A **sushi chef** is a Python script that uses the `ricecooker` library to
     import content from various sources, organize content into Kolibri channels
