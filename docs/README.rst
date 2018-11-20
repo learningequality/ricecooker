@@ -22,11 +22,11 @@ Before we continue, let's have some definitions:
 
    -  Topic nodes (folders)
    -  Content types:
+
       -  Document (ePub and PDF files)
       -  Audio (mp3 files)
       -  Video (mp4 files)
-      -  HTML5App zip files (generic container for web content:
-         HTML+JS+CSS)
+      -  HTML5App zip files (generic container for web content: HTML+JS+CSS)
       -  Exercises
 
 -  A **sushi chef** is a Python script that uses the ``ricecooker``
