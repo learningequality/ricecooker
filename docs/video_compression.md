@@ -53,8 +53,6 @@ when creating `VideoFile` object, and specify these options: `crf`, `max_height`
 
 
 
-
-
 Manual conversion
 -----------------
 For optimal control of the compression options, users should perform the conversion
@@ -208,12 +206,45 @@ Note video conversion takes a long time, so be prepared to get a coffee or two.
 
 
 
+### HandBrake
+If you don't have many videos to convert, you can use [HandBrake](https://handbrake.fr/),
+which is a video conversion tool with a graphical user interface. Handbrake uses
+`ffmpeg` under the hood, so the same compression results can be achieved as with
+the more technical options presented above.
+
+
+Here are steps for converting videos using HandBrake:
+
+  1. **Download** and install handbrake from here [https://handbrake.fr/](https://handbrake.fr/)
+  2. **Open** the video file you want to compress.
+  3. From the presets menu, choose **Web > Gmail Medium 5 Minutes 480p30**
+  4. Set the output filename (e.g. you could use the same as input filename,
+     but append `_compressed.mp4`). Make sure to use the `.mp4` extension.
+  5. Click the **Start Encode** button.
+
+![HandBrake steps all in one](figures/HandBrake/handbrake_steps.png)
+
+Screencast showing the above steps: https://www.youtube.com/watch?v=83MdDLaFXfs
+
+
+The **Web > Gmail Medium 5 Minutes 480p30** preset will use the `x264` video codec,
+`aac` audio codec, and `480` vertical resolution, and compression rate `crf=23`.
+The 480 vertical resolution is a good choice for most videos, but if you find the compressed output to be too low quality, you can try the preset
+**Web > Gmail Large 3 Minutes 720p30**, which will result in larger videos files
+with 720 vertical resolution.
+
+If your channel contains many videos, or very long videos, you should consider
+increasing the "Constant Rate Factor" compression parameter in the Video settings.
+Using the value [RF=32](figures/HandBrake/handbreake_screenshot_video_settings.png)
+will result in highly compressed videos, with very small file sizes.
+
+
 
 ### Experimenting
 Since every content source is unique, we recommend that you experiment with
 different compression options. The command line tool `ffmpeg` offers a very
 useful option called `crf` which stands for Constant Rate Factor. 
-**Setting this single parameters allows for controlling overall video quality.**
+**Setting this single parameter allows for controlling overall video quality.**
 For example, setting `crf=24` produces high quality video (and possibly large file size),
 `crf=28` is a mid-range quality, and values of `crf` above 30 produce highly-compressed
 videos with small size.
@@ -228,20 +259,4 @@ Here are the steps to preview different compression factors in Kolibri:
   - PUBLISH the channel and record the channel token
   - Import the channel into a Kolibri instance using the channel token
   - Test video playback on different devices (desktop and mobile browsers on all OSs)
-
-
-
-### HandBrake
-If you have one or two videos that you want to convert, you can use a graphical
-tool like [HandBrake](https://handbrake.fr/). Handbrake uses `ffmpeg` under the
-hood, so the same compression results can be achieved, as shown in the screenshots below.
-
-1. Choose the `H.264` video codec and "Constant Quality Factor" CRF=32  
-![HandBrake settings](figures/HandBrake/handbreake_screenshot_video_settings.png)
-
-2. Set `max_heigh=480`:
-![HandBrake resizing](figures/HandBrake/handbreake_resizing_settings.png)
-
-3. Set the audio to use `aac` codec and limit the rate to `32k`:
-![HandBrake audio settings](figures/HandBrake/handbreake_audio_settings.png)
 
