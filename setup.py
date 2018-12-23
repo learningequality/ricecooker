@@ -22,7 +22,7 @@ requirements = [
     "validators",
     "requests_file",
     "requests-cache>=0.4.13",
-    "beautifulsoup4==4.5.1",
+    "beautifulsoup4>=4.6.3",
     "pressurecooker>=0.0.19",
     "selenium==3.0.1",
     "youtube-dl",
@@ -32,6 +32,7 @@ requirements = [
     "css-html-js-minify==2.2.2",
     "websocket-client==0.40.0",
     "mock==2.0.0",
+    "pypdf2>=1.26.0",
 ]
 
 test_requirements = [
