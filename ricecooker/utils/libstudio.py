@@ -12,6 +12,8 @@ NODES_ENDPOINT =         STUDIO_URL + '/api/get_nodes_by_ids_complete/'
 LICENSES_LIST_ENDPOINT = STUDIO_URL + '/api/license'
 CHANNEL_ENDPOINT =       STUDIO_URL + '/api/channel/'
 # TODO https://studio.learningequality.org/api/get_node_path/ca8f380/18932/41b2549
+# TODO https://studio.learningequality.org/api/language
+
 
 
 class StudioApi(object):
