@@ -13,7 +13,7 @@ LICENSES_LIST_ENDPOINT = STUDIO_URL + '/api/license'
 CHANNEL_ENDPOINT =       STUDIO_URL + '/api/channel/'
 # TODO https://studio.learningequality.org/api/get_node_path/ca8f380/18932/41b2549
 # TODO https://studio.learningequality.org/api/language
-
+# TODO `api/get_total_size/(?P<ids>[^/]*)` where ids are split by commas or run this script:
 
 
 class StudioApi(object):
