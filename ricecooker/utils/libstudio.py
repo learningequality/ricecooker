@@ -1,20 +1,16 @@
 import requests
-import requests_cache
+# import requests_cache
 # requests_cache.install_cache()   # RM because it makes session stuff fail...
 
 from ricecooker.config import LOGGER
 
 
-STUDIO_URL = 'https://studio.learningequality.org'
+# DEFAULT_STUDIO_URL = 'https://develop.studio.learningequality.org'
+DEFAULT_STUDIO_URL = 'http://127.0.0.1:8080'
+# DEFAULT_STUDIO_URL = 'https://studio.learningequality.org'
 
-STUDIO_URL = 'http://127.0.0.1:8080'
 
-LOGIN_ENDPOINT =         STUDIO_URL + '/accounts/login/'
-NODES_ENDPOINT =         STUDIO_URL + '/api/get_nodes_by_ids_complete/'
-LICENSES_LIST_ENDPOINT = STUDIO_URL + '/api/license'
-CHANNEL_ENDPOINT =       STUDIO_URL + '/api/channel/'
-CONTENTNODE_ENDPOINT =   STUDIO_URL + '/api/contentnode'
-MOVE_NODES_ENDPOINT =    STUDIO_URL + '/api/move_nodes/'
+
 # TODO https://studio.learningequality.org/api/get_node_path/ca8f380/18932/41b2549
 # TODO https://studio.learningequality.org/api/language
 # TODO `api/get_total_size/(?P<ids>[^/]*)` where ids are split by commas or run this script:
@@ -25,7 +21,8 @@ class StudioApi(object):
     Helper class whose methods allow access to Studo API endpoints for debugging.
     """
 
-    def __init__(self, token, username=None, password=None, studio_url=STUDIO_URL):
+    def __init__(self, token, username=None, password=None, studio_url=DEFAULT_STUDIO_URL):
+        self.studio_url = studio_url.rstrip('/')
         self.token = token
         self.licenses_by_id = self.get_licenses()
         if username and password:
@@ -34,8 +31,9 @@ class StudioApi(object):
             self.session = None
 
     def _create_logged_in_session(self, username, password):
+        LOGIN_ENDPOINT = self.studio_url + '/accounts/login/'
         session = requests.session()
-        session.headers.update({"referer": STUDIO_URL})
+        session.headers.update({"referer": self.studio_url})
         session.headers.update({'User-Agent': 'Mozilla/5.0 Firefox/63.0'})
         session.get(LOGIN_ENDPOINT)
         csrftoken = session.cookies.get("csrftoken")
@@ -63,6 +61,7 @@ class StudioApi(object):
              created this channel. If `Null` this means it's a manually uploaded
              channel or a derivative channel
         """
+        CHANNEL_ENDPOINT = self.studio_url + '/api/channel/'
         # TODO: add TokenAuth to this entpoint so can use without session login
         # headers = {"Authorization": "Token {0}".format(self.token)}
         url = CHANNEL_ENDPOINT + channel_id
@@ -82,6 +81,7 @@ class StudioApi(object):
 
 
     def get_licenses(self):
+        LICENSES_LIST_ENDPOINT = self.studio_url + '/api/license'
         headers = {"Authorization": "Token {0}".format(self.token)}
         response = requests.get(LICENSES_LIST_ENDPOINT, headers=headers)
         licenses_list = response.json()
@@ -95,6 +95,7 @@ class StudioApi(object):
         """
         Get the complete JSON representation of a content node from the Studio API.
         """
+        NODES_ENDPOINT = self.studio_url + '/api/get_nodes_by_ids_complete/'
         headers = {"Authorization": "Token {0}".format(self.token)}
         url = NODES_ENDPOINT + studio_id
         LOGGER.info('  GET ' + url)
@@ -132,6 +133,7 @@ class StudioApi(object):
         """
         Send a PUT requests to /api/contentnode to update Studio node to data.
         """
+        CONTENTNODE_ENDPOINT = self.studio_url + '/api/contentnode'
         REQUIRED_FIELDS = ['id', 'tags', 'prerequisite', 'parent']
         assert data_has_required_keys(data, REQUIRED_FIELDS), 'missing necessary attributes'        
         studio_id = data['id']
@@ -150,6 +152,7 @@ class StudioApi(object):
         can provide `trash_studio_id` which is the studio id the trash tree for
         the channel.
         """
+        MOVE_NODES_ENDPOINT =    self.studio_url + '/api/move_nodes/'
         REQUIRED_FIELDS = ['id']
         assert data_has_required_keys(data, REQUIRED_FIELDS), 'missing necessary attributes'
         if trash_studio_id is None:
@@ -165,9 +168,29 @@ class StudioApi(object):
         csrftoken = self.session.cookies.get("csrftoken")
         self.session.headers.update({"x-csrftoken": csrftoken})
         response = self.session.post(url, json=post_data)
-        deleted_data = response.json()
-        return deleted_data
+        deleted_datas = response.json()
+        return deleted_datas
 
+    def copy_contentnode(self, data, target_parent, channel_id):
+        """
+        Send a POST requests to /api/duplicate_node_inline/ to copy node `data`
+        to the target parent folder `target_parent` in channel `channel_id`.
+        """
+        DUPLICATE_NODE_INLINE_ENDPOINT = self.studio_url + '/api/duplicate_nodes/'
+        REQUIRED_FIELDS = ['id']
+        post_data = {
+            'node_ids': [data['id']],
+            'target_parent': target_parent,
+            'channel_id': channel_id,
+        }
+        url = DUPLICATE_NODE_INLINE_ENDPOINT
+        print('  semantic COPY using POST to ' + url)
+        csrftoken = self.session.cookies.get("csrftoken")
+        self.session.headers.update({"x-csrftoken": csrftoken})
+        response = self.session.post(url, json=post_data)
+        print(response.content)
+        copied_data_list = response.json()
+        return copied_data_list
 
 
 
