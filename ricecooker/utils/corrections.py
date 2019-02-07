@@ -1,5 +1,6 @@
 import csv
 import os
+import requests
 
 
 # CORRECTIONS STRUCTURE v0.1
@@ -36,14 +37,17 @@ CORRECTIONS_HEADER = [
     NEW_AUTHOR_KEY,
 ]
 
+ACTION_KEY = 'Action'
+DEV_CORRECTIONS_HEADER = [ACTION_KEY] + CORRECTIONS_HEADER
 
 
 
-# GSHEETS_BASE = 'https://docs.google.com/spreadsheets/d/'
-# SHEET_ID = '1kPOnTVZ5vwq038x1aQNlA2AFtliLIcc2Xk5Kxr852mg'
-# STRUCTURE_SHEET_GID = '342105160'
-# SHEET_CSV_URL = GSHEETS_BASE + SHEET_ID + '/export?format=csv&gid=' + STRUCTURE_SHEET_GID
-# SHEET_CSV_PATH = 'chefdata/structure.csv'
+
+GSHEETS_BASE = 'https://docs.google.com/spreadsheets/d/'
+SHEET_ID = '1QKXvXxLS1dByxrcYHTT2Y2e-eglvDMhkXvSVvFppq20'       # Multaqaddarain K-12
+CORRECTIONS_SHEET_GID = '1665468153'                            # Multaqaddarain K-12
+SHEET_CSV_URL = GSHEETS_BASE + SHEET_ID + '/export?format=csv&gid=' + CORRECTIONS_SHEET_GID
+SHEET_CSV_PATH = 'chefdata/corrections.csv'
 
 
 
@@ -60,6 +64,28 @@ TARGET_COLUMNS = {
 # default_keys = ['node_id', 'content_id'] # 'studio_id', 'source_id']
 default_export = ['title', 'description', 'tags', 'copyright_holder', 'author']
 
+def download_structure_csv():
+    response = requests.get(SHEET_CSV_URL)
+    csv_data = response.content.decode('utf-8')
+    with open(SHEET_CSV_PATH, 'w') as csvfile:
+        csvfile.write(csv_data)
+        print('Succesfully saved ' + SHEET_CSV_PATH)
+    return SHEET_CSV_PATH
+
+def _clean_dict(row):
+    """
+    Transform empty strings values of dict `row` to None.
+    """
+    row_cleaned = {}
+    for key, val in row.items():
+        if val is None or val == '':
+            row_cleaned[key] = None
+        else:
+            row_cleaned[key] = val.strip()
+    return row_cleaned
+
+
+
 
 class CorretionsCsvFile(object):
 
@@ -73,6 +99,20 @@ class CorretionsCsvFile(object):
         Downloads a complete studio channel_tree from the Studio API.
         """
         pass
+
+    # Import CSV metadata from external corrections
+    ############################################################################
+
+    def load_corrections_from_csv(self):
+        csv_path = download_structure_csv()
+        struct_list = []
+        with open(csv_path, 'r') as csvfile:
+            reader = csv.DictReader(csvfile, fieldnames=DEV_CORRECTIONS_HEADER)
+            next(reader)  # Skip Headers row
+            for row in reader:
+                clean_row = _clean_dict(row)
+                struct_list.append(clean_row)
+        return struct_list
 
 
     # Export CSV metadata from external corrections
