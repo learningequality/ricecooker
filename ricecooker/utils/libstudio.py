@@ -1,14 +1,10 @@
 import requests
-# import requests_cache
-# requests_cache.install_cache()   # RM because it makes session stuff fail...
-
 from ricecooker.config import LOGGER
 
 
 # DEFAULT_STUDIO_URL = 'https://develop.studio.learningequality.org'
 DEFAULT_STUDIO_URL = 'http://127.0.0.1:8080'
 # DEFAULT_STUDIO_URL = 'https://studio.learningequality.org'
-
 
 
 # TODO https://studio.learningequality.org/api/get_node_path/ca8f380/18932/41b2549
@@ -18,7 +14,8 @@ DEFAULT_STUDIO_URL = 'http://127.0.0.1:8080'
 
 class StudioApi(object):
     """
-    Helper class whose methods allow access to Studo API endpoints for debugging.
+    Helper class whose methods allow access to Studo API endpoints for reports,
+    corrections, and other automation.
     """
 
     def __init__(self, token, username=None, password=None, studio_url=DEFAULT_STUDIO_URL):
@@ -178,6 +175,7 @@ class StudioApi(object):
         """
         DUPLICATE_NODE_INLINE_ENDPOINT = self.studio_url + '/api/duplicate_nodes/'
         REQUIRED_FIELDS = ['id']
+        assert data_has_required_keys(data, REQUIRED_FIELDS), 'no studio_id in data'
         post_data = {
             'node_ids': [data['id']],
             'target_parent': target_parent,
