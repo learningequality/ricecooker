@@ -1,4 +1,6 @@
+import copy
 import csv
+import json
 import os
 import requests
 
@@ -41,16 +43,6 @@ ACTION_KEY = 'Action'
 DEV_CORRECTIONS_HEADER = [ACTION_KEY] + CORRECTIONS_HEADER
 
 
-
-
-GSHEETS_BASE = 'https://docs.google.com/spreadsheets/d/'
-SHEET_ID = '1QKXvXxLS1dByxrcYHTT2Y2e-eglvDMhkXvSVvFppq20'       # Multaqaddarain K-12
-CORRECTIONS_SHEET_GID = '1665468153'                            # Multaqaddarain K-12
-SHEET_CSV_URL = GSHEETS_BASE + SHEET_ID + '/export?format=csv&gid=' + CORRECTIONS_SHEET_GID
-SHEET_CSV_PATH = 'chefdata/corrections.csv'
-
-
-
 # What columns to export metadata to...
 TARGET_COLUMNS = {
     'title': [OLD_TITLE_KEY, NEW_TITLE_KEY],
@@ -60,38 +52,17 @@ TARGET_COLUMNS = {
     'author': [OLD_AUTHOR_KEY, NEW_AUTHOR_KEY],
 }
 
-
 # default_keys = ['node_id', 'content_id'] # 'studio_id', 'source_id']
 default_export = ['title', 'description', 'tags', 'copyright_holder', 'author']
-
-def download_structure_csv():
-    response = requests.get(SHEET_CSV_URL)
-    csv_data = response.content.decode('utf-8')
-    with open(SHEET_CSV_PATH, 'w') as csvfile:
-        csvfile.write(csv_data)
-        print('Succesfully saved ' + SHEET_CSV_PATH)
-    return SHEET_CSV_PATH
-
-def _clean_dict(row):
-    """
-    Transform empty strings values of dict `row` to None.
-    """
-    row_cleaned = {}
-    for key, val in row.items():
-        if val is None or val == '':
-            row_cleaned[key] = None
-        else:
-            row_cleaned[key] = val.strip()
-    return row_cleaned
 
 
 
 
 class CorretionsCsvFile(object):
 
-    def __init__(self, csvfilepath='Corrections.csv', exportattributes=default_export):
+    def __init__(self, csvfilepath='Corrections_template.csv', exportattrs=default_export):
         self.csvfilepath = csvfilepath
-        self.exportattributes = exportattributes
+        self.exportattrs = exportattrs
 
 
     def download_channel_tree(self, channel_id):
@@ -100,19 +71,6 @@ class CorretionsCsvFile(object):
         """
         pass
 
-    # Import CSV metadata from external corrections
-    ############################################################################
-
-    def load_corrections_from_csv(self):
-        csv_path = download_structure_csv()
-        struct_list = []
-        with open(csv_path, 'r') as csvfile:
-            reader = csv.DictReader(csvfile, fieldnames=DEV_CORRECTIONS_HEADER)
-            next(reader)  # Skip Headers row
-            for row in reader:
-                clean_row = _clean_dict(row)
-                struct_list.append(clean_row)
-        return struct_list
 
 
     # Export CSV metadata from external corrections
@@ -169,7 +127,7 @@ class CorretionsCsvFile(object):
         row[CONTENT_KIND_KEY] = studio_dict['kind']
 
         # 2. METADATA
-        for exportattr in self.exportattributes:
+        for exportattr in self.exportattrs:
             target_cols = TARGET_COLUMNS[exportattr]
             for target_col in target_cols:
                 if exportattr == 'tags':
@@ -206,27 +164,159 @@ class CorretionsCsvFile(object):
             csvwriter.writerow(row)
 
 
-def apply_corrections():
-    pass
 
 
 
-# 
-# url = "http://localhost:8080/api/contentnode"
-# 
-# import requests
-# 
-# [{"title":"Topic 1","id":"bc8be361e6be4ada8bc793080b6f24d5", "tags":[], "assessment_items":[], "prerequisite":[], "kind":"topic", "parent":"7463b0d9f11a441b8898ef20f74474ce"}]
-# 
-# 
-# payload = "[{\"title\":\"Topic 1\",\"id\":\"bc8be361e6be4ada8bc793080b6f24d5\", \"tags\":[], \"assessment_items\":[], \"prerequisite\":[], \"kind\":\"topic\", \"parent\":\"7463b0d9f11a441b8898ef20f74474ce\"}]\n\n"
-# headers = {
-#     'authorization': "Token <<<>>>>",
-#     'content-type': "application/json",
-#     'cache-control': "no-cache",
-#     'postman-token': "1d8e9f2b-929c-edf8-a561-a0fb41ac9606"
-#     }
-# 
-# response = requests.request("PATCH", url, data=payload, headers=headers)
-# 
-# print(response.text)
+
+
+
+################################################################################
+################################################################################
+################################################################################
+################################################################################
+
+
+
+
+
+
+# Import CSV metadata from external corrections
+############################################################################
+
+
+def save_gsheet_to_local_csv(gsheet_id, gid, csvfilepath='Corrections.csv'):
+    GSHEETS_BASE = 'https://docs.google.com/spreadsheets/d/'
+    SHEET_CSV_URL = GSHEETS_BASE + gsheet_id + '/export?format=csv&gid=' + gid
+    response = requests.get(SHEET_CSV_URL)
+    csv_data = response.content.decode('utf-8')
+    with open(csvfilepath, 'w') as csvfile:
+        csvfile.write(csv_data)
+        print('Succesfully saved ' + csvfilepath)
+    return csvfilepath
+
+# Import CSV metadata from external corrections
+############################################################################
+
+def _clean_dict(row):
+    """
+    Transform empty strings values of dict `row` to None.
+    """
+    row_cleaned = {}
+    for key, val in row.items():
+        if val is None or val == '':
+            row_cleaned[key] = None
+        else:
+            row_cleaned[key] = val.strip()
+    return row_cleaned
+
+def load_corrections_from_csv(csvfilepath):
+    csv_path = csvfilepath     # download_structure_csv()
+    struct_list = []
+    with open(csv_path, 'r') as csvfile:
+        reader = csv.DictReader(csvfile, fieldnames=DEV_CORRECTIONS_HEADER)
+        next(reader)  # Skip Headers row
+        for row in reader:
+            clean_row = _clean_dict(row)
+            struct_list.append(clean_row)
+    return struct_list
+
+
+def get_corrections(csvfilepath):
+    modified = []
+    deleted = []
+
+    rows = load_corrections_from_csv(csvfilepath)
+    for row in rows:
+        if row[ACTION_KEY] == 'remove':
+            deleted.append(row)
+        else:
+            modified.append(row)
+            # else:
+            #     print('Uknown Action', row[ACTION_KEY])
+    return {
+        'nodes_modified': modified,
+        'nodes_deleted': deleted
+    }
+
+# Tree querying API
+################################################################################
+
+def find_nodes_by_content_id(subtree, cid):
+    """
+    Returns list of nodes in `subtree` that have `content_id=cid`.
+    """
+    results = []
+    if subtree['content_id'] == cid:
+        results.append(subtree)
+    if 'children' in subtree:
+        for child in subtree['children']:
+            child_restuls = find_nodes_by_content_id(child, cid)
+            results.extend(child_restuls)
+    return results
+
+def find_nodes_by_attr(subtree, attr, value):
+    """
+    Returns list of nodes in `subtree` that have attribute `attr` equal to `value`.
+    """
+    results = []
+    if subtree[attr] == value:
+        results.append(subtree)
+    if 'children' in subtree:
+        for child in subtree['children']:
+            child_restuls = find_nodes_by_attr(child, attr, value)
+            results.extend(child_restuls)
+    return results
+
+def unresolve_children(node):
+    """
+    Return copy of node with children = list of studio_id references instead of full data.
+    """
+    node =  copy.deepcopy(node)
+    if 'children' in node:
+        new_children = []
+        for child in node['children']:
+            new_children.append(child['id'])
+        node['children'] = new_children
+    return node
+
+
+
+
+def correction_row_to_changes(cor, attrs=['title']):
+    changes = []
+    for attr in attrs:
+        old_key = TARGET_COLUMNS[attr][0]
+        new_key = TARGET_COLUMNS[attr][1]
+        change = ('change', attr, (cor[old_key], cor[new_key]) )
+        changes.append(change)
+    return changes
+
+
+def apply_corrections(api, channel_id, csvfilepath, studiotreepath=None):
+    if studiotreepath is None:
+        studiotreepath = 'chefdata/studiotree_Multaqaddarain_K12.json'
+
+    if os.path.exists(studiotreepath):
+        channel_tree = json.load(open(studiotreepath, 'r'))
+    else:
+        root_studio_id = api.get_channel_root_studio_id(channel_id)
+        channel_tree = api.get_tree_for_studio_id(root_studio_id)
+        json.dump(channel_tree, open(studiotreepath, 'w'), indent=4, ensure_ascii=False, sort_keys=True)
+
+    corrections = get_corrections(csvfilepath)
+    for row in corrections['nodes_modified'][0:10]:
+        content_id = row[SOURCE_ID_OR_CONTENT_ID_KEY]
+        results = find_nodes_by_content_id(channel_tree, content_id)
+        assert results, 'no match found based on conten_id'
+        assert len(results)==1, 'multiple matches found...'
+        tree_node = results[0]
+        studio_id = tree_node['id']
+        # node_before = unresolve_children(results[0])
+        # node_before
+        changes = correction_row_to_changes(row, attrs=['title'])  # Aldaryn only title correcotins...
+        print(content_id, studio_id, 'changes=', changes)
+        
+    return corrections['nodes_deleted']
+
+
+
