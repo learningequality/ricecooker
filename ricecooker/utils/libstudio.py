@@ -100,24 +100,39 @@ class StudioApi(object):
         studio_node = response.json()[0]
         return studio_node
 
+    def get_nodes_by_ids_bulk(self, studio_ids):
+        """
+        A more efficient version of `get_nodes_by_ids_complete` that GETs tree
+        content node data in chunks of 10 from the Studio API.
+        """
+        CHUNK_SIZE = 15
+        NODES_ENDPOINT = self.studio_url + '/api/get_nodes_by_ids_complete/'
+        headers = {"Authorization": "Token {0}".format(self.token)}
+        studio_nodes = []
+        studio_ids_chunks = [studio_ids[i:i+CHUNK_SIZE] for i in range(0, len(studio_ids), CHUNK_SIZE)]
+        for studio_ids_chunk in studio_ids_chunks:
+            studio_ids_csv = ','.join(studio_ids_chunk)
+            url = NODES_ENDPOINT + studio_ids_csv
+            LOGGER.info('  GET ' + url)
+            response = requests.get(url, headers=headers)
+            chunk_nodes = response.json()
+            for chunk_node in chunk_nodes:
+                if 'children' in chunk_node:
+                    child_nodes = self.get_nodes_by_ids_bulk(chunk_node['children'])
+                    chunk_node['children'] = child_nodes
+            studio_nodes.extend(chunk_nodes)
+        return studio_nodes
 
     def get_tree_for_studio_id(self, studio_id):
         """
         Returns the full json tree (recusive calls to /api/get_nodes_by_ids_complete)
         """
-        channel_parent = {'children': []}  # this is like _ with children
-        def _build_subtree(parent, studio_id):
-            subtree = self.get_nodes_by_ids_complete(studio_id)
-            if 'children' in subtree:
-                children_refs = subtree['children']
-                subtree['children'] = []
-                for child_studio_id in children_refs:
-                    _build_subtree(subtree, child_studio_id)
-            parent['children'].append(subtree)
-        _build_subtree(channel_parent, studio_id)
-        channel = channel_parent['children'][0]
-        return channel
-
+        channel_root = self.get_nodes_by_ids_complete(studio_id)
+        if 'children' in channel_root:
+            children_refs = channel_root['children']
+            studio_nodes = self.get_nodes_by_ids_bulk(children_refs)
+            channel_root['children'] = studio_nodes
+        return channel_root
 
 
     def get_contentnode(self, studio_id):
@@ -133,7 +148,7 @@ class StudioApi(object):
         CONTENTNODE_ENDPOINT = self.studio_url + '/api/contentnode'
         REQUIRED_FIELDS = ['id', 'tags', 'prerequisite', 'parent']
         assert data_has_required_keys(data, REQUIRED_FIELDS), 'missing necessary attributes'        
-        studio_id = data['id']
+        # studio_id = data['id']
         url = CONTENTNODE_ENDPOINT
         print('  semantic PATCH using PUT ' + url)
         csrftoken = self.session.cookies.get("csrftoken")
