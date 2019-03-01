@@ -438,6 +438,7 @@ class ContentNode(TreeNode):
             author (str): who created the content (optional)
             aggregator (str): website or org hosting the content collection but not necessarily the creator or copyright holder (optional)
             provider (str): organization that commissioned or is distributing the content (optional)
+            role (str): set to roles.COACH for teacher-facing materials (default roles.LEARNER)
             thumbnail (str): local path or url to thumbnail image (optional)
             files ([<File>]): list of file objects for node (optional)
             extra_fields (dict): any additional data needed for node (optional)
