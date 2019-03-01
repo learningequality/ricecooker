@@ -105,7 +105,7 @@ class StudioApi(object):
         A more efficient version of `get_nodes_by_ids_complete` that GETs tree
         content node data in chunks of 10 from the Studio API.
         """
-        CHUNK_SIZE = 15
+        CHUNK_SIZE = 25
         NODES_ENDPOINT = self.studio_url + '/api/get_nodes_by_ids_complete/'
         headers = {"Authorization": "Token {0}".format(self.token)}
         studio_nodes = []
