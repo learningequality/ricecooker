@@ -104,6 +104,7 @@ def build_tree_from_json(parent_node, sourcetree):
                 author=source_node.get('author'),
                 aggregator=source_node.get('aggregator'),
                 provider=source_node.get('provider'),
+                # no role for topics (computed dynaically from descendants)
                 language=source_node.get('language'),
                 thumbnail=source_node.get('thumbnail'),
             )
@@ -120,6 +121,7 @@ def build_tree_from_json(parent_node, sourcetree):
                 author=source_node.get('author'),
                 aggregator=source_node.get('aggregator'),
                 provider=source_node.get('provider'),
+                role=source_node.get('role'),
                 language=source_node.get('language'),
                 derive_thumbnail=source_node.get('derive_thumbnail', True),  # video-specific option
                 thumbnail=source_node.get('thumbnail'),
@@ -136,6 +138,7 @@ def build_tree_from_json(parent_node, sourcetree):
                 author=source_node.get('author'),
                 aggregator=source_node.get('aggregator'),
                 provider=source_node.get('provider'),
+                role=source_node.get('role'),
                 language=source_node.get('language'),
                 thumbnail=source_node.get('thumbnail'),
             )
@@ -151,6 +154,7 @@ def build_tree_from_json(parent_node, sourcetree):
                 author=source_node.get('author'),
                 aggregator=source_node.get('aggregator'),
                 provider=source_node.get('provider'),
+                role=source_node.get('role'),
                 language=source_node.get('language'),
                 thumbnail=source_node.get('thumbnail'),
                 exercise_data=source_node.get('exercise_data'),
@@ -168,6 +172,7 @@ def build_tree_from_json(parent_node, sourcetree):
                 author=source_node.get('author'),
                 aggregator=source_node.get('aggregator'),
                 provider=source_node.get('provider'),
+                role=source_node.get('role'),
                 language=source_node.get('language'),
                 thumbnail=source_node.get('thumbnail'),
             )
@@ -183,6 +188,7 @@ def build_tree_from_json(parent_node, sourcetree):
                 author=source_node.get('author'),
                 aggregator=source_node.get('aggregator'),
                 provider=source_node.get('provider'),
+                role=source_node.get('role'),
                 language=source_node.get('language'),
                 thumbnail=source_node.get('thumbnail'),
             )
