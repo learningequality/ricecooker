@@ -617,7 +617,7 @@ class YouTubeSubtitleFile(File):
 
 class SubtitleFile(DownloadFile):
     default_ext = file_formats.VTT
-    allowed_formats = [file_formats.VTT, file_formats.SRT]
+    allowed_formats = [file_formats.VTT]
 
     def __init__(self, path, **kwargs):
         self.subtitlesformat = kwargs.get('subtitlesformat', self.default_ext)
@@ -642,7 +642,6 @@ class SubtitleFile(DownloadFile):
         ext = extract_path_ext(self.path, default_ext=self.subtitlesformat)
         if ext not in self.allowed_formats and ext not in CONVERTIBLE_FORMATS[self.get_preset()]:
             raise ValueError('Incompatible extension {} for SubtitleFile at {}'.format(ext, self.path))
-
         try:
             self.filename = self.download_and_transform_file(self.path)
             config.LOGGER.info("\t--- Downloaded {}".format(self.filename))
