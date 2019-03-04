@@ -12,6 +12,7 @@ from ricecooker.classes.nodes import ChannelNode
 
 # CONSTANTS USED TO SELECT APPROPRIATE CLASS DURING DESERIALIZATION FROM JSON
 ################################################################################
+from le_utils.constants import roles
 
 from le_utils.constants import content_kinds
 TOPIC_NODE = content_kinds.TOPIC
@@ -121,7 +122,7 @@ def build_tree_from_json(parent_node, sourcetree):
                 author=source_node.get('author'),
                 aggregator=source_node.get('aggregator'),
                 provider=source_node.get('provider'),
-                role=source_node.get('role'),
+                role=source_node.get('role', roles.LEARNER),
                 language=source_node.get('language'),
                 derive_thumbnail=source_node.get('derive_thumbnail', True),  # video-specific option
                 thumbnail=source_node.get('thumbnail'),
@@ -138,7 +139,7 @@ def build_tree_from_json(parent_node, sourcetree):
                 author=source_node.get('author'),
                 aggregator=source_node.get('aggregator'),
                 provider=source_node.get('provider'),
-                role=source_node.get('role'),
+                role=source_node.get('role', roles.LEARNER),
                 language=source_node.get('language'),
                 thumbnail=source_node.get('thumbnail'),
             )
@@ -154,7 +155,7 @@ def build_tree_from_json(parent_node, sourcetree):
                 author=source_node.get('author'),
                 aggregator=source_node.get('aggregator'),
                 provider=source_node.get('provider'),
-                role=source_node.get('role'),
+                role=source_node.get('role', roles.LEARNER),
                 language=source_node.get('language'),
                 thumbnail=source_node.get('thumbnail'),
                 exercise_data=source_node.get('exercise_data'),
@@ -172,7 +173,7 @@ def build_tree_from_json(parent_node, sourcetree):
                 author=source_node.get('author'),
                 aggregator=source_node.get('aggregator'),
                 provider=source_node.get('provider'),
-                role=source_node.get('role'),
+                role=source_node.get('role', roles.LEARNER),
                 language=source_node.get('language'),
                 thumbnail=source_node.get('thumbnail'),
             )
@@ -188,7 +189,7 @@ def build_tree_from_json(parent_node, sourcetree):
                 author=source_node.get('author'),
                 aggregator=source_node.get('aggregator'),
                 provider=source_node.get('provider'),
-                role=source_node.get('role'),
+                role=source_node.get('role', roles.LEARNER),
                 language=source_node.get('language'),
                 thumbnail=source_node.get('thumbnail'),
             )
