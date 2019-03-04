@@ -310,8 +310,8 @@ def image_texts_fixtures():
          },
          {
             'text': 'https://learningequality.org/static/img/no-wifi.png',
-            'replacement_str': WEB_PREFIX + 'bc5180d5728ef6061f63ca6a545db76d.png',
-            'hash': 'bc5180d5728ef6061f63ca6a545db76d'
+            'replacement_str': WEB_PREFIX + '599aa896313be22dea6c0257772a464e.png',
+            'hash': '599aa896313be22dea6c0257772a464e'
          },
          {  # slightly modified version of the above
             'text': os.path.relpath(os.path.join(TESTCONTENT_DIR, 'no-wifi.png')),
@@ -390,7 +390,7 @@ def test_perseus__recursive_url_find(persues_question_json_fixtures):
             }
         }
     }
-    hash = 'bc5180d5728ef6061f63ca6a545db76d'
+    hash = '599aa896313be22dea6c0257772a464e'
 
 
     # setup

@@ -190,14 +190,15 @@ class Node(object):
         for child in self.children:
             child.print_tree(indent + 1)
 
-    def test_tree(self):
-        """ test_tree: validate all nodes in this tree
-            Args: None
-            Returns: boolean indicating if tree is valid
+    def validate_tree(self):
+        """
+        Validate all nodes in this tree recusively.
+          Args: None
+          Returns: boolean indicating if tree is valid
         """
         self.validate()
         for child in self.children:
-            assert child.test_tree()
+            assert child.validate_tree()
         return True
 
     def validate(self):
@@ -207,7 +208,7 @@ class Node(object):
         """
         from .files import File
 
-        assert self.source_id is not None, "Assumption Failed: Node must have an id"
+        assert self.source_id is not None, "Assumption Failed: Node must have a source_id"
         assert isinstance(self.title, str), "Assumption Failed: Node title is not a string"
         assert isinstance(self.description, str) or self.description is None, "Assumption Failed: Node description is not a string"
         assert isinstance(self.children, list), "Assumption Failed: Node children is not a list"
@@ -437,6 +438,7 @@ class ContentNode(TreeNode):
             author (str): who created the content (optional)
             aggregator (str): website or org hosting the content collection but not necessarily the creator or copyright holder (optional)
             provider (str): organization that commissioned or is distributing the content (optional)
+            role (str): set to roles.COACH for teacher-facing materials (default roles.LEARNER)
             thumbnail (str): local path or url to thumbnail image (optional)
             files ([<File>]): list of file objects for node (optional)
             extra_fields (dict): any additional data needed for node (optional)
@@ -716,8 +718,8 @@ class ExerciseNode(ContentNode):
             exercise_data = {"mastery_model": exercise_data}
 
         exercise_data.update({
-            'mastery_model': exercise_data.get('mastery_model') or exercises.M_OF_N,
-            'randomize': exercise_data.get('randomize') or True,
+            'mastery_model': exercise_data.get('mastery_model', exercises.M_OF_N),
+            'randomize': exercise_data.get('randomize', True),
         })
 
         super(ExerciseNode, self).__init__(source_id, title, license, extra_fields=exercise_data, **kwargs)

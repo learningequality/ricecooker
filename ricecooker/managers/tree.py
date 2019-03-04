@@ -21,7 +21,7 @@ class ChannelManager:
             Args: None
             Returns: boolean indicating if tree is valid
         """
-        return self.channel.test_tree()
+        return self.channel.validate_tree()
 
     def process_tree(self, channel_node):
         """

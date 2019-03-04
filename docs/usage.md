@@ -136,7 +136,7 @@ Line (5) shows how to add the newly created topic node to the channel.
 The `ricecooker` library provides classes like `DocumentNode`, `VideoNode`,
 `AudioNode`, etc., to store the metadata associate with media content items.
 Each content node also has one or more files associated with it,
-`DocumentFile`, `VideoFile`, `AudioFile`, `ThumbnailFile`, etc.
+`EPubFile`, `DocumentFile`, `VideoFile`, `AudioFile`, `ThumbnailFile`, etc.
 
 Line (6) shows how to create a `DocumentNode` to store the metadata for a pdf file.
 The `title` and `description` attributes are set. We also set the `source_id`
@@ -202,7 +202,7 @@ available to you (import from `ricecooker.classes.nodes`):
 
   - __TopicNode__: folders to organize to the channel's content
   - __AudioNode__: content containing mp3 file
-  - __DocumentNode__: content containing pdf file
+  - __DocumentNode__: content containing pdf and epub files
   - __HTML5AppNode__: content containing zip of html files (html, js, css, etc.)
   - __VideoNode__: content containing mp4 file
   - __ExerciseNode__: assessment-based content with questions
@@ -218,6 +218,7 @@ Here are the available file models:
 
   - __AudioFile__: mp3 file
   - __DocumentFile__: pdf file
+  - __EPubFile__: epub file
   - __HTMLZipFile__: zip of html files (must have `index.html` file at topmost level)
   - __VideoFile__: mp4 file (can be high resolution or low resolution)
   - __WebVideoFile__: video downloaded from site such as YouTube or Vimeo

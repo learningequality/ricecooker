@@ -28,7 +28,7 @@ and shows the associated file and question classes that content nodes can contai
             class TopicNode(TreeNode)                     |
             class ContentNode(TreeNode)                   |
                 class AudioNode(ContentNode)     files = [AudioFile]
-                class DocumentNode(ContentNode)  files = [DocumentFile]
+                class DocumentNode(ContentNode)  files = [DocumentFile, EPubFile]
                 class HTML5AppNode(ContentNode)  files = [HTMLZipFile]
                 class VideoNode(ContentNode)     files = [VideoFile, WebVideoFile, YouTubeVideoFile,
                                                           SubtitleFile, YouTubeSubtitleFile]
@@ -58,6 +58,9 @@ Each node has the following attributes:
   - __language__ (str or lang_obj): language for the content node
   - __description__ (str): description of content (optional)
   - __author__ (str): who created the content (optional)
+  - __aggregator__ (str): website or org hosting the content collection but not necessarily the creator or copyright holder (optional)
+  - __provider__ (str): organization that commissioned or is distributing the content (optional)
+  - __role__ (str): set to `roles.COACH` for teacher-facing materials (default `roles.LEARNER`)
   - __thumbnail__ (str or ThumbnailFile): path to thumbnail or file object (optional)
   - __files__ ([FileObject]): list of file objects for node (optional)
   - __extra_fields__ (dict): any additional data needed for node (optional)
@@ -166,6 +169,7 @@ and the file formats supported by each file class:
       |                         |
       AudioNode     --files-->  AudioFile                                   # .mp3
       DocumentNode  --files-->  DocumentFile                                # .pdf
+                                EPubFile                                    # .epub
       HTML5AppNode  --files-->  HTMLZipFile                                 # .zip
       VideoNode     --files-->  VideoFile, WebVideoFile, YouTubeVideoFile,  # .mp4
                                 SubtitleFile, YouTubeSubtitleFile           # .vtt
@@ -199,6 +203,16 @@ combinations of content node and file types.
 VideoNodes also have a __derive_thumbnail__ (boolean) argument, which will automatically
 extract a thumbnail from the video if no thumbnail is provided.
 
+
+### Role-based visibility
+It is possible to include content nodes in any channel that are only visible to
+Kolibri coaches. Setting the visibility to "coach-only" is useful for pedagogical 
+guides, answer keys, lesson plan suggestions, and other supporting material
+intended only for teachers to see but not students.
+To control content visibility set the `role` attributes to one of the constants
+defined in `le_utils.constants.roles` to define the "minimum role" needed to see the content.
+  - if `role=roles.LEARNER`: visible to learners, coaches, and administrators
+  - if `role=roles.COACH`: visible only to Kolibri coaches and administrators
 
 
 Exercise nodes

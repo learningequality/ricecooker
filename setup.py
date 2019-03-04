@@ -4,11 +4,7 @@ import ricecooker
 from setuptools import setup, find_packages
 
 
-try:
-    import pypandoc
-    readme = pypandoc.convert_file('README.md', 'rst')
-except (IOError, ImportError):
-    readme = open('README.md').read()
+readme = open('README.md').read()
 
 with open('docs/history.rst') as history_file:
     history = history_file.read()
@@ -16,13 +12,13 @@ with open('docs/history.rst') as history_file:
 requirements = [
     "pytest>=3.0.2",
     "requests>=2.11.1",
-    "pillow>=3.3.1",
     "docopt>=0.6.2",
-    "le_utils>=0.1.10",
+    "le_utils>=0.1.15",
     "validators",
     "requests_file",
-    "beautifulsoup4==4.5.1",
-    "pressurecooker>=0.0.16",
+    "requests-cache>=0.4.13",
+    "beautifulsoup4>=4.6.3",
+    "pressurecooker>=0.0.21",
     "selenium==3.0.1",
     "youtube-dl",
     "html5lib",
@@ -31,6 +27,7 @@ requirements = [
     "css-html-js-minify==2.2.2",
     "websocket-client==0.40.0",
     "mock==2.0.0",
+    "pypdf2>=1.26.0",
 ]
 
 test_requirements = [
@@ -42,6 +39,7 @@ setup(
     version=ricecooker.__version__,
     description="API for adding content to the Kolibri content curation server",
     long_description=readme + '\n\n' + history,
+    long_description_content_type='text/markdown',
     author="Learning Equality",
     author_email='dev@learningequality.org',
     url='https://github.com/learningequality/ricecooker',

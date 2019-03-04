@@ -1,5 +1,6 @@
 import argparse
 import os
+import sys
 from importlib.machinery import SourceFileLoader
 
 
@@ -422,6 +423,11 @@ class LineCook(JsonTreeChef):
         self.arg_parser.add_argument('--questionsinfo',
             default=DEFAULT_EXERCISE_QUESTIONS_INFO_FILENAME,
             help='Filename for execise questions metadata (assumed to be sibling of channeldir)')
+        self.arg_parser.add_argument('--generate', action='store_true',
+            help='Generate metadata files from directory stucture.')
+        self.arg_parser.add_argument('--importstudioid',
+            help='Generate CSV metadata from a specified studio_id (e.g. studio_id of main_tree for some channel)')
+
 
     def _init_metadata_provider(self, args, options):
         if args['contentinfo'].endswith('.csv'):
@@ -438,6 +444,30 @@ class LineCook(JsonTreeChef):
         """
         This function is called before `run` in order to build the json tree.
         """
+        if 'generate' in args and args['generate']:
+            self.metadata_provider = CsvMetadataProvider(args['channeldir'],
+                                                    channelinfo=args['channelinfo'],
+                                                    contentinfo=args['contentinfo'],
+                                                    exercisesinfo=args['exercisesinfo'],
+                                                    questionsinfo=args['questionsinfo'],
+                                                    validate_and_cache=False)
+            self.metadata_provider.generate_templates(exercise_questions=True)
+            self.metadata_provider.generate_contentinfo_from_channeldir(args, options)
+            sys.exit(0)
+
+        elif 'importstudioid' in args and args['importstudioid']:
+            studio_id = args['importstudioid']
+            config.LOGGER.info("Calling with importstudioid... " + studio_id)
+            self.metadata_provider = CsvMetadataProvider(args['channeldir'],
+                                                    channelinfo=args['channelinfo'],
+                                                    contentinfo=args['contentinfo'],
+                                                    exercisesinfo=args['exercisesinfo'],
+                                                    questionsinfo=args['questionsinfo'],
+                                                    validate_and_cache=False)
+            self.metadata_provider.generate_templates(exercise_questions=True)
+            self.metadata_provider.generate_exercises_from_importstudioid(args, options)
+            sys.exit(0)
+
         if self.metadata_provider is None:
             self._init_metadata_provider(args, options)
         kwargs = {}   # combined dictionary of argparse args and extra options

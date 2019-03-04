@@ -27,6 +27,27 @@ from ..exceptions import UnknownFileTypeError
 FILECACHE = FileCache(config.FILECACHE_DIRECTORY, forever=True)
 HTTP_CAUGHT_EXCEPTIONS = (HTTPError, ConnectionError, InvalidURL, UnicodeDecodeError, UnicodeError, InvalidSchema, IOError, AssertionError)
 
+# Lookup table for convertible file formats for a given preset
+# used for converting avi/flv/etc. videos and srt subtitles
+CONVERTIBLE_FORMATS = {p.id: p.convertible_formats for p in format_presets.PRESETLIST}
+
+
+def extract_path_ext(path, default_ext=None):
+    """
+    Extract file extension (without dot) from `path` or return `default_ext` if
+    path does not contain a valid extension.
+    """
+    ext = None
+    _, dotext = os.path.splitext(path)
+    if dotext:
+        ext = dotext[1:]
+    if not ext and default_ext:
+        ext = default_ext
+    if not ext:
+        raise ValueError('No extension in path {} and default_ext is None'.format(path))
+    return ext
+
+
 def generate_key(action, path_or_id, settings=None, default=" (default)"):
     """ generate_key: generate key used for caching
         Args:
@@ -325,12 +346,17 @@ class DownloadFile(File):
         super(DownloadFile, self).__init__(**kwargs)
 
     def validate(self):
+        """
+        Ensure `self.path` has one of the extensions in `self.allowed_formats`.
+        """
         assert self.path, "{} must have a path".format(self.__class__.__name__)
-        _basename, ext = os.path.splitext(self.path)
-        plain_ext = ext.lstrip('.')
+        _, dotext = os.path.splitext(self.path)
+        ext = dotext.lstrip('.')
         # don't validate for single-digit extension, or no extension
-        if len(plain_ext) > 1:
-            assert plain_ext in self.allowed_formats, "{} must have one of the following extensions: {} (instead, got '{}' from '{}')".format(self.__class__.__name__, self.allowed_formats, plain_ext, self.path)
+        if len(ext) > 1:
+            assert ext in self.allowed_formats, "{} must have one of the following"
+            "extensions: {} (instead, got '{}' from '{}')".format(
+            self.__class__.__name__, self.allowed_formats, ext, self.path)
 
     def process_file(self):
         try:
@@ -426,7 +452,7 @@ class ExtractedVideoThumbnailFile(ThumbnailFile):
 
 class VideoFile(DownloadFile):
     default_ext = file_formats.MP4
-    allowed_formats = [file_formats.MP4, 'avi', 'mov', 'mpg', 'wmv', 'swf', 'webm', 'mkv', 'flv']
+    allowed_formats = [file_formats.MP4]
     is_primary = True
 
     def __init__(self, path, ffmpeg_settings=None, **kwargs):
@@ -435,6 +461,15 @@ class VideoFile(DownloadFile):
 
     def get_preset(self):
         return self.preset or guess_video_preset_by_resolution(config.get_storage_path(self.filename))
+
+    def validate(self):
+        """
+        Ensure `self.path` has one of the extensions in `self.allowed_formats`.
+        """
+        assert self.path, "{} must have a path".format(self.__class__.__name__)
+        ext = extract_path_ext(self.path, default_ext=self.default_ext)
+        if ext not in self.allowed_formats and ext not in CONVERTIBLE_FORMATS[format_presets.VIDEO_HIGH_RES]:
+            raise ValueError('Incompatible extension {} for VideoFile at {}'.format(ext, self.path))
 
     def process_unsupported_video_file(self):
         try:
@@ -446,6 +481,9 @@ class VideoFile(DownloadFile):
             config.FAILED_FILES.append(self)
 
     def process_file(self):
+        ext = extract_path_ext(self.path, default_ext=self.default_ext)
+        if ext not in self.allowed_formats and ext not in CONVERTIBLE_FORMATS[format_presets.VIDEO_HIGH_RES]:
+            raise ValueError('Incompatible extension {} for VideoFile at {}'.format(ext, self.path))
         try:
             # Handle videos that don't have a .mp4 extension
             _, ext = os.path.splitext(self.path)
@@ -591,7 +629,20 @@ class SubtitleFile(DownloadFile):
     def get_preset(self):
         return self.preset or format_presets.VIDEO_SUBTITLE
 
+    def validate(self):
+        """
+        Ensure `self.path` has one of the extensions in `self.allowed_formats`.
+        """
+        assert self.path, "{} must have a path".format(self.__class__.__name__)
+        ext = extract_path_ext(self.path, default_ext=self.subtitlesformat)
+        if ext not in self.allowed_formats and ext not in CONVERTIBLE_FORMATS[self.get_preset()]:
+            raise ValueError('Incompatible extension {} for SubtitleFile at {}'.format(ext, self.path))
+
     def process_file(self):
+        ext = extract_path_ext(self.path, default_ext=self.subtitlesformat)
+        if ext not in self.allowed_formats and ext not in CONVERTIBLE_FORMATS[self.get_preset()]:
+            raise ValueError('Incompatible extension {} for SubtitleFile at {}'.format(ext, self.path))
+
         try:
             self.filename = self.download_and_transform_file(self.path)
             config.LOGGER.info("\t--- Downloaded {}".format(self.filename))
@@ -602,9 +653,10 @@ class SubtitleFile(DownloadFile):
             config.FAILED_FILES.append(self)
 
     def download_and_transform_file(self, path):
-        """ download: downloads file
-           Args: None
-            Returns: filename
+        """
+        Downlaod subtitles file at `path` and transform it to `.vtt` if necessary.
+        Args: path (URL or local path)
+        Returns: filename of final .vtt file
         """
         key = "DOWNLOAD:{}".format(path)
         if not config.UPDATE and FILECACHE.get(key):
@@ -642,7 +694,7 @@ class SubtitleFile(DownloadFile):
                 else:
                     FILECACHE.set(key, bytes(filename, "utf-8"))
         return filename
-    
+
 
 class Base64ImageFile(ThumbnailPresetMixin, File):
 

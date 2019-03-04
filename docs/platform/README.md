@@ -22,7 +22,7 @@ of nodes:
 
   - Topic nodes (folders)
   - Content types:
-    - Document (PDF files)
+    - Document (ePub and PDF files)
     - Audio (mp3 files)
     - Video (mp4 files)
     - HTML5App zip files (generic container for web content: HTML+JS+CSS)

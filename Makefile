@@ -98,8 +98,8 @@ servedocs: docs ## compile the docs watching for changes
 	watchmedo shell-command -p '*.rst' -c '$(MAKE) -C docs html' -R -D .
 
 release: clean ## package and upload a release
-	pip install pypandoc
-	python setup.py sdist upload -r pypi
+	python setup.py sdist
+	twine upload dist/*
 
 install: clean ## install the package to the active Python's site-packages
 	python setup.py install
