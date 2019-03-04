@@ -4,11 +4,7 @@ import ricecooker
 from setuptools import setup, find_packages
 
 
-try:
-    import pypandoc
-    readme = pypandoc.convert_file('README.md', 'rst')
-except (IOError, ImportError):
-    readme = open('README.md').read()
+readme = open('README.md').read()
 
 with open('docs/history.rst') as history_file:
     history = history_file.read()
