@@ -39,6 +39,7 @@ setup(
     version=ricecooker.__version__,
     description="API for adding content to the Kolibri content curation server",
     long_description=readme + '\n\n' + history,
+    long_description_content_type='text/markdown',
     author="Learning Equality",
     author_email='dev@learningequality.org',
     url='https://github.com/learningequality/ricecooker',
