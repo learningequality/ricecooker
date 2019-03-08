@@ -617,7 +617,7 @@ class YouTubeSubtitleFile(File):
 
 class SubtitleFile(DownloadFile):
     default_ext = file_formats.VTT
-    allowed_formats = [file_formats.VTT, file_formats.SRT]
+    allowed_formats = [file_formats.VTT]
 
     def __init__(self, path, **kwargs):
         self.subtitlesformat = kwargs.get('subtitlesformat', self.default_ext)
