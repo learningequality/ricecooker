@@ -42,12 +42,7 @@ def get_name_from_url_no_ext(url):
     get_name_from_url(url) -> xyz
     """
     path = get_name_from_url(url)
-    path_split = path.split(".")
-    if len(path_split) > 1:
-        name = ".".join(path_split[:-1])
-    else:
-        name = path_split[0]
-    return name
+    return os.path.splitext(path)[0]
 
 
 def build_path(levels):
