@@ -1,5 +1,4 @@
-""" invoke with 'pytest' """
-
+import pytest
 from ricecooker.utils.add_file import create_node, TranscodeAudio
 from ricecooker.classes.nodes import AudioNode
 
