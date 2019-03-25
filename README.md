@@ -89,6 +89,7 @@ The `ricecooker` library is a standard Python library distributed through PyPI:
      - Make sure you install the command line tool [ffmpeg](https://ffmpeg.org/)
      - Running javascript code while scraping webpages requires the phantomJS browser.
        You can run `npm install phantomjs-prebuilt` in your chef's working directory.
+     - Some of these utilities are useful for writing chefs: [documentation](https://github.com/learningequality/ricecooker/blob/master/ricecooker/utils/README.md)
 
 For more details and install options, see [docs/installation.md](https://github.com/learningequality/ricecooker/blob/master/docs/installation.md).
 
