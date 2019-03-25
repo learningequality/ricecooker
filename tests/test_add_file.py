@@ -10,6 +10,7 @@ def test_create_node_extension():
                        copyright_holder="X")
     assert isinstance(node, AudioNode)
 
+@pytest.mark.skipif(IS_TRAVIS_TESTING, reason="Skipping ffmpeg tests on Travis.")
 def test_webm():
     """Confirm we're automatically transcoding webm content"""
     node = create_node(filename="tests/testcontent/bigbuck_webm",
@@ -19,6 +20,7 @@ def test_webm():
     with open(filename, "rb") as f:
         assert b"mp4" in f.read(40)[:40]
 
+@pytest.mark.skipif(IS_TRAVIS_TESTING, reason="Skipping ffmpeg tests on Travis.")
 def test_mp3():
     """Confirm forced conversion to MP3 works correctly"""
     node = create_node(filename="tests/testcontent/bigbuck_webm",
