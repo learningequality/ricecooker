@@ -1,8 +1,11 @@
 import copy
 import csv
+from dictdiffer import diff, patch, swap, revert
 import json
 import os
 import requests
+
+from ricecooker.config import LOGGER
 
 
 # CORRECTIONS STRUCTURE v0.1
@@ -302,18 +305,14 @@ def find_nodes_by_attr(subtree, attr, value):
             results.extend(child_restuls)
     return results
 
-def find_nodes_by_content_id(subtree, cid):
-    """
-    Returns list of nodes in `subtree` that have `content_id=cid`.
-    """
-    return find_nodes_by_attr(subtree, 'content_id', value)
+def find_nodes_by_content_id(subtree, content_id):
+    return find_nodes_by_attr(subtree, 'content_id', content_id)
 
-def find_nodes_by_node_id(subtree, cid):
-    """
-    Returns list of nodes in `subtree` that have `content_id=cid`.
-    """
-    return find_nodes_by_attr(subtree, 'content_id', value)
+def find_nodes_by_node_id(subtree, node_id):
+    return find_nodes_by_attr(subtree, 'node_id', node_id)
 
+def find_nodes_by_original_source_node_id(subtree, original_source_node_id):
+    return find_nodes_by_attr(subtree, 'original_source_node_id', original_source_node_id)
 
 def unresolve_children(node):
     """
@@ -332,13 +331,31 @@ def unresolve_children(node):
 
 
 
+# SPECIAL REMAP NEEDED FOR ALDARYN CORRECTIONS
+################################################################################
+
+def remap_orignal_source_node_id_to_node_id(channel_tree, corrections_by_orignal_source_node_id):
+    ALL_COORECTIONS_KINDS = ['nodes_modified', 'nodes_added', 'nodes_deleted', 'nodes_moved']
+    corrections_by_node_id = {}
+    for correction_kind in ALL_COORECTIONS_KINDS:
+        if correction_kind in corrections_by_orignal_source_node_id:
+            corrections_by_node_id[correction_kind] = {}
+            corrections_dict = corrections_by_orignal_source_node_id[correction_kind]
+            for orignal_source_node_id, correction in corrections_dict.items():
+                results = find_nodes_by_original_source_node_id(channel_tree, orignal_source_node_id)
+                assert results, 'no match found based on orignal_source_node_id search'
+                assert len(results)==1, 'multiple matches found...'
+                tree_node = results[0]
+                node_id = tree_node['node_id'] 
+                corrections_by_node_id[correction_kind][node_id] = correction
+    return corrections_by_node_id
 
 
 
 # CORRECTIONS API CALLS
 ################################################################################
 
-def apply_modifications_for_node_id(api, channel_tree, channel_id, node_id, modifications_dict):
+def apply_modifications_for_node_id(api, channel_tree, node_id, modifications_dict):
     """
     Given a modification dict of the form,
         modifications_dict = {
@@ -361,22 +378,72 @@ def apply_modifications_for_node_id(api, channel_tree, channel_id, node_id, modi
     this function will make obtain GET the current node data from Studio API,
     apply the modifications to the local json data, then PUT the data on Studio.
     """
-    content_id = row[SOURCE_ID_OR_CONTENT_ID_KEY]
-    results = find_nodes_by_content_id(channel_tree, content_id)
-    assert results, 'no match found based on conten_id'
+    print('MODIFYING node_id=', node_id)
+    results = find_nodes_by_node_id(channel_tree, node_id)
+    assert results, 'no match found based on node_id search'
     assert len(results)==1, 'multiple matches found...'
     tree_node = results[0]
     studio_id = tree_node['id']
-    # node_before = unresolve_children(results[0])
-    # node_before
-    changes = correction_row_to_changes(row, attrs=['title'])  # Aldaryn only title correcotins...
-    for changetype, attr, before_after in changes:
-        val_before = before_after[0]
-        val_after = before_after[1]
-        print('Changing', attr, 'from', before, 'to', after)
+    # node_before = unresolve_children(tree_node)
+    node_before = api.get_contentnode(studio_id)
+    # print('node_before', node_before)
 
-    # api.put_contentnode(node_before)
-    # print(content_id, studio_id, 'changes=', changes)
+    # PREPARE data for PUT request  (starting form copy of old)
+    data = {}
+    ATTRS_TO_COPY = ['kind', 'id', 'tags', 'prerequisite', 'parent']
+    for attr in ATTRS_TO_COPY:
+        data[attr] = node_before[attr]
+    #
+    # ADD new_values modified 
+    modifications = modifications_dict['attributes']
+    for attr, values_diff in modifications.items():
+        if values_diff['changed']:
+            old_value = node_before[attr]
+            expected_old_value = values_diff['old_value']
+            new_value = values_diff['value']
+            if expected_old_value == new_value:   # skip if the same
+                continue
+            if old_value != expected_old_value:
+                print('WARNING expected old value', expected_old_value, 'for', attr, 'but current node value is', old_value)
+            print('Changing old value', old_value, 'for', attr, 'to new value', new_value)
+            data[attr] = new_value
+        else:
+            print('Skipping attribute', attr, 'because key changed==False')
+
+        # PUT
+        print('PUT studio_id=', studio_id)
+        # response_data = api.put_contentnode(node)
+        
+        # Check what changed
+        node_after = api.get_contentnode(studio_id)
+        diffs = list(diff(node_before, node_after))
+        print('diffs=', diffs)
+
+
+def apply_deletion_for_node_id(api, channel_tree, node_id, deletion_dict):
+    print('DELETING node_id=', node_id)
+    results = find_nodes_by_node_id(channel_tree, node_id)
+    assert results, 'no match found based on node_id search'
+    assert len(results)==1, 'multiple matches found...'
+    tree_node = results[0]
+    studio_id = tree_node['id']
+    # node_before = unresolve_children(tree_node)
+    node_before = api.get_contentnode(studio_id)
+    
+    # PREPARE data for DLETE request
+    data = {}
+    data['id'] = node_before['id']
+
+    # DELETE
+    print('DELETE studio_id=', studio_id)
+    # response_data = api.delete_contentnode(deldata, channel_id)
+
+    # Check what changed
+    node_after = api.get_contentnode(studio_id)
+    diffs = list(diff(node_before, node_after))
+    print('diffs=', diffs)
+
+    return response_data
 
 
 def apply_corrections_by_node_id(api, channel_tree, corrections_by_node_id):
@@ -399,16 +466,27 @@ def apply_corrections_by_node_id(api, channel_tree, corrections_by_node_id):
     }
     this function will make the appropriate Studio API calls to apply the patch.    
     """
-    pass
+    LOGGER.debug('Applying corrections...')
+    #
+    # Modifications
+    for node_id, modifications_dict in corrections_by_node_id['nodes_modified'].items():
+        apply_modifications_for_node_id(api, channel_tree, node_id, modifications_dict)
+    #
+    # Deletions
+    for node_id, deletion_dict in corrections_by_node_id['nodes_deleted'].items():
+        apply_deletion_for_node_id(api, channel_tree, node_id, deletion_dict)
+    # TODO: Additions
+    # TODO: Moves
 
 
 
 
 
-def apply_corrections(api, channel_id, csvfilepath, studiotreepath=None):
+
+def apply_corrections_by_orignal_source_node_id(api, channel_id, csvfilepath, studiotreepath=None):
+    # 1. LOAD channel_tree from studiotreepath
     if studiotreepath is None:
         studiotreepath = 'chefdata/studiotree_Multaqaddarain_K12.json'
-
     if os.path.exists(studiotreepath):
         channel_tree = json.load(open(studiotreepath, 'r'))
     else:
@@ -416,11 +494,13 @@ def apply_corrections(api, channel_id, csvfilepath, studiotreepath=None):
         channel_tree = api.get_tree_for_studio_id(root_studio_id)
         json.dump(channel_tree, open(studiotreepath, 'w'), indent=4, ensure_ascii=False, sort_keys=True)
 
-    corrections = get_corrections(csvfilepath)
-    for row in corrections['nodes_modified'][0:10]:
-        apply_correction_for_node_id(api, channel_tree, row)
 
-    # return corrections['nodes_deleted']
+    # 2. LOAD corrections from CSV
+    corrections_by_orignal_source_node_id = get_corrections_by_node_id(csvfilepath)
+    corrections_by_node_id = remap_orignal_source_node_id_to_node_id(channel_tree, corrections_by_orignal_source_node_id)
+
+    # 3. DO IT
+    apply_corrections_by_node_id(api, channel_tree, corrections_by_node_id)
 
 
 
