@@ -378,7 +378,7 @@ def apply_modifications_for_node_id(api, channel_tree, node_id, modifications_di
     this function will make obtain GET the current node data from Studio API,
     apply the modifications to the local json data, then PUT the data on Studio.
     """
-    print('MODIFYING node_id=', node_id)
+    # print('MODIFYING node_id=', node_id)
     results = find_nodes_by_node_id(channel_tree, node_id)
     assert results, 'no match found based on node_id search'
     assert len(results)==1, 'multiple matches found...'
@@ -405,23 +405,24 @@ def apply_modifications_for_node_id(api, channel_tree, node_id, modifications_di
                 continue
             if old_value != expected_old_value:
                 print('WARNING expected old value', expected_old_value, 'for', attr, 'but current node value is', old_value)
-            print('Changing old value', old_value, 'for', attr, 'to new value', new_value)
+            # print('Changing old value', old_value, 'for', attr, 'to new value', new_value)
             data[attr] = new_value
         else:
             print('Skipping attribute', attr, 'because key changed==False')
 
         # PUT
-        print('PUT studio_id=', studio_id)
-        # response_data = api.put_contentnode(node)
+        print('PUT studio_id=', studio_id, 'node_id=', node_id)
+        response_data = api.put_contentnode(data)
         
         # Check what changed
         node_after = api.get_contentnode(studio_id)
         diffs = list(diff(node_before, node_after))
         print('diffs=', diffs)
+        
+        return response_data
 
 
-def apply_deletion_for_node_id(api, channel_tree, node_id, deletion_dict):
-    print('DELETING node_id=', node_id)
+def apply_deletion_for_node_id(api, channel_tree, channel_id, node_id, deletion_dict):
     results = find_nodes_by_node_id(channel_tree, node_id)
     assert results, 'no match found based on node_id search'
     assert len(results)==1, 'multiple matches found...'
@@ -435,8 +436,8 @@ def apply_deletion_for_node_id(api, channel_tree, node_id, deletion_dict):
     data['id'] = node_before['id']
 
     # DELETE
-    print('DELETE studio_id=', studio_id)
-    # response_data = api.delete_contentnode(deldata, channel_id)
+    print('DELETE studio_id=', studio_id, 'node_id=', node_id)
+    response_data = api.delete_contentnode(data, channel_id)
 
     # Check what changed
     node_after = api.get_contentnode(studio_id)
@@ -446,7 +447,7 @@ def apply_deletion_for_node_id(api, channel_tree, node_id, deletion_dict):
     return response_data
 
 
-def apply_corrections_by_node_id(api, channel_tree, corrections_by_node_id):
+def apply_corrections_by_node_id(api, channel_tree, channel_id, corrections_by_node_id):
     """
     Given a dict `corrections_by_node_id` of the form,
     {
@@ -474,7 +475,7 @@ def apply_corrections_by_node_id(api, channel_tree, corrections_by_node_id):
     #
     # Deletions
     for node_id, deletion_dict in corrections_by_node_id['nodes_deleted'].items():
-        apply_deletion_for_node_id(api, channel_tree, node_id, deletion_dict)
+        apply_deletion_for_node_id(api, channel_tree, channel_id, node_id, deletion_dict)
     # TODO: Additions
     # TODO: Moves
 
@@ -498,9 +499,10 @@ def apply_corrections_by_orignal_source_node_id(api, channel_id, csvfilepath, st
     # 2. LOAD corrections from CSV
     corrections_by_orignal_source_node_id = get_corrections_by_node_id(csvfilepath)
     corrections_by_node_id = remap_orignal_source_node_id_to_node_id(channel_tree, corrections_by_orignal_source_node_id)
+    print(corrections_by_node_id)
 
     # 3. DO IT
-    apply_corrections_by_node_id(api, channel_tree, corrections_by_node_id)
+    apply_corrections_by_node_id(api, channel_tree, channel_id, corrections_by_node_id)
 
 
 
