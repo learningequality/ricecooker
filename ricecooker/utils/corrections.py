@@ -179,10 +179,8 @@ class CorretionsCsvFile(object):
 
 
 
-
-# Import CSV metadata from external corrections
-############################################################################
-
+# CSV CORRECTIONS LOADERS
+################################################################################
 
 def save_gsheet_to_local_csv(gsheet_id, gid, csvfilepath='Corrections.csv'):
     GSHEETS_BASE = 'https://docs.google.com/spreadsheets/d/'
@@ -194,8 +192,6 @@ def save_gsheet_to_local_csv(gsheet_id, gid, csvfilepath='Corrections.csv'):
         print('Succesfully saved ' + csvfilepath)
     return csvfilepath
 
-# Import CSV metadata from external corrections
-############################################################################
 
 def _clean_dict(row):
     """
@@ -209,6 +205,7 @@ def _clean_dict(row):
             row_cleaned[key] = val.strip()
     return row_cleaned
 
+
 def load_corrections_from_csv(csvfilepath):
     csv_path = csvfilepath     # download_structure_csv()
     struct_list = []
@@ -221,38 +218,76 @@ def load_corrections_from_csv(csvfilepath):
     return struct_list
 
 
-def get_corrections(csvfilepath):
-    modified = []
-    deleted = []
-
+def get_csv_corrections(csvfilepath):
+    """
+    Return a GROUP BY `corrkind` dictionary of rows from the CSV file.
+    """
+    modifications = []
+    deletions = []
     rows = load_corrections_from_csv(csvfilepath)
     for row in rows:
         if row[ACTION_KEY] == 'remove':
-            deleted.append(row)
+            deletions.append(row)
+        elif row[ACTION_KEY] == '' or row[ACTION_KEY] == None:
+            modifications.append(row)
         else:
-            modified.append(row)
-            # else:
-            #     print('Uknown Action', row[ACTION_KEY])
+            print('Uknown Action', row[ACTION_KEY])
     return {
-        'nodes_modified': modified,
-        'nodes_deleted': deleted
+        'modifications': modifications,
+        'deletions': deletions,
     }
+
+
+def get_corrections_by_node_id(csvfilepath, modification_attrs=['title']):
+    """
+    Convert CSV to internal representaiton of corrections as dicts by node_id.
+    """
+    corrections_by_node_id = {
+        'nodes_modified': {},
+        'nodes_added': {},
+        'nodes_deleted': {},
+        'nodes_moved': {},
+    }
+    csv_corrections = get_csv_corrections(csvfilepath)  # CSV rows GROUP BY corrkind
+    #
+    # Modifications
+    for row in csv_corrections['modifications']:
+        node_id = row[NODE_ID_KEY]
+        # print('Found MODIFY row of CSV  for node_id', node_id)
+        #
+        # find all modified attributes
+        attributes = {}
+        for attr in modification_attrs:
+            # print('Found MODIFY', attr, 'in row of CSV for node_id', node_id)
+            old_key = TARGET_COLUMNS[attr][0]
+            new_key = TARGET_COLUMNS[attr][1]
+            attributes[attr] = {
+                'changed': True,
+                'value': row[new_key],
+                'old_value': row[old_key],
+            }
+        # prepare modifications_dict
+        modifications_dict = {
+            'attributes': attributes,
+        }
+        # add to to corrections_by_node_id
+        corrections_by_node_id['nodes_modified'][node_id] = modifications_dict
+    #
+    # Deletions
+    for row in csv_corrections['deletions']:
+        node_id = row[NODE_ID_KEY]
+        # print('Found DELETE row in CSV for node_id', node_id)
+        corrections_by_node_id['nodes_deleted'][node_id] = {'node_id':node_id}
+    #
+    # TODO: Additions
+    # TODO: Moves
+    return corrections_by_node_id
+
+
 
 # Tree querying API
 ################################################################################
 
-def find_nodes_by_content_id(subtree, cid):
-    """
-    Returns list of nodes in `subtree` that have `content_id=cid`.
-    """
-    results = []
-    if subtree['content_id'] == cid:
-        results.append(subtree)
-    if 'children' in subtree:
-        for child in subtree['children']:
-            child_restuls = find_nodes_by_content_id(child, cid)
-            results.extend(child_restuls)
-    return results
 
 def find_nodes_by_attr(subtree, attr, value):
     """
@@ -266,6 +301,19 @@ def find_nodes_by_attr(subtree, attr, value):
             child_restuls = find_nodes_by_attr(child, attr, value)
             results.extend(child_restuls)
     return results
+
+def find_nodes_by_content_id(subtree, cid):
+    """
+    Returns list of nodes in `subtree` that have `content_id=cid`.
+    """
+    return find_nodes_by_attr(subtree, 'content_id', value)
+
+def find_nodes_by_node_id(subtree, cid):
+    """
+    Returns list of nodes in `subtree` that have `content_id=cid`.
+    """
+    return find_nodes_by_attr(subtree, 'content_id', value)
+
 
 def unresolve_children(node):
     """
@@ -282,14 +330,79 @@ def unresolve_children(node):
 
 
 
-def correction_row_to_changes(cor, attrs=['title']):
-    changes = []
-    for attr in attrs:
-        old_key = TARGET_COLUMNS[attr][0]
-        new_key = TARGET_COLUMNS[attr][1]
-        change = ('change', attr, (cor[old_key], cor[new_key]) )
-        changes.append(change)
-    return changes
+
+
+
+
+
+# CORRECTIONS API CALLS
+################################################################################
+
+def apply_modifications_for_node_id(api, channel_tree, channel_id, node_id, modifications_dict):
+    """
+    Given a modification dict of the form,
+        modifications_dict = {
+            'attributes': {
+                'title': {
+                    'changed': (bool),
+                    'value': (str),
+                    'old_value': (str),
+                },
+                'files': ([{
+                    'filename': (str),
+                    'file_size': (int),
+                    'preset': (str)
+                }]),
+                'assessment_items': ([AssessmentItem]),
+                'tags': ([Tag]),
+                ...
+            }
+        }
+    this function will make obtain GET the current node data from Studio API,
+    apply the modifications to the local json data, then PUT the data on Studio.
+    """
+    content_id = row[SOURCE_ID_OR_CONTENT_ID_KEY]
+    results = find_nodes_by_content_id(channel_tree, content_id)
+    assert results, 'no match found based on conten_id'
+    assert len(results)==1, 'multiple matches found...'
+    tree_node = results[0]
+    studio_id = tree_node['id']
+    # node_before = unresolve_children(results[0])
+    # node_before
+    changes = correction_row_to_changes(row, attrs=['title'])  # Aldaryn only title correcotins...
+    for changetype, attr, before_after in changes:
+        val_before = before_after[0]
+        val_after = before_after[1]
+        print('Changing', attr, 'from', before, 'to', after)
+
+    # api.put_contentnode(node_before)
+    # print(content_id, studio_id, 'changes=', changes)
+
+
+def apply_corrections_by_node_id(api, channel_tree, corrections_by_node_id):
+    """
+    Given a dict `corrections_by_node_id` of the form,
+    {
+        'nodes_modified': {
+            '<nid1>': { modification dict1 },
+            '<nid1>': { modification dict2 },
+        }
+        'nodes_added': {
+            '<node_id (str)>': { 'new_parent': (str),  'attributes': {...}},
+        },
+        'nodes_deleted': {
+            '<node_id (str)>': {'old_parent': (str), 'attributes': {...}},
+        },
+        'nodes_moved': {
+            '<node_id (str)>': {'old_parent': (str), 'new_parent': (str), 'attributes': {...}},
+        },
+    }
+    this function will make the appropriate Studio API calls to apply the patch.    
+    """
+    pass
+
+
+
 
 
 def apply_corrections(api, channel_id, csvfilepath, studiotreepath=None):
@@ -305,18 +418,9 @@ def apply_corrections(api, channel_id, csvfilepath, studiotreepath=None):
 
     corrections = get_corrections(csvfilepath)
     for row in corrections['nodes_modified'][0:10]:
-        content_id = row[SOURCE_ID_OR_CONTENT_ID_KEY]
-        results = find_nodes_by_content_id(channel_tree, content_id)
-        assert results, 'no match found based on conten_id'
-        assert len(results)==1, 'multiple matches found...'
-        tree_node = results[0]
-        studio_id = tree_node['id']
-        # node_before = unresolve_children(results[0])
-        # node_before
-        changes = correction_row_to_changes(row, attrs=['title'])  # Aldaryn only title correcotins...
-        print(content_id, studio_id, 'changes=', changes)
-        
-    return corrections['nodes_deleted']
+        apply_correction_for_node_id(api, channel_tree, row)
+
+    # return corrections['nodes_deleted']
 
 
 
