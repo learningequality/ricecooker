@@ -50,7 +50,7 @@ ricecooker.utils module
 .. automodule:: ricecooker.utils.downloader
 .. automodule:: ricecooker.utils.html
 .. automodule:: ricecooker.utils.html_writer
-.. automodule:: ricecooker.utils.json_trees
+.. automodule:: ricecooker.utils.jsontrees
 .. automodule:: ricecooker.utils.libstudio
 .. automodule:: ricecooker.utils.linecook
 .. automodule:: ricecooker.utils.metadata_provider
