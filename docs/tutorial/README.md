@@ -3,9 +3,9 @@ Tutorials
 
 This folder contains interactive tutorials that demonstrate how to build sushi chefs.
 
-  - [quickstart](quikstart.ipynb) : basic steps for creating a channel from the README
-  - [languages](languages.ipynb): examples of how to work with the internal language codes
-  - [exercises](exercises.ipynb): examples of exercise questions types supported by ricecooker
+  - [quickstart](quickstart) : basic steps for creating a channel from the README
+  - [languages](languages): examples of how to work with the internal language codes
+  - [exercises](exercises): examples of exercise questions types supported by ricecooker
   - nodes [TODO]
   - files [TODO]
 
