@@ -219,7 +219,7 @@ class PerseusQuestion(BaseQuestion):
     Attributes:
         id (str): question's unique id
         raw_data (str): pre-formatted perseus question
-        images ({key:str, ...}): a dict mapping image string to replace to path to image
+        images (dict): maps image string to replace to path to image `{key: str, ...}`
     """
 
     def __init__(self, id, raw_data, source_url=None, **kwargs):
@@ -288,6 +288,9 @@ class PerseusQuestion(BaseQuestion):
     def process_image_field(self, data):
         """
         Process perseus fields like questions and hints, which look like:
+
+        .. code-block:: python
+
           {
              "content": "md string including imgs like ![](URL-key) and ![](URL-key2)",
              "images": {
@@ -295,9 +298,12 @@ class PerseusQuestion(BaseQuestion):
                 "URL-key2": {"width": 425, "height": 425}
              }
           }
+
         Replaces `content` attribute and returns (images_dict, image_files), where
+
            - `images_dict` is a replacement for the old `images` key
            - `image_files` is a list image files for the URLs found
+
         Note it is possible for assesment items to include images links `content`
         that are not listed under `images`, so code must handle that case too,
         see https://github.com/learningequality/ricecooker/issues/178 for details.
