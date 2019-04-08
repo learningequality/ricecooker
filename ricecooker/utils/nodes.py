@@ -20,17 +20,6 @@ class TranscodeAudio(object):
 
 DOWNLOAD_FOLDER = "__downloads"  # this generates completed files
 metadata = {}
-have_setup = False
-
-def setup_directory():
-    global have_setup
-    if have_setup: return
-    have_setup = True
-    try:
-        os.mkdir(DOWNLOAD_FOLDER)
-    except FileExistsError:
-        pass
-
 
 node_dict = {VideoFile: VideoNode,
              AudioFile: AudioNode,
@@ -63,7 +52,10 @@ def download_file(url):
 
     # url must be fully specified!
     response = requests.get(url, stream=True)
-    setup_directory()
+    try:
+        os.mkdir(DOWNLOAD_FOLDER)
+    except FileExistsError:
+        pass
     filename = DOWNLOAD_FOLDER + "/" + create_filename(url)
     if not os.path.exists(filename):
         #print ("Downloading to {}".format(filename))

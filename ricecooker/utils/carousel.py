@@ -6,7 +6,7 @@ import requests
 import hashlib
 import shutil
 import os
-from ricecooker.utils import add_file
+from ricecooker.utils import nodes
 
 html = """
 <!DOCTYPE html>
@@ -167,7 +167,7 @@ def create_carousel(filenames):
 def create_carousel_node(filenames, **metadata):
     zip_filename = create_carousel_zip(filenames)
     print(zip_filename)
-    return add_file.create_node(add_file.HTMLZipFile, filename=zip_filename, **metadata)
+    return nodes.create_node(nodes.HTMLZipFile, filename=zip_filename, **metadata)
 
 
 if __name__ == "__main__":

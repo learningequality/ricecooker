@@ -1,6 +1,6 @@
 import pytest
 import os
-from ricecooker.utils.add_file import create_node, TranscodeAudio
+from ricecooker.utils.nodes import create_node, TranscodeAudio
 from ricecooker.classes.nodes import AudioNode
 IS_TRAVIS_TESTING = "TRAVIS" in os.environ and os.environ["TRAVIS"] == "true"
 

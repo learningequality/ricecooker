@@ -59,12 +59,12 @@ Write pagerange to a different PDF to the target directory with filename prefix 
 Automate whole process -- can customise jsondata output from `get_toc` if fine-tuning is required.
 
 # Node Creation
-`ricecooker.utils.add_file.create_node(file_class, url, filename, title, license, copyright_holder, description)`
+`ricecooker.utils.nodes.create_node(file_class, url, filename, title, license, copyright_holder, description)`
 Create a content node from either a URL or filename.
 Which content node is determined by:
   * the `file_class` explicitly passed (e.g. VideoFile class)
   * guessing from downloaded mimetype, file extension or magic bytes (see `guess_type` function)
-You can set `ricecooker.utils.add_file.metadata` to automatically fille in licence and copyright details as a dictionary.
+You can set `ricecooker.utils.nodes.metadata` to automatically fille in licence and copyright details as a dictionary.
 
 `ricecooker.utils.create_carousel_node(filenames, **metadata)`
 Given a list of local filenames, create a HTML5App with a rotating carousel and return a node
