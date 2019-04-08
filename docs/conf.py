@@ -21,7 +21,7 @@
 import os
 import sys
 sys.path.insert(0, os.path.abspath('..'))
-from recommonmark.parser import CommonMarkParser
+# from recommonmark.parser import CommonMarkParser
 
 from ricecooker import __version__ as current_ricecooker_version
 
@@ -43,6 +43,7 @@ extensions = [
     'sphinx.ext.todo',
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
+    "recommonmark",
     # 'nbsphinx',
     # 'IPython.sphinxext.ipython_console_highlighting',
 ]
@@ -451,14 +452,14 @@ intersphinx_mapping = {
 
 
 # Also accept .md files  (via https://github.com/rtfd/recommonmark)
-source_suffix = ['.rst', '.md']     # The suffix(es) of source filenames
-source_parsers = {
-    '.md': CommonMarkParser,
+source_suffix = {
+    '.md': "markdown",
+    '.rst': "restructuredtext",
 }
 
 autodoc_default_options = {
         # Make sure that any autodoc declarations show the right members
-        "members": True,
+        "members": None,
         #"inherited-members": True,
         "undoc-members": True,
         #"private-members": True,
