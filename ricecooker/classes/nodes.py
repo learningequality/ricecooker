@@ -820,6 +820,21 @@ class SlideshowNode(ContentNode):
 
     """
     kind = content_kinds.SLIDESHOW
+
+    def __init__(self, source_id, title, slideshow_data=None, **kwargs):
+        if not slideshow_data:
+            slideshow_data = {}
+
+        for idx, file in enumerate(kwargs['files']):
+            slideshow_data.update({
+                '{0}'.format(file.get_filename().split(".")[0]): {
+                    'caption': file.caption,
+                    'sort_order': idx
+                }
+            })
+
+        super(SlideshowNode, self).__init__(source_id, title, extra_fields=slideshow_data, **kwargs)
+
     def validate(self):
         from .files import SlideImageFile
         try:

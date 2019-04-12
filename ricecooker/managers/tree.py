@@ -264,7 +264,9 @@ class ChannelManager:
 
                 # When iceqube is integrated, use this method to utilize upload file optimizations
                 # response = config.SESSION.post(config.add_nodes_from_file_url(), files={'file': json.dumps(payload)})
-
+                config.LOGGER.info("----------- PAY LOAD -----------")
+                config.LOGGER.info(payload)
+                config.LOGGER.info("----------- //////// -----------")
                 response = config.SESSION.post(config.add_nodes_url(), data=json.dumps(payload))
                 if response.status_code != 200:
                     self.failed_node_builds[root_id] = {'node': current_node, 'error': response.reason}
@@ -288,9 +290,6 @@ class ChannelManager:
             "channel_id":channel_id,
             "stage": config.STAGE,
         }
-        config.LOGGER.info("----------- PAYLOAD -----------")
-        config.LOGGER.info(payload)
-        config.LOGGER.info("/////////// PAYLOAD ///////////")
         response = config.SESSION.post(config.finish_channel_url(), data=json.dumps(payload))
         if response.status_code != 200:
             config.LOGGER.error("\n\nCould not activate channel: {}\n".format(response._content.decode('utf-8')))
