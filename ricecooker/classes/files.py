@@ -371,6 +371,18 @@ class DownloadFile(File):
     def __str__(self):
         return self.path
 
+class SlideImageFile(DownloadFile):
+    default_ext = file_formats.PNG
+    allowed_formats = [file_formats.JPG, file_formats.JPEG, file_formats.PNG]
+    is_primary = True
+
+    def __init__(self, path, caption="", **kwargs):
+        self.caption = caption
+        self.path = path.strip()
+        super(DownloadFile, self).__init__(**kwargs)
+
+    def get_preset(self):
+        return self.preset or format_presets.SLIDE_IMAGE
 
 class ThumbnailFile(ThumbnailPresetMixin, DownloadFile):
     default_ext = file_formats.PNG
@@ -681,10 +693,10 @@ class SubtitleFile(DownloadFile):
                 filename_tmp_vtt = os.path.join(
                     "/tmp", '{0}.{ext}'.format(hash_srt.hexdigest(), ext=self.default_ext))
                 error_msg = srt2vtt(tempf_srt.name, filename_tmp_vtt)
-                
+
                 hash = write_and_get_hash(filename_tmp_vtt, tempf_vtt)
                 tempf_vtt.seek(0)
-                
+
                 filename = '{0}.{ext}'.format(hash.hexdigest(), ext=self.default_ext)
                 copy_file_to_storage(filename, tempf_vtt.name)
                 if error_msg is not None:

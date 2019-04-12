@@ -288,6 +288,9 @@ class ChannelManager:
             "channel_id":channel_id,
             "stage": config.STAGE,
         }
+        config.LOGGER.info("----------- PAYLOAD -----------")
+        config.LOGGER.info(payload)
+        config.LOGGER.info("/////////// PAYLOAD ///////////")
         response = config.SESSION.post(config.finish_channel_url(), data=json.dumps(payload))
         if response.status_code != 200:
             config.LOGGER.error("\n\nCould not activate channel: {}\n".format(response._content.decode('utf-8')))

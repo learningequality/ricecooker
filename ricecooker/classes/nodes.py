@@ -798,3 +798,32 @@ class ExerciseNode(ContentNode):
             q.truncate_fields()
 
         super(ExerciseNode, self).truncate_fields()
+
+class SlideshowNode(ContentNode):
+    """ Model representing Slideshows
+
+        Slideshows are sequences of "Slides", a combination of an image and caption.
+        Slides are shown in a specified sequential order.
+
+                Attributes:
+            source_id (str): content's original id
+            title (str): content's title
+            license (str or <License>): content's license
+            author (str): who created the content (optional)
+            aggregator (str): website or org hosting the content collection but not necessarily the creator or copyright holder (optional)
+            provider (str): organization that commissioned or is distributing the content (optional)
+            description (str): description of content (optional)
+            files ([<SlideImageFile>]): images associated with slides
+            thumbnail (str): local path or url to thumbnail image (optional)
+            extra_fields (dict): any additional data needed for node (optional)
+            domain_ns (str): who is providing the content (e.g. learningequality.org) (optional)
+
+    """
+    kind = content_kinds.SLIDESHOW
+    def validate(self):
+        from .files import SlideImageFile
+        try:
+            assert any(self.files), "Assumption Failed: Slideshow does not have any slideshow image files."
+            assert all(filter(lambda f: isinstance(f, SlideImageFile), self.files)), "Assumption Failed: Slideshow files must all be of type SlideImageFile."
+        except AssertionError as ae:
+            raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
