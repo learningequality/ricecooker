@@ -44,21 +44,7 @@ ricecooker.sushi\_bar\_client module
 ricecooker.utils module
 -----------------------
 
-.. automodule:: ricecooker.utils.browser
-.. automodule:: ricecooker.utils.caching
-.. automodule:: ricecooker.utils.data_writer
-.. automodule:: ricecooker.utils.downloader
-.. automodule:: ricecooker.utils.html
-.. automodule:: ricecooker.utils.html_writer
-.. automodule:: ricecooker.utils.jsontrees
-.. automodule:: ricecooker.utils.libstudio
-.. automodule:: ricecooker.utils.linecook
-.. automodule:: ricecooker.utils.metadata_provider
-.. automodule:: ricecooker.utils.path_builder
-.. automodule:: ricecooker.utils.paths
-.. automodule:: ricecooker.utils.pdf
-.. automodule:: ricecooker.utils.tokens
-.. automodule:: ricecooker.utils.zip
+There is :doc:`separate documentation <utils>` for the utilities.
 
 Module contents
 ---------------

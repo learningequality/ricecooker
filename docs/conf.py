@@ -460,8 +460,8 @@ source_suffix = {
 autodoc_default_options = {
         # Make sure that any autodoc declarations show the right members
         "members": None,
-        #"inherited-members": True,
-        "undoc-members": True,
+        "inherited-members": None,
+        "undoc-members": None,
         #"private-members": True,
-        "show-inheritance": True,
+        "show-inheritance": None,
         }
