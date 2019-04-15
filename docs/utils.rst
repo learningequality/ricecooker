@@ -65,6 +65,13 @@ ricecooker.utils.paths module
 ricecooker.utils.pdf module
 ---------------------------
 
+There is :doc:`detailed documentation <pdfutils>` available on the PDF tool.
+
+.. toctree::
+   :maxdepth: 4
+   
+   PDF documentation <pdfutils>
+
 .. automodule:: ricecooker.utils.pdf
 
 ricecooker.utils.tokens module

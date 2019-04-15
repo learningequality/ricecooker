@@ -1,5 +1,5 @@
-Running chef scrips
-===================
+Running chef scripts
+====================
 The base class `SushiChef` provides a lot of command line arguments that control
 the chef script's operation. It is expected that **every chef script will come
 with a README** that explains the desired command line arguments for the chef script.
