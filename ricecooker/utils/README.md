@@ -66,10 +66,6 @@ Which content node is determined by:
   * guessing from downloaded mimetype, file extension or magic bytes (see `guess_type` function)
 You can set `ricecooker.utils.nodes.metadata` to automatically fille in licence and copyright details as a dictionary.
 
-`ricecooker.utils.create_carousel_node(filenames, **metadata)`
-Given a list of local filenames, create a HTML5App with a rotating carousel and return a node
-with the relevant metadata (e.g. pass title of node with `title="Carousel"`
-
 # Transcoding
 `ricecooker.utils.transcode.transcode_video(source_filename, target_filename=None)`
 Transcodes video to h264 using ffmpeg; returns filename of transcoded video.
