@@ -823,15 +823,19 @@ class SlideshowNode(ContentNode):
 
     def __init__(self, source_id, title, slideshow_data=None, **kwargs):
         if not slideshow_data:
-            slideshow_data = {}
+            slideshow_data = []
 
+        # TODO - Set this data up in a way that
+        # has Studio creating the model objects in the DB
+        # for each individual file with the appropriate metadata.
         for idx, file in enumerate(kwargs['files']):
-            slideshow_data.update({
-                '{0}'.format(file.get_filename().split(".")[0]): {
+            slideshow_data.append(
+                {
                     'caption': file.caption,
-                    'sort_order': idx
+                    'sort_order': idx,
+                    'checksum': file.get_filename().split('.')[0]
                 }
-            })
+            )
 
         super(SlideshowNode, self).__init__(source_id, title, extra_fields=slideshow_data, **kwargs)
 

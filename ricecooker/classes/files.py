@@ -382,7 +382,7 @@ class SlideImageFile(DownloadFile):
         super(DownloadFile, self).__init__(**kwargs)
 
     def get_preset(self):
-        return self.preset or format_presets.SLIDE_IMAGE
+        return format_presets.SLIDE_IMAGE
 
 class ThumbnailFile(ThumbnailPresetMixin, DownloadFile):
     default_ext = file_formats.PNG
