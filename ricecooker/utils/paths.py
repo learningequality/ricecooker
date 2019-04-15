@@ -13,9 +13,25 @@ def file_exists(filepath):
     return my_file.is_file()
 
 
+def get_extension(url):
+    """
+    Return the extension of a URL -- eg. "gif", "jpg"
+    Returns an empty string if a candidate is not found.
+    """
+    if not url:
+        return ""
+    filename = urlsplit(url).path
+    if "." not in filename[-8:]: # arbitarily chosen
+        return ""
+    ext = "." + filename.split(".")[-1].lower()
+    if "/" in ext:  # dot isn't in last part of path
+        return ""
+    return ext
+
+
 def get_name_from_url(url):
     """
-    get the filename from a url 
+    get the filename from a url
     url = http://abc.com/xyz.txt
     get_name_from_url(url) -> xyz.txt
     """
@@ -37,7 +53,7 @@ def get_name_from_url(url):
 
 def get_name_from_url_no_ext(url):
     """
-    get the filename without the extension name from a url 
+    get the filename without the extension name from a url
     url = http://abc.com/xyz.txt
     get_name_from_url(url) -> xyz
     """

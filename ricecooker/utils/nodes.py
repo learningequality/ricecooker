@@ -5,6 +5,7 @@ from ricecooker.classes.files import HTMLZipFile, VideoFile, SubtitleFile, Downl
 from le_utils.constants import licenses
 
 from urllib.parse import urlsplit
+from ricecooker.utils.paths import get_extension
 import hashlib
 import os
 from ricecooker.utils.transcode import transcode_video, transcode_audio
@@ -29,20 +30,9 @@ node_dict = {VideoFile: VideoNode,
 # Long-Range TODOs
 # -- package up images as zip files (using build_carousel)
 
-def guess_extension(url):
-    "Return the extension of a URL, i.e. the bit after the ."
-    if not url:
-        return ""
-    filename = urlsplit(url).path
-    if "." not in filename[-8:]: # arbitarily chosen
-        return ""
-    ext = "." + filename.split(".")[-1].lower()
-    if "/" in ext:  # dot isn't in last part of path
-        return ""
-    return ext
 
 def create_filename(url):
-    return hashlib.sha1(url.encode('utf-8')).hexdigest() + guess_extension(url)
+    return hashlib.sha1(url.encode('utf-8')).hexdigest() + get_extension(url)
 
 def download_file(url):
     """
@@ -101,7 +91,7 @@ def create_node(file_class=None, url=None, filename=None, title=None, license=No
         with open(filename, "rb") as f:
             magic_bytes = f.read(8)[:8]  # increase if we use python_magic
         file_class = guess_type(mime_type=mime,
-                                extension=guess_extension(url or filename),
+                                extension=get_extension(url or filename),
                                 magic=magic_bytes)
         # there is a reasonable chance that the file isn't actually a suitable filetype
         # and that guess_type will raise an UnidentifiedFileType error.
