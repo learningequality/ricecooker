@@ -235,7 +235,7 @@ with 720 vertical resolution.
 
 If your channel contains many videos, or very long videos, you should consider
 increasing the "Constant Rate Factor" compression parameter in the Video settings.
-Using the value [RF=32](figures/HandBrake/handbreake_screenshot_video_settings.png)
+Using the value ![RF=32](figures/HandBrake/handbreake_screenshot_video_settings.png)
 will result in highly compressed videos, with very small file sizes.
 
 
