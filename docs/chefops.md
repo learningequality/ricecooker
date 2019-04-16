@@ -124,6 +124,6 @@ Daemon mode
 -----------
 Starting a chef script with the `--daemon` argument makes it listen for remote
 control commands from the [sushibar](https://sushibar.learningequality.org/) host.
-See [daemonization][developer/daemonization.md] for more info.
+For more information, see [Daemonization](developer/daemonization).
 
 

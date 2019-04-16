@@ -25,6 +25,6 @@ Further reading
 ---------------
 You can learn more about BeautifulSoup from these excellent tutorials:
 
-  - http://akul.me/blog/2016/beautifulsoup-cheatsheet/
-  - http://youkilljohnny.blogspot.ca/2014/03/beautifulsoup-cheat-sheet-parse-html-by.html
-  - http://www.compjour.org/warmups/govt-text-releases/intro-to-bs4-lxml-parsing-wh-press-briefings/
+  - [http://akul.me/blog/2016/beautifulsoup-cheatsheet/](http://akul.me/blog/2016/beautifulsoup-cheatsheet/)
+  - [http://youkilljohnny.blogspot.ca/2014/03/beautifulsoup-cheat-sheet-parse-html-by.html](http://youkilljohnny.blogspot.ca/2014/03/beautifulsoup-cheat-sheet-parse-html-by.html)
+  - [http://www.compjour.org/warmups/govt-text-releases/intro-to-bs4-lxml-parsing-wh-press-briefings/](http://www.compjour.org/warmups/govt-text-releases/intro-to-bs4-lxml-parsing-wh-press-briefings/)
