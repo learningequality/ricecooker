@@ -1,6 +1,6 @@
 Daemon mode
 ===========
-Running a chef scripts with the `--daemon` option will make it listen to remote
+Running a chef script with the `--daemon` option will make it listen to remote
 commands: either from [sushibar](https://sushibar.learningequality.org/) and/or
 from localhost cron jobs.
 
