@@ -1,8 +1,4 @@
-.. highlight:: shell
-
-============
-Contributing
-============
+# Contributing
 
 Contributions to this project are welcome and are in fact greatly appreciated!
 Every little bit helps and credit will always be given. Whether you're a junior
@@ -10,14 +6,11 @@ Python programmer looking for a open source project to contribute to, an advance
 programmer that can help us make `ricecooker` more efficient, we'd love to hear
 from you. We've outlined below some of the ways you can contribute.
 
+## Types of Contributions
 
+### Report Bugs
 
-Types of Contributions
-----------------------
-
-Report Bugs
-~~~~~~~~~~~
-Report bugs at https://github.com/learningequality/ricecooker/issues .
+Report bugs at [https://github.com/learningequality/ricecooker/issues](https://github.com/learningequality/ricecooker/issues)
 
 If you are reporting a bug, please include:
 
@@ -26,30 +19,26 @@ If you are reporting a bug, please include:
 * Any details about your local setup that might be helpful in troubleshooting.
 * Detailed steps to reproduce the bug.
 
+### Fix Bugs
 
-Fix Bugs
-~~~~~~~~
 Look through the GitHub issues for bugs. Anything tagged with "bug"
 and "help wanted" is open game for community contributors.
 
+### Implement Features
 
-Implement Features
-~~~~~~~~~~~~~~~~~~
 Look through the GitHub issues for features. Anything tagged with "enhancement"
 and "help wanted" is open to whoever wants to implement it.
 
+### Write Documentation
 
-Write Documentation
-~~~~~~~~~~~~~~~~~~~
 The `ricecooker` library can always use more documentation. You can contribute
 fixes and improvements to the official `ricecooker` docs, add docstrings to code,
 or write a blog post or article and share your experience using `ricecooker`.
 
+### Submit Feedback
 
-Submit Feedback
-~~~~~~~~~~~~~~~
 The best way to send us your feedback is to file an issue at
-https://github.com/learningequality/ricecooker/issues .
+[https://github.com/learningequality/ricecooker/issues](https://github.com/learningequality/ricecooker/issues).
 
 If you are proposing a new feature:
 
@@ -57,10 +46,7 @@ If you are proposing a new feature:
 * Try to keep the scope as narrow as possible to make it easier to implement.
 * Remember this is a volunteer-driven project, and contributions are welcome :)
 
-
-
-Getting Started!
-----------------
+## Getting Started!
 
 Ready to contribute? In order to work on the `ricecooker` code you'll first need
 to make you have [Python 3](https://www.python.org/downloads/) on your computer.
@@ -72,34 +58,55 @@ Here are the steps for setting up `ricecooker` for local development:
 1. Fork the `ricecooker` repo on GitHub.
 2. Clone your fork of the repository locally, and go into the `ricecooker` directory::
 
+    ```
     git clone git@github.com:<your-github-username>/ricecooker.git
     cd ricecooker/
+    ```
 
 3. Create a Python virtual environment for this project (optional, but recommended):
 
-   * Install the `virtualenv` package using the command `pip install virtualenv`.
+   * Install the `virtualenv` package using the command 
+     ```
+     pip install virtualenv
+     ```
 
-   * The steps toThe next steps depends if you're using a UNIX system (Mac/Linux) or Windows:
+   * The next steps depends if you're using a UNIX system (Mac/Linux) or Windows:
       * For UNIX operating systems:
          * Create a virtual env called `venv` in the current directory using the
-           command: `virtualenv -p python3  venv`
-         * Activate the virtualenv called `venv` by running: `source venv/bin/activate`.
+           command: 
+           ```
+           virtualenv -p python3 venv
+           ```
+         * Activate the virtualenv called `venv` by running: 
+           ```
+           source venv/bin/activate
+           ```
            Your command prompt will change to indicate you're working inside `venv`.
       * For Windows systems:
          * Create a virtual env called `venv` in the current directory using the
-           following command: `virtualenv -p C:/Python36/python.exe venv`.
+           following command: 
+           ```
+           virtualenv -p C:/Python36/python.exe venv
+           ```
            You may need to adjust the `-p` argument depending on where your version
            of Python is located. Note you'll need Python version 3.4 or higher.
-         * Activate the virtualenv called `venv` by running: `.\venv\Scripts\activate`
+         * Activate the virtualenv called `venv` by running: 
+           ```
+           .\venv\Scripts\activate
+           ```
 
 4. Install the `ricecooker` code in the virtual environment using these commands::
 
+    ```
     pip install -e .
+    ```
 
 
 5. Create a branch for local development::
 
+    ```
     git checkout -b name-of-your-bugfix-or-feature
+    ```
 
    Now you can make your changes locally.
 
@@ -107,30 +114,27 @@ Here are the steps for setting up `ricecooker` for local development:
 6. When you're done making changes, check that your changes pass flake8 linter rules
    and the `ricecooker` test suite, including testing other Python versions with tox::
 
+    ```
     flake8 ricecooker tests
     pytest
     tox
+    ```
 
-   To get `flake8` and `tox`, just `pip`-install them into your virtualenv.
+   To get `flake8` and `tox`, just `pip install` them into your virtualenv.
 
 
 7. Commit your changes and push your branch to GitHub::
 
+    ```
     git add .
     git commit -m "A detailed description of your changes."
     git push origin name-of-your-bugfix-or-feature
+    ```
 
 
 8. Open a pull request through the GitHub web interface.
 
-
-
-
-
-
-
-Pull Request Guidelines
------------------------
+## Pull Request Guidelines
 
 Before you submit a pull request, check that it meets these guidelines:
 
@@ -139,15 +143,13 @@ Before you submit a pull request, check that it meets these guidelines:
    your new functionality into a function with a docstring, and add the
    feature to the list in `README.md`.
 3. The pull request should work for Python 3.4, 3.5. Check
-   https://travis-ci.org/learningequality/ricecooker/pull_requests
+   [https://travis-ci.org/learningequality/ricecooker/pull_requests](https://travis-ci.org/learningequality/ricecooker/pull_requests)
    and make sure that the tests pass for all supported Python versions.
 
-
-
-
-Tips
-----
+## Tips
 
 To run a subset of tests, you can specify a particular module name::
 
+```
 $ py.test tests.test_licenses
+```
