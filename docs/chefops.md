@@ -1,5 +1,5 @@
-Running chef scrips
-===================
+Running chef scripts
+====================
 The base class `SushiChef` provides a lot of command line arguments that control
 the chef script's operation. It is expected that **every chef script will come
 with a README** that explains the desired command line arguments for the chef script.
@@ -124,6 +124,6 @@ Daemon mode
 -----------
 Starting a chef script with the `--daemon` argument makes it listen for remote
 control commands from the [sushibar](https://sushibar.learningequality.org/) host.
-See [daemonization][developer/daemonization.md] for more info.
+For more information, see [Daemonization](developer/daemonization).
 
 

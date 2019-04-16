@@ -1,63 +1,52 @@
 ricecooker package
 ==================
 
-Subpackages
------------
-
-.. toctree::
-
-    ricecooker.classes
-    ricecooker.managers
-    ricecooker.utils
-
-Submodules
-----------
-
 ricecooker.chefs module
 -----------------------
 
 .. automodule:: ricecooker.chefs
-    :members:
-    :undoc-members:
-    :show-inheritance:
+
+ricecooker.classes module
+-------------------------
+
+.. automodule:: ricecooker.classes.files
+.. automodule:: ricecooker.classes.nodes
+.. automodule:: ricecooker.classes.licenses
+.. automodule:: ricecooker.classes.questions
 
 ricecooker.commands module
 --------------------------
 
 .. automodule:: ricecooker.commands
-    :members:
-    :undoc-members:
-    :show-inheritance:
 
 ricecooker.config module
 ------------------------
 
 .. automodule:: ricecooker.config
-    :members:
-    :undoc-members:
-    :show-inheritance:
 
 ricecooker.exceptions module
 ----------------------------
 
 .. automodule:: ricecooker.exceptions
-    :members:
-    :undoc-members:
-    :show-inheritance:
+
+ricecooker.managers module
+--------------------------
+
+.. automodule:: ricecooker.managers
+.. automodule:: ricecooker.managers.progress
+.. automodule:: ricecooker.managers.tree
 
 ricecooker.sushi\_bar\_client module
 ------------------------------------
 
 .. automodule:: ricecooker.sushi_bar_client
-    :members:
-    :undoc-members:
-    :show-inheritance:
 
+ricecooker.utils module
+-----------------------
+
+There is :doc:`separate documentation <utils>` for the utilities.
 
 Module contents
 ---------------
 
 .. automodule:: ricecooker
-    :members:
-    :undoc-members:
-    :show-inheritance:

@@ -5,7 +5,7 @@ History
 0.6.23 (2018-11-08)
 -------------------
 * Updated ``le-utils`` and ``pressurcooker`` dependencies to latest version
-* Added support for ePub files (``EPubFile``s can be added of ``DocumentNode``s)
+* Added support for ePub files (``EPubFile`` s can be added of ``DocumentNode`` s)
 * Added tag support
 * Changed default value for ``STUDIO_URL`` to ``api.studio.learningequality.org``
 * Added ``aggregator`` and ``provider`` fields for content nodes

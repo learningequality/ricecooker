@@ -110,3 +110,5 @@ tests/testcontent/
 
 # Pycharm project settings
 .idea/
+
+cache.sqlite

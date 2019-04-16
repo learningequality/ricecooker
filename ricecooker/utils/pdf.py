@@ -76,11 +76,15 @@ class PDFParser(object):
         """
         Returns table-of-contents information extracted from the PDF doc.
         When `subchapters=False`, the output is a list of this form
+
+        .. code-block:: python
+
             [
-              {'title': 'First chapter',  'page_start': 0,  'page_end': 10},
-              {'title': 'Second chapter', 'page_start': 10, 'page_end': 20},
-              ...
+                {'title': 'First chapter',  'page_start': 0,  'page_end': 10},
+                {'title': 'Second chapter', 'page_start': 10, 'page_end': 20},
+                ...
             ]
+
         Use the `split_chapters` method to process this list.
         When `subchapters=True`, the output is chapter-subchapter tree structure,
         that can be processed using the `split_subchapters` method.
@@ -201,7 +205,7 @@ class PDFParser(object):
                     }
                     write_to_path = self.write_pagerange(chintro_pagerange, prefix=chprefix)
                     chapter_topic['children'].append({"title": chpagerange['title'], "path": write_to_path})
-                
+
                 # Handle all subchapters
                 subchapter_nodes = self.split_chapters(jsondata=subchpageranges, prefix=chprefix)
                 chapter_topic['children'].extend(subchapter_nodes)

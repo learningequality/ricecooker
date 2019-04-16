@@ -21,7 +21,7 @@
 import os
 import sys
 sys.path.insert(0, os.path.abspath('..'))
-from recommonmark.parser import CommonMarkParser
+# from recommonmark.parser import CommonMarkParser
 
 from ricecooker import __version__ as current_ricecooker_version
 
@@ -43,8 +43,9 @@ extensions = [
     'sphinx.ext.todo',
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
-    'nbsphinx',
-    'IPython.sphinxext.ipython_console_highlighting',
+    "recommonmark",
+    # 'nbsphinx',
+    # 'IPython.sphinxext.ipython_console_highlighting',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -129,7 +130,7 @@ todo_include_todos = True
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'alabaster'
+html_theme = 'sphinx_rtd_theme'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -451,7 +452,16 @@ intersphinx_mapping = {
 
 
 # Also accept .md files  (via https://github.com/rtfd/recommonmark)
-source_suffix = ['.rst', '.md']     # The suffix(es) of source filenames
-source_parsers = {
-    '.md': CommonMarkParser,
+source_suffix = {
+    '.md': "markdown",
+    '.rst': "restructuredtext",
 }
+
+autodoc_default_options = {
+        # Make sure that any autodoc declarations show the right members
+        "members": None,
+        "inherited-members": None,
+        "undoc-members": None,
+        #"private-members": True,
+        "show-inheritance": None,
+        }
