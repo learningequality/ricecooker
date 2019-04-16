@@ -43,63 +43,56 @@ Use the following shortcuts to jump to the most relevant parts of the
    part of the documentation to learn about how content works in the
    Kolibri platform.
 
-   -  The best place to start is the `Kolibri Platform
-      overview <platform/README.md>`__.
-   -  Read more about the supported `content types
-      here <platform/content_types.md>`__
+   -  The best place to start is the :doc:`Kolibri Platform overview <platform/README>` 
+   -  Read more about the supported :doc:`content types
+      here <platform/content_types>`
    -  Content curators can consult `this
       document <https://docs.google.com/document/d/1slwoNT90Wqu0Rr8MJMAEsA-9LWLRvSeOgdg9u7HrZB8/edit?usp=sharing>`__
       for information about how to prepare "spec sheets" that guide
       developers how to import content into the Kolibri ecosystem.
-   -  The Non-technical of particular interest is the `CSV
-      workflow <csv_metadata/README.md>`__
-      channel metadata as spreadsheets
+   -  The Non-technical of particular interest is the 
+      :doc:`CSV workflow <csv_metadata/README>` --  channel metadata as spreadsheets
 
 -  **Chef authors** can read the remainder of this README, and get
    started using the ``ricecooker`` library by following these first
    steps:
 
-   -  `Quickstart <tutorial/quickstart.ipynb>`__,
+   -  :doc:`Quickstart <tutorial/quickstart>`,
       which will introduce you to the steps needed to create a sushi
       chef script.
    -  After the quickstart, you should be ready to take things into your
       own hands, and complete all steps in the `ricecooker
       tutorial <https://gist.github.com/jayoshih/6678546d2a2fa3e7f04fc9090d81aff6>`__.
-   -  The next step after that is to read the `ricecooker usage
-      docs <usage.md>`__,
-      which is also available Jupyter notebooks under
-      `docs/tutorial/ <tutorial/>`__.
+   -  The next step after that is to read the :doc:`ricecooker usage
+      docs <usage>`,
+      which is also available in Jupyter notebooks under
+      :doc:`docs/tutorial/ <tutorial/index>`.
       More detailed technical documentation is available on the
       following topics:
-   -  `Installation <installation.md>`__
-   -  `Content
-      Nodes <nodes.md>`__
-   -  `File
-      types <files.md>`__
-   -  `Exercises <exercises.md>`__
-   -  `HTML5
-      apps <htmlapps.md>`__
-   -  `Parsing
-      HTML <parsing_html.md>`__
-   -  `Running chef
-      scripts <chefops.md>`__
+   -  :doc:`Installation <installation>`
+   -  :doc:`Content Nodes <nodes>`
+   -  :doc:`File types <files>`
+   -  :doc:`Exercises <exercises>`
+   -  :doc:`HTML5 apps <htmlapps>`
+   -  :doc:`Parsing HTML <parsing_html>`
+   -  :doc:`Running chef scripts <chefops>`
       to learn about the command line args, for controlling chef
       operation, managing caches, and other options.
-   -  `Sushi chef style
-      guide <https://docs.google.com/document/d/1_Wh7IxPmFScQSuIb9k58XXMbXeSM0ZQLkoXFnzKyi_s/edit>`__
+   -  `Sushi chef style guide
+      <https://docs.google.com/document/d/1_Wh7IxPmFScQSuIb9k58XXMbXeSM0ZQLkoXFnzKyi_s/edit>`__
 
 -  **Ricecooker developers** should read all the documentation for chef
    authors, and also consult the docs in the
-   `developer/ <developer>`__
+   `developer`
    folder for additional information info about the "behind the scenes"
    work needed to support the Kolibri content pipeline:
 
-   -  `Running chef scripts <chefops.md>`__, also known as **chefops**.
-   -  `Running chef scripts in daemon
-      mode <developer/daemonization.md>`__
-   -  `Managing the content
-      pipeline <developer/sushops.md>`__,
+   -  :doc:`Running chef scripts <chefops>`, also known as **chefops**.
+   -  :doc:`Running chef scripts in daemon mode <developer/daemonization>`
+   -  :doc:`Managing the content pipeline <developer/sushops>`,
       also known as **sushops**.
+   -  :doc:`Command line interface <developer/design_cli>`,
+   -  :doc:`Notes for ricecooker library developers <developer/README>`.
 
 Installation
 ------------
@@ -125,7 +118,7 @@ through PyPI:
       in your chef's working directory.
 
 For more details and install options, see
-`docs/installation.md <installation.md>`__.
+:doc:`the installation guide <installation>`.
 
 Simple chef example
 -------------------
@@ -199,8 +192,8 @@ scratch and displays useful debugging information on the command line.
 
 To see all the ``ricecooker`` command line options, run
 ``python simple_chef.py -h``. For more details about running chef
-scripts see `the chefops
-page <chefops.md>`__.
+scripts see :doc:`the chefops
+page <chefops>`.
 
 If you get an error when running the chef, make sure you've replaced
 ``YOURTOKENHERE9139139f3a23232`` by the token you obtained from Studio.
@@ -212,27 +205,21 @@ values.
 Next steps
 ----------
 
--  See the `usage
-   docs <usage.md>`__
-   for more explanations about the above code.
--  See
-   `nodes <nodes.md>`__
-   to learn how to create different content node types.
--  See
-   `file <files.md>`__
-   to learn about the file types supported, and how to create them.
+-  See the `usage docs <usage>` for more explanations about the above code.
+-  See `nodes <nodes>` to learn how to create different content node types.
+-  See `file <files>` to learn about the file types supported, and how to create them.
 
 Further reading
 ---------------
 
--  Read the `Kolibri Studio
-   docs <http://kolibri-studio.readthedocs.io/en/latest/>`__ to learn
+-  Read the `Kolibri Studio docs 
+   <http://kolibri-studio.readthedocs.io/en/latest/>`__ to learn
    more about the Kolibri Studio features
--  Read the `Kolibri user
-   guide <http://kolibri.readthedocs.io/en/latest/>`__ to learn how to
+-  Read the `Kolibri user guide
+   <http://kolibri.readthedocs.io/en/latest/>`__ to learn how to
    install Kolibri on your machine (useful for testing channels)
--  Read the `Kolibri developer
-   docs <http://kolibri-dev.readthedocs.io/en/latest/>`__ to learn about
+-  Read the `Kolibri developer docs
+   <http://kolibri-dev.readthedocs.io/en/latest/>`__ to learn about
    the inner workings of Kolibri.
 
 .. |The Kolibri Content Pipeline| image:: https://raw.githubusercontent.com/learningequality/ricecooker/master/docs/figures/content_pipeline_diagram.png
