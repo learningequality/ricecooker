@@ -1,7 +1,7 @@
 import ntpath
 import os
 from pathlib import Path
-
+from urllib.parse import urlsplit
 
 def dir_exists(filepath):
     file_ = Path(filepath)

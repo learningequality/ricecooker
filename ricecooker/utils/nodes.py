@@ -4,7 +4,6 @@ from ricecooker.classes.nodes import DocumentNode, VideoNode, TopicNode, AudioNo
 from ricecooker.classes.files import HTMLZipFile, VideoFile, SubtitleFile, DownloadFile, AudioFile, DocumentFile, ThumbnailFile, WebVideoFile, Base64ImageFile, YouTubeSubtitleFile, YouTubeVideoFile
 from le_utils.constants import licenses
 
-from urllib.parse import urlsplit
 from ricecooker.utils.paths import get_extension
 import hashlib
 import os
