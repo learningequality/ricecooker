@@ -150,7 +150,7 @@ class StudioApi(object):
         assert data_has_required_keys(data, REQUIRED_FIELDS), 'missing necessary attributes'        
         # studio_id = data['id']
         url = CONTENTNODE_ENDPOINT
-        print('  semantic PATCH using PUT ' + url)
+        # print('  semantic PATCH using PUT ' + url)
         csrftoken = self.session.cookies.get("csrftoken")
         self.session.headers.update({"x-csrftoken": csrftoken})
         response = self.session.put(url, json=[data])
@@ -176,7 +176,7 @@ class StudioApi(object):
             'channel_id': channel_id,
         }
         url = MOVE_NODES_ENDPOINT
-        print('  semantic DELETE using POST to ' + url)
+        # print('  semantic DELETE using POST to ' + url)
         csrftoken = self.session.cookies.get("csrftoken")
         self.session.headers.update({"x-csrftoken": csrftoken})
         response = self.session.post(url, json=post_data)
@@ -197,11 +197,10 @@ class StudioApi(object):
             'channel_id': channel_id,
         }
         url = DUPLICATE_NODE_INLINE_ENDPOINT
-        print('  semantic COPY using POST to ' + url)
+        # print('  semantic COPY using POST to ' + url)
         csrftoken = self.session.cookies.get("csrftoken")
         self.session.headers.update({"x-csrftoken": csrftoken})
         response = self.session.post(url, json=post_data)
-        print(response.content)
         copied_data_list = response.json()
         return copied_data_list
 

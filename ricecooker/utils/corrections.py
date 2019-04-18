@@ -1,17 +1,21 @@
+#!/usr/bin/env python
+import argparse
 import copy
 import csv
 from dictdiffer import diff, patch, swap, revert
 import json
 import os
 import requests
+import sys
 
 from ricecooker.config import LOGGER
 
 
 # CORRECTIONS STRUCTURE v0.1
 ################################################################################
+ACTION_KEY = 'Action'
 NODE_ID_KEY = 'Node ID'
-SOURCE_ID_OR_CONTENT_ID_KEY = 'Source ID or Content ID'
+CONTENT_ID_KEY = 'Content ID'
 PATH_KEY = 'Path'
 CONTENT_KIND_KEY = 'Content Kind'
 OLD_TITLE_KEY = 'Old Title'
@@ -26,8 +30,9 @@ OLD_AUTHOR_KEY = 'Old Author'
 NEW_AUTHOR_KEY = 'New Author'
 
 CORRECTIONS_HEADER = [
+    ACTION_KEY,
     NODE_ID_KEY,
-    SOURCE_ID_OR_CONTENT_ID_KEY,
+    CONTENT_ID_KEY,
     PATH_KEY,
     CONTENT_KIND_KEY,
     OLD_TITLE_KEY,
@@ -42,8 +47,6 @@ CORRECTIONS_HEADER = [
     NEW_AUTHOR_KEY,
 ]
 
-ACTION_KEY = 'Action'
-DEV_CORRECTIONS_HEADER = [ACTION_KEY] + CORRECTIONS_HEADER
 
 
 # What columns to export metadata to...
@@ -61,19 +64,65 @@ default_export = ['title', 'description', 'tags', 'copyright_holder', 'author']
 
 
 
-class CorretionsCsvFile(object):
 
-    def __init__(self, csvfilepath='Corrections_template.csv', exportattrs=default_export):
+# Studio Tree Local Cache queries
+################################################################################
+
+def get_channel_tree(api, channel_id, suffix='', update=True):
+    """
+    Downloads the entire main tree of a Studio channel to a local json file.
+    """
+    filename = os.path.join('chefdata', channel_id+'-studiotree'+suffix+'.json')
+    if os.path.exists(filename) and not update:
+        print('  Loading cached tree for channel_id=', channel_id, 'from', filename)
+        channel_tree = json.load(open(filename, 'r'))
+        return channel_tree
+    else:
+        print('  Downloading tree for channel_id=', channel_id, ' and saving to', filename)
+        root_studio_id = api.get_channel_root_studio_id(channel_id)
+        # next step takes long since recursively making O(n) API calls!
+        channel_tree = api.get_tree_for_studio_id(root_studio_id)
+        json.dump(channel_tree, open(filename, 'w'), indent=4, ensure_ascii=False, sort_keys=True)
+        return channel_tree
+
+
+
+def print_channel_tree(channel_tree):
+    """
+    Print tree structure.
+    """
+    def print_tree(subtree, indent=''):
+        kind = subtree.get("kind", 'topic')
+        if kind == "exercise":
+            print(indent, subtree['title'],
+                          'kind=', subtree['kind'],
+                          len(subtree['assessment_items']), 'questions',
+                          len(subtree['files']), 'files')
+        else:
+            print(indent, subtree['title'],
+                          'kind=', subtree['kind'],
+                          len(subtree['files']), 'files')
+        for child in subtree['children']:
+            print_tree(child, indent=indent+'    ')
+    print_tree(channel_tree)
+
+
+
+# CORECTIONS EXPORT
+################################################################################
+
+class CorretionsCsvFileExporter(object):
+
+    def __init__(self, csvfilepath='corrections-export.csv', exportattrs=default_export):
         self.csvfilepath = csvfilepath
         self.exportattrs = exportattrs
 
 
-    def download_channel_tree(self, channel_id):
+    def download_channel_tree(self, api, channel_id):
         """
         Downloads a complete studio channel_tree from the Studio API.
         """
-        pass
-
+        channel_tree = get_channel_tree(api, channel_id, suffix='-export')
 
 
     # Export CSV metadata from external corrections
@@ -81,14 +130,15 @@ class CorretionsCsvFile(object):
 
     def export_channel_tree_as_corrections_csv(self, channel_tree):
         """
-        Create rows in Corrections.csv from a Studio channel, specified based on
+        Create rows in corrections.csv from a Studio channel, specified based on
         node_id and content_id.
         """
         file_path = self.csvfilepath
-        if not os.path.exists(file_path):
-            with open(file_path, 'w') as csv_file:
-                csvwriter = csv.DictWriter(csv_file, CORRECTIONS_HEADER)
-                csvwriter.writeheader()
+        if os.path.exists(file_path):
+            print('Overwriting previous export', file_path)
+        with open(file_path, 'w') as csv_file:
+            csvwriter = csv.DictWriter(csv_file, CORRECTIONS_HEADER)
+            csvwriter.writeheader()
 
         def _write_subtree(path_tuple, subtree, is_root=False):
             print('    '*len(path_tuple) + '  - ', subtree['title'])
@@ -125,7 +175,7 @@ class CorretionsCsvFile(object):
     def write_common_row_attributes_from_studio_dict(self, row, studio_dict):
         # 1. IDENTIFIERS
         row[NODE_ID_KEY] = studio_dict['node_id']
-        row[SOURCE_ID_OR_CONTENT_ID_KEY] = studio_dict['content_id']
+        row[CONTENT_ID_KEY] = studio_dict['content_id']
         # PATH_KEY is set in specific function
         row[CONTENT_KIND_KEY] = studio_dict['kind']
 
@@ -143,7 +193,7 @@ class CorretionsCsvFile(object):
     def write_topic_row_from_studio_dict(self, path_tuple, studio_dict, is_root=False):
         if is_root:
             return
-        print('Generating Corrections.csv rows for path_tuple ', path_tuple, studio_dict['title'])
+        print('Generating corrections-export.csv rows for path_tuple ', path_tuple, studio_dict['title'])
         file_path = self.csvfilepath
         with open(file_path, 'a') as csv_file:
             csvwriter = csv.DictWriter(csv_file, CORRECTIONS_HEADER)
@@ -185,9 +235,10 @@ class CorretionsCsvFile(object):
 # CSV CORRECTIONS LOADERS
 ################################################################################
 
-def save_gsheet_to_local_csv(gsheet_id, gid, csvfilepath='Corrections.csv'):
+def save_gsheet_to_local_csv(gsheet_id, gid, csvfilepath='corrections-import.csv'):
     GSHEETS_BASE = 'https://docs.google.com/spreadsheets/d/'
     SHEET_CSV_URL = GSHEETS_BASE + gsheet_id + '/export?format=csv&gid=' + gid
+    print(SHEET_CSV_URL)
     response = requests.get(SHEET_CSV_URL)
     csv_data = response.content.decode('utf-8')
     with open(csvfilepath, 'w') as csvfile:
@@ -213,7 +264,7 @@ def load_corrections_from_csv(csvfilepath):
     csv_path = csvfilepath     # download_structure_csv()
     struct_list = []
     with open(csv_path, 'r') as csvfile:
-        reader = csv.DictReader(csvfile, fieldnames=DEV_CORRECTIONS_HEADER)
+        reader = csv.DictReader(csvfile, fieldnames=CORRECTIONS_HEADER)
         next(reader)  # Skip Headers row
         for row in reader:
             clean_row = _clean_dict(row)
@@ -228,11 +279,13 @@ def get_csv_corrections(csvfilepath):
     modifications = []
     deletions = []
     rows = load_corrections_from_csv(csvfilepath)
-    for row in rows:
-        if row[ACTION_KEY] == 'remove':
-            deletions.append(row)
-        elif row[ACTION_KEY] == '' or row[ACTION_KEY] == None:
+    for i, row in enumerate(rows):
+        if row[ACTION_KEY] == '' or row[ACTION_KEY] == None:
+            print('Skipping no-action row', i+1)
+        elif row[ACTION_KEY] == 'modify':
             modifications.append(row)
+        elif row[ACTION_KEY] == 'delete':
+            deletions.append(row)
         else:
             print('Uknown Action', row[ACTION_KEY])
     return {
@@ -241,7 +294,7 @@ def get_csv_corrections(csvfilepath):
     }
 
 
-def get_corrections_by_node_id(csvfilepath, modification_attrs=['title']):
+def get_corrections_by_node_id(csvfilepath, modification_attrs):
     """
     Convert CSV to internal representaiton of corrections as dicts by node_id.
     """
@@ -264,11 +317,14 @@ def get_corrections_by_node_id(csvfilepath, modification_attrs=['title']):
             # print('Found MODIFY', attr, 'in row of CSV for node_id', node_id)
             old_key = TARGET_COLUMNS[attr][0]
             new_key = TARGET_COLUMNS[attr][1]
-            attributes[attr] = {
-                'changed': True,
-                'value': row[new_key],
-                'old_value': row[old_key],
-            }
+            if row[new_key] == row[old_key]:   # skip if the same
+                continue
+            else:
+                attributes[attr] = {
+                    'changed': True,
+                    'value': row[new_key],
+                    'old_value': row[old_key],
+                }
         # prepare modifications_dict
         modifications_dict = {
             'attributes': attributes,
@@ -284,6 +340,9 @@ def get_corrections_by_node_id(csvfilepath, modification_attrs=['title']):
     #
     # TODO: Additions
     # TODO: Moves
+    correctionspath = 'chefdata/corrections.json'
+    json.dump(corrections_by_node_id, open(correctionspath, 'w'), indent=4, ensure_ascii=False, sort_keys=True)
+    #
     return corrections_by_node_id
 
 
@@ -351,6 +410,28 @@ def remap_orignal_source_node_id_to_node_id(channel_tree, corrections_by_orignal
     return corrections_by_node_id
 
 
+def apply_corrections_by_orignal_source_node_id(api, channel_id, csvfilepath, studiotreepath=None):
+    """
+    Used when export was performed on source channel, but we want to apply corrections
+    to a cloned channel. In those cases, we need to lookup nodes by original_node_id.
+    """
+    # 1. LOAD channel_tree from studiotreepath
+    get_channel_root_studio_id
+    if studiotreepath is None:
+        studiotreepath = 'chefdata/{}-studiotree.json'.format(channel_id)
+    if os.path.exists(studiotreepath):
+        channel_tree = json.load(open(studiotreepath, 'r'))
+    else:
+        root_studio_id = api.get_channel_root_studio_id(channel_id)
+        channel_tree = api.get_tree_for_studio_id(root_studio_id)
+        json.dump(channel_tree, open(studiotreepath, 'w'), indent=4, ensure_ascii=False, sort_keys=True)
+    # 2. LOAD corrections from CSV
+    corrections_by_orignal_source_node_id = get_corrections_by_node_id(csvfilepath)
+    corrections_by_node_id = remap_orignal_source_node_id_to_node_id(channel_tree, corrections_by_orignal_source_node_id)
+    # 3. DO IT
+    apply_corrections_by_node_id(api, channel_tree, channel_id, corrections_by_node_id)
+
+
 
 # CORRECTIONS API CALLS
 ################################################################################
@@ -398,28 +479,27 @@ def apply_modifications_for_node_id(api, channel_tree, node_id, modifications_di
     modifications = modifications_dict['attributes']
     for attr, values_diff in modifications.items():
         if values_diff['changed']:
-            old_value = node_before[attr]
+            current_value = node_before[attr]
             expected_old_value = values_diff['old_value']
             new_value = values_diff['value']
             if expected_old_value == new_value:   # skip if the same
                 continue
-            if old_value != expected_old_value:
-                print('WARNING expected old value', expected_old_value, 'for', attr, 'but current node value is', old_value)
-            # print('Changing old value', old_value, 'for', attr, 'to new value', new_value)
+            if current_value != expected_old_value:
+                print('WARNING expected old value', expected_old_value, 'for', attr, 'but current node value is', current_value)
+            # print('Changing current_value', current_value, 'for', attr, 'to new value', new_value)
             data[attr] = new_value
         else:
             print('Skipping attribute', attr, 'because key changed==False')
 
-        # PUT
-        print('PUT studio_id=', studio_id, 'node_id=', node_id)
-        response_data = api.put_contentnode(data)
-        
-        # Check what changed
-        node_after = api.get_contentnode(studio_id)
-        diffs = list(diff(node_before, node_after))
-        print('diffs=', diffs)
-        
-        return response_data
+    # PUT
+    print('PUT studio_id=', studio_id, 'node_id=', node_id)
+    response_data = api.put_contentnode(data)
+
+    # Check what changed
+    node_after = api.get_contentnode(studio_id)
+    diffs = list(diff(node_before, node_after))
+    print('  diff=', diffs)
+    return response_data
 
 
 def apply_deletion_for_node_id(api, channel_tree, channel_id, node_id, deletion_dict):
@@ -484,25 +564,73 @@ def apply_corrections_by_node_id(api, channel_tree, channel_id, corrections_by_n
 
 
 
-def apply_corrections_by_orignal_source_node_id(api, channel_id, csvfilepath, studiotreepath=None):
+
+from ricecooker.utils.libstudio import StudioApi
+
+def get_studio_api(studio_creds=None):
+    if studio_creds is None:
+        studio_creds = json.load(open('credentials/studio.json'))
+    #
+    # Studio API client (note currently needs both session auth and token as well)
+    api = StudioApi(
+            token=studio_creds['token'],
+            username=studio_creds['username'],
+            password=studio_creds['password'],
+            studio_url=studio_creds.get('studio_url', 'https://studio.learningequality.org')
+    )
+    return api
+
+
+def export_corrections_csv(args):
+    api = get_studio_api()
+    channel_tree = get_channel_tree(api, args.channel_id, suffix='-export')
+    print_channel_tree(channel_tree)
+    csvexporter = CorretionsCsvFileExporter()
+    csvexporter.export_channel_tree_as_corrections_csv(channel_tree)
+
+
+def apply_corrections(args):
+    api = get_studio_api()
     # 1. LOAD channel_tree from studiotreepath
-    if studiotreepath is None:
-        studiotreepath = 'chefdata/studiotree_Multaqaddarain_K12.json'
-    if os.path.exists(studiotreepath):
-        channel_tree = json.load(open(studiotreepath, 'r'))
+    channel_tree = get_channel_tree(api, args.channel_id, suffix='-before')
+    # print_channel_tree(channel_tree)
+    csvfilepath = 'corrections-import.csv'
+    save_gsheet_to_local_csv(args.gsheet_id, args.gid, csvfilepath=csvfilepath)
+    #
+    # 3. LOAD corrections from CSV
+    modification_attrs = args.modification_attrs.split(',')
+    corrections_by_node_id = get_corrections_by_node_id(csvfilepath, modification_attrs)
+    # print(corrections_by_node_id)
+    #
+    # 4. DO IT!
+    apply_corrections_by_node_id(api, channel_tree, args.channel_id, corrections_by_node_id)
+    #
+    # 5. SAVE 
+    channel_tree = get_channel_tree(api, args.channel_id, suffix='-after')
+    # print_channel_tree(channel_tree)
+
+
+def correctionsmain():
+    """
+    Command line interface for applying bulk-edit corrections:
+    """
+    parser = argparse.ArgumentParser(description='Bulk channel edits via CSV/sheets.')
+    parser.add_argument('command', help='One of export|import|apply')
+    parser.add_argument('channel_id', help='The studio Channel ID to edit')
+    parser.add_argument('--gsheet_id', help='Google spreadsheets sheet ID (public)')
+    parser.add_argument('--gid', help='The gid argument to indicate which sheet', default='0')
+    parser.add_argument('--modification_attrs', help='Which attributes to modify',
+                            default='title,description,author,copyright_holder')
+    args = parser.parse_args()
+    # print("in corrections.main with cliargs", args)
+    if args.command == 'export':
+        export_corrections_csv(args)
+    elif args.command == 'apply':
+        apply_corrections(args)
     else:
-        root_studio_id = api.get_channel_root_studio_id(channel_id)
-        channel_tree = api.get_tree_for_studio_id(root_studio_id)
-        json.dump(channel_tree, open(studiotreepath, 'w'), indent=4, ensure_ascii=False, sort_keys=True)
+        raise ValueError('Unrecognized command')
 
 
-    # 2. LOAD corrections from CSV
-    corrections_by_orignal_source_node_id = get_corrections_by_node_id(csvfilepath)
-    corrections_by_node_id = remap_orignal_source_node_id_to_node_id(channel_tree, corrections_by_orignal_source_node_id)
-    print(corrections_by_node_id)
-
-    # 3. DO IT
-    apply_corrections_by_node_id(api, channel_tree, channel_id, corrections_by_node_id)
-
-
+if __name__ == '__main__':
+    correctionsmain()
 
