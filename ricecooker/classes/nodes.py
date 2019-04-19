@@ -825,15 +825,20 @@ class SlideshowNode(ContentNode):
         if not slideshow_data:
             slideshow_data = []
 
-        # TODO - Set this data up in a way that
-        # has Studio creating the model objects in the DB
-        # for each individual file with the appropriate metadata.
         for idx, file in enumerate(kwargs['files']):
+            filename = file.get_filename()
+
+            checksum, ext = ['', '']
+
+            if filename:
+                checksum, ext = filename.split('.')
+
             slideshow_data.append(
                 {
                     'caption': file.caption,
                     'sort_order': idx,
-                    'checksum': file.get_filename().split('.')[0]
+                    'checksum': checksum,
+                    'extension': ext
                 }
             )
 
