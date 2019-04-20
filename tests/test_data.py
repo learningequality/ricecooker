@@ -148,3 +148,20 @@ def test_exercise_to_dict(exercise, exercise_data):
         assert key in exercise_dict, "Key {} is not found in to_dict method".format(key)
     for key, value in exercise_dict.items():
         assert value == exercise_data.get(key), "Mismatched {}: {} != {}".format(key, value, exercise_data[key])
+
+def test_slideshow_to_dict(slideshow, slideshow_data):
+    slideshow_dict = slideshow.to_dict()
+    extra_fields = json.loads(slideshow_dict['extra_fields'])
+    assert len(extra_fields['slideshow_data']) == 10, 'wrong num slides'
+    # TODO check extra_fields
+    del slideshow_data['extra_fields']
+    del slideshow_dict['extra_fields']
+    #
+    expected_files = slideshow_data.pop('files')    
+    slideshow_dict.pop('files')
+    assert slideshow.files == expected_files, "slide_images do not match"
+    for key, _ in slideshow_data.items():
+        assert key in slideshow_dict, "Key {} is not found in to_dict method".format(key)
+    for key, value in slideshow_dict.items():
+         assert value == slideshow_data.get(key), "Mismatched {}: {} != {}".format(key, value, slideshow_data[key])
+

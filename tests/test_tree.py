@@ -157,3 +157,95 @@ def test_validate_tree(tree, invalid_tree, invalid_tree_2):
     except InvalidNodeException:
         pass
 
+
+
+
+
+
+
+
+
+
+""" *********** SLIDESHOW CONTENT NODE TESTS *********** """
+
+
+def test_slideshow_node_via_files(channel):
+    slideshow_node = SlideshowNode(
+        title="The Slideshow",
+        description="Slideshow Content Demo",
+        source_id='demo',
+        author="DE Mo",
+        language='en',
+        license=get_license('CC BY', copyright_holder='Demo Holdings'),
+        files=[
+            SlideImageFile(
+                path='https://www.sales-training-lead-generation.com/wp-content/uploads/2010/12/software-demo-thingy.jpg',
+                language='en',
+                caption="Demo blocks are neat."
+            ),
+            SlideImageFile(
+                path='https://udemy-images.udemy.com/course/750x422/8075_b2b5_10.jpg',
+                language='en',
+                caption="Touch the demo to learn new things!"
+            ),
+            SlideImageFile(
+                path='https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRmL1l3TQUxFFXX8zZLujUt60Kud24CgMywVi1OIoj0TrQLgmjB',
+                language='en',
+                caption="Made mostly with Python!"
+            ),
+            SlideImageFile(
+                path='http://www.quickmeme.com/img/94/94a5cc4bca4e267b876733917e556dca7b52f6b5da949c13855a605312e9aa4e.jpg',
+                language='en',
+                caption="Meow! Cat memes are a great way to spice up your demos!"
+            ),
+            SlideImageFile(
+                path='https://www.yellowfinbi.com/assets/files/2018/09/YF_O1-638x400.png',
+                language='en',
+                caption="Unlock your potential with this demo."
+            )
+        ]
+    )
+    assert slideshow_node
+    assert slideshow_node.kind == 'slideshow'
+    assert len(slideshow_node.files) == 5, 'missing files'
+    assert slideshow_node.extra_fields, 'missing extra_fields'
+    assert 'slideshow_data' in slideshow_node.extra_fields, 'missing slideshow_data key'
+    slideshow_node.process_files()
+    # slideshow_node.to_dict() not ready yet bcs needs ot be part of tree...
+    channel.add_child(slideshow_node)
+    assert channel.validate_tree()
+    assert slideshow_node.to_dict() # not ready yet bcs needs ot be part of tree...
+
+
+
+
+def test_slideshow_node_via_add_file(channel):
+    slideshow_node = SlideshowNode(
+        title="The Slideshow via add_files",
+        description="Slideshow Content Demo",
+        source_id='demo2',
+        author="DE Mo",
+        language='en',
+        license=get_license('CC BY', copyright_holder='Demo Holdings'),
+        files=[]
+    )
+    slideimg1 = SlideImageFile(
+        path='https://www.sales-training-lead-generation.com/wp-content/uploads/2010/12/software-demo-thingy.jpg',
+        language='en',
+        caption="Demo blocks are neat."
+    )
+    slideshow_node.add_file(slideimg1)
+    slideimg2 = SlideImageFile(
+        path='https://udemy-images.udemy.com/course/750x422/8075_b2b5_10.jpg',
+        language='en',
+        caption="Touch the demo to learn new things!"
+    )
+    slideshow_node.add_file(slideimg2)
+
+    # print(slideshow_node.__dict__)
+    assert slideshow_node
+    assert len(slideshow_node.files) == 2, 'missing files'
+
+    channel.add_child(slideshow_node)
+    assert channel.validate_tree()
+

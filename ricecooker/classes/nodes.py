@@ -805,7 +805,7 @@ class SlideshowNode(ContentNode):
         Slideshows are sequences of "Slides", a combination of an image and caption.
         Slides are shown in a specified sequential order.
 
-                Attributes:
+        Attributes:
             source_id (str): content's original id
             title (str): content's title
             license (str or <License>): content's license
@@ -817,37 +817,64 @@ class SlideshowNode(ContentNode):
             thumbnail (str): local path or url to thumbnail image (optional)
             extra_fields (dict): any additional data needed for node (optional)
             domain_ns (str): who is providing the content (e.g. learningequality.org) (optional)
-
     """
     kind = content_kinds.SLIDESHOW
 
-    def __init__(self, source_id, title, slideshow_data=None, **kwargs):
-        if not slideshow_data:
-            slideshow_data = []
+    def __init__(self, source_id, title, license, slideshow_data=None, **kwargs):
+        if slideshow_data:
+            extra_fields = {'slideshow_data': slideshow_data}
+        else:
+            extra_fields = {'slideshow_data':[]}
+        # THe Node base class' __init__ method has:
+        #       for f in files or []:
+        #           self.add_file(f)
+        super(SlideshowNode, self).__init__(source_id, title, license, extra_fields=extra_fields, **kwargs)
 
-        for idx, file in enumerate(kwargs['files']):
-            filename = file.get_filename()
+    def add_file(self, file_to_add):
+        """
+        Add a the SlideImageFile to the node's files and append slideshow metadata
+        to extra_fields['slideshow_data'] (list).
+        Args: file (SlideshowNode or ThumbnailFile): file model to add to node
+        Returns: None
+        """
+        from .files import File, SlideImageFile
+        assert isinstance(file_to_add, File), "Files being added must be instances of a subclass of File class"
+        # TODO asserr SlideshowNode OR ThumbnailFile
 
-            checksum, ext = ['', '']
-
+        if file_to_add not in self.files:
+            filename = file_to_add.get_filename()
             if filename:
-                checksum, ext = filename.split('.')
-
+                checksum, ext = filename.split('.')  # <md5sum(contents)>.[png|jpg|jpeg]
+            else:
+                raise ValueError('filename not available')
+            #
+            # Find the idx of sort_order.next()
+            slideshow_image_files = [f for f in self.files if isinstance(f,SlideImageFile)]
+            idx = len(slideshow_image_files)  # next available index, assuming added in desired order
+            #
+            # Add slideshow data to extra_fields['slideshow_data'] (aka manifest)
+            slideshow_data = self.extra_fields['slideshow_data']
             slideshow_data.append(
                 {
-                    'caption': file.caption,
+                    'caption': file_to_add.caption,
                     'sort_order': idx,
                     'checksum': checksum,
                     'extension': ext
                 }
             )
-
-        super(SlideshowNode, self).__init__(source_id, title, extra_fields=slideshow_data, **kwargs)
+            self.extra_fields['slideshow_data'] = slideshow_data
+            #
+            # Add node->file link
+            file_to_add.node = self
+            self.files.append(file_to_add)
 
     def validate(self):
+        print('in SlideshowNode validate')
         from .files import SlideImageFile
         try:
             assert any(self.files), "Assumption Failed: Slideshow does not have any slideshow image files."
             assert all(filter(lambda f: isinstance(f, SlideImageFile), self.files)), "Assumption Failed: Slideshow files must all be of type SlideImageFile."
+            # TODO: could also be ThumbnailFile    ^
         except AssertionError as ae:
             raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
+        super(SlideshowNode, self).validate()

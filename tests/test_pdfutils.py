@@ -151,7 +151,7 @@ def test_get_toc_subchapters(doc1_with_toc_path, downloads_dir):
 def test_split_subchapters(doc1_with_toc_path, downloads_dir):
     with PDFParser(doc1_with_toc_path, directory=downloads_dir) as pdfparser:
         chapters = pdfparser.split_subchapters()
-        pprint(chapters)
+        # pprint(chapters)
         for ch in chapters[0:4]:
             assert 'children' not in ch, 'first four chapters have no subchapters...'
         assert _get_pdf_len(chapters[0]) == 1, 'wrong num pages in ' + str(chapters[0])
