@@ -18,6 +18,23 @@ Not use cases:
     channel, it would be better to implement these changes during cheffing)
 
 
+Credentials
+-----------
+In order to use the corrections workflow as part of a chef script, you need to
+create the file `credentials/studio.json` in the chef repo that contains the
+following information:
+
+    {
+      "token": "YOURTOKENHERE9139139f3a23232fefefefefefe",
+      "username": "your.name@yourdomain.org",
+      "password": "yourstudiopassword",
+      "studio_url": "https://studio.learningequality.org"
+    }
+
+These credentials will be used to make the necessary Studio API calls. Make sure
+you have edit rights for this channel.
+
+
 Corrections workflow
 --------------------
 The starting point is an existing channel available on Studio, which we will
