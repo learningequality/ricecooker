@@ -34,13 +34,16 @@ The detailed information for content developers (chef authors) is presented here
 .. toctree::
    :maxdepth: 2
 
+   installation
    usage
    nodes
    files
    languages
    htmlapps
    exercises
-   installation
+   parsing_html
+   pdfutils
+   video_compression
    chefops
 
 
@@ -71,6 +74,7 @@ To learn about the inner workings of the ``ricecooker`` library, consult the fol
    developer/sushops
    developer/design_cli
    developer/contributing
+   developer/corrections
    developer/authors
    modules
    history
