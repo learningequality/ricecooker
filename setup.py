@@ -13,7 +13,7 @@ requirements = [
     "pytest>=3.0.2",
     "requests>=2.11.1",
     "docopt>=0.6.2",
-    "le_utils>=0.1.15",
+    "le_utils>=0.1.17",
     "validators",
     "requests_file",
     "requests-cache>=0.4.13",
