@@ -2,6 +2,14 @@
 History
 =======
 
+0.6.30 (2019-05-01)
+-------------------
+* Updated docs build scripts to make ricecooker docs available on read the docs
+* Added ``corrections`` command line script for making bulk edits to content metadata
+* Added ``StudioApi`` client to support CRUD (created, read, update, delete) Studio actions
+* Added pdf-splitting helper methods (see ``ricecooker/utils/pdf.py``)
+
+
 0.6.23 (2018-11-08)
 -------------------
 * Updated ``le-utils`` and ``pressurcooker`` dependencies to latest version
