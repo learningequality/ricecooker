@@ -28,6 +28,7 @@ requirements = [
     "websocket-client==0.40.0",
     "mock==2.0.0",
     "pypdf2>=1.26.0",
+    "dictdiffer>=0.8.0",
 ]
 
 test_requirements = [
@@ -45,7 +46,11 @@ setup(
     url='https://github.com/learningequality/ricecooker',
     packages=find_packages(),
     package_dir={'ricecooker':'ricecooker'},
-    entry_points={},
+    entry_points = {
+        'console_scripts': [
+            'corrections = ricecooker.utils.corrections:correctionsmain',
+        ],
+    },
     include_package_data=True,
     install_requires=requirements,
     license="MIT license",
