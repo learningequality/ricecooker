@@ -857,6 +857,7 @@ class SlideshowNode(ContentNode):
             slideshow_data.append(
                 {
                     'caption': file_to_add.caption,
+                    'descriptive_text': file_to_add.descriptive_text,
                     'sort_order': idx,
                     'checksum': checksum,
                     'extension': ext

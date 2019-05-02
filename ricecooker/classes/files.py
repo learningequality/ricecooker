@@ -376,13 +376,14 @@ class SlideImageFile(DownloadFile):
     allowed_formats = [file_formats.JPG, file_formats.JPEG, file_formats.PNG]
     is_primary = True
 
-    def __init__(self, path, caption="", **kwargs):
+    def __init__(self, path, caption="", descriptive_text="", **kwargs):
         self.caption = caption
+        self.descriptive_text = descriptive_text
         self.path = path.strip()
         super(DownloadFile, self).__init__(**kwargs)
 
     def get_preset(self):
-        return format_presets.SLIDE_IMAGE
+        return format_presets.SLIDESHOW_IMAGE
 
 class ThumbnailFile(ThumbnailPresetMixin, DownloadFile):
     default_ext = file_formats.PNG

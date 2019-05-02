@@ -181,27 +181,32 @@ def test_slideshow_node_via_files(channel):
             SlideImageFile(
                 path='https://www.sales-training-lead-generation.com/wp-content/uploads/2010/12/software-demo-thingy.jpg',
                 language='en',
-                caption="Demo blocks are neat."
+                caption="Demo blocks are neat.",
+                descriptive_text="Demo blocks are neat."
             ),
             SlideImageFile(
                 path='https://udemy-images.udemy.com/course/750x422/8075_b2b5_10.jpg',
                 language='en',
-                caption="Touch the demo to learn new things!"
+                caption="Touch the demo to learn new things!",
+                descriptive_text="Touch the demo to learn new things!"
             ),
             SlideImageFile(
                 path='https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRmL1l3TQUxFFXX8zZLujUt60Kud24CgMywVi1OIoj0TrQLgmjB',
                 language='en',
-                caption="Made mostly with Python!"
+                caption="Made mostly with Python!",
+                descriptive_text="Made mostly with Python!"
             ),
             SlideImageFile(
                 path='http://www.quickmeme.com/img/94/94a5cc4bca4e267b876733917e556dca7b52f6b5da949c13855a605312e9aa4e.jpg',
                 language='en',
-                caption="Meow! Cat memes are a great way to spice up your demos!"
+                caption="Meow! Cat memes are a great way to spice up your demos!",
+                descriptive_text="Meow! Cat memes are a great way to spice up your demos!"
             ),
             SlideImageFile(
                 path='https://www.yellowfinbi.com/assets/files/2018/09/YF_O1-638x400.png',
                 language='en',
-                caption="Unlock your potential with this demo."
+                caption="Unlock your potential with this demo.",
+                descriptive_text="Unlock your potential with this demo."
             )
         ]
     )
@@ -232,13 +237,15 @@ def test_slideshow_node_via_add_file(channel):
     slideimg1 = SlideImageFile(
         path='https://www.sales-training-lead-generation.com/wp-content/uploads/2010/12/software-demo-thingy.jpg',
         language='en',
-        caption="Demo blocks are neat."
+        caption="Demo blocks are neat.",
+        descriptive_text="Demo blocks are neat."
     )
     slideshow_node.add_file(slideimg1)
     slideimg2 = SlideImageFile(
         path='https://udemy-images.udemy.com/course/750x422/8075_b2b5_10.jpg',
         language='en',
-        caption="Touch the demo to learn new things!"
+        caption="Touch the demo to learn new things!",
+        descriptive_text="Touch the demo to learn new things!"
     )
     slideshow_node.add_file(slideimg2)
 

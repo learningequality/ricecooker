@@ -157,9 +157,9 @@ def test_slideshow_to_dict(slideshow, slideshow_data):
     del slideshow_data['extra_fields']
     del slideshow_dict['extra_fields']
     #
-    expected_files = slideshow_data.pop('files')    
+    expected_files = slideshow_data.pop('files')
     slideshow_dict.pop('files')
-    assert slideshow.files == expected_files, "slide_images do not match"
+    assert slideshow.files == expected_files, "slideshow_images do not match"
     for key, _ in slideshow_data.items():
         assert key in slideshow_dict, "Key {} is not found in to_dict method".format(key)
     for key, value in slideshow_dict.items():
