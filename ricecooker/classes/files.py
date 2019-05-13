@@ -311,32 +311,6 @@ class File(object):
         pass
 
 
-# class NodeFile(File):
-#     default_ext = file_formats.JSON
-#     allowed_formats = [file_formats.JSON]
-# 
-#     def __init__(self, node_metadata, **kwargs):
-#         self.metadata_json = json.dumps(node_metadata, ensure_ascii=False)
-#         super(NodeFile, self).__init__(**kwargs)
-# 
-#     def process_file(self):
-#         assert self.metadata_json, "{} must have node metadata".format(self.__class__.__name__)
-# 
-#         byte_data = self.metadata_json.encode('utf-8')
-#         with tempfile.TemporaryFile() as temp_file:
-#             file_hash = hashlib.md5(byte_data)
-#             temp_file.write(byte_data)
-# 
-#             assert temp_file.tell() > 0, "File failed to write (corrupted)."
-#             temp_file.seek(0)
-# 
-#             extension = self.default_ext
-#             file_name = '{0}.{ext}'.format(file_hash.hexdigest(), ext=extension)
-# 
-#             copy_file_to_storage(file_name, temp_file)
-# 
-#             return file_name
-
 
 class DownloadFile(File):
     allowed_formats = []
