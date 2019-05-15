@@ -839,9 +839,8 @@ class SlideshowNode(ContentNode):
         Args: file (SlideshowNode or ThumbnailFile): file model to add to node
         Returns: None
         """
-        from .files import File, SlideImageFile
-        assert isinstance(file_to_add, File), "Files being added must be instances of a subclass of File class"
-        # TODO asserr SlideshowNode OR ThumbnailFile
+        from .files import ThumbnailFile, SlideImageFile
+        assert isinstance(file_to_add, ThumbnailFile) or isinstance(file_to_add, SlideImageFile), "Files being added must be instances of a subclass of File class"
 
         if file_to_add not in self.files:
             filename = file_to_add.get_filename()
