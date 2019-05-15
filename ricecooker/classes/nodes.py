@@ -877,10 +877,10 @@ class SlideshowNode(ContentNode):
     def validate(self):
         from .files import SlideImageFile, ThumbnailFile
         try:
-            assert any(self.files), "Assumption Failed: Slideshow does not have any slideshow image files."
-            for file in self.files:
-                assert isinstance(file, SlideImageFile) or isinstance(file, ThumbnailFile), "Assumption Failed: Slideshow files must all be of type SlideImageFile or ThumbnailFile."
-            #
+            assert [f for f in self.files if isinstance(f, SlideImageFile)], \
+                "Assumption Failed: SlideshowNode must have at least one SlideImageFile file."
+            assert all([isinstance(f, SlideImageFile) or isinstance(f, ThumbnailFile) for f in self.files]), \
+                   "Assumption Failed: SlideshowNode files must be of type SlideImageFile or ThumbnailFile."
         except AssertionError as ae:
             raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
         super(SlideshowNode, self).validate()
