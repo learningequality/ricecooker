@@ -207,20 +207,22 @@ def test_slideshow_node_via_files(channel):
                 language='en',
                 caption="Unlock your potential with this demo.",
                 descriptive_text="Unlock your potential with this demo."
+            ),
+            ThumbnailFile(
+                path='https://lh3.googleusercontent.com/5EfQBHDb47tchiART6U6yk3yYS9qBYr6VUssB5wHE1AgavqV5E2SSuzyiNkc7UgVng',
+                language='en'
             )
         ]
     )
     assert slideshow_node
     assert slideshow_node.kind == 'slideshow'
-    assert len(slideshow_node.files) == 5, 'missing files'
+    assert len(slideshow_node.files) == 6, 'missing files'
     assert slideshow_node.extra_fields, 'missing extra_fields'
     assert 'slideshow_data' in slideshow_node.extra_fields, 'missing slideshow_data key'
     slideshow_node.process_files()
-    # slideshow_node.to_dict() not ready yet bcs needs ot be part of tree...
     channel.add_child(slideshow_node)
     assert channel.validate_tree()
     assert slideshow_node.to_dict() # not ready yet bcs needs ot be part of tree...
-
 
 
 
@@ -248,10 +250,15 @@ def test_slideshow_node_via_add_file(channel):
         descriptive_text="Touch the demo to learn new things!"
     )
     slideshow_node.add_file(slideimg2)
+    thumbimg1 = ThumbnailFile(
+        path='https://lh3.googleusercontent.com/5EfQBHDb47tchiART6U6yk3yYS9qBYr6VUssB5wHE1AgavqV5E2SSuzyiNkc7UgVng',
+        language='en'
+    )
+    slideshow_node.add_file(thumbimg1)
 
     # print(slideshow_node.__dict__)
     assert slideshow_node
-    assert len(slideshow_node.files) == 2, 'missing files'
+    assert len(slideshow_node.files) == 3, 'missing files'
 
     channel.add_child(slideshow_node)
     assert channel.validate_tree()

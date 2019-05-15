@@ -847,35 +847,40 @@ class SlideshowNode(ContentNode):
                 checksum, ext = filename.split('.')  # <md5sum(contents)>.[png|jpg|jpeg]
             else:
                 raise ValueError('filename not available')
+
             #
-            # Find the idx of sort_order.next()
-            slideshow_image_files = [f for f in self.files if isinstance(f,SlideImageFile)]
-            idx = len(slideshow_image_files)  # next available index, assuming added in desired order
-            #
-            # Add slideshow data to extra_fields['slideshow_data'] (aka manifest)
-            slideshow_data = self.extra_fields['slideshow_data']
-            slideshow_data.append(
-                {
-                    'caption': file_to_add.caption,
-                    'descriptive_text': file_to_add.descriptive_text,
-                    'sort_order': idx,
-                    'checksum': checksum,
-                    'extension': ext
-                }
-            )
-            self.extra_fields['slideshow_data'] = slideshow_data
+            # Appending to extra_fields is only necessary for SlideImageFile instances
+            if isinstance(file_to_add, SlideImageFile):
+                #
+                # Find the idx of sort_order.next()
+                slideshow_image_files = [f for f in self.files if isinstance(f,SlideImageFile)]
+                idx = len(slideshow_image_files)  # next available index, assuming added in desired order
+                #
+                # Add slideshow data to extra_fields['slideshow_data'] (aka manifest)
+                slideshow_data = self.extra_fields['slideshow_data']
+                slideshow_data.append(
+                    {
+                        'caption': file_to_add.caption,
+                        'descriptive_text': file_to_add.descriptive_text,
+                        'sort_order': idx,
+                        'checksum': checksum,
+                        'extension': ext
+                    }
+                )
+                self.extra_fields['slideshow_data'] = slideshow_data
+
             #
             # Add node->file link
             file_to_add.node = self
             self.files.append(file_to_add)
 
     def validate(self):
-        print('in SlideshowNode validate')
-        from .files import SlideImageFile
+        from .files import SlideImageFile, ThumbnailFile
         try:
             assert any(self.files), "Assumption Failed: Slideshow does not have any slideshow image files."
-            assert all(filter(lambda f: isinstance(f, SlideImageFile), self.files)), "Assumption Failed: Slideshow files must all be of type SlideImageFile."
-            # TODO: could also be ThumbnailFile    ^
+            for file in self.files:
+                assert isinstance(file, SlideImageFile) or isinstance(file, ThumbnailFile), "Assumption Failed: Slideshow files must all be of type SlideImageFile or ThumbnailFile."
+            #
         except AssertionError as ae:
             raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
         super(SlideshowNode, self).validate()
