@@ -120,14 +120,14 @@ def test_ids(tree, channel_node_id, channel_content_id, topic_content_id, topic_
     assert document.get_node_id() == document_node_id, "Document node id should be {}".format(document_node_id)
 
 def test_add_file(document, document_file):
-    test_files = list(filter(lambda f: isinstance(f, DocumentFile), document.files))
+    test_files = [f for f in document.files if isinstance(f, DocumentFile)]
     assert any(test_files), "Document must have at least one file"
     assert test_files[0] == document_file, "Document file was not added correctly"
 
 def test_thumbnail(topic, document, thumbnail_path):
     assert document.has_thumbnail(), "Document must have a thumbnail"
     assert not topic.has_thumbnail(), "Topic must not have a thumbnail"
-    assert any(filter(lambda f: f.path == thumbnail_path, document.files)), "Document is missing a thumbnail with path {}".format(thumbnail_path)
+    assert [f for f in document.files if f.path == thumbnail_path], "Document is missing a thumbnail with path {}".format(thumbnail_path)
 
 def test_count(tree):
     assert tree.count() == 2, "Channel should have 2 descendants"

@@ -605,7 +605,7 @@ class AudioNode(ContentNode):
             assert self.kind == content_kinds.AUDIO, "Assumption Failed: Node should be audio"
             assert self.questions == [], "Assumption Failed: Audio should not have questions"
             assert len(self.files) > 0, "Assumption Failed: Audio should have at least one file"
-            assert any(filter(lambda f: isinstance(f, AudioFile), self.files)), "Assumption Failed: Audio should have at least one audio file"
+            assert [f for f in self.files if isinstance(f, AudioFile)], "Assumption Failed: Audio should have at least one audio file"
             return super(AudioNode, self).validate()
         except AssertionError as ae:
             raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
@@ -642,7 +642,8 @@ class DocumentNode(ContentNode):
             assert self.kind == content_kinds.DOCUMENT, "Assumption Failed: Node should be a document"
             assert self.questions == [], "Assumption Failed: Document should not have questions"
             assert len(self.files) > 0, "Assumption Failed: Document should have at least one file"
-            assert any(filter(lambda f: isinstance(f, DocumentFile) or isinstance(f, EPubFile), self.files)), "Assumption Failed: Document should have at least one document file"
+            assert [f for f in self.files if isinstance(f, DocumentFile) or isinstance(f, EPubFile)], \
+                "Assumption Failed: Document should have at least one document file"
             return super(DocumentNode, self).validate()
         except AssertionError as ae:
             raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
@@ -679,7 +680,7 @@ class HTML5AppNode(ContentNode):
         try:
             assert self.kind == content_kinds.HTML5, "Assumption Failed: Node should be an HTML5 app"
             assert self.questions == [], "Assumption Failed: HTML should not have questions"
-            assert any(filter(lambda f: isinstance(f, HTMLZipFile), self.files)), "Assumption Failed: HTML should have at least one html file"
+            assert [f for f in self.files if isinstance(f, HTMLZipFile)], "Assumption Failed: HTML should have at least one html file"
             return super(HTML5AppNode, self).validate()
 
         except AssertionError as ae:
@@ -787,8 +788,9 @@ class ExerciseNode(ContentNode):
 
             # Check if questions are correct
             assert any(self.questions), "Assumption Failed: Exercise does not have a question"
-            assert all(filter(lambda q: q.validate(), self.questions)), "Assumption Failed: Exercise has invalid question"
-            assert self.extra_fields['mastery_model'] in MASTERY_MODELS, "Assumption Failed: Unrecognized mastery model {}".format(self.extra_fields['mastery_model'])
+            assert all([q.validate() for q in self.questions]), "Assumption Failed: Exercise has invalid question"
+            assert self.extra_fields['mastery_model'] in MASTERY_MODELS, \
+                "Assumption Failed: Unrecognized mastery model {}".format(self.extra_fields['mastery_model'])
             return super(ExerciseNode, self).validate()
         except AssertionError as ae:
             raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
