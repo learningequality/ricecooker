@@ -154,8 +154,7 @@ def test_slideshow_to_dict(slideshow, slideshow_data):
     extra_fields = json.loads(slideshow_dict['extra_fields'])
     assert len(extra_fields['slideshow_data']) == 10, 'wrong num slides'
     expected_field_keys = { 'caption', 'descriptive_text', 'checksum', 'sort_order', 'extension'}
-    for slide_data in extra_fields['slideshow_data']:
-        assert set(slide_data.keys()) == expected_field_keys, 'extra_fields is missing expected fields'
+    assert all([set(sd.keys()) == expected_field_keys for sd in extra_fields['slideshow_data']]), 'extra_fields is missing expected fields'
     del slideshow_data['extra_fields']
     del slideshow_dict['extra_fields']
     #
