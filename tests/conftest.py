@@ -9,7 +9,7 @@ import pytest
 from le_utils.constants import licenses, content_kinds, exercises, roles
 from ricecooker.classes.files import *
 from ricecooker.classes.files import _ExerciseImageFile, _ExerciseBase64ImageFile, _ExerciseGraphieFile
-from ricecooker.classes.nodes import ChannelNode, TopicNode, VideoNode, AudioNode, DocumentNode, HTML5AppNode, ExerciseNode
+from ricecooker.classes.nodes import ChannelNode, TopicNode, VideoNode, AudioNode, DocumentNode, HTML5AppNode, ExerciseNode, SlideshowNode
 from ricecooker.classes.questions import SingleSelectQuestion, InputQuestion
 
 from ricecooker.__init__ import __version__
@@ -561,4 +561,44 @@ def exercise_graphie_replacement_str():
 @pytest.fixture
 def exercise_graphie_filename():
     return 'ea2269bb5cf487f8d883144b9c06fbc7.graphie'
+
+
+
+
+# SLIDESHOW IMAGES FIXTURES
+################################################################################
+
+@pytest.fixture
+def slideshow_files():
+    fake_files = []
+    for i in range(0,10):
+        filename = 'tests/testcontent/slide' + str(i) + '.jpg'
+        if not os.path.exists(filename):
+            with open(filename, 'w') as f:
+                f.write('jpgdatawouldgohere' + str(i))
+        fake_files.append(
+            SlideImageFile(filename, caption='slide ' + str(i))
+        )
+    return fake_files
+
+@pytest.fixture
+def slideshow_data(contentnode_base_data, slideshow_files, channel_domain_namespace, channel_node_id):
+    slideshow_data = copy.deepcopy(contentnode_base_data)
+    ids_dict = genrate_random_ids(channel_domain_namespace, channel_node_id)
+    slideshow_data.update(ids_dict)
+    slideshow_data.update({ "kind": content_kinds.SLIDESHOW })
+    # TODO setup expected extra_fields['slideshow_data']
+    return slideshow_data
+
+@pytest.fixture
+def slideshow(slideshow_files, slideshow_data, channel):
+    args_data = get_content_node_args(slideshow_data)
+    contentnode_kwargs = get_content_node_kwargs(slideshow_data)
+    del contentnode_kwargs['extra_fields']
+    slideshow = SlideshowNode(*args_data, **contentnode_kwargs)
+    for slideshow_file in slideshow_files:
+        slideshow.add_file(slideshow_file)
+    channel.add_child(slideshow)
+    slideshow_data['files'] = slideshow_files   # save it so we can compare later
+    return slideshow
 

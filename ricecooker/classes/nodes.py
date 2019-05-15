@@ -605,7 +605,7 @@ class AudioNode(ContentNode):
             assert self.kind == content_kinds.AUDIO, "Assumption Failed: Node should be audio"
             assert self.questions == [], "Assumption Failed: Audio should not have questions"
             assert len(self.files) > 0, "Assumption Failed: Audio should have at least one file"
-            assert any(filter(lambda f: isinstance(f, AudioFile), self.files)), "Assumption Failed: Audio should have at least one audio file"
+            assert [f for f in self.files if isinstance(f, AudioFile)], "Assumption Failed: Audio should have at least one audio file"
             return super(AudioNode, self).validate()
         except AssertionError as ae:
             raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
@@ -642,7 +642,8 @@ class DocumentNode(ContentNode):
             assert self.kind == content_kinds.DOCUMENT, "Assumption Failed: Node should be a document"
             assert self.questions == [], "Assumption Failed: Document should not have questions"
             assert len(self.files) > 0, "Assumption Failed: Document should have at least one file"
-            assert any(filter(lambda f: isinstance(f, DocumentFile) or isinstance(f, EPubFile), self.files)), "Assumption Failed: Document should have at least one document file"
+            assert [f for f in self.files if isinstance(f, DocumentFile) or isinstance(f, EPubFile)], \
+                "Assumption Failed: Document should have at least one document file"
             return super(DocumentNode, self).validate()
         except AssertionError as ae:
             raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
@@ -679,7 +680,7 @@ class HTML5AppNode(ContentNode):
         try:
             assert self.kind == content_kinds.HTML5, "Assumption Failed: Node should be an HTML5 app"
             assert self.questions == [], "Assumption Failed: HTML should not have questions"
-            assert any(filter(lambda f: isinstance(f, HTMLZipFile), self.files)), "Assumption Failed: HTML should have at least one html file"
+            assert [f for f in self.files if isinstance(f, HTMLZipFile)], "Assumption Failed: HTML should have at least one html file"
             return super(HTML5AppNode, self).validate()
 
         except AssertionError as ae:
@@ -787,8 +788,9 @@ class ExerciseNode(ContentNode):
 
             # Check if questions are correct
             assert any(self.questions), "Assumption Failed: Exercise does not have a question"
-            assert all(filter(lambda q: q.validate(), self.questions)), "Assumption Failed: Exercise has invalid question"
-            assert self.extra_fields['mastery_model'] in MASTERY_MODELS, "Assumption Failed: Unrecognized mastery model {}".format(self.extra_fields['mastery_model'])
+            assert all([q.validate() for q in self.questions]), "Assumption Failed: Exercise has invalid question"
+            assert self.extra_fields['mastery_model'] in MASTERY_MODELS, \
+                "Assumption Failed: Unrecognized mastery model {}".format(self.extra_fields['mastery_model'])
             return super(ExerciseNode, self).validate()
         except AssertionError as ae:
             raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
@@ -798,3 +800,88 @@ class ExerciseNode(ContentNode):
             q.truncate_fields()
 
         super(ExerciseNode, self).truncate_fields()
+
+class SlideshowNode(ContentNode):
+    """ Model representing Slideshows
+
+        Slideshows are sequences of "Slides", a combination of an image and caption.
+        Slides are shown in a specified sequential order.
+
+        Attributes:
+            source_id (str): content's original id
+            title (str): content's title
+            license (str or <License>): content's license
+            author (str): who created the content (optional)
+            aggregator (str): website or org hosting the content collection but not necessarily the creator or copyright holder (optional)
+            provider (str): organization that commissioned or is distributing the content (optional)
+            description (str): description of content (optional)
+            files ([<SlideImageFile>]): images associated with slides
+            thumbnail (str): local path or url to thumbnail image (optional)
+            extra_fields (dict): any additional data needed for node (optional)
+            domain_ns (str): who is providing the content (e.g. learningequality.org) (optional)
+    """
+    kind = content_kinds.SLIDESHOW
+
+    def __init__(self, source_id, title, license, slideshow_data=None, **kwargs):
+        if slideshow_data:
+            extra_fields = {'slideshow_data': slideshow_data}
+        else:
+            extra_fields = {'slideshow_data':[]}
+        # THe Node base class' __init__ method has:
+        #       for f in files or []:
+        #           self.add_file(f)
+        super(SlideshowNode, self).__init__(source_id, title, license, extra_fields=extra_fields, **kwargs)
+
+    def add_file(self, file_to_add):
+        """
+        Add a the SlideImageFile to the node's files and append slideshow metadata
+        to extra_fields['slideshow_data'] (list).
+        Args: file (SlideshowNode or ThumbnailFile): file model to add to node
+        Returns: None
+        """
+        from .files import ThumbnailFile, SlideImageFile
+        assert isinstance(file_to_add, ThumbnailFile) or isinstance(file_to_add, SlideImageFile), "Files being added must be instances of a subclass of File class"
+
+        if file_to_add not in self.files:
+            filename = file_to_add.get_filename()
+            if filename:
+                checksum, ext = filename.split('.')  # <md5sum(contents)>.[png|jpg|jpeg]
+            else:
+                raise ValueError('filename not available')
+
+            #
+            # Appending to extra_fields is only necessary for SlideImageFile instances
+            if isinstance(file_to_add, SlideImageFile):
+                #
+                # Find the idx of sort_order.next()
+                slideshow_image_files = [f for f in self.files if isinstance(f,SlideImageFile)]
+                idx = len(slideshow_image_files)  # next available index, assuming added in desired order
+                #
+                # Add slideshow data to extra_fields['slideshow_data'] (aka manifest)
+                slideshow_data = self.extra_fields['slideshow_data']
+                slideshow_data.append(
+                    {
+                        'caption': file_to_add.caption,
+                        'descriptive_text': file_to_add.descriptive_text,
+                        'sort_order': idx,
+                        'checksum': checksum,
+                        'extension': ext
+                    }
+                )
+                self.extra_fields['slideshow_data'] = slideshow_data
+
+            #
+            # Add node->file link
+            file_to_add.node = self
+            self.files.append(file_to_add)
+
+    def validate(self):
+        from .files import SlideImageFile, ThumbnailFile
+        try:
+            assert [f for f in self.files if isinstance(f, SlideImageFile)], \
+                "Assumption Failed: SlideshowNode must have at least one SlideImageFile file."
+            assert all([isinstance(f, SlideImageFile) or isinstance(f, ThumbnailFile) for f in self.files]), \
+                   "Assumption Failed: SlideshowNode files must be of type SlideImageFile or ThumbnailFile."
+        except AssertionError as ae:
+            raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
+        super(SlideshowNode, self).validate()
