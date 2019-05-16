@@ -193,13 +193,7 @@ def download_static_assets(doc, destination, base_url,
     def js_content_middleware(content, url, **kwargs):
         if js_middleware:
             content = js_middleware(content, url, **kwargs)
-
-        # Polyfill localStorage and document.cookie as iframes can't access
-        # them
-        return (content
-            .replace("localStorage", "_localStorage")
-            .replace('document.cookie.split', '"".split')
-            .replace('document.cookie', 'window._document_cookie'))
+        return content
 
     def css_node_filter(node):
         return "stylesheet" in node["rel"]
