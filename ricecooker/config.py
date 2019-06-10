@@ -39,9 +39,6 @@ FILE_DIFF_URL = "{domain}/api/internal/file_diff"
 # URL for uploading files to server
 FILE_UPLOAD_URL = "{domain}/api/internal/file_upload"
 
-# URL for uploading channel structure to server
-CHANNEL_STRUCTURE_UPLOAD_URL = "{domain}/api/internal/channel_structure_upload"
-
 # URL for creating channel on server
 CREATE_CHANNEL_URL = "{domain}/api/internal/create_channel"
 
@@ -224,14 +221,6 @@ def file_upload_url():
         Returns: string url to file_upload endpoint
     """
     return FILE_UPLOAD_URL.format(domain=DOMAIN)
-
-
-def channel_structure_upload_url():
-    """
-    Returns a string representation of the API endpoint for uploading a channel's structure.
-    """
-    return CHANNEL_STRUCTURE_UPLOAD_URL.format(domain=DOMAIN)
-
 
 def create_channel_url():
     """ create_channel_url: returns url to create channel
