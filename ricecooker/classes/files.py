@@ -328,9 +328,9 @@ class DownloadFile(File):
         ext = dotext.lstrip('.')
         # don't validate for single-digit extension, or no extension
         if len(ext) > 1:
-            assert ext in self.allowed_formats, "{} must have one of the following"
-            "extensions: {} (instead, got '{}' from '{}')".format(
-            self.__class__.__name__, self.allowed_formats, ext, self.path)
+            assert ext in self.allowed_formats, "{} must have one of the " \
+                "following extensions: {} (instead, got '{}' from '{}')".format(
+                self.__class__.__name__, self.allowed_formats, ext, self.path)
 
     def process_file(self):
         try:
