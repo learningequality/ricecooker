@@ -25,7 +25,6 @@ class Node(object):
         self.node_id = None
         self.content_id = None
         self.title = title
-        self.hashed_file_name = None
         self.set_language(language)
         self.description = description or ""
 
