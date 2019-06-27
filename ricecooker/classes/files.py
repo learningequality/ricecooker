@@ -631,7 +631,7 @@ class SubtitleFile(DownloadFile):
         """
         assert self.path, "{} must have a path".format(self.__class__.__name__)
         ext = extract_path_ext(self.path, default_ext=self.subtitlesformat)
-        if ext not in CONVERTIBLE_FORMATS[self.get_preset()]:
+        if ext != self.default_ext and ext not in CONVERTIBLE_FORMATS[self.get_preset()]:
             raise ValueError('Incompatible extension {} for SubtitleFile at {}'.format(ext, self.path))
 
     def process_file(self):
