@@ -263,7 +263,8 @@ def download_fixture_files(fixtures_list):
         srcfilename = fixture['srcfilename']
         localpath = os.path.join('tests', 'testcontent', srcfilename)
         if not os.path.exists(localpath):
-            url = fixture['url'] if fixture['url'] else PRESSURECOOKER_FILES_URL_BASE + srcfilename
+            url = fixture['url'] if 'url' in fixture.keys() \
+                else PRESSURECOOKER_FILES_URL_BASE + srcfilename
             print(url)
             _save_file_url_to_path(url, localpath)
             assert os.path.exists(localpath), 'Error mising local test file ' + localpath
