@@ -9,6 +9,8 @@ from ricecooker.classes.files import _get_language_with_alpha2_fallback
 from ricecooker.utils.zip import create_predictable_zip
 from ricecooker import config
 
+from test_pdfutils import  _save_file_url_to_path
+
 IS_TRAVIS_TESTING = "TRAVIS" in os.environ and os.environ["TRAVIS"] == "true"
 
 # Process all of the files
@@ -219,9 +221,83 @@ def test_youtubesubtitle_to_dict():
     assert True
 
 
-""" *********** SUBTITLEFILE TESTS *********** """
-def test_subtitle_validate():
-    assert True
 
-def test_subtitle_to_dict():
-    assert True
+
+""" *********** SUBTITLEFILE TESTS *********** """
+
+
+PRESSURECOOKER_REPO_URL = "https://raw.githubusercontent.com/bjester/pressurecooker/"
+TEST_FILES_URL_BASE = PRESSURECOOKER_REPO_URL + "pycaption/tests/files/subtitles/"
+TEST_SUBS_FIXTURES = [
+    {
+      'srcfilename': 'basic.srt',
+      'subtitlesformat': 'srt',
+      'language': languages.getlang('ar'),
+      'check_words': 'البعض أكثر'
+    },
+    {
+      'srcfilename': 'encapsulated.sami',
+      'subtitlesformat': 'sami',
+      'language': 'en',
+      'check_words': 'we have this vision of Einstein',
+    },
+    {
+      'srcfilename': 'basic.vtt',
+      'subtitlesformat': 'vtt',
+      'language': 'ar',
+      'check_words': 'البعض أكثر'
+    },
+    {
+      'srcfilename': 'encapsulated.vtt',
+      'subtitlesformat': 'vtt',
+      'language': 'en',
+      'check_words': 'we have this vision of Einstein'
+    },
+]
+
+@pytest.fixture
+def pressurcooker_test_files():
+    """
+    Downloads all the subtitles test files and return as list of fixutes dicts.
+    """
+    fixtures = []
+    for fixture in TEST_SUBS_FIXTURES:
+        srcfilename = fixture['srcfilename']
+        localpath = os.path.join('tests', 'testcontent', srcfilename)
+        if not os.path.exists(localpath):
+            print(TEST_FILES_URL_BASE + srcfilename)
+            _save_file_url_to_path(TEST_FILES_URL_BASE + srcfilename, localpath)
+            assert os.path.exists(localpath), 'Error mising local test file ' + localpath
+        fixture['localpath'] = localpath
+        fixtures.append(fixture)
+    return fixtures
+
+
+def test_convertible_substitles_from_pressurcooker(pressurcooker_test_files):
+    """
+    Try to load all the test files used in pressurecooker as riceccooker `SubtitleFile`s.
+    All subs have the appropriate extension so no need to specify `subtitlesformat`.
+    """
+    for fixture in pressurcooker_test_files:
+        localpath = fixture['localpath']
+        assert os.path.exists(localpath), 'Error mising local test file ' + localpath
+        subtitle_file =  SubtitleFile(localpath, language=fixture['language'])
+        filename = subtitle_file.process_file()
+        assert filename, 'conferted filename must exit'
+        assert filename.endswith('.vtt'), 'conferted filename must have .vtt extension'
+        storage_path = config.get_storage_path(filename)
+        with open(storage_path) as converted_vtt:
+            filecontents = converted_vtt.read()
+            assert fixture['check_words'] in filecontents, 'missing check_words in converted subs'
+
+
+
+
+# TODO: uncomment when edge case undetected ar fixed
+# def test_convertible_substitles_ar_ttml():
+#     assert os.path.exists("tests/testcontent/testsubtitles_ar.ttml")
+#     subtitle_file =  SubtitleFile("tests/testcontent/testsubtitles_ar.ttml", language='en-US')
+#     filename = subtitle_file.process_file()
+#     assert filename, 'conferted filename must exit'
+#     assert filename.endswith('.vtt'), 'conferted filename must have .vtt extension'
+
