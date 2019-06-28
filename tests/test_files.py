@@ -1,15 +1,13 @@
 """ Tests for file downloading and processing """
 import pytest
 import os.path
-import tempfile
 
-from le_utils.constants import content_kinds, languages
 from ricecooker.classes.files import *
 from ricecooker.classes.files import _get_language_with_alpha2_fallback
 from ricecooker.utils.zip import create_predictable_zip
 from ricecooker import config
 
-from test_pdfutils import  _save_file_url_to_path
+from test_pdfutils import _save_file_url_to_path
 
 IS_TRAVIS_TESTING = "TRAVIS" in os.environ and os.environ["TRAVIS"] == "true"
 
@@ -227,8 +225,8 @@ def test_youtubesubtitle_to_dict():
 
 
 PRESSURECOOKER_REPO_URL = "https://raw.githubusercontent.com/bjester/pressurecooker/"
-TEST_FILES_URL_BASE = PRESSURECOOKER_REPO_URL + "pycaption/tests/files/subtitles/"
-TEST_SUBS_FIXTURES = [
+PRESSURECOOKER_FILES_URL_BASE = PRESSURECOOKER_REPO_URL + "pycaption/tests/files/subtitles/"
+PRESSURECOOKER_SUBS_FIXTURES = [
     {
       'srcfilename': 'basic.srt',
       'subtitlesformat': 'srt',
@@ -255,22 +253,43 @@ TEST_SUBS_FIXTURES = [
     },
 ]
 
+
+def download_fixture_files(fixtures_list):
+    """
+    Downloads all the subtitles test files and return as list of fixutes dicts.
+    """
+    fixtures = []
+    for fixture in fixtures_list:
+        srcfilename = fixture['srcfilename']
+        localpath = os.path.join('tests', 'testcontent', srcfilename)
+        if not os.path.exists(localpath):
+            url = fixture['url'] if fixture['url'] else PRESSURECOOKER_FILES_URL_BASE + srcfilename
+            print(url)
+            _save_file_url_to_path(url, localpath)
+            assert os.path.exists(localpath), 'Error mising local test file ' + localpath
+        fixture['localpath'] = localpath
+        fixtures.append(fixture)
+    return fixtures
+
+
 @pytest.fixture
 def pressurcooker_test_files():
     """
     Downloads all the subtitles test files and return as list of fixutes dicts.
     """
-    fixtures = []
-    for fixture in TEST_SUBS_FIXTURES:
-        srcfilename = fixture['srcfilename']
-        localpath = os.path.join('tests', 'testcontent', srcfilename)
-        if not os.path.exists(localpath):
-            print(TEST_FILES_URL_BASE + srcfilename)
-            _save_file_url_to_path(TEST_FILES_URL_BASE + srcfilename, localpath)
-            assert os.path.exists(localpath), 'Error mising local test file ' + localpath
-        fixture['localpath'] = localpath
-        fixtures.append(fixture)
-    return fixtures
+    return download_fixture_files(PRESSURECOOKER_SUBS_FIXTURES)
+
+@pytest.fixture
+def youtube_test_file():
+    return download_fixture_files([
+        {
+          'srcfilename': 'testsubtitles_ar.ttml',
+          'subtitlesformat': 'ttml',
+          'language': 'ar',
+          'check_words': 'Mohammed Liyaudheen wafy',
+          'url': 'https://www.youtube.com/api/timedtext?lang=ar&v=C_9f7Qq4YZc&fmt=ttml&name='
+        },
+    ])
 
 
 def test_convertible_substitles_from_pressurcooker(pressurcooker_test_files):
@@ -291,13 +310,10 @@ def test_convertible_substitles_from_pressurcooker(pressurcooker_test_files):
             assert fixture['check_words'] in filecontents, 'missing check_words in converted subs'
 
 
-
-
-# TODO: uncomment when edge case undetected ar fixed
-# def test_convertible_substitles_ar_ttml():
-#     assert os.path.exists("tests/testcontent/testsubtitles_ar.ttml")
-#     subtitle_file =  SubtitleFile("tests/testcontent/testsubtitles_ar.ttml", language='en-US')
-#     filename = subtitle_file.process_file()
-#     assert filename, 'conferted filename must exit'
-#     assert filename.endswith('.vtt'), 'conferted filename must have .vtt extension'
+def test_convertible_substitles_ar_ttml(youtube_test_file):
+    assert os.path.exists("tests/testcontent/testsubtitles_ar.ttml")
+    subtitle_file = SubtitleFile("tests/testcontent/testsubtitles_ar.ttml", language='ar')
+    filename = subtitle_file.process_file()
+    assert filename, 'conferted filename must exit'
+    assert filename.endswith('.vtt'), 'conferted filename must have .vtt extension'
 
