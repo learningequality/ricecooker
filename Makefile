@@ -98,6 +98,7 @@ servedocs: docs ## compile the docs watching for changes
 	watchmedo shell-command -p '*.rst' -c '$(MAKE) -C docs html' -R -D .
 
 release: clean ## package and upload a release
+	pip install twine
 	python setup.py sdist
 	twine upload dist/*
 
