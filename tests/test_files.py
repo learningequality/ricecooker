@@ -224,6 +224,40 @@ def test_youtubesubtitle_to_dict():
 
 """ *********** SUBTITLEFILE TESTS *********** """
 
+def test_convertible_substitles_ar_srt():
+    """
+    Basic check that srt --> vtt conversion works.
+    """
+    assert os.path.exists("tests/testcontent/testsubtitles_ar.srt")
+    subtitle_file = SubtitleFile("tests/testcontent/testsubtitles_ar.srt", language='ar')
+    filename = subtitle_file.process_file()
+    assert filename, 'conferted filename must exit'
+    assert filename.endswith('.vtt'), 'conferted filename must have .vtt extension'
+    storage_path = config.get_storage_path(filename)
+    with open(storage_path) as converted_vtt:
+        filecontents = converted_vtt.read()
+        check_words = 'لناس على'
+        assert check_words in filecontents, 'missing check word in converted subs'
+
+
+@pytest.fixture
+def bad_subtitles_file():
+    if not os.path.exists("tests/testcontent/unconvetible.sub"):
+        with open("tests/testcontent/unconvetible.sub", 'wb') as f:
+            f.write(b'this is a sample subtitle file that we cannot convert..')
+            f.flush()
+    else:
+        f = open("tests/testcontent/unconvetible.sub", 'rb')
+        f.close()
+    return f  # returns a closed file descriptor which we use for name attribute
+
+
+def test_bad_subtitles_raises(bad_subtitles_file):
+    subs_file = SubtitleFile(bad_subtitles_file.name, language='en')
+    pytest.raises(ValueError, subs_file.process_file)
+
+
+
 
 PRESSURECOOKER_REPO_URL = "https://raw.githubusercontent.com/bjester/pressurecooker/"
 PRESSURECOOKER_FILES_URL_BASE = PRESSURECOOKER_REPO_URL + "pycaption/tests/files/subtitles/"
@@ -323,7 +357,7 @@ def test_convertible_substitles_ar_ttml(youtube_test_file):
     assert filename.endswith('.vtt'), 'conferted filename must have .vtt extension'
 
 
-def test_convertible_substitles_noext_subtitlesformat(youtube_test_file):
+def test_convertible_substitles_noext_subtitlesformat():
     """
     Check that we handle correctly cases when path doesn't contain extenstion.
     """
@@ -340,7 +374,7 @@ def test_convertible_substitles_noext_subtitlesformat(youtube_test_file):
     assert filename.endswith('.vtt'), 'conferted filename must have .vtt extension'
 
 
-def test_convertible_substitles_weirdext_subtitlesformat(youtube_test_file):
+def test_convertible_substitles_weirdext_subtitlesformat():
     """
     Check that we handle cases when ext cannot be guessed from URL or localpath.
     Passing `subtitlesformat` allows chef authors to manually specify subs format.
