@@ -10,4 +10,5 @@ Credits
 * David Hu <davidhu@learningequality.org>
 * Kevin Ollivier <kevin@learningequality.org>
 * Alejandro Martinez Romero <mara80@gmail.com>
+* Blaine Jester <blaine@learningequality.org>
 
