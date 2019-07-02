@@ -34,44 +34,44 @@ from ricecooker.classes.nodes import TopicNode, DocumentNode
 from ricecooker.classes.files import DocumentFile
 from ricecooker.classes.licenses import get_license
 
-class SimpleChef(SushiChef):                                                      # (1)
-    channel_info = {                                                              # (2)
+class SimpleChef(SushiChef):                                                 # (1)
+    channel_info = {                                                         # (2)
         'CHANNEL_TITLE': 'Potatoes info channel',
-        'CHANNEL_SOURCE_DOMAIN': 'gov.mb.ca',                                     # change me!!!
-        'CHANNEL_SOURCE_ID': 'website_docs',                                      # change me!!!
+        'CHANNEL_SOURCE_DOMAIN': 'gov.mb.ca',                          # change me!
+        'CHANNEL_SOURCE_ID': 'website_docs',                           # change me!
         'CHANNEL_LANGUAGE': 'en',
         'CHANNEL_THUMBNAIL': 'https://upload.wikimedia.org/wikipedia/commons/b/b7/A_Grande_Batata.jpg',
         'CHANNEL_DESCRIPTION': 'A channel about potatoes.',
     }
 
     def construct_channel(self, **kwargs):
-        channel = self.get_channel(**kwargs)                                      # (3)  
-        potato_topic = TopicNode(title="Potatoes!", source_id="les_patates")      # (4)
-        channel.add_child(potato_topic)                                           # (5)
-        doc_node = DocumentNode(                                                  # (6)
+        channel = self.get_channel(**kwargs)                                 # (3)
+        potato_topic = TopicNode(title="Potatoes!", source_id="patates")     # (4)
+        channel.add_child(potato_topic)                                      # (5)
+        doc_node = DocumentNode(                                             # (6)
             title='Growing potatoes',
             description='An article about growing potatoes on your rooftop.',
             source_id='inr/pdf/pubs/mafri-potatoe.pdf',
             author=None,
-            language='en',                                                        # (7)
-            license=get_license('CC BY', copyright_holder='U. of Alberta'),       # (8)
+            language='en',                                                   # (7)
+            license=get_license('CC BY', copyright_holder='U. of Alberta'),  # (8)
             files=[
-                DocumentFile(                                                     # (9)
-                    path='https://www.gov.mb.ca/inr/pdf/pubs/mafri-potatoe.pdf',  # (10)
-                    language='en',                                                # (11)
-                )
+              DocumentFile(                                                  # (9)
+                path='https://www.gov.mb.ca/inr/pdf/pubs/mafri-potatoe.pdf', # (10)
+                language='en',                                               # (11)
+              )
             ],
         )
         potato_topic.add_child(doc_node)
         return channel
 
-if __name__ == '__main__':                                                        # (12)
+if __name__ == '__main__':                                                   # (12)
     """
     Run this script on the command line using:
         python simple_chef.py -v --reset --token=YOURTOKENHERE9139139f3a23232
     """
     simple_chef = SimpleChef()
-    simple_chef.main()                                                            # (13)
+    simple_chef.main()                                                       # (13)
 
 ```
 
@@ -216,14 +216,18 @@ To add a file to your node, you must start by creating a file object from `ricec
 Your sushi chef is responsible for determining which file object to create.
 Here are the available file models:
 
-  - __AudioFile__: mp3 file
-  - __DocumentFile__: pdf file
-  - __EPubFile__: epub file
-  - __HTMLZipFile__: zip of html files (must have `index.html` file at topmost level)
-  - __VideoFile__: mp4 file (can be high resolution or low resolution)
-  - __WebVideoFile__: video downloaded from site such as YouTube or Vimeo
-  - __YouTubeVideoFile__: video downloaded from YouTube using a youtube video id
-  - __SubtitleFile__: .vtt subtitle files to be used with VideoFiles
+  - __AudioFile__: `.mp3` file
+  - __DocumentFile__: `.pdf` file
+  - __EPubFile__: `.epub` file (used with `DocumentNode`s)
+  - __HTMLZipFile__: `.zip` containing HTML files (must have `index.html` in root)
+  - __VideoFile__: `.mp4` file (can be high resolution or low resolution).
+    The video codec must be `x264` and the audio codec must be `aac`.
+    The formats `.avi`, `.mov`, `.mpg`, `.wmv`, `.webm`, `.mkv`, `.flv`, `.ogv`
+    can be converted to `x264/aac` automatically.
+  - __WebVideoFile__: video downloaded from site such as YouTube or Vimeo.
+  - __YouTubeVideoFile__: video downloaded from YouTube using a youtube video id.
+  - __SubtitleFile__: `.vtt`-format subtitles to be used with `VideoNode`s. The
+    formats `.srt`, `.ttml`, `.scc`, `.dfxp`, and `.sami` are also supported after conversion.
   - __YouTubeSubtitleFile__: subtitles downloaded based on youtube video id and language code
   - __ThumbnailFile__: png or jpg thumbnail files to add to any kind of node
 
@@ -233,10 +237,9 @@ A preset determines what kind of file the object is (e.g. high resolution video 
 A list of available presets can be found at `le_utils.constants.format_presets`.
 
 ThumbnailFiles, AudioFiles, DocumentFiles, HTMLZipFiles, VideoFiles, and SubtitleFiles
-must be initialized with a __path__ (str). This path can be a url or a local path to a file.
+must be initialized with a __path__ (str), which is either a URL or a local path to a file.
 
 To read more about the different nodes, read the [nodes files](./files.md).
-
 
 
 
