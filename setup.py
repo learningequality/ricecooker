@@ -18,7 +18,7 @@ requirements = [
     "requests_file",
     "requests-cache>=0.4.13",
     "beautifulsoup4>=4.6.3",
-    "pressurecooker>=0.0.23",
+    "pressurecooker>=0.0.24",
     "selenium==3.0.1",
     "youtube-dl",
     "html5lib",
