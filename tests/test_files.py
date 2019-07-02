@@ -1,13 +1,14 @@
 """ Tests for file downloading and processing """
 import pytest
 import os.path
-import tempfile
+from shutil import copyfile
 
-from le_utils.constants import content_kinds, languages
 from ricecooker.classes.files import *
 from ricecooker.classes.files import _get_language_with_alpha2_fallback
 from ricecooker.utils.zip import create_predictable_zip
 from ricecooker import config
+
+from test_pdfutils import _save_file_url_to_path
 
 IS_TRAVIS_TESTING = "TRAVIS" in os.environ and os.environ["TRAVIS"] == "true"
 
@@ -219,9 +220,177 @@ def test_youtubesubtitle_to_dict():
     assert True
 
 
-""" *********** SUBTITLEFILE TESTS *********** """
-def test_subtitle_validate():
-    assert True
 
-def test_subtitle_to_dict():
-    assert True
+
+""" *********** SUBTITLEFILE TESTS *********** """
+
+def test_convertible_substitles_ar_srt():
+    """
+    Basic check that srt --> vtt conversion works.
+    """
+    assert os.path.exists("tests/testcontent/testsubtitles_ar.srt")
+    subtitle_file = SubtitleFile("tests/testcontent/testsubtitles_ar.srt", language='ar')
+    filename = subtitle_file.process_file()
+    assert filename, 'conferted filename must exit'
+    assert filename.endswith('.vtt'), 'conferted filename must have .vtt extension'
+    storage_path = config.get_storage_path(filename)
+    with open(storage_path) as converted_vtt:
+        filecontents = converted_vtt.read()
+        check_words = 'لناس على'
+        assert check_words in filecontents, 'missing check word in converted subs'
+
+
+@pytest.fixture
+def bad_subtitles_file():
+    if not os.path.exists("tests/testcontent/unconvetible.sub"):
+        with open("tests/testcontent/unconvetible.sub", 'wb') as f:
+            f.write(b'this is a sample subtitle file that we cannot convert..')
+            f.flush()
+    else:
+        f = open("tests/testcontent/unconvetible.sub", 'rb')
+        f.close()
+    return f  # returns a closed file descriptor which we use for name attribute
+
+
+def test_bad_subtitles_raises(bad_subtitles_file):
+    subs_file = SubtitleFile(bad_subtitles_file.name, language='en')
+    pytest.raises(ValueError, subs_file.process_file)
+
+
+
+
+PRESSURECOOKER_REPO_URL = "https://raw.githubusercontent.com/bjester/pressurecooker/"
+PRESSURECOOKER_FILES_URL_BASE = PRESSURECOOKER_REPO_URL + "pycaption/tests/files/subtitles/"
+PRESSURECOOKER_SUBS_FIXTURES = [
+    {
+      'srcfilename': 'basic.srt',
+      'subtitlesformat': 'srt',
+      'language': languages.getlang('ar'),
+      'check_words': 'البعض أكثر'
+    },
+    {
+      'srcfilename': 'encapsulated.sami',
+      'subtitlesformat': 'sami',
+      'language': 'en',
+      'check_words': 'we have this vision of Einstein',
+    },
+    {
+      'srcfilename': 'basic.vtt',
+      'subtitlesformat': 'vtt',
+      'language': 'ar',
+      'check_words': 'البعض أكثر'
+    },
+    {
+      'srcfilename': 'encapsulated.vtt',
+      'subtitlesformat': 'vtt',
+      'language': 'en',
+      'check_words': 'we have this vision of Einstein'
+    },
+]
+
+
+def download_fixture_files(fixtures_list):
+    """
+    Downloads all the subtitles test files and return as list of fixutes dicts.
+    """
+    fixtures = []
+    for fixture in fixtures_list:
+        srcfilename = fixture['srcfilename']
+        localpath = os.path.join('tests', 'testcontent', srcfilename)
+        if not os.path.exists(localpath):
+            url = fixture['url'] if 'url' in fixture.keys() \
+                else PRESSURECOOKER_FILES_URL_BASE + srcfilename
+            print(url)
+            _save_file_url_to_path(url, localpath)
+            assert os.path.exists(localpath), 'Error mising local test file ' + localpath
+        fixture['localpath'] = localpath
+        fixtures.append(fixture)
+    return fixtures
+
+
+@pytest.fixture
+def pressurcooker_test_files():
+    """
+    Downloads all the subtitles test files and return as list of fixutes dicts.
+    """
+    return download_fixture_files(PRESSURECOOKER_SUBS_FIXTURES)
+
+@pytest.fixture
+def youtube_test_file():
+    return download_fixture_files([
+        {
+          'srcfilename': 'testsubtitles_ar.ttml',
+          'subtitlesformat': 'ttml',
+          'language': 'ar',
+          'check_words': 'Mohammed Liyaudheen wafy',
+          'url': 'https://www.youtube.com/api/timedtext?lang=ar&v=C_9f7Qq4YZc&fmt=ttml&name='
+        },
+    ])
+
+
+def test_convertible_substitles_from_pressurcooker(pressurcooker_test_files):
+    """
+    Try to load all the test files used in pressurecooker as riceccooker `SubtitleFile`s.
+    All subs have the appropriate extension so no need to specify `subtitlesformat`.
+    """
+    for fixture in pressurcooker_test_files:
+        localpath = fixture['localpath']
+        assert os.path.exists(localpath), 'Error mising local test file ' + localpath
+        subtitle_file =  SubtitleFile(localpath, language=fixture['language'])
+        filename = subtitle_file.process_file()
+        assert filename, 'conferted filename must exit'
+        assert filename.endswith('.vtt'), 'conferted filename must have .vtt extension'
+        storage_path = config.get_storage_path(filename)
+        with open(storage_path) as converted_vtt:
+            filecontents = converted_vtt.read()
+            assert fixture['check_words'] in filecontents, 'missing check_words in converted subs'
+
+
+def test_convertible_substitles_ar_ttml(youtube_test_file):
+    """
+    Regression test to make sure correct lang_code is detected from .ttml data.
+    """
+    assert os.path.exists("tests/testcontent/testsubtitles_ar.ttml")
+    subtitle_file = SubtitleFile("tests/testcontent/testsubtitles_ar.ttml", language='ar')
+    filename = subtitle_file.process_file()
+    assert filename, 'conferted filename must exit'
+    assert filename.endswith('.vtt'), 'conferted filename must have .vtt extension'
+
+
+def test_convertible_substitles_noext_subtitlesformat():
+    """
+    Check that we handle correctly cases when path doesn't contain extenstion.
+    """
+    assert os.path.exists("tests/testcontent/testsubtitles_ar.ttml")
+    copyfile("tests/testcontent/testsubtitles_ar.ttml", "tests/testcontent/testsubtitles_ar")
+    assert os.path.exists("tests/testcontent/testsubtitles_ar")
+    subtitle_file = SubtitleFile(
+        "tests/testcontent/testsubtitles_ar",
+        language='ar',
+        subtitlesformat='ttml'          # settting subtitlesformat becaue no ext
+    )
+    filename = subtitle_file.process_file()
+    assert filename, 'conferted filename must exit'
+    assert filename.endswith('.vtt'), 'conferted filename must have .vtt extension'
+
+
+def test_convertible_substitles_weirdext_subtitlesformat():
+    """
+    Check that we handle cases when ext cannot be guessed from URL or localpath.
+    Passing `subtitlesformat` allows chef authors to manually specify subs format.
+    """
+    subs_url = 'https://commons.wikimedia.org/w/api.php?' \
+        + 'action=timedtext&title=File%3AA_Is_for_Atom_1953.webm&lang=es&trackformat=srt'
+    subtitle_file = SubtitleFile(
+        subs_url,
+        language='es',
+        subtitlesformat='srt'  # set subtitlesformat when can't inferr ext form url
+    )
+    filename = subtitle_file.process_file()
+    assert filename, 'conferted filename must exit'
+    assert filename.endswith('.vtt'), 'conferted filename must have .vtt extension'
+    storage_path = config.get_storage_path(filename)
+    with open(storage_path) as converted_vtt:
+        filecontents = converted_vtt.read()
+        assert 'El total de los protones y neutrones de un átomo' in filecontents, \
+            'missing check words in converted subs'

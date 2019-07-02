@@ -2,22 +2,20 @@
 from __future__ import unicode_literals
 
 import hashlib
-import json
 import os
 import shutil
 import tempfile
 import zipfile
 from subprocess import CalledProcessError
 import youtube_dl
-from le_utils.constants import content_kinds,file_formats, format_presets, exercises, languages
-from .. import config
-from ..exceptions import UnknownFileTypeError
+from le_utils.constants import languages
 from cachecontrol.caches.file_cache import FileCache
 from le_utils.constants import file_formats, format_presets, exercises
 from pressurecooker.encodings import get_base64_encoding, write_base64_to_file
 from pressurecooker.images import create_tiled_image
 from pressurecooker.videos import extract_thumbnail_from_video, guess_video_preset_by_resolution, compress_video, VideoCompressionError
-from pressurecooker.converters import srt2vtt
+from pressurecooker.subtitles import build_subtitle_converter_from_file
+from pressurecooker.subtitles import LANGUAGE_CODE_UNKNOWN, InvalidSubtitleLanguageError
 from requests.exceptions import MissingSchema, HTTPError, ConnectionError, InvalidURL, InvalidSchema
 
 from .. import config
@@ -60,6 +58,7 @@ def generate_key(action, path_or_id, settings=None, default=" (default)"):
     settings = " {}".format(str(sorted(settings.items()))) if settings else default
     return "{}: {}{}".format(action.upper(), path_or_id, settings)
 
+
 def download(path, default_ext=None):
     """ download: downloads file
         Args: None
@@ -91,6 +90,7 @@ def download(path, default_ext=None):
         FILECACHE.set(key, bytes(filename, "utf-8"))
 
         return filename
+
 
 def download_and_convert_video(path, default_ext=file_formats.MP4, ffmpeg_settings=None):
     """ download: downloads file
@@ -202,6 +202,7 @@ def compress_video_file(filename, ffmpeg_settings):
     FILECACHE.set(key, bytes(filename, "utf-8"))
     return filename
 
+
 def download_from_web(web_url, download_settings, file_format=file_formats.MP4, ext="", download_ext=""):
     key = generate_key("DOWNLOADED", web_url, settings=download_settings)
     if not config.UPDATE and FILECACHE.get(key):
@@ -311,7 +312,6 @@ class File(object):
         pass
 
 
-
 class DownloadFile(File):
     allowed_formats = []
 
@@ -345,6 +345,7 @@ class DownloadFile(File):
     def __str__(self):
         return self.path
 
+
 class SlideImageFile(DownloadFile):
     default_ext = file_formats.PNG
     allowed_formats = [file_formats.JPG, file_formats.JPEG, file_formats.PNG]
@@ -358,6 +359,7 @@ class SlideImageFile(DownloadFile):
 
     def get_preset(self):
         return format_presets.SLIDESHOW_IMAGE
+
 
 class ThumbnailFile(ThumbnailPresetMixin, DownloadFile):
     default_ext = file_formats.PNG
@@ -414,6 +416,7 @@ class HTMLZipFile(DownloadFile):
     def validate(self):
         super(HTMLZipFile, self).validate()
 
+
 class ExtractedVideoThumbnailFile(ThumbnailFile):
 
     def process_file(self):
@@ -436,6 +439,7 @@ class ExtractedVideoThumbnailFile(ThumbnailFile):
         os.unlink(tempf.name)
         FILECACHE.set(key, bytes(filename, "utf-8"))
         return filename
+
 
 class VideoFile(DownloadFile):
     default_ext = file_formats.MP4
@@ -492,6 +496,7 @@ class VideoFile(DownloadFile):
             self.error = err
             config.FAILED_FILES.append(self)
 
+
 class WebVideoFile(File):
     is_primary = True
     # In future, look into postprocessors and progress_hooks
@@ -523,11 +528,10 @@ class WebVideoFile(File):
             self.error = str(err)
             config.FAILED_FILES.append(self)
 
+
 class YouTubeVideoFile(WebVideoFile):
     def __init__(self, youtube_id, **kwargs):
         super(YouTubeVideoFile, self).__init__('http://www.youtube.com/watch?v={}'.format(youtube_id), **kwargs)
-
-
 
 
 def _get_language_with_alpha2_fallback(language_code):
@@ -545,6 +549,7 @@ def _get_language_with_alpha2_fallback(language_code):
         language_obj = languages.getlang_by_alpha2(language_code)
     return language_obj
 
+
 def is_youtube_subtitle_file_supported_language(language):
     """
     Check if the language code `language` (string) is a valid language code in the
@@ -558,6 +563,7 @@ def is_youtube_subtitle_file_supported_language(language):
         return False
     else:
         return True
+
 
 class YouTubeSubtitleFile(File):
     """
@@ -602,12 +608,15 @@ class YouTubeSubtitleFile(File):
         download_ext = ".{lang}.{ext}".format(lang=self.youtube_language, ext=file_formats.VTT)
         return download_from_web(self.youtube_url, settings, file_format=file_formats.VTT, download_ext=download_ext)
 
+
 class SubtitleFile(DownloadFile):
     default_ext = file_formats.VTT
-    allowed_formats = [file_formats.VTT]
 
     def __init__(self, path, **kwargs):
-        self.subtitlesformat = kwargs.get('subtitlesformat', self.default_ext)
+        """
+        If `subtitlesformat` arg is empty, then type will be detected and converted if supported
+        """
+        self.subtitlesformat = kwargs.get('subtitlesformat', None)
         if "subtitlesformat" in kwargs:
             del kwargs["subtitlesformat"]
         super(SubtitleFile, self).__init__(path, **kwargs)
@@ -618,17 +627,18 @@ class SubtitleFile(DownloadFile):
 
     def validate(self):
         """
-        Ensure `self.path` has one of the extensions in `self.allowed_formats`.
+        Ensure `self.path` has VTT extention OR one of the converible extensions
+        in CONVERTIBLE_FORMATS["video_subtitle"] OR otherwise subtiles' format
+        info is specified in `self.subtitlesformat`.
         """
         assert self.path, "{} must have a path".format(self.__class__.__name__)
         ext = extract_path_ext(self.path, default_ext=self.subtitlesformat)
-        if ext not in self.allowed_formats and ext not in CONVERTIBLE_FORMATS[self.get_preset()]:
+        convertible_exts = CONVERTIBLE_FORMATS[self.get_preset()]
+        if ext != self.default_ext and ext not in convertible_exts and self.subtitlesformat is None:
             raise ValueError('Incompatible extension {} for SubtitleFile at {}'.format(ext, self.path))
 
     def process_file(self):
-        ext = extract_path_ext(self.path, default_ext=self.subtitlesformat)
-        if ext not in self.allowed_formats and ext not in CONVERTIBLE_FORMATS[self.get_preset()]:
-            raise ValueError('Incompatible extension {} for SubtitleFile at {}'.format(ext, self.path))
+        self.validate()
         try:
             self.filename = self.download_and_transform_file(self.path)
             config.LOGGER.info("\t--- Downloaded {}".format(self.filename))
@@ -640,7 +650,7 @@ class SubtitleFile(DownloadFile):
 
     def download_and_transform_file(self, path):
         """
-        Downlaod subtitles file at `path` and transform it to `.vtt` if necessary.
+        Download subtitles file at `path` and transform it to `.vtt` if necessary.
         Args: path (URL or local path)
         Returns: filename of final .vtt file
         """
@@ -650,35 +660,43 @@ class SubtitleFile(DownloadFile):
 
         config.LOGGER.info("\tDownloading {}".format(path))
 
-        # Write file to temporary file
-        if self.subtitlesformat == file_formats.VTT:
-            with tempfile.TemporaryFile() as tempf:
-                hash = write_and_get_hash(path, tempf)
-                tempf.seek(0)
+        with tempfile.NamedTemporaryFile() as temp_in_file,\
+                tempfile.NamedTemporaryFile() as temp_out_file:
+            write_and_get_hash(path, temp_in_file)
+            temp_in_file.seek(0)
 
-                # Get extension of file or default if none found
-                filename = '{0}.{ext}'.format(hash.hexdigest(), ext=self.default_ext)
-                copy_file_to_storage(filename, tempf)
-                FILECACHE.set(key, bytes(filename, "utf-8"))
-        elif self.subtitlesformat == file_formats.SRT:
-            with tempfile.NamedTemporaryFile() as tempf_srt,\
-                tempfile.NamedTemporaryFile() as tempf_vtt:
-                hash_srt = write_and_get_hash(path, tempf_srt)
-                tempf_srt.seek(0)
-                filename_tmp_vtt = os.path.join(
-                    "/tmp", '{0}.{ext}'.format(hash_srt.hexdigest(), ext=self.default_ext))
-                error_msg = srt2vtt(tempf_srt.name, filename_tmp_vtt)
+            converter = build_subtitle_converter_from_file(temp_in_file.name, self.subtitlesformat)
 
-                hash = write_and_get_hash(filename_tmp_vtt, tempf_vtt)
-                tempf_vtt.seek(0)
+            # We'll assume the provided file is in the passed language in this case
+            if len(converter.get_language_codes()) == 1 \
+                    and converter.has_language(LANGUAGE_CODE_UNKNOWN):
+                converter.replace_unknown_language(self.language)
 
-                filename = '{0}.{ext}'.format(hash.hexdigest(), ext=self.default_ext)
-                copy_file_to_storage(filename, tempf_vtt.name)
-                if error_msg is not None:
-                    config.LOGGER.error(" An Error found in " + path)
-                    config.LOGGER.error(error_msg)
+            convert_lang_code = self.language
+
+            # Language is not present, let's try different codes
+            if not converter.has_language(self.language):
+                for lang_code in converter.get_language_codes():
+                    language = languages.getlang_by_alpha2(lang_code)
+
+                    if language and language.code == self.language:
+                        convert_lang_code = lang_code
+                        break
                 else:
-                    FILECACHE.set(key, bytes(filename, "utf-8"))
+                    raise InvalidSubtitleLanguageError(
+                        "Missing language '{}' in subtitle file".format(self.language))
+
+            converter.write(temp_out_file.name, convert_lang_code)
+
+            temp_out_file.seek(0)
+            file_hash = get_hash(temp_out_file.name)
+
+            filename = '{0}.{ext}'.format(file_hash, ext=file_formats.VTT)
+
+            temp_out_file.seek(0)
+            copy_file_to_storage(filename, temp_out_file)
+            FILECACHE.set(key, bytes(filename, "utf-8"))
+
         return filename
 
 
@@ -721,6 +739,7 @@ class Base64ImageFile(ThumbnailPresetMixin, File):
         FILECACHE.set(key, bytes(filename, "utf-8"))
         return filename
 
+
 class _ExerciseBase64ImageFile(Base64ImageFile):
     default_ext = file_formats.PNG
 
@@ -730,6 +749,7 @@ class _ExerciseBase64ImageFile(Base64ImageFile):
     def get_replacement_str(self):
         return self.get_filename() or self.encoding
 
+
 class _ExerciseImageFile(DownloadFile):
     default_ext = file_formats.PNG
 
@@ -738,6 +758,7 @@ class _ExerciseImageFile(DownloadFile):
 
     def get_preset(self):
         return self.preset or format_presets.EXERCISE_IMAGE
+
 
 class _ExerciseGraphieFile(DownloadFile):
     default_ext = file_formats.GRAPHIE

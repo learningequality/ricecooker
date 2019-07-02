@@ -10,6 +10,7 @@ This directory contains examples of sushi chef scripts that use the `ricecooker`
     two Wikipedia categories
   - `large_wikipedia_chef.py` a chef that builds a large chef and takes a long
     time to run (used for performance optimizations).
+  - `wikipedia_video_chef.py` a chef that downloads a video along with subtitles.
 
 To run each of these, you'll need to edit the `SOURCE_DOMAIN` and `SOURCE_ID`
 in each chef script and then call them on the command line:
