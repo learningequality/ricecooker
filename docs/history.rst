@@ -2,6 +2,11 @@
 History
 =======
 
+0.6.31 (2019-07-01)
+-------------------
+* Handle more subtitle convertible formats: ``SRT``, ``TTML``, ``SCC``, ``DFXP``, and ``SAMI``
+
+
 0.6.30 (2019-05-01)
 -------------------
 * Updated docs build scripts to make ricecooker docs available on read the docs

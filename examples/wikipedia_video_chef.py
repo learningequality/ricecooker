@@ -51,12 +51,10 @@ def get_parsed_html_from_url(url, *args, **kwargs):
     return BeautifulSoup(html, "html.parser")
 
 
-class WikipediaSubtitleFile(SubtitleFile):
-    def validate(self):
-        pass
-
-
 class WikipediaVideoChef(SushiChef):
+    """
+    Creates a sample Kolibri channel with a video node and subs in two languages.
+    """
 
     def get_channel(self, *args, **kwargs):
 
@@ -93,7 +91,8 @@ class WikipediaVideoChef(SushiChef):
             'es',
         ]
         for lang in subtitle_languages:
-            video_node.add_file(WikipediaSubtitleFile(path=subtitle_url.format(lang), language=lang))
+            subtitle_file = SubtitleFile(path=subtitle_url.format(lang), language=lang, subtitlesformat='srt')
+            video_node.add_file(subtitle_file)
 
         videos_topic.add_child(video_node)
 
@@ -148,3 +147,16 @@ if __name__ == '__main__':
     """
     wikichef = WikipediaVideoChef()
     wikichef.main()
+
+
+# Run the chef using
+#   ./wikipedia_video_chef.py  -v --reset --thumbnails --token=<yourstudiotoken>
+# and you should see something like:
+#
+#    Downloading https://commons.wikimedia.org/w/api.php?action=timedtext&title=File%3AA_Is_for_Atom_1953.webm&lang=en&trackformat=srt
+#    --- Downloaded 196d262476187581c3253c126cfdd394.vtt
+#    Downloading https://commons.wikimedia.org/w/api.php?action=timedtext&title=File%3AA_Is_for_Atom_1953.webm&lang=es&trackformat=srt
+#    --- Downloaded 014ae576fc74b7fb9d0da0b0a747f9d7.vtt
+#
+# which indicates the two .srt files were successfully downloaded form the
+# weird-looking URLs and automatically converted to VTT format.

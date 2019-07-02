@@ -627,16 +627,18 @@ class SubtitleFile(DownloadFile):
 
     def validate(self):
         """
-        Ensure `self.path` has one of the extensions in `self.allowed_formats`.
+        Ensure `self.path` has VTT extention OR one of the converible extensions
+        in CONVERTIBLE_FORMATS["video_subtitle"] OR otherwise subtiles' format
+        info is specified in `self.subtitlesformat`.
         """
         assert self.path, "{} must have a path".format(self.__class__.__name__)
         ext = extract_path_ext(self.path, default_ext=self.subtitlesformat)
-        if ext != self.default_ext and ext not in CONVERTIBLE_FORMATS[self.get_preset()]:
+        convertible_exts = CONVERTIBLE_FORMATS[self.get_preset()]
+        if ext != self.default_ext and ext not in convertible_exts and self.subtitlesformat is None:
             raise ValueError('Incompatible extension {} for SubtitleFile at {}'.format(ext, self.path))
 
     def process_file(self):
         self.validate()
-
         try:
             self.filename = self.download_and_transform_file(self.path)
             config.LOGGER.info("\t--- Downloaded {}".format(self.filename))

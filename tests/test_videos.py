@@ -5,7 +5,6 @@ import re
 import requests
 import shutil
 import subprocess
-import tempfile
 
 IS_TRAVIS_TESTING = "TRAVIS" in os.environ and os.environ["TRAVIS"] == "true"
 
@@ -13,7 +12,7 @@ from le_utils.constants import format_presets
 from pressurecooker import videos
 
 from ricecooker import config
-from ricecooker.classes.files import SubtitleFile, VideoFile
+from ricecooker.classes.files import VideoFile
 
 from cachecontrol.caches.file_cache import FileCache
 from ricecooker.classes.files import FILECACHE
@@ -95,46 +94,6 @@ def make_video_file(video_file_file, language='en'):
     return VideoFile(video_file_file.name, language=language)
 
 
-@pytest.fixture
-def srt_subtitles_file():
-    if not os.path.exists("tests/testcontent/original.srt"):
-        with open("tests/testcontent/original.srt", 'wb') as f:
-            resp = requests.get(
-                'https://raw.githubusercontent.com/learningequality/'
-                'pressurecooker/master/tests/files/original.srt',
-                stream=True
-            )
-            for chunk in resp.iter_content(chunk_size=1048576):
-                f.write(chunk)
-            f.flush()
-    else:
-        f = open("tests/testcontent/original.srt", 'rb')
-        f.close()
-    return f  # returns a closed file descriptor which we use for name attribute
-
-@pytest.fixture
-def srt_subtitles_file_strings():
-    return ['مضيت', 'يصالكم', 'يمكنك', 'كيف،']
-
-
-@pytest.fixture
-def bad_subtitles_file():
-    if not os.path.exists("tests/testcontent/unconvetible.sub"):
-        with open("tests/testcontent/unconvetible.sub", 'wb') as f:
-            f.write(b'this is a sample subtitle file that we cannot convert..')
-            f.flush()
-    else:
-        f = open("tests/testcontent/unconvetible.sub", 'rb')
-        f.close()
-    return f  # returns a closed file descriptor which we use for name attribute
-
-
-def make_subtitles_file(subtitles_file_file, language='en'):
-    """
-    Creates a VideoFile object with path taken from `video_file_file.name`.
-    """
-    return SubtitleFile(subtitles_file_file.name, language=language)
-
 
 
 """ *********** TEST BASIC VIDEO PROCESSING  *********** """
@@ -205,13 +164,13 @@ class Test_video_compression(object):
         assert video_file.get_preset() == format_presets.VIDEO_LOW_RES, 'Should have low res preset'
 
 
-    def test_compression_works(self, high_res_video):
+    def test_compression_max_width_works(self, high_res_video):
         video_file = make_video_file(high_res_video)
-        video_file.ffmpeg_settings = {'crf': 33, 'max_height': 300}
+        video_file.ffmpeg_settings = {'crf': 33, 'max_width': 200}
         video_filename = video_file.process_file()
         video_path = config.get_storage_path(video_filename)
         width, height = get_resolution(video_path)
-        assert height == 300, 'should be compress to 300 v resolution'
+        assert width == 200, 'should be compress to 200 hz resolution'
         assert video_file.get_preset() == format_presets.VIDEO_LOW_RES, 'Should have low res preset'
 
 
@@ -256,31 +215,6 @@ class Test_video_conversion(object):
 
 
 
-""" *********** TEST SUBTITLES CONVERSION  *********** """
-
-class Test_subtitles_conversion(object):
-
-    def setup_method(self):
-        _clear_ricecookerfilecache()
-
-    def test_srt2vtt_works(self, srt_subtitles_file, srt_subtitles_file_strings):
-        subs_file = make_subtitles_file(srt_subtitles_file)
-        converted_subs_filename = subs_file.process_file()
-        subs_path = config.get_storage_path(converted_subs_filename)
-        assert os.path.exists(subs_path), 'no converted file found'
-        _, dotext = os.path.splitext(subs_path)
-        assert dotext == '.vtt', 'wrong extension of converted file'
-        with open(subs_path, 'r') as converted_file:
-            converted_contents = converted_file.read()
-            for string in srt_subtitles_file_strings:
-                assert string in converted_contents
-
-    def test_bad_subtitles_raises(self, bad_subtitles_file):
-        subs_file = make_subtitles_file(bad_subtitles_file)
-        pytest.raises(ValueError, subs_file.process_file)
-
-
-
 
 """ HELPER METHODS """
 
@@ -299,3 +233,6 @@ def _clear_ricecookerfilecache():
                     shutil.rmtree(file_path)
             except Exception as e:
                 print(e)
+
+""" *********** TEST SUBTITLES CONVERSION  *********** """
+# see section SUBTITLEFILE TESTS in test_files.py
