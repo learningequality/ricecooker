@@ -1,6 +1,7 @@
 """ Tests for file downloading and processing """
 import pytest
 import os.path
+from shutil import copyfile
 
 from ricecooker.classes.files import *
 from ricecooker.classes.files import _get_language_with_alpha2_fallback
@@ -312,9 +313,50 @@ def test_convertible_substitles_from_pressurcooker(pressurcooker_test_files):
 
 
 def test_convertible_substitles_ar_ttml(youtube_test_file):
+    """
+    Regression test to make sure correct lang_code is detected from .ttml data.
+    """
     assert os.path.exists("tests/testcontent/testsubtitles_ar.ttml")
     subtitle_file = SubtitleFile("tests/testcontent/testsubtitles_ar.ttml", language='ar')
     filename = subtitle_file.process_file()
     assert filename, 'conferted filename must exit'
     assert filename.endswith('.vtt'), 'conferted filename must have .vtt extension'
 
+
+def test_convertible_substitles_noext_subtitlesformat(youtube_test_file):
+    """
+    Check that we handle correctly cases when path doesn't contain extenstion.
+    """
+    assert os.path.exists("tests/testcontent/testsubtitles_ar.ttml")
+    copyfile("tests/testcontent/testsubtitles_ar.ttml", "tests/testcontent/testsubtitles_ar")
+    assert os.path.exists("tests/testcontent/testsubtitles_ar")
+    subtitle_file = SubtitleFile(
+        "tests/testcontent/testsubtitles_ar",
+        language='ar',
+        subtitlesformat='ttml'          # settting subtitlesformat becaue no ext
+    )
+    filename = subtitle_file.process_file()
+    assert filename, 'conferted filename must exit'
+    assert filename.endswith('.vtt'), 'conferted filename must have .vtt extension'
+
+
+def test_convertible_substitles_weirdext_subtitlesformat(youtube_test_file):
+    """
+    Check that we handle cases when ext cannot be guessed from URL or localpath.
+    Passing `subtitlesformat` allows chef authors to manually specify subs format.
+    """
+    subs_url = 'https://commons.wikimedia.org/w/api.php?' \
+        + 'action=timedtext&title=File%3AA_Is_for_Atom_1953.webm&lang=es&trackformat=srt'
+    subtitle_file = SubtitleFile(
+        subs_url,
+        language='es',
+        subtitlesformat='srt'  # set subtitlesformat when can't inferr ext form url
+    )
+    filename = subtitle_file.process_file()
+    assert filename, 'conferted filename must exit'
+    assert filename.endswith('.vtt'), 'conferted filename must have .vtt extension'
+    storage_path = config.get_storage_path(filename)
+    with open(storage_path) as converted_vtt:
+        filecontents = converted_vtt.read()
+        assert 'El total de los protones y neutrones de un átomo' in filecontents, \
+            'missing check words in converted subs'
