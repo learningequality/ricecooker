@@ -1,5 +1,5 @@
-Tutorial
-========
+Ricecooker tutorial
+===================
 
 .. toctree::
    :maxdepth: 1

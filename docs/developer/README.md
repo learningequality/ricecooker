@@ -4,10 +4,8 @@ Notes for ricecooker library developers
 Supported Python Versions for Chefs
 ------------------------------------
 
-All chefs written need to support either **Python 3.4 or 3.5**.
+All chefs written need to support **Python 3.5** or higher.
 
-If you need a module or need to use syntax that is only available in
-newer Python versions, please get in touch.
 
 Computed identifiers
 --------------------

@@ -38,28 +38,28 @@ downloading of each of the tools then adding some of them to the `Path` variable
 1. Download and install Git Bash from [https://git-scm.com/downloads](https://git-scm.com/downloads).
    During the installation, choose the "add shortcut to Desktop."
    You must use the "Git Bash" command prompt to have access to `git` and other
-   command line tools.  
-   *Checklist*: open "Git Bash" and try typing in `git -h` and `ssh -h` to verify the
-   commands `git` and `ssh` are available.
+   command line tools.
+     - **Checklist**: open "Git Bash" and try typing in `git -h` and `ssh -h` to verify the
+       commands `git` and `ssh` are available.
 2. Download Python from [https://www.python.org/downloads/windows/](https://www.python.org/downloads/windows/).
    Look under the Python 3.7.x heading and choose the "Windows x86-64 executable installer"
    option which will download.
-   During the installation, make sure to check the box "Add Python 3.7 to path".  
-   **Checklist**: after installation, open a new Git Bash terminal and type in
-   `python --version` and `pip --version` to make sure the commands are available.
+   During the installation, make sure to check the box "Add Python 3.7 to path".
+     - **Checklist**: after installation, open a new Git Bash terminal and type in
+       `python --version` and `pip --version` to make sure the commands are available.
 3. Download `ffmpeg` from [https://ffmpeg.zeranoe.com/builds/](https://ffmpeg.zeranoe.com/builds/).
    Choose static option then click `Download Build` to download the zip archive.
    Extract the zip file to a permanent location where you will store your code,
    like `C:\Users\User\Projects` for example. Next, you must add the `bin` folder
    that contains `ffmpeg` (e.g. `C:\Users\User\Projects\ffmpeg-4.1.4-win64-static\bin`)
-   as a user Path variable following [these instructions](https://www.computerhope.com/issues/ch000549.htm).  
-   **Checklist**: Open a new Git Bash terminal and type in `ffmpeg -h` and `ffprobe -h`
-   to verify the commands `ffmpeg` and `ffprobe` are available on your Path.
+   as a user Path variable following [these instructions](https://www.computerhope.com/issues/ch000549.htm).
+     - **Checklist**: Open a new Git Bash terminal and type in `ffmpeg -h` and `ffprobe -h`
+       to verify the commands `ffmpeg` and `ffprobe` are available on your Path.
 4. Download the ImageMagic version 6 from [https://imagemagick.org/download/binaries/](https://imagemagick.org/download/binaries/)
    Choose the latest 6.x version that contains `-Q16-x86-static` in its name,
-   like [https://imagemagick.org/download/binaries/ImageMagick-6.9.10-58-Q16-x86-static.exe](https://imagemagick.org/download/binaries/ImageMagick-6.9.10-58-Q16-x86-static.exe).  
-   **Checklist**: after installation completes, open a Git Bash terminal and type
-   in `convert -h` to make sure the command `convert` is available.
+   like [https://imagemagick.org/download/binaries/ImageMagick-6.9.10-58-Q16-x86-static.exe](https://imagemagick.org/download/binaries/ImageMagick-6.9.10-58-Q16-x86-static.exe).
+     - **Checklist**: after installation completes, open a Git Bash terminal and type
+       in `convert -h` to make sure the command `convert` is available.
 
 At this point you will have a working Python installation on your system, and
 all the software tools necessary to write and run `ricecooker` scripts.
@@ -108,7 +108,7 @@ the section **Software prerequisites** would be helpful to include when filing t
 
 For `ricecooker` developers
 ---------------------------
-The code for the `ricecooker` lives [on github](https://github.com/learningequality/ricecooker).
+The code for the `ricecooker` library [lives on github](https://github.com/learningequality/ricecooker).
 You can clone this repo using this command:
 
     git clone git://github.com/learningequality/ricecooker

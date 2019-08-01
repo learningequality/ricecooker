@@ -1,8 +1,7 @@
-Ricecooker Python API
-=====================
+ricecooker
+==========
 
 .. toctree::
    :maxdepth: 4
 
    ricecooker
-   utils
