@@ -10,6 +10,7 @@ Developers who are new to the ``ricecooker`` library can get started here.
    :maxdepth: 2
 
    README <README>
+   installation
    usage
 
 

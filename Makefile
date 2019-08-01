@@ -80,7 +80,7 @@ docs: ## generate Sphinx HTML documentation, including API docs
 	$(BROWSER) docs/build/html/index.html
 
 latexdocs: ## generate Sphinx HTML documentation, including API docs
-	pip install sphinx recommonmark nbsphinx ipython
+	pip install "sphinx<2" recommonmark nbsphinx ipython
 	pandoc -f gfm README.md -t rst -o docs/README.rst
 	sed -i '' 's/docs\///g' docs/README.rst
 	sed -i '' 's/\.md//g' docs/README.rst
