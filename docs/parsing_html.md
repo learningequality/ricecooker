@@ -1,30 +1,71 @@
 Parsing HTML using `BeautifulSoup`
 ==================================
-
-Basic code to GET the HTML source of a webapge and parse it:
-
-    import requests
-    from bs4 import BeautifulSoup
-
-    url = 'https://somesite.edu'
-    html = requests.get(url).content
-    doc = BeautifulSoup(html, "html.parser")
+BeautifulSoup is an HTML parsing library that allows to select various DOM elements,
+and extract their attributes and text contents.
 
 
-Basic API uses `find` and `find_all`:
+The basic code to GET the HTML source of a webpage and parse it:
 
-    special_ul = doc.find('ul', class_='some-special-class')
-    section_lis = special_ul.find_all('li', recursive=False)  # search only immediate children
-    for section_li in section_lis:
-        print('processing a section <li> right now...')
-        print(section_li.prettify())  # useful seeing HTML in when developing...
+```python
+import requests
+from bs4 import BeautifulSoup
 
+url = 'https://somesite.edu'
+html = requests.get(url).content
+doc = BeautifulSoup(html, "html5lib")
+```
+
+You can now call `doc.find` and `doc.find_all` methods to select various DOM elements:
+
+```python
+special_ul = doc.find('ul', class_='some-special-class')
+section_lis = special_ul.find_all('li', recursive=False)  # search only immediate children
+for section_li in section_lis:
+    print('processing a section <li> right now...')
+    print(section_li.prettify())  # useful seeing HTML in when developing...
+```
+
+
+The most commonly used parts of the BeautifulSoup API are:
+  - `.find(tag_name,  <spec>)`: find the next occurrence of the tag `tag_name` that
+     has attributes specified in `<spec>` (given as a dictionary), or can use the
+     shortcut options `id` and `class_` (note extra underscore).
+  - `.find_all(tag_name, <spec>)`: same as above but returns a list of all matching
+     elements. Use the optional keyword argument `recursive=False` to select only
+     immediate child nodes (instead of including children of children, etc.).
+  - `.next_sibling`: find the next element (for badly formatted pages with no useful selectors)
+  - `.get_text()` extracts the text contents of the node. See also helper method
+    called `get_text` that performs additional cleanup of newlines and spaces.
+  - `.extract()`: to extract an element from the DOM tree
+  - `.decompose()`: useful to remove any unwanted DOM elements
+    (same as `.extract()` but throws away the extracted element)
+
+
+
+#### Example
+Here is some sample code for getting the text of the LE mission statement:
+
+```python
+from bs4 import BeautifulSoup
+from ricecooker.utils.downloader import read
+
+url = 'https://learningequality.org/'
+html = read(url)
+doc = BeautifulSoup(html, 'html5lib')
+
+main_div = doc.find('div', {'id': 'body-content'})
+mission_el = main_div.find('h3', class_='mission-state')
+mission = mission_el.get_text().strip()
+print(mission)
+```
 
 
 Further reading
 ---------------
-You can learn more about BeautifulSoup from these excellent tutorials:
+For more info about BeautifulSoup, see [the docs](https://www.crummy.com/software/BeautifulSoup/bs4/doc/).
 
+There are also some excellent tutorials online you can read:
   - [http://akul.me/blog/2016/beautifulsoup-cheatsheet/](http://akul.me/blog/2016/beautifulsoup-cheatsheet/)
   - [http://youkilljohnny.blogspot.ca/2014/03/beautifulsoup-cheat-sheet-parse-html-by.html](http://youkilljohnny.blogspot.ca/2014/03/beautifulsoup-cheat-sheet-parse-html-by.html)
   - [http://www.compjour.org/warmups/govt-text-releases/intro-to-bs4-lxml-parsing-wh-press-briefings/](http://www.compjour.org/warmups/govt-text-releases/intro-to-bs4-lxml-parsing-wh-press-briefings/)
+

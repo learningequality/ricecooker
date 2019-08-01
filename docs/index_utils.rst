@@ -6,10 +6,9 @@ to help chef authors with common extraction and content transformation tasks.
 .. toctree::
    :maxdepth: 1
 
+   downloader
    parsing_html
-   pdfutils
    video_compression
+   pdfutils
    csv_metadata/README
    csv_metadata/csv_exercises
-   csv_metadata/souschef
-
