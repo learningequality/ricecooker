@@ -13,11 +13,11 @@ To compute the `channel_id`, you need to know the channel's `source_domain` (a.k
 and the channel's `source_id` (a.k.a `channel_info['CHANNEL_SOURCE_ID']`):
 
 ```python
-    import uuid
-    channel_id = uuid.uuid5(
-        uuid.uuid5(uuid.NAMESPACE_DNS, source_domain),
-        source_id
-    ).hex
+import uuid
+channel_id = uuid.uuid5(
+    uuid.uuid5(uuid.NAMESPACE_DNS, source_domain),
+    source_id
+).hex
 ```
 
 This above code snippet is useful if you know the `source_domain` and `source_id`
@@ -38,7 +38,6 @@ Given a channel object `ch`, you can find its id using `channel_id = ch.get_node
 
 Node IDs
 --------
-
 Content nodes within the Kolibri ecosystem have the following identifiers:
   - `source_id` (str): arbitrary string used to identify content item within the
     source website, e.g., the a database id or URL.
