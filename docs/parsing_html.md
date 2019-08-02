@@ -42,7 +42,7 @@ The most commonly used parts of the BeautifulSoup API are:
 
 
 
-#### Example
+#### Example 1
 Here is some sample code for getting the text of the LE mission statement:
 
 ```python
@@ -57,6 +57,14 @@ main_div = doc.find('div', {'id': 'body-content'})
 mission_el = main_div.find('h3', class_='mission-state')
 mission = mission_el.get_text().strip()
 print(mission)
+```
+
+#### Example 2
+To print a list of all the links on the page, use the following code:
+```python
+links = doc.find_all('a')
+for link in links:
+    print(link.get_text().strip(), '-->', link['href'])
 ```
 
 
