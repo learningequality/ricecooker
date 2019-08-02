@@ -89,7 +89,7 @@ Here are the steps for setting up `ricecooker` for local development:
            virtualenv -p C:/Python36/python.exe venv
            ```
            You may need to adjust the `-p` argument depending on where your version
-           of Python is located. Note you'll need Python version 3.4 or higher.
+           of Python is located. Note you'll need Python version 3.5 or higher.
          * Activate the virtualenv called `venv` by running: 
            ```
            .\venv\Scripts\activate
@@ -142,7 +142,7 @@ Before you submit a pull request, check that it meets these guidelines:
 2. If the pull request adds functionality, the docs should be updated. Put
    your new functionality into a function with a docstring, and add the
    feature to the list in `README.md`.
-3. The pull request should work for Python 3.4, 3.5. Check
+3. The pull request should work for Python 3.5+. Check
    [https://travis-ci.com/learningequality/ricecooker/pull_requests](https://travis-ci.com/learningequality/ricecooker/pull_requests)
    and make sure that the tests pass for all supported Python versions.
 

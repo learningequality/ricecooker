@@ -60,7 +60,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'ricecooker'
-copyright = '2018, Learning Equality'
+copyright = '2019, Learning Equality'
 author = 'Learning Equality Content Team'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -464,4 +464,4 @@ autodoc_default_options = {
         "undoc-members": None,
         #"private-members": True,
         "show-inheritance": None,
-        }
+}

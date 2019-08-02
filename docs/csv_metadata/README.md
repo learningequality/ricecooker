@@ -7,7 +7,7 @@ It is possible to create Kolibri channels by:
   - Specifying metadata in the form of CSV files
 
 
-The CSV-based workflow is a good fit for non-technical users since it doesn't 
+The CSV-based workflow is a good fit for non-technical users since it doesn't
 require writing any code, but instead can use the Excel to provide all the metadata.
 
   - [CSV-based workflow README](https://github.com/learningequality/sample-channels/tree/master/channels/csv_channel)

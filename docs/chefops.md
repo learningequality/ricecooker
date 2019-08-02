@@ -7,29 +7,29 @@ with a README** that explains the desired command line arguments for the chef sc
 
 Executable scripts
 ------------------
-On UNIX systems, you can make your sushi chef script (e.g. `chef.py`) run as a
+On UNIX systems, you can make your sushi chef script (e.g. `sushichef.py`) run as a
 standalone command line application. To make a script program, you need to do three things:
 
-    - Add the line `#!/usr/bin/env python` as the first line of `chef.py`
-    - Add this code block at the bottom of `chef.py` if it is not already there:
+    - Add the line `#!/usr/bin/env python` as the first line of `sushichef.py`
+    - Add this code block at the bottom of `sushichef.py` if it is not already there:
 
           if __name__ == '__main__':
               chef = MySushiChef()  # replace with you chef class name
               chef.main()
 
-    - Make the file `chef.py` executable by running `chmod +x chef.py` on the
+    - Make the file `sushichef.py` executable by running `chmod +x sushichef.py` on the
       command line.
 
-You can now call your sushi chef script using `./chef.py ...` instead of the longer
-`python chef.py ...`.
+You can now call your sushi chef script using `./sushichef.py ...` instead of the longer
+`python sushichef.py ...`.
 
 
 
 Ricecooker CLI
 --------------
-You can run `./chef.py -h` to see an always-up-to-date info about the `ricecooker` CLI interface:
+You can run `./sushichef.py -h` to see an always-up-to-date info about the `ricecooker` CLI interface:
 
-    usage: tutorial_chef.py [-h] [--token TOKEN] [-u] [-v] [--quiet] [--warn]
+    usage: sushichef.py  [-h] [--token TOKEN] [-u] [-v] [--quiet] [--warn]
                             [--debug] [--compress] [--thumbnails]
                             [--download-attempts DOWNLOAD_ATTEMPTS]
                             [--reset | --resume]
@@ -82,7 +82,7 @@ These extra options will be parsed along with the `riceooker` arguments and
 passed as along to all the chef's methods: `pre_run`, `run`, `get_channel`,
 `construct_channel`, etc.
 
-For example, a script started using `./chef.py ... lang=fr` could:
+For example, a script started using `./sushichef.py ... lang=fr` could:
   - Subclass the method `get_channel` to set the channel name to
     `"Channel Name ({})".format(getlang('fr').native_name)`
   - Use the language code `fr` in `pre_run`, `run`, and `construct_channel` to
@@ -105,6 +105,9 @@ This is required if you suspect the files on the source website have been update
 
 Note that some chef scripts implement their own caching mechanism, so you need
 to disable those caches as well if you want to make sure you're getting new content.
+Use the commands `rm -rf .webcache` to clear the webcache if it is present,
+and `rm -rf .ricecookerfilecache/* storage/* restore/*` to clean all ricecooker
+directories and start from scratch.
 
 
 

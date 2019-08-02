@@ -36,7 +36,7 @@ documentation depending on your role:
 
   - **Content specialists and Administrators** can read the non-technical part
     of the documentation to learn about how content works in the Kolibri platform.
-    - The best place to start is the [Kolibri Platform overview](https://github.com/learningequality/ricecooker/blob/master/docs/platform/README.md).
+    - The best place to start is the [Kolibri Platform overview](https://github.com/learningequality/ricecooker/blob/master/docs/platform/introduction.md).
     - Read more about the supported [content types here](https://github.com/learningequality/ricecooker/blob/master/docs/platform/content_types.md)
     - Content curators can consult [this document](https://docs.google.com/document/d/1slwoNT90Wqu0Rr8MJMAEsA-9LWLRvSeOgdg9u7HrZB8/edit?usp=sharing)
       for information about how to prepare "spec sheets" that guide developers how
