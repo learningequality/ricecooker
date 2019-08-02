@@ -73,7 +73,7 @@ def read(path, loadjs=False, session=None, driver=None, timeout=60,
             max_retries = 5
             while True:
                 try:
-                    response = DOWNLOAD_SESSION.get(path, stream=True, timeout=timeout)
+                    response = session.get(path, stream=True, timeout=timeout)
                     break
                 except (requests.exceptions.ConnectionError, requests.exceptions.ReadTimeout) as e:
                     retry_count += 1
