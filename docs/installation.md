@@ -118,10 +118,9 @@ you to modify its functionality.
 
 
 
-### Other options
+### Other installation options
 
-You can install `ricecooker` directly from the 
-using the following command:
+You can install `ricecooker` directly from github using the following command:
 
     pip install git+https://github.com/learningequality/ricecooker
 
@@ -130,11 +129,11 @@ instead of the default branch version. This is the way to do this:
 
     pip install -U git+https://github.com/learningequality/ricecooker@somebranchname
 
-The `-U` flag forces the update instead of reusing any previously installed/cached versions.
+The `-U` flag forces the update instead of reusing any previously cached version.
 
 
 ### Install editable source code
-Another option for installing `ricecooker` is to clone the repo and install using:
+Another option for installing `ricecooker` is to clone the repo and install using
 
     git clone git://github.com/learningequality/ricecooker
     cd ricecooker

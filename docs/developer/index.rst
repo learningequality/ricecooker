@@ -1,6 +1,6 @@
 
-Ricecooker developer docs
-=========================
+Developer docs
+==============
 To learn about the inner workings of the ``ricecooker`` library, consult the following docs:
 
 .. toctree::

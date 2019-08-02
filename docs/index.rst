@@ -16,15 +16,13 @@ Developers who are new to the ``ricecooker`` library can get started here.
 
 Kolibri content platform
 ------------------------
-The Kolibri content platform is described in the following docs, which should be
-accessible to both technical and non-technical audiences.
+The Kolibri content platform is described in the following docs, which are intended
+to be accessible for both technical and non-technical audiences.
 
 .. toctree::
    :maxdepth: 2
 
-   platform/README
-   platform/content_types
-
+   platform/index
 
 
 API reference

@@ -1,5 +1,5 @@
-Kolibri content platform
-========================
+Overview of Kolibri content
+===========================
 Educational content in the Kolibri platform is organized into **content channels**.
 The `ricecooker` library is used for creating content channels and uploading them
 to [Kolibri Studio](https://studio.learningequality.org/), which is the central

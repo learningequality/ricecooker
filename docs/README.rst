@@ -45,7 +45,7 @@ Use the following shortcuts to jump to the most relevant parts of the
    Kolibri platform.
 
    -  The best place to start is the `Kolibri Platform
-      overview <platform/README.html>`__.
+      overview <platform/introduction.html>`__.
    -  Read more about the supported `content types
       here <platform/content_types.html>`__
    -  Content curators can consult `this

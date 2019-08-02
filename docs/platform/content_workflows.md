@@ -5,11 +5,11 @@ Kolibri content workflows
 Running a sushichef script is only one of the steps in a channel's journey within
 the Kolibri platform. Here is the full picture:
 
-             ricecooker     studio       kolibri demo server
-    SPEC-->--CHEF----->-----PUBLISH--->--IMPORT using token and REVIEW
-    (1)      (2)            (3)          (4)                    (5)
-      \______/                                                 /
-       \______________________________________________________/
+               ricecooker     studio       kolibri demo server
+      SPEC-->--CHEF----->-----PUBLISH--->--IMPORT using token and REVIEW
+      (1)      (2)            (3)          (4)                    (5)
+        \______/                                                 /
+         \______________________________________________________/
 
 It is the responsibility as the chef author to take a content channel all the way
 through this workflow and make sure that the final channel works in Kolibri.
@@ -19,7 +19,7 @@ Notes on specific steps:
     licensing information, and tips about content transformations that might be necessary.
   - `(2)`: your main task as a chef author is to implement all the extraction
     and content transformation described in the spec. If you run into any kind
-    of difficulties with this step post a question in the LE slack channel
+    of difficulties with these steps, post a question in the LE slack channel
     `#sushi-chefs` and someone from the content team will be able to assist you.
     For example, "Hello @here I'm having trouble with the {{cookiecutter.channel_name}} chef
     because X and Y cannot be organized according to the spec because Z."
@@ -36,7 +36,7 @@ Notes on specific steps:
     can use Kolibri installed on your local machine or an online demo server.
     Admin (`devowner` user) credentials for the demo server will be provided for you
     so that you can import and update the channel every time you push a new version.
-    Follow these steps to import your channel `Device` > `IMPORT` > `ONLINE` >
+    Follow these steps to import your channel `Device` > `IMPORT` > `KOLIBRI STUDIO (online)` >
     `Try adding a token`, add the channel token, select all nodes > `IMPORT`.
   - `(5)`: You can now go to the Kolibri Learn tab and preview your channel to
     see it the way learners will see it. Take the time to click around and browse
@@ -54,6 +54,14 @@ Notes on specific steps:
     html and js content, but it doesn't render right in Kolibri because of the
     iframe sandboxing." or "Does anyone have sample code for extracting content
     X from a shared drive link Y of type Z?".
+
+
+
+## The Kolibri CHEF-PUBLISH-UPDATE content workflow
+The process is similar to the initial import, but in step a version of the channel
+is already imported on the device so the actions in steps `(4)` become: `Device` >
+`Channels`, using the `OPTIONS` button next to your channel, select `Import more` >
+`KOLIBRI STUDIO (online)` > `UPDATE`, select all nodes > `IMPORT`.
 
 
 
