@@ -90,10 +90,3 @@ Use the following rubric as a checklist to know when a sushi chef script is done
 5. Is the `source_id` field set consistently for all content nodes?
    Try to use unique identifiers based on the source website or permanent url paths.
 
-### Code standards
-1. Does the section `Usage` in this README contain all the required information
-   for another developer to run the script?
-   Document any extra credentials, env vars, and options needed to run the script.
-2. Is the Python code easy to read and succinct?
-3. Are clarifying comments provided where needed?
-
