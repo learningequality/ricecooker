@@ -5,26 +5,31 @@ Kolibri content workflows
 Running a sushichef script is only one of the steps in a channel's journey within
 the Kolibri platform. Here is the full picture:
 
-               ricecooker     studio       kolibri demo server
-      SPEC-->--CHEF----->-----PUBLISH--->--IMPORT using token and REVIEW
-      (1)      (2)            (3)          (4)                    (5)
-        \______/                                                 /
-         \______________________________________________________/
+```
+                  ricecooker      studio         kolibri demo server
+    SPEC----->----CHEF----->------PUBLISH---->---IMPORT using token and REVIEW
+     \  \         /                                                    /
+      \  `clarif.´                                                    /
+       \                                                             /
+        `---------------- spec compliance checks -------------------´
+```
 
-It is the responsibility as the chef author to take a content channel all the way
+It is the responsibility of the chef author to take a content channel all the way
 through this workflow and make sure that the final channel works in Kolibri.
 
 Notes on specific steps:
-  - `(1)`: the **spec sheet** for the channel describes the target channel structure,
-    licensing information, and tips about content transformations that might be necessary.
-  - `(2)`: your main task as a chef author is to implement all the extraction
-    and content transformation described in the spec. If you run into any kind
-    of difficulties with these steps, post a question in the LE slack channel
-    `#sushi-chefs` and someone from the content team will be able to assist you.
-    For example, "Hello @here I'm having trouble with the {{cookiecutter.channel_name}} chef
-    because X and Y cannot be organized according to the spec because Z."
-    For complicated or very large channels the spec may go through multiple iterations.
-  - `(3)`: once the channel is on Studio you can preview the structure there
+  - `SPEC`: the **channel spec** describes the target channel structure, licensing,
+    and technical notes about content transformations that might be necessary.
+    All this information will be available on the notion card for this source.
+  - `CHEF`: the main task of the chef author is to implement all the extraction
+    and content transformation described in the spec. If anything in the spec is
+    missing or requires further clarifications post comments on the notion card.
+    If you run into any kind of difficulties during the cheffing process, post a
+    question in the LE slack channel `#sushi-chefs` and someone from the content
+    team will be able to assist you. For example, "Hello @here I'm having trouble
+    with the {{cookiecutter.channel_name}} chef because X and Y cannot be organized
+    according to the spec because Z."
+  - `PUBLISH`: once the channel is on Studio you can preview the structure there
     and create or update a notion card with the channel information.
     The next step is to export the channel in the format necessary for use in
     Kolibri using the `PUBLISH` button on Studio. The PUBLISH action exports
@@ -32,13 +37,13 @@ Notes on specific steps:
     `https://studio.learningequality.org/content/databases/{channel_id}.sqlite3`
     the first time a channel is PUBLISH-ed a secret token is generated that can
     be used to import the channel in Kolibri.
-  - `(4)`: the next step is to import your channel into a Kolibri instance. You
+  - `IMPORT`: the next step is to import your channel into a Kolibri instance. You
     can use Kolibri installed on your local machine or an online demo server.
     Admin (`devowner` user) credentials for the demo server will be provided for you
     so that you can import and update the channel every time you push a new version.
     Follow these steps to import your channel `Device` > `IMPORT` > `KOLIBRI STUDIO (online)` >
     `Try adding a token`, add the channel token, select all nodes > `IMPORT`.
-  - `(5)`: You can now go to the Kolibri Learn tab and preview your channel to
+  - `REVIEW`: You can now go to the Kolibri Learn tab and preview your channel to
     see it the way learners will see it. Take the time to click around and browse
     the content to make sure everything works as expected. Update the notion card
     and leave a comment. For example "First draft of channel uploaded to demo server."
@@ -59,10 +64,9 @@ Notes on specific steps:
 
 ## The Kolibri CHEF-PUBLISH-UPDATE content workflow
 The process is similar to the initial import, but in step a version of the channel
-is already imported on the device so the actions in steps `(4)` become: `Device` >
-`Channels`, using the `OPTIONS` button next to your channel, select `Import more` >
-`KOLIBRI STUDIO (online)` > `UPDATE`, select all nodes > `IMPORT`.
-
+is already imported on the device so the action in the `IMPORT` step becomes:
+`Device` > `Channels`, using the `OPTIONS` button next to your channel, select
+`Import more` > `KOLIBRI STUDIO (online)` > `UPDATE`, select all nodes > `IMPORT`.
 
 
 
