@@ -212,7 +212,7 @@ class Node(object):
 
         source_ids = [c.source_id for c in self.children]
         duplicates = set([x for x in source_ids if source_ids.count(x) > 1])
-        assert len(duplicates) == 0, "Assumption Failed: Node must have unique source id among siblings ({} appears multiple times)".format(duplicates)
+        assert len(duplicates) == 0, "Assumption Failed: Node must have unique source id among siblings ({} appears multiple times for node {})".format(duplicates, self.title)
         return True
 
 
@@ -268,6 +268,37 @@ class ChannelNode(Node):
             "source_id": self.source_id,
             "ricecooker_version": __version__,
         }
+
+    def channel_as_json(self, filename=None, indent=2):
+        """
+        Exports channel data as a JSON tree. Will raise a validation error if any tree nodes
+        do not pass validation checks.
+
+        :param filename: filename to export to
+        """
+        if not filename:
+            filename = "{}.json".format(self.title)
+
+        def add_children(parent, parent_json):
+            if len(parent.children) > 0 and not 'children' in parent_json:
+                parent_json['children'] = []
+            for child in parent.children:
+                child.validate()
+                child_json = child.to_dict()
+                parent_json['children'].append(child_json)
+                if len(child.children) > 0:
+                    add_children(child, child_json)
+
+        self.validate()
+        channel_json = self.to_dict()
+        # sub-function for recursion
+        add_children(self, channel_json)
+        json_tree = [channel_json]
+
+        # FIXME: write_tree_to_json_tree causes a circular import becuase it imports ChannelNode.
+        f = open(filename, 'wb')
+        f.write(json.dumps(json_tree, ensure_ascii=False, indent=indent).encode('utf-8'))
+        f.close()
 
     def validate(self):
         """ validate: Makes sure channel is valid
