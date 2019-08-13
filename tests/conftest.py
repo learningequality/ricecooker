@@ -503,12 +503,15 @@ def thumbnail_filename():
 def subtitle_file():
     if not os.path.exists("tests/testcontent/testsubtitles.vtt"):
         with open("tests/testcontent/testsubtitles.vtt", 'wb') as subtitlefile:
-            subtitlefile.write(b'testing')
+            subtitlefile.write(b'WEBVTT\n')
+            subtitlefile.write(b'\n')
+            subtitlefile.write(b'00:01.000 --> 00:04.250\n')
+            subtitlefile.write(b'Testing subtitles\n')
     return SubtitleFile("tests/testcontent/testsubtitles.vtt", language='en')
 
 @pytest.fixture
 def subtitle_filename():
-    return 'ae2b1fca515949e5d54fb22b8ed95575.vtt'
+    return '19faefeb0b8b8289923dc0c1c5adb7e5.vtt'
 
 @pytest.fixture
 def html_file():

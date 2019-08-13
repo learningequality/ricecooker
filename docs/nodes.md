@@ -75,8 +75,10 @@ content nodes that aren't for that video need to have different `source_id`s.
 
 ### Usability guidelines
 
-- Thumbnails: 16:9 aspect ratio ideally (e.g. 420x236 pixels)
-- Titles: Aim for titles that make content items reusable independently of their containing folder, since curators could copy content items to other topics or channels.  e.g. title for pdf doc "{lesson_name} - instructions.pdf" is better than just "Instructions.pdf" since that PDF could show up somewhere else.
+- Thumbnails: 16:9 aspect ratio ideally (e.g. 400x225 pixels)
+- Titles: Aim for titles that make content items reusable independently of their containing folder,
+  since curators could copy content items to other topics or channels.
+  e.g. title for pdf doc "{lesson_name} - instructions.pdf" is better than just "Instructions.pdf" since that PDF could show up somewhere else.
 - Descriptions: aim for about 400 characters (about 3-4 sentences)
 - Licenses: Any non-public domain license must have a copyright holder, and any special permissions licenses must have a license description.
 
@@ -130,7 +132,7 @@ See [languages][./languages.md] to read more about language codes.
 ### Thumbnails
 Thumbnails can be passed in as a local filesystem path to an image file (str) or
 a `ThumbnailFile` object.
-The recommended size for thumbnail images is 420px by 236px (aspect ratio 16:9).
+The recommended size for thumbnail images is 400px by 225px (aspect ratio 16:9).
 
 
 

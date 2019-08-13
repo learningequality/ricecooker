@@ -197,12 +197,6 @@ def test_slideshow_node_via_files(channel):
                 descriptive_text="Made mostly with Python!"
             ),
             SlideImageFile(
-                path='http://www.quickmeme.com/img/94/94a5cc4bca4e267b876733917e556dca7b52f6b5da949c13855a605312e9aa4e.jpg',
-                language='en',
-                caption="Meow! Cat memes are a great way to spice up your demos!",
-                descriptive_text="Meow! Cat memes are a great way to spice up your demos!"
-            ),
-            SlideImageFile(
                 path='https://www.yellowfinbi.com/assets/files/2018/09/YF_O1-638x400.png',
                 language='en',
                 caption="Unlock your potential with this demo.",
@@ -216,7 +210,7 @@ def test_slideshow_node_via_files(channel):
     )
     assert slideshow_node
     assert slideshow_node.kind == 'slideshow'
-    assert len(slideshow_node.files) == 6, 'missing files'
+    assert len(slideshow_node.files) == 5, 'missing files'
     assert slideshow_node.extra_fields, 'missing extra_fields'
     assert 'slideshow_data' in slideshow_node.extra_fields, 'missing slideshow_data key'
     slideshow_node.process_files()

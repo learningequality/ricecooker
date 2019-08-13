@@ -2,6 +2,19 @@
 History
 =======
 
+
+0.6.32 (2019-08-01)
+-------------------
+* Updated documentation to use top-level headings
+* Removed support for Python 3.4
+* Removed support for the "sous chef" workflow
+
+
+0.6.31 (2019-07-01)
+-------------------
+* Handle more subtitle convertible formats: ``SRT``, ``TTML``, ``SCC``, ``DFXP``, and ``SAMI``
+
+
 0.6.30 (2019-05-01)
 -------------------
 * Updated docs build scripts to make ricecooker docs available on read the docs

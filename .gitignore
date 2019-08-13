@@ -117,7 +117,8 @@ tests/testcontent/
 .webcache
 .ricecookerfilecache
 
-# Pycharm project settings
+# IDE project dirs
 .idea/
+.vscode/
 
 cache.sqlite

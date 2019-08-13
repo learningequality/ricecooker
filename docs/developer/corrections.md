@@ -73,7 +73,7 @@ that will be edited during the `modify` operation will be selected in the next s
 
 ### Step 3: Apply the corrections from a google sheet
 Once the google sheet has been edited to contain all desired changes in the
- `New *` columns, the next step is apply the corrections:
+`New *` columns, the next step is apply the corrections:
 
     corrections apply <channel_id> --gsheet_id='<gsheet_id>' --gid=<gsheet_gid>
 

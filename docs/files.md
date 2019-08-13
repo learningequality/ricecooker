@@ -158,6 +158,18 @@ subs_file = SubtitleFile(
     language = languages.getlang('en').code,
 )
 ```
+Kolibri uses the `.vtt` subtitle format internally, but the following formats can
+be automatically converted: `.srt`, `.ttml`, `.scc`, `.dfxp`, and `.sami`.
+The subtitle format is inferred from the file extension of the `path` argument.
+Use the `subtitlesformat` keyword argument in cases where the path does not end
+on a format extension:
+```
+subs_file = SubtitleFile(
+    path = "http:/srtsubs.org/subs/29323923",
+    subtitlesformat = 'srt',                 # specify format because not in URL
+    language = languages.getlang('en').code,
+)
+```
 
 You can also get subtitles using `YouTubeSubtitleFile` which takes a `youtube_id`
 and youtube `language` code (may be different from internal language codes).
@@ -173,7 +185,7 @@ Thumbnail files
 The class `ThumbnailFile` defined thumbnails that can be added to channel,
 topic nodes, and content nodes. The extensions `.png`, `.jpg`, and `.jpeg` and supported.
 
-The recommended size for thumbnail images is 420px by 236px (aspect ratio 16:9).
+The recommended size for thumbnail images is 400px by 225px (aspect ratio 16:9).
 
 
 

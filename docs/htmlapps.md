@@ -54,34 +54,93 @@ It's important to "cut" the source websites content into appropriately sized chu
 
 
 
-HTML Writer utility class
--------------------------
+The `HTMLWriter` utility class
+------------------------------
 The class `HTMLWriter` in `ricecooker.utils.html_writer` provides a basic helper
-methods for creating files within a zip file.
+methods for creating files within a zip file to be used as `HTML5Zip` files
+added to `HTML5App` nodes.
 
-See the source code:
-[ricecooker/utils/html_writer.py](https://github.com/learningequality/ricecooker/blob/master/ricecooker/utils/html_writer.py#L5)
+To use the `HTMLWriter` class, you must enter the `HTMLWriter` context:
+
+```python
+from ricecooker.utils.html_writer import HTMLWriter
+with HTMLWriter('./myzipfile.zip') as zipper:
+    # Add your code here
+```
+
+To write the main file (`index.html` in the root of the zip file), use the 
+`write_index_contents` method:
+
+```python
+contents = "<html><head></head><body>Hello, World!</body></html>"
+zipper.write_index_contents(contents)
+```
+
+You can also add other files (images, stylesheets, etc.) using `write_file`,
+`write_contents`, and `write_url` methods:
+
+```python
+# Returns path to file "styles/style.css"
+css_path = zipper.write_contents("style.css", "body{padding:30px}", directory="styles")
+extra_head = "<link href='{}' rel='stylesheet'></link>".format(css_path)         # Can be inserted into <head>
+
+img_path = zipper.write_file("path/to/img.png")                                  # Note: file must be local
+img_tag = "<img src='{}'>...".format(img_path)                                   # Can be inserted as image
+
+script_path = zipper.write_url("src.js", "http://example.com/src.js", directory="src")
+script = "<script src='{}' type='text/javascript'></script>".format(script_path) # Can be inserted into html
+```
+
+To check if a file exists in the zipfile, use the `contains` method:
+
+```python
+# Zipfile has "index.html" file
+zipper.contains('index.html')     # Returns True
+zipper.contains('css/style.css')  # Returns False
+```
+
+See the source code for more details:
+[ricecooker/utils/html_writer.py](https://github.com/learningequality/ricecooker/blob/master/ricecooker/utils/html_writer.py)
+
 
 
 
 Static assets download utility
 ------------------------------
+We have a handy function for fetching all of a webpage's static assets (JS, CSS, images, etc.),
+so that, in theory, you could scrape a webpage and display it in Kolibri exactly
+as you see it in the website itself in your browser.
 
-We have a handy function for fetching all of a webpage's static assets (JS, CSS, images, etc.), so that, in theory, you could scrape a webpage and display it in Kolibri exactly as you see it in the website itself in your browser. See:
-
+See:
 - the source: [`ricecooker.utils.downloader.download_static_assets()`](https://github.com/learningequality/ricecooker/blob/428bfde98e0f76310eccd367886aebe62cd9ae5a/ricecooker/utils/downloader.py#L129)
 - [example usage in a simple app: MEET chef](https://github.com/learningequality/sushi-chef-MEET/blob/425327ad552f9f25f582a2057048f6d4475382c1/chef.py#L205), which comprises articles with text and images
 - [example usage in a complex app: Blockly Games chef](https://github.com/learningequality/sushi-chef-blockly-games/blob/270e8bc620be0ed883f40e2739878db54f7243b7/chef.py#L193), an interactive JS game with images and sounds
 
 
 
+
 Starter template
 ----------------
+We also have a [starter template](https://github.com/learningequality/html-app-starter)
+for apps, particularly helpful for displaying content that's mostly text and images,
+such as articles. It applies some default styling on text to ensure readability,
+consistency, and mobile responsiveness.
 
-We also have a [starter template](https://github.com/learningequality/html-app-starter) for apps, particularly helpful for displaying content that's mostly text and images, such as articles. It applies some default styling on text to ensure readability, consistency, and mobile responsiveness.
+It also includes a sidebar for those apps where you may want internal navigation.
+However, consider if it would be more appropriate to turn each page into its own
+content item and grouping them together into a single folder (topic).
 
-It also includes a sidebar for those apps where you may want internal navigation. However, consider if it would be more appropriate to turn each page into its own content item and grouping them together into a single folder (topic).
+How to decide between the static assets downloader (above) and this starter template?
+Prefer the static assets downloader if it makes sense to keep the source styling or JS,
+such as in the case of an interactive app
+(e.g. [Blockly Games](https://github.com/learningequality/sushi-chef-blockly-games))
+or an app-like reader
+(e.g. [African Storybook](https://github.com/learningequality/sushi-chef-african-storybook)).
+If the source is mostly a text blob or an article -- and particularly if the
+source styling is not readable or appealing—using the template could make sense,
+especially given that the template is designed for readability.
 
-How to decide between the static assets downloader (above) and this starter template? Prefer the static assets downloader if it makes sense to keep the source styling or JS, such as in the case of an interactive app (e.g. [Blockly Games](https://github.com/learningequality/sushi-chef-blockly-games)) or an app-like reader (e.g. [African Storybook](https://github.com/learningequality/sushi-chef-african-storybook)). If the source is mostly a text blob or an article -- and particularly if the source styling is not readable or appealing -- using the template could make sense, especially given that the template is designed for readability.
+The bottom line is ensure the content meets the guidelines layed out above—legible,
+responsive, easy to navigate, and "look good" (you define "good" :P).
+Fulfilling that, use your judgement on whatever approach makes sense and that you can use effectively!
 
-The bottom line is ensure the content meets the guidelines layed out above -- legible, responsive, easy to navigate, and "look good" (you define "good" :P). Fulfilling that, use your judgement on whatever approach makes sense and that you can use effectively!

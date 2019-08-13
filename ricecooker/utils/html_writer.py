@@ -101,7 +101,10 @@ class HTMLWriter():
                 directory: (str) directory in zipfile to write file to (optional)
             Returns: path to file in zip
         """
-        return self.write_contents(filename, read(url), directory=directory)
+        filepath = "{}/{}".format(directory.rstrip("/"), filename) if directory else filename
+        if not self.contains(filepath):
+            self._write_to_zipfile(filepath, read(url))
+        return filepath
 
     def write_index_contents(self, contents):
         """ write_index_contents: Write main index file to zip
