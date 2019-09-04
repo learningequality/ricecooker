@@ -15,7 +15,8 @@ from pressurecooker.encodings import get_base64_encoding, write_base64_to_file
 from pressurecooker.images import create_tiled_image
 from pressurecooker.videos import extract_thumbnail_from_video, guess_video_preset_by_resolution, compress_video, VideoCompressionError
 from pressurecooker.subtitles import build_subtitle_converter_from_file
-from pressurecooker.subtitles import LANGUAGE_CODE_UNKNOWN, InvalidSubtitleLanguageError
+from pressurecooker.subtitles import LANGUAGE_CODE_UNKNOWN
+from pressurecooker.subtitles import InvalidSubtitleFormatError, InvalidSubtitleLanguageError
 from requests.exceptions import MissingSchema, HTTPError, ConnectionError, InvalidURL, InvalidSchema
 
 from .. import config
@@ -639,12 +640,15 @@ class SubtitleFile(DownloadFile):
 
     def process_file(self):
         self.validate()
+        caught_errors = HTTP_CAUGHT_EXCEPTIONS + \
+                 (InvalidSubtitleLanguageError, InvalidSubtitleLanguageError)
+
         try:
             self.filename = self.download_and_transform_file(self.path)
             config.LOGGER.info("\t--- Downloaded {}".format(self.filename))
             return self.filename
-        # Catch errors related to reading file path and handle silently
-        except HTTP_CAUGHT_EXCEPTIONS as err:
+        # Catch errors related to reading file path and conversion, and handle silently
+        except caught_errors as err:
             self.error = err
             config.FAILED_FILES.append(self)
 
