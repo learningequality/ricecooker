@@ -641,7 +641,7 @@ class SubtitleFile(DownloadFile):
     def process_file(self):
         self.validate()
         caught_errors = HTTP_CAUGHT_EXCEPTIONS + \
-                 (InvalidSubtitleLanguageError, InvalidSubtitleLanguageError)
+                 (InvalidSubtitleFormatError, InvalidSubtitleLanguageError)
 
         try:
             self.filename = self.download_and_transform_file(self.path)
