@@ -558,7 +558,7 @@ class VideoNode(ContentNode):
             Args: None
             Returns: boolean indicating if video is valid
         """
-        from .files import VideoFile, WebVideoFile
+        from .files import VideoFile, WebVideoFile, SubtitleFile, YouTubeSubtitleFile
         try:
             assert self.kind == content_kinds.VIDEO, "Assumption Failed: Node should be a video"
             assert self.questions == [], "Assumption Failed: Video should not have questions"
@@ -567,7 +567,23 @@ class VideoNode(ContentNode):
             # Check if there are any .mp4 files if there are video files (other video types don't have paths)
             assert any(f for f in self.files if isinstance(f, VideoFile) or isinstance(f, WebVideoFile)), "Assumption Failed: Video should have at least one .mp4 file"
 
+            # Ensure that there is only one subtitle file per language code
+            new_files = []
+            language_codes_seen = set()
+            for file in self.files:
+                if isinstance(file, SubtitleFile) or isinstance(file, YouTubeSubtitleFile):
+                    language_code = file.language
+                    if language_code not in language_codes_seen:
+                        new_files.append(file)
+                        language_codes_seen.add(language_code)
+                    else:
+                        config.LOGGER.warning('Skipping duplicate subs for ' + language_code + ' from path ' + file.path)
+                else:
+                    new_files.append(file)
+            self.files = new_files
+
             return super(VideoNode, self).validate()
+
         except AssertionError as ae:
             raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
 
