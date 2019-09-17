@@ -387,6 +387,10 @@ class TreeNode(Node):
         assert isinstance(self.files, list), "Assumption Failed: Files is not a list"
         assert isinstance(self.questions, list), "Assumption Failed: Questions is not a list"
         assert isinstance(self.extra_fields, dict), "Assumption Failed: Extra fields is not a dict"
+        assert isinstance(self.tags, list), "Assumption Failed: Tags is not a list"
+        for tag in self.tags:
+            assert isinstance(tag, str) , "Assumption Failed: Tag is not a string"
+            assert len(tag) <= 50, "ERROR: tag " + tag + " is too long. Tags should be 50 chars or less."
         return super(TreeNode, self).validate()
 
 
