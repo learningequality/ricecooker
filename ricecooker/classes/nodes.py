@@ -565,7 +565,7 @@ class VideoNode(ContentNode):
             assert len(self.files) > 0, "Assumption Failed: Video must have at least one video file"
 
             # Check if there are any .mp4 files if there are video files (other video types don't have paths)
-            assert any(f for f in self.files if isinstance(f, VideoFile) or isinstance(f, WebVideoFile)), "Assumption Failed: Video should have at least one .mp4 file"
+            assert any(f for f in self.files if isinstance(f, VideoFile) or isinstance(f, WebVideoFile)), "Assumption Failed: Video node should have at least one video file"
 
             # Ensure that there is only one subtitle file per language code
             new_files = []
