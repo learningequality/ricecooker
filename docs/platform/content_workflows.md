@@ -63,10 +63,35 @@ Notes on specific steps:
 
 
 ## The Kolibri CHEF-PUBLISH-UPDATE content workflow
-The process is similar to the initial import, but in step a version of the channel
-is already imported on the device so the action in the `IMPORT` step becomes:
-`Device` > `Channels`, using the `OPTIONS` button next to your channel, select
-`Import more` > `KOLIBRI STUDIO (online)` > `UPDATE`, select all nodes > `IMPORT`.
+The process is similar to the initial upload and import, but some steps are
+different because a version of the channel is already available:
+  - `CHEF`: to upload a new version of a content channel, simply re-run the chef
+    script. The newly uploaded channel tree will replace the old tree on Studio
+    (assuming the `source_domain` and `source_id` of the channel haven't changed).
+    - If you pass the `--stage` command line argument to the chef script, the new
+      version of the channel will be uploaded to a "staging tree" instead of
+      replacing the current tree, which will allow you to preview the changes to
+      the channel on Studio before replacing the existing tree. Use the `DEPLOY`
+      button on Studio to complete the upload and replace the current tree.
+    - By default, ricecooker will cache all files that have been previously uploaded
+      to Studio in order to avoid the need to download and compress files each
+      time the chef runs. You can pass the `--update` command line argument to
+      the chef script to bypass this caching mechanism. This is useful when
+      the source files have changed, but their URLs and filenames haven't changed.
+  - `PUBLISH`: every time you upload a new content to your channel, you must
+    repeat the publish step on Studio to regenerate the sqlite3 DB file that
+    is used for importing into Kolibri. Use the Studio `PUBLISH` button for this.
+    At the end of the PUBLISH process, the channel version number will increase
+    by one. The channel's secret token will not change.
+  - `UPDATE`: the process of updating a channel in Kolibri is similar to the
+    `IMPORT` step described above, but the actions are different because a version
+    of the channel is already available. Go to the `Device` > `Channels` page in
+    Kolibri and use the `OPTIONS` button next to your channel, select `Import more` >
+    `KOLIBRI STUDIO (online)` > `UPDATE`, select all nodes then click `IMPORT`.
+    Updating a channel takes much less time than the initial import because Kolibri
+    only needs to import the new files that have been added to the channel.
+    Once the update process is complete, you can notify the relevant members of
+    the LE content team to let them know a new version is available for review.
 
 
 
