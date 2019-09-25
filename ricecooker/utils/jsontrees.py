@@ -21,6 +21,7 @@ AUDIO_NODE = content_kinds.AUDIO
 EXERCISE_NODE = content_kinds.EXERCISE
 DOCUMENT_NODE = content_kinds.DOCUMENT
 HTML5_NODE = content_kinds.HTML5
+SLIDESHOW_NODE = content_kinds.SLIDESHOW
 
 # TODO(Ivan): add constants.file_types to le_utils and discuss with Jordan
 from le_utils.constants import file_types
@@ -31,6 +32,7 @@ EPUB_FILE = file_types.EPUB
 HTML5_FILE = file_types.HTML5
 THUMBNAIL_FILE = file_types.THUMBNAIL
 SUBTITLES_FILE = file_types.SUBTITLES
+SLIDESHOW_IMAGE_FILE = file_types.SLIDESHOW_IMAGE
 
 from le_utils.constants import exercises
 INPUT_QUESTION = exercises.INPUT_QUESTION
@@ -89,7 +91,7 @@ def build_tree_from_json(parent_node, sourcetree):
     to the `parent_node`. Usually called with `parent_node` being a `ChannelNode`.
     """
     EXPECTED_NODE_TYPES = [TOPIC_NODE, VIDEO_NODE, AUDIO_NODE, EXERCISE_NODE,
-                           DOCUMENT_NODE, HTML5_NODE]
+                           DOCUMENT_NODE, HTML5_NODE, SLIDESHOW_NODE]
 
     for source_node in sourcetree:
         kind = source_node['kind']
@@ -108,6 +110,7 @@ def build_tree_from_json(parent_node, sourcetree):
                 # no role for topics (computed dynaically from descendants)
                 language=source_node.get('language'),
                 thumbnail=source_node.get('thumbnail'),
+                tags=source_node.get('tags'),
             )
             parent_node.add_child(child_node)
             source_tree_children = source_node.get('children', [])
@@ -126,6 +129,7 @@ def build_tree_from_json(parent_node, sourcetree):
                 language=source_node.get('language'),
                 derive_thumbnail=source_node.get('derive_thumbnail', True),  # video-specific option
                 thumbnail=source_node.get('thumbnail'),
+                tags=source_node.get('tags'),
             )
             add_files(child_node, source_node.get('files') or [])
             parent_node.add_child(child_node)
@@ -142,6 +146,7 @@ def build_tree_from_json(parent_node, sourcetree):
                 role=source_node.get('role', roles.LEARNER),
                 language=source_node.get('language'),
                 thumbnail=source_node.get('thumbnail'),
+                tags=source_node.get('tags'),
             )
             add_files(child_node, source_node.get('files') or [])
             parent_node.add_child(child_node)
@@ -158,6 +163,7 @@ def build_tree_from_json(parent_node, sourcetree):
                 role=source_node.get('role', roles.LEARNER),
                 language=source_node.get('language'),
                 thumbnail=source_node.get('thumbnail'),
+                tags=source_node.get('tags'),
                 exercise_data=source_node.get('exercise_data'),
                 questions=[],
             )
@@ -176,6 +182,7 @@ def build_tree_from_json(parent_node, sourcetree):
                 role=source_node.get('role', roles.LEARNER),
                 language=source_node.get('language'),
                 thumbnail=source_node.get('thumbnail'),
+                tags=source_node.get('tags'),
             )
             add_files(child_node, source_node.get('files') or [])
             parent_node.add_child(child_node)
@@ -192,6 +199,24 @@ def build_tree_from_json(parent_node, sourcetree):
                 role=source_node.get('role', roles.LEARNER),
                 language=source_node.get('language'),
                 thumbnail=source_node.get('thumbnail'),
+                tags=source_node.get('tags'),
+            )
+            add_files(child_node, source_node.get('files') or [])
+            parent_node.add_child(child_node)
+
+        elif kind == SLIDESHOW_NODE:
+            child_node = nodes.SlideshowNode(
+                source_id=source_node['source_id'],
+                title=source_node['title'],
+                description=source_node.get('description'),
+                license=get_license(**source_node['license']),
+                author=source_node.get('author'),
+                aggregator=source_node.get('aggregator'),
+                provider=source_node.get('provider'),
+                role=source_node.get('role', roles.LEARNER),
+                language=source_node.get('language'),
+                thumbnail=source_node.get('thumbnail'),
+                tags=source_node.get('tags')
             )
             add_files(child_node, source_node.get('files') or [])
             parent_node.add_child(child_node)
@@ -205,7 +230,7 @@ def build_tree_from_json(parent_node, sourcetree):
 
 def add_files(node, file_list):
     EXPECTED_FILE_TYPES = [VIDEO_FILE, AUDIO_FILE, DOCUMENT_FILE, EPUB_FILE,
-                           HTML5_FILE, THUMBNAIL_FILE, SUBTITLES_FILE]
+                           HTML5_FILE, THUMBNAIL_FILE, SUBTITLES_FILE, SLIDESHOW_IMAGE_FILE]
 
     for f in file_list:
         file_type = f.get('file_type')
@@ -305,10 +330,19 @@ def add_files(node, file_list):
                     if key in f:
                         params[key] = f[key]
                 node.add_file(files.SubtitleFile(**params))
+
+        elif file_type == SLIDESHOW_IMAGE_FILE:
+            node.add_file(
+                files.SlideImageFile(
+                    path=path,
+                    language=f.get('language', None),
+                    caption=f.get('caption', ''),
+                    descriptive_text=f.get('descriptive_text', '')
+                )
+            )
+
         else:
             raise UnknownFileTypeError('Unrecognized file type "{0}"'.format(f['path']))
-
-
 
 
 def add_questions(exercise_node, question_list):

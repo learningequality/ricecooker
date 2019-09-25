@@ -26,6 +26,7 @@ of nodes:
     - Audio (mp3 files)
     - Video (mp4 files)
     - HTML5App zip files (generic container for web content: HTML+JS+CSS)
+    - SlidesShow (jpg and png slide images)
     - Exercises, which contain different types of questions:
       - SingleSelectQuestion (multiple choice)
       - MultipleSelectQuestion (multiple choice with multiple correct answers)

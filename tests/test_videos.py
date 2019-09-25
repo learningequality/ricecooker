@@ -9,10 +9,12 @@ import subprocess
 IS_TRAVIS_TESTING = "TRAVIS" in os.environ and os.environ["TRAVIS"] == "true"
 
 from le_utils.constants import format_presets
+from le_utils.constants import licenses
 from pressurecooker import videos
 
 from ricecooker import config
-from ricecooker.classes.files import VideoFile
+from ricecooker.classes.nodes import VideoNode
+from ricecooker.classes.files import VideoFile, SubtitleFile, YouTubeVideoFile
 
 from cachecontrol.caches.file_cache import FileCache
 from ricecooker.classes.files import FILECACHE
@@ -234,5 +236,43 @@ def _clear_ricecookerfilecache():
             except Exception as e:
                 print(e)
 
+
+
 """ *********** TEST SUBTITLES CONVERSION  *********** """
 # see section SUBTITLEFILE TESTS in test_files.py
+
+
+
+""" *********** TEST VIDEO FILE SUBS VALIDATION  *********** """
+
+def test_multiple_subs_can_be_added(video_file):
+    """
+    Baseline check to make sure we're not dropping subtitle files on validate.
+    """
+    assert os.path.exists("tests/testcontent/testsubtitles_ar.srt")
+    video_node = VideoNode('vid-src-id', "Video", licenses.PUBLIC_DOMAIN)
+    video_node.add_file(video_file)
+    sub1 = SubtitleFile("tests/testcontent/testsubtitles_ar.srt", language='en')
+    video_node.add_file(sub1)
+    sub2 = SubtitleFile("tests/testcontent/testsubtitles_ar.srt", language='ar')
+    video_node.add_file(sub2)
+    video_node.validate()
+    sub_files = [f for f in video_node.files if isinstance(f, SubtitleFile)]
+    assert len(sub_files) == 2, 'Missing subtitles files!'
+
+def test_duplicate_language_codes_fixed_by_validate(video_file):
+    """
+    Video nodes should have at most one subtitle file for a particular lang code.
+    """
+    assert os.path.exists("tests/testcontent/testsubtitles_ar.srt")
+    video_node = VideoNode('vid-src-id', "Video", licenses.PUBLIC_DOMAIN)
+    video_node.add_file(video_file)
+    sub1 = SubtitleFile("tests/testcontent/testsubtitles_ar.srt", language='ar')
+    video_node.add_file(sub1)
+    # now let's add file with a duplicate language code...
+    sub2 = SubtitleFile("tests/testcontent/testsubtitles_ar.srt", language='ar')
+    video_node.add_file(sub2)
+    video_node.validate()
+    sub_files = [f for f in video_node.files if isinstance(f, SubtitleFile)]
+    assert len(sub_files) == 1, 'Duplicate subtitles files not removed!'
+
