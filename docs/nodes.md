@@ -30,6 +30,7 @@ and shows the associated file and question classes that content nodes can contai
                 class AudioNode(ContentNode)     files = [AudioFile]
                 class DocumentNode(ContentNode)  files = [DocumentFile, EPubFile]
                 class HTML5AppNode(ContentNode)  files = [HTMLZipFile]
+                class SlideshowNode(ContentNode) files = [SlideImageFile]
                 class VideoNode(ContentNode)     files = [VideoFile, WebVideoFile, YouTubeVideoFile,
                                                           SubtitleFile, YouTubeSubtitleFile]
                 class ExerciseNode(ContentNode)  questions = [SingleSelectQuestion,
@@ -172,6 +173,7 @@ and the file formats supported by each file class:
       AudioNode     --files-->  AudioFile                                   # .mp3
       DocumentNode  --files-->  DocumentFile                                # .pdf
                                 EPubFile                                    # .epub
+      SlideshowNode --files-->  SlideImageFile                              # .png/.jpg
       HTML5AppNode  --files-->  HTMLZipFile                                 # .zip
       VideoNode     --files-->  VideoFile, WebVideoFile, YouTubeVideoFile,  # .mp4
                                 SubtitleFile, YouTubeSubtitleFile           # .vtt
@@ -184,7 +186,7 @@ node (`DocumentNode`) and an associated (`DocumentFile`)
           source_id='<some unique identifier within source domain>',
           title='Some Document',
           author='First Last (author\'s name)',
-          description='Put file description here',
+          description='Put node description here',
           language=getlang('en').code,
           license=get_license(licenses.CC_BY, copyright_holder='Copyright holder name'),
           thumbnail='some/local/path/name_thumb.jpg',
@@ -306,3 +308,40 @@ To following code creates an exercise node with a single perseus question in it:
 
 The example above uses the JSON from [this question](http://khan.github.io/perseus/#content=%7B%22question%22%3A%7B%22content%22%3A%22Move%20the%20points%20in%20the%20figure%20below%20to%20obtain%20the%20graph%20of%20the%20line%20with%20equation%20%24y%3D%5C%5Cfrac%7B3%7D%7B2%7Dx-3%24.%5Cn%5Cn%5B%5B%E2%98%83%20interactive-graph%202%5D%5D%5Cn%22%2C%22images%22%3A%7B%7D%2C%22widgets%22%3A%7B%22interactive-graph%202%22%3A%7B%22type%22%3A%22interactive-graph%22%2C%22alignment%22%3A%22default%22%2C%22static%22%3Afalse%2C%22graded%22%3Atrue%2C%22options%22%3A%7B%22step%22%3A%5B1%2C1%5D%2C%22backgroundImage%22%3A%7B%22url%22%3Anull%7D%2C%22markings%22%3A%22graph%22%2C%22labels%22%3A%5B%22x%22%2C%22y%22%5D%2C%22showProtractor%22%3Afalse%2C%22showRuler%22%3Afalse%2C%22showTooltips%22%3Afalse%2C%22rulerLabel%22%3A%22%22%2C%22rulerTicks%22%3A10%2C%22range%22%3A%5B%5B-5%2C5%5D%2C%5B-5%2C5%5D%5D%2C%22gridStep%22%3A%5B0.5%2C0.5%5D%2C%22snapStep%22%3A%5B0.25%2C0.25%5D%2C%22graph%22%3A%7B%22type%22%3A%22linear%22%7D%2C%22correct%22%3A%7B%22type%22%3A%22linear%22%2C%22coords%22%3A%5B%5B0%2C-3%5D%2C%5B2%2C0%5D%5D%7D%7D%2C%22version%22%3A%7B%22major%22%3A0%2C%22minor%22%3A0%7D%7D%2C%22interactive-graph%201%22%3A%7B%22options%22%3A%7B%22labels%22%3A%5B%22x%22%2C%22y%22%5D%2C%22range%22%3A%5B%5B-10%2C10%5D%2C%5B-10%2C10%5D%5D%2C%22step%22%3A%5B1%2C1%5D%2C%22valid%22%3Atrue%2C%22backgroundImage%22%3A%7B%22url%22%3Anull%7D%2C%22markings%22%3A%22graph%22%2C%22showProtractor%22%3Afalse%2C%22showRuler%22%3Afalse%2C%22showTooltips%22%3Afalse%2C%22rulerLabel%22%3A%22%22%2C%22rulerTicks%22%3A10%2C%22correct%22%3A%7B%22type%22%3A%22linear%22%2C%22coords%22%3Anull%7D%7D%2C%22type%22%3A%22interactive-graph%22%2C%22version%22%3A%7B%22major%22%3A0%2C%22minor%22%3A0%7D%7D%2C%22expression%201%22%3A%7B%22options%22%3A%7B%22answerForms%22%3A%5B%7B%22value%22%3A%22y%3D%5C%5Cfrac%7B3%7D%7B2%7Dx-3%22%2C%22form%22%3Afalse%2C%22simplify%22%3Afalse%2C%22considered%22%3A%22correct%22%2C%22key%22%3A0%2C%22times%22%3Afalse%2C%22functions%22%3A%5B%22f%22%2C%22g%22%2C%22h%22%5D%2C%22buttonSets%22%3A%5B%22basic%22%2C%22basic%20relations%22%5D%2C%22buttonsVisible%22%3A%22focused%22%2C%22linterContext%22%3A%7B%22contentType%22%3A%22%22%2C%22highlightLint%22%3Afalse%2C%22paths%22%3A%5B%5D%2C%22stack%22%3A%5B%5D%7D%7D%2C%7B%22considered%22%3A%22correct%22%2C%22form%22%3Afalse%2C%22key%22%3A1%2C%22simplify%22%3Afalse%2C%22value%22%3A%22%5C%5Cfrac%7B3%7D%7B2%7Dx-3%22%2C%22times%22%3Afalse%2C%22functions%22%3A%5B%22f%22%2C%22g%22%2C%22h%22%5D%2C%22buttonSets%22%3A%5B%22basic%22%2C%22basic%20relations%22%5D%2C%22buttonsVisible%22%3A%22focused%22%2C%22linterContext%22%3A%7B%22contentType%22%3A%22%22%2C%22highlightLint%22%3Afalse%2C%22paths%22%3A%5B%5D%2C%22stack%22%3A%5B%5D%7D%7D%5D%2C%22buttonSets%22%3A%5B%22basic%22%2C%22basic%20relations%22%5D%2C%22functions%22%3A%5B%22f%22%2C%22g%22%2C%22h%22%5D%2C%22times%22%3Afalse%2C%22static%22%3Afalse%7D%2C%22type%22%3A%22expression%22%2C%22version%22%3A%7B%22major%22%3A1%2C%22minor%22%3A0%7D%2C%22graded%22%3Atrue%2C%22alignment%22%3A%22default%22%2C%22static%22%3Afalse%7D%7D%7D%2C%22answerArea%22%3A%7B%22calculator%22%3Afalse%2C%22chi2Table%22%3Afalse%2C%22periodicTable%22%3Afalse%2C%22tTable%22%3Afalse%2C%22zTable%22%3Afalse%7D%2C%22itemDataVersion%22%3A%7B%22major%22%3A0%2C%22minor%22%3A1%7D%2C%22hints%22%3A%5B%5D%7D),
 for which you can also a [rendered preview here](http://khan.github.io/perseus/?renderer#content=%7B%22question%22%3A%7B%22content%22%3A%22Move%20the%20points%20in%20the%20figure%20below%20to%20obtain%20the%20graph%20of%20the%20line%20with%20equation%20%24y%3D%5C%5Cfrac%7B3%7D%7B2%7Dx-3%24.%5Cn%5Cn%5B%5B%E2%98%83%20interactive-graph%202%5D%5D%5Cn%22%2C%22images%22%3A%7B%7D%2C%22widgets%22%3A%7B%22interactive-graph%202%22%3A%7B%22type%22%3A%22interactive-graph%22%2C%22alignment%22%3A%22default%22%2C%22static%22%3Afalse%2C%22graded%22%3Atrue%2C%22options%22%3A%7B%22step%22%3A%5B1%2C1%5D%2C%22backgroundImage%22%3A%7B%22url%22%3Anull%7D%2C%22markings%22%3A%22graph%22%2C%22labels%22%3A%5B%22x%22%2C%22y%22%5D%2C%22showProtractor%22%3Afalse%2C%22showRuler%22%3Afalse%2C%22showTooltips%22%3Afalse%2C%22rulerLabel%22%3A%22%22%2C%22rulerTicks%22%3A10%2C%22range%22%3A%5B%5B-5%2C5%5D%2C%5B-5%2C5%5D%5D%2C%22gridStep%22%3A%5B0.5%2C0.5%5D%2C%22snapStep%22%3A%5B0.25%2C0.25%5D%2C%22graph%22%3A%7B%22type%22%3A%22linear%22%7D%2C%22correct%22%3A%7B%22type%22%3A%22linear%22%2C%22coords%22%3A%5B%5B0%2C-3%5D%2C%5B2%2C0%5D%5D%7D%7D%2C%22version%22%3A%7B%22major%22%3A0%2C%22minor%22%3A0%7D%7D%7D%7D%2C%22answerArea%22%3A%7B%22calculator%22%3Afalse%2C%22chi2Table%22%3Afalse%2C%22periodicTable%22%3Afalse%2C%22tTable%22%3Afalse%2C%22zTable%22%3Afalse%7D%2C%22itemDataVersion%22%3A%7B%22major%22%3A0%2C%22minor%22%3A1%7D%2C%22hints%22%3A%5B%5D%7D).
+
+
+
+
+
+SlideshowNode nodes
+-------------------
+The `SlideshowNode` class and the associated `SlideImageFile` class are used to
+create powerpoint-like presentations. The following code sample shows how to
+create a `SlideshowNode` that contains two slide images:
+
+    slideshow_node = SlideshowNode(
+          source_id='<some unique identifier within source domain>',
+          title='My presentations',
+          author='First Last (author\'s name)',
+          description='Put slideshow description here',
+          language=getlang('en').code,
+          license=get_license(licenses.CC_BY, copyright_holder='Copyright holder name'),
+          thumbnail='some/local/path/slideshow_thumbnail.jpg',
+          files=[
+              SlideImageFile(
+                  path='some/local/path/firstslide.png',
+                  caption="The caption text to be displayed below the slide image.",
+                  descriptive_text="Description of the slide for users that cannot see the image",
+                  language=getlang('en').code,
+              ),
+              SlideImageFile(
+                  path='some/local/path/secondslide.jpg',
+                  caption="The caption for the second slide image.",
+                  descriptive_text="Alternative text for the second slide image",
+                  language=getlang('en').code,
+              )
+          ]
+    )
+
+Note this is a new feature in Kolibri 0.13 and prior version of Kolibri will not
+be able to import and view this content kind.

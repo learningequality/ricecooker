@@ -19,6 +19,7 @@ The following file classes are defined in the module `ricecooker.classes.files`:
       YouTubeVideoFile    # .mp4 (downloaded from youtube based on `youtube_id`)
       SubtitleFile        # .vtt (`path` is local file system or url)
       YouTubeSubtitleFile # .vtt (downloaded from youtube based on `youtube_id` and `language`)
+    SlideImageFile        # .png/.jpg an image that is part of a SlideshowNode
     ThumbnailFile         # .png/.jpg/.jpeg  (`path` is local file system or url)
 
 
@@ -186,6 +187,23 @@ The class `ThumbnailFile` defined thumbnails that can be added to channel,
 topic nodes, and content nodes. The extensions `.png`, `.jpg`, and `.jpeg` and supported.
 
 The recommended size for thumbnail images is 400px by 225px (aspect ratio 16:9).
+
+
+SlideImageFile files
+--------------------
+The `SlideImageFile` class is used in conjunction with the `SlideshowNode` class
+to create powerpoint-like slideshow presentations.
+
+    slide_image_file = SlideImageFile(
+        path='some/local/path/firstslide.png',
+        caption="The caption text to be displayed below the slide image",
+        descriptive_text="Description of the slide for users that cannot see the image",
+        language=getlang('en').code,
+    )
+
+Use the `caption` field to provide the text that will be displayed under the slide
+image as part of the presentation. Use the `descriptive_text` field to provide
+the "alt text" the image contents for visually impaired users.
 
 
 

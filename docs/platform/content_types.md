@@ -18,6 +18,12 @@ The `DocumentNode` class supports two type of files:
   - Use the `EPubFile` for `.epub` files
 
 
+Slideshow
+---------
+The `SlideshowNode` class is used for powerpoint-like presentations:
+  - Use the `SlideImageFile` with `.png` and `.jpg` files for the slides
+
+
 HTML5Apps
 ---------
 The most versatile and extensible option for importing content into Kolibri is to
