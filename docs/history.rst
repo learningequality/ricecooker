@@ -2,6 +2,14 @@
 History
 =======
 
+0.6.36 (2019-09-25)
+-------------------
+* Added support for tags using the ``JsonChef`` workflow
+* Added validation step to ensure subtitles file are unique for each language code
+* Document new ``SlidesShow`` content kind coming in Kolibri 0.13
+* Added docs with detailed instruction for content upload and update workflows
+* Bugfixes to file extension logic and improved error handling around subtitles
+
 
 0.6.32 (2019-08-01)
 -------------------
