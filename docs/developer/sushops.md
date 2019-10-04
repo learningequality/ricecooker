@@ -27,6 +27,18 @@ space and processing power (if needed for video transcoding). Currently we have:
   - other chefs running on `cloud-kitchen`
   - various other chefs running on partner orgs infrastructure
 
+### Cheffing servers conventions
+  - Put all the chef repos in `/data` (usually a multi-terabyte volume), e.g.,
+    use the directory `/data/sushi-chef-{{nickname}}/` for the `nickcname` chef.
+  - Use the name `sushichef.py` for the chef script
+  - Document all the instructions and options needed to run the chef script in
+    the chef's `README.md`
+  - Use the directory `/data/sushi-chef-{{nickname}}/chefdata/tmp/` to store tmp
+    files to avoid cluttering the global `/tmp` directory.
+  - For long running chefs, use the command `nohup  <chef cmd>  &` to run the chef
+    so you can close the ssh session (hangup) without the process being terminated.
+
+
 
 Scheduled runs
 --------------
