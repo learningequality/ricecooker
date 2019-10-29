@@ -124,7 +124,7 @@ MAX_CHAR_LIMITS = {
     },
     "author": {
         "kind": "Node",
-        "field": "source_id",
+        "field": "author",
         "max": MAX_AUTHOR_LENGTH
     },
     "question_source_url": {
@@ -152,11 +152,20 @@ MAX_CHAR_LIMITS = {
         "field": "copyright holder",
         "max": MAX_COPYRIGHT_HOLDER_LENGTH
     },
+    "provider": {
+        "kind": "Provider",
+        "field": "provider",
+        "max": MAX_PROVIDER_LENGTH
+    }
 }
 
 
 def print_truncate(field, id, value, kind=None):
     limit = MAX_CHAR_LIMITS.get(field)
+    if not limit:  # fallback strategy if a field isn't in MAX_CHAR_LIMITS
+        limit = {"kind": kind,
+                 "field": field,
+                 "max": "??"}
     LOGGER.warning(TRUNCATE_MSG.format(kind=kind or limit["kind"], id=id, field=limit["field"], value=value, max=limit["max"]))
 
 def get_storage_path(filename):
