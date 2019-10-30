@@ -191,7 +191,7 @@ class ChannelManager:
         try:
             response.raise_for_status()
         except Exception:
-            config.LOGGER.error("Error connecting to API: {}".format(response.content))
+            config.LOGGER.error("Error connecting to API: {}".format(response.text))
             raise
         new_channel = json.loads(response._content.decode("utf-8"))
 
