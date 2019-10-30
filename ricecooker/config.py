@@ -124,7 +124,7 @@ MAX_CHAR_LIMITS = {
     },
     "author": {
         "kind": "Node",
-        "field": "source_id",
+        "field": "author",
         "max": MAX_AUTHOR_LENGTH
     },
     "question_source_url": {
@@ -152,6 +152,16 @@ MAX_CHAR_LIMITS = {
         "field": "copyright holder",
         "max": MAX_COPYRIGHT_HOLDER_LENGTH
     },
+    "provider": {
+        "kind": "Provider",
+        "field": "provider",
+        "max": MAX_PROVIDER_LENGTH
+    },
+    "aggregator": {
+        "kind": "Aggregator",
+        "field": "aggregator",
+        "max": MAX_AGGREGATOR_LENGTH
+    },
 }
 
 
@@ -166,9 +176,8 @@ def get_storage_path(filename):
     """
     directory = os.path.join(STORAGE_DIRECTORY, filename[0], filename[1])
     # Make storage directory for downloaded files if it doesn't already exist
-    if not os.path.exists(directory) :
+    if not os.path.exists(directory):
         os.makedirs(directory)
-
     return os.path.join(directory, filename)
 
 def authentication_url():

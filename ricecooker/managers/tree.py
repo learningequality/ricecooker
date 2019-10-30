@@ -188,7 +188,11 @@ class ChannelManager:
             "channel_data":self.channel.to_dict(),
         }
         response = config.SESSION.post(config.create_channel_url(), data=json.dumps(payload))
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except Exception:
+            config.LOGGER.error("Error connecting to API: {}".format(response.text))
+            raise
         new_channel = json.loads(response._content.decode("utf-8"))
 
         return new_channel['root'], new_channel['channel_id']
