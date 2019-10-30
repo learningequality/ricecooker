@@ -156,16 +156,17 @@ MAX_CHAR_LIMITS = {
         "kind": "Provider",
         "field": "provider",
         "max": MAX_PROVIDER_LENGTH
-    }
+    },
+    "aggregator": {
+        "kind": "Aggregator",
+        "field": "aggregator",
+        "max": MAX_AGGREGATOR_LENGTH
+    },
 }
 
 
 def print_truncate(field, id, value, kind=None):
     limit = MAX_CHAR_LIMITS.get(field)
-    if not limit:  # fallback strategy if a field isn't in MAX_CHAR_LIMITS
-        limit = {"kind": kind,
-                 "field": field,
-                 "max": "??"}
     LOGGER.warning(TRUNCATE_MSG.format(kind=kind or limit["kind"], id=id, field=limit["field"], value=value, max=limit["max"]))
 
 def get_storage_path(filename):
@@ -175,9 +176,8 @@ def get_storage_path(filename):
     """
     directory = os.path.join(STORAGE_DIRECTORY, filename[0], filename[1])
     # Make storage directory for downloaded files if it doesn't already exist
-    if not os.path.exists(directory) :
+    if not os.path.exists(directory):
         os.makedirs(directory)
-
     return os.path.join(directory, filename)
 
 def authentication_url():
