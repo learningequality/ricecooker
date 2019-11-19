@@ -694,7 +694,7 @@ class HTML5AppNode(ContentNode):
         try:
             assert self.kind == content_kinds.HTML5, "Assumption Failed: Node should be an HTML5 app"
             assert self.questions == [], "Assumption Failed: HTML should not have questions"
-            assert [f for f in self.files if isinstance(f, HTMLZipFile) or isinstance(f, H5PFile)], "Assumption Failed: HTML should have at least one html file"
+            assert [f for f in self.files if isinstance(f, HTMLZipFile) or isinstance(f, H5PFile)], "Assumption Failed: HTML should have at least one html or h5p file"
             return super(HTML5AppNode, self).validate()
 
         except AssertionError as ae:
