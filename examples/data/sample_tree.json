@@ -84,6 +84,17 @@
                 "license": "Public Domain"
             },
             {
+                "title": "Not Rice Presentation",
+                "id": "aaaaff",
+                "files": [
+                    {
+                        "path" : "https://h5p.org/sites/default/files/h5p/exports/course-presentation-21-21180.h5p"
+                    }
+                ],
+                "description": "A sample h5p presentation on... berries?",
+                "license": "Public Domain"
+            },
+            {
                 "title": "Rice History",
                 "id": "6ef99c",
                 "description": "Discover the history of rice",

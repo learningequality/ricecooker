@@ -421,6 +421,15 @@ class HTMLZipFile(DownloadFile):
         super(HTMLZipFile, self).validate()
 
 
+class H5PFile(DownloadFile):
+    default_ext = file_formats.H5P
+    allowed_formats = [file_formats.H5P]
+    is_primary = True
+
+    def get_preset(self):
+        return self.preset or format_presets.H5P_ZIP
+
+
 class ExtractedVideoThumbnailFile(ThumbnailFile):
 
     def process_file(self):

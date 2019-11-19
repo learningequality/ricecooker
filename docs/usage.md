@@ -83,7 +83,7 @@ By extending `SushiChef`, your chef class will inherit the following methods:
   - `run`, which performs all the work of uploading your channel to the Kolibri Studio.
     A sushi chef run consists of multiple steps, the most important one being
     when the we call the chef class' `construct_channel` method.
-  - `main`, which your is the function that runs when the sushi chef script is 
+  - `main`, which your is the function that runs when the sushi chef script is
      called on the command line.
 
 
@@ -94,7 +94,7 @@ metadata for the channel, as shows on line (2). Define the `channel_info` as fol
     channel_info = {
         'CHANNEL_TITLE': 'Channel name shown in UI',
         'CHANNEL_SOURCE_DOMAIN': '<sourcedomain.org>',       # who is providing the content (e.g. learningequality.org)
-        'CHANNEL_SOURCE_ID': '<some unique identifier>',     # an unique identifier for this channel within the domain 
+        'CHANNEL_SOURCE_ID': '<some unique identifier>',     # an unique identifier for this channel within the domain
         'CHANNEL_LANGUAGE': 'en',                            # use language codes from le_utils
         'CHANNEL_THUMBNAIL': 'http://yourdomain.org/img/logo.jpg', # (optional) local path or url to a thumbnail image
         'CHANNEL_DESCRIPTION': 'What is this channel about?',      # (optional) longer description of the channel
@@ -151,7 +151,7 @@ To find the internal language code for a given language, you can locate it in th
 [lookup table](https://github.com/learningequality/le-utils/blob/master/le_utils/resources/languagelookup.json),
 or use one of the language lookup helper functions defined in `le_utils.constants.languages`.
 
-Line (8) shows how we set the `license` attribute to the appropriate instance of 
+Line (8) shows how we set the `license` attribute to the appropriate instance of
 `ricecooker.classes.licenses.License`. All non-topic nodes must be assigned a
 license upon initialization. You can obtain the appropriate license object using
 the helper function `get_license` defined in `ricecooker.classes.licenses`.
@@ -180,7 +180,7 @@ useful debugging information on the command line.
 To see the full list of `ricecooker` command line options, run `./mychef.py -h`.
 For more details about running chef scripts see [the chefops page](./chefops.md).
 
-If you get an error when running the chef, make sure you've replaced 
+If you get an error when running the chef, make sure you've replaced
 `YOURTOKENHERE9139139f3a23232` by the token you obtained from Studio.
 Also make sure you've changed the value of `channel_info['CHANNEL_SOURCE_DOMAIN']`
 and `channel_info['CHANNEL_SOURCE_ID']` instead of using the default values.
@@ -220,6 +220,7 @@ Here are the available file models:
   - __DocumentFile__: `.pdf` file
   - __EPubFile__: `.epub` file (used with `DocumentNode`s)
   - __HTMLZipFile__: `.zip` containing HTML files (must have `index.html` in root)
+  - __H5PFile__: `.h5p` file ([see here for more information](https://h5p.org/))
   - __VideoFile__: `.mp4` file (can be high resolution or low resolution).
     The video codec must be `x264` and the audio codec must be `aac`.
     The formats `.avi`, `.mov`, `.mpg`, `.wmv`, `.webm`, `.mkv`, `.flv`, `.ogv`
