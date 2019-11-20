@@ -21,7 +21,7 @@ Before we continue, let's have some definitions:
       - Document (`pdf` and `epub` files)
       - Audio (`mp3` files)
       - Video (`mp4` files and subtitles)
-      - HTML5App `zip` files (generic container for web content: HTML+JS+CSS)
+      - HTML5App `h5p` files and `zip` files (generic container for web content: HTML+JS+CSS)
       - Exercises
   - A **sushi chef** is a Python script that uses the `ricecooker` library to
     import content from various sources, organize content into Kolibri channels
@@ -61,7 +61,7 @@ documentation depending on your role:
       - [HTML5 apps](https://github.com/learningequality/ricecooker/blob/master/docs/htmlapps.md)
       - [Parsing HTML](https://github.com/learningequality/ricecooker/blob/master/docs/parsing_html.md)
       - [Running chef scripts](https://github.com/learningequality/ricecooker/blob/master/docs/chefops.md) to learn about the command line args,
-        for controlling chef operation, managing caches, and other options. 
+        for controlling chef operation, managing caches, and other options.
       - [Sushi chef style guide](https://docs.google.com/document/d/1_Wh7IxPmFScQSuIb9k58XXMbXeSM0ZQLkoXFnzKyi_s/edit)
 
 
@@ -160,7 +160,7 @@ useful debugging information on the command line.
 To see all the `ricecooker` command line options, run `python simple_chef.py -h`.
 For more details about running chef scripts see [the chefops page](https://github.com/learningequality/ricecooker/blob/master/docs/chefops.md).
 
-If you get an error when running the chef, make sure you've replaced 
+If you get an error when running the chef, make sure you've replaced
 `YOURTOKENHERE9139139f3a23232` by the token you obtained from Studio.
 Also make sure you've changed the value of `channel_info['CHANNEL_SOURCE_DOMAIN']`
 and `channel_info['CHANNEL_SOURCE_ID']` instead of using the default values.

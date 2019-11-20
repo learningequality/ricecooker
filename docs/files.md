@@ -13,7 +13,9 @@ The following file classes are defined in the module `ricecooker.classes.files`:
 
     AudioFile             # .mp3
     DocumentFile          # .pdf
+    EPubFile              # .epub
     HTMLZipFile           # .zip containing HTML,JS,CSS
+    H5PFile               # .h5p
     VideoFile             # .mp4 (`path` is local file system or url)
       WebVideoFile        # .mp4 (downloaded from `web_url`)
       YouTubeVideoFile    # .mp4 (downloaded from youtube based on `youtube_id`)
@@ -58,7 +60,7 @@ See [languages][./languages.md] to read more about language codes.
 
 Audio files
 -----------
-Use the `AudioFile(DownloadFile)` class to store `mp3` files. 
+Use the `AudioFile(DownloadFile)` class to store `mp3` files.
 
 
     audio_file = AudioFile(
@@ -85,7 +87,7 @@ Use the `EPubFile` class to add ePub documents:
 
 
 
-HTMLZip files
+HTML files
 -------------
 The `HTML5ZipFile` class is a generic zip container for web content like HTML, CSS,
 and JavaScript. To be a valid `HTML5ZipFile` file, the file must have a `index.html`
@@ -98,6 +100,14 @@ Creating a `HTML5ZipFile` is then done using
 
     document_file = HTML5ZipFile(
         path='/tmp/interactive_js_simulation.zip',
+        language=getlang('en').code
+    )
+
+
+Use the `H5PFile` class to add [H5P](https://h5p.org/) files:
+
+    h5p_file = H5PFile(
+        path='dir/subdir/presentation.h5p',
         language=getlang('en').code
     )
 
@@ -152,7 +162,7 @@ to determine how the video will be downloaded and __high_resolution__ (boolean)
 to determine what resolution to download.
 
 
-Subtitle files can be created using  
+Subtitle files can be created using
 ```
 subs_file = SubtitleFile(
     path = "file:///path/to/file.vtt",

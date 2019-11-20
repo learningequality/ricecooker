@@ -2,6 +2,11 @@
 History
 =======
 
+0.6.38 (2019-11-19)
+-------------------
+* Added support the `h5p` file type
+
+
 0.6.36 (2019-09-25)
 -------------------
 * Added support for tags using the ``JsonChef`` workflow
@@ -44,14 +49,14 @@ History
 * Added ``srt2vtt`` subtitles conversion
 * Added static assets downloader helper method in ``utils.downloader.download_static_assets``
 * Added LineCook chef functions to ``--generate`` CSV from directory structure
-* Fixed the always ``randomize=True`` bug 
+* Fixed the always ``randomize=True`` bug
 * Docs: general content node metadata guidelines
 * Docs: video compression instructions and helper scripts ``convertvideo.bat`` and ``convertvideo.sh``
 
 
 0.6.17 (2018-04-20)
 -------------------
-* Added support for ``role`` attribute on ConentNodes (currently ``coach`` || ``learner``) 
+* Added support for ``role`` attribute on ConentNodes (currently ``coach`` || ``learner``)
 * Update pressurecooker dependency (to catch compression errors)
 * Docs improvements, see https://github.com/learningequality/ricecooker/tree/master/docs
 

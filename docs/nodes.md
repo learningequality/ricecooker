@@ -29,7 +29,7 @@ and shows the associated file and question classes that content nodes can contai
             class ContentNode(TreeNode)                   |
                 class AudioNode(ContentNode)     files = [AudioFile]
                 class DocumentNode(ContentNode)  files = [DocumentFile, EPubFile]
-                class HTML5AppNode(ContentNode)  files = [HTMLZipFile]
+                class HTML5AppNode(ContentNode)  files = [HTMLZipFile, H5PFile]
                 class SlideshowNode(ContentNode) files = [SlideImageFile]
                 class VideoNode(ContentNode)     files = [VideoFile, WebVideoFile, YouTubeVideoFile,
                                                           SubtitleFile, YouTubeSubtitleFile]
@@ -210,7 +210,7 @@ extract a thumbnail from the video if no thumbnail is provided.
 
 ### Role-based visibility
 It is possible to include content nodes in any channel that are only visible to
-Kolibri coaches. Setting the visibility to "coach-only" is useful for pedagogical 
+Kolibri coaches. Setting the visibility to "coach-only" is useful for pedagogical
 guides, answer keys, lesson plan suggestions, and other supporting material
 intended only for teachers to see but not students.
 To control content visibility set the `role` attributes to one of the constants

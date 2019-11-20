@@ -9,7 +9,7 @@ import re
 from ricecooker.chefs import SushiChef
 from ricecooker.classes import nodes, questions, files
 from ricecooker.classes.licenses import get_license
-from ricecooker.exceptions import UnknownContentKindError, UnknownFileTypeError, UnknownQuestionTypeError, raise_for_invalid_channel
+from ricecooker.exceptions import UnknownContentKindError, UnknownFileTypeError, UnknownQuestionTypeError, InvalidFormatException, raise_for_invalid_channel
 from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises, languages
 from pressurecooker.encodings import get_base64_encoding
 
@@ -63,6 +63,7 @@ class FileTypes(Enum):
     UNIVERSAL_SUBS_SUBTITLE_FILE = 11
     BASE64_FILE = 12
     WEB_VIDEO_FILE = 13
+    H5P_FILE = 14
 
 
 FILE_TYPE_MAPPING = {
@@ -80,6 +81,7 @@ FILE_TYPE_MAPPING = {
     },
     content_kinds.HTML5 : {
         file_formats.HTML5 : FileTypes.HTML_ZIP_FILE,
+        file_formats.H5P : FileTypes.H5P_FILE,
         file_formats.PNG : FileTypes.THUMBNAIL,
         file_formats.JPG : FileTypes.THUMBNAIL,
         file_formats.JPEG : FileTypes.THUMBNAIL,
@@ -433,6 +435,8 @@ def add_files(node, file_list):
             node.add_file(files.DocumentFile(path=abspath, language=f.get('language')))
         elif file_type == FileTypes.HTML_ZIP_FILE:
             node.add_file(files.HTMLZipFile(path=abspath, language=f.get('language')))
+        elif file_type == FileTypes.H5P_FILE:
+            node.add_file(files.H5PFile(path=abspath, language=f.get('language')))
         elif file_type == FileTypes.VIDEO_FILE:
             node.add_file(files.VideoFile(path=abspath, language=f.get('language'), ffmpeg_settings=f.get('ffmpeg_settings')))
         elif file_type == FileTypes.SUBTITLE_FILE:
