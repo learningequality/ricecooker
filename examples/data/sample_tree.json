@@ -84,7 +84,7 @@
                 "license": "Public Domain"
             },
             {
-                "title": "Not Rice Presentation",
+                "title": "H5P course Presentation",
                 "id": "aaaaff",
                 "files": [
                     {
@@ -92,6 +92,50 @@
                     }
                 ],
                 "description": "A sample h5p presentation on... berries?",
+                "license": "Public Domain"
+            },
+            {
+                "title": "Dialog Cards",
+                "id": "dialog_cards",
+                "files": [
+                    {
+                        "path" : "https://h5p.org/sites/default/files/h5p/exports/dialog-cards-620.h5p"
+                    }
+                ],
+                "description": "A andvanced H5P content kind that ",
+                "license": "Public Domain"
+            },
+            {
+                "title": "Interactive video",
+                "id": "interactive_video",
+                "files": [
+                    {
+                        "path" : "https://h5p.org/sites/default/files/h5p/exports/interactive-video-2-618.h5p"
+                    }
+                ],
+                "description": "An interative video h5p content kind",
+                "license": "Public Domain"
+            },
+            {
+                "title": "Mark the words",
+                "id": "mark_the_words",
+                "files": [
+                    {
+                        "path" : "https://h5p.org/sites/default/files/h5p/exports/mark-the-words-2-1408.h5p"
+                    }
+                ],
+                "description": "A quiz that asks learners to select particular words",
+                "license": "Public Domain"
+            },
+            {
+                "title": "Question Set",
+                "id": "question_set",
+                "files": [
+                    {
+                        "path" : "https://h5p.org/sites/default/files/h5p/exports/question-set-616.h5p"
+                    }
+                ],
+                "description": "A composite h5p content kind with quiz-like questions",
                 "license": "Public Domain"
             },
             {
