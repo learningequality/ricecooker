@@ -2,9 +2,11 @@
 History
 =======
 
-0.6.38 (2019-11-19)
+0.6.38 (2019-12-17)
 -------------------
-* Added support the `h5p` file type
+* Added support the `h5p` content kind and `h5p` file type
+* Added validation logic for tags
+* Improved error reporting
 
 
 0.6.36 (2019-09-25)

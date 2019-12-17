@@ -29,7 +29,8 @@ and shows the associated file and question classes that content nodes can contai
             class ContentNode(TreeNode)                   |
                 class AudioNode(ContentNode)     files = [AudioFile]
                 class DocumentNode(ContentNode)  files = [DocumentFile, EPubFile]
-                class HTML5AppNode(ContentNode)  files = [HTMLZipFile, H5PFile]
+                class HTML5AppNode(ContentNode)  files = [HTMLZipFile]
+                class H5PAppNode(ContentNode)    files = [H5PFile]
                 class SlideshowNode(ContentNode) files = [SlideImageFile]
                 class VideoNode(ContentNode)     files = [VideoFile, WebVideoFile, YouTubeVideoFile,
                                                           SubtitleFile, YouTubeSubtitleFile]
