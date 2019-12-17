@@ -690,12 +690,49 @@ class HTML5AppNode(ContentNode):
             Args: None
             Returns: boolean indicating if HTML5 app is valid
         """
-        from .files import HTMLZipFile, H5PFile
+        from .files import HTMLZipFile
         try:
             assert self.kind == content_kinds.HTML5, "Assumption Failed: Node should be an HTML5 app"
             assert self.questions == [], "Assumption Failed: HTML should not have questions"
-            assert [f for f in self.files if isinstance(f, HTMLZipFile) or isinstance(f, H5PFile)], "Assumption Failed: HTML should have at least one html or h5p file"
+            assert [f for f in self.files if isinstance(f, HTMLZipFile)], "Assumption Failed: HTML should have at least one html file"
             return super(HTML5AppNode, self).validate()
+
+        except AssertionError as ae:
+            raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
+
+
+class H5PAppNode(ContentNode):
+    """ Model representing a H5P content nodes
+
+        The .h5p file is self-contained and inlcuding media and javascript libs.
+
+        Attributes:
+            source_id (str): content's original id
+            title (str): content's title
+            license (str or <License>): content's license
+            author (str): who created the content (optional)
+            aggregator (str): website or org hosting the content collection but not necessarily the creator or copyright holder (optional)
+            provider (str): organization that commissioned or is distributing the content (optional)
+            description (str): description of content (optional)
+            thumbnail (str): local path or url to thumbnail image (optional)
+            extra_fields (dict): any additional data needed for node (optional)
+            domain_ns (str): who is providing the content (e.g. learningequality.org) (optional)
+            files ([<File>]): list of file objects for node (optional)
+    """
+    kind = content_kinds.H5P
+    required_file_format = file_formats.H5P
+
+    def validate(self):
+        """ validate: Makes sure H5P app is valid
+            Args: None
+            Returns: boolean indicating if H5P app is valid
+        """
+        from .files import H5PFile
+        try:
+            assert self.kind == content_kinds.H5P, "Assumption Failed: Node should be an H5P app"
+            assert self.questions == [], "Assumption Failed: HTML should not have questions"
+            assert [f for f in self.files if isinstance(f, H5PFile)], "Assumption Failed: H5PAppNode should have at least one h5p file"
+            return super(H5PAppNode, self).validate()
 
         except AssertionError as ae:
             raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
