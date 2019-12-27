@@ -2,11 +2,14 @@
 History
 =======
 
-0.6.38 (2019-12-17)
+0.6.38 (2019-12-27)
 -------------------
-* Added support the `h5p` content kind and `h5p` file type
+* Added support the ``h5p`` content kind and ``h5p`` file type
+* Removed monkey-patching of ``localStorage`` and ``document.cookie``
+  in the helper method ``download_static_assets``
 * Added validation logic for tags
 * Improved error reporting
+
 
 
 0.6.36 (2019-09-25)
