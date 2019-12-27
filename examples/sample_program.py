@@ -81,6 +81,11 @@ FILE_TYPE_MAPPING = {
     },
     content_kinds.HTML5 : {
         file_formats.HTML5 : FileTypes.HTML_ZIP_FILE,
+        file_formats.PNG : FileTypes.THUMBNAIL,
+        file_formats.JPG : FileTypes.THUMBNAIL,
+        file_formats.JPEG : FileTypes.THUMBNAIL,
+    },
+    content_kinds.H5P : {
         file_formats.H5P : FileTypes.H5P_FILE,
         file_formats.PNG : FileTypes.THUMBNAIL,
         file_formats.JPG : FileTypes.THUMBNAIL,
@@ -400,6 +405,19 @@ def _build_tree(node, sourcetree):
 
         elif kind == content_kinds.HTML5:
             child_node = nodes.HTML5AppNode(
+                source_id=child_source_node["id"],
+                title=child_source_node["title"],
+                license=child_source_node.get("license"),
+                author=child_source_node.get("author"),
+                description=child_source_node.get("description"),
+                thumbnail=child_source_node.get("thumbnail"),
+                copyright_holder=child_source_node.get("copyright_holder"),
+            )
+            add_files(child_node, child_source_node.get("files") or [])
+            node.add_child(child_node)
+
+        elif kind == content_kinds.H5P:
+            child_node = nodes.H5PAppNode(
                 source_id=child_source_node["id"],
                 title=child_source_node["title"],
                 license=child_source_node.get("license"),
