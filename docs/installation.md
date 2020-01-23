@@ -13,7 +13,7 @@ Additionally we'll assume you have also installed the `git` version control syst
 ### Linux
 On a Debian or Ubuntu GNU/Linux, you can install the necessary packages using:
 
-    apt-get install build-essential gettext pkg-config linux-tools python3-tk \
+    apt-get install build-essential gettext pkg-config linux-tools-generic python3-tk \
         python3 python3-dev python3-pip virtualenv \
         libxft-dev libwebp-dev libmagickwand-dev \
         ffmpeg
