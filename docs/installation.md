@@ -68,7 +68,7 @@ all the software tools necessary to write and run `ricecooker` scripts.
 
 Installing the `ricecooker` package
 -----------------------------------
-To install globally for your system Python installation `ricecooker`, run this command in your terminal:
+To install `ricecooker` globally for your system Python installation, run this command in your terminal:
 
     pip install ricecooker
 
