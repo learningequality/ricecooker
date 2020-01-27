@@ -204,6 +204,7 @@ class Node(object):
 
         assert self.source_id is not None, "Assumption Failed: Node must have a source_id"
         assert isinstance(self.title, str), "Assumption Failed: Node title is not a string"
+        assert len(self.title) > 0, "Assumption Failed: Node title must have a value"
         assert isinstance(self.description, str) or self.description is None, "Assumption Failed: Node description is not a string"
         assert isinstance(self.children, list), "Assumption Failed: Node children is not a list"
         for f in self.files:
