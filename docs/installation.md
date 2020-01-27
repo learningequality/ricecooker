@@ -13,7 +13,7 @@ Additionally we'll assume you have also installed the `git` version control syst
 ### Linux
 On a Debian or Ubuntu GNU/Linux, you can install the necessary packages using:
 
-    apt-get install build-essential gettext pkg-config linux-tools python3-tk \
+    apt-get install build-essential gettext pkg-config linux-tools-generic python3-tk \
         python3 python3-dev python3-pip virtualenv \
         libxft-dev libwebp-dev libmagickwand-dev \
         ffmpeg
@@ -68,12 +68,14 @@ all the software tools necessary to write and run `ricecooker` scripts.
 
 Installing the `ricecooker` package
 -----------------------------------
-To install `ricecooker`, run this command in your terminal:
+To install `ricecooker` globally for your system Python installation, run this command in your terminal:
 
     pip install ricecooker
 
+If you prefer to maintain an installation for each chef repo, then read on.
+
 This is the preferred method to install `ricecooker`, as it will always install
-the most recent stable release.
+the most recent stable release. 
 
 Note: The recommended best practice is to keep the code associated with each
 sushichef script in a separate Python `virtualenv` specific for that project,
@@ -85,8 +87,9 @@ must be installed for the chef to run and `ricecooker` can be specified there
 and installation of all required packages performed using:
 
     cd Projects/sushi-chef-{source_name}      # cd into the chef repo
-        source venv/bin/activate              # go into the virtualenv `venv`
-        pip install -r requirements.txt       # install a list of python packages
+    virtualenv -p python3 venv                # initialize Python virtual environment
+    source venv/bin/activate                  # go into the virtualenv `venv`
+    pip install -r requirements.txt           # install a list of python packages
 
 
 
