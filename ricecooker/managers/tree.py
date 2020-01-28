@@ -32,7 +32,7 @@ class ChannelManager:
         """
         file_names = []
         self.process_tree_recur(file_names, channel_node)
-        return [x for x in set(file_names) if x]  # Remove any duplicate or null files
+        return [x for x in set(file_names) if x]  # Remove any duplicate or None filenames
 
     def process_tree_recur(self, file_names, node):
         """

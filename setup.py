@@ -29,6 +29,7 @@ requirements = [
     "mock==2.0.0",
     "pypdf2>=1.26.0",
     "dictdiffer>=0.8.0",
+    "Pillow==5.4.1",
 ]
 
 test_requirements = [
