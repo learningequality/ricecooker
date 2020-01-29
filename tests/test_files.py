@@ -1,9 +1,12 @@
 """ Tests for file downloading and processing """
-import pytest
 import os.path
+import pytest
 from shutil import copyfile
+import tempfile
 
-from ricecooker.classes.files import *
+from le_utils.constants import languages
+from ricecooker.classes.files import SubtitleFile
+from ricecooker.classes.files import is_youtube_subtitle_file_supported_language
 from ricecooker.classes.files import _get_language_with_alpha2_fallback
 from ricecooker.utils.zip import create_predictable_zip
 from ricecooker import config
@@ -12,47 +15,52 @@ from test_pdfutils import _save_file_url_to_path
 
 IS_TRAVIS_TESTING = "TRAVIS" in os.environ and os.environ["TRAVIS"] == "true"
 
+
 # Process all of the files
-def process_files(video_file, html_file, audio_file, document_file, thumbnail_file, subtitle_file):
+def process_files(video_file, html_file, audio_file, document_file, epub_file, thumbnail_file, subtitle_file):
     video_file.process_file()
     html_file.process_file()
     audio_file.process_file()
     document_file.process_file()
+    epub_file.process_file()
     thumbnail_file.process_file()
     subtitle_file.process_file()
 
 
 """ *********** DOWNLOAD TESTS *********** """
-def test_download(video_file, html_file, audio_file, document_file, thumbnail_file, subtitle_file):
+def test_download(video_file, html_file, audio_file, document_file, epub_file, thumbnail_file, subtitle_file):
     try:
-        process_files(video_file, html_file, audio_file, document_file, thumbnail_file, subtitle_file)
+        process_files(video_file, html_file, audio_file, document_file, epub_file, thumbnail_file, subtitle_file)
         assert True
     except Exception:
         assert False, "One or more of the files failed to download"
 
 def test_download_filenames(video_file, video_filename, html_file, html_filename, audio_file, audio_filename,
-    document_file, document_filename, thumbnail_file, thumbnail_filename, subtitle_file, subtitle_filename):
+    document_file, document_filename, epub_file, epub_filename, thumbnail_file, thumbnail_filename, subtitle_file, subtitle_filename):
     assert video_file.process_file() == video_filename, "Video file should have filename {}".format(video_filename)
-    #assert html_file.process_file() == html_filename, "HTML file should have filename {}".format(html_filename)
+    assert html_file.process_file() == html_filename, "HTML file should have filename {}".format(html_filename)
     assert audio_file.process_file() == audio_filename, "Audio file should have filename {}".format(audio_filename)
-    assert document_file.process_file() == document_filename, "Document file should have filename {}".format(document_filename)
+    assert document_file.process_file() == document_filename, "PDF document file should have filename {}".format(document_filename)
+    assert epub_file.process_file() == epub_filename, "ePub document file should have filename {}".format(epub_filename)
     assert thumbnail_file.process_file() == thumbnail_filename, "Thumbnail file should have filename {}".format(thumbnail_filename)
     assert subtitle_file.process_file() == subtitle_filename, "Subtitle file should have filename {}".format(subtitle_filename)
 
 def test_download_to_storage(video_file, video_filename, html_file, html_filename, audio_file, audio_filename,
-    document_file, document_filename, thumbnail_file, thumbnail_filename, subtitle_file, subtitle_filename):
-    process_files(video_file, html_file, audio_file, document_file, thumbnail_file, subtitle_file)
+    document_file, document_filename, epub_file, epub_filename, thumbnail_file, thumbnail_filename, subtitle_file, subtitle_filename):
+    process_files(video_file, html_file, audio_file, document_file, epub_file, thumbnail_file, subtitle_file)
     video_path = config.get_storage_path(video_filename)
     html_path = config.get_storage_path(html_filename)
     audio_path = config.get_storage_path(audio_filename)
     document_path = config.get_storage_path(document_filename)
+    epub_path = config.get_storage_path(epub_filename)
     thumbnail_path = config.get_storage_path(thumbnail_filename)
     subtitle_path = config.get_storage_path(subtitle_filename)
 
     assert os.path.isfile(video_path), "Video should be stored at {}".format(video_path)
-    # assert os.path.isfile(html_path), "HTML should be stored at {}".format(html_path)
+    assert os.path.isfile(html_path), "HTML should be stored at {}".format(html_path)
     assert os.path.isfile(audio_path), "Audio should be stored at {}".format(audio_path)
-    assert os.path.isfile(document_path), "Document should be stored at {}".format(document_path)
+    assert os.path.isfile(document_path), "PDF document should be stored at {}".format(document_path)
+    assert os.path.isfile(epub_path), "ePub document should be stored at {}".format(epub_path)
     assert os.path.isfile(thumbnail_path), "Thumbnail should be stored at {}".format(thumbnail_path)
     assert os.path.isfile(subtitle_path), "Subtitle should be stored at {}".format(subtitle_path)
 

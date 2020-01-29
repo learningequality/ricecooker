@@ -47,10 +47,6 @@ def document_node_id(topic_node_id, document_content_id):
     return uuid.uuid5(topic_node_id, document_content_id.hex)
 
 @pytest.fixture
-def document_file():
-    return DocumentFile("tests/testcontent/testdocument.pdf")
-
-@pytest.fixture
 def thumbnail_path():
     return "tests/testcontent/sample_thumbnail.png"
 

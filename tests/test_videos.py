@@ -1,91 +1,67 @@
 from __future__ import print_function
+from cachecontrol.caches.file_cache import FileCache
 import os
 import pytest
 import re
-import requests
 import shutil
 import subprocess
-
-IS_TRAVIS_TESTING = "TRAVIS" in os.environ and os.environ["TRAVIS"] == "true"
 
 from le_utils.constants import format_presets
 from le_utils.constants import licenses
 from pressurecooker import videos
-
 from ricecooker import config
-from ricecooker.classes.nodes import VideoNode
-from ricecooker.classes.files import VideoFile, SubtitleFile, YouTubeVideoFile
-
-from cachecontrol.caches.file_cache import FileCache
 from ricecooker.classes.files import FILECACHE
+from ricecooker.classes.files import SubtitleFile, VideoFile, YouTubeVideoFile
+from ricecooker.classes.nodes import VideoNode
+
+from conftest import download_fixture_file
+IS_TRAVIS_TESTING = "TRAVIS" in os.environ and os.environ["TRAVIS"] == "true"
 
 
 @pytest.fixture
 def low_res_video():
-    if os.path.exists("tests/testcontent/low_res_video.mp4"):
-        f = open("tests/testcontent/low_res_video.mp4", 'rb')
-        f.close()
-    else:
-        with open("tests/testcontent/low_res_video.mp4", 'wb') as f:
-            resp = requests.get(
-                "https://archive.org/download/vd_is_for_everybody/vd_is_for_everybody_512kb.mp4",
-                stream=True,
-            )
-            for chunk in resp.iter_content(chunk_size=1048576):
-                f.write(chunk)
-            f.flush()
+    source_url = "https://archive.org/download/vd_is_for_everybody/vd_is_for_everybody_512kb.mp4"
+    local_path = os.path.join("tests", "testcontent", "low_res_video.mp4")
+    download_fixture_file(source_url, local_path)
+    assert os.path.exists(local_path)
+    f = open(local_path, 'rb')
+    f.close()
     return f  # returns a closed file descriptor which we use for name attribute
-
 
 @pytest.fixture
 def high_res_video():
-    if not os.path.exists("tests/testcontent/high_res_video.mp4"):
-        with open("tests/testcontent/high_res_video.mp4", 'wb') as f:
-            resp = requests.get(
-                "https://ia800201.us.archive.org/7/items/"
-                "UnderConstructionFREEVideoBackgroundLoopHD1080p/"
-                "UnderConstruction%20-%20FREE%20Video%20Background%20Loop%20HD%201080p.mp4",
-                stream=True
-            )
-            for chunk in resp.iter_content(chunk_size=1048576):
-                f.write(chunk)
-            f.flush()
-    else:
-        f = open("tests/testcontent/high_res_video.mp4", 'rb')
-        f.close()
+    source_url = "https://ia800201.us.archive.org/7/items/" \
+                 "UnderConstructionFREEVideoBackgroundLoopHD1080p/" \
+                 "UnderConstruction%20-%20FREE%20Video%20Background%20Loop%20HD%201080p.mp4"
+    local_path = os.path.join("tests", "testcontent", "high_res_video.mp4")
+    download_fixture_file(source_url, local_path)
+    assert os.path.exists(local_path)
+    f = open(local_path, 'rb')
+    f.close()
     return f  # returns a closed file descriptor which we use for name attribute
-
 
 @pytest.fixture
 def low_res_ogv_video():
-    if not os.path.exists("tests/testcontent/low_res_ogv_video.ogv"):
-        with open("tests/testcontent/low_res_ogv_video.ogv", 'wb') as f:
-            resp = requests.get(
-                "https://archive.org/download/"
-                "UnderConstructionFREEVideoBackgroundLoopHD1080p/"
-                "UnderConstruction%20-%20FREE%20Video%20Background%20Loop%20HD%201080p.ogv",
-                stream=True
-            )
-            for chunk in resp.iter_content(chunk_size=1048576):
-                f.write(chunk)
-            f.flush()
-    else:
-        f = open("tests/testcontent/low_res_ogv_video.ogv", 'rb')
-        f.close()
+    source_url = "https://archive.org/download/" \
+                 "UnderConstructionFREEVideoBackgroundLoopHD1080p/" \
+                 "UnderConstruction%20-%20FREE%20Video%20Background%20Loop%20HD%201080p.ogv"
+    local_path = os.path.join("tests", "testcontent", "low_res_ogv_video.ogv")
+    download_fixture_file(source_url, local_path)
+    assert os.path.exists(local_path)
+    f = open(local_path, 'rb')
+    f.close()
     return f  # returns a closed file descriptor which we use for name attribute
-
 
 @pytest.fixture
 def bad_video():
     if not os.path.exists("tests/testcontent/bad_video.mp4"):
         with open("tests/testcontent/bad_video.mp4", 'wb') as f:
-            f.write(b'novideohere. ffmpeg soshould error')
+            f.write(b'novideohere. so ffmpeg should error out!')
             f.flush()
     else:
         f = open("tests/testcontent/bad_video.mp4", 'rb')
         f.close()
     return f  # returns a closed file descriptor which we use for name attribute
-
 
 
 
@@ -275,4 +251,3 @@ def test_duplicate_language_codes_fixed_by_validate(video_file):
     video_node.validate()
     sub_files = [f for f in video_node.files if isinstance(f, SubtitleFile)]
     assert len(sub_files) == 1, 'Duplicate subtitles files not removed!'
-
