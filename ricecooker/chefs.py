@@ -71,7 +71,10 @@ class BaseChef(object):
         allsteps = [step.name.upper() for step in Status]
         parser.add_argument('--step',choices=allsteps,default='LAST', help='Step to resume progress from (must be used with --resume flag)')
         parser.add_argument('--prompt', action='store_true',          help='Prompt user to open the channel after creating it')
-        parser.add_argument('--stage', action='store_true',           help='Upload to staging tree to allow for manual verification before replacing main tree')
+        parser.add_argument('--stage', dest='stage_deprecated', action='store_true',
+                            help='(Deprecated.) Stage updated content for review. This flag is now the default and has been kept solely to maintain compatibility. Use --deploy to immediately push changes.')
+        parser.add_argument('--deploy', dest='stage', action='store_false',
+                            help='Immediately deploy changes to channel\'s main tree. This operation will delete the previous channel content once upload completes. Default (recommended) behavior is to post new tree for review.')
         parser.add_argument('--publish', action='store_true',         help='Publish newly uploaded version of the channel')
         # [OPTIONS] --- extra key=value options are supported, but do not appear in help
         self.arg_parser = parser
@@ -290,14 +293,13 @@ class SushiChef(BaseChef):
 
     def main(self):
         args, options = self.parse_args_and_options()
+        if args['stage_deprecated']:
+            config.LOGGER.warning('DEPRECATION WARNING: --stage is now default, so the --stage flag has been deprecated and will be removed in ricecooker 1.0.')
         config.LOGGER.debug('In SushiChef.main method. args=' + str(args) + 'options=' + str(options))
         if args['daemon']:
             self.daemon_mode(args, options)
         else:
             self.run(args, options)
-
-
-
 
 
 # JSON TREE CHEF
