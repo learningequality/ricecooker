@@ -95,6 +95,9 @@ class BaseChef(object):
         args_namespace, options_list = self.arg_parser.parse_known_args()
         args = args_namespace.__dict__
 
+        if args['stage_deprecated']:
+            config.LOGGER.warning('DEPRECATION WARNING: --stage is now default, so the --stage flag has been deprecated and will be removed in ricecooker 1.0.')
+
         # Make sure token is provided. There are four possible ways to specify:
         #   --token=path to token-containing file
         #   --token=140fefe...1f3
@@ -293,8 +296,6 @@ class SushiChef(BaseChef):
 
     def main(self):
         args, options = self.parse_args_and_options()
-        if args['stage_deprecated']:
-            config.LOGGER.warning('DEPRECATION WARNING: --stage is now default, so the --stage flag has been deprecated and will be removed in ricecooker 1.0.')
         config.LOGGER.debug('In SushiChef.main method. args=' + str(args) + 'options=' + str(options))
         if args['daemon']:
             self.daemon_mode(args, options)
