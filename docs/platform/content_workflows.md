@@ -68,10 +68,9 @@ different because a version of the channel is already available:
   - `CHEF`: to upload a new version of a content channel, simply re-run the chef
     script. The newly uploaded channel tree will replace the old tree on Studio
     (assuming the `source_domain` and `source_id` of the channel haven't changed).
-    - If you pass the `--stage` command line argument to the chef script, the new
-      version of the channel will be uploaded to a "staging tree" instead of
-      replacing the current tree, which will allow you to preview the changes to
-      the channel on Studio before replacing the existing tree. Use the `DEPLOY`
+    - The new version of the channel will be uploaded to a "staging tree" instead
+      of replacing the current tree, which will allow you to preview the changes
+      to the channel on Studio before replacing the existing tree. Use the `DEPLOY`
       button on Studio to complete the upload and replace the current tree.
     - By default, ricecooker will cache all files that have been previously uploaded
       to Studio in order to avoid the need to download and compress files each

@@ -35,9 +35,9 @@ You can run `./sushichef.py -h` to see an always-up-to-date info about the `rice
                             [--reset | --resume]
                             [--step {INIT, CONSTRUCT_CHANNEL, CREATE_TREE, DOWNLOAD_FILES, GET_FILE_DIFF,
                                START_UPLOAD, UPLOADING_FILES, UPLOAD_CHANNEL, PUBLISH_CHANNEL,DONE, LAST}]
-                            [--prompt] [--stage] [--publish] [--daemon]
-                            [--nomonitor] [--cmdsock CMDSOCK]
-                        
+                            [--prompt] [--deploy] [--publish]
+                            [--daemon] [--nomonitor] [--cmdsock CMDSOCK]
+
     required arguments:
       --token TOKEN         Authorization token (can be token or path to file with token)
 
@@ -59,8 +59,14 @@ You can run `./sushichef.py -h` to see an always-up-to-date info about the `rice
                             --reset flag)
       --step  {INIT, ...    Step to resume progress from (must be used with --resume flag)
       --prompt              Prompt user to open the channel after creating it
-      --stage               Upload to staging tree to allow for manual
-                            verification before replacing main tree
+      --stage               (Deprecated.) Stage updated content for review. This
+                            flag is now the default and has been kept solely to
+                            maintain compatibility. Use --deploy to immediately
+                            push changes.
+      --deploy              Immediately deploy changes to channel's main tree.
+                            This operation will delete the previous channel
+                            content once upload completes. Default (recommended)
+                            behavior is to post new tree for review.
       --publish             Publish newly uploaded version of the channel
       --daemon              Run chef in daemon mode
       --nomonitor           Disable SushiBar progress monitoring

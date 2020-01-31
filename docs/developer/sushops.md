@@ -4,7 +4,7 @@ SushOps engineers (also called ETL engineers) are responsible for making sure
 the overall content pipeline runs smoothly. Assuming the [chefops](../chefops)
 is done right, running the chef script should be as simple as running a single command.
 SushOps engineers need to make sure not only that chef is running correctly,
-but also monitor content on the Sushibar dashboard, in Kolibri Studio, and in 
+but also monitor content on the Sushibar dashboard, in Kolibri Studio, and in
 downstream remixed channels, and in Kolibri installations.
 
 SushOps is an internal role to Learning Equality but we'll document the responsibilities
@@ -44,10 +44,10 @@ Scheduled runs
 --------------
 Chefs scripts can be scheduled to run automatically on a periodic basis, e.g.,
 once a month. In between runs, chef scripts stay dormant (daemonized).
-Scheduled chefs run by default with the `--stage` argument in order not to
-accidentally overwrite the currently active content tree on Studio with a broken one.
+By default, scheduled chefs runs create staged tree in order not to accidentally
+overwrite the currently active content tree on Studio with a broken one.
 If the channel content is relatively unchanged and raises no flags for review,
-the staged tree will be ACTIVATED, and the channel PUBLISHed automatically as well.
+the staged tree can be DEPLOYed and then PUBLISHed.
 
 
 Chef inventory
