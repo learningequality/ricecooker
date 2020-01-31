@@ -730,10 +730,11 @@ class HTML5AppNode(ContentNode):
     def generate_thumbnail(self):
         from .files import HTMLZipFile, ExtractedHTMLZipThumbnailFile
         html5_files = [f for f in self.files if isinstance(f, HTMLZipFile)]
-        html_file = html5_files[0]
-        if html_file and not html_file.error:
-            storage_path = config.get_storage_path(html_file.filename)
-            return ExtractedHTMLZipThumbnailFile(storage_path)
+        if html5_files:
+            html_file = html5_files[0]
+            if html_file.filename and not html_file.error:
+                storage_path = config.get_storage_path(html_file.filename)
+                return ExtractedHTMLZipThumbnailFile(storage_path)
         else:
             return None
 
