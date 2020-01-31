@@ -873,7 +873,7 @@ class ExtractedThumbnailFile(ThumbnailFile):
             copy_file_to_storage(filename, tempf.name)
             os.unlink(tempf.name)
             FILECACHE.set(key, bytes(filename, "utf-8"))
-            config.LOGGER.info("\t--- Extracted thumbnail {}".format(self.filename))
+            config.LOGGER.info("\t--- Extracted thumbnail {}".format(filename))
             self.filename = filename
         except ThumbnailGenerationError as err:
             config.LOGGER.warning("\t    Failed to extract thumbnail from file {} -- {}".format(self.path, err))
