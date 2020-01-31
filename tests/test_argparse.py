@@ -158,6 +158,7 @@ def dict_compare(d1, d2):
 
 """ *********** CLI ARGUMENTS TESTS *********** """
 
+@pytest.mark.skip('Deprecated test that check backward compatibility with docop')
 def test_same_as_docopt(command_line_inputs):
     for line in command_line_inputs:
         arguments, kwargs = old_arguments_parser(line)
