@@ -638,9 +638,12 @@ class CsvMetadataProvider(MetadataProvider):
             exercise_row[CONTENT_PATH_KEY] = '/'.join(path_tuple+[exercise_title])
             exercise_row[EXERCISE_SOURCEID_KEY] = source_id
             # Exercises specifics
-            extra_fields = json.loads(studio_dict['extra_fields'])
-            exercise_row[EXERCISE_M_KEY] = None # extra_fields['m']  TEMPORARY HACK BECAUSE NUMBER OF QUESTIONS WILL CHANGE 
-            exercise_row[EXERCISE_N_KEY] = None # extra_fields['n']  TEMPORARY HACK BECAUSE NUMBER OF QUESTIONS WILL CHANGE 
+            if isinstance(studio_dict['extra_fields'], str):
+                extra_fields = json.loads(studio_dict['extra_fields'])
+            else:
+                extra_fields = studio_dict['extra_fields']
+            exercise_row[EXERCISE_M_KEY] = extra_fields['m']
+            exercise_row[EXERCISE_N_KEY] = extra_fields['n']
             exercise_row[EXERCISE_RANDOMIZE_KEY] = extra_fields['randomize']
             # WRITE EXERCISE ROW
             csvwriter.writerow(exercise_row)
@@ -704,6 +707,9 @@ class CsvMetadataProvider(MetadataProvider):
 
     def write_question_row_from_question_dict(self, source_id, question_dict):
         file_path = get_metadata_file_path(self.channeldir, self.questionsinfo)
+        if question_dict['type'] == 'perseus_question':
+            print('Skipping perseus_question -- not supported in CSV workflow.')
+            return
         with open(file_path, 'a') as csv_file:
             csvwriter = csv.DictWriter(csv_file, EXERCISE_QUESTIONS_INFO_HEADER)
 

@@ -18,7 +18,7 @@ requirements = [
     "requests_file",
     "requests-cache>=0.4.13",
     "beautifulsoup4>=4.6.3",
-    "pressurecooker>=0.0.25",
+    "pressurecooker>=0.0.26",
     "selenium==3.0.1",
     "youtube-dl",
     "html5lib",
@@ -29,6 +29,7 @@ requirements = [
     "mock==2.0.0",
     "pypdf2>=1.26.0",
     "dictdiffer>=0.8.0",
+    "Pillow==5.4.1",
 ]
 
 test_requirements = [

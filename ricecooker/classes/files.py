@@ -1,23 +1,31 @@
 # Node models to represent channel's tree
 from __future__ import unicode_literals
 
+from cachecontrol.caches.file_cache import FileCache
 import hashlib
 import os
+from PIL import Image
+from requests.exceptions import MissingSchema, HTTPError, ConnectionError, InvalidURL, InvalidSchema
 import shutil
-import tempfile
-import zipfile
 from subprocess import CalledProcessError
+import tempfile
 import youtube_dl
+import zipfile
+
 from le_utils.constants import languages
-from cachecontrol.caches.file_cache import FileCache
 from le_utils.constants import file_formats, format_presets, exercises
 from pressurecooker.encodings import get_base64_encoding, write_base64_to_file
+from pressurecooker.images import create_image_from_pdf_page
+from pressurecooker.images import create_image_from_epub
+from pressurecooker.images import create_image_from_zip
+from pressurecooker.videos import extract_thumbnail_from_video
+from pressurecooker.images import create_waveform_image
 from pressurecooker.images import create_tiled_image
-from pressurecooker.videos import extract_thumbnail_from_video, guess_video_preset_by_resolution, compress_video, VideoCompressionError
+from pressurecooker.images import ThumbnailGenerationError
 from pressurecooker.subtitles import build_subtitle_converter_from_file
 from pressurecooker.subtitles import LANGUAGE_CODE_UNKNOWN
 from pressurecooker.subtitles import InvalidSubtitleFormatError, InvalidSubtitleLanguageError
-from requests.exceptions import MissingSchema, HTTPError, ConnectionError, InvalidURL, InvalidSchema
+from pressurecooker.videos import guess_video_preset_by_resolution, compress_video, VideoCompressionError
 
 from .. import config
 from ..exceptions import UnknownFileTypeError
@@ -47,7 +55,7 @@ def extract_path_ext(path, default_ext=None):
         ext = default_ext
     if not ext:
         raise ValueError('No extension in path {} and default_ext is None'.format(path))
-    return ext
+    return ext.lower()
 
 
 def generate_key(action, path_or_id, settings=None, default=" (default)"):
@@ -64,9 +72,12 @@ def generate_key(action, path_or_id, settings=None, default=" (default)"):
 
 
 def download(path, default_ext=None):
-    """ download: downloads file
-        Args: None
-        Returns: filename
+    """
+    Download `path` and save to storage based on file extension derived from `path`.
+    :param path: An URL or a local path
+    :param default_ext: fallback ext for file when path does not end with .ext
+    :return: filename derived from hash of file contents {md5hash(file)}.ext
+    :rtype: sting (path of the form `{md5hash(file at path)}.ext`
     """
     key = "DOWNLOAD:{}".format(path)
     if not config.UPDATE and FILECACHE.get(key):
@@ -78,28 +89,17 @@ def download(path, default_ext=None):
     with tempfile.TemporaryFile() as tempf:
         hash = write_and_get_hash(path, tempf)
         tempf.seek(0)
-
-        # Get extension of file or default if none found
-        extension = os.path.splitext(path)[1][1:].lower()
-        if extension not in [key for key, value in file_formats.choices]:
-            if default_ext:
-                extension = default_ext
-            else:
-                raise IOError("No extension found: {}".format(path))
-
-        filename = '{0}.{ext}'.format(hash.hexdigest(), ext=extension)
-
+        # Get extension of file or use `default_ext` if none found
+        ext = extract_path_ext(path, default_ext=default_ext)
+        filename = '{0}.{ext}'.format(hash.hexdigest(), ext=ext)
         copy_file_to_storage(filename, tempf)
-
         FILECACHE.set(key, bytes(filename, "utf-8"))
-
         return filename
 
 
 def download_and_convert_video(path, default_ext=file_formats.MP4, ffmpeg_settings=None):
-    """ download: downloads file
-        Args: None
-        Returns: filename
+    """
+    Auto-converting variant of download function that handles all video formats.
     """
     ffmpeg_settings = ffmpeg_settings or {}
     key = "DOWNLOAD:{}".format(path)
@@ -108,16 +108,15 @@ def download_and_convert_video(path, default_ext=file_formats.MP4, ffmpeg_settin
 
     config.LOGGER.info("\tDownloading {}".format(path))
 
-    # Get extension of file or default if none found
-    extension = os.path.splitext(path)[1][1:].lower()
+    # Get extension of convertible video file
+    ext = extract_path_ext(path)
     converted_path = None
 
     # Convert video to temporary file
-    with tempfile.NamedTemporaryFile(suffix=".{}".format(extension), delete=False) as tempf:
+    with tempfile.NamedTemporaryFile(suffix=".{}".format(ext), delete=False) as tempf:
         # Write unsupported video to temporary file
         write_and_get_hash(path, tempf)
         tempf.seek(0)
-
         # Compress video into mp4 file
         path, _ext = os.path.splitext(tempf.name)
         converted_path = "{}.{}".format(path, file_formats.MP4)
@@ -125,25 +124,31 @@ def download_and_convert_video(path, default_ext=file_formats.MP4, ffmpeg_settin
         compress_video(tempf.name, converted_path, overwrite=True, **ffmpeg_settings)
         os.unlink(tempf.name)
 
-    # Write file to temporary file
-    with tempfile.TemporaryFile() as tempf:
-        hash = write_and_get_hash(converted_path, tempf)
-        tempf.seek(0)
-
+    # Write converted file to another temporary file
+    with tempfile.TemporaryFile() as tempf2:
+        hash = write_and_get_hash(converted_path, tempf2)
+        tempf2.seek(0)
         filename = '{0}.{ext}'.format(hash.hexdigest(), ext=file_formats.MP4)
-
-        copy_file_to_storage(filename, tempf)
+        copy_file_to_storage(filename, tempf2)
         os.unlink(converted_path)
-
         FILECACHE.set(key, bytes(filename, "utf-8"))
-
         return filename
 
 
 def write_and_get_hash(path, write_to_file, hash=None):
-    """ write_and_get_hash: write file
-        Args: None
-        Returns: Hash of file's contents
+    """
+    Download file at `path` and write its contents to the file `write_to_file`.
+    Attempts a HTTP GET request for the path and if that fails, we'll try to read
+    from `path` on the local filesystem.
+
+    :param path: An URL or a local filepath
+    :type path: str
+    :param write_to_file: Desrination file to which we write the contents of path.
+    :type write_to_file: file
+    :param hash:  initial hasher state (used when writing multiple paths to the same file (.graphie)
+    :type hash: hashlib hasher (optional)
+    :return: updated hasher state
+    :rtype: hashlib hasher (updated)
     """
     hash = hash or hashlib.md5()
     try:
@@ -167,6 +172,11 @@ def write_and_get_hash(path, write_to_file, hash=None):
 
 
 def copy_file_to_storage(filename, srcfile, delete_original=False):
+    """
+    Copy `srcfile` (file of path) to desrination storage path for `filename`,
+    of the form `storage/f/i/filename.ext` when filename is `filename.ext`.
+    :rtype: None
+    """
     # Some files might have been closed, so only filepath will work
     if isinstance(srcfile, str):
         srcfile = open(srcfile, 'rb')
@@ -187,7 +197,13 @@ def get_hash(filepath):
     return file_hash.hexdigest()
 
 
+
+
 def compress_video_file(filename, ffmpeg_settings):
+    """
+    Calls the pressurecooker function `compress_video` to compress filename (source)
+    stored in storage. Returns the filename of the compressed file.
+    """
     ffmpeg_settings = ffmpeg_settings or {}
     key = generate_key("COMPRESSED", filename, settings=ffmpeg_settings, default=" (default compression)")
 
@@ -199,15 +215,21 @@ def compress_video_file(filename, ffmpeg_settings):
     tempf = tempfile.NamedTemporaryFile(suffix=".{}".format(file_formats.MP4), delete=False)
     tempf.close() # Need to close so pressure cooker can write to file
     compress_video(config.get_storage_path(filename), tempf.name, overwrite=True, **ffmpeg_settings)
-    filename = "{}.{}".format(get_hash(tempf.name), file_formats.MP4)
+    compressedfilename = "{}.{}".format(get_hash(tempf.name), file_formats.MP4)
 
-    copy_file_to_storage(filename, tempf.name)
+    copy_file_to_storage(compressedfilename, tempf.name)
     os.unlink(tempf.name)
-    FILECACHE.set(key, bytes(filename, "utf-8"))
-    return filename
+    FILECACHE.set(key, bytes(compressedfilename, "utf-8"))
+    return compressedfilename
+
+
 
 
 def download_from_web(web_url, download_settings, file_format=file_formats.MP4, ext="", download_ext=""):
+    """
+    Download `web_url` using YoutubeDL using `download_settings` options.
+    Required args: file_format, ext, and download_ext.
+    """
     key = generate_key("DOWNLOADED", web_url, settings=download_settings)
     if not config.UPDATE and FILECACHE.get(key):
         return FILECACHE.get(key).decode('utf-8')
@@ -328,8 +350,7 @@ class DownloadFile(File):
         Ensure `self.path` has one of the extensions in `self.allowed_formats`.
         """
         assert self.path, "{} must have a path".format(self.__class__.__name__)
-        _, dotext = os.path.splitext(self.path)
-        ext = dotext.lstrip('.')
+        ext = extract_path_ext(self.path, default_ext=self.default_ext)
         # don't validate for single-digit extension, or no extension
         if len(ext) > 1:
             assert ext in self.allowed_formats, "{} must have one of the " \
@@ -345,6 +366,7 @@ class DownloadFile(File):
         except HTTP_CAUGHT_EXCEPTIONS as err:
             self.error = err
             config.FAILED_FILES.append(self)
+            return None
 
     def __str__(self):
         return self.path
@@ -369,6 +391,22 @@ class ThumbnailFile(ThumbnailPresetMixin, DownloadFile):
     default_ext = file_formats.PNG
     allowed_formats = [file_formats.JPG, file_formats.JPEG, file_formats.PNG]
 
+    def process_file(self):
+        """
+        Call DownloadFile's `process_file` and ensure the result is a valid img.
+        """
+        self.filename = super(ThumbnailFile, self).process_file()
+        if self.filename:
+            try:
+                image_path = config.get_storage_path(self.filename)
+                img = Image.open(image_path)
+                img.verify()
+            except IOError as e:       # Catch invalid or broken thumbnail files
+                self.filename = None
+                self.error = e
+                config.FAILED_FILES.append(self)
+        return self.filename
+
 
 class AudioFile(DownloadFile):
     default_ext = file_formats.MP3
@@ -390,7 +428,7 @@ class DocumentFile(DownloadFile):
 
 class EPubFile(DownloadFile):
     default_ext = file_formats.EPUB
-    allowed_formats = [file_formats.EPUB]  # ZEPUB other ???
+    allowed_formats = [file_formats.EPUB]
     is_primary = True
 
     def get_preset(self):
@@ -407,18 +445,17 @@ class HTMLZipFile(DownloadFile):
 
     def process_file(self):
         self.filename = super(HTMLZipFile, self).process_file()
-
-        # make sure index.html exists
-        with zipfile.ZipFile(config.get_storage_path(self.filename)) as zf:
+        if self.filename:
             try:
-                info = zf.getinfo('index.html')
-            except KeyError:
-                raise IOError("HTML zip must have an `index.html` file at topmost level")
-
+                # make sure index.html exists
+                with zipfile.ZipFile(config.get_storage_path(self.filename)) as zf:
+                    _info = zf.getinfo('index.html')
+            except KeyError as err:
+                self.filename = None
+                self.error = err
+                config.FAILED_FILES.append(self)
         return self.filename
 
-    def validate(self):
-        super(HTMLZipFile, self).validate()
 
 
 class H5PFile(DownloadFile):
@@ -428,30 +465,6 @@ class H5PFile(DownloadFile):
 
     def get_preset(self):
         return self.preset or format_presets.H5P_ZIP
-
-
-class ExtractedVideoThumbnailFile(ThumbnailFile):
-
-    def process_file(self):
-        self.filename = self.derive_thumbnail()
-        config.LOGGER.info("\t--- Extracted thumbnail {}".format(self.filename))
-        return self.filename
-
-    def derive_thumbnail(self):
-        key = "EXTRACTED: {}".format(self.path)
-        if not config.UPDATE and FILECACHE.get(key):
-            return FILECACHE.get(key).decode('utf-8')
-
-        config.LOGGER.info("\t--- Extracting thumbnail from {}".format(self.path))
-        tempf = tempfile.NamedTemporaryFile(suffix=".{}".format(file_formats.PNG), delete=False)
-        tempf.close()
-        extract_thumbnail_from_video(self.path, tempf.name, overwrite=True)
-        filename = "{}.{}".format(get_hash(tempf.name), file_formats.PNG)
-
-        copy_file_to_storage(filename, tempf.name)
-        os.unlink(tempf.name)
-        FILECACHE.set(key, bytes(filename, "utf-8"))
-        return filename
 
 
 class VideoFile(DownloadFile):
@@ -476,6 +489,9 @@ class VideoFile(DownloadFile):
             raise ValueError('Incompatible extension {} for VideoFile at {}'.format(ext, self.path))
 
     def process_unsupported_video_file(self):
+        """
+        Download video at self.path, convert to mp4, and return converted filename.
+        """
         try:
             self.filename = download_and_convert_video(self.path, ffmpeg_settings=self.ffmpeg_settings)
             config.LOGGER.info("\t--- Downloaded and converted {}".format(self.filename))
@@ -489,11 +505,10 @@ class VideoFile(DownloadFile):
         if ext not in self.allowed_formats and ext not in CONVERTIBLE_FORMATS[format_presets.VIDEO_HIGH_RES]:
             raise ValueError('Incompatible extension {} for VideoFile at {}'.format(ext, self.path))
         try:
-            # Handle videos that don't have a .mp4 extension
             _, ext = os.path.splitext(self.path)
             if ext and not ext.endswith(self.default_ext):
+                # Handle videos that don't have a .mp4 extension
                 self.filename = self.process_unsupported_video_file()
-                return self.filename
             else:
                 # Get copy of video before compression (if specified)
                 self.filename = super(VideoFile, self).process_file()
@@ -502,12 +517,13 @@ class VideoFile(DownloadFile):
                 if self.filename and (self.ffmpeg_settings or config.COMPRESS):
                     self.filename = compress_video_file(self.filename, self.ffmpeg_settings)
                     config.LOGGER.info("\t--- Compressed {}".format(self.filename))
-                return self.filename
-
-        # Catch errors related to ffmpeg and handle silently
         except (BrokenPipeError, CalledProcessError, IOError, VideoCompressionError) as err:
+            # Catch errors related to ffmpeg and handle silently
+            self.filename = None
             self.error = err
             config.FAILED_FILES.append(self)
+
+        return self.filename
 
 
 class WebVideoFile(File):
@@ -520,7 +536,6 @@ class WebVideoFile(File):
             maxheight = maxheight or (720 if high_resolution else 480)
             self.download_settings['format'] = "bestvideo[height<={maxheight}][ext=mp4]+bestaudio[ext=m4a]/best[height<={maxheight}][ext=mp4]".format(maxheight=maxheight)
             # self.download_settings['recodevideo'] = file_formats.MP4
-
         super(WebVideoFile, self).__init__(**kwargs)
 
     def get_preset(self):
@@ -536,10 +551,12 @@ class WebVideoFile(File):
                 self.filename = compress_video_file(self.filename, {})
                 config.LOGGER.info("\t--- Compressed {}".format(self.filename))
 
-            return self.filename
         except youtube_dl.utils.DownloadError as err:
-            self.error = str(err)
+            self.filename = None
+            self.error = err
             config.FAILED_FILES.append(self)
+
+        return self.filename
 
 
 class YouTubeVideoFile(WebVideoFile):
@@ -649,6 +666,7 @@ class SubtitleFile(DownloadFile):
         convertible_exts = CONVERTIBLE_FORMATS[self.get_preset()]
         if ext != self.default_ext and ext not in convertible_exts and self.subtitlesformat is None:
             raise ValueError('Incompatible extension {} for SubtitleFile at {}'.format(ext, self.path))
+
 
     def process_file(self):
         self.validate()
@@ -830,6 +848,86 @@ class _ExerciseGraphieFile(DownloadFile):
             return filename
 
 
+
+# EXTRACTED THUMBNAILS
+################################################################################
+
+class ExtractedThumbnailFile(ThumbnailFile):
+    extractor_kwargs = {}  # subclass can specify additional options
+
+    def process_file(self):
+        """Generates the thumbnail from source file in `self.path` by calling
+        the ``extractor_fun`` on the subclass.
+        Returns: filename or None
+        """
+        key = "EXTRACTED: {}".format(self.path)
+        if not config.UPDATE and FILECACHE.get(key):
+            return FILECACHE.get(key).decode('utf-8')
+
+        config.LOGGER.info("\t--- Extracting thumbnail from {}".format(self.path))
+        tempf = tempfile.NamedTemporaryFile(suffix=".{}".format(file_formats.PNG), delete=False)
+        tempf.close()
+        try:
+            self.extractor_fun(self.path, tempf.name, **self.extractor_kwargs)
+            filename = "{}.{}".format(get_hash(tempf.name), file_formats.PNG)
+            copy_file_to_storage(filename, tempf.name)
+            os.unlink(tempf.name)
+            FILECACHE.set(key, bytes(filename, "utf-8"))
+            config.LOGGER.info("\t--- Extracted thumbnail {}".format(filename))
+            self.filename = filename
+        except ThumbnailGenerationError as err:
+            config.LOGGER.warning("\t    Failed to extract thumbnail from file {} -- {}".format(self.path, err))
+            self.filename = None
+            self.error = err
+            config.FAILED_FILES.append(self)
+        return self.filename
+
+    def extractor_fun(self, fpath_in, thumbpath_out, **kwargs):
+        """The function in the subclass that performs the thumbnail generation.
+
+        Args:
+            fpath_in: the local path of the source file
+            thumbpath_out: the destination path to write thumbnail to (temp file)
+            **kwargs: any additional class-specific arguments passed in
+        """
+        raise NotImplementedError('The subclass must implement this method.')
+
+class ExtractedPdfThumbnailFile(ExtractedThumbnailFile):
+    extractor_kwargs = {'page_number': 0, 'crop': None}
+
+    def extractor_fun(self, fpath_in, thumbpath_out, **kwargs):
+        create_image_from_pdf_page(fpath_in, thumbpath_out, **kwargs)
+
+
+class ExtractedEPubThumbnailFile(ExtractedThumbnailFile):
+    extractor_kwargs = {'crop': None}
+
+    def extractor_fun(self, fpath_in, thumbpath_out, **kwargs):
+        create_image_from_epub(fpath_in, thumbpath_out, **kwargs)
+
+
+class ExtractedHTMLZipThumbnailFile(ExtractedThumbnailFile):
+    extractor_kwargs = {'crop': "smart"}
+
+    def extractor_fun(self, fpath_in, thumbpath_out, **kwargs):
+        create_image_from_zip(fpath_in, thumbpath_out, **kwargs)
+
+
+class ExtractedVideoThumbnailFile(ExtractedThumbnailFile):
+    extractor_kwargs = {'overwrite': True}
+
+    def extractor_fun(self, fpath_in, thumbpath_out, **kwargs):
+        extract_thumbnail_from_video(fpath_in, thumbpath_out, **kwargs)
+
+
+class ExtractedAudioThumbnailFile(ExtractedThumbnailFile):
+    studio_cmap_options = {'name': 'BuPu', 'vmin': 0.3, 'vmax': 0.7, 'color': 'black'}
+    extractor_kwargs = {'colormap_options': studio_cmap_options}
+
+    def extractor_fun(self, fpath_in, thumbpath_out, **kwargs):
+        create_waveform_image(fpath_in, thumbpath_out, **kwargs)
+
+
 class TiledThumbnailFile(ThumbnailPresetMixin, File):
     allowed_formats = [file_formats.JPG, file_formats.JPEG, file_formats.PNG]
 
@@ -860,22 +958,11 @@ class TiledThumbnailFile(ThumbnailPresetMixin, File):
         if not config.UPDATE and FILECACHE.get(key):
             return FILECACHE.get(key).decode('utf-8')
 
-        config.LOGGER.info("\tTiling thumbnail for {}".format(self.node.title))
+        config.LOGGER.info("\tGenerating tiled thumbnail.")
         with tempfile.NamedTemporaryFile(suffix=".{}".format(file_formats.PNG)) as tempf:
             tempf.close()
             create_tiled_image(images, tempf.name)
             filename = "{}.{}".format(get_hash(tempf.name), file_formats.PNG)
-
             copy_file_to_storage(filename, tempf.name)
             FILECACHE.set(key, bytes(filename, "utf-8"))
             return filename
-
-
-# VectorizedVideoFile
-# UniversalSubsSubtitleFile
-
-# class UniversalSubsSubtitleFile(SubtitleFile):
-#     def __init__(self, us_id, language):
-#         response = sess.get("http://usubs.org/api/{}".format(us_id))
-#         path = json.loads(response.content)["subtitle_url"]
-#         return super(UniversalSubsSubtitleFile, self).__init__(path=path, language=language)

@@ -3,8 +3,8 @@ from ricecooker.config import LOGGER
 
 
 # DEFAULT_STUDIO_URL = 'https://develop.studio.learningequality.org'
-DEFAULT_STUDIO_URL = 'http://127.0.0.1:8080'
-# DEFAULT_STUDIO_URL = 'https://studio.learningequality.org'
+# DEFAULT_STUDIO_URL = 'http://127.0.0.1:8080'
+DEFAULT_STUDIO_URL = 'https://studio.learningequality.org'
 
 
 # TODO https://studio.learningequality.org/api/get_node_path/ca8f380/18932/41b2549

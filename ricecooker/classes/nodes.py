@@ -17,7 +17,7 @@ class Node(object):
     license = None
     language = None
 
-    def __init__(self, title, language=None, description=None, thumbnail=None, files=None):
+    def __init__(self, title, language=None, description=None, thumbnail=None, files=None, derive_thumbnail=False):
         self.files = []
         self.children = []
         self.descendants = []
@@ -27,6 +27,7 @@ class Node(object):
         self.title = title
         self.set_language(language)
         self.description = description or ""
+        self.derive_thumbnail = derive_thumbnail
 
         for f in files or []:
             self.add_file(f)
@@ -88,8 +89,13 @@ class Node(object):
         if file_to_add not in self.files:
             self.files.append(file_to_add)
 
-    def derive_thumbnail(self):
-        pass
+    def generate_thumbnail(self):
+        """Each node subclass implements its own thumbnail generation logic.
+
+        Returns:
+            A Thumbnail object (unprocessed) or None.
+        """
+        return None
 
     def has_thumbnail(self):
         from .files import ThumbnailFile
@@ -110,7 +116,8 @@ class Node(object):
 
     def get_thumbnail_preset(self):
         """
-        Returns the format preset corresponding to this Node's type, or None if the node doesn't have a format preset.
+        Returns the format preset corresponding to this Node's type,
+        or None if the node doesn't have a format preset.
         """
         if isinstance(self, ChannelNode):
             return format_presets.CHANNEL_THUMBNAIL
@@ -130,19 +137,30 @@ class Node(object):
             return None
 
     def process_files(self):
+        """Processes all the files associated with this Node, including:
+        - download files if not present in the local storage
+        - convert and compress video files
+        - (optionally) generate thumbnail file from the node's content
+        Returns: content-hash based filenames of all the files for this node
         """
-        Processes all the files associated with this Node.
-        Files are downloaded if not present in the local storage.
-        :return: A list of names of all the processed files.
-        """
-        file_names = []
-        for f in self.files:
-            file_names.append(f.process_file())
+        filenames = []
+        for file in self.files:
+            filenames.append(file.process_file())
 
-        if not self.has_thumbnail() and config.THUMBNAILS:
-            file_names.append(self.derive_thumbnail())
+        # Auto-generation of thumbnails happens here if derive_thumbnail or config.THUMBNAILS is set
+        if not self.has_thumbnail() and (config.THUMBNAILS or self.derive_thumbnail):
+            thumbnail_file = self.generate_thumbnail()
+            if thumbnail_file:
+                thumbnail_filename = thumbnail_file.process_file()
+                if thumbnail_filename:
+                    self.set_thumbnail(thumbnail_file)
+                    filenames.append(thumbnail_filename)
+                else:
+                    pass  # failed to generate thumbnail
+            else:
+                pass  # method generate_thumbnail is not implemented or no suitable source file found
 
-        return file_names
+        return filenames
 
     def count(self):
         """ count: get number of nodes in tree
@@ -204,7 +222,7 @@ class Node(object):
 
         assert self.source_id is not None, "Assumption Failed: Node must have a source_id"
         assert isinstance(self.title, str), "Assumption Failed: Node title is not a string"
-        assert len(self.title) > 0, "Assumption Failed: Node title must have a value"
+        assert len(self.title.strip()) > 0, "Assumption Failed: Node title cannot be empty"
         assert isinstance(self.description, str) or self.description is None, "Assumption Failed: Node description is not a string"
         assert isinstance(self.children, list), "Assumption Failed: Node children is not a list"
         for f in self.files:
@@ -405,12 +423,16 @@ class TopicNode(TreeNode):
             title (str): content's title
             description (str): description of content (optional)
             thumbnail (str): local path or url to thumbnail image (optional)
+            derive_thumbnail (bool): set to generate tiled thumbnail from children (optional)
     """
     kind = content_kinds.TOPIC
-    def derive_thumbnail(self):
+
+    def generate_thumbnail(self):
+        """Generate a ``TiledThumbnailFile`` based on the descendants.
+        Returns: a Thumbnail file or None.
+        """
         from .files import TiledThumbnailFile
-        self.set_thumbnail(TiledThumbnailFile(self.get_non_topic_descendants()))
-        return self.thumbnail.get_filename()
+        return TiledThumbnailFile(self.get_non_topic_descendants())
 
     def validate(self):
         """ validate: Makes sure topic is valid
@@ -439,6 +461,7 @@ class ContentNode(TreeNode):
             provider (str): organization that commissioned or is distributing the content (optional)
             role (str): set to roles.COACH for teacher-facing materials (default roles.LEARNER)
             thumbnail (str): local path or url to thumbnail image (optional)
+            derive_thumbnail (bool): set to generate thumbnail from content (optional)
             files ([<File>]): list of file objects for node (optional)
             extra_fields (dict): any additional data needed for node (optional)
             domain_ns (str): who is providing the content (e.g. learningequality.org) (optional)
@@ -518,7 +541,7 @@ class VideoNode(ContentNode):
             aggregator (str): website or org hosting the content collection but not necessarily the creator or copyright holder (optional)
             provider (str): organization that commissioned or is distributing the content (optional)
             description (str): description of content (optional)
-            derive_thumbnail (bool): indicates whether to derive thumbnail from video (optional)
+            derive_thumbnail (bool): set to generate thumbnail from video (optional)
             thumbnail (str): local path or url to thumbnail image (optional)
             extra_fields (dict): any additional data needed for node (optional)
             domain_ns (str): who is providing the content (e.g. learningequality.org) (optional)
@@ -527,32 +550,18 @@ class VideoNode(ContentNode):
     kind = content_kinds.VIDEO
     required_file_format = file_formats.MP4
 
-    def __init__(self, source_id, title, license, derive_thumbnail=False, **kwargs):
-        self.generate_thumbnail = derive_thumbnail
+    def __init__(self, source_id, title, license, **kwargs):
         super(VideoNode, self).__init__(source_id, title, license, **kwargs)
 
-    def process_files(self):
-        """ download_files: Download video's files
-            Args: None
-            Returns: None
-        """
-        from .files import VideoFile, ExtractedVideoThumbnailFile, WebVideoFile
-
-        downloaded = super(VideoNode, self).process_files()
-
-        try:
-            # Extract thumbnail if one hasn't been provided and derive_thumbnail is set
-            if self.generate_thumbnail and not self.has_thumbnail():
-                videos = [f for f in self.files if isinstance(f, VideoFile) or isinstance(f, WebVideoFile)]
-                assert len(videos) > 0 and videos[0].filename, "Cannot extract thumbnail (No videos found on node {0})".format(self.source_id)
-
-                self.set_thumbnail(ExtractedVideoThumbnailFile(config.get_storage_path(videos[0].filename)))
-                downloaded.append(self.thumbnail.get_filename())
-
-        except AssertionError as ae:
-            config.LOGGER.warning(ae)
-
-        return downloaded
+    def generate_thumbnail(self):
+        from .files import VideoFile, WebVideoFile, ExtractedVideoThumbnailFile
+        video_files = [f for f in self.files if isinstance(f, VideoFile) or isinstance(f, WebVideoFile)]
+        if video_files:
+            video_file = video_files[0]
+            if video_file.filename and not video_file.error:
+                storage_path = config.get_storage_path(video_file.filename)
+                return ExtractedVideoThumbnailFile(storage_path)
+        return None
 
     def validate(self):
         """ validate: Makes sure video is valid
@@ -603,12 +612,24 @@ class AudioNode(ContentNode):
             provider (str): organization that commissioned or is distributing the content (optional)
             description (str): description of content (optional)
             thumbnail (str): local path or url to thumbnail image (optional)
+            derive_thumbnail (bool): set to generate waveform thumbnail (optional)
             extra_fields (dict): any additional data needed for node (optional)
             domain_ns (str): who is providing the content (e.g. learningequality.org) (optional)
             files ([<File>]): list of file objects for node (optional)
     """
     kind = content_kinds.AUDIO
     required_file_format = file_formats.MP3
+
+    def generate_thumbnail(self):
+        from .files import AudioFile, ExtractedAudioThumbnailFile
+        audio_files = [f for f in self.files if isinstance(f, AudioFile)]
+        if audio_files:
+            audio_file = audio_files[0]
+            if audio_file.filename and not audio_file.error:
+                storage_path = config.get_storage_path(audio_file.filename)
+                return ExtractedAudioThumbnailFile(storage_path)
+        return None
+
 
     def validate(self):
         """ validate: Makes sure audio is valid
@@ -629,7 +650,7 @@ class AudioNode(ContentNode):
 class DocumentNode(ContentNode):
     """ Model representing documents in channel
 
-        Documents must be pdf format
+        Documents must be in PDF or ePub format
 
         Attributes:
             source_id (str): content's original id
@@ -640,6 +661,7 @@ class DocumentNode(ContentNode):
             provider (str): organization that commissioned or is distributing the content (optional)
             description (str): description of content (optional)
             thumbnail (str): local path or url to thumbnail image (optional)
+            derive_thumbnail (bool): automatically generate thumbnail (optional)
             extra_fields (dict): any additional data needed for node (optional)
             domain_ns (str): who is providing the content (e.g. learningequality.org) (optional)
             files ([<File>]): list of file objects for node (optional)
@@ -663,6 +685,24 @@ class DocumentNode(ContentNode):
         except AssertionError as ae:
             raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
 
+    def generate_thumbnail(self):
+        from .files import DocumentFile, EPubFile, ExtractedPdfThumbnailFile, ExtractedEPubThumbnailFile
+        pdf_files = [f for f in self.files if isinstance(f, DocumentFile)]
+        epub_files = [f for f in self.files if isinstance(f, EPubFile)]
+        if pdf_files and epub_files:
+            raise InvalidNodeException("Invalid node (both PDF and ePub provided): {} - {}".format(self.title, self.__dict__))
+        elif pdf_files:
+            pdf_file = pdf_files[0]
+            if pdf_file.filename and not pdf_file.error:
+                storage_path = config.get_storage_path(pdf_file.filename)
+                return ExtractedPdfThumbnailFile(storage_path)
+        elif epub_files:
+            epub_file = epub_files[0]
+            if epub_file.filename and not epub_file.error:
+                storage_path = config.get_storage_path(epub_file.filename)
+                return ExtractedEPubThumbnailFile(storage_path)
+        return None
+
 
 class HTML5AppNode(ContentNode):
     """ Model representing a zipped HTML5 application
@@ -679,12 +719,24 @@ class HTML5AppNode(ContentNode):
             provider (str): organization that commissioned or is distributing the content (optional)
             description (str): description of content (optional)
             thumbnail (str): local path or url to thumbnail image (optional)
+            derive_thumbnail (bool): generate thumbnail from largest image inside zip (optional)
             extra_fields (dict): any additional data needed for node (optional)
             domain_ns (str): who is providing the content (e.g. learningequality.org) (optional)
             files ([<File>]): list of file objects for node (optional)
     """
     kind = content_kinds.HTML5
     required_file_format = file_formats.HTML5
+
+    def generate_thumbnail(self):
+        from .files import HTMLZipFile, ExtractedHTMLZipThumbnailFile
+        html5_files = [f for f in self.files if isinstance(f, HTMLZipFile)]
+        if html5_files:
+            html_file = html5_files[0]
+            if html_file.filename and not html_file.error:
+                storage_path = config.get_storage_path(html_file.filename)
+                return ExtractedHTMLZipThumbnailFile(storage_path)
+        else:
+            return None
 
     def validate(self):
         """ validate: Makes sure HTML5 app is valid
@@ -697,7 +749,6 @@ class HTML5AppNode(ContentNode):
             assert self.questions == [], "Assumption Failed: HTML should not have questions"
             assert [f for f in self.files if isinstance(f, HTMLZipFile)], "Assumption Failed: HTML should have at least one html file"
             return super(HTML5AppNode, self).validate()
-
         except AssertionError as ae:
             raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
 
@@ -734,7 +785,6 @@ class H5PAppNode(ContentNode):
             assert self.questions == [], "Assumption Failed: HTML should not have questions"
             assert [f for f in self.files if isinstance(f, H5PFile)], "Assumption Failed: H5PAppNode should have at least one h5p file"
             return super(H5PAppNode, self).validate()
-
         except AssertionError as ae:
             raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
 
@@ -789,9 +839,8 @@ class ExerciseNode(ContentNode):
         self.questions += [question]
 
     def process_files(self):
-        """ process_files: goes through question fields and replaces image strings
-            Args: None
-            Returns: None
+        """Goes through question fields and replaces image strings
+        Returns: content-hash based filenames of all the required image files
         """
         config.LOGGER.info("\t*** Processing images for exercise: {}".format(self.title))
         downloaded = super(ExerciseNode, self).process_files()

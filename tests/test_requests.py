@@ -3,11 +3,8 @@
 import copy
 import pytest
 import uuid
-import tempfile
 from le_utils.constants import licenses
-import base64
-from ricecooker.classes.nodes import *
-from ricecooker.classes.files import *
+from ricecooker.classes.nodes import TopicNode, DocumentNode
 from ricecooker.managers.tree import ChannelManager
 from ricecooker.exceptions import InvalidNodeException
 
@@ -35,42 +32,9 @@ def invalid_topic(topic_id):
     topic.title = None
     return topic
 
-""" *********** DOCUMENT FIXTURES *********** """
-@pytest.fixture
-def document_id():
-    return "document-id"
 
-@pytest.fixture
-def document_content_id(channel_domain_namespace, document_id):
-    return uuid.uuid5(channel_domain_namespace, document_id)
 
-@pytest.fixture
-def document_node_id(topic_node_id, document_content_id):
-    return uuid.uuid5(topic_node_id, document_content_id.hex)
-
-@pytest.fixture
-def document_file():
-    return DocumentFile("tests/testcontent/testdocument.pdf")
-
-@pytest.fixture
-def thumbnail_path():
-    return "tests/testcontent/sample_thumbnail.jpg"
-
-@pytest.fixture
-def copyright_holder():
-    return "Copyright Holder"
-
-@pytest.fixture
-def license_name():
-    return licenses.PUBLIC_DOMAIN
-
-@pytest.fixture
-def document(document_id, document_file, thumbnail_path, copyright_holder, license_name):
-    node = DocumentNode(document_id, "Document", licenses.CC_BY, thumbnail=thumbnail_path)
-    node.add_file(document_file)
-    node.set_license(license_name, copyright_holder=copyright_holder)
-    return node
-
+""" *********** LOCAL DOCUMENT FIXTURES *********** """
 @pytest.fixture
 def invalid_document(document_file):
     node = DocumentNode("invalid", "Document", licenses.CC_BY, files=[document_file])
