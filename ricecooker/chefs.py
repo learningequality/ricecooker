@@ -97,6 +97,8 @@ class BaseChef(object):
 
         if args['stage_deprecated']:
             config.LOGGER.warning('DEPRECATION WARNING: --stage is now default, so the --stage flag has been deprecated and will be removed in ricecooker 1.0.')
+        if args['publish'] and args['stage']:
+            raise InvalidUsageException('The --publish argument must be used together with --deploy argument.')
 
         # Make sure token is provided. There are four possible ways to specify:
         #   --token=path to token-containing file
