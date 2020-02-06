@@ -55,7 +55,7 @@ def doc3_with_toc_path():
     A Gutenberg textbook PDF with a chapter-subchapter structure.
     """
     doc3_with_toc_path = 'tests/testcontent/41568-pdf.pdf'
-    _save_file_url_to_path('http://www.gutenberg.org/files/41568/41568-pdf.pdf',
+    _save_file_url_to_path('https://www.gutenberg.org/files/41568/41568-pdf.pdf',
                             doc3_with_toc_path)
     assert os.path.exists(doc3_with_toc_path), 'Error mising test file ' + doc3_with_toc_path
     return doc3_with_toc_path
