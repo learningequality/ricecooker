@@ -7,7 +7,7 @@ from ricecooker import config
 from ricecooker.classes.files import AudioFile, DocumentFile, EPubFile, HTMLZipFile, ThumbnailFile, TiledThumbnailFile, SlideImageFile, SubtitleFile, VideoFile
 from ricecooker.classes.nodes import AudioNode, ChannelNode, DocumentNode, ExerciseNode, HTML5AppNode, SlideshowNode, TopicNode, VideoNode
 
-from test_tree import thumbnail_path
+from test_tree import thumbnail_path, thumbnail_path_jpg
 from test_videos import low_res_video
 from test_videos import _clear_ricecookerfilecache
 
@@ -57,11 +57,22 @@ class TestThumbnailSetting(object):
     # HAPPY PATHS
     ############################################################################
 
-    def test_set_thumbnail_from_local_path(self, low_res_video, thumbnail_path):
+    def test_set_png_thumbnail_from_local_path(self, low_res_video, thumbnail_path):
         video_node = self.get_video_node(path=low_res_video.name, thumbnail=thumbnail_path)
         video_node.validate()
         _ = video_node.process_files()
         self.check_correct_thumbnail(video_node)
+
+    def test_set_jpg_thumbnail_from_local_path(self, low_res_video, thumbnail_path_jpg):
+        video_node = self.get_video_node(path=low_res_video.name, thumbnail=thumbnail_path_jpg)
+        video_node.validate()
+        _ = video_node.process_files()
+        expected_thumbnail_filename = 'd7ab03e4263fc374737d96ac2da156c1.jpg'
+        thumbnail_files = [f for f in video_node.files if isinstance(f, ThumbnailFile)]
+        assert len(thumbnail_files) == 1, 'multiple thumbnails found'
+        thumbnail_file = thumbnail_files[0]
+        thumbnail_filename = thumbnail_file.get_filename()
+        assert thumbnail_filename == expected_thumbnail_filename, "Wrong thumbnail"
 
     def test_set_thumbnail_from_url(self, low_res_video):
         video_node = self.get_video_node(path=low_res_video.name, thumbnail=THUMBNAIL_URL)

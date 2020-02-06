@@ -46,6 +46,8 @@ clean-test: ## remove test and coverage artifacts
 	rm -fr .tox/
 	rm -f .coverage
 	rm -fr htmlcov/
+	rm -rf tests/testcontent/downloaded/*
+	rm -rf tests/testcontent/generated/*
 
 lint: ## check style with flake8
 	flake8 ricecooker tests

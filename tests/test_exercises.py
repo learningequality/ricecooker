@@ -231,7 +231,7 @@ def test_inputquestion_validate():
 @pytest.fixture
 def graphie_strings_and_rawpath():
     """
-    Return patterns that should match the 
+    Return patterns that should match the
     WEB_GRAPHIE_URL_REGEX = r'web\+graphie:(?P<rawpath>[^\)]+)'
     """
     test_data = {
@@ -291,7 +291,7 @@ def image_texts_fixtures():
     """
     WEB_GRAPHIE_PREFIX = 'web+graphie:${☣ CONTENTSTORAGE}/'
     WEB_PREFIX = '${☣ CONTENTSTORAGE}/'
-    
+
     test_data = [
         {
             'text': 'web+graphie://ka-perseus-graphie.s3.amazonaws.com/eb3f3bf7c317408ee90995b5bcf4f3a59606aedd',
@@ -314,7 +314,7 @@ def image_texts_fixtures():
             'hash': '599aa896313be22dea6c0257772a464e'
          },
          {  # slightly modified version of the above
-            'text': os.path.relpath(os.path.join(TESTCONTENT_DIR, 'no-wifi.png')),
+            'text': os.path.relpath(os.path.join(TESTCONTENT_DIR, 'exercises', 'no-wifi.png')),
             'replacement_str': WEB_PREFIX + '599aa896313be22dea6c0257772a464e.png',
             'hash': '599aa896313be22dea6c0257772a464e'
          },
@@ -334,7 +334,7 @@ def test_base_question_set_image(image_texts_fixtures):
         text = datum['text']
         replacement_str = datum['replacement_str']
 
-        
+
         # SIT ##################################################################
         testq = BaseQuestion(id='someid', question='somequestion', question_type='input', raw_data={})
         new_text, images = testq.set_image(text)
@@ -404,7 +404,7 @@ def test_perseus__recursive_url_find(persues_question_json_fixtures):
     # checks
     new_url = test_data['question']['widgets']['interactive-graph 1']['options']['backgroundImage']['url']
     assert '☣ CONTENTSTORAGE' in new_url, 'url replacement not done'
-    assert hash in new_url, 'wrong url replacement'    
+    assert hash in new_url, 'wrong url replacement'
     assert len(image_files) == 1
     image_file = image_files[0]
     filename = image_file.get_filename()
@@ -423,7 +423,7 @@ def persues_contentimages_field_fixtures():
     Returns a list of data needed to test the `process_image_field` method:
       - `field`: input sample data
       - `new_content`: what the content field should get rewritten to
-      - `image_hashes`: content hash of image files that should get downloaded 
+      - `image_hashes`: content hash of image files that should get downloaded
     """
     test_data = [
       # Known good test cases from KA English exercise
@@ -440,7 +440,7 @@ def persues_contentimages_field_fixtures():
                     'widgets': {}
                    },
           'new_content': 'The function $f$\n![graph](web+graphie:${☣ CONTENTSTORAGE}/d8daa074ec7d09ce3819d6259b3e4670701d2540)',
-          'image_hashes': ['db98ca9d35b2fb97cde378a1fabddd26'],         
+          'image_hashes': ['db98ca9d35b2fb97cde378a1fabddd26'],
       },
       #
       # Same as above two but with missing images
@@ -457,7 +457,7 @@ def persues_contentimages_field_fixtures():
                     'widgets': {}
                    },
           'new_content': 'The function $f$\n![graph](web+graphie:${☣ CONTENTSTORAGE}/d8daa074ec7d09ce3819d6259b3e4670701d2540)',
-          'image_hashes': ['db98ca9d35b2fb97cde378a1fabddd26'],         
+          'image_hashes': ['db98ca9d35b2fb97cde378a1fabddd26'],
       },
     ]
     return test_data
@@ -513,7 +513,7 @@ def persues_question_json_fixtures():
     Load entire perseus questions
     """
     test_data = []
-    with open(os.path.join(TESTCONTENT_DIR, 'perseus_question_x43bbec76d5f14f88_en.json')) as inf:
+    with open(os.path.join(TESTCONTENT_DIR, 'exercises', 'perseus_question_x43bbec76d5f14f88_en.json')) as inf:
         # ENGLISH JSON = KNOWN GOOD
         item_data_en = json.load(inf)
         datum = {
@@ -523,8 +523,8 @@ def persues_question_json_fixtures():
         test_data.append(datum)
     # Missing images in the KA BULGARIAN channel BUG
     # see https://github.com/learningequality/ricecooker/issues/178
-    with open(os.path.join(TESTCONTENT_DIR, 'perseus_question_x43bbec76d5f14f88_bg.json')) as inf:
-        
+    with open(os.path.join(TESTCONTENT_DIR, 'exercises', 'perseus_question_x43bbec76d5f14f88_bg.json')) as inf:
+
         item_data_bg = json.load(inf)
         datum = {
             'item': item_data_bg,
@@ -540,7 +540,7 @@ def test_perseus_process_question(persues_question_json_fixtures):
     Process a persues question and check that it finds all images, and returns
     correcrt image files -- i.e not more, not less.
     """
-    
+
     for datum in persues_question_json_fixtures:
 
         # setup

@@ -41,8 +41,7 @@ def test_download_filenames(video_file, video_filename, html_file, html_filename
     assert html_file.process_file() == html_filename, "HTML file should have filename {}".format(html_filename)
     assert audio_file.process_file() == audio_filename, "Audio file should have filename {}".format(audio_filename)
     assert document_file.process_file() == document_filename, "PDF document file should have filename {}".format(document_filename)
-    if not epub_file.process_file() == epub_filename:
-        assert open(epub_file.path).read() == 'whatinside', "ePub document file should have filename {}".format(epub_filename)
+    assert epub_file.process_file() == epub_filename, "ePub document file should have filename {}".format(epub_filename)
     assert thumbnail_file.process_file() == thumbnail_filename, "Thumbnail file should have filename {}".format(thumbnail_filename)
     assert subtitle_file.process_file() == subtitle_filename, "Subtitle file should have filename {}".format(subtitle_filename)
 
@@ -237,11 +236,12 @@ def test_convertible_substitles_ar_srt():
     """
     Basic check that srt --> vtt conversion works.
     """
-    assert os.path.exists("tests/testcontent/testsubtitles_ar.srt")
-    subtitle_file = SubtitleFile("tests/testcontent/testsubtitles_ar.srt", language='ar')
+    local_path = os.path.join("tests", "testcontent", "samples", "testsubtitles_ar.srt")
+    assert os.path.exists(local_path)
+    subtitle_file = SubtitleFile(local_path, language='ar')
     filename = subtitle_file.process_file()
-    assert filename, 'conferted filename must exit'
-    assert filename.endswith('.vtt'), 'conferted filename must have .vtt extension'
+    assert filename, 'converted filename must exist'
+    assert filename.endswith('.vtt'), 'converted filename must have .vtt extension'
     storage_path = config.get_storage_path(filename)
     with open(storage_path) as converted_vtt:
         filecontents = converted_vtt.read()
@@ -251,12 +251,13 @@ def test_convertible_substitles_ar_srt():
 
 @pytest.fixture
 def bad_subtitles_file():
-    if not os.path.exists("tests/testcontent/unconvetible.sub"):
-        with open("tests/testcontent/unconvetible.sub", 'wb') as f:
-            f.write(b'this is a sample subtitle file that we cannot convert..')
+    local_path = os.path.join("tests", "testcontent", "generated", "unconvetible.sub")
+    if not os.path.exists(local_path):
+        with open(local_path, 'wb') as f:
+            f.write(b'this is an invalid subtitle file that cant be converted.')
             f.flush()
     else:
-        f = open("tests/testcontent/unconvetible.sub", 'rb')
+        f = open(local_path, 'rb')
         f.close()
     return f  # returns a closed file descriptor which we use for name attribute
 
@@ -305,7 +306,7 @@ def download_fixture_files(fixtures_list):
     fixtures = []
     for fixture in fixtures_list:
         srcfilename = fixture['srcfilename']
-        localpath = os.path.join('tests', 'testcontent', srcfilename)
+        localpath = os.path.join('tests', 'testcontent', 'downloaded', srcfilename)
         if not os.path.exists(localpath):
             url = fixture['url'] if 'url' in fixture.keys() \
                 else PRESSURECOOKER_FILES_URL_BASE + srcfilename
@@ -359,8 +360,9 @@ def test_convertible_substitles_ar_ttml(youtube_test_file):
     """
     Regression test to make sure correct lang_code is detected from .ttml data.
     """
-    assert os.path.exists("tests/testcontent/testsubtitles_ar.ttml")
-    subtitle_file = SubtitleFile("tests/testcontent/testsubtitles_ar.ttml", language='ar')
+    local_path = os.path.join("tests", "testcontent", "downloaded", "testsubtitles_ar.ttml")
+    assert os.path.exists(local_path)
+    subtitle_file = SubtitleFile(local_path, language='ar')
     filename = subtitle_file.process_file()
     assert filename, 'conferted filename must exit'
     assert filename.endswith('.vtt'), 'conferted filename must have .vtt extension'
@@ -370,11 +372,13 @@ def test_convertible_substitles_noext_subtitlesformat():
     """
     Check that we handle correctly cases when path doesn't contain extenstion.
     """
-    assert os.path.exists("tests/testcontent/testsubtitles_ar.ttml")
-    copyfile("tests/testcontent/testsubtitles_ar.ttml", "tests/testcontent/testsubtitles_ar")
-    assert os.path.exists("tests/testcontent/testsubtitles_ar")
+    local_path = os.path.join("tests", "testcontent", "downloaded", "testsubtitles_ar.ttml")
+    assert os.path.exists(local_path)
+    local_path_no_ext = local_path.replace('.ttml', '')
+    copyfile(local_path, local_path_no_ext)
+    assert os.path.exists(local_path_no_ext)
     subtitle_file = SubtitleFile(
-        "tests/testcontent/testsubtitles_ar",
+        local_path_no_ext,
         language='ar',
         subtitlesformat='ttml'          # settting subtitlesformat becaue no ext
     )
