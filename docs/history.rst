@@ -2,6 +2,16 @@
 History
 =======
 
+0.6.39 (2020-02-05)
+-------------------
+* Changed default behaviour to upload the staging tree instead of the main tree
+* Added ``--deploy`` flag to reproduce old bahavior (upload to main tree)
+* Added thumbnail generating methods for audio, HTML5, PDF, and ePub nodes.
+  Set the ``derive_thumbnail=True`` when creating the Node instance, or pass the
+  command line argument ``--thumbnails`` to generate thumbnails for all nodes.
+  Note: automatic thumbnail generation will only work if ``thumbnail`` is None.
+
+
 0.6.38 (2019-12-27)
 -------------------
 * Added support the ``h5p`` content kind and ``h5p`` file type
@@ -9,7 +19,6 @@ History
   in the helper method ``download_static_assets``
 * Added validation logic for tags
 * Improved error reporting
-
 
 
 0.6.36 (2019-09-25)
