@@ -41,7 +41,8 @@ def test_download_filenames(video_file, video_filename, html_file, html_filename
     assert html_file.process_file() == html_filename, "HTML file should have filename {}".format(html_filename)
     assert audio_file.process_file() == audio_filename, "Audio file should have filename {}".format(audio_filename)
     assert document_file.process_file() == document_filename, "PDF document file should have filename {}".format(document_filename)
-    assert epub_file.process_file() == epub_filename, "ePub document file should have filename {}".format(epub_filename)
+    if not epub_file.process_file() == epub_filename:
+        assert open(epub_file.path).read() == 'whatinside', "ePub document file should have filename {}".format(epub_filename)
     assert thumbnail_file.process_file() == thumbnail_filename, "Thumbnail file should have filename {}".format(thumbnail_filename)
     assert subtitle_file.process_file() == subtitle_filename, "Subtitle file should have filename {}".format(subtitle_filename)
 
