@@ -1,4 +1,5 @@
 import copy
+import glob
 import os
 import pytest
 import requests
@@ -12,6 +13,18 @@ from ricecooker.classes.files import _ExerciseImageFile, _ExerciseBase64ImageFil
 from ricecooker.classes.nodes import AudioNode, ChannelNode, DocumentNode, ExerciseNode, HTML5AppNode, SlideshowNode, TopicNode, VideoNode
 from ricecooker.classes.questions import InputQuestion, SingleSelectQuestion
 
+
+
+# GLOBAL TEST SETUP/TEARDOWN UTILS
+################################################################################
+
+def pytest_sessionfinish(session, exitstatus):
+    """
+    Cleanup testcontent/generated/ directory after each test run is finished.
+    """
+    generated_path = os.path.join("tests", "testcontent", "generated")
+    for path in glob.glob(generated_path + os.path.sep + '*'):
+        os.remove(path)
 
 
 # CHANNEL FIXTURES
@@ -662,3 +675,5 @@ def download_fixture_file(source_url, local_path):
             f.write(chunk)
         f.flush()
         f.close()
+
+
