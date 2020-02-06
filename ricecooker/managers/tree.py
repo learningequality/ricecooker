@@ -188,6 +188,7 @@ class ChannelManager:
             Returns: link to uploadedchannel
         """
         config.LOGGER.info("   Creating channel {0}".format(self.channel.title))
+        self.channel.truncate_fields()
         payload = {
             "channel_data":self.channel.to_dict(),
         }

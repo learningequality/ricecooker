@@ -100,6 +100,7 @@ class Node(object):
     def has_thumbnail(self):
         from .files import ThumbnailFile
         return any(f for f in self.files if isinstance(f, ThumbnailFile))
+        # TODO deep check: f.process_file() and check f.filename is not None
 
     def set_thumbnail(self, thumbnail):
         """ set_thumbnail: Set node's thumbnail
