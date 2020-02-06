@@ -285,7 +285,7 @@ def make_content_node(channeldir, rel_path, filename, metadata):
             description=description,
             language=lang,
             license=license_dict,
-            derive_thumbnail=True,  # video-specific option
+            derive_thumbnail=True,
             thumbnail=thumbnail_rel_path,
             files=[{'file_type':VIDEO_FILE, 'path':filepath, 'language':lang}], # ffmpeg_settings={"crf": 24},
         )
@@ -300,6 +300,7 @@ def make_content_node(channeldir, rel_path, filename, metadata):
             language=lang,
             license=license_dict,
             thumbnail=thumbnail_rel_path,
+            derive_thumbnail=True,
             files=[{'file_type':AUDIO_FILE, 'path':filepath, 'language':lang}],
         )
 
@@ -313,6 +314,7 @@ def make_content_node(channeldir, rel_path, filename, metadata):
             language=lang,
             license=license_dict,
             thumbnail=thumbnail_rel_path,
+            derive_thumbnail=True,
             files=[]
         )
         if ext == 'pdf':
@@ -342,6 +344,7 @@ def make_content_node(channeldir, rel_path, filename, metadata):
             language=lang,
             license=license_dict,
             thumbnail=thumbnail_rel_path,
+            derive_thumbnail=True,
             files=[{'file_type':HTML5_FILE, 'path':filepath, 'language':lang}],
         )
 
@@ -357,6 +360,7 @@ def make_content_node(channeldir, rel_path, filename, metadata):
             exercise_data=metadata['exercise_data'],
             questions=metadata['questions'],
             thumbnail=thumbnail_rel_path,
+            derive_thumbnail=False,
             files=[],
         )
 

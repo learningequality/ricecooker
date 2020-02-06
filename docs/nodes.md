@@ -64,6 +64,7 @@ Each node has the following attributes:
   - __provider__ (str): organization that commissioned or is distributing the content (optional)
   - __role__ (str): set to `roles.COACH` for teacher-facing materials (default `roles.LEARNER`)
   - __thumbnail__ (str or ThumbnailFile): path to thumbnail or file object (optional)
+  - __derive_thumbnail__ (bool): set to True to generate thumbnail from contents (optional)
   - __files__ ([FileObject]): list of file objects for node (optional)
   - __extra_fields__ (dict): any additional data needed for node (optional)
   - __domain_ns__ (uuid): who is providing the content (e.g. learningequality.org) (optional)
@@ -132,9 +133,11 @@ See [languages][./languages.md] to read more about language codes.
 
 
 ### Thumbnails
-Thumbnails can be passed in as a local filesystem path to an image file (str) or
-a `ThumbnailFile` object.
+Thumbnails can be passed in as a local filesystem path to an image file (str),
+a URL (str), or a `ThumbnailFile` object.
 The recommended size for thumbnail images is 400px by 225px (aspect ratio 16:9).
+Use the command line argument `--thumbnails` to automatically generate thumbnails
+for all content node that don't have a thumbnail specified.
 
 
 
@@ -157,10 +160,9 @@ Topic nodes are folder-like containers that are used to organize the channel's c
 
 It is highly recommended to find suitable thumbnail images for topic nodes. The
 presence of thumbnails will make the content more appealing and easier to browse.
-The `--thumbnails` command line argument can be used to generate thumbnails for
-topic nodes based on the thumbnails of the content nodes they contain.
-
-
+Set `derive_thumbnails=True` on a topic node or use the `--thumbnails` command
+line argument and Ricecooker will generate thumbnails for topic nodes based on
+the thumbnails of the content nodes they contain.
 
 
 
@@ -203,10 +205,13 @@ added after initialization using the content_node's `add_files` method.
 Note you also use URLs for `path` and `thumbnail` instead of local filesystem paths,
 and the files will be downloaded for you automatically.
 
-You can replace `DocumentNode` and `DocumentFile` with any of the other
-combinations of content node and file types.
-VideoNodes also have a __derive_thumbnail__ (boolean) argument, which will automatically
-extract a thumbnail from the video if no thumbnail is provided.
+You can replace `DocumentNode` and `DocumentFile` with any of the other combinations
+of content node and file types.
+
+Specify `derive_thumbnail=True` and leave thumbnail blank (`thumbnail=None`) to
+let Ricecooker automatically generate a thumbnail for the node based on its content.
+Thumbnail generation is supported for audio, video, PDF, and ePub, and HTML5 files.
+
 
 
 ### Role-based visibility
