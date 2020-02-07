@@ -2,7 +2,7 @@
 History
 =======
 
-0.6.39 (2020-02-05)
+0.6.40 (2020-02-07)
 -------------------
 * Changed default behaviour to upload the staging tree instead of the main tree
 * Added ``--deploy`` flag to reproduce old bahavior (upload to main tree)
