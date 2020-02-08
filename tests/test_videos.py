@@ -21,7 +21,7 @@ IS_TRAVIS_TESTING = "TRAVIS" in os.environ and os.environ["TRAVIS"] == "true"
 @pytest.fixture
 def low_res_video():
     source_url = "https://archive.org/download/vd_is_for_everybody/vd_is_for_everybody_512kb.mp4"
-    local_path = os.path.join("tests", "testcontent", "low_res_video.mp4")
+    local_path = os.path.join("tests", "testcontent", "downloaded", "low_res_video.mp4")
     download_fixture_file(source_url, local_path)
     assert os.path.exists(local_path)
     f = open(local_path, 'rb')
@@ -33,7 +33,7 @@ def high_res_video():
     source_url = "https://ia800201.us.archive.org/7/items/" \
                  "UnderConstructionFREEVideoBackgroundLoopHD1080p/" \
                  "UnderConstruction%20-%20FREE%20Video%20Background%20Loop%20HD%201080p.mp4"
-    local_path = os.path.join("tests", "testcontent", "high_res_video.mp4")
+    local_path = os.path.join("tests", "testcontent", "downloaded", "high_res_video.mp4")
     download_fixture_file(source_url, local_path)
     assert os.path.exists(local_path)
     f = open(local_path, 'rb')
@@ -45,7 +45,7 @@ def low_res_ogv_video():
     source_url = "https://archive.org/download/" \
                  "UnderConstructionFREEVideoBackgroundLoopHD1080p/" \
                  "UnderConstruction%20-%20FREE%20Video%20Background%20Loop%20HD%201080p.ogv"
-    local_path = os.path.join("tests", "testcontent", "low_res_ogv_video.ogv")
+    local_path = os.path.join("tests", "testcontent", "downloaded", "low_res_ogv_video.ogv")
     download_fixture_file(source_url, local_path)
     assert os.path.exists(local_path)
     f = open(local_path, 'rb')
@@ -54,12 +54,13 @@ def low_res_ogv_video():
 
 @pytest.fixture
 def bad_video():
-    if not os.path.exists("tests/testcontent/bad_video.mp4"):
-        with open("tests/testcontent/bad_video.mp4", 'wb') as f:
+    local_path = os.path.join("tests", "testcontent", "generated", "bad_video.mp4")
+    if not os.path.exists(local_path):
+        with open(local_path, 'wb') as f:
             f.write(b'novideohere. so ffmpeg should error out!')
             f.flush()
     else:
-        f = open("tests/testcontent/bad_video.mp4", 'rb')
+        f = open(local_path, 'rb')
         f.close()
     return f  # returns a closed file descriptor which we use for name attribute
 
@@ -225,12 +226,13 @@ def test_multiple_subs_can_be_added(video_file):
     """
     Baseline check to make sure we're not dropping subtitle files on validate.
     """
-    assert os.path.exists("tests/testcontent/testsubtitles_ar.srt")
+    local_path = os.path.join("tests", "testcontent", "samples", "testsubtitles_ar.srt")
+    assert os.path.exists(local_path)
     video_node = VideoNode('vid-src-id', "Video", licenses.PUBLIC_DOMAIN)
     video_node.add_file(video_file)
-    sub1 = SubtitleFile("tests/testcontent/testsubtitles_ar.srt", language='en')
+    sub1 = SubtitleFile(local_path, language='en')
     video_node.add_file(sub1)
-    sub2 = SubtitleFile("tests/testcontent/testsubtitles_ar.srt", language='ar')
+    sub2 = SubtitleFile(local_path, language='ar')
     video_node.add_file(sub2)
     video_node.validate()
     sub_files = [f for f in video_node.files if isinstance(f, SubtitleFile)]
@@ -240,13 +242,14 @@ def test_duplicate_language_codes_fixed_by_validate(video_file):
     """
     Video nodes should have at most one subtitle file for a particular lang code.
     """
-    assert os.path.exists("tests/testcontent/testsubtitles_ar.srt")
+    local_path = os.path.join("tests", "testcontent", "samples", "testsubtitles_ar.srt")
+    assert os.path.exists(local_path)
     video_node = VideoNode('vid-src-id', "Video", licenses.PUBLIC_DOMAIN)
     video_node.add_file(video_file)
-    sub1 = SubtitleFile("tests/testcontent/testsubtitles_ar.srt", language='ar')
+    sub1 = SubtitleFile(local_path, language='ar')
     video_node.add_file(sub1)
     # now let's add file with a duplicate language code...
-    sub2 = SubtitleFile("tests/testcontent/testsubtitles_ar.srt", language='ar')
+    sub2 = SubtitleFile(local_path, language='ar')
     video_node.add_file(sub2)
     video_node.validate()
     sub_files = [f for f in video_node.files if isinstance(f, SubtitleFile)]

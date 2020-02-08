@@ -48,7 +48,11 @@ def document_node_id(topic_node_id, document_content_id):
 
 @pytest.fixture
 def thumbnail_path():
-    return "tests/testcontent/sample_thumbnail.png"
+    return "tests/testcontent/samples/thumbnail.png"
+
+@pytest.fixture
+def thumbnail_path_jpg():
+    return "tests/testcontent/samples/thumbnail.jpg"
 
 @pytest.fixture
 def copyright_holder():

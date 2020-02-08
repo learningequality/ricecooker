@@ -46,15 +46,17 @@ clean-test: ## remove test and coverage artifacts
 	rm -fr .tox/
 	rm -f .coverage
 	rm -fr htmlcov/
+	rm -rf tests/testcontent/downloaded/*
+	rm -rf tests/testcontent/generated/*
 
 lint: ## check style with flake8
 	flake8 ricecooker tests
 
-test: ## run tests quickly with the default Python
+test: clean-test ## run tests quickly with the default Python
 	pytest
 
 
-test-all: ## run tests on every Python version with tox
+test-all: clean-test ## run tests on every Python version with tox
 	tox
 
 coverage: ## check code coverage quickly with the default Python

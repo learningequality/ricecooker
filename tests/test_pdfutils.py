@@ -23,7 +23,7 @@ def downloads_dir():
 
 @pytest.fixture
 def doc1_with_toc_path():
-    doc1_with_toc_path = 'tests/testcontent/sample_doc_with_toc.pdf'
+    doc1_with_toc_path = os.path.join('tests', 'testcontent', 'samples', 'sample_doc_with_toc.pdf')
     assert os.path.exists(doc1_with_toc_path), 'Error mising test file ' + doc1_with_toc_path
     return doc1_with_toc_path
 
@@ -41,7 +41,7 @@ def doc2_with_toc_path():
     """
     A PDF with lots of chapters.
     """
-    doc2_with_toc_path = 'tests/testcontent/Beyond-Good-and-Evil-Galbraithcolor.pdf'
+    doc2_with_toc_path = os.path.join('tests', 'testcontent', 'downloaded', 'Beyond-Good-and-Evil-Galbraithcolor.pdf')
     _save_file_url_to_path('https://s3-us-west-2.amazonaws.com/pressbooks-samplefiles/'
                            'GalbraithColorTheme/Beyond-Good-and-Evil-Galbraithcolor.pdf',
                             doc2_with_toc_path)
@@ -54,7 +54,7 @@ def doc3_with_toc_path():
     """
     A Gutenberg textbook PDF with a chapter-subchapter structure.
     """
-    doc3_with_toc_path = 'tests/testcontent/41568-pdf.pdf'
+    doc3_with_toc_path = os.path.join('tests', 'testcontent', 'downloaded', '41568-pdf.pdf')
     _save_file_url_to_path('https://www.gutenberg.org/files/41568/41568-pdf.pdf',
                             doc3_with_toc_path)
     assert os.path.exists(doc3_with_toc_path), 'Error mising test file ' + doc3_with_toc_path
@@ -144,7 +144,7 @@ def test_get_toc_subchapters(doc1_with_toc_path, downloads_dir):
             if 'children' in chapter_dict and chapter_dict['children']:
                 for subchapter_dict in chapter_dict['children']:
                     _check_pagerange_matches_title_len(subchapter_dict)
-            else: 
+            else:
                 _check_pagerange_matches_title_len(chapter_dict)
 
 

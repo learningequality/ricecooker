@@ -1,4 +1,5 @@
 import copy
+import glob
 import os
 import pytest
 import requests
@@ -12,6 +13,18 @@ from ricecooker.classes.files import _ExerciseImageFile, _ExerciseBase64ImageFil
 from ricecooker.classes.nodes import AudioNode, ChannelNode, DocumentNode, ExerciseNode, HTML5AppNode, SlideshowNode, TopicNode, VideoNode
 from ricecooker.classes.questions import InputQuestion, SingleSelectQuestion
 
+
+
+# GLOBAL TEST SETUP/TEARDOWN UTILS
+################################################################################
+
+def pytest_sessionfinish(session, exitstatus):
+    """
+    Cleanup testcontent/generated/ directory after each test run is finished.
+    """
+    generated_path = os.path.join("tests", "testcontent", "generated")
+    for path in glob.glob(generated_path + os.path.sep + '*'):
+        os.remove(path)
 
 
 # CHANNEL FIXTURES
@@ -251,7 +264,7 @@ def contentnode_no_source_id(title):
 @pytest.fixture
 def video_file():    # uses same file as test_videos.low_res_video fixture
     source_url = "https://archive.org/download/vd_is_for_everybody/vd_is_for_everybody_512kb.mp4"
-    local_path = os.path.join("tests", "testcontent", "low_res_video.mp4")
+    local_path = os.path.join("tests", "testcontent", "downloaded", "low_res_video.mp4")
     download_fixture_file(source_url, local_path)
     assert os.path.exists(local_path)
     return VideoFile(local_path)
@@ -262,13 +275,14 @@ def video_filename():
 
 @pytest.fixture
 def subtitle_file():
-    if not os.path.exists("tests/testcontent/testsubtitles.vtt"):
-        with open("tests/testcontent/testsubtitles.vtt", 'wb') as subtitlefile:
+    local_path = os.path.join("tests", "testcontent", "generated", "testsubtitles.vtt")
+    if not os.path.exists(local_path):
+        with open(local_path, 'wb') as subtitlefile:
             subtitlefile.write(b'WEBVTT\n')
             subtitlefile.write(b'\n')
             subtitlefile.write(b'00:01.000 --> 00:04.250\n')
             subtitlefile.write(b'Testing subtitles\n')
-    return SubtitleFile("tests/testcontent/testsubtitles.vtt", language='en')
+    return SubtitleFile(local_path, language='en')
 
 @pytest.fixture
 def subtitle_filename():
@@ -304,7 +318,7 @@ def video_invalid_files(video_data, document_file):
 
 @pytest.fixture
 def invalid_video_file():
-    local_path = os.path.join("tests", "testcontent", "invalid_video.mp4")
+    local_path = os.path.join("tests", "testcontent", "generated", "invalid_video.mp4")
     if not os.path.exists(local_path):
         with open(local_path, 'wb') as f:
             f.write(b'this is an invalid video file')
@@ -318,7 +332,7 @@ def invalid_video_file():
 def audio_file():
     source_url = "https://ia800103.us.archive.org/9/items/cd_prince_prince/" \
                  "disc1/02.%20Prince%20-%201999%20%28Edit%29_sample.mp3"
-    local_path = os.path.join("tests", "testcontent", "testaudio.mp3")
+    local_path = os.path.join("tests", "testcontent", "downloaded", "testaudio.mp3")
     download_fixture_file(source_url, local_path)
     assert os.path.exists(local_path)
     return AudioFile(local_path)
@@ -357,7 +371,7 @@ def audio_invalid_files(audio_data, document_file):
 
 @pytest.fixture
 def invalid_audio_file():
-    local_path = os.path.join("tests", "testcontent", "invalid_audio.mp3")
+    local_path = os.path.join("tests", "testcontent", "generated", "invalid_audio.mp3")
     if not os.path.exists(local_path):
         with open(local_path, 'wb') as f:
             f.write(b'invalid MP3')
@@ -369,7 +383,7 @@ def invalid_audio_file():
 @pytest.fixture
 def document_file():
     source_url = "https://ia802506.us.archive.org/8/items/generalmanual_000075878/generalmanual_000075878.pdf"
-    local_path = os.path.join("tests", "testcontent", "testdocument.pdf")
+    local_path = os.path.join("tests", "testcontent", "downloaded", "testdocument.pdf")
     download_fixture_file(source_url, local_path)
     assert os.path.exists(local_path)
     return DocumentFile(local_path)
@@ -408,11 +422,9 @@ def document_invalid_files(document_data, audio_file):
 
 @pytest.fixture
 def epub_file():
-    source_url = "https://archive.org/download/generalmanual_000075878/generalmanual_000075878.epub"
-    local_path = os.path.join("tests", "testcontent", "testdocument.epub")
-    download_fixture_file(source_url, local_path)
-    assert os.path.exists(local_path)
-    return EPubFile(local_path)
+    path = os.path.join("tests", "testcontent", "samples", "testdocument.epub")
+    assert os.path.exists(path)
+    return EPubFile(path)
 
 @pytest.fixture
 def epub_filename():
@@ -421,7 +433,7 @@ def epub_filename():
 
 @pytest.fixture
 def invalid_document_file():
-    local_path = os.path.join("tests", "testcontent", "invalid_document.pdf")
+    local_path = os.path.join("tests", "testcontent", "generated", "invalid_document.pdf")
     if not os.path.exists(local_path):
         with open(local_path, 'wb') as f:
             f.write(b'invalid PDF')
@@ -429,7 +441,7 @@ def invalid_document_file():
 
 @pytest.fixture
 def invalid_epub_file():
-    local_path = os.path.join("tests", "testcontent", "invalid_document.epub")
+    local_path = os.path.join("tests", "testcontent", "generated", "invalid_document.epub")
     if not os.path.exists(local_path):
         with open(local_path, 'wb') as f:
             f.write(b'invalid ePub')
@@ -444,7 +456,7 @@ def html_file():
     source_url = "https://web.archive.org/web/20191122220303/" \
                  "https://studio.learningequality.org/content/storage/" \
                  "e/d/ed494d6547b603b8ff22095cf5f5b624.zip"
-    local_path = os.path.join("tests", "testcontent", "testhtml.zip")
+    local_path = os.path.join("tests", "testcontent", "downloaded", "testhtml.zip")
     download_fixture_file(source_url, local_path)
     assert os.path.exists(local_path)
     return HTMLZipFile(local_path)
@@ -452,22 +464,6 @@ def html_file():
 @pytest.fixture
 def html_filename():
     return 'ed494d6547b603b8ff22095cf5f5b624.zip'
-
-
-@pytest.fixture
-def minimal_html_file():
-    if not os.path.exists("tests/testcontent/minimaltesthtml.zip"):
-        with zipfile.ZipFile("tests/testcontent/minimaltesthtml.zip", 'w', zipfile.ZIP_DEFLATED) as archive:
-            info = zipfile.ZipInfo('index.html', date_time=(2013, 3, 14, 1, 59, 26))
-            info.comment = "test file".encode()
-            info.compress_type = zipfile.ZIP_STORED
-            info.create_system = 0
-            archive.writestr(info, '<div></div>')
-    return HTMLZipFile("tests/testcontent/minimaltesthtml.zip")
-
-@pytest.fixture
-def minimal_html_filename():
-    return 'b3f06ea298da23eee1d231795655e01b.zip'
 
 
 @pytest.fixture
@@ -504,10 +500,11 @@ def html_invalid_files(html_data, document_file):
 
 @pytest.fixture
 def html_invalid_file():
-    if not os.path.exists("tests/testcontent/testinvalidhtml.zip"):
-        with zipfile.ZipFile("tests/testcontent/testinvalidhtml.zip", 'w', zipfile.ZIP_DEFLATED) as archive:
+    local_path = os.path.join("tests", "testcontent", "generated", "testinvalidhtml.zip")
+    if not os.path.exists(local_path):
+        with zipfile.ZipFile(local_path, 'w', zipfile.ZIP_DEFLATED) as archive:
             archive.writestr("notindex.html", '<div></div>')
-    return HTMLZipFile("tests/testcontent/testinvalidhtml.zip")
+    return HTMLZipFile(local_path)
 
 @pytest.fixture
 def html_invalid_zip(html_data, html_invalid_file):
@@ -568,8 +565,9 @@ def exercise_invalid_question(exercise):
 
 @pytest.fixture
 def thumbnail_file():
-    assert os.path.exists("tests/testcontent/sample_thumbnail.png")
-    return ThumbnailFile("tests/testcontent/sample_thumbnail.png")
+    local_path = os.path.join("tests", "testcontent", "samples", "thumbnail.png")
+    assert os.path.exists(local_path)
+    return ThumbnailFile(local_path)
 
 @pytest.fixture
 def thumbnail_filename():
@@ -577,10 +575,11 @@ def thumbnail_filename():
 
 @pytest.fixture
 def fake_thumbnail_file():
-    if not os.path.exists("tests/testcontent/testimage.png"):
-        with open("tests/testcontent/testimage.png", 'wb') as imgfile:
+    local_path = os.path.join("tests", "testcontent", "generated", "invalidimage.png")
+    if not os.path.exists(local_path):
+        with open(local_path, 'wb') as imgfile:
             imgfile.write(b'not_a_valid_PNG')
-    return ThumbnailFile("tests/testcontent/testimage.png")
+    return ThumbnailFile(local_path)
 
 
 
@@ -589,7 +588,7 @@ def fake_thumbnail_file():
 
 @pytest.fixture
 def exercise_image_file():
-    return _ExerciseImageFile('tests/testcontent/no-wifi.png')
+    return _ExerciseImageFile('tests/testcontent/exercises/no-wifi.png')
 
 @pytest.fixture
 def exercise_image_filename():
@@ -598,7 +597,7 @@ def exercise_image_filename():
 
 @pytest.fixture
 def exercise_base64_image_file():
-    with open('tests/testcontent/test_image_base64.data') as datafile:
+    with open('tests/testcontent/exercises/test_image_base64.data') as datafile:
         base64_data = datafile.read()
         return _ExerciseBase64ImageFile(base64_data)
 
@@ -609,7 +608,7 @@ def exercise_base64_image_filename():
 
 @pytest.fixture
 def exercise_graphie_file():
-    return _ExerciseGraphieFile('tests/testcontent/eb3f3bf7c317408ee90995b5bcf4f3a59606aedd')
+    return _ExerciseGraphieFile('tests/testcontent/exercises/eb3f3bf7c317408ee90995b5bcf4f3a59606aedd')
 
 @pytest.fixture
 def exercise_graphie_replacement_str():
@@ -629,7 +628,7 @@ def exercise_graphie_filename():
 def slideshow_files():
     fake_files = []
     for i in range(0,10):
-        filename = 'tests/testcontent/slide' + str(i) + '.jpg'
+        filename = 'tests/testcontent/generated/slide' + str(i) + '.jpg'
         if not os.path.exists(filename):
             with open(filename, 'w') as f:
                 f.write('jpgdatawouldgohere' + str(i))
@@ -676,3 +675,5 @@ def download_fixture_file(source_url, local_path):
             f.write(chunk)
         f.flush()
         f.close()
+
+
