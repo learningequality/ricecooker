@@ -15,7 +15,7 @@ from test_videos import _clear_ricecookerfilecache
 SHOW_THUMBS = False     # set to True to show outputs when running tests locally
 
 
-THUMBNAIL_URL = 'https://raw.githubusercontent.com/learningequality/ricecooker/master/tests/testcontent/sample_thumbnail.png'
+THUMBNAIL_URL = 'https://raw.githubusercontent.com/learningequality/ricecooker/master/tests/testcontent/samples/thumbnail.png'
 
 class TestThumbnailSetting(object):
 
