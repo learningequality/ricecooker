@@ -1,6 +1,9 @@
 import json
 import logging
+import os
 import sys
+
+from datetime import datetime
 
 import requests
 from requests.exceptions import HTTPError
@@ -67,6 +70,8 @@ def uploadchannel(chef, update=False, thumbnails=False, download_attempts=3, res
     """
 
     # Set configuration settings
+    # FIXME: This code should probably be moved to BaseChef so we can update logging settings
+    # as soon as we finish parsing args.
     global __logging_handler
 
     level = logging.NOTSET
@@ -81,7 +86,20 @@ def uploadchannel(chef, update=False, thumbnails=False, download_attempts=3, res
 
 
     __logging_handler = logging.StreamHandler()
+    __logging_handler.setLevel(level)
     config.LOGGER.addHandler(__logging_handler)
+
+    try:
+        # FIXME: This code assumes we run chefs from the chef's root directory.
+        # We probably want to have chefs set a root directory for files like this,.
+        if not os.path.exists("logs"):
+            os.makedirs("logs")
+        fh = logging.FileHandler(os.path.join("logs", "{}.log".format(datetime.now().strftime("%Y-%m-%d__%H%M"))))
+        fh.setLevel(level)
+        config.LOGGER.addHandler(fh)
+    except:
+        config.LOGGER.warning("Unable to setup file logging.")
+
     logging.getLogger("requests").setLevel(logging.WARNING)
     logging.getLogger("cachecontrol.controller").setLevel(logging.WARNING)
     logging.getLogger("requests.packages").setLevel(logging.WARNING)
