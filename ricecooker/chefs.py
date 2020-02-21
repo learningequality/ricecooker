@@ -138,7 +138,7 @@ class BaseChef(object):
 
     def config_logger(self, args, options):
         """
-        Set up stream (stdout), local file logging (logs/yyyy-mm-dd__HHMM.log),
+        Set up stream (stderr), local file logging (logs/yyyy-mm-dd__HHMM.log),
         and remote logging to SushiBar server. This method is called as soon as
         we parse args so we can apply the user-preferred logging level settings.
         """
@@ -162,7 +162,7 @@ class BaseChef(object):
         logging.getLogger("urllib3.connection").setLevel(logging.CRITICAL)
         logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
 
-        # 1. Stream handler (stdout)
+        # 1. Stream handler (stderr)
         stream_handler = logging.StreamHandler()
         config.LOGGER.addHandler(stream_handler)
 
