@@ -13,7 +13,14 @@ PUBLISH = False
 PROGRESS_MANAGER = None
 SUSHI_BAR_CLIENT = None
 STAGE = False
+
+# Setup logger
 LOGGER = logging.getLogger()
+
+# Setup temporary stream handler (used until full setup in chef.config_logger)
+temporary_log_handler = logging.StreamHandler()
+LOGGER.setLevel(logging.INFO)
+LOGGER.addHandler(temporary_log_handler)
 
 # Domain and file store location for uploading to production Studio server
 DOMAIN_ENV = os.getenv('STUDIO_URL', None)
