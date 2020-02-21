@@ -1,9 +1,5 @@
 import json
-import logging
-import os
 import sys
-
-from datetime import datetime
 
 import requests
 from requests.exceptions import HTTPError
@@ -12,7 +8,6 @@ import webbrowser
 from . import config, __version__
 from .managers.progress import RestoreManager, Status
 from .managers.tree import ChannelManager
-from .sushi_bar_client import SushiBarClient
 
 # Fix to support Python 2.x.
 # http://stackoverflow.com/questions/954834/how-do-i-use-raw-input-in-python-3
@@ -21,14 +16,14 @@ try:
 except NameError:
     pass
 
-__logging_handler = None
 
 
 def uploadchannel_wrapper(chef, args, options):
     """
     Call `uploadchannel` with SushiBar monitoring and progress reporting enabled.
     Args:
-
+        args (dict): chef command line arguments
+        options (dict): extra key=value options given on the command line
     """
     try:
         args_and_options = args.copy()
@@ -43,10 +38,9 @@ def uploadchannel_wrapper(chef, args, options):
     finally:
         if config.SUSHI_BAR_CLIENT:
             config.SUSHI_BAR_CLIENT.close()
-        config.LOGGER.removeHandler(__logging_handler)
 
 
-def uploadchannel(chef, update=False, thumbnails=False, download_attempts=3, resume=False, reset=False, step=Status.LAST.name, token="#", prompt=False, publish=False,  debug=False, verbose=True, warn=False, quiet=False, compress=False, stage=False, **kwargs):
+def uploadchannel(chef, update=False, thumbnails=False, download_attempts=3, resume=False, reset=False, step=Status.LAST.name, token="#", prompt=False, publish=False, compress=False, stage=False, **kwargs):
     """ uploadchannel: Upload channel to Kolibri Studio server
         Args:
             chef (BaseChef or subclass): class that implements the construct_channel method
@@ -59,52 +53,13 @@ def uploadchannel(chef, update=False, thumbnails=False, download_attempts=3, res
             token (str): content server authorization token
             prompt (bool): indicates whether to prompt user to open channel when done (optional)
             publish (bool): indicates whether to automatically publish channel (optional)
-            debug (bool): indicates whether to print out debugging statements (optional)
-            verbose (bool): indicates whether to print out info statements (optional)
-            warnings (bool): indicates whether to print out warnings (optional)
-            quiet (bool): indicates whether to print out errors (optional)
             compress (bool): indicates whether to compress larger files (optional)
             stage (bool): indicates whether to stage rather than deploy channel (optional)
-            kwargs (dict): extra keyword args will be passed to get_channel and construct_channel (optional)
+            kwargs (dict): extra keyword args will be passed to construct_channel (optional)
         Returns: (str) link to access newly created channel
     """
 
     # Set configuration settings
-    # FIXME: This code should probably be moved to BaseChef so we can update logging settings
-    # as soon as we finish parsing args.
-    global __logging_handler
-
-    level = logging.NOTSET
-    if debug:
-        level = logging.DEBUG
-    elif warn:
-        level = logging.WARNING
-    elif quiet:
-        level = logging.ERROR
-    elif verbose:
-        level = logging.INFO
-
-
-    __logging_handler = logging.StreamHandler()
-    __logging_handler.setLevel(level)
-    config.LOGGER.addHandler(__logging_handler)
-
-    try:
-        # FIXME: This code assumes we run chefs from the chef's root directory.
-        # We probably want to have chefs set a root directory for files like this,.
-        if not os.path.exists("logs"):
-            os.makedirs("logs")
-        fh = logging.FileHandler(os.path.join("logs", "{}.log".format(datetime.now().strftime("%Y-%m-%d__%H%M"))))
-        fh.setLevel(level)
-        config.LOGGER.addHandler(fh)
-    except:
-        config.LOGGER.warning("Unable to setup file logging.")
-
-    logging.getLogger("requests").setLevel(logging.WARNING)
-    logging.getLogger("cachecontrol.controller").setLevel(logging.WARNING)
-    logging.getLogger("requests.packages").setLevel(logging.WARNING)
-    config.LOGGER.setLevel(level)
-
     config.UPDATE = update
     config.COMPRESS = compress
     config.THUMBNAILS = thumbnails
@@ -120,13 +75,8 @@ def uploadchannel(chef, update=False, thumbnails=False, download_attempts=3, res
 
     # Authenticate user and check current Ricecooker version
     username, token = authenticate_user(token)
+    config.LOGGER.info("Logged in with username {0}".format(username))
     check_version_number()
-
-    # Setup Sushibar client based on channel info in `get_channel`
-    config.LOGGER.info("Running get_channel... ")
-    channel = chef.get_channel(**kwargs)
-    nomonitor = kwargs.get('nomonitor', False)
-    config.SUSHI_BAR_CLIENT = SushiBarClient(channel, username, token, nomonitor=nomonitor)
 
     config.LOGGER.info("\n\n***** Starting channel build process *****\n\n")
 
@@ -201,17 +151,22 @@ def uploadchannel(chef, update=False, thumbnails=False, download_attempts=3, res
 
 def authenticate_user(token):
     """
-    Add the content curation Authorizatino `token` header to `config.SESSION`.
+    This function adds the studio Authorization `token` header to `config.SESSION`
+    and checks if the token is valid by performing a test call on the Studio API.
+    Args:
+        token (str): Studio authorization token
+    Returns:
+        username, token: Studio username and token if atthentication worked
     """
     config.SESSION.headers.update({"Authorization": "Token {0}".format(token)})
+    auth_endpoint = config.authentication_url()
     try:
-        response = config.SESSION.post(config.authentication_url())
+        response = config.SESSION.post(auth_endpoint)
         response.raise_for_status()
         user = json.loads(response._content.decode("utf-8"))
-        config.LOGGER.info("Logged in with username {0}".format(user['username']))
         return user['username'], token
     except HTTPError:
-        config.LOGGER.error("Invalid token: Credentials not found")
+        config.LOGGER.error("Studio token rejected by server " + auth_endpoint)
         sys.exit()
 
 def check_version_number():
