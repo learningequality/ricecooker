@@ -159,6 +159,7 @@ class BaseChef(object):
         logging.getLogger("cachecontrol.controller").setLevel(logging.WARNING)
         logging.getLogger("requests.packages").setLevel(logging.WARNING)
         logging.getLogger("urllib3.util.retry").setLevel(logging.WARNING)
+        logging.getLogger("urllib3.connection").setLevel(logging.CRITICAL)
         logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
 
         # 1. Stream handler (stdout)

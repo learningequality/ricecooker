@@ -79,16 +79,20 @@ class ReconnectingWebSocket(threading.Thread):
 ################################################################################
 
 class SushiBarClient(object):
-    """Sends events/logs to the dashboard server."""
+    """Sends events/logs to the sushibar dashboard server."""
 
     def __init__(self, channel, username, token, nomonitor=False):
         self.run_id = None
         if nomonitor or not channel:
-            return
-        if self.__create_channel_if_needed(channel, username, token):
+            return None
+        try:
+            self.__ensure_channel_exists_on_sushibar(channel, username, token)
             self.run_id = self.__create_channel_run(channel, username, token)
             config.LOGGER.info('run_id: %s' % self.run_id)
             self.log_ws, self.log_handler = self.__config_logger()
+        except Exception as e:
+            config.LOGGER.warning('Sushibar logging disabled due to: %s' % e)
+            return None
 
     def close(self):
         if not self.run_id:
@@ -100,20 +104,28 @@ class SushiBarClient(object):
             self.log_ws.join()
         self.run_id = None
 
-    def __create_channel_if_needed(self, channel, username, token):
+    def __ensure_channel_exists_on_sushibar(self, channel, username, token):
         if not self.__channel_exists(channel):
-            return self.__create_channel(channel, username, token)
-        return True
+            self.__create_channel(channel, username, token)
 
     def __channel_exists(self, channel):
         url = config.sushi_bar_channels_url() + channel.get_node_id().hex + '/'
         try:
             response = requests.get(url, auth=AUTH)
+            if response.ok:
+                return True     # channel already exists on Sushibar
+            elif response.status_code == 404:
+                return False    # channel doesn't exists yet so must be created
             response.raise_for_status()
-            return True
+        except requests.exceptions.SSLError as e:
+            config.LOGGER.debug('Sushibar error: %s' % e)
+            raise ConnectionError('Suhibar SSL certificates error.')
+        except requests.exceptions.ConnectionError as e:
+            config.LOGGER.debug('Sushibar error: %s' % e)
+            raise ConnectionError('cannot connect to Suhibar server.')
         except Exception as e:
-            config.LOGGER.info('Channel exists: %s' % e)
-        return False
+            config.LOGGER.debug('Sushibar error: %s' % e)
+            raise ConnectionError('unkown error. Run with --debug for details.')
 
     def __create_channel(self, channel, username, token):
         data = {
@@ -132,10 +144,9 @@ class SushiBarClient(object):
                 data=data,
                 auth=AUTH)
             response.raise_for_status()
-            return True
         except Exception as e:
-            config.LOGGER.error('Error channel: %s' % e)
-        return False
+            config.LOGGER.debug('Sushibar error: %s' % e)
+            raise ConnectionError('failed to register channel on Sushibar.')
 
     def __create_channel_run(self, channel, username, token):
         """Sends a post request to create the channel run."""
@@ -155,8 +166,8 @@ class SushiBarClient(object):
             response.raise_for_status()
             return response.json()['run_id']
         except Exception as e:
-            config.LOGGER.error('Error channel run: %s' % e)
-        return None
+            config.LOGGER.debug('Sushibar error when creating run: %s' % e)
+            raise ConnectionError('failed to register run on Sushibar.')
 
     def __config_logger(self):
         if not self.run_id:
@@ -175,7 +186,7 @@ class SushiBarClient(object):
             head = head.decode('UTF-8').strip()
             chef_name = origin + ':' + head
         except Exception as e:
-            config.LOGGER.error('Could not get chef name from git repo: %s' % e)
+            config.LOGGER.warning('Could not get chef name from git repo: %s' % e)
             chef_name = 'Unknown'
         return chef_name
 
