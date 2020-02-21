@@ -103,8 +103,6 @@ class BaseChef(object):
             config.LOGGER.warning('DEPRECATION WARNING: --stage is now default, so the --stage flag has been deprecated and will be removed in ricecooker 1.0.')
         if args['publish'] and args['stage']:
             raise InvalidUsageException('The --publish argument must be used together with --deploy argument.')
-        if args['verbose']:
-            config.LOGGER.warning('Deprecation note: --verbose is now default so no need to specify it on command line argument.')
         logging_args = [key for key in ['quiet', 'warn', 'debug'] if args[key]]
         if len(logging_args) > 1:
             raise InvalidUsageException('Agruments --quiet, --warn, and --debug cannot be used together.')
