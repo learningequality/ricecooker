@@ -93,7 +93,7 @@ class BaseChef(object):
         Returns:
           tuple (`args`, `options`)
             args (dict): chef command line arguments
-            options (dict): extra compatibility-mode options given on command line
+            options (dict): extra key=value options given on command line
         """
         args_namespace, options_list = self.arg_parser.parse_known_args()
         args = args_namespace.__dict__
@@ -116,7 +116,7 @@ class BaseChef(object):
         # If ALL of these fail, this call will raise and chef run will stop
         args['token'] = get_content_curation_token(args['token'])
 
-        # Parse additional compatibility mode keyword arguments from `options_list`
+        # Parse additional keyword arguments from `options_list`
         options = {}
         for preoption in options_list:
             try:
@@ -195,7 +195,7 @@ class BaseChef(object):
         run prerequisite tasks.
         Args:
             args (dict): chef command line arguments
-            options (dict): extra compatibility-mode options given on command line
+            options (dict): extra key=value options given on command line
         """
         pass
 
@@ -211,7 +211,7 @@ class BaseChef(object):
 
         Args:
             args (dict): ricecooker command line arguments
-            options (dict): additional compatibility mode options given on command line
+            options (dict): extra key=value options given on command line
         """
         self.pre_run(args, options)
         args_and_options = args.copy()
@@ -281,7 +281,6 @@ class BaseChef(object):
     def main(self):
         args, options = self.parse_args_and_options()
         self.config_logger(args, options)
-        config.LOGGER.debug('In BaseChef.main method. args=', args, 'options=', options)
         self.run(args, options)
 
 
@@ -332,7 +331,7 @@ class SushiChef(BaseChef):
         Open a ControlWebSocket to SushiBar server and listend for remote commands.
         Args:
             args (dict): chef command line arguments
-            options (dict): additional compatibility mode options given on command line
+            options (dict): additional key=value options given on command line
         """
         cws = ControlWebSocket(self, args, options)
         cws.start()
@@ -348,8 +347,11 @@ class SushiChef(BaseChef):
         This function calls uploadchannel which performs all the run steps:
         Args:
             args (dict): chef command line arguments
-            options (dict): additional compatibility mode options given on command line
+            options (dict): additional key=value options given on command line
         """
+        args_copy = args.copy()
+        args_copy['token'] = args_copy['token'][0:6] + '...'
+        config.LOGGER.info('In SushiChef.run method. args=' + str(args_copy) + 'options=' + str(options))
         self.pre_run(args, options)
         uploadchannel_wrapper(self, args, options)
 
@@ -357,9 +359,6 @@ class SushiChef(BaseChef):
     def main(self):
         args, options = self.parse_args_and_options()
         self.config_logger(args, options)
-        args_copy = args.copy()
-        args_copy['token'] = args_copy['token'][0:6] + '...'
-        config.LOGGER.info('In SushiChef.main method. args=' + str(args_copy) + 'options=' + str(options))
         if args['daemon']:
             self.daemon_mode(args, options)
         else:
