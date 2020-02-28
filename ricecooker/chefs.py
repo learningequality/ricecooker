@@ -154,6 +154,7 @@ class BaseChef(object):
         elif args['quiet']:
             level = logging.ERROR
         config.LOGGER.setLevel(level)
+
         # Silence noisy libraries loggers (important when using --debug flag)
         logging.getLogger("requests").setLevel(logging.WARNING)
         logging.getLogger("cachecontrol.controller").setLevel(logging.WARNING)
@@ -178,14 +179,17 @@ class BaseChef(object):
             logfile_formatter = logging.Formatter("%(asctime)s - %(message)s", "%Y-%m-%d %H:%M:%S")
             file_handler.setFormatter(logfile_formatter)
             config.LOGGER.addHandler(file_handler)
-        except:
-            config.LOGGER.warning("Unable to setup file logging.")
+        except Exception as e:
+            config.LOGGER.warning('Unable to setup file logging due to %s' % e)
 
         # 3. Remote logging handler (sushibar logs via WebSockets)
-        channel = self.get_channel(**options)
-        username, token = authenticate_user(args['token'])
-        nomonitor = args.get('nomonitor', False)
-        config.SUSHI_BAR_CLIENT = SushiBarClient(channel, username, token, nomonitor=nomonitor)
+        try:
+            channel = self.get_channel(**options)
+            username, token = authenticate_user(args['token'])
+            nomonitor = args.get('nomonitor', False)
+            config.SUSHI_BAR_CLIENT = SushiBarClient(channel, username, token, nomonitor=nomonitor)
+        except Exception as e:
+            config.LOGGER.warning('Unable to use remote logging due to: %s' % e)
 
 
     def pre_run(self, args, options):
