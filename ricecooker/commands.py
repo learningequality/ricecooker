@@ -1,11 +1,12 @@
 import json
-import sys
-
+import random
 import requests
 from requests.exceptions import HTTPError
+import sys
 import webbrowser
 
 from . import config, __version__
+from .classes.nodes import ChannelNode
 from .managers.progress import RestoreManager, Status
 from .managers.tree import ChannelManager
 
@@ -96,6 +97,8 @@ def uploadchannel(chef, update=False, thumbnails=False, download_attempts=3, res
     if config.PROGRESS_MANAGER.get_status_val() <= Status.CONSTRUCT_CHANNEL.value:
         config.LOGGER.info("Calling construct_channel... ")
         channel = chef.construct_channel(**kwargs)
+        if 'sample' in kwargs and kwargs['sample']:
+            channel = select_sample_nodes(channel, size=kwargs['sample'])
         config.PROGRESS_MANAGER.set_channel(channel)
     channel = config.PROGRESS_MANAGER.channel
 
@@ -276,3 +279,55 @@ def publish_tree(tree, channel_id):
     """
     config.LOGGER.info("\nPublishing tree to Kolibri... ")
     tree.publish(channel_id)
+
+
+def select_sample_nodes(channel, size=10, seed=42):
+    """
+    Build a sample tree of `size` leaf nodes from the channel `channel` to use
+    for debugging chef functionality without uploading the whole tree.
+    """
+    config.LOGGER.info('Selecting a sample of size ' + str(size))
+
+    # Step 1. channel to paths
+    node_paths = []   # list of tuples of the form (topic1, topic2, leafnode)
+    def walk_tree(parents_path, subtree):
+        for child in subtree.children:
+            child_path = parents_path + (child,)
+            if child.children:
+                # recurse
+                walk_tree(child_path, child)
+            else:
+                # emit leaf node
+                node_paths.append(child_path)
+    walk_tree((), channel)
+
+    # Step 2. sample paths
+    random.seed(seed)
+    sample_paths = random.sample(node_paths, size)
+    for node_path in sample_paths:
+        for node in node_path:
+            if node.children:
+                node.children = []  # empty children to clear old tree structure
+
+    # Step 3. paths to channel_sample
+    channel_sample = ChannelNode(
+        source_domain=channel.source_domain,
+        source_id=channel.source_id+'-sample',
+        title='Sample from ' + channel.title,
+        thumbnail=channel.thumbnail,
+        language=channel.language,
+        description='Sample from ' + channel.description
+    )
+    def attach(parent, node_path):
+        if len(node_path) == 1:
+            # leaf node
+            parent.add_child(node_path[0])
+        else:
+            child = node_path[0]
+            if not any(c.source_id == child.source_id for c in parent.children):
+                parent.add_child(child)
+            attach(child, node_path[1:])
+    for node_path in sample_paths:
+        attach(channel_sample, node_path)
+
+    return channel_sample
