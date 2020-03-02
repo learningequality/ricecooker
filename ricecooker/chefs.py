@@ -1,15 +1,18 @@
 import argparse
+from datetime import datetime
+import logging
 import os
 import sys
 from importlib.machinery import SourceFileLoader
 
 
+
 from . import config
 from .classes.nodes import ChannelNode
-from .commands import uploadchannel, uploadchannel_wrapper
+from .commands import authenticate_user, uploadchannel, uploadchannel_wrapper
 from .exceptions import InvalidUsageException, raise_for_invalid_channel
 from .managers.progress import Status
-from .sushi_bar_client import ControlWebSocket, LocalControlSocket
+from .sushi_bar_client import SushiBarClient, ControlWebSocket, LocalControlSocket
 from .utils.tokens import get_content_curation_token
 
 # for JsonTreeChef chef
@@ -90,15 +93,19 @@ class BaseChef(object):
         Returns:
           tuple (`args`, `options`)
             args (dict): chef command line arguments
-            options (dict): extra compatibility-mode options given on command line
+            options (dict): extra key=value options given on command line
         """
         args_namespace, options_list = self.arg_parser.parse_known_args()
         args = args_namespace.__dict__
 
+        # Print CLI deprecation warnings info
         if args['stage_deprecated']:
             config.LOGGER.warning('DEPRECATION WARNING: --stage is now default, so the --stage flag has been deprecated and will be removed in ricecooker 1.0.')
         if args['publish'] and args['stage']:
             raise InvalidUsageException('The --publish argument must be used together with --deploy argument.')
+        logging_args = [key for key in ['quiet', 'warn', 'debug'] if args[key]]
+        if len(logging_args) > 1:
+            raise InvalidUsageException('Agruments --quiet, --warn, and --debug cannot be used together.')
 
         # Make sure token is provided. There are four possible ways to specify:
         #   --token=path to token-containing file
@@ -109,7 +116,7 @@ class BaseChef(object):
         # If ALL of these fail, this call will raise and chef run will stop
         args['token'] = get_content_curation_token(args['token'])
 
-        # Parse additional compatibility mode keyword arguments from `options_list`
+        # Parse additional keyword arguments from `options_list`
         options = {}
         for preoption in options_list:
             try:
@@ -129,6 +136,61 @@ class BaseChef(object):
 
         return args, options
 
+    def config_logger(self, args, options):
+        """
+        Set up stream (stderr), local file logging (logs/yyyy-mm-dd__HHMM.log),
+        and remote logging to SushiBar server. This method is called as soon as
+        we parse args so we can apply the user-preferred logging level settings.
+        """
+        # Remove the temporary log handler
+        config.LOGGER.removeHandler(config.temporary_log_handler)
+
+        # Set desired logging level based on command line arguments
+        level = logging.INFO
+        if args['debug']:
+            level = logging.DEBUG
+        elif args['warn']:
+            level = logging.WARNING
+        elif args['quiet']:
+            level = logging.ERROR
+        config.LOGGER.setLevel(level)
+
+        # Silence noisy libraries loggers (important when using --debug flag)
+        logging.getLogger("requests").setLevel(logging.WARNING)
+        logging.getLogger("cachecontrol.controller").setLevel(logging.WARNING)
+        logging.getLogger("requests.packages").setLevel(logging.WARNING)
+        logging.getLogger("urllib3.util.retry").setLevel(logging.WARNING)
+        logging.getLogger("urllib3.connection").setLevel(logging.CRITICAL)
+        logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
+
+        # 1. Stream handler (stderr)
+        stream_handler = logging.StreamHandler()
+        config.LOGGER.addHandler(stream_handler)
+
+        # 2. File handler (logs/yyyy-mm-dd__HHMM.log)
+        try:
+            # FIXME: This code assumes we run chefs from the chef's root directory.
+            # We probably want to have chefs set a root directory for files like this.
+            if not os.path.exists("logs"):
+                os.makedirs("logs")
+            logfile_name = datetime.now().strftime("%Y-%m-%d__%H%M") + ".log"
+            logfile_path = os.path.join("logs", logfile_name)
+            file_handler = logging.FileHandler(logfile_path)
+            logfile_formatter = logging.Formatter("%(asctime)s - %(message)s", "%Y-%m-%d %H:%M:%S")
+            file_handler.setFormatter(logfile_formatter)
+            config.LOGGER.addHandler(file_handler)
+        except Exception as e:
+            config.LOGGER.warning('Unable to setup file logging due to %s' % e)
+
+        # 3. Remote logging handler (sushibar logs via WebSockets)
+        try:
+            channel = self.get_channel(**options)
+            username, token = authenticate_user(args['token'])
+            nomonitor = args.get('nomonitor', False)
+            config.SUSHI_BAR_CLIENT = SushiBarClient(channel, username, token, nomonitor=nomonitor)
+        except Exception as e:
+            config.LOGGER.warning('Unable to use remote logging due to: %s' % e)
+
 
     def pre_run(self, args, options):
         """
@@ -137,7 +199,7 @@ class BaseChef(object):
         run prerequisite tasks.
         Args:
             args (dict): chef command line arguments
-            options (dict): extra compatibility-mode options given on command line
+            options (dict): extra key=value options given on command line
         """
         pass
 
@@ -153,7 +215,7 @@ class BaseChef(object):
 
         Args:
             args (dict): ricecooker command line arguments
-            options (dict): additional compatibility mode options given on command line
+            options (dict): extra key=value options given on command line
         """
         self.pre_run(args, options)
         args_and_options = args.copy()
@@ -222,7 +284,7 @@ class BaseChef(object):
 
     def main(self):
         args, options = self.parse_args_and_options()
-        config.LOGGER.debug('In BaseChef.main method. args=', args, 'options=', options)
+        self.config_logger(args, options)
         self.run(args, options)
 
 
@@ -273,7 +335,7 @@ class SushiChef(BaseChef):
         Open a ControlWebSocket to SushiBar server and listend for remote commands.
         Args:
             args (dict): chef command line arguments
-            options (dict): additional compatibility mode options given on command line
+            options (dict): additional key=value options given on command line
         """
         cws = ControlWebSocket(self, args, options)
         cws.start()
@@ -289,16 +351,18 @@ class SushiChef(BaseChef):
         This function calls uploadchannel which performs all the run steps:
         Args:
             args (dict): chef command line arguments
-            options (dict): additional compatibility mode options given on command line
+            options (dict): additional key=value options given on command line
         """
-        config.LOGGER.info('In SushiChef.run method. args=' + str(args) + 'options=' + str(options))
+        args_copy = args.copy()
+        args_copy['token'] = args_copy['token'][0:6] + '...'
+        config.LOGGER.info('In SushiChef.run method. args=' + str(args_copy) + 'options=' + str(options))
         self.pre_run(args, options)
         uploadchannel_wrapper(self, args, options)
 
 
     def main(self):
         args, options = self.parse_args_and_options()
-        config.LOGGER.debug('In SushiChef.main method. args=' + str(args) + 'options=' + str(options))
+        self.config_logger(args, options)
         if args['daemon']:
             self.daemon_mode(args, options)
         else:
