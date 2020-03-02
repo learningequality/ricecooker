@@ -80,6 +80,7 @@ class BaseChef(object):
                             help='Immediately deploy changes to channel\'s main tree. This operation will delete the previous channel content once upload completes. Default (recommended) behavior is to post new tree for review.')
         parser.add_argument('--publish', action='store_true',         help='Publish newly uploaded version of the channel')
         parser.add_argument('--sample', type=int, metavar='SIZE',     help='Upload a sample of SIZE content nodes from the channel')
+        parser.add_argument('--dry-run', action='store_true',         help='Run chef, but do not create or upload channel to Studio')
         # [OPTIONS] --- extra key=value options are supported, but do not appear in help
         self.arg_parser = parser
 
@@ -115,7 +116,8 @@ class BaseChef(object):
         #     - try environment variable CONTENT_CURATION_TOKEN
         #     - else prompt user
         # If ALL of these fail, this call will raise and chef run will stop
-        args['token'] = get_content_curation_token(args['token'])
+        if not args['dry_run']:
+            args['token'] = get_content_curation_token(args['token'])
 
         # Parse additional keyword arguments from `options_list`
         options = {}
@@ -326,7 +328,7 @@ class SushiChef(BaseChef):
             parents=[self.arg_parser]
         )
         self.arg_parser.add_argument('--daemon', action='store_true', help='Run chef in daemon mode')
-        self.arg_parser.add_argument('--nomonitor', action='store_true', help='Disable SushiBar progress monitoring')
+        self.arg_parser.add_argument('--monitor', dest="nomonitor", action='store_false', help='Enable SushiBar progress monitoring')
         self.arg_parser.add_argument('--cmdsock', help='Local command socket (for cronjobs)')
         # self.arg_parser.add_argument('--sushibar', help='Hostname of SushiBar server (e.g. "sushibar.learningequality.org")')
         # TODO: --bartoken

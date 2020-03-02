@@ -74,10 +74,15 @@ def uploadchannel(chef, update=False, thumbnails=False, download_attempts=3, res
     # Get domain to upload to
     config.init_file_mapping_store()
 
-    # Authenticate user and check current Ricecooker version
-    username, token = authenticate_user(token)
-    config.LOGGER.info("Logged in with username {0}".format(username))
-    check_version_number()
+    dry_run = kwargs.get('dry_run', False)
+    if not dry_run:
+        # Authenticate user and check current Ricecooker version
+        username, token = authenticate_user(token)
+        config.LOGGER.info("Logged in with username {0}".format(username))
+        check_version_number()
+    else:
+        username = ''
+        token = ''
 
     config.LOGGER.info("\n\n***** Starting channel build process *****\n\n")
 
@@ -111,6 +116,9 @@ def uploadchannel(chef, update=False, thumbnails=False, download_attempts=3, res
     if config.PROGRESS_MANAGER.get_status_val() <= Status.DOWNLOAD_FILES.value:
         config.LOGGER.info("Downloading files...")
         config.PROGRESS_MANAGER.set_files(*process_tree_files(tree))
+
+    if dry_run:
+        return '--dry-run set, so not uploading chanel.'
 
     # Set download manager in case steps were skipped
     files_to_diff = config.PROGRESS_MANAGER.files_downloaded
