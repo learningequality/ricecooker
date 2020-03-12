@@ -447,9 +447,10 @@ class HTMLZipFile(DownloadFile):
         self.filename = super(HTMLZipFile, self).process_file()
         if self.filename:
             try:
-                # make sure index.html exists
-                with zipfile.ZipFile(config.get_storage_path(self.filename)) as zf:
-                    _info = zf.getinfo('index.html')
+                # make sure index.html exists unless this is a dependency (i.e. shared resources) zip
+                if not self.get_preset() == format_presets.HTML5_DEPENDENCY_ZIP:
+                    with zipfile.ZipFile(config.get_storage_path(self.filename)) as zf:
+                        _info = zf.getinfo('index.html')
             except KeyError as err:
                 self.filename = None
                 self.error = err
