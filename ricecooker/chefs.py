@@ -79,6 +79,7 @@ class BaseChef(object):
         parser.add_argument('--deploy', dest='stage', action='store_false',
                             help='Immediately deploy changes to channel\'s main tree. This operation will delete the previous channel content once upload completes. Default (recommended) behavior is to post new tree for review.')
         parser.add_argument('--publish', action='store_true',         help='Publish newly uploaded version of the channel')
+        parser.add_argument('--sample', type=int, metavar='SIZE',     help='Upload a sample of SIZE content nodes from the channel')
         # [OPTIONS] --- extra key=value options are supported, but do not appear in help
         self.arg_parser = parser
 
@@ -162,6 +163,7 @@ class BaseChef(object):
         logging.getLogger("urllib3.util.retry").setLevel(logging.WARNING)
         logging.getLogger("urllib3.connection").setLevel(logging.CRITICAL)
         logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
+        logging.getLogger("PIL.PngImagePlugin").setLevel(logging.WARNING)
 
         # 1. Stream handler (stderr)
         stream_handler = logging.StreamHandler()
@@ -355,7 +357,7 @@ class SushiChef(BaseChef):
         """
         args_copy = args.copy()
         args_copy['token'] = args_copy['token'][0:6] + '...'
-        config.LOGGER.info('In SushiChef.run method. args=' + str(args_copy) + 'options=' + str(options))
+        config.LOGGER.info('In SushiChef.run method. args=' + str(args_copy) + ' options=' + str(options))
         self.pre_run(args, options)
         uploadchannel_wrapper(self, args, options)
 
