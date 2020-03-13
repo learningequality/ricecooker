@@ -86,13 +86,13 @@ class RestoreManager:
             Args: None
             Returns: None
         """
-        config.SUSHI_BAR_CLIENT.report_progress(
-            self.get_status(), self.get_status().value/Status.DONE.value)
-        if next_step:
-            now = time.time()
-            config.SUSHI_BAR_CLIENT.report_stage(self.get_status(), now - self.timestamp)
-            self.timestamp = now
-            self.status = next_step
+        if config.SUSHI_BAR_CLIENT:
+            config.SUSHI_BAR_CLIENT.report_progress(self.get_status(), self.get_status().value/Status.DONE.value)
+            if next_step:
+                now = time.time()
+                config.SUSHI_BAR_CLIENT.report_stage(self.get_status(), now - self.timestamp)
+                self.timestamp = now
+                self.status = next_step
         with open(self.get_restore_path(Status.LAST), 'wb') as handle, open(self.get_restore_path(), 'wb') as step_handle:
             pickle.dump(self, handle)
             pickle.dump(self, step_handle)

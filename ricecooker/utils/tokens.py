@@ -28,7 +28,7 @@ def get_content_curation_token(args_token):
     1. path to a token-containing file (path)
     2. actual token (str) in which case there's nothing to get just pass along
     3. `#` (default value when no --token is given on command line)
-    3a. if environment variable CONTENT_CURATION_TOKEN exists, we'll use that
+    3a. if environment variable STUDIO_TOKEN exists, we'll use that
     3b. else we prompt the user interactively
     """
     if args_token != "#":                               # retrieval methods 1, 2

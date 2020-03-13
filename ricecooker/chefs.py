@@ -55,10 +55,13 @@ class BaseChef(object):
             description="Ricecooker puts your content in the conten server.",
             add_help=(self.__class__ == BaseChef)  # only add help if not subclassed
         )
+        allcommands = [
+            'uploadchannel',  # Whole pipeline: pre_run > run > [deploy,publish]
+            'dryrun',         # Do pre_run and run but do not upload to Studio
+        ]
+        parser.add_argument('command', choices=allcommands,nargs='?', default='uploadchannel', help='Desired action for this chef run')
         if self.compatibility_mode:
-            parser.add_argument('command', choices=['uploadchannel'], help='Main command for the chef script.')
             parser.add_argument('chef_script', help='Path to chef script file')
-        #                    -h                                             Help documentation      # NO NEED BECAUSE AUTOMATIC
         parser.add_argument('--token', default='#',                   help='Authorization token (can be token or path to file with token)')
         parser.add_argument('-u', '--update', action='store_true',    help='Force re-download of files (skip .ricecookerfilecache/ check)')
         parser.add_argument('-v', '--verbose', action='store_true', default=True, help='Verbose mode')
@@ -80,7 +83,6 @@ class BaseChef(object):
                             help='Immediately deploy changes to channel\'s main tree. This operation will delete the previous channel content once upload completes. Default (recommended) behavior is to post new tree for review.')
         parser.add_argument('--publish', action='store_true',         help='Publish newly uploaded version of the channel')
         parser.add_argument('--sample', type=int, metavar='SIZE',     help='Upload a sample of SIZE content nodes from the channel')
-        parser.add_argument('--dry-run', action='store_true',         help='Run chef, but do not create or upload channel to Studio')
         # [OPTIONS] --- extra key=value options are supported, but do not appear in help
         self.arg_parser = parser
 
@@ -109,15 +111,20 @@ class BaseChef(object):
         if len(logging_args) > 1:
             raise InvalidUsageException('Agruments --quiet, --warn, and --debug cannot be used together.')
 
-        # Make sure token is provided. There are four possible ways to specify:
-        #   --token=path to token-containing file
-        #   --token=140fefe...1f3
-        #   when --token is not specified on the command line, the default value is #
-        #     - try environment variable CONTENT_CURATION_TOKEN
-        #     - else prompt user
-        # If ALL of these fail, this call will raise and chef run will stop
-        if not args['dry_run']:
+        if args['command'] == 'uploadchannel':
+            # Make sure token is provided. There are four ways to specify:
+            #  1. --token=path to token-containing file
+            #  2. --token=140fefe...1f3
+            # when --token is not given on the command line, it default to # and
+            #  3. we look for environment variable STUDIO_TOKEN
+            #  4. else prompt user
+            # If ALL of these fail, this call will raise and chef run will stop.
             args['token'] = get_content_curation_token(args['token'])
+
+        if args['command'] == 'dryrun':
+            args['nomonitor'] = True    # no Sushibar logs and progress tracking
+            if not args['resume']:
+                args['reset'] = True    # set the --reset flag to avoid prompt
 
         # Parse additional keyword arguments from `options_list`
         options = {}
@@ -188,10 +195,11 @@ class BaseChef(object):
 
         # 3. Remote logging handler (sushibar logs via WebSockets)
         try:
-            channel = self.get_channel(**options)
-            username, token = authenticate_user(args['token'])
             nomonitor = args.get('nomonitor', False)
-            config.SUSHI_BAR_CLIENT = SushiBarClient(channel, username, token, nomonitor=nomonitor)
+            if not nomonitor:
+                channel = self.get_channel(**options)
+                username, token = authenticate_user(args['token'])
+                config.SUSHI_BAR_CLIENT = SushiBarClient(channel, username, token, nomonitor=nomonitor)
         except Exception as e:
             config.LOGGER.warning('Unable to use remote logging due to: %s' % e)
 

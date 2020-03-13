@@ -30,7 +30,8 @@ def uploadchannel_wrapper(chef, args, options):
         args_and_options = args.copy()
         args_and_options.update(options)
         uploadchannel(chef, **args_and_options)
-        config.SUSHI_BAR_CLIENT.report_stage('COMPLETED', 0)
+        if config.SUSHI_BAR_CLIENT:
+            config.SUSHI_BAR_CLIENT.report_stage('COMPLETED', 0)
     except Exception as e:
         if config.SUSHI_BAR_CLIENT:
             config.SUSHI_BAR_CLIENT.report_stage('FAILURE', 0)
@@ -41,10 +42,11 @@ def uploadchannel_wrapper(chef, args, options):
             config.SUSHI_BAR_CLIENT.close()
 
 
-def uploadchannel(chef, update=False, thumbnails=False, download_attempts=3, resume=False, reset=False, step=Status.LAST.name, token="#", prompt=False, publish=False, compress=False, stage=False, **kwargs):
+def uploadchannel(chef, command='uploadchannel', update=False, thumbnails=False, download_attempts=3, resume=False, reset=False, step=Status.LAST.name, token="#", prompt=False, publish=False, compress=False, stage=False, **kwargs):
     """ uploadchannel: Upload channel to Kolibri Studio server
         Args:
             chef (BaseChef or subclass): class that implements the construct_channel method
+            command (str): the action we want to perform in this run
             update (bool): indicates whether to re-download files (optional)
             thumbnails (bool): indicates whether to automatically derive thumbnails from content (optional)
             download_attempts (int): number of times to retry downloading files (optional)
@@ -74,8 +76,7 @@ def uploadchannel(chef, update=False, thumbnails=False, download_attempts=3, res
     # Get domain to upload to
     config.init_file_mapping_store()
 
-    dry_run = kwargs.get('dry_run', False)
-    if not dry_run:
+    if not command == 'dryrun':
         # Authenticate user and check current Ricecooker version
         username, token = authenticate_user(token)
         config.LOGGER.info("Logged in with username {0}".format(username))
@@ -117,8 +118,9 @@ def uploadchannel(chef, update=False, thumbnails=False, download_attempts=3, res
         config.LOGGER.info("Downloading files...")
         config.PROGRESS_MANAGER.set_files(*process_tree_files(tree))
 
-    if dry_run:
-        return '--dry-run set, so not uploading chanel.'
+    if command == 'dryrun':
+        config.LOGGER.info('Command is dryrun so we are not uploading chanel.')
+        return
 
     # Set download manager in case steps were skipped
     files_to_diff = config.PROGRESS_MANAGER.files_downloaded
@@ -237,7 +239,8 @@ def process_tree_files(tree):
     # Fill in values necessary for next steps
     config.LOGGER.info("Processing content...")
     files_to_diff = tree.process_tree(tree.channel)
-    config.SUSHI_BAR_CLIENT.report_statistics(files_to_diff, topic_count=tree.channel.get_topic_count())
+    if config.SUSHI_BAR_CLIENT:
+        config.SUSHI_BAR_CLIENT.report_statistics(files_to_diff, topic_count=tree.channel.get_topic_count())
     tree.check_for_files_failed()
     return files_to_diff, config.FAILED_FILES
 
