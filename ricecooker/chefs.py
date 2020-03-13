@@ -328,7 +328,7 @@ class SushiChef(BaseChef):
             parents=[self.arg_parser]
         )
         self.arg_parser.add_argument('--daemon', action='store_true', help='Run chef in daemon mode')
-        self.arg_parser.add_argument('--monitor', dest="nomonitor", action='store_false', help='Enable SushiBar progress monitoring')
+        self.arg_parser.add_argument('--nomonitor', action='store_true', help='Disable SushiBar progress monitoring')
         self.arg_parser.add_argument('--cmdsock', help='Local command socket (for cronjobs)')
         # self.arg_parser.add_argument('--sushibar', help='Hostname of SushiBar server (e.g. "sushibar.learningequality.org")')
         # TODO: --bartoken
