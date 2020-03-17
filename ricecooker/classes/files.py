@@ -258,7 +258,12 @@ def download_from_web(web_url, download_settings, file_format=file_formats.MP4, 
             raise youtube_dl.utils.DownloadError('Failed to get resource info')
         download_settings["writethumbnail"] = False      # overwrite default download behaviour
         download_settings["outtmpl"] = destination_path  # overwrite default download behaviour
-        result2 = yt_resource.download(options=download_settings)
+        if file_format == file_formats.VTT:
+            # We need to use the proxy when downloading subtitles
+            result2 = yt_resource.download(options=download_settings, useproxy=True)
+        else:
+            # For video files we can skip the proxy for faster download speed
+            result2 = yt_resource.download(options=download_settings)
         if result2 is None:
             raise youtube_dl.utils.DownloadError('Failed to download resource')
 
