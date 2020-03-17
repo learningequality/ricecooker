@@ -26,6 +26,7 @@ from pressurecooker.subtitles import build_subtitle_converter_from_file
 from pressurecooker.subtitles import LANGUAGE_CODE_UNKNOWN
 from pressurecooker.subtitles import InvalidSubtitleFormatError, InvalidSubtitleLanguageError
 from pressurecooker.videos import guess_video_preset_by_resolution, compress_video, VideoCompressionError
+from pressurecooker.youtube import YouTubeResource
 
 from .. import config
 from ..exceptions import UnknownFileTypeError
@@ -244,17 +245,37 @@ def download_from_web(web_url, download_settings, file_format=file_formats.MP4, 
     except Exception:
         pass
 
-    with youtube_dl.YoutubeDL(download_settings) as ydl:
-        ydl.download([web_url])
-        destination_path += download_ext
-        filename = "{}.{}".format(get_hash(destination_path), file_format)
+    # Download web_url (can be either a video or a video subtitles resource)
+    if not config.USEPROXY:
+        # Connect to YouTube directly
+        with youtube_dl.YoutubeDL(download_settings) as ydl:
+            ydl.download([web_url])
+    else:
+        # Connect to YouTube via an HTTP proxy
+        yt_resource = YouTubeResource(web_url, useproxy=True, options=download_settings)
+        result1 = yt_resource.get_resource_info()
+        if result1 is None:
+            raise youtube_dl.utils.DownloadError('Failed to get resource info')
+        download_settings["writethumbnail"] = False      # overwrite default download behaviour
+        download_settings["outtmpl"] = destination_path  # overwrite default download behaviour
+        result2 = yt_resource.download(options=download_settings)
+        if result2 is None:
+            raise youtube_dl.utils.DownloadError('Failed to download resource')
 
-        # Write file to local storage
-        with open(destination_path, "rb") as dlf, open(config.get_storage_path(filename), 'wb') as destf:
-            shutil.copyfileobj(dlf, destf)
+    destination_path += download_ext
+    filename = "{}.{}".format(get_hash(destination_path), file_format)
 
-        FILECACHE.set(key, bytes(filename, "utf-8"))
-        return filename
+    # Write file to local storage
+    with open(destination_path, "rb") as dlf, open(config.get_storage_path(filename), 'wb') as destf:
+        shutil.copyfileobj(dlf, destf)
+
+    FILECACHE.set(key, bytes(filename, "utf-8"))
+    return filename
+
+
+
+
+
 
 
 class ThumbnailPresetMixin(object):
