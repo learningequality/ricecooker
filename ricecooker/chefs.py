@@ -55,11 +55,7 @@ class BaseChef(object):
             description="Ricecooker puts your content in the conten server.",
             add_help=(self.__class__ == BaseChef)  # only add help if not subclassed
         )
-        allcommands = [
-            'uploadchannel',  # Whole pipeline: pre_run > run > [deploy,publish]
-            'dryrun',         # Do pre_run and run but do not upload to Studio
-        ]
-        parser.add_argument('command', choices=allcommands,nargs='?', default='uploadchannel', help='Desired action for this chef run')
+        parser.add_argument('command', nargs='?', default='uploadchannel', help='Desired action: dryrun or uploadchannel')
         if self.compatibility_mode:
             parser.add_argument('chef_script', help='Path to chef script file')
         parser.add_argument('--token', default='#',                   help='Authorization token (can be token or path to file with token)')
@@ -101,6 +97,18 @@ class BaseChef(object):
         """
         args_namespace, options_list = self.arg_parser.parse_known_args()
         args = args_namespace.__dict__
+
+        # Handle case when command is not specified but key=value options are
+        allcommands = [
+            'uploadchannel',  # Whole pipeline: pre_run > run > [deploy,publish]
+            'dryrun',         # Do pre_run and run but do not upload to Studio
+        ]
+        command_arg = args['command']
+        if command_arg not in allcommands and '=' in command_arg:
+            # a key=value options pair was incorrectly recognized as the command
+            args['command'] = 'uploadchannel'
+            options_list.append(command_arg)  # put command_arg where it belongs
+
 
         # Print CLI deprecation warnings info
         if args['stage_deprecated']:
