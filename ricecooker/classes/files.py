@@ -238,18 +238,19 @@ def download_from_web(web_url, download_settings, file_format=file_formats.MP4, 
     # Get hash of web_url to act as temporary storage name
     url_hash = hashlib.md5()
     url_hash.update(web_url.encode('utf-8'))
-    destination_path = os.path.join(tempfile.gettempdir(), "{}{ext}".format(url_hash.hexdigest(), ext=ext))
+    tempfilename = "{}{ext}".format(url_hash.hexdigest(), ext=ext)
+    destination_path = os.path.join(tempfile.gettempdir(), tempfilename)
     download_settings["outtmpl"] = destination_path
-    try:
+    if os.path.exists(destination_path):
         os.remove(destination_path)
-    except Exception:
-        pass
 
     # Download web_url (can be either a video or a video subtitles resource)
     if not config.USEPROXY:
         # Connect to YouTube directly
         with youtube_dl.YoutubeDL(download_settings) as ydl:
             ydl.download([web_url])
+            if not os.path.exists(destination_path):
+                raise youtube_dl.utils.DownloadError('Failed to download resource ' + web_url)
     else:
         # Connect to YouTube via an HTTP proxy
         yt_resource = YouTubeResource(web_url, useproxy=True, options=download_settings)
@@ -264,8 +265,8 @@ def download_from_web(web_url, download_settings, file_format=file_formats.MP4, 
         else:
             # For video files we can skip the proxy for faster download speed
             result2 = yt_resource.download(options=download_settings)
-        if result2 is None:
-            raise youtube_dl.utils.DownloadError('Failed to download resource')
+        if result2 is None or not os.path.exists(destination_path):
+            raise youtube_dl.utils.DownloadError('Failed to download resource ' + web_url)
 
     destination_path += download_ext
     filename = "{}.{}".format(get_hash(destination_path), file_format)
