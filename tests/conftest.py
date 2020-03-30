@@ -453,8 +453,7 @@ def invalid_epub_file():
 
 @pytest.fixture
 def html_file():
-    source_url = "https://web.archive.org/web/20191122220303/" \
-                 "https://studio.learningequality.org/content/storage/" \
+    source_url = "https://studio.learningequality.org/content/storage/" \
                  "e/d/ed494d6547b603b8ff22095cf5f5b624.zip"
     local_path = os.path.join("tests", "testcontent", "downloaded", "testhtml.zip")
     download_fixture_file(source_url, local_path)
