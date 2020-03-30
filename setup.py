@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+from setuptools import find_packages
+from setuptools import setup
+
 import ricecooker
-from setuptools import setup, find_packages
 
 
 readme = open('README.md').read()
@@ -30,6 +32,7 @@ requirements = [
     "pypdf2>=1.26.0",
     "dictdiffer>=0.8.0",
     "Pillow==5.4.1",
+    "colorlog>=4.1.0,<4.2",
 ]
 
 test_requirements = [
