@@ -59,7 +59,7 @@ def setup_logging(level=logging.INFO, error_log=None):
             "error": {
                 "level": logging.ERROR,
                 "class": "logging.FileHandler",
-                "filename": error_log,
+                "filename": error_log or "void_error_log.log",
                 "formatter": "simple_date",
             },
         },
