@@ -177,7 +177,7 @@ The video `compressed.mp4` is now ready for upload to Studio!
 We provide a helper script to help run the ffmpeg command. The instructions are different
 depending if your operating systems is Windows or Mac/Linux:
 
-  - For Windows users, download the file [convertvideo.bat](../resources/scripts/convertvideo.bat)
+  - For Windows users, download the file [convertvideo.bat](https://raw.githubusercontent.com/learningequality/ricecooker/master/resources/scripts/convertvideo.bat)
     and save it to your computer. Make sure the extension is `.bat` (Windows batch file).
     Put the `convertvideo.bat` file in the same folder where you copied `ffmpeg.exe`.
     To convert `inputfile.mp4` to `outputfile.mp4` using the conversion script, open a
@@ -189,7 +189,7 @@ depending if your operating systems is Windows or Mac/Linux:
     See [https://youtu.be/oKbCbuDlRmY](https://www.youtube.com/watch?v=oKbCbuDlRmY)
     for a video walkthrough of the steps and example usage of the batch script.
 
-  - Linux and Mac users should download [convertvideo.sh](../resources/scripts/convertvideo.sh),
+  - Linux and Mac users should download [convertvideo.sh](https://raw.githubusercontent.com/learningequality/ricecooker/master/resources/scripts/convertvideo.sh),
     save it to the folder where all the videos are. Next open a command prompt and change
     directory to that folder. Make the script executable using `chmod u+x convertvideo.sh`,
     then you can start converting videos using:
