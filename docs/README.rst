@@ -26,8 +26,8 @@ Before we continue, let's have some definitions:
       -  Document (``pdf`` and ``epub`` files)
       -  Audio (``mp3`` files)
       -  Video (``mp4`` files and subtitles)
-      -  HTML5App ``zip`` files (generic container for web content:
-         HTML+JS+CSS)
+      -  HTML5App ``h5p`` files and ``zip`` files (generic container for
+         web content: HTML+JS+CSS)
       -  Exercises
 
 -  A **sushi chef** is a Python script that uses the ``ricecooker``
@@ -60,7 +60,7 @@ Use the following shortcuts to jump to the most relevant parts of the
    started using the ``ricecooker`` library by following these first
    steps:
 
-   -  `Quickstart <tutorial/quickstart.ipynb>`__,
+   -  `Quickstart <tutorial/quickstart.html>`__,
       which will introduce you to the steps needed to create a sushi
       chef script.
    -  After the quickstart, you should be ready to take things into your

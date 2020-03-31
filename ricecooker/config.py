@@ -82,7 +82,11 @@ FAILED_FILES = []
 DOWNLOAD_SESSION = requests.Session()
 DOWNLOAD_SESSION.mount('file://', FileAdapter())
 
-# Sushi bar server
+# Environment variable indicating we should use a proxy for youtube_dl downloads
+USEPROXY = False
+USEPROXY = True if os.getenv('USEPROXY') is not None or os.getenv('PROXY_LIST') is not None else False
+
+# Sushibar server
 SUSHIBAR_URL = os.getenv('SUSHIBAR_URL', "https://sushibar.learningequality.org")
 if SUSHIBAR_URL.endswith('/'):
     SUSHIBAR_URL = SUSHIBAR_URL.rstrip('/')

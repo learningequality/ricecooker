@@ -26,6 +26,7 @@ from pressurecooker.subtitles import build_subtitle_converter_from_file
 from pressurecooker.subtitles import LANGUAGE_CODE_UNKNOWN
 from pressurecooker.subtitles import InvalidSubtitleFormatError, InvalidSubtitleLanguageError
 from pressurecooker.videos import guess_video_preset_by_resolution, compress_video, VideoCompressionError
+from pressurecooker.youtube import YouTubeResource
 
 from .. import config
 from ..exceptions import UnknownFileTypeError
@@ -237,24 +238,50 @@ def download_from_web(web_url, download_settings, file_format=file_formats.MP4, 
     # Get hash of web_url to act as temporary storage name
     url_hash = hashlib.md5()
     url_hash.update(web_url.encode('utf-8'))
-    destination_path = os.path.join(tempfile.gettempdir(), "{}{ext}".format(url_hash.hexdigest(), ext=ext))
+    tempfilename = "{}{ext}".format(url_hash.hexdigest(), ext=ext)
+    destination_path = os.path.join(tempfile.gettempdir(), tempfilename)
     download_settings["outtmpl"] = destination_path
-    try:
+    if os.path.exists(destination_path):
         os.remove(destination_path)
-    except Exception:
-        pass
 
-    with youtube_dl.YoutubeDL(download_settings) as ydl:
-        ydl.download([web_url])
-        destination_path += download_ext
-        filename = "{}.{}".format(get_hash(destination_path), file_format)
+    # Download web_url (can be either a video or a video subtitles resource)
+    if not config.USEPROXY:
+        # Connect to YouTube directly
+        with youtube_dl.YoutubeDL(download_settings) as ydl:
+            ydl.download([web_url])
+            if not os.path.exists(destination_path):
+                raise youtube_dl.utils.DownloadError('Failed to download resource ' + web_url)
+    else:
+        # Connect to YouTube via an HTTP proxy
+        yt_resource = YouTubeResource(web_url, useproxy=True, options=download_settings)
+        result1 = yt_resource.get_resource_info()
+        if result1 is None:
+            raise youtube_dl.utils.DownloadError('Failed to get resource info')
+        download_settings["writethumbnail"] = False      # overwrite default download behaviour
+        download_settings["outtmpl"] = destination_path  # overwrite default download behaviour
+        if file_format == file_formats.VTT:
+            # We need to use the proxy when downloading subtitles
+            result2 = yt_resource.download(options=download_settings, useproxy=True)
+        else:
+            # For video files we can skip the proxy for faster download speed
+            result2 = yt_resource.download(options=download_settings)
+        if result2 is None or not os.path.exists(destination_path):
+            raise youtube_dl.utils.DownloadError('Failed to download resource ' + web_url)
 
-        # Write file to local storage
-        with open(destination_path, "rb") as dlf, open(config.get_storage_path(filename), 'wb') as destf:
-            shutil.copyfileobj(dlf, destf)
+    destination_path += download_ext
+    filename = "{}.{}".format(get_hash(destination_path), file_format)
 
-        FILECACHE.set(key, bytes(filename, "utf-8"))
-        return filename
+    # Write file to local storage
+    with open(destination_path, "rb") as dlf, open(config.get_storage_path(filename), 'wb') as destf:
+        shutil.copyfileobj(dlf, destf)
+
+    FILECACHE.set(key, bytes(filename, "utf-8"))
+    return filename
+
+
+
+
+
 
 
 class ThumbnailPresetMixin(object):
