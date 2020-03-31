@@ -42,7 +42,7 @@ section. You can find the full source code of it
 
 Mmmm, potato… potato give you power!
 
-.. code:: ipython3
+.. code:: python
 
     #!/usr/bin/env python
     from ricecooker.chefs import SushiChef
@@ -96,7 +96,7 @@ Studio.
 
 Run of chef script by calling it on the command line:
 
-.. code:: ipython3
+.. code:: bash 
 
     !cd ../../examples; python simple_chef.py -v --reset --token=<your-studio-token>
 
