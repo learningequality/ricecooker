@@ -16,7 +16,7 @@ On a Debian or Ubuntu GNU/Linux, you can install the necessary packages using:
     apt-get install build-essential gettext pkg-config linux-tools-generic python3-tk \
         python3 python3-dev python3-pip virtualenv \
         libxft-dev libwebp-dev libmagickwand-dev \
-        ffmpeg
+        ffmpeg poppler-utils
 
 For other Linux distributions (ContOS/Fedora/OpenSuSE) look for the the package
 `ImageMagick-devel` and install the latest python 3.x version available.
@@ -25,7 +25,7 @@ For other Linux distributions (ContOS/Fedora/OpenSuSE) look for the the package
 ### Mac
 Mac OS X users can install the necessary software using [Homebrew](https://brew.sh/):
 
-    brew install git python3 imagemagick@6 ffmpeg
+    brew install git python3 imagemagick@6 ffmpeg poppler
     brew link --force imagemagick@6
 
 Note you need `imagemagick@6` and not the new version 7, which has a different API.
@@ -60,6 +60,12 @@ downloading of each of the tools and making sure they appear the `Path` variable
    like [https://imagemagick.org/download/binaries/ImageMagick-6.9.10-58-Q16-x86-static.exe](https://imagemagick.org/download/binaries/ImageMagick-6.9.10-58-Q16-x86-static.exe).
      - **Checklist**: after installation completes, open a Git Bash terminal and
        type in `convert -h` to make sure the command `convert` is available.
+5. Download the file linked under "Latest binary" from [poppler-windows](http://blog.alivate.com.au/poppler-windows/).
+   Extract the file to a some permanent location in your files. Note you may need
+   to first install [7-zip](https://www.7-zip.org/) tool to extract the archive.
+   Add the `bin` folder `poppler-0.xx.y\bin` to your Path variable.
+     - **Checklist**: after installation, open a Git Bash terminal and type in
+       `pdftoppm -h` to make sure the command `pdftoppm` is available.
 
 At this point you will have a working Python installation on your system, and
 all the software tools necessary to write and run `ricecooker` scripts.
