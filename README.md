@@ -12,24 +12,16 @@ web and convert it into an offline-friendly package that can be imported into Ko
 
 The basic process of getting new content into Kolibri is as follows:
 
-1. Create and upload a new Kolibri Channel using either `ricecooker` (automated creation) 
-   or Kolibri Studio (manual creation).
+1. Create and upload a new Kolibri Channel using either `ricecooker` integration
+   script or by manually uploading content through the Kolibri Studio web interface.
 2. Publish the new channel using Kolibri Studio to make it accessible to Kolibri.
 3. Copy the channel's token in Kolibri Studio, and paste it into Kolibri's import screen 
    to import the channel.
 
-We call the `ricecooker`-based automated content import workflow the "Kolibri Content Pipeline."
-The diagram below illustrates this three step process.
-
-## The Kolibri Content Pipeline
-
-The Kolibri content pipeline is pictured below:
+The diagram below illustrates the three steps of this process:
 
 ![The Kolibri Content Pipeline](https://raw.githubusercontent.com/learningequality/ricecooker/master/docs/figures/content_pipeline_diagram.png)
 
-This `ricecooker` framework is the "main actor" in the first part of the content
-pipeline, and touches all aspects of the pipeline within the region highlighted
-in blue in the above diagram. 
 
 ## Key Concepts
 
@@ -60,13 +52,22 @@ contains a content tree (i.e. table of contents) made up of `ContentNodes`.
 
 ### Content Integration Script (aka SushiChef)
 
-A content integration script that uses the `ricecooker` library to generate Kolibri Channel(s)
-is commonly referred to as a **SushiChef**. The responsibility of a `SushiChef` is to download the source
+The content integration scripts that use the `ricecooker` library to generate Kolibri Channels
+are commonly referred to as **SushiChef** scripts. The responsibility of a `SushiChef` is to download the source
 content, perform any necessary format or structure conversions to create a content tree viewable
 in Kolibri, then to upload the output of this process to Kolibri Studio for review and publishing.
 
 Conceptually, `SushiChef` scripts are very similar to web scrapers, but with specialized functions
 for optimizing the content for Kolibri's data structures and capabilities.
+
+### Content Pipeline
+
+The combination of software tools and procedures that content moves through from
+starting as an external content source to becoming a Kolibri Channel available
+for use in the Kolibri Learning Platform. The `ricecooker` framework is the
+"main actor" in the first part of the content pipeline, and touches all aspects
+of the pipeline within the region highlighted in blue in the above diagram.
+
 
 ## Installation
 
@@ -76,26 +77,26 @@ If this is not the case, you can consult the Kolibri developer docs as a guide f
 [setting up a Python virtualenv](http://kolibri-dev.readthedocs.io/en/latest/start/getting_started.html#virtual-environment).
 
 The `ricecooker` library is a standard Python library distributed through PyPI:
-  - Run `pip install ricecooker` to install
-    You can then use `import ricecooker` in your chef script.
-  - Some of functions in `ricecooker.utils` require additional software:
-     - Make sure you install the command line tool [ffmpeg](https://ffmpeg.org/)
-     - Running javascript code while scraping webpages requires the phantomJS browser.
-       You can run `npm install phantomjs-prebuilt` in your chef's working directory.
+  - Run `pip install ricecooker` to install `ricecooker` and all Python dependencies.
+  - Some of the utility functions in `ricecooker.utils` require additional software:
+     - The multimedia command line tool [ffmpeg](https://ffmpeg.org/)
+     - The `imagemagick` (version 6) image manipulation tools
+     - The `poppler` library for PDF utilities
 
-For more details and install options, see [docs/installation.md](https://github.com/learningequality/ricecooker/blob/master/docs/installation.md).
+For details about the installation steps, see [docs/installation.md](https://github.com/learningequality/ricecooker/blob/master/docs/installation.md).
 
 In order to upload your `ricecooker` generated channels to Kolibri Studio and make them importable
 into Kolibri, you will also need to create an account on Kolibri Studio. To do so, visit
 [Kolibri Studio](https://studio.learningequality.org) and click the "Create an Account" link.
 The instructions below assume you have already completed this step.
 
+
 ## Creating Your First Content Integration Script
 
 Below is code for a simple sushi chef script that uses the `ricecooker` library to create a Kolibri
 channel with a single topic node (Folder), and puts a single PDF content node inside that folder.
 
-To get started, create a new project folder and save the following code in a file called `chef.py`:
+To get started, create a new project folder and save the following code in a file called `sushichef.py`:
 
 **Important Note** Be sure to give unique values for the `CHANNEL_SOURCE_DOMAIN` and `CHANNEL_SOURCE_ID`,
 as these values are used to determine your channel's ID and using duplicate values will lead
@@ -139,7 +140,7 @@ class SimpleChef(SushiChef):
 if __name__ == '__main__':
     """
     Run this script on the command line using:
-        python simple_chef.py -v --reset --token=YOURTOKENHERE9139139f3a23232
+        python sushichef.py -v --reset --token=YOURTOKENHERE9139139f3a23232
     """
     simple_chef = SimpleChef()
     simple_chef.main()
@@ -147,24 +148,25 @@ if __name__ == '__main__':
 
 You can run the chef script by passing the appropriate command line arguments:
 
-    python chef.py -v --reset --token=YOURTOKENHERE9139139f3a23232
+    python sushichef.py --reset --token=YOURTOKENHERE9139139f3a23232
 
 The most important argument when running a chef script is `--token`, which is used
 to pass in the Studio Access Token used to allow upload access. You can find this token
 by going to the [settings page](http://studio.learningequality.org/settings/tokens) of
 the account you created earlier and copying the token it displays.
 
-The flags `-v` (verbose) and `--reset` are generally useful in development.
-These make sure the chef script will start the process from scratch and displays
-useful debugging information on the command line.
+The flag `--reset` is generally useful in development. It ensures the chef script
+starts the upload process from scratch every time you run the script
+(otherwise the script will prompt you to resume from the last saved checkpoint).
 
-To see all the `ricecooker` command line options, run `python simple_chef.py -h`.
+To see all the `ricecooker` command line options, run `python sushichef.py -h`.
 For more details about running chef scripts see [the chefops page](https://github.com/learningequality/ricecooker/blob/master/docs/chefops.md).
 
 If you get an error when running the chef, make sure you've replaced
 `YOURTOKENHERE9139139f3a23232` by the token you obtained from Studio.
 Also make sure you've changed the value of `channel_info['CHANNEL_SOURCE_DOMAIN']`
 and `channel_info['CHANNEL_SOURCE_ID']` instead of using the default values.
+
 
 ## Next Steps
 
@@ -175,12 +177,11 @@ in the process:
   - **Content specialists and Administrators** can read the non-technical part
     of the documentation to learn about how content works in the Kolibri platform.
     - The best place to start is the [Kolibri Platform overview](https://github.com/learningequality/ricecooker/blob/master/docs/platform/introduction.md).
-    - Read more about the supported [content types here](https://github.com/learningequality/ricecooker/blob/master/docs/platform/content_types.md)
-    - Content curators can consult [this document](https://docs.google.com/document/d/1slwoNT90Wqu0Rr8MJMAEsA-9LWLRvSeOgdg9u7HrZB8/edit?usp=sharing)
-      for information about how to prepare "spec sheets" that guide developers how
-      to import content into the Kolibri ecosystem.
-    - The Non-technical of particular interest is the [CSV workflow](https://github.com/learningequality/ricecooker/blob/master/docs/csv_metadata/README.md)
-      channel metadata as spreadsheets
+    - The page on [content workflows](https://ricecooker.readthedocs.io/en/latest/platform/content_workflows.html)
+      also has a useful overview of the steps of the process.
+    - You can read about the supported [content types here](https://github.com/learningequality/ricecooker/blob/master/docs/platform/content_types.md).
+    - The page on [Reviewing Channel](https://ricecooker.readthedocs.io/en/latest/platform/reviewing_channels.html)
+      provides more information about the possible content issues to watch out for.
 
   - **Chef authors** can read the remainder of this README, and get started using
     the `ricecooker` library by following these first steps:
