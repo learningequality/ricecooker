@@ -1,44 +1,221 @@
 ricecooker
 ==========
 
-The ``ricecooker`` library is a framework for creating Kolibri content
-channels and uploading them to `Kolibri
-Studio <https://studio.learningequality.org/>`__, which is the central
-content server that `Kolibri <http://learningequality.org/kolibri/>`__
-applications talk to when they import content.
-
-The Kolibri content pipeline is pictured below:
-
-|The Kolibri Content Pipeline|
-
-This ``ricecooker`` framework is the "main actor" in the first part of
-the content pipeline, and touches all aspects of the pipeline within the
-region highlighted in blue in the above diagram.
-
-Before we continue, let's have some definitions:
-
--  A **Kolibri channel** is a tree-like data structure that consist of
-   the following content nodes:
-
-   -  Topic nodes (folders)
-   -  Content types:
-
-      -  Document (``pdf`` and ``epub`` files)
-      -  Audio (``mp3`` files)
-      -  Video (``mp4`` files and subtitles)
-      -  HTML5App ``h5p`` files and ``zip`` files (generic container for
-         web content: HTML+JS+CSS)
-      -  Exercises
-
--  A **sushi chef** is a Python script that uses the ``ricecooker``
-   library to import content from various sources, organize content into
-   Kolibri channels and upload the channel to Kolibri Studio.
+The ``ricecooker`` library is a framework for automating the conversion
+of educational content into Kolibri content channels and uploading them
+to `Kolibri Studio <https://studio.learningequality.org/>`__, which is
+the central content server for
+`Kolibri <http://learningequality.org/kolibri/>`__.
 
 Overview
 --------
 
-Use the following shortcuts to jump to the most relevant parts of the
-``ricecooker`` documentation depending on your role:
+``ricecooker`` is used to take openly licensed educational content
+available on the web and convert it into an offline-friendly package
+that can be imported into Kolibri.
+
+The basic process of getting new content into Kolibri is as follows:
+
+1. Create and upload a new Kolibri Channel using either ``ricecooker``
+   integration script or by manually uploading content through the
+   Kolibri Studio web interface.
+2. Publish the new channel using Kolibri Studio to make it accessible to
+   Kolibri.
+3. Copy the channel's token in Kolibri Studio, and paste it into
+   Kolibri's import screen to import the channel.
+
+The diagram below illustrates the three steps of this process:
+
+|The Kolibri Content Pipeline|
+
+Key Concepts
+------------
+
+Before we go any further, let us provide more details on some key
+concepts in the Kolibri Content Pipeline.
+
+Kolibri Channel
+~~~~~~~~~~~~~~~
+
+-  A **Kolibri Channel** is a tree-like data structure that consists of
+   the following types of content:
+
+   -  Topics (folders)
+   -  Content of a type supported by Kolibri, including:
+
+      -  Document (ePub and PDF files)
+      -  Audio (mp3 files)
+      -  Video (mp4 files)
+      -  HTML5App zip files (generic container for web content:
+         HTML+JS+CSS)
+      -  SlidesShow (jpg and png slide images)
+      -  Exercises, which contain different types of questions:
+
+         -  SingleSelectQuestion (multiple choice)
+         -  MultipleSelectQuestion (multiple choice with multiple
+            correct answers)
+         -  InputQuestion (good for numeric inputs)
+         -  PerseusQuestion (a rich exercise question format developed
+            at Khan Academy)
+
+ContentNode
+~~~~~~~~~~~
+
+A **ContentNode** is a technical term used to describe a piece of
+content in Kolibri, along with the metadata associated with it, such as
+the licensing, description, and thumbnail. A Kolibri Channel contains a
+content tree (i.e. table of contents) made up of ``ContentNodes``.
+
+Content Integration Script (aka SushiChef)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The content integration scripts that use the ``ricecooker`` library to
+generate Kolibri Channels are commonly referred to as **SushiChef**
+scripts. The responsibility of a ``SushiChef`` is to download the source
+content, perform any necessary format or structure conversions to create
+a content tree viewable in Kolibri, then to upload the output of this
+process to Kolibri Studio for review and publishing.
+
+Conceptually, ``SushiChef`` scripts are very similar to web scrapers,
+but with specialized functions for optimizing the content for Kolibri's
+data structures and capabilities.
+
+Content Pipeline
+~~~~~~~~~~~~~~~~
+
+The combination of software tools and procedures that content moves
+through from starting as an external content source to becoming a
+Kolibri Channel available for use in the Kolibri Learning Platform. The
+``ricecooker`` framework is the "main actor" in the first part of the
+content pipeline, and touches all aspects of the pipeline within the
+region highlighted in blue in the above diagram.
+
+Installation
+------------
+
+We'll assume you have a Python 3 installation on your computer and are
+familiar with best practices for working with Python codes (e.g.
+``virtualenv`` or ``pipenv``). If this is not the case, you can consult
+the Kolibri developer docs as a guide for `setting up a Python
+virtualenv <http://kolibri-dev.readthedocs.io/en/latest/start/getting_started.html#virtual-environment>`__.
+
+The ``ricecooker`` library is a standard Python library distributed
+through PyPI:
+
+-  Run ``pip install ricecooker`` to install ``ricecooker`` and all
+   Python dependencies.
+-  Some of the utility functions in ``ricecooker.utils`` require
+   additional software:
+
+   -  The multimedia command line tool `ffmpeg <https://ffmpeg.org/>`__
+   -  The ``imagemagick`` (version 6) image manipulation tools
+   -  The ``poppler`` library for PDF utilities
+
+For details about the installation steps, see
+`docs/installation.html <installation.html>`__.
+
+In order to upload your ``ricecooker`` generated channels to Kolibri
+Studio and make them importable into Kolibri, you will also need to
+create an account on Kolibri Studio. To do so, visit `Kolibri
+Studio <https://studio.learningequality.org>`__ and click the "Create an
+Account" link. The instructions below assume you have already completed
+this step.
+
+Creating Your First Content Integration Script
+----------------------------------------------
+
+Below is code for a simple sushi chef script that uses the
+``ricecooker`` library to create a Kolibri channel with a single topic
+node (Folder), and puts a single PDF content node inside that folder.
+
+To get started, create a new project folder and save the following code
+in a file called ``sushichef.py``:
+
+**Important Note** Be sure to give unique values for the
+``CHANNEL_SOURCE_DOMAIN`` and ``CHANNEL_SOURCE_ID``, as these values are
+used to determine your channel's ID and using duplicate values will lead
+to an error when trying to upload.
+
+::
+
+    #!/usr/bin/env python
+    from ricecooker.chefs import SushiChef
+    from ricecooker.classes.nodes import ChannelNode, TopicNode, DocumentNode
+    from ricecooker.classes.files import DocumentFile
+    from ricecooker.classes.licenses import get_license
+
+
+    class SimpleChef(SushiChef):
+        channel_info = {
+            'CHANNEL_TITLE': 'Potatoes info channel',
+            'CHANNEL_SOURCE_DOMAIN': '<domain.org>',         # where you got the content (change me!!)
+            'CHANNEL_SOURCE_ID': '<unique id for channel>',  # channel's unique id (change me!!)
+            'CHANNEL_LANGUAGE': 'en',                        # le_utils language code
+            'CHANNEL_THUMBNAIL': 'https://upload.wikimedia.org/wikipedia/commons/b/b7/A_Grande_Batata.jpg', # (optional)
+            'CHANNEL_DESCRIPTION': 'What is this channel about?',      # (optional)
+        }
+
+        def construct_channel(self, **kwargs):
+            channel = self.get_channel(**kwargs)
+            potato_topic = TopicNode(title="Potatoes!", source_id="<potatos_id>")
+            channel.add_child(potato_topic)
+            doc_node = DocumentNode(
+                title='Growing potatoes',
+                description='An article about growing potatoes on your rooftop.',
+                source_id='pubs/mafri-potatoe',
+                license=get_license('CC BY', copyright_holder='University of Alberta'),
+                language='en',
+                files=[DocumentFile(path='https://www.gov.mb.ca/inr/pdf/pubs/mafri-potatoe.pdf',
+                                    language='en')],
+            )
+            potato_topic.add_child(doc_node)
+            return channel
+
+
+    if __name__ == '__main__':
+        """
+        Run this script on the command line using:
+            python sushichef.py -v --reset --token=YOURTOKENHERE9139139f3a23232
+        """
+        simple_chef = SimpleChef()
+        simple_chef.main()
+
+You can run the chef script by passing the appropriate command line
+arguments:
+
+::
+
+    python sushichef.py --reset --token=YOURTOKENHERE9139139f3a23232
+
+The most important argument when running a chef script is ``--token``,
+which is used to pass in the Studio Access Token used to allow upload
+access. You can find this token by going to the `settings
+page <http://studio.learningequality.org/settings/tokens>`__ of the
+account you created earlier and copying the token it displays.
+
+The flag ``--reset`` is generally useful in development. It ensures the
+chef script starts the upload process from scratch every time you run
+the script (otherwise the script will prompt you to resume from the last
+saved checkpoint).
+
+To see all the ``ricecooker`` command line options, run
+``python sushichef.py -h``. For more details about running chef scripts
+see `the chefops
+page <chefops.html>`__.
+
+If you get an error when running the chef, make sure you've replaced
+``YOURTOKENHERE9139139f3a23232`` by the token you obtained from Studio.
+Also make sure you've changed the value of
+``channel_info['CHANNEL_SOURCE_DOMAIN']`` and
+``channel_info['CHANNEL_SOURCE_ID']`` instead of using the default
+values.
+
+Next Steps
+----------
+
+The Kolibri Content Pipeline is a collaborative effort between
+educational experts and software developers. As such, we have provided
+some getting docs of particular relevance for each role in the process:
 
 -  **Content specialists and Administrators** can read the non-technical
    part of the documentation to learn about how content works in the
@@ -46,15 +223,15 @@ Use the following shortcuts to jump to the most relevant parts of the
 
    -  The best place to start is the `Kolibri Platform
       overview <platform/introduction.html>`__.
-   -  Read more about the supported `content types
-      here <platform/content_types.html>`__
-   -  Content curators can consult `this
-      document <https://docs.google.com/document/d/1slwoNT90Wqu0Rr8MJMAEsA-9LWLRvSeOgdg9u7HrZB8/edit?usp=sharing>`__
-      for information about how to prepare "spec sheets" that guide
-      developers how to import content into the Kolibri ecosystem.
-   -  The Non-technical of particular interest is the `CSV
-      workflow <csv_metadata/README.html>`__
-      channel metadata as spreadsheets
+   -  The page on `content
+      workflows <https://ricecooker.readthedocs.io/en/latest/platform/content_workflows.html>`__
+      also has a useful overview of the steps of the process.
+   -  You can read about the supported `content types
+      here <platform/content_types.html>`__.
+   -  The page on `Reviewing
+      Channel <https://ricecooker.readthedocs.io/en/latest/platform/reviewing_channels.html>`__
+      provides more information about the possible content issues to
+      watch out for.
 
 -  **Chef authors** can read the remainder of this README, and get
    started using the ``ricecooker`` library by following these first
@@ -101,127 +278,6 @@ Use the following shortcuts to jump to the most relevant parts of the
    -  `Managing the content
       pipeline <developer/sushops.html>`__,
       also known as **sushops**.
-
-Installation
-------------
-
-We'll assume you have a Python 3 installation on your computer and are
-familiar with best practices for working with Python codes (e.g.
-``virtualenv`` or ``pipenv``). If this is not the case, you can consult
-the Kolibri developer docs as a guide for `setting up a Python
-virtualenv <http://kolibri-dev.readthedocs.io/en/latest/start/getting_started.html#virtual-environment>`__.
-
-The ``ricecooker`` library is a standard Python library distributed
-through PyPI:
-
--  Run ``pip install ricecooker`` to install You can then use
-   ``import ricecooker`` in your chef script.
--  Some of functions in ``ricecooker.utils`` require additional
-   software:
-
-   -  Make sure you install the command line tool
-      `ffmpeg <https://ffmpeg.org/>`__
-   -  Running javascript code while scraping webpages requires the
-      phantomJS browser. You can run ``npm install phantomjs-prebuilt``
-      in your chef's working directory.
-
-For more details and install options, see
-`docs/installation.html <installation.html>`__.
-
-Simple chef example
--------------------
-
-This is a sushi chef script that uses the ``ricecooker`` library to
-create a Kolibri channel with a single topic node (Folder), and puts a
-single PDF content node inside that folder.
-
-::
-
-    #!/usr/bin/env python
-    from ricecooker.chefs import SushiChef
-    from ricecooker.classes.nodes import ChannelNode, TopicNode, DocumentNode
-    from ricecooker.classes.files import DocumentFile
-    from ricecooker.classes.licenses import get_license
-
-
-    class SimpleChef(SushiChef):
-        channel_info = {
-            'CHANNEL_TITLE': 'Potatoes info channel',
-            'CHANNEL_SOURCE_DOMAIN': '<domain.org>',         # where you got the content (change me!!)
-            'CHANNEL_SOURCE_ID': '<unique id for channel>',  # channel's unique id (change me!!)
-            'CHANNEL_LANGUAGE': 'en',                        # le_utils language code
-            'CHANNEL_THUMBNAIL': 'https://upload.wikimedia.org/wikipedia/commons/b/b7/A_Grande_Batata.jpg', # (optional)
-            'CHANNEL_DESCRIPTION': 'What is this channel about?',      # (optional)
-        }
-
-        def construct_channel(self, **kwargs):
-            channel = self.get_channel(**kwargs)
-            potato_topic = TopicNode(title="Potatoes!", source_id="<potatos_id>")
-            channel.add_child(potato_topic)
-            doc_node = DocumentNode(
-                title='Growing potatoes',
-                description='An article about growing potatoes on your rooftop.',
-                source_id='pubs/mafri-potatoe',
-                license=get_license('CC BY', copyright_holder='University of Alberta'),
-                language='en',
-                files=[DocumentFile(path='https://www.gov.mb.ca/inr/pdf/pubs/mafri-potatoe.pdf',
-                                    language='en')],
-            )
-            potato_topic.add_child(doc_node)
-            return channel
-
-
-    if __name__ == '__main__':
-        """
-        Run this script on the command line using:
-            python simple_chef.py -v --reset --token=YOURTOKENHERE9139139f3a23232
-        """
-        simple_chef = SimpleChef()
-        simple_chef.main()
-
-Let's assume the above code snippet is saved as the file
-``simple_chef.py``.
-
-You can run the chef script by passing the appropriate command line
-arguments:
-
-::
-
-    python simple_chef.py -v --reset --token=YOURTOKENHERE9139139f3a23232
-
-The most important argument when running a chef script is ``--token``
-which is used to pass in the Studio Access Token which you can obtain
-from your profile's `settings
-page <http://studio.learningequality.org/settings/tokens>`__.
-
-The flags ``-v`` (verbose) and ``--reset`` are generally useful in
-development. These make sure the chef script will start the process from
-scratch and displays useful debugging information on the command line.
-
-To see all the ``ricecooker`` command line options, run
-``python simple_chef.py -h``. For more details about running chef
-scripts see `the chefops
-page <chefops.html>`__.
-
-If you get an error when running the chef, make sure you've replaced
-``YOURTOKENHERE9139139f3a23232`` by the token you obtained from Studio.
-Also make sure you've changed the value of
-``channel_info['CHANNEL_SOURCE_DOMAIN']`` and
-``channel_info['CHANNEL_SOURCE_ID']`` instead of using the default
-values.
-
-Next steps
-----------
-
--  See the `usage
-   docs <usage.html>`__
-   for more explanations about the above code.
--  See
-   `nodes <nodes.html>`__
-   to learn how to create different content node types.
--  See
-   `file <files.html>`__
-   to learn about the file types supported, and how to create them.
 
 Further reading
 ---------------
