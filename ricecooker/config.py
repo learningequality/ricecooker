@@ -99,6 +99,10 @@ def setup_logging(level=logging.INFO, error_log=None, add_loggers=None):
     logging.getLogger("PIL.PngImagePlugin").setLevel(logging.WARNING)
 
 
+# Setup default logging - can be called again to reconfigure
+setup_logging()
+
+
 # Domain and file store location for uploading to production Studio server
 DOMAIN_ENV = os.getenv('STUDIO_URL', None)
 if DOMAIN_ENV is None:  # check old ENV varable for backward compatibility
