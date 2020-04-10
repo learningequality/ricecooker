@@ -2,6 +2,22 @@
 History
 =======
 
+
+0.6.42 (2020-04-10)
+-------------------
+* Added ``--sample N`` command line option. Run script with ``--sample 10`` to 
+  produce a test version of the channel with 10 randomly selected nodes from
+  the full channel. Use this to check transformations are working as expected.
+* Added ``dryrun`` command. Use the command ``./sushichef.py dryrun`` to run the
+  chef as normal but skip the step where the files get uploaded to Studio.
+* Added HTTP proxy functionality for YouTubeVideoFile and YouTubeSubtitleFile
+  Set the ``PROXY_LIST`` env variable to a ``;``-separated list of ``{ip}:{port}``.
+  Ricecooker will detect the presence of the ``PROXY_LIST`` and use it when
+  accessing resources via YoutubeDL. Alernarively, set ``USEPROXY`` env var
+  to use a list of free proxy servers, which are very slow and not reliable.
+* Improved colored logging functionality and customizability of logging output.
+
+
 0.6.40 (2020-02-07)
 -------------------
 * Changed default behaviour to upload the staging tree instead of the main tree
