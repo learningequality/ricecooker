@@ -1,31 +1,34 @@
 import argparse
-from datetime import datetime
 import logging
 import os
 import sys
+from datetime import datetime
 from importlib.machinery import SourceFileLoader
-
-
 
 from . import config
 from .classes.nodes import ChannelNode
-from .commands import authenticate_user, uploadchannel, uploadchannel_wrapper
-from .exceptions import InvalidUsageException, raise_for_invalid_channel
+from .commands import authenticate_user
+from .commands import uploadchannel
+from .commands import uploadchannel_wrapper
+from .exceptions import InvalidUsageException
+from .exceptions import raise_for_invalid_channel
 from .managers.progress import Status
-from .sushi_bar_client import SushiBarClient, ControlWebSocket, LocalControlSocket
-from .utils.tokens import get_content_curation_token
-
-# for JsonTreeChef chef
+from .sushi_bar_client import ControlWebSocket
+from .sushi_bar_client import LocalControlSocket
+from .sushi_bar_client import SushiBarClient
+from .utils.jsontrees import build_tree_from_json
+from .utils.jsontrees import get_channel_node_from_json
 from .utils.jsontrees import read_tree_from_json
-from .utils.jsontrees import get_channel_node_from_json, build_tree_from_json
-
-# for LineCook chef
+from .utils.linecook import build_ricecooker_json_tree
+from .utils.linecook import FolderExistsAction
 from .utils.metadata_provider import CsvMetadataProvider
-from .utils.metadata_provider import (DEFAULT_CHANNEL_INFO_FILENAME,
-                                      DEFAULT_CONTENT_INFO_FILENAME,
-                                      DEFAULT_EXERCISES_INFO_FILENAME,
-                                      DEFAULT_EXERCISE_QUESTIONS_INFO_FILENAME)
-from .utils.linecook import build_ricecooker_json_tree, FolderExistsAction
+from .utils.metadata_provider import DEFAULT_CHANNEL_INFO_FILENAME
+from .utils.metadata_provider import DEFAULT_CONTENT_INFO_FILENAME
+from .utils.metadata_provider import DEFAULT_EXERCISE_QUESTIONS_INFO_FILENAME
+from .utils.metadata_provider import DEFAULT_EXERCISES_INFO_FILENAME
+from .utils.tokens import get_content_curation_token
+# for JsonTreeChef chef
+# for LineCook chef
 
 
 # SUSHI CHEF BASE CLASS (and backward compatibiliry)
@@ -160,8 +163,6 @@ class BaseChef(object):
         and remote logging to SushiBar server. This method is called as soon as
         we parse args so we can apply the user-preferred logging level settings.
         """
-        # Remove the temporary log handler
-        config.LOGGER.removeHandler(config.temporary_log_handler)
 
         # Set desired logging level based on command line arguments
         level = logging.INFO
@@ -171,20 +172,9 @@ class BaseChef(object):
             level = logging.WARNING
         elif args['quiet']:
             level = logging.ERROR
-        config.LOGGER.setLevel(level)
 
-        # Silence noisy libraries loggers (important when using --debug flag)
-        logging.getLogger("requests").setLevel(logging.WARNING)
-        logging.getLogger("cachecontrol.controller").setLevel(logging.WARNING)
-        logging.getLogger("requests.packages").setLevel(logging.WARNING)
-        logging.getLogger("urllib3.util.retry").setLevel(logging.WARNING)
-        logging.getLogger("urllib3.connection").setLevel(logging.CRITICAL)
-        logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
-        logging.getLogger("PIL.PngImagePlugin").setLevel(logging.WARNING)
+        config.setup_logging(level=level)
 
-        # 1. Stream handler (stderr)
-        stream_handler = logging.StreamHandler()
-        config.LOGGER.addHandler(stream_handler)
 
         # 2. File handler (logs/yyyy-mm-dd__HHMM.log)
         try:
