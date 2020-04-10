@@ -24,9 +24,13 @@ LOGGER = logging.getLogger()
 _ERROR_LOG = None
 
 
-def setup_logging(level=logging.INFO, error_log=None):
+def setup_logging(level=logging.INFO, error_log=None, add_loggers=None):
     """
     Set up logging, useful to call from your sushi chef main script
+
+    :param level: Minimum default level for all loggers and handlers
+    :param error_log: Name of file to log (append) errors in
+    :param add_loggers: An iterable of other loggers to configure (['scrapy'])
     """
     global _ERROR_LOG
 
@@ -39,8 +43,16 @@ def setup_logging(level=logging.INFO, error_log=None):
     if error_log:
         handlers.append("error")
 
-    logging.config.dictConfig({
+    # The default configuration of a logger (used in below config)
+    default_logger_config = {
+        "handlers": handlers,
+        "propagate": False,
+        "level": level,
+    }
+
+    config = {
         'version': 1,
+        'disable_existing_loggers': False,
         'formatters': {
             'colored': {
                 '()': 'colorlog.ColoredFormatter',
@@ -64,18 +76,18 @@ def setup_logging(level=logging.INFO, error_log=None):
             },
         },
         'loggers': {
-            'ricecooker': {
-                "handlers": handlers,
-                "propagate": True,
-                "level": level,
-            },
             '': {
                 "handlers": handlers,
-                "propagate": True,
                 "level": level,
             },
-        }
-    })
+            'ricecooker': default_logger_config,
+        },
+    }
+
+    for logger in add_loggers or ():
+        config["loggers"][logger] = default_logger_config
+
+    logging.config.dictConfig(config)
 
     # Silence noisy libraries loggers
     logging.getLogger("requests").setLevel(logging.WARNING)
@@ -94,7 +106,7 @@ if DOMAIN_ENV is None:  # check old ENV varable for backward compatibility
 DOMAIN = DOMAIN_ENV if DOMAIN_ENV else "https://api.studio.learningequality.org"
 if DOMAIN.endswith('/'):
     DOMAIN = DOMAIN.rstrip('/')
-FILE_STORE_LOCATION =  hashlib.md5(DOMAIN.encode('utf-8')).hexdigest()
+FILE_STORE_LOCATION = hashlib.md5(DOMAIN.encode('utf-8')).hexdigest()
 
 # Allow users to choose which phantomjs they use
 PHANTOMJS_PATH = os.getenv('PHANTOMJS_PATH', None)
@@ -152,7 +164,7 @@ SUSHIBAR_URL = os.getenv('SUSHIBAR_URL', "https://sushibar.learningequality.org"
 if SUSHIBAR_URL.endswith('/'):
     SUSHIBAR_URL = SUSHIBAR_URL.rstrip('/')
 if not SUSHIBAR_URL.startswith('http'):
-   SUSHIBAR_URL = 'https://' + SUSHIBAR_URL        # in case only hostname given
+    SUSHIBAR_URL = 'https://' + SUSHIBAR_URL        # in case only hostname given
 SUSHI_BAR_HTTP = SUSHIBAR_URL
 SUSHI_BAR_WEBSOCKET = SUSHIBAR_URL.replace('http', 'ws', 1)
 SUSHI_BAR_CHANNEL_URL = "{domain}/api/channels/"
