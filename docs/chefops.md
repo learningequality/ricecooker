@@ -1,108 +1,61 @@
 Running chef scripts
 ====================
 The base class `SushiChef` provides a lot of command line arguments that control
-the chef script's operation. It is expected that **every chef script will come
-with a README** that explains the desired command line arguments for the chef script.
-
-
-Executable scripts
-------------------
-On UNIX systems, you can make your sushi chef script (e.g. `sushichef.py`) run as a
-standalone command line application. To make a script program, you need to do three things:
-
-    - Add the line `#!/usr/bin/env python` as the first line of `sushichef.py`
-    - Add this code block at the bottom of `sushichef.py` if it is not already there:
-
-          if __name__ == '__main__':
-              chef = MySushiChef()  # replace with you chef class name
-              chef.main()
-
-    - Make the file `sushichef.py` executable by running `chmod +x sushichef.py` on the
-      command line.
-
-You can now call your sushi chef script using `./sushichef.py ...` instead of the longer
-`python sushichef.py ...`.
-
+the chef script's operation. Chef scripts often have a README.md file that explains
+what are the recommended command line arguments and options for the chef script.
 
 
 Ricecooker CLI
 --------------
-You can run `./sushichef.py -h` to see an always-up-to-date info about the `ricecooker` CLI interface:
+This listing shows the `ricecooker` command line interface (CLI) arguments:
 
     usage: sushichef.py  [-h] [--token TOKEN] [-u] [-v] [--quiet] [--warn]
                             [--debug] [--compress] [--thumbnails]
-                            [--download-attempts DOWNLOAD_ATTEMPTS]
                             [--reset | --resume]
                             [--step {INIT, CONSTRUCT_CHANNEL, CREATE_TREE, DOWNLOAD_FILES, GET_FILE_DIFF,
                                START_UPLOAD, UPLOADING_FILES, UPLOAD_CHANNEL, PUBLISH_CHANNEL,DONE, LAST}]
-                            [--prompt] [--deploy] [--publish]
-                            [--daemon] [--nomonitor] [--cmdsock CMDSOCK]
-
+                            [--deploy] [--publish]
+                            
     required arguments:
-      --token TOKEN         Authorization token (can be token or path to file with token)
-
+      --token TOKEN         Access token (can be token or path to file with token)
+      
     optional arguments:
       -h, --help            show this help message and exit
-      -u, --update          Force re-download of files (skip .ricecookerfilecache/ check)
       -v, --verbose         Verbose mode
-      --quiet               Print only errors to stderr
-      --warn                Print warnings to stderr
       --debug               Print debugging log info to stderr
-      --compress            Compress high resolution videos to low resolution
-                            videos
+      --compress            Compress high resolution videos to low resolution videos
       --thumbnails          Automatically generate thumbnails for topics
-      --download-attempts DOWNLOAD_ATTEMPTS
-                            Maximum number of times to retry downloading files
-      --reset               Restart session, overwriting previous session (cannot
-                            be used with --resume flag)
-      --resume              Resume from ricecooker step (cannot be used with
-                            --reset flag)
+      --reset               Restart session, overwriting previous session
+      --resume              Resume from ricecooker step
       --step  {INIT, ...    Step to resume progress from (must be used with --resume flag)
-      --prompt              Prompt user to open the channel after creating it
-      --stage               (Deprecated.) Stage updated content for review. This
-                            flag is now the default and has been kept solely to
-                            maintain compatibility. Use --deploy to immediately
-                            push changes.
+      --update              Force re-download of files (skip .ricecookerfilecache/ check)
+      --sample SIZE         Upload a sample of SIZE content nodes from the channel
       --deploy              Immediately deploy changes to channel's main tree.
                             This operation will delete the previous channel
                             content once upload completes. Default (recommended)
                             behavior is to post new tree for review.
       --publish             Publish newly uploaded version of the channel
       --daemon              Run chef in daemon mode
-      --nomonitor           Disable SushiBar progress monitoring
-      --cmdsock CMDSOCK     Local command socket (for cronjobs)
-
-    extra options:
-      You can pass arbitrary key=value options on the command line
 
 
-### Extra options
-In addition to the command line arguments described above, the `ricecooker` CLI
-supports passing additional keyword options using the format `key=value key2=value2`.
-
-It is common for a chef script to accept a "language option" like `lang=fr` which
-runs the French version of the chef script. This way a single chef codebase can
-create multiple Kolibri Studio channels, one for each language.
-
-These extra options will be parsed along with the `riceooker` arguments and
-passed as along to all the chef's methods: `pre_run`, `run`, `get_channel`,
-`construct_channel`, etc.
-
-For example, a script started using `./sushichef.py ... lang=fr` could:
-  - Subclass the method `get_channel` to set the channel name to
-    `"Channel Name ({})".format(getlang('fr').native_name)`
-  - Use the language code `fr` in `pre_run`, `run`, and `construct_channel` to
-    crawl and scrape the French version of the source website
+As you can tell, there are lot of arguments to choose from, and this is not even
+the complete list: you'll have to run `./sushichef.py -h` to see the latest version.
+Below is a short guide to some of the most important and useful ones arguments.
 
 
-### Resuming interrupted chef runs
+### Compression and thumbnail globals
+You can specify video compression settings (see this page) and thumbnails for
+specific nodes and files in the channel, or use `--compress` and `--thumbnails`
+to apply compression to ALL videos, and automatically generate thumbnails for
+all the supported content kinds. **We recommend you always use the `--thumbnails`**
+in order to create more colorful, lively channels that learners will want to browse.
+
+
+### Resuming and resetting chef runs
 If your `ricecooker` session gets interrupted, you can resume from any step that
 has already completed using `--resume --step=<step>` option.
-If step is not specified, `ricecooker` will resume from the last step you ran.
-The "state" necessary to support these checkpoints is stored in the directory
-`restore` in the folder where the chef runs.
-
-Use the `--reset` flag to skip the auto-resume prompt.
+More commonly, we want to start the chef run from the beginning.
+The `--reset` flag is often given to avoid the "do you want to resume?" prompt.
 
 
 ### Caching
@@ -117,13 +70,83 @@ directories and start from scratch.
 
 
 
-Long running scripts
---------------------
+### Extra options
+In addition to the command line arguments described above, the `ricecooker` CLI
+supports passing additional keyword options using the format `key=value key2=value2`.
+
+It is common for a chef script to accept a "language option" like `lang=fr` which
+runs the French version of the chef script. This way a single chef codebase can
+create multiple Kolibri Studio channels, one for each language.
+
+These extra options will be parsed along with the `riceooker` arguments and
+passed as along to all the chef's methods: `pre_run`, `run`, `get_channel`,
+`construct_channel`, etc.
+
+For example, a script started using `./sushichef.py ... lang=fr` could.
+Subclass the method `get_channel(self, **kwargs)` to choose the channel's
+name and description based on the value `fr` you'll receive in `kwargs['lang']`.
+The language code `fr` will can passed in to the `construct_channel` method,
+and the `pre_run` and `run` methods as well.
+
+
+
+
+Using Python virtual env
+------------------------
+The recommended best practice is to keep the Python packages required to run each
+sushichef script in a self-contained Python environment, separate from the system
+Python packages. This per-project software libraries isolation is easy to accomplish
+using the Python `virtualenv` tool and simple `requirements.txt` files.
+
+By convention all the sushichef code examples and scripts we use in production
+contain a `requirements.txt` file that lists what packages must be installed for
+the chef to run, including `ricecooker`.
+
+To create a virtual environment called `venv` (the standard naming convention for
+virtual environments) and install all the required packages, run the following:
+
+    cd Projects/sushi-chef-{source_name}      # cd into the chef repo
+    virtualenv -p python3 venv                # create a Python3 virtual environment
+    source venv/bin/activate                  # go into the virtualenv `venv`
+    pip install -r requirements.txt           # install a list of python packages
+
+Windows users will need to replace the third line with `venv\Scripts\activate` as
+the commands are slightly different on Windows.
+
+When the virtual environment is "activated," you'll see `(venv)` at the beginning
+of your command prompt, which tells you that you're in project-specific environment
+where you can experiment, install, uninstall, upgrade, test Python things out,
+without your changes interfering with the Python installation of your operating system.
+You can learn more about virtualenvs from the [Python docs](https://docs.python-guide.org/dev/virtualenvs/#lower-level-virtualenv)
+
+
+
+
+Executable scripts
+------------------
+On UNIX systems, you can make your sushi chef script (e.g. `sushichef.py`) run as a
+standalone command line application. To make a script into a program, you need to do three things:
+
+  - Add the line `#!/usr/bin/env python` as the first line of `sushichef.py`
+  - Add this code block at the bottom of `sushichef.py` if it is not already there:
+    ```python
+    if __name__ == '__main__':
+        chef = MySushiChef()  # replace with you chef class name
+        chef.main()
+    ```
+  - Make the file `sushichef.py` executable by running `chmod +x sushichef.py`
+
+You can now call your sushi chef script using `./sushichef.py ...`
+or `sushichef.py ...` on Windows.
+
+
+Long running tasks
+------------------
 Certain chefs that require lots of downloads and video transcoding take a long
 time to complete so it is best to run them on a dedicated server for this purpose.
   - Connect to the remove server via `ssh`
   - Clone the sushi chef git repository in the `/data` folder on the server
-  - Run the chef script as followd `nohup <chef cmd> &`, where `<chef cmd>`
+  - Run the chef script as follows `nohup <chef cmd> &`, where `<chef cmd>`
     is contains the entire script name and command line options,
     e.g. `./sushichef.py -v --reset --token=... --thumbnails lang=fr`.
   - By default `nohup` logs stderr and stdout output to a file called `nohup.out`
@@ -134,6 +157,5 @@ Daemon mode
 -----------
 Starting a chef script with the `--daemon` argument makes it listen for remote
 control commands from the [sushibar](https://sushibar.learningequality.org/) host.
-For more information, see [Daemonization](developer/daemonization).
-
+For more information, see the page on [daemonization](developer/daemonization).
 

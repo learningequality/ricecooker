@@ -1,165 +1,99 @@
 Installation
 ============
-The `ricecooker` library is published as a Python3-only [package on PyPI](https://pypi.python.org/pypi/ricecooker).
+
+You can install `ricecooker` by running the command `pip install ricecooker`,
+which will install the Python package and all its Python dependencies.
+You'll need version 3.5 or higher of Python to use the `ricecooker` framework,
+as well as some software for media file conversions (`ffmpeg` and  `poppler`).
+
+In the next fifteen minutes or so, we'll setup your computer with all these things
+so you can get started writing your first content integration scripts.
 
 
-Software prerequisites
-----------------------
-The `ricecooker` library requires Python 3.5+ and the additional conversion tools
-`ImageMagic` for thumbnail generation and `ffmpeg` for video compression.
-Additionally we'll assume you have also installed the `git` version control system.
+System prerequisites
+--------------------
+The first step will will be to make sure you have `python3` installed on your
+computer and two additional file conversion tools: `ffmpeg` for video compression,
+and the `poppler` library for manipulating PDFs.
+
+Jump to the specific instructions for your operating system, and be sure to try
+the *Checklist* commands to know the installation was successful.
 
 
 ### Linux
 On a Debian or Ubuntu GNU/Linux, you can install the necessary packages using:
 
-    apt-get install build-essential gettext pkg-config linux-tools-generic python3-tk \
-        python3 python3-dev python3-pip virtualenv \
-        libxft-dev libwebp-dev libmagickwand-dev \
-        ffmpeg poppler-utils
+    sudo apt-get install  git python3 ffmpeg poppler-utils
 
-For other Linux distributions (ContOS/Fedora/OpenSuSE) look for the the package
-`ImageMagick-devel` and install the latest python 3.x version available.
+You may need to adjust the package names for other Linux distributions (ContOS/Fedora/OpenSuSE).
+
+*Checklist*: verify your python version is 3.5 or higher by running `python3 --version`.
+If no `python3` command exists, then try `python --version`.
+Run the commands `ffmpeg -h` and `pdftoppm -h` to make sure they are available.
 
 
 ### Mac
 Mac OS X users can install the necessary software using [Homebrew](https://brew.sh/):
 
-    brew install git python3 imagemagick@6 ffmpeg poppler
-    brew link --force imagemagick@6
+    brew install  git python3 ffmpeg poppler
 
-Note you need `imagemagick@6` and not the new version 7, which has a different API.
+*Checklist*: verify you python version is 3.5 or higher by running `python3 --version`.
+Also run the commands `ffmpeg -h` and `pdftoppm -h` to make sure they are available.
+
 
 
 ### Windows
-On Windows the process is a little more complicated since it requires manual
-downloading of each of the tools and making sure they appear the `Path` variable:
+On windows the process is a little longer since we'll have to download and install
+several programs and make sure their `bin`-directories are added to the `Path` variable:
 
-1. Download and install Git Bash from [https://git-scm.com/downloads](https://git-scm.com/downloads).
-   During the installation, choose the "add shortcut to Desktop" checkbox option.
-   You must use the "Git Bash" command prompt to have access to `git` and other
-   command line tools.
-     - **Checklist**: open "Git Bash" and try typing in `git -h` and `ssh -h` to verify the
-       commands `git` and `ssh` are available.
-2. Download Python from [https://www.python.org/downloads/windows/](https://www.python.org/downloads/windows/).
-   Look under the Python 3.7.x heading and choose the "Windows x86-64 executable installer"
+1. Download Python from [https://www.python.org/downloads/windows/](https://www.python.org/downloads/windows/).
+   Look under the **Python 3.7.x** heading and choose the "Windows x86-64 executable installer"
    option to download the latest installer and follow usual installation steps.
-   During the installation, make sure to check the box "Add Python 3.7 to path".
-     - **Checklist**: after installation, open a new Git Bash terminal and type in
-       `python --version` and `pip --version` to make sure the commands are available.
-3. Download `ffmpeg` from [https://ffmpeg.zeranoe.com/builds/](https://ffmpeg.zeranoe.com/builds/).
+   During the installation, make sure to check the box **"Add Python 3.7 to path"**.
+     - *Checklist*: after installation, open a new command prompt (`cmd.exe`) and
+       type in `python --version` and `pip --version` to make sure the commands are available.
+2. Download `ffmpeg` from [https://ffmpeg.zeranoe.com/builds/](https://ffmpeg.zeranoe.com/builds/).
    Choose the static option then click `Download Build` to download the zip archive.
    Extract the zip file to a permanent location where you store your code,
-   like `C:\Users\User\Projects` for example. Next, you must add the `bin` folder
-   that contains `ffmpeg` (e.g. `C:\Users\User\Projects\ffmpeg-4.1.4-win64-static\bin`)
+   like `C:\Users\User\Tools` for example. Next, you must add the `bin` folder
+   that contains `ffmpeg` (e.g. `C:\Users\User\Tools\ffmpeg-4.1.4-win64-static\bin`)
    to your user Path variable following [these instructions](https://www.computerhope.com/issues/ch000549.htm).
-     - **Checklist**: Open a new Git Bash terminal and type in `ffmpeg -h` and `ffprobe -h`
+     - *Checklist*: Open a new command prompt and type in `ffmpeg -h` and `ffprobe -h`
        to verify the commands `ffmpeg` and `ffprobe` are available on your Path.
-4. Download the ImageMagic **version 6** from [https://imagemagick.org/download/binaries/](https://imagemagick.org/download/binaries/)
-   Choose the latest 6.x version that contains `-Q16-x86-static` in its name,
-   like [https://imagemagick.org/download/binaries/ImageMagick-6.9.10-58-Q16-x86-static.exe](https://imagemagick.org/download/binaries/ImageMagick-6.9.10-58-Q16-x86-static.exe).
-     - **Checklist**: after installation completes, open a Git Bash terminal and
-       type in `convert -h` to make sure the command `convert` is available.
-5. Download the file linked under "Latest binary" from [poppler-windows](http://blog.alivate.com.au/poppler-windows/).
-   Extract the file to a some permanent location in your files. Note you may need
-   to first install [7-zip](https://www.7-zip.org/) tool to extract the archive.
+3. Download the file linked under "Latest binary" from [poppler-windows](http://blog.alivate.com.au/poppler-windows/).
+   You will need to download and install [7-zip](https://www.7-zip.org/) to "unzip"
+   the `.7z` archive. Extract the file to a some permanent location in your files.
    Add the `bin` folder `poppler-0.xx.y\bin` to your Path variable.
-     - **Checklist**: after installation, open a Git Bash terminal and type in
+     - *Checklist*: after installation, open a command terminal and type in
        `pdftoppm -h` to make sure the command `pdftoppm` is available.
 
-At this point you will have a working Python installation on your system, and
-all the software tools necessary to write and run `ricecooker` scripts.
+We recommend you also download and install Git from [https://git-scm.com/downloads](https://git-scm.com/downloads).
+Using git is not a requirement for the getting started, but it's a great tool to
+have for borrowing code from others and sharing back your own code on the web.
+
+If you find the text descriptions to be confusing, you can watch this
+[video walkthrough](http://youtube.com/watch?v=LxK8_BOSy-8) that shows the
+installation steps and also explains the adding-to-Path process.
+
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/LxK8_BOSy-8" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+<div style="height:50px;">&nbsp;</div>
 
 
 
-Installing the `ricecooker` package
------------------------------------
-To install `ricecooker` globally for your system Python installation, run this command in your terminal:
+Installing Ricecooker
+---------------------
+To install the `ricecooker` package, simply run this command in a command prompt:
 
     pip install ricecooker
 
-If you prefer to maintain an installation for each chef repo, then read on.
+You will see lots of lines scroll on the screen as `pip`, the package installer for Python,
+installs all the Python packages required to create content integration scripts.
 
-This is the preferred method to install `ricecooker`, as it will always install
-the most recent stable release. 
+**Reporting issues**: If you run into problems or encounter an error in any of the above steps,
+please let us know by [opening an issue on github](https://github.com/learningequality/ricecooker/issues).
 
-Note: The recommended best practice is to keep the code associated with each
-sushichef script in a separate Python `virtualenv` specific for that project,
-rather that globally for your system Python installation. To learn how to create
-Python virtual environment see [these docs](https://virtualenv.pypa.io/en/stable/userguide/).
+------
 
-Usually a chef repo will define a `requirements.txt` file that lists what packages
-must be installed for the chef to run and `ricecooker` can be specified there
-and installation of all required packages performed using:
-
-    cd Projects/sushi-chef-{source_name}      # cd into the chef repo
-    virtualenv -p python3 venv                # initialize Python virtual environment
-    source venv/bin/activate                  # go into the virtualenv `venv`
-    pip install -r requirements.txt           # install a list of python packages
-
-
-
-### Reporting issues
-If you run into problems or errores while following the above instructions,
-please let us know by [opening an issue on github](https://github.com/learningequality/ricecooker/issues)
-and specifying which operating system and Python version you're using.
-Also if you can report the outputs you see from all the "Checklist" items in 
-the section **Software prerequisites** would be helpful to include when filing the issue.
-
-
-
-
-
-
-
-
-
-
-For `ricecooker` developers
----------------------------
-The code for the `ricecooker` library [lives on github](https://github.com/learningequality/ricecooker).
-You can clone this repo using this command:
-
-    git clone git://github.com/learningequality/ricecooker
-
-which will download all the source code for the `ricecooker` library and allow
-you to modify its functionality.
-
-
-
-### Other installation options
-
-You can install `ricecooker` directly from github using the following command:
-
-    pip install git+https://github.com/learningequality/ricecooker
-
-Occasionally, you'll want to install a `ricecooker` version from a specific branch,
-instead of the default branch version. This is the way to do this:
-
-    pip install -U git+https://github.com/learningequality/ricecooker@somebranchname
-
-The `-U` flag forces the update instead of reusing any previously cached version.
-
-
-### Install editable source code
-Another option for installing `ricecooker` is to clone the repo and install using
-
-    git clone git://github.com/learningequality/ricecooker
-    cd ricecooker
-    pip install -e .
-
-The flag `-e` installs `ricecooker` in "editable mode," which means you can now
-make changes to the source code and you'll see the changes reflected immediately.
-This installation method very useful if you're working around a bug in `ricecooker`
-or extending the crawling/scraping/http/html utilities in `ricecooker/utils/`.
-
-
-### Code contributions
-The `ricecooker` project is open for code, testing, and documentation contributions.
-The `ricecooker.utils` package is constantly growing with new helper methods that
-simplify various aspects of the content extraction, transformations, and upload to Studio.
-If you figured out how to fix a `ricecooker` bug or added some new functionality
-that you would like to share with the community, please open a
-[pull request](https://github.com/learningequality/ricecooker/pulls).
-
-
+Okay so now we have all the system software and Python libraries installed.
+[Let's get started!](tutorial/gettingstarted.html)

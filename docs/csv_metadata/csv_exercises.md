@@ -124,5 +124,5 @@ Implementation details
 ----------------------
   - To add exercises to a certain channel topic, the folder corresponding to this
     topic must exist inside the `channeldir` folder (even if it contains no files).
-    A corresponding entry must be added to `Content.csv` to desribe the metadata
+    A corresponding entry must be added to `Content.csv` to describe the metadata
     for the topic node containing the exercises.

@@ -13,7 +13,7 @@ History
 * Added HTTP proxy functionality for YouTubeVideoFile and YouTubeSubtitleFile
   Set the ``PROXY_LIST`` env variable to a ``;``-separated list of ``{ip}:{port}``.
   Ricecooker will detect the presence of the ``PROXY_LIST`` and use it when
-  accessing resources via YoutubeDL. Alernarively, set ``USEPROXY`` env var
+  accessing resources via YoutubeDL. Alternatively, set ``USEPROXY`` env var
   to use a list of free proxy servers, which are very slow and not reliable.
 * Improved colored logging functionality and customizability of logging output.
 

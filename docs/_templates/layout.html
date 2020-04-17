@@ -1,0 +1,63 @@
+{% extends "!layout.html" %}
+  {% block footer %} {{ super() }}
+
+  <style>
+
+    /* Sidebar header (and topbar for mobile) */
+    .wy-side-nav-search, .wy-nav-top {
+      background: #996189 !important;
+    }
+
+    /* Let there be width */
+    /* .wy-nav-content {
+        max-width: 1000px;
+    } */
+
+
+    /* div {
+        border: 1px solid red;
+    } */
+    
+    .row {clear: both}
+
+    @media (min-width: 800px) {
+
+        .column {
+            padding-left: 8px;
+            padding-right: 8px;
+            float: left;
+        }
+
+        .firstcolumn {
+            padding-right: 8px;
+            float: left;
+        }
+
+        .lastcolumn {
+            padding-left: 8px;
+            float: left;
+        }
+
+        
+        .column3  {
+            width: 33.3%;
+            font-size: 80%;
+        }
+
+        .column2  {
+            width: 50%;
+        }
+    }
+
+    h2, h3, h4 {
+      margin-bottom: 10px;
+    }
+
+
+    /* push down the RTD banner so it's not confused with menu */
+    .keep-us-sustainable {
+      margin-top: 20em !important;
+    }
+
+  </style>
+{% endblock %}

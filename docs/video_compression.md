@@ -29,7 +29,7 @@ experience for all Kolibri users, regardless of their device.
 
 Automated conversion
 --------------------
-The `ricecooker` library can handle the video compressions for you if you specify
+The `ricecooker` library can handle the video compression for you if you specify
 the `--compress` command line argument to the chef script, e.g. `python chef.py ... --compress`.
 Under the hood, the `ffmpeg` video conversion program will be called to compress
 video files before uploading them to Kolibri Studio. Specifying `--compress` on
@@ -59,7 +59,7 @@ For optimal control of the compression options, users should perform the convers
 and compression steps before uploading their videos to Kolibri Studio.
 We highly recommend the command line tool [`ffmpeg`](https://www.ffmpeg.org/).
 You'll need to use it through the command prompt (Terminal in linux, CMD in Windows).
-Any video conversion and compression operation can be performed by setting the 
+Any video conversion and compression operation can be performed by setting the
 appropriate parameters.
 
 
@@ -100,7 +100,7 @@ in the sidebar: `ogv`, `mpg`, and `mp4`)
 To check what's in the file `CM_National_Rice_Cooker_1982.ogv` use the command:
 
     ffprobe  CM_National_Rice_Cooker_1982.ogv
-    
+
     Input #0, ogg, from 'CM_National_Rice_Cooker_1982.ogv':
       Duration: 00:00:15.03, start: 0.000000, bitrate: 615 kb/s
         Stream #0:0: Video: theora, yuv420p,
@@ -114,7 +114,7 @@ need to be converted before uploading to Studio.
 Similarly we can check the codecs for `CM_National_Rice_Cooker_1982.mpg` using
 
     ffprobe  CM_National_Rice_Cooker_1982.mpg
-    
+
     Input #0, mpeg, from 'CM_National_Rice_Cooker_1982.mpg':
     Duration: 00:00:15.02, start: 0.233367, bitrate: 6308 kb/s
       Stream #0:0[0x1e0]: Video: mpeg2video (Main), yuv420p(tv, smpte170m, top first),
@@ -128,7 +128,7 @@ will need to be converted.
 Finally, to check the codecs for `CM_National_Rice_Cooker_1982.mp4`, we use
 
     ffprobe  CM_National_Rice_Cooker_1982.mp4
-    
+
     Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'CM_National_Rice_Cooker_1982.mp4':
       Duration: 00:00:15.05, start: -0.012585, bitrate: 835 kb/s
         Stream #0:0(und): Video: h264 (Constrained Baseline) (avc1 / 0x31637661), yuv420p,
@@ -137,7 +137,7 @@ Finally, to check the codecs for `CM_National_Rice_Cooker_1982.mp4`, we use
 
 Here we see the `h264` video codec  and `aac/mp4a` audio codec so this file can
 be uploaded to Studio as is. These codecs are relatively well supported by
-[most browsers](https://developer.mozilla.org/en-US/docs/Web/HTML/Supported_media_formats).
+[most browsers](https://developer.mozilla.org/en-US/docs/Web/Media/Formats).
 This video can be uploaded to Kolibri.
 
 
@@ -162,7 +162,7 @@ Windows users should put the entire command on a single line:
     ffmpeg -i CM_National_Rice_Cooker_1982.mpg   -b:a 32k -ac 1   -vf scale="'w=-2:h=trunc(min(ih,480)/2)*2'"   -crf 32   -profile:v baseline -level 3.0 -preset slow -v error -strict -2 -stats   -y compressed.mp4
 
 This command will run for some time (video transcoding takes a lot of CPU power).
-In the end, if you check using `ffprobe  compressed.mp4`, you'll see that the 
+In the end, if you check using `ffprobe  compressed.mp4`, you'll see that the
 converted output file has video codec `h264` and audio codec `aac`.
 The resolution `720x480` and  bitrate `534 kb/s` are also very good parameters.
 Note the file size of `compressed.mp4` is 1MB which is twice smaller than the
@@ -183,18 +183,22 @@ depending if your operating systems is Windows or Mac/Linux:
     To convert `inputfile.mp4` to `outputfile.mp4` using the conversion script, open a
     command line prompt, navigate to the folder where `convertvideo.bat` and `ffmpeg.exe`
     are stored, and type the following command:
-        
+
         convertvideo.bat  inputfile.mp4  outputfile.mp4
-        
-    See [https://youtu.be/oKbCbuDlRmY](https://www.youtube.com/watch?v=oKbCbuDlRmY)
-    for a video walkthrough of the steps and example usage of the batch script.
 
   - Linux and Mac users should download [convertvideo.sh](https://raw.githubusercontent.com/learningequality/ricecooker/master/resources/scripts/convertvideo.sh),
     save it to the folder where all the videos are. Next open a command prompt and change
     directory to that folder. Make the script executable using `chmod u+x convertvideo.sh`,
     then you can start converting videos using:
-        
+
         ./convertvideo.sh  inputfile.mp4  outputfile.mp4
+
+
+See [https://youtu.be/oKbCbuDlRmY](https://www.youtube.com/watch?v=oKbCbuDlRmY)
+for a video walkthrough of the steps and example usage of the batch script.
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/oKbCbuDlRmY" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+<div style="height:20px;">&nbsp;</div>
 
 
 The conversion scripts provided are just wrappers for the `ffmpeg` command, to make it
@@ -224,7 +228,10 @@ Here are steps for converting videos using HandBrake:
 
 ![HandBrake steps all in one](figures/HandBrake/handbrake_steps.png)
 
-Screencast showing the above steps: https://www.youtube.com/watch?v=83MdDLaFXfs
+Here is a [video guide to using HandBrake](https://www.youtube.com/watch?v=83MdDLaFXfs) for compressing videos.
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/83MdDLaFXfs" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+<div style="height:20px;">&nbsp;</div>
 
 
 The **Web > Gmail Medium 5 Minutes 480p30** preset will use the `x264` video codec,
@@ -235,15 +242,14 @@ with 720 vertical resolution.
 
 If your channel contains many videos, or very long videos, you should consider
 increasing the "Constant Rate Factor" compression parameter in the Video settings.
-Using the value [RF=32](figures/HandBrake/handbreake_screenshot_video_settings.png)
+Using the value [RF=32](https://github.com/learningequality/ricecooker/blob/master/docs/figures/HandBrake/handbreake_screenshot_video_settings.png)
 will result in highly compressed videos, with very small file sizes.
-
 
 
 ### Experimenting
 Since every content source is unique, we recommend that you experiment with
 different compression options. The command line tool `ffmpeg` offers a very
-useful option called `crf` which stands for Constant Rate Factor. 
+useful option called `crf` which stands for Constant Rate Factor.
 **Setting this single parameter allows for controlling overall video quality.**
 For example, setting `crf=24` produces high quality video (and possibly large file size),
 `crf=28` is a mid-range quality, and values of `crf` above 30 produce highly-compressed

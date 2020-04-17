@@ -1,16 +1,18 @@
 
 Developer docs
 ==============
-To learn about the inner workings of the ``ricecooker`` library, consult the following docs:
+To learn about the inner workings of the ``ricecooker`` library, consult the following pages:
 
 .. toctree::
    :maxdepth: 1
 
-   ids
    ../chefops
-   daemonization
    sushops
+   kolibripreview
+   ids
+   uploadprocess
    design_cli
+   daemonization
    corrections
-   contributing
-   authors
+
+

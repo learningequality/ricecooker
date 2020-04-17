@@ -1,10 +1,12 @@
-Exercise and exercise questions
-===============================
+Exercises
+=========
 
-`ExerciseNode`s are special objects that have questions used for assessment.
+Exercises (assessment activities) are an important part of every learning experience.
+Kolibri exercises are graded automatically and provide immediate feedback learners.
+Student answers to be logged and enable progress reports for teachers and coaches.
+Exercises can also be used as part of lessons and quizzes.
 
-
-
+An `ExerciseNode`s are special kind of content node contains one or more questions.
 In order to set the criteria for completing exercises, you must set __exercise_data__
 to a dict containing a `mastery_model` field based on the mastery models provided
 in `le_utils.constants.exercises`.
@@ -23,7 +25,7 @@ node = ExerciseNode(
 ```
 
 
-To add a question to your exercise, you must first create a question model from
+To add a question to an exercise node, you must first create a question model from
 `ricecooker.classes.questions`. Your sushi chef is responsible for determining
 which question type to create. Here are the available question types:
   - __SingleSelectQuestion__: questions that only have one right answer (e.g. radio button questions)
@@ -36,9 +38,9 @@ Each question class has the following attributes that can be set at initializati
   - __id__ (str): question's unique id
   - __question__ (str): question body, in plaintext or Markdown format;
     math expressions must be in Latex format, surrounded by `$`, e.g. `$f(x) = 2^3$`.
-  - __answers__ ([{'answer':str, 'correct':bool}]): answers to question, also in plaintext or Markdown
+  - __correct_answer__ (str) or __answers__ ([str]): the answer(s) to question as plaintext or Markdown
+  - __all_answers__ ([str]): list of choices for single select and multiple select questions as plaintext or Markdown
   - __hints__ (str or [str]): optional hints on how to answer question, also in plaintext or Markdown
-
 
 To set the correct answer(s) for MultipleSelectQuestions, you must provide a list
 of all of the possible choices as well as an array of the correct answers
@@ -53,7 +55,7 @@ question = MultipleSelectQuestion(
 ```
 
 To set the correct answer(s) for SingleSelectQuestions, you must provide a list
-of all possible choices as well as the correct answer (`all_answers [str]` and 
+of all possible choices as well as the correct answer (`all_answers [str]` and
 `correct_answer str` respectively).
 
 ```
@@ -79,5 +81,10 @@ with `'![](path/to/some/file.png)'` and `ricecooker` will parse them automatical
 
 
 Once you have created the appropriate question object, add it to an exercise object
-with `exercise_node.add_question(question)`
+with `exercise_node.add_question(question)`.
 
+
+Further reading
+---------------
+
+  - See also the section `Exercise Nodes <nodes.html#exercise-nodes>`__ on the nodes page.

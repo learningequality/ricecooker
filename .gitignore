@@ -4,6 +4,7 @@ credentials/studio.json
 credentials/studio_token.txt
 credentials/.studiotoken
 
+# Code examples not ready for prime time yet
 
 
 # Byte-compiled / optimized / DLL files
@@ -74,10 +75,16 @@ instance/
 .scrapy
 
 # Sphinx documentation
+docs/drafts
+docs/examples/drafts
 docs/build/
+docs/_build/
 docs/ricecooker.classes.rst
 docs/ricecooker.managers.rst
 docs/ricecooker.utils.rst
+
+# Links checker cache
+.brokdb
 
 # PyBuilder
 target/
@@ -105,6 +112,7 @@ ENV/
 # Rope project settings
 .ropeproject
 docs/out/
+docs/_build
 
 storage/
 restore/
