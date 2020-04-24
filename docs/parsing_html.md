@@ -1,9 +1,27 @@
-Parsing HTML using `BeautifulSoup`
-==================================
-BeautifulSoup is an HTML parsing library that allows to select various DOM elements,
-and extract their attributes and text contents.
+Parsing HTML using BeautifulSoup
+================================
+BeautifulSoup is an HTML parsing library that allows you to "select" various DOM
+elements, and extract their attributes and text contents.
 
 
+
+Video tutorial
+--------------
+To get started, you can watch this [cheffing video tutorial](http://35.196.115.213/en/learn/#/topics/c/73470ad1a3015769ace455fbfdf17d48)
+that will show the basic steps of using `requests` and `BeautifulSoup` for crawling a website.
+See the [sushi-chef-shls code repo](https://github.com/learningequality/sushi-chef-shls/blob/master/sushichef.py#L226-L340)
+for the final version of the web crawling code that was used for this content source.
+
+
+<a href="http://35.196.115.213/en/learn/#/topics/c/73470ad1a3015769ace455fbfdf17d48">
+<video src="http://35.196.115.213/content/storage/5/4/54b66d7501e4d12301a5b6ff9d839acc.mp4" controls style="width:75%; margin-bottom:25px;">
+  Hands-on demo how to use requests and BeautifulSoup for scraping.
+</video>
+</a>
+
+
+Scraping 101
+------------
 The basic code to GET the HTML source of a webpage and parse it:
 
 ```python
@@ -25,7 +43,6 @@ for section_li in section_lis:
     print(section_li.prettify())  # useful seeing HTML in when developing...
 ```
 
-
 The most commonly used parts of the BeautifulSoup API are:
   - `.find(tag_name,  <spec>)`: find the next occurrence of the tag `tag_name` that
      has attributes specified in `<spec>` (given as a dictionary), or can use the
@@ -41,8 +58,7 @@ The most commonly used parts of the BeautifulSoup API are:
     (same as `.extract()` but throws away the extracted element)
 
 
-
-#### Example 1
+### Example 1
 Here is some sample code for getting the text of the LE mission statement:
 
 ```python
@@ -59,7 +75,7 @@ mission = mission_el.get_text().strip()
 print(mission)
 ```
 
-#### Example 2
+### Example 2
 To print a list of all the links on the page, use the following code:
 ```python
 links = doc.find_all('a')
@@ -68,12 +84,13 @@ for link in links:
 ```
 
 
+
 Further reading
 ---------------
 For more info about BeautifulSoup, see [the docs](https://www.crummy.com/software/BeautifulSoup/bs4/doc/).
 
 There are also some excellent tutorials online you can read:
   - [http://akul.me/blog/2016/beautifulsoup-cheatsheet/](http://akul.me/blog/2016/beautifulsoup-cheatsheet/)
-  - [http://youkilljohnny.blogspot.ca/2014/03/beautifulsoup-cheat-sheet-parse-html-by.html](http://youkilljohnny.blogspot.ca/2014/03/beautifulsoup-cheat-sheet-parse-html-by.html)
+  - [http://youkilljohnny.blogspot.com/2014/03/beautifulsoup-cheat-sheet-parse-html-by.html](http://youkilljohnny.blogspot.com/2014/03/beautifulsoup-cheat-sheet-parse-html-by.html)
   - [http://www.compjour.org/warmups/govt-text-releases/intro-to-bs4-lxml-parsing-wh-press-briefings/](http://www.compjour.org/warmups/govt-text-releases/intro-to-bs4-lxml-parsing-wh-press-briefings/)
 

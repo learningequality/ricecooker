@@ -80,7 +80,7 @@ page range data and pass it as the `jsondata` argument to the `split_chapters()`
 
 By default the `get_toc` will detect only the top-level document structure,
 which might not be sufficient to split the document into useful chunks.
-You can pass the `subchapters=True` optional argument to the `get_toc()` mothod
+You can pass the `subchapters=True` optional argument to the `get_toc()` method
 to obtain a two-level hierarchy of chapters and subchapter from the PDF's TOC.
 
 For example, if the table of contents of textbook PDF has the following structure:

@@ -8,18 +8,16 @@ from ricecooker.classes.licenses import get_license
 
 class TutorialChef(SushiChef):
     """
-    The chef class that takes care of uploading channel to the content curation server.
-
-    We'll call its `main()` method from the command line script.
+    The SushiChef class takes care of uploading channel to Kolibri Studio.
     """
 
     # 1. PROVIDE CHANNEL INFO  (replace <placeholders> with your own values)
     ############################################################################
-    channel_info = {    #
+    channel_info = {
         'CHANNEL_SOURCE_DOMAIN': '<yourdomain.org>',       # who is providing the content (e.g. learningequality.org)
         'CHANNEL_SOURCE_ID': '<yourid>',                   # channel's unique id
         'CHANNEL_TITLE': 'The tutorial channel',
-        'CHANNEL_LANGUAGE': 'en'
+        'CHANNEL_LANGUAGE': 'en',
         # 'CHANNEL_THUMBNAIL': 'http://yourdomain.org/img/logo.jpg', # (optional) local path or url to image file
         # 'CHANNEL_DESCRIPTION': 'What is this channel about?',      # (optional) description of the channel (optional)
      }
@@ -28,12 +26,13 @@ class TutorialChef(SushiChef):
     ############################################################################
     def construct_channel(self, *args, **kwargs):
         """
-        This method is reponsible for creating a `ChannelNode` object from the info
-        in `channel_info` and populating it with TopicNode and ContentNode children.
+        This method is reponsible for creating a `ChannelNode` object and
+        populating it with `TopicNode` and `ContentNode` children.
         """
         # Create channel
         ########################################################################
         channel = self.get_channel(*args, **kwargs)     # uses self.channel_info
+
 
         # Create topics to add to your channel
         ########################################################################
@@ -56,7 +55,7 @@ class TutorialChef(SushiChef):
 
 
         # Content
-        # You can add pdfs, videos, and audio files to your channel
+        # You can add documents (pdfs and ePubs), videos, audios, and other content
         ########################################################################
         # let's create a document file called 'Example PDF'
         document_file = DocumentFile(path="http://www.pdf995.com/samples/pdf.pdf")

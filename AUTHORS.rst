@@ -12,3 +12,5 @@ Credits
 * Alejandro Martinez Romero <mara80@gmail.com>
 * Blaine Jester <blaine@learningequality.org>
 
+
+.. TODOC: use gource of ricecooker repo & embed video here

@@ -1,0 +1,58 @@
+Overview of Kolibri content
+===========================
+
+Educational content in the Kolibri platform is organized into **content channels**.
+The `ricecooker` frameworks is used for creating content channels and uploading them
+to [Kolibri Studio](https://studio.learningequality.org/), which is the central
+content server that [Kolibri](https://learningequality.org/kolibri/) applications
+talk to when importing their content.
+
+Content flow within the Kolibri ecosystem is pictured below.
+
+![The Kolibri Content Pipeline](../figures/content_pipeline_diagram.png)
+
+This `ricecooker` framework is the main tool used to facilitate **Integration Method 2**.
+
+
+
+Kolibri channels
+----------------
+A Kolibri channel is the combination of a topic tree (a nested folder structure)
+and number of self-contained "content items" packaged for offline use and distribution.
+Each content item within the channel is represented as a content node with one
+or more files associated with it. In summary, a channel is a nested structure of
+`TopicNodes` (folders), which contain `ContentNode` objects, which have
+`File` objects associated with them.
+
+This fundamental structure is common to all parts of the Kolibri ecosystem:
+the Kolibri Learning Platform is where Kolibri channels are used by learners and teachers,
+Kolibri Studio is the editor for Kolibri Channels (think five Rs),
+and Ricecooker scripts are used for content integrations that pull in OER from
+external sources, package them for offline use, and upload them to Kolibri Studio.
+
+
+
+Supported content kinds
+-----------------------
+Kolibri channels are tree-like structures that consist of the following types of nodes:
+
+  * Topic nodes (folders): the nested folders structure is the is main way of
+    representing structured content in Kolibri.
+
+  * Content kinds:
+
+     - Document (either and `epub` or a `pdf` file)
+     - Audio (`mp3` files of audio lessons, audiobooks, podcasts, radio shows, etc.)
+     - Video (`mp4` files with `h264` video codec and `aac` audio codec)
+     - HTML5App `zip` files (generic container for web content: HTML/js/css/assets)
+     - H5PApp (self-contained `h5p` files)
+     - SlidesShow (a sequence of `jpg` and `png` slides images)
+     - Exercises containing questions like multiple choice, multiple selection, and numeric inputs
+
+
+
+Further reading
+---------------
+  - [Kolibri channel](https://kolibri.readthedocs.io/en/latest/manage/resources.html#channels-and-resources)
+    as explained in the Kolibri documentation.
+  - [Kolibri Studio User Guide](https://kolibri-studio.readthedocs.io/en/latest/index.html)

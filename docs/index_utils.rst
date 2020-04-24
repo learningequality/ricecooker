@@ -1,14 +1,15 @@
 Ricecooker utils
 ================
-The ``ricecooker.utils`` module includes a number of utilities and helper functions
-to help chef authors with common extraction and content transformation tasks.
+The ``ricecooker.utils`` module includes a number of utility functions to help
+chef authors with common content extraction and transformation tasks.
 
 .. toctree::
    :maxdepth: 1
 
+
    downloader
    parsing_html
-   video_compression
+   developer/kolibripreview
    pdfutils
-   csv_metadata/README
-   csv_metadata/csv_exercises
+   video_compression
+   csv_metadata/index

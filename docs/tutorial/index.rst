@@ -1,10 +1,10 @@
-Tutorial
-========
+Getting started
+===============
+These purpose of these pages is to help you learn the ``ricecooker`` framework.
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
 
-   README
-   quickstart
-   languages
-   exercises
+   gettingstarted
+   tutorial
+   explanations

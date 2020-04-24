@@ -44,8 +44,7 @@ extensions = [
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
     "recommonmark",
-    # 'nbsphinx',
-    # 'IPython.sphinxext.ipython_console_highlighting',
+    "nbsphinx",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -60,7 +59,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'ricecooker'
-copyright = '2019, Learning Equality'
+copyright = '2020, Learning Equality'
 author = 'Learning Equality Content Team'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -91,7 +90,12 @@ language = None
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This patterns also effect to html_static_path and html_extra_path
-exclude_patterns = ['tutorial/.ipynb_checkpoints']
+exclude_patterns = [
+    'examples/.ipynb_checkpoints',
+    'examples/drafts',
+    '_build',
+    'build',
+]
 
 # The reST default role (used for this markup: `text`) to use for all
 # documents.
@@ -206,15 +210,15 @@ html_static_path = [] # ['_static']
 
 # If true, links to the reST sources are added to the pages.
 #
-# html_show_sourcelink = True
+html_show_sourcelink = False
 
 # If true, "Created using Sphinx" is shown in the HTML footer. Default is True.
 #
-# html_show_sphinx = True
+html_show_sphinx = False
 
 # If true, "(C) Copyright ..." is shown in the HTML footer. Default is True.
 #
-# html_show_copyright = True
+html_show_copyright = False
 
 # If true, an OpenSearch description file will be output, and all pages will
 # contain a <link> tag referring to it.  The value of this option must be the
@@ -248,36 +252,224 @@ htmlhelp_basename = 'ricecookerdoc'
 
 # -- Options for LaTeX output ---------------------------------------------
 
+# latex_engine = 'xelatex' FUTURE
+
 latex_elements = {
-     # The paper size ('letterpaper' or 'a4paper').
-     #
-     # 'papersize': 'letterpaper',
+    # The paper size ('letterpaper' or 'a4paper').
+    'papersize': 'letterpaper',
+    'fncychap': '\\usepackage{fncychap}',
+    'fontpkg': '\\usepackage[default]{lato}\\usepackage[T1]{fontenc}',
+    'figure_align':'htbp',
+    # The font size ('10pt', '11pt' or '12pt').
+    #
+    'pointsize': '11pt',
+    'extraclassoptions': 'oneside',
+    # The font size ('10pt', '11pt' or '12pt').
+    #'pointsize': '10pt',
+    # Additional stuff for the LaTeX preamble.
+    'preamble': r'''
+        %%% FRONTMATTER %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %
+        %%%add number to subsubsection 2=subsection, 3=subsubsection
+        \setcounter{secnumdepth}{3}
+        %
+        %%%% Table of content upto 2=subsection, 3=subsubsection
+        \setcounter{tocdepth}{2}
+        %\usepackage{amsmath,amsfonts,amssymb,amsthm}   % not needed since we don't math
+        %\usepackage{graphicx}                          % not needed here because imported in sphinx.sty
+        %
+        %%% reduce spaces for Table of contents, figures and tables
+        %%% it is used "\addtocontents{toc}{\vskip -1.2cm}" etc. in the document
+        \usepackage[notlot,nottoc,notlof]{}
 
-     # The font size ('10pt', '11pt' or '12pt').
-     #
-     # 'pointsize': '10pt',
+        % \usepackage{color}                            % not needed here because imported in sphinx.sty
+        % \usepackage{transparent}
+        % \usepackage{eso-pic}
+        % \usepackage{lipsum}
 
-     # Additional stuff for the LaTeX preamble.
-     #
-     # 'preamble': '',
+        %% spacing between line
+        \usepackage{setspace}
+        \onehalfspacing
+        % \doublespacing
+        % \singlespacing
 
-     # Latex figure (float) alignment
-     #
-     # 'figure_align': 'htbp',
+        %%% datetime
+        \usepackage{datetime}
+        \newdateformat{MonthYearFormat}{\monthname[\THEMONTH], \THEYEAR}
+
+
+
+        %%% HEADERS TEXT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        \usepackage{fancyhdr}
+        % plain = first-page of each chapter
+        \fancypagestyle{plain}{
+            \fancyhf{}
+            \fancyhead{}
+            \renewcommand{\headrulewidth}{0pt}
+            \renewcommand{\footrulewidth}{0pt}
+            \fancyfoot[C]{{\small\thepage}}
+        }
+        % normal = subclass of plain = applies to rest of pages
+        \fancypagestyle{normal}{
+            \fancyhead{}
+            \fancyhead[L]{\small\rightmark}
+            \fancyhead[R]{{\small\thepage}}
+            \renewcommand{\headrulewidth}{0.4pt}
+            \renewcommand{\footrulewidth}{0pt}
+            \fancyfoot[C]{{}}  % undo the \fancyfoot[C]{{\small\thepage}} in the base class
+            %   \fancyfoot[R]{\ifthenelse{\isodd{\value{page}}}{{\tiny Learning Equality} }{\href{https://learningequality.org}{\tiny learningequality.org}}}
+            %%% Alternating Footer for two side
+            %%% \fancyfoot[RO, RE]{\scriptsize Learning Equality (info@learningequality.org)}
+        }
+        %% callback that changes document header text
+        %%                                               = section number counter (\thesection)
+        %%                                                          + the section title
+        \renewcommand{\sectionmark}[1]{\markboth{}{\emph{\thesection~#1}}}
+        %%%% optional: uncomment next line to change header on every \section and not on \subsection
+        %%%% \renewcommand{\subsectionmark}[1]{}
+
+
+        %%reduce spacing for itemize ???
+        \usepackage{enumitem}
+        \setlist{nosep}
+
+        %%%%%%%%%%% Quote Styles at the top of chapter ???
+        \usepackage{epigraph}
+        \setlength{\epigraphwidth}{0.8\columnwidth}
+        \newcommand{\chapterquote}[2]{\epigraphhead[60]{\epigraph{\textit{#1}}{\textbf {\textit{--#2}}}}}
+        %%%%%%%%%%% Quote for all places except Chapter
+        \newcommand{\sectionquote}[2]{{\quote{\textit{``#1''}}{\textbf {\textit{--#2}}}}}
+
+    ''',
+
+    'maketitle': r'''
+
+        %%% SET PDF INFO %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        % Note: this has to be after preamble where \title and \author are defined
+        \makeatletter
+        \hypersetup{
+            pdftitle=\@title,
+            pdfauthor=\@author,
+            pdfkeywords={Ricecooker, Kolibri Studio, Kolibri, offline learning, open educational resources, ETL},
+            pdfsubject={Ricecooker},
+            pdfstartview=Fit,   % default value
+            pdfstartpage=1,     % default value
+            % other available options:
+            % pdfstartview={FitH},
+            % pdfpagelayout=SinglePage,
+            % pdfpagelabels=true,
+            % bookmarksopen=true,
+            % bookmarksopenlevel=0
+        }
+        \makeatother
+
+        %%%  COVER PAGE  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        \pagenumbering{Roman} %%% to avoid page 1 conflict with actual page 1
+
+        \begin{titlepage}
+            \centering
+            \vspace*{20mm} %%% * is used to give space from top
+
+            \vfill
+            
+            \vspace{0mm}
+            \textbf{\Huge {Ricecooker}} \\
+            \vspace{2mm}
+            \textbf{\large {Kolibri Content Integration Tools}} \\
+            \vspace{1cm}
+            
+            \begin{figure}[!h]
+            \centering
+            \includegraphics[width=0.33\textwidth]{ricecooker_domain.png}
+            \end{figure}
+            
+            \vfill
+
+            \small Published by Learning Equality \\
+            \vspace{2mm}
+            \small \textit{Also available online at }{\href{https://ricecooker.readthedocs.io/}{ricecooker.readthedocs.io}}
+        \end{titlepage}
+
+        \clearpage
+        \pagenumbering{roman}
+        \tableofcontents
+        % \listoffigures
+        % \listoftables
+        \clearpage
+        \pagenumbering{arabic}
+        ''',
+    # Latex figure (float) alignment
+    # 'figure_align': 'htbp',
+    #
+    # GLOBAL OPTIONS FOR THE sphynx.sty STYLE CLASS ############################
+    'sphinxsetup': \
+        'hmargin={1in,1in}, vmargin={1.2in,0.7in}, \
+        TitleColor={rgb}{0,0,0}, \
+        InnerLinkColor={rgb}{0,0,1}, \
+        OuterLinkColor={rgb}{0,0,1}, \
+        verbatimwithframe=false, \
+        VerbatimColor={rgb}{0.95,0.95,0.95}, \
+        verbatimvisiblespace={}, \
+        verbatimcontinued={}', 
+        'tableofcontents':' ',
 }
+# other sphinxsetup options:
+#       verbatimwithframe=true, \
+#       VerbatimColor={named}{OldLace}, \
+#       verbatimsep=3pt
+#       hintBorderColor={named}{LightCoral},
+#
+#       attentionborder=3pt,
+#       attentionBorderColor={named}{Crimson},
+#       attentionBgColor={named}{FloralWhite},
+#
+#       noteborder=2pt,
+#       noteBorderColor={named}{Olive},
+#
+#       cautionborder=3pt,
+#       cautionBorderColor={named}{Cyan},
+#       cautionBgColor={named}{LightCyan}}
+############################################################################
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'ricecooker.tex', 'ricecooker Documentation',
-     'Learning Equality', 'manual'),
+    (master_doc,                              # source start file,
+     'ricecooker.tex',                        # target name,
+     'ricecooker docs',                       # title,
+     'Learning Equality Content Team',        # author,
+     'manual'                                 # documentclass [howto, manual, or own class])
+    ),
 ]
+
 
 # The name of an image file (relative to this directory) to place at the top of
 # the title page.
 #
-# latex_logo = None
+latex_logo = 'figures/ricecooker_domain.png'
 
 # For "manual" documents, if this is true, then toplevel headings are parts,
 # not chapters.
@@ -348,7 +540,7 @@ texinfo_documents = [
 
 # How to display URL addresses: 'footnote', 'no', or 'inline'.
 #
-# texinfo_show_urls = 'footnote'
+texinfo_show_urls = 'inline'
 
 # If true, do not generate a @detailmenu in the "Top" node's menu.
 #
@@ -447,15 +639,12 @@ intersphinx_mapping = {
     'django':       ('https://django.readthedocs.io/en/latest/', None),
     'kolibri-user': ('http://kolibri.readthedocs.io/en/latest/', None),
     'kolibri':      ('http://kolibri-dev.readthedocs.io/en/latest/', None),
-    'studio-user':  ('http://kolibri-studio.readthedocs.io/en/latest/', None),
+    'studio-user':  ('https://kolibri-studio.readthedocs.io/en/latest/', None),
 }
 
 
 # Also accept .md files  (via https://github.com/rtfd/recommonmark)
-source_suffix = {
-    '.md': "markdown",
-    '.rst': "restructuredtext",
-}
+source_suffix = ['.md', '.rst', '.ipynb']
 
 autodoc_default_options = {
         # Make sure that any autodoc declarations show the right members

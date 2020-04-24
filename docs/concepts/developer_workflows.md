@@ -1,17 +1,20 @@
-Kolibri content workflows
-=========================
+Developer workflows
+===================
 
-## The Kolibri CHEF-PUBLISH-IMPORT content workflow
+
+
+## The Kolibri UPLOADCHANNEL-PUBLISH-IMPORT content workflow
+
 Running a sushichef script is only one of the steps in a channel's journey within
 the Kolibri platform. Here is the full picture:
 
 ```
-                  ricecooker      studio         kolibri demo server
-    SPEC----->----CHEF----->------PUBLISH---->---IMPORT using token and REVIEW
-     \  \         /                                                    /
-      \  `clarif.´                                                    /
-       \                                                             /
-        `---------------- spec compliance checks -------------------´
+                  Sushichef script          Kolibri Studio        Kolibri demo server
+    SPEC----->----UPLOADCHANNEL----->-------DEPLOY+PUBLISH---->---IMPORT+REVIEW
+     \  \         /                                                       /
+      \  `clarif.´                                                       /
+       \                                                                /
+        `---------------- spec compliance checks ----------------------´
 ```
 
 It is the responsibility of the chef author to take a content channel all the way
@@ -21,7 +24,7 @@ Notes on specific steps:
   - `SPEC`: the **channel spec** describes the target channel structure, licensing,
     and technical notes about content transformations that might be necessary.
     All this information will be available on the notion card for this source.
-  - `CHEF`: the main task of the chef author is to implement all the extraction
+  - `UPLOADCHANNEL`: the main task of the chef author is to implement all the extraction
     and content transformation described in the spec. If anything in the spec is
     missing or requires further clarifications post comments on the notion card.
     If you run into any kind of difficulties during the cheffing process, post a
@@ -29,8 +32,9 @@ Notes on specific steps:
     team will be able to assist you. For example, "Hello @here I'm having trouble
     with the {{cookiecutter.channel_name}} chef because X and Y cannot be organized
     according to the spec because Z."
-  - `PUBLISH`: once the channel is on Studio you can preview the structure there
-    and create or update a notion card with the channel information.
+  - `DEPLOY` and `PUBLISH`: once the channel is uploaded to Kolibri Studio you
+    can preview the structure and update the information on the notion card.
+    Use the `DEPLOY` button to take the channel out of "draft mode" (staging).
     The next step is to export the channel in the format necessary for use in
     Kolibri using the `PUBLISH` button on Studio. The PUBLISH action exports
     all the channel metadata to a sqlite3 DB file
@@ -62,10 +66,17 @@ Notes on specific steps:
 
 
 
-## The Kolibri CHEF-PUBLISH-UPDATE content workflow
+
+
+
+
+
+
+## The Kolibri UPLOADCHANNEL-PUBLISH-UPDATE content workflow
+
 The process is similar to the initial upload and import, but some steps are
 different because a version of the channel is already available:
-  - `CHEF`: to upload a new version of a content channel, simply re-run the chef
+  - `UPLOADCHANNEL`: to upload a new version of a content channel, simply re-run the chef
     script. The newly uploaded channel tree will replace the old tree on Studio
     (assuming the `source_domain` and `source_id` of the channel haven't changed).
     - The new version of the channel will be uploaded to a "staging tree" instead
@@ -77,11 +88,10 @@ different because a version of the channel is already available:
       time the chef runs. You can pass the `--update` command line argument to
       the chef script to bypass this caching mechanism. This is useful when
       the source files have changed, but their URLs and filenames haven't changed.
-  - `PUBLISH`: every time you upload a new content to your channel, you must
-    repeat the publish step on Studio to regenerate the sqlite3 DB file that
-    is used for importing into Kolibri. Use the Studio `PUBLISH` button for this.
-    At the end of the PUBLISH process, the channel version number will increase
-    by one. The channel's secret token will not change.
+  - `DEPLOY` and `PUBLISH`: every time you upload a new content to your channel,
+    you must repeat the deploy and publish step on Studio to regenerate the sqlite3
+    DB file that is used for importing into Kolibri. At the end of the PUBLISH process,
+    the channel version number will increase by one. The channel token stays the same.
   - `UPDATE`: the process of updating a channel in Kolibri is similar to the
     `IMPORT` step described above, but the actions are different because a version
     of the channel is already available. Go to the `Device` > `Channels` page in
@@ -91,6 +101,13 @@ different because a version of the channel is already available:
     only needs to import the new files that have been added to the channel.
     Once the update process is complete, you can notify the relevant members of
     the LE content team to let them know a new version is available for review.
+
+
+
+
+
+
+
 
 
 
@@ -117,4 +134,3 @@ Use the following rubric as a checklist to know when a sushi chef script is done
 4. Is the `license` field set to the correct value for all nodes?
 5. Is the `source_id` field set consistently for all content nodes?
    Try to use unique identifiers based on the source website or permanent url paths.
-

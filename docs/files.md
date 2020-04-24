@@ -230,7 +230,7 @@ Below are some general guidelines for handling video files:
     Here are some recommended choices for video vertical resolution:
       - Use max height of `480` for videos that work well in low resolution (most videos)
       - Use max height of `720` for high resolution videos (lectures with writing on board)
-  - Ricecooker can handle the video compressions for you if you specify the
+  - Ricecooker can handle the video compression for you if you specify the
     `--compress` command line argument, or by setting the `ffmpeg_settings` property
     when creating `VideoFile`s. The default values for `ffmpeg_settings` are as follows:
     ```

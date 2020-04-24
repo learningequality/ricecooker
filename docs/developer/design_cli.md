@@ -57,10 +57,10 @@ Changes
 
 ### New `uploadchannel` API
 
-  - The chef script defines subclass of `riececooker.chefs.SushiChef` that implement
+  - The chef script defines subclass of `ricecooker.chefs.SushiChef` that implement
     the methods `get_channel` and `construct_channel`:
 
-        class MySushiChef(riececooker.chefs.SushiChef):
+        class MySushiChef(ricecooker.chefs.SushiChef):
             def get_channel(**kwargs)` -> ChannelNode (bare channel, used just for info)
                 ...
             def construct_channel(**kwargs): --> ChannelNode (with populated Tree)
@@ -161,7 +161,7 @@ There are three types of arguments involved in a chef run:
     - MySushiChef: the chef's `__init__` method can define additional cli args
 
   - `options` (dict): additional [OPTIONS...] passed at the end of the command line
-    - used for compatibility mode with old rieceooker API  (`python -m ricecooker uploadchannel ...  key=value`)
+    - used for compatibility mode with old ricecooker API  (`python -m ricecooker uploadchannel ...  key=value`)
 
   - `kwargs` (dict): chef-specific keyword arguments not handled by ricecooker's `uploadchannel` method
       - the chef's `run` method makes the call `uploadchannel(self, **args.__dict__, **options)`

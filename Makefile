@@ -66,33 +66,18 @@ coverage: ## check code coverage quickly with the default Python
 	coverage html
 	$(BROWSER) htmlcov/index.html
 
-docs: ## generate Sphinx HTML documentation, including API docs
-	pip install sphinx recommonmark nbsphinx ipython sphinx_rtd_theme
-	pandoc -f gfm README.md -t rst -o docs/README.rst
-	sed -i '' 's/https:\/\/github\.com\/learningequality\/ricecooker\/blob\/master\/docs\///g' docs/README.rst
-	sed -i '' 's/\.md/\.html/g' docs/README.rst
-	sed -i '' 's/\.ipynb/\.html/g' docs/README.rst
-	rm -f docs/ricecooker.rst
-	rm -f docs/modules.rst
-	rm -f docs/ricecooker.classes.rst
-	rm -f docs/ricecooker.managers.rst
-	rm -f docs/ricecooker.utils.rst
-	sphinx-apidoc -o docs/ ricecooker
+docsclean:
+	$(MAKE) -C docs clean
+	rm -f docs/_build/*
+
+docs: ## generate Sphinx HTML documentation
+	pip install -r docs/requirements.txt
 	$(MAKE) -C docs clean
 	$(MAKE) -C docs html
-	$(BROWSER) docs/build/html/index.html
+	# $(BROWSER) docs/build/html/index.html
 
-latexdocs: ## generate Sphinx HTML documentation, including API docs
-	pip install "sphinx<2" recommonmark nbsphinx ipython
-	pandoc -f gfm README.md -t rst -o docs/README.rst
-	sed -i '' 's/docs\///g' docs/README.rst
-	sed -i '' 's/\.md//g' docs/README.rst
-	rm -f docs/ricecooker.rst
-	rm -f docs/modules.rst
-	rm -f docs/ricecooker.classes.rst
-	rm -f docs/ricecooker.managers.rst
-	rm -f docs/ricecooker.utils.rst
-	sphinx-apidoc -o docs/ ricecooker
+latexdocs:
+	pip install -r docs/requirements.txt
 	$(MAKE) -C docs clean
 	$(MAKE) -C docs latex
 
