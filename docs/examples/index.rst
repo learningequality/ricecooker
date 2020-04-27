@@ -45,10 +45,10 @@ to learn how to use the Jypyter notebook environment for interactively coding pa
 
 .. raw:: html
 
-   <video src="http://35.196.115.213/content/storage/5/6/56e2bd6ee70c3680c1bad36c873be97e.mp4" controls style="width:75%; margin-bottom:25px;">
-      Intro to Jupyter video tutorial.
-   </video>
-
+   <a href="http://35.196.115.213/en/learn/#/topics/c/1ef68d0dcb52555f9b63f15f36f77b54" target="_blank">
+   <iframe width="560" height="315" src="https://www.youtube.com/embed/vnMCeHQYcBU" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+   </a>
+   <div style="height:60px;">&nbsp;</div>
 
 
 Advanced examples
