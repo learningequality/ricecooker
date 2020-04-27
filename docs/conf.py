@@ -157,7 +157,7 @@ html_theme = 'sphinx_rtd_theme'
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
 #
-# html_logo = None
+html_logo = 'figures/kolibri_logo.png'
 
 # The name of an image file (relative to this directory) to use as a favicon of
 # the docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
@@ -340,6 +340,11 @@ latex_elements = {
         %%%%%%%%%%% Quote for all places except Chapter
         \newcommand{\sectionquote}[2]{{\quote{\textit{``#1''}}{\textbf {\textit{--#2}}}}}
 
+        \usepackage{newunicodechar}
+        \newunicodechar{🐟}{fish}
+        \newunicodechar{🍣}{sushi}
+        \newunicodechar{🍱}{lunchbox}
+
     ''',
 
     'maketitle': r'''
@@ -371,19 +376,20 @@ latex_elements = {
             \vspace*{20mm} %%% * is used to give space from top
 
             \vfill
-            
+
             \vspace{0mm}
             \textbf{\Huge {Ricecooker}} \\
-            \vspace{2mm}
+            \vspace{4mm}
             \textbf{\large {Kolibri Content Integration Tools}} \\
-            \vspace{1cm}
-            
+
+            \vfill
+
             \begin{figure}[!h]
             \centering
-            \includegraphics[width=0.33\textwidth]{ricecooker_domain.png}
+            \includegraphics[width=\textwidth]{content_pipeline_diagram_with_highlight.png}
             \end{figure}
-            
-            \vfill
+
+            \vspace{1cm}
 
             \small Published by Learning Equality \\
             \vspace{2mm}
@@ -410,7 +416,7 @@ latex_elements = {
         verbatimwithframe=false, \
         VerbatimColor={rgb}{0.95,0.95,0.95}, \
         verbatimvisiblespace={}, \
-        verbatimcontinued={}', 
+        verbatimcontinued={}',
         'tableofcontents':' ',
 }
 # other sphinxsetup options:
@@ -469,7 +475,7 @@ latex_documents = [
 # The name of an image file (relative to this directory) to place at the top of
 # the title page.
 #
-latex_logo = 'figures/ricecooker_domain.png'
+latex_logo = 'figures/content_pipeline_diagram_with_highlight.png'
 
 # For "manual" documents, if this is true, then toplevel headings are parts,
 # not chapters.
