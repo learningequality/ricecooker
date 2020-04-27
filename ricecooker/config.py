@@ -22,30 +22,59 @@ LOGGER = logging.getLogger()
 
 # Keep error log when setup_logging is called
 _ERROR_LOG = None
+_MAIN_LOG = None
 
 
-def setup_logging(level=logging.INFO, error_log=None, add_loggers=None):
+def setup_logging(level=logging.INFO, main_log=None, error_log=None, add_loggers=None):
     """
     Set up logging, useful to call from your sushi chef main script
 
     :param level: Minimum default level for all loggers and handlers
+    :param main_log: Main log (typically added in chefs.BaseChef)
     :param error_log: Name of file to log (append) errors in
     :param add_loggers: An iterable of other loggers to configure (['scrapy'])
     """
-    global _ERROR_LOG
+    global _ERROR_LOG, _MAIN_LOG
 
     if not error_log:
         error_log = _ERROR_LOG
     else:
         _ERROR_LOG = error_log
 
-    handlers = ["console"]
+    if not main_log:
+        main_log = _MAIN_LOG
+    else:
+        _MAIN_LOG = main_log
+
+    # logging dictconfig for handlers
+    handlers = {
+        "console": {
+            "level": level,
+            "class": "logging.StreamHandler",
+            "formatter": "colored",
+        },
+    }
+    logger_handlers = ["console"]
+    if main_log:
+        logger_handlers.append("file")
+        handlers["file"] = {
+            "level": level,
+            "class": "logging.FileHandler",
+            "filename": main_log,
+            "formatter": "log_file",
+        }
     if error_log:
-        handlers.append("error")
+        logger_handlers.append("error")
+        handlers["error"] = {
+            "level": logging.ERROR,
+            "class": "logging.FileHandler",
+            "filename": error_log,
+            "formatter": "simple_date",
+        }
 
     # The default configuration of a logger (used in below config)
     default_logger_config = {
-        "handlers": handlers,
+        "handlers": logger_handlers,
         "propagate": False,
         "level": level,
     }
@@ -61,26 +90,15 @@ def setup_logging(level=logging.INFO, error_log=None, add_loggers=None):
             "simple_date": {
                 "format": "%(levelname)s %(asctime)s %(name)s %(message)s"
             },
-        },
-        "handlers": {
-            "console": {
-                "level": level,
-                "class": "logging.StreamHandler",
-                "formatter": "colored",
-            },
-            "error": {
-                "level": logging.ERROR,
-                "class": "logging.FileHandler",
-                "filename": error_log or "void_error_log.log",
-                "formatter": "simple_date",
+            "log_file": {
+                "format": "%(asctime)s - %(message)s",
+                "datefmt": "%Y-%m-%d %H:%M:%S",
             },
         },
-        'loggers': {
-            '': {
-                "handlers": handlers,
-                "level": level,
-            },
-            'ricecooker': default_logger_config,
+        "handlers": handlers,
+        "loggers": {
+            "": {"handlers": logger_handlers, "level": level},
+            "ricecooker": default_logger_config,
         },
     }
 
