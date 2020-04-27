@@ -9,7 +9,7 @@ Below are some general guidelines for importing video files:
   - Use the `H.264` (a.k.a. `x264`) video codec to ensure video will play in web browsers
   - Use the `aac` audio codec
   - Use compression
-    - Short videos (5-10 mins long) should be roughly less then 15MB
+    - Short videos (5-10 mins long) should be roughly less than 15MB
     - Longer video lectures (1 hour long) should not be larger than 200MB
     - High-resolution videos should be converted to lower resolution formats:
       Here are some recommended choices for video vertical resolution:

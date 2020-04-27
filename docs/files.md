@@ -224,7 +224,7 @@ authors need to keep in mind that content channels will often be downloaded over
 slow internet connections and viewed on devices with limited storage.
 
 Below are some general guidelines for handling video files:
-  - Short videos (5-10 mins long) should be roughly less then 15MB
+  - Short videos (5-10 mins long) should be roughly less than 15MB
   - Longer video lectures (1 hour long) should not be larger than 200MB
   - High-resolution videos should be converted to lower resolution formats:
     Here are some recommended choices for video vertical resolution:

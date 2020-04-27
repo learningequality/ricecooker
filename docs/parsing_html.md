@@ -12,12 +12,10 @@ that will show the basic steps of using `requests` and `BeautifulSoup` for crawl
 See the [sushi-chef-shls code repo](https://github.com/learningequality/sushi-chef-shls/blob/master/sushichef.py#L226-L340)
 for the final version of the web crawling code that was used for this content source.
 
-
-<a href="http://35.196.115.213/en/learn/#/topics/c/73470ad1a3015769ace455fbfdf17d48">
-<video src="http://35.196.115.213/content/storage/5/4/54b66d7501e4d12301a5b6ff9d839acc.mp4" controls style="width:75%; margin-bottom:25px;">
-  Hands-on demo how to use requests and BeautifulSoup for scraping.
-</video>
+<a href="http://35.196.115.213/en/learn/#/topics/c/73470ad1a3015769ace455fbfdf17d48" target='_blank'>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/yo-O3A8Jj38" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 </a>
+<div style="height:50px;">&nbsp;</div>
 
 
 Scraping 101
