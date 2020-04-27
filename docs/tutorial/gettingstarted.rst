@@ -10,7 +10,7 @@ and run this script to upload the PDF to Kolibri Studio so it can then be import
    have food-related code names. Content integration scripts are called "sushi chefs"
    since they perform the detailed-oriented task of taking external educational resources (🐟),
    packaging them as individual Kolibri content nodes (🍣),
-   and organizing them nearly into Kolibri channels (🍱).
+   and organizing them neatly into Kolibri channels (🍱).
 
 
 Installation

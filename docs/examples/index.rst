@@ -9,7 +9,7 @@ process that require careful consideration and are best explained in code:
    :titlesonly:
 
    Learn how to work with language codes <languages>
-   How to created exercises and questions <exercises>
+   How to create exercises and questions <exercises>
    Step-by-step tutorial <https://github.com/learningequality/ricecooker/blob/master/examples/tutorial/sushichef.py>
    Wikipedia scraping example <https://github.com/learningequality/ricecooker/blob/master/examples/wikipedia/sushichef.py>
    Kitchen sink example that includes all content kinds <https://github.com/learningequality/sample-channels/blob/master/channels/ricecooker_channel/sushichef.py>
@@ -22,13 +22,13 @@ You type in commands into an online shell, and you immediately see the results.
 
 To install jupyter notebook on your machine, you run:
 
-.. code:: 
+.. code::
 
     pip install jupyter
 
 then to start the jupyter notebook server, run
 
-.. code:: 
+.. code::
 
     jupyter notebook
 
@@ -60,6 +60,6 @@ scripts we use to create some of the most popular Kolibri channels in the librar
 * `Open Stax chef <https://github.com/learningequality/sushi-chef-openstax>`__
 * `SHLS Toolkit chef <https://github.com/learningequality/sushi-chef-shls>`__
 
-You can get a list of ALL the content integration scripts by searching for 
+You can get a list of ALL the content integration scripts by searching for
 `sushi-chef-* <https://github.com/search?utf8=%E2%9C%93&q=sushi-chef-*&ref=simplesearch>`__
 on GitHub.
