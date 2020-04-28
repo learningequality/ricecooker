@@ -115,6 +115,7 @@ def uploadchannel(chef, command='uploadchannel', update=False, thumbnails=False,
 
     # Download files if they haven't been downloaded already
     if config.PROGRESS_MANAGER.get_status_val() <= Status.DOWNLOAD_FILES.value:
+        config.LOGGER.info("")
         config.LOGGER.info("Downloading files...")
         config.PROGRESS_MANAGER.set_files(*process_tree_files(tree))
 
@@ -128,6 +129,7 @@ def uploadchannel(chef, command='uploadchannel', update=False, thumbnails=False,
 
     # Get file diff if it hasn't been generated already
     if config.PROGRESS_MANAGER.get_status_val() <= Status.GET_FILE_DIFF.value:
+        config.LOGGER.info("")
         config.LOGGER.info("Getting file diff...")
         config.PROGRESS_MANAGER.set_diff(get_file_diff(tree, files_to_diff))
     file_diff = config.PROGRESS_MANAGER.file_diff
@@ -137,11 +139,13 @@ def uploadchannel(chef, command='uploadchannel', update=False, thumbnails=False,
 
     # Upload files if they haven't been uploaded already
     if config.PROGRESS_MANAGER.get_status_val() <= Status.UPLOADING_FILES.value:
+        config.LOGGER.info("")
         config.LOGGER.info("Uploading files...")
         config.PROGRESS_MANAGER.set_uploaded(upload_files(tree, file_diff))
 
     # Create channel on Kolibri Studio if it hasn't been created already
     if config.PROGRESS_MANAGER.get_status_val() <= Status.UPLOAD_CHANNEL.value:
+        config.LOGGER.info("")
         config.LOGGER.info("Creating channel...")
         config.PROGRESS_MANAGER.set_channel_created(*create_tree(tree))
     channel_link = config.PROGRESS_MANAGER.channel_link
@@ -149,6 +153,7 @@ def uploadchannel(chef, command='uploadchannel', update=False, thumbnails=False,
 
     # Publish tree if flag is set to True
     if config.PUBLISH and config.PROGRESS_MANAGER.get_status_val() <= Status.PUBLISH_CHANNEL.value:
+        config.LOGGER.info("")
         config.LOGGER.info("Publishing channel...")
         publish_tree(tree, channel_id)
         config.PROGRESS_MANAGER.set_published()
@@ -227,7 +232,7 @@ def create_initial_tree(channel):
     config.LOGGER.info("   Validating channel structure...")
     channel.print_tree()
     tree.validate()
-    config.LOGGER.info("   Tree is valid\n")
+    config.LOGGER.info("   Tree is valid")
     return tree
 
 def process_tree_files(tree):
@@ -251,7 +256,7 @@ def get_file_diff(tree, files_to_diff):
         Returns: list of files that are not on Kolibri Studio
     """
     # Determine which files have not yet been uploaded to the CC server
-    config.LOGGER.info("\nChecking if files exist on Kolibri Studio...")
+    config.LOGGER.info("  Checking if files exist on Kolibri Studio...")
     file_diff = tree.get_file_diff(files_to_diff)
     return file_diff
 
@@ -263,7 +268,7 @@ def upload_files(tree, file_diff):
         Returns: None
     """
     # Upload new files to CC
-    config.LOGGER.info("\nUploading {0} new file(s) to Kolibri Studio...".format(len(file_diff)))
+    config.LOGGER.info("  Uploading {0} new file(s) to Kolibri Studio...".format(len(file_diff)))
     tree.upload_files(file_diff)
     tree.reattempt_upload_fails()
     return file_diff
@@ -276,7 +281,7 @@ def create_tree(tree):
         Returns: channel id of created channel and link to channel
     """
     # Create tree
-    config.LOGGER.info("\nCreating tree on Kolibri Studio...")
+    config.LOGGER.info("Creating tree on Kolibri Studio...")
     channel_id, channel_link = tree.upload_tree()
     return channel_link, channel_id
 
@@ -288,7 +293,7 @@ def publish_tree(tree, channel_id):
             channel_id (str): id of channel to publish
         Returns: None
     """
-    config.LOGGER.info("\nPublishing tree to Kolibri... ")
+    config.LOGGER.info("Publishing tree to Kolibri... ")
     tree.publish(channel_id)
 
 

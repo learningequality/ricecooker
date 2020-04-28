@@ -82,6 +82,7 @@ class BaseChef(object):
                             help='Immediately deploy changes to channel\'s main tree. This operation will delete the previous channel content once upload completes. Default (recommended) behavior is to post new tree for review.')
         parser.add_argument('--publish', action='store_true',         help='Publish newly uploaded version of the channel')
         parser.add_argument('--sample', type=int, metavar='SIZE',     help='Upload a sample of SIZE content nodes from the channel')
+
         # [OPTIONS] --- extra key=value options are supported, but do not appear in help
         self.arg_parser = parser
 
@@ -173,21 +174,19 @@ class BaseChef(object):
         elif args['quiet']:
             level = logging.ERROR
 
-        config.setup_logging(level=level)
-
-
         # 2. File handler (logs/yyyy-mm-dd__HHMM.log)
         try:
             # FIXME: This code assumes we run chefs from the chef's root directory.
             # We probably want to have chefs set a root directory for files like this.
             if not os.path.exists("logs"):
                 os.makedirs("logs")
-            logfile_name = datetime.now().strftime("%Y-%m-%d__%H%M") + ".log"
-            logfile_path = os.path.join("logs", logfile_name)
-            file_handler = logging.FileHandler(logfile_path)
-            logfile_formatter = logging.Formatter("%(asctime)s - %(message)s", "%Y-%m-%d %H:%M:%S")
-            file_handler.setFormatter(logfile_formatter)
-            config.LOGGER.addHandler(file_handler)
+            logfile_main = datetime.now().strftime("%Y-%m-%d__%H%M") + ".log"
+            logfile_error = datetime.now().strftime("%Y-%m-%d__%H%M") + ".err.log"
+            main_log = os.path.join("logs", logfile_main)
+            error_log = os.path.join("logs", logfile_error)
+
+            config.setup_logging(level=level, main_log=main_log, error_log=error_log)
+
         except Exception as e:
             config.LOGGER.warning('Unable to setup file logging due to %s' % e)
 
