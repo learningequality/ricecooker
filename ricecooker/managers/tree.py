@@ -117,7 +117,7 @@ class ChannelManager:
             Returns: None
         """
         if len(self.failed_uploads) > 0:
-            config.LOGGER.info("\nReattempting to upload {0} file(s)...".format(len(self.failed_uploads)))
+            config.LOGGER.info("Reattempting to upload {0} file(s)...".format(len(self.failed_uploads)))
             current_fails = [k for k in self.failed_uploads]
             self.failed_uploads = {}
             self.upload_files(current_fails)
@@ -272,7 +272,8 @@ class ChannelManager:
         }
         response = config.SESSION.post(config.finish_channel_url(), data=json.dumps(payload))
         if response.status_code != 200:
-            config.LOGGER.error("\n\nCould not activate channel: {}\n".format(response._content.decode('utf-8')))
+            config.LOGGER.error("")
+            config.LOGGER.error("Could not activate channel: {}\n".format(response._content.decode('utf-8')))
             if response.status_code == 403:
                 config.LOGGER.error("Channel can be viewed at {}\n\n".format(config.open_channel_url(channel_id, staging=True)))
                 sys.exit()
