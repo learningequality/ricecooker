@@ -26,7 +26,7 @@ Notes on specific steps:
     All this information will be available on the notion card for this source.
   - `UPLOADCHANNEL`: the main task of the chef author is to implement all the extraction
     and content transformation described in the spec. If anything in the spec is
-    missing or requires further clarifications post comments on the notion card.
+    missing or requires further clarification, post comments on the Notion card.
     If you run into any kind of difficulties during the cheffing process, post a
     question in the LE slack channel `#sushi-chefs` and someone from the content
     team will be able to assist you. For example, "Hello @here I'm having trouble

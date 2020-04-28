@@ -7,23 +7,22 @@ content integration work within Learning Equality.
 
 Content Pipeline
 ----------------
-The combination of software tools and procedures that content moves
-through from starting as an external content source to becoming a
-Kolibri Channel available for use in the Kolibri Learning Platform.
-The Kolibri Content Pipeline is a collaborative effort between
-educational experts and software developers.
+The combination of software tools and procedures used to convert content
+from an external content source to becoming a Kolibri Channel available
+for use in the Kolibri Learning Platform. The Kolibri Content Pipeline is
+a collaborative effort between educational experts and software developers.
 
 
 
 Channel Spec
 ------------
-A content specification document or Channel Spec is a document is the blueprint
+A content specification document, or Channel Spec, is a blueprint document
 that specifies the structure of the Kolibri channel that is to be created.
 
 Channel Specs are an important aspect of the content integration process for two reasons:
 
 1. It specifies what needs to be done.
-   The channel spec establishes an agreement between the curriculum (usually non-technical person)
+   The channel spec establishes an agreement between the curriculum specialist
    and the developer who will be writing the content integration script.
 
 2. It serves to define when the work is done.
@@ -32,10 +31,10 @@ Channel Specs are an important aspect of the content integration process for two
 
 A Channel Spec document includes the following information:
 
- - Channel Title: usually of the form `{Source Name} ({lang})` where Source name
+ - Channel Title: usually of the form `{Source Name} ({lang})` where `{Source Name}`
    is chosen to be short and descriptive, and `{lang}` is included in the title
    to make it easy to search for content in this language.
- - Channel Description: a 400-character description of the channel and its contents.
+ - Channel Description: a description (up to 400 characters) of the channel and its contents.
  - Languages: notes about content language, and special handling for multilingual content, subtitles, or missing translations
  - Files Types: info about what content kinds and file types to look for
  - Channel Structure: a specification of the desired topic structure for the channel.
