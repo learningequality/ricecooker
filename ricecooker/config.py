@@ -61,7 +61,7 @@ def setup_logging(level=logging.INFO, main_log=None, error_log=None, add_loggers
             "level": level,
             "class": "logging.FileHandler",
             "filename": main_log,
-            "formatter": "log_file",
+            "formatter": "simple_date",
         }
     if error_log:
         logger_handlers.append("error")
@@ -88,10 +88,7 @@ def setup_logging(level=logging.INFO, main_log=None, error_log=None, add_loggers
                 'format': "%(log_color)s%(levelname)-8s%(reset)s %(blue)s%(message)s"
             },
             "simple_date": {
-                "format": "%(levelname)s %(asctime)s %(name)s %(message)s"
-            },
-            "log_file": {
-                "format": "%(asctime)s - %(message)s",
+                "format": "%(levelname)-8s %(asctime)s %(name)s - %(message)s",
                 "datefmt": "%Y-%m-%d %H:%M:%S",
             },
         },
