@@ -21,7 +21,7 @@ Step 1: Setup your environment
 ------------------------------
 Create a directory called ``tutorial`` where you will run this code.
 In general it is recommended to have separate directories for each content
-integration script you will be working.
+integration script you will be working on.
 In order to prepare for the upcoming **Step 6**, find a ``.pdf`` document,
 a small ``.mp4`` video file, and an ``.mp3`` audio file.
 Save these files somewhere inside the ``tutorial`` directory.
@@ -39,11 +39,11 @@ Step 3: Edit the channel metadata
 ---------------------------------
 1. Open your terminal and ``cd`` into the folder where ``sushichef.py`` is located.
 2. Open ``sushichef.py`` in a text editor.
-3. Change ``<yourname.com>`` to any domain. The source domain specifies who is supplying the content.
+3. Change ``<yourdomain.org>`` to any domain. The source domain specifies who is supplying the content.
 4. Change ``<yourid>`` to any id. The source_id will distinguish your channel from other channels.
-5. Change ``<yourchannelname>`` to any channel name.
+5. Change ``The Tutorial Channel`` to any channel name.
 
-Check Try running the sushi chef by entering the following command in your terminal::
+Try running the sushi chef by entering the following command in your terminal::
 
     python --reset sushichef.py --token=<your-access-token>
 

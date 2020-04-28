@@ -1,8 +1,8 @@
-Overview of Kolibri content
-===========================
+Kolibri content ecosystem overview
+==================================
 
 Educational content in the Kolibri platform is organized into **content channels**.
-The `ricecooker` frameworks is used for creating content channels and uploading them
+The `ricecooker` framework is used for creating content channels and uploading them
 to [Kolibri Studio](https://studio.learningequality.org/), which is the central
 content server that [Kolibri](https://learningequality.org/kolibri/) applications
 talk to when importing their content.
@@ -43,12 +43,12 @@ Kolibri channels are tree-like structures that consist of the following types of
 
   * **Content nodes**:
 
-     - Document (either and `epub` or a `pdf` file)
+     - Document (either an `epub` or a `pdf` file)
      - Audio (`mp3` files of audio lessons, audiobooks, podcasts, radio shows, etc.)
      - Video (`mp4` files with `h264` video codec and `aac` audio codec)
      - HTML5App (`zip` files containing web content like HTML, JavaScript, css and images)
      - H5PApp (self-contained `h5p` files)
-     - SlidesShow (a sequence of `jpg` and `png` slides images)
+     - Slideshow (a sequence of `jpg` and `png` slide images)
      - Exercises containing questions like multiple choice, multiple selection, and numeric inputs
 
 

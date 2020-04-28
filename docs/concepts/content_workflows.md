@@ -52,17 +52,17 @@ upload to Kolibri Studio.
 
 Educators and content specialists can assist the developers by preparing a **spec sheet**
 for the content source that provides detailed guidance for how content should be
-structured and organized within the channel. Content specialist also play a role
+structured and organized within the channel. The content specialist also plays a role
 during the channel [review process](reviewing_channels.md).
 
 
 
-The following alternative options is available for specifying the metadata for
+The following alternative options are available for specifying the metadata for
 content nodes that can be used in special circumstances.
 
 ### CSV metadata workflow
 In addition to the web interface and the Python interface (`ricecooker`), there
-exists a an option for creating Kolibri channels by:
+exists an option for creating Kolibri channels by:
   - Organizing content items (documents, videos, mp3 files) into a folder hierarchy on the local file system
   - Specifying metadata in the form of CSV files created using Excel
 

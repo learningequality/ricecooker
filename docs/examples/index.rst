@@ -1,7 +1,7 @@
 Examples
 ========
 
-Below are some examples that demonstrate certain aspects of content integration
+Below are some examples that demonstrate certain aspects of the content integration
 process that require careful consideration and are best explained in code:
 
 
@@ -17,7 +17,7 @@ process that require careful consideration and are best explained in code:
 
 Jupyter notebooks
 -----------------
-Jypyter notebook are a very powerful tool for interactive programming.
+Jypyter notebooks are a very powerful tool for interactive programming.
 You type in commands into an online shell, and you immediately see the results.
 
 To install jupyter notebook on your machine, you run:

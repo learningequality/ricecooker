@@ -21,7 +21,7 @@ to install the ``ricecooker`` Python package and other system prerequisites.
 
 Obtaining a Studio access token
 -------------------------------
-You'll need a Kolibri Studio Access Token to create channel using ricecooker scripts.
+You'll need a Kolibri Studio Access Token to create channels using ricecooker scripts.
 To obtain this token:
 
 1. Create an account on `Kolibri Studio <https://studio.learningequality.org/>`__
@@ -38,7 +38,7 @@ and pass in the command line argument ``--token=path/to/studiotoken.txt``.
 Video overview
 --------------
 Watch this `video tutorial <http://35.196.115.213/en/learn/#/topics/c/3bd5eca9a81557efbab488849058c8c7>`__
-to learn how to create a new content integration script and setting the required
+to learn how to create a new content integration script and set the required
 channel metadata fields like ``CHANNEL_SOURCE_DOMAIN`` and ``CHANNEL_SOURCE_ID``.
 
 .. raw:: html
@@ -69,28 +69,31 @@ single topic node (Folder), and put a single PDF content node inside that folder
 As you can tell from the above code sample, most of the code in a content integration
 script is concerned with setting the right metadata for files, content nodes,
 topics nodes (folders), and the overall channel. This will be the running theme
-as you
+when you work on content integration scripts.
 
 
 .. Attention::
    You need to modify the value of ``CHANNEL_SOURCE_ID`` before you continue,
    otherwise you'll get an error when you run the script in the next step.
-   The combination of ``CHANNEL_SOURCE_DOMAIN`` and ``CHANNEL_SOURCE_ID`` are
-   used to determine the Channel ID and you want to some different valued from
-   the default ones used in the sample code.
+   The combination of ``CHANNEL_SOURCE_DOMAIN`` and ``CHANNEL_SOURCE_ID`` serve
+   to create the channel's unique ID. If you use the same values as an already
+   existing channel, you will either get a permissions error, or if you have
+   editing permissions, you could overwrite the channel contents. Therefore, you
+   want to be careful to use different values from the default ones used in the
+   sample code.
 
 
 
 Running the sushichef script
 ----------------------------
-You can run of chef script by calling it on the command line:
+You can run a chef script by calling it on the command line:
 
 .. code:: bash
 
     python sushichef.py --reset --token=<your-access-token>
 
 The most important argument when running a chef script is ``--token``, which is
-used to pass in the Studio Access Token which identifies you to the Kolibri Studio.
+used to pass in the Studio Access Token and authenticates you in Kolibri Studio.
 The flag ``--reset`` is generally useful in development. It ensures the chef script
 starts the upload process from scratch every time you run the script
 (otherwise the script will prompt you to resume from the last saved checkpoint).
@@ -99,12 +102,12 @@ For more details about running chef scripts see the `chefops page <../chefops.ht
 
 
 .. Note:: If you get an error when running this command, make sure you have
-   replaced ``<your-access-token>`` by the token you obtained from Kolibri Studio.
+   replaced ``<your-access-token>`` with the token you obtained from Kolibri Studio.
    Also make sure you've changed the value of ``channel_info['CHANNEL_SOURCE_ID']``
-   instead of using the value the sample code.
+   instead of using the value in the sample code.
 
 
-If the command succeed, you should see something like this printed in your terminal:
+If the command succeeds, you should see something like this printed in your terminal:
 
 .. parsed-literal::
 
@@ -171,7 +174,7 @@ Let's continue to follow your channel's journey by clicking the Kolibri Studio l
 View your channel in Kolibri Studio
 -----------------------------------
 At the end of the chef run the complete channel (files and metadata) will be
-uploaded to "draft version" of the channel called a "``staging`` tree".
+uploaded to a "draft version" of the channel called a "staging tree".
 Use the **DEPLOY** button in the Studio web interface to take your channel out
 of "draft mode." This step is normally important for reviewing changes between
 the new draft version and the current version of the channel.
@@ -196,16 +199,16 @@ channel has finished publishing.
 Import your channel in Kolibri
 ------------------------------
 The final step is to `IMPORT <https://kolibri.readthedocs.io/en/latest/manage/resources.html#import-with-token>`__
-your channel into Kolibri using the channel token you obtained after Kolibri Studio PUBLISH step finished.
+your channel into Kolibri using the channel token you obtained after the Kolibri Studio PUBLISH step finished.
 
-Congratulations! Thanks to your Python skills and persevere through this multi-step
+Congratulations! Thanks to your Python skills and perseverence through this multi-step
 process involving three software systems, you finally have access to your content
-in the offline-capable Kolibri Learning Platform. You can now
+in the offline-capable Kolibri Learning Platform.
 
-Offline potato for the win! This topic node "Potatoes!" is nice to look at no doubt,
-but it feels kind of empty. Not to worry—in the `next step of this tutorial <tutorial.html>`__
-we'll learn how to add more nodes to your channel. Before that let's do a quick
-recap of what we've learned thus far.
+This topic node "Potatoes!" is nice to look at no doubt, but it feels kind of empty.
+Not to worry—in the `next step of this tutorial <tutorial.html>`__ we'll learn how to
+add more nodes to your channel. Before that let's do a quick recap of what we've learned
+thus far.
 
 
 
@@ -221,13 +224,13 @@ three parts of the Kolibri ecosystem using the following diagram:
 
 I know it seems like a complicated process, but you'll get used to it after going
 through it a couple of times. All the steps represent *necessary* complexity.
-the automated extraction and packaging of source materials ricecooker into
+The automated extraction and packaging of source materials ricecooker into
 Kolibri channels provides the "raw materials" on which educators can build by
-reusing and remixing in Kolibri Studio. Ultimately the technical effort you
+reusing and remixing in Kolibri Studio. **Ultimately the technical effort you
 invest in creating content integration scripts will benefit learners and teachers
-all around the world, this week and for years to come. So get the metadata right!
+all around the world, this week and for years to come.** So get the metadata right!
 
-As you next step for learning about Kolibri channels, we propose an optional,
+As your next step for learning about Kolibri channels, we propose an optional,
 non-technical activity to get to know Kolibri Studio better. After that we'll
 resume the ricecooker training with the `hands-on tutorial <tutorial.html>`__.
 If you're in a hurry, and want to skip ahead to API reference docs pages, check
@@ -276,7 +279,7 @@ creating Kolibri channels, that can be *PUBLISH*-ed and used offline in Kolibri.
 `Hands-on tutorial <tutorial.html>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Now that we have a working example of a simple chef, we're ready to extend it
-by adding other kinds nodes (nutritional groups) and ``files`` (ingredients).
+by adding other kinds of nodes (nutritional groups) and ``files`` (ingredients).
 The next section will take you through a `hands-on tutorial <tutorial.html>`__
 where you'll learn how to use the different content kinds and file types
 supported by the ricecooker framework to create Kolibri channels.
