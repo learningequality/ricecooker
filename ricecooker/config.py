@@ -66,7 +66,7 @@ def setup_logging(level=logging.INFO, main_log=None, error_log=None, add_loggers
     if error_log:
         logger_handlers.append("error")
         handlers["error"] = {
-            "level": logging.ERROR,
+            "level": logging.WARNING,
             "class": "logging.FileHandler",
             "filename": error_log,
             "formatter": "simple_date",
