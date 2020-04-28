@@ -324,6 +324,22 @@ def invalid_video_file():
             f.write(b'this is an invalid video file')
     return DocumentFile(local_path)
 
+@pytest.fixture
+def youtube_video_dict():
+    """
+    A short 17 sec video that won't slow down tests too much.
+    """
+    return {"youtube_id": "C0DPdy98e4c"}
+
+@pytest.fixture
+def youtube_video_with_subs_dict():
+    """
+    A test video that has subtitles in several languages.
+    """
+    return {
+        "youtube_id": "USq6DX7byoY",
+        "subtitles_langs": ["nl", "en", "en-GB", "fr", "el", "hu", "it", "pt", "ro", "es"]
+    }
 
 # AUDIO FIXTURES
 ################################################################################

@@ -229,7 +229,18 @@ def compress_video_file(filename, ffmpeg_settings):
 def download_from_web(web_url, download_settings, file_format=file_formats.MP4, ext="", download_ext=""):
     """
     Download `web_url` using YoutubeDL using `download_settings` options.
-    Required args: file_format, ext, and download_ext.
+    Args:
+        download_settings (dict): options to pass onto YoutubeDL
+        file_format (str): one of "mp4" or "vtt"
+        ext (str): extensions to use as part of `outtmpl` given to YoutubeDL
+        download_ext (str): extensions to append to `outtmpl` after downloading
+    This is function operates differently when downloadin videos and substitles.
+    For videos we set the `outtmpl` to the actual filename that will be downloaded,
+    and the function must be called with ext = ".mp4" and download_ext="".
+    For subtitles we set the `outtmpl` to extension-less string, and YoutubeDL
+    automatically appends the language code and vtt extension, so the function
+    must be called with ext="" and download_ext=".{youtube_lang}.vtt"
+    :return: filename derived from hash of file contents {md5hash(file)}.ext
     """
     key = generate_key("DOWNLOADED", web_url, settings=download_settings)
     if not config.UPDATE and FILECACHE.get(key):
@@ -239,26 +250,30 @@ def download_from_web(web_url, download_settings, file_format=file_formats.MP4, 
     url_hash = hashlib.md5()
     url_hash.update(web_url.encode('utf-8'))
     tempfilename = "{}{ext}".format(url_hash.hexdigest(), ext=ext)
-    destination_path = os.path.join(tempfile.gettempdir(), tempfilename)
-    download_settings["outtmpl"] = destination_path
+    outtmpl_path = os.path.join(tempfile.gettempdir(), tempfilename)
+    download_settings["outtmpl"] = outtmpl_path
+    destination_path = outtmpl_path + download_ext  # file dest. after download
+
+    # Delete files in case previously downloaeded
+    if os.path.exists(outtmpl_path):
+        os.remove(outtmpl_path)
     if os.path.exists(destination_path):
         os.remove(destination_path)
 
-    # Download web_url (can be either a video or a video subtitles resource)
+    # Download the web_url which can be either a video or subtitles
     if not config.USEPROXY:
         # Connect to YouTube directly
         with youtube_dl.YoutubeDL(download_settings) as ydl:
             ydl.download([web_url])
             if not os.path.exists(destination_path):
-                raise youtube_dl.utils.DownloadError('Failed to download resource ' + web_url)
+                raise youtube_dl.utils.DownloadError('Failed to download ' + web_url)
     else:
         # Connect to YouTube via an HTTP proxy
         yt_resource = YouTubeResource(web_url, useproxy=True, options=download_settings)
         result1 = yt_resource.get_resource_info()
         if result1 is None:
             raise youtube_dl.utils.DownloadError('Failed to get resource info')
-        download_settings["writethumbnail"] = False      # overwrite default download behaviour
-        download_settings["outtmpl"] = destination_path  # overwrite default download behaviour
+        download_settings["writethumbnail"] = False  # overwrite default behaviour
         if file_format == file_formats.VTT:
             # We need to use the proxy when downloading subtitles
             result2 = yt_resource.download(options=download_settings, useproxy=True)
@@ -268,17 +283,13 @@ def download_from_web(web_url, download_settings, file_format=file_formats.MP4, 
         if result2 is None or not os.path.exists(destination_path):
             raise youtube_dl.utils.DownloadError('Failed to download resource ' + web_url)
 
-    destination_path += download_ext
-    filename = "{}.{}".format(get_hash(destination_path), file_format)
-
     # Write file to local storage
+    filename = "{}.{}".format(get_hash(destination_path), file_format)
     with open(destination_path, "rb") as dlf, open(config.get_storage_path(filename), 'wb') as destf:
         shutil.copyfileobj(dlf, destf)
 
     FILECACHE.set(key, bytes(filename, "utf-8"))
     return filename
-
-
 
 
 
