@@ -5,6 +5,8 @@ from shutil import copyfile
 import tempfile
 
 from le_utils.constants import languages
+from ricecooker.classes.files import YouTubeVideoFile
+from ricecooker.classes.files import YouTubeSubtitleFile
 from ricecooker.classes.files import SubtitleFile
 from ricecooker.classes.files import is_youtube_subtitle_file_supported_language
 from ricecooker.classes.files import _get_language_with_alpha2_fallback
@@ -168,14 +170,20 @@ def test_webvideo_to_dict():
 
 
 """ *********** YOUTUBEVIDEOFILE TESTS *********** """
-def test_youtubevideo_process_file():
-    assert True
+
+@pytest.mark.skipif(IS_TRAVIS_TESTING, reason="Requires connecting to youtube.")
+def test_youtubevideo_process_file(youtube_video_dict):
+    video_file = YouTubeVideoFile(youtube_id=youtube_video_dict['youtube_id'])
+    filename = video_file.process_file()
+    assert filename is not None, 'Processing YouTubeVideoFile file failed'
+    assert filename.endswith('.mp4'), 'Wrong extenstion for video'
 
 def test_youtubevideo_validate():
     assert True
 
 def test_youtubevideo_to_dict():
     assert True
+
 
 
 """ *********** YOUTUBESUBTITLEFILE TESTS *********** """
@@ -218,8 +226,15 @@ def test_is_youtube_subtitle_file_unsupported_language(subtitles_langs_ubsupport
         lang_obj = _get_language_with_alpha2_fallback(lang)
         assert lang_obj is None, 'lookup should fail'
 
-def test_youtubesubtitle_process_file():
-    assert True
+@pytest.mark.skipif(IS_TRAVIS_TESTING, reason="Requires connecting to youtube.")
+def test_youtubesubtitle_process_file(youtube_video_with_subs_dict):
+    youtube_id = youtube_video_with_subs_dict['youtube_id']
+    lang = youtube_video_with_subs_dict['subtitles_langs'][0]
+    sub_file = YouTubeSubtitleFile(youtube_id=youtube_id, language=lang)
+    filename = sub_file.process_file()
+    assert filename is not None, 'Processing YouTubeSubtitleFile file failed'
+    assert filename.endswith('.vtt'), 'Wrong extenstion for video subtitles'
+    assert not filename.endswith('.' + lang + '.vtt'), 'Lang code in extension'
 
 def test_youtubesubtitle_validate():
     assert True
