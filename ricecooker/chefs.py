@@ -260,6 +260,20 @@ class BaseChef(object):
             return channel
 
         elif hasattr(self, 'channel_info'):
+            # Before going any further, make sure there aren't template id values in their channel info.
+            template_domains = ['<yourdomain.org>']
+            using_template_domain = self.channel_info['CHANNEL_SOURCE_DOMAIN'] in template_domains
+            if using_template_domain:
+                config.LOGGER.error("Template source domain detected. Please set CHANNEL_SOURCE_DOMAIN before running this chef.")
+
+            template_ids = ['<unique id for the channel>', '<yourid>']
+            using_template_source_id = self.channel_info['CHANNEL_SOURCE_ID'] in template_ids
+            if using_template_source_id:
+                config.LOGGER.error("Template source ID deteected. Please set CHANNEL_SOURCE_ID before running this chef.")
+
+            if using_template_domain or using_template_source_id:
+               sys.exit(1)
+
             # If a sublass has an `channel_info` attribute (a dict) it doesn't need
             # to define a `get_channel` method and instead rely on this code:
             channel = ChannelNode(
