@@ -21,7 +21,7 @@ requirements = [
     "beautifulsoup4>=4.6.3",
     "pressurecooker>=0.0.27",
     "selenium==3.0.1",
-    "youtube-dl",
+    "youtube-dl>=2020.03.24",
     "html5lib",
     "cachecontrol==0.12.0",
     "lockfile==0.12.2",
