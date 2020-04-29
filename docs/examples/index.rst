@@ -61,5 +61,5 @@ scripts we use to create some of the most popular Kolibri channels in the librar
 * `SHLS Toolkit chef <https://github.com/learningequality/sushi-chef-shls>`__
 
 You can get a list of ALL the content integration scripts by searching for
-`sushi-chef-* <https://github.com/search?utf8=%E2%9C%93&q=sushi-chef-*&ref=simplesearch>`__
+`sushi-chef <https://github.com/learningequality?q=sushi-chef&type=public&language=python>`__
 on GitHub.
