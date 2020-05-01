@@ -1,3 +1,4 @@
+import copy
 import os
 import re
 import requests
@@ -22,17 +23,38 @@ forever_adapter= CacheControlAdapter(heuristic=CacheForeverHeuristic(), cache=ca
 DOWNLOAD_SESSION.mount('http://', forever_adapter)
 DOWNLOAD_SESSION.mount('https://', forever_adapter)
 
-headers = {
+DEFAULT_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:20.0) Gecko/20100101 Firefox/20.0",
     "Accept-Encoding": "gzip, deflate",
     "Connection": "keep-alive"
 }
 
 
+USE_PYPPETEER = False
+
+try:
+    import asyncio
+    from pyppeteer import launch
+
+    async def load_page(path):
+        browser = await launch({'headless': True})
+        page = await browser.newPage()
+        await page.goto(path, waitUntil='load')
+        # get the entire rendered page, including the doctype
+        content = await page.content()
+        cookies = await page.cookies()
+        await browser.close()
+        return content, {'cookies': cookies}
+    USE_PYPPETEER = True
+except:
+    print("Unable to load pyppeteer, using phantomjs for JS loading.")
+    pass
+
+
 def read(path, loadjs=False, session=None, driver=None, timeout=60,
         clear_cookies=True, loadjs_wait_time=3, loadjs_wait_for_callback=None):
     """Reads from source and returns contents
-    
+
     Args:
         path: (str) url or local path to download
         loadjs: (boolean) indicates whether to load js (optional)
@@ -58,6 +80,10 @@ def read(path, loadjs=False, session=None, driver=None, timeout=60,
 
     try:
         if loadjs:                                              # Wait until js loads then return contents
+            if USE_PYPPETEER:
+                content = asyncio.get_event_loop().run_until_complete(load_page(path))
+                return content
+
             if PHANTOMJS_PATH:
                 driver = driver or webdriver.PhantomJS(executable_path=PHANTOMJS_PATH)
             else:
@@ -91,7 +117,7 @@ def read(path, loadjs=False, session=None, driver=None, timeout=60,
             return fobj.read()
 
 
-def make_request(url, clear_cookies=True, timeout=60, *args, **kwargs):
+def make_request(url, clear_cookies=False, headers=None, timeout=60, *args, **kwargs):
     sess = DOWNLOAD_SESSION
 
     if clear_cookies:
@@ -99,9 +125,14 @@ def make_request(url, clear_cookies=True, timeout=60, *args, **kwargs):
 
     retry_count = 0
     max_retries = 5
+    request_headers = DEFAULT_HEADERS
+    if headers:
+        request_headers = copy.copy(DEFAULT_HEADERS)
+        request_headers.update(headers)
+
     while True:
         try:
-            response = sess.get(url, headers=headers, timeout=timeout, *args, **kwargs)
+            response = sess.get(url, headers=request_headers, timeout=timeout, *args, **kwargs)
             break
         except (requests.exceptions.ConnectionError, requests.exceptions.ReadTimeout) as e:
             retry_count += 1
@@ -245,6 +276,84 @@ def download_static_assets(doc, destination, base_url,
             node.string = js_content_middleware(node.get_text(), url='')
 
     return doc
+
+def archive_page(url, download_root):
+    """
+    Download fully rendered page and all related assets into ricecooker's site archive format.
+
+    :param url: URL to download
+    :param download_root: Site archive root directory
+    :return: A dict containing info about the page archive operation
+    """
+
+    os.makedirs(download_root, exist_ok=True)
+    content, props = asyncio.get_event_loop().run_until_complete(load_page(url))
+
+    parsed_url = urlparse(url)
+    page_domain = parsed_url.netloc.replace(':', '_')
+
+    # get related assets
+    base_url = url[:url.rfind('/')]
+    urls_to_replace = {}
+    def html5_derive_filename(url):
+        file_url_parsed = urlparse(url)
+        rel_path = file_url_parsed.path.replace('%', '_')
+        domain = file_url_parsed.netloc.replace(':', '_')
+        if not domain:
+            domain = page_domain
+        if rel_path.startswith('/'):
+            rel_path = rel_path[1:]
+        url_local_dir = os.path.join(domain, rel_path)
+        assert domain in url_local_dir
+        local_dir_name = os.path.dirname(url_local_dir)
+        if local_dir_name != url_local_dir:
+            full_dir = os.path.join(download_root, local_dir_name)
+            os.makedirs(full_dir, exist_ok=True)
+            urls_to_replace[url] = url_local_dir
+        return url_local_dir
+
+    if content:
+        download_static_assets(content, download_root, base_url, derive_filename=html5_derive_filename)
+
+        for key in urls_to_replace:
+            url_parts = urlparse(key)
+            path_key = url_parts.path
+            # When we get an absolute URL, it may appear in one of three different ways in the page:
+            key_variants = [
+                # 1. /path/to/file.html
+                path_key,
+                # 2. https://www.domain.com/path/to/file.html
+                key,
+                # 3. //www.domain.com/path/to/file.html
+                key.replace(url_parts.scheme + ':', ''),
+            ]
+
+            # FIXME: add CSS file link handling to this too.
+
+            for variant in key_variants:
+                # searching within quotes ensures we only replace the exact URL we are
+                # trying to replace
+                content = content.replace('="{}"'.format(variant), '="{}"'.format(urls_to_replace[key]))
+
+        download_dir = os.path.join(page_domain, parsed_url.path.split('/')[-1].replace('?', '_'))
+        download_path = os.path.join(download_root, download_dir)
+        os.makedirs(download_path, exist_ok=True)
+
+        index_path = os.path.join(download_path, 'index.html')
+        f = open(index_path, 'w', encoding='utf-8')
+        f.write(content)
+        f.close()
+
+        page_info = {
+            'url': url,
+            'cookies': props['cookies'],
+            'index_path': index_path,
+            'resources': list(urls_to_replace.values())
+        }
+
+        return page_info
+
+    return None
 
 
 def _is_blacklisted(url, url_blacklist):
