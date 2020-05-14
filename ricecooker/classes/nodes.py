@@ -602,7 +602,8 @@ class VideoNode(ContentNode):
                         new_files.append(file)
                         language_codes_seen.add(language_code)
                     else:
-                        config.LOGGER.warning('Skipping duplicate subs for ' + language_code + ' from path ' + file.path)
+                        file_info = file.path if hasattr(file, 'path') else file.youtube_url
+                        config.LOGGER.warning('Skipping duplicate subs for ' + language_code + ' from ' + file_info)
                 else:
                     new_files.append(file)
             self.files = new_files
