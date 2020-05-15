@@ -71,7 +71,8 @@ class BaseChef(object):
         parser.add_argument('--thumbnails', action='store_true',      help='Automatically generate thumbnails for topics')
         parser.add_argument('--download-attempts',type=int,default=3, help='Maximum number of times to retry downloading files')
         rrgroup = parser.add_mutually_exclusive_group()
-        rrgroup.add_argument('--reset', action='store_true',          help='Restart session, overwriting previous session (cannot be used with --resume flag)')
+        rrgroup.add_argument('--reset', dest="reset_deprecated", action='store_true',
+                                                                      help='(Deprecated.) This is now the default. Restart session, overwriting previous session (cannot be used with --resume flag)')
         rrgroup.add_argument('--resume', action='store_true',         help='Resume from ricecooker step (cannot be used with --reset flag)')
         allsteps = [step.name.upper() for step in Status]
         parser.add_argument('--step',choices=allsteps,default='LAST', help='Step to resume progress from (must be used with --resume flag)')
@@ -117,6 +118,9 @@ class BaseChef(object):
         # Print CLI deprecation warnings info
         if args['stage_deprecated']:
             config.LOGGER.warning('DEPRECATION WARNING: --stage is now default, so the --stage flag has been deprecated and will be removed in ricecooker 1.0.')
+        if args['reset_deprecated']:
+            config.LOGGER.warning(
+                'DEPRECATION WARNING: --reset is now default, so the --reset flag has been deprecated and will be removed in ricecooker 1.0.')
         if args['publish'] and args['stage']:
             raise InvalidUsageException('The --publish argument must be used together with --deploy argument.')
         logging_args = [key for key in ['quiet', 'warn', 'debug'] if args[key]]

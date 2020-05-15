@@ -42,7 +42,7 @@ def uploadchannel_wrapper(chef, args, options):
             config.SUSHI_BAR_CLIENT.close()
 
 
-def uploadchannel(chef, command='uploadchannel', update=False, thumbnails=False, download_attempts=3, resume=False, reset=False, step=Status.LAST.name, token="#", prompt=False, publish=False, compress=False, stage=False, **kwargs):
+def uploadchannel(chef, command='uploadchannel', update=False, thumbnails=False, download_attempts=3, resume=False, step=Status.LAST.name, token="#", prompt=False, publish=False, compress=False, stage=False, **kwargs):
     """ uploadchannel: Upload channel to Kolibri Studio server
         Args:
             chef (BaseChef or subclass): class that implements the construct_channel method
@@ -89,7 +89,7 @@ def uploadchannel(chef, command='uploadchannel', update=False, thumbnails=False,
 
     # Set up progress tracker
     config.PROGRESS_MANAGER = RestoreManager()
-    if (reset or not config.PROGRESS_MANAGER.check_for_session()) and step.upper() != Status.DONE.name:
+    if (not resume or not config.PROGRESS_MANAGER.check_for_session()) and step.upper() != Status.DONE.name:
         config.PROGRESS_MANAGER.init_session()
     else:
         if resume or prompt_yes_or_no('Previous session detected. Would you like to resume your last session?'):
