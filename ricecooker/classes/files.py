@@ -5,6 +5,7 @@ from cachecontrol.caches.file_cache import FileCache
 import hashlib
 import os
 from PIL import Image
+import json
 from requests.exceptions import MissingSchema, HTTPError, ConnectionError, InvalidURL, InvalidSchema
 import shutil
 from subprocess import CalledProcessError
@@ -68,8 +69,13 @@ def generate_key(action, path_or_id, settings=None, default=" (default)"):
             default (str): if settings are None, default to this extension (avoid overwriting keys)
         Returns: filename
     """
-    settings = " {}".format(str(sorted(settings.items()))) if settings else default
-    return "{}: {}{}".format(action.upper(), path_or_id, settings)
+    if settings and 'postprocessors' in settings:
+        # get determinisic dict serialization for nested dicts under Python 3.5
+        settings_str = json.dumps(settings, sort_keys=True)
+    else:
+        # keep using old strategy to avoid invalidating all chef caches
+        settings_str = "{}".format(str(sorted(settings.items()))) if settings else default
+    return "{}: {} {}".format(action.upper(), path_or_id, settings_str)
 
 
 def download(path, default_ext=None):
