@@ -997,17 +997,11 @@ class TiledThumbnailFile(ThumbnailPresetMixin, File):
             num_pictures = 1
         else:
             return None
-
-        images = [config.get_storage_path(f.get_filename()) for f in self.sources[:num_pictures]]
-        key = "TILED {}".format("+".join(sorted(images)))
-        if not config.UPDATE and FILECACHE.get(key):
-            return FILECACHE.get(key).decode('utf-8')
-
         config.LOGGER.info("\tGenerating tiled thumbnail.")
+        images = [config.get_storage_path(f.get_filename()) for f in self.sources[:num_pictures]]
         with tempfile.NamedTemporaryFile(suffix=".{}".format(file_formats.PNG)) as tempf:
             tempf.close()
             create_tiled_image(images, tempf.name)
             filename = "{}.{}".format(get_hash(tempf.name), file_formats.PNG)
             copy_file_to_storage(filename, tempf.name)
-            FILECACHE.set(key, bytes(filename, "utf-8"))
             return filename
