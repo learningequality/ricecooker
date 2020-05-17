@@ -8,7 +8,9 @@ import os
 import requests
 from requests_file import FileAdapter
 import shutil
+import socket
 import tempfile
+
 
 
 UPDATE = False
@@ -19,9 +21,14 @@ PROGRESS_MANAGER = None
 SUSHI_BAR_CLIENT = None
 STAGE = False
 
-# Don't use this - call logging.getLogger(__name__) from each
-# individual module. Logging is configured centrally by calling
-# setup_logging()
+# Sometimes chef runs will get stuck indefinitely waiting on data from SSL conn,
+# so we add a timeout value as suggested in https://stackoverflow.com/a/30771995
+socket.setdefaulttimeout(20)
+
+
+# Logging is configured globally by calling setup_logging() in the chef's `main`
+# Use this as `from ricecooker.config import LOGGER` in your suchichef.py code,
+# or use the stanard `logging.getLogger(__name__)` to get a namespaced logger.
 LOGGER = logging.getLogger()
 
 
@@ -119,7 +126,8 @@ def setup_logging(level=logging.INFO, main_log=None, error_log=None, add_loggers
     logging.getLogger("PIL.PngImagePlugin").setLevel(logging.WARNING)
 
 
-# Setup default logging - can be called again to reconfigure
+# Setup default logging. This is required so we have a basic logging setup until
+# prope user-confgured logging is configured in `BaseChef.config_logger`.
 setup_logging()
 
 
