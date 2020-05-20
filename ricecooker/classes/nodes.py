@@ -203,6 +203,15 @@ class Node(object):
         for child in self.children:
             child.print_tree(indent + 1)
 
+    def get_json_tree(self):
+        tree = self.to_dict()
+        if len(self.children) > 0:
+            tree['children'] = []
+            for child in self.children:
+                tree['children'].append(child.get_json_tree())
+
+        return tree
+
     def validate_tree(self):
         """
         Validate all nodes in this tree recusively.
