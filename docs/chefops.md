@@ -11,32 +11,30 @@ This listing shows the `ricecooker` command line interface (CLI) arguments:
 
     usage: sushichef.py  [-h] [--token TOKEN] [-u] [-v] [--quiet] [--warn]
                             [--debug] [--compress] [--thumbnails]
-                            [--reset | --resume]
-                            [--step {INIT, CONSTRUCT_CHANNEL, CREATE_TREE, DOWNLOAD_FILES, GET_FILE_DIFF,
-                               START_UPLOAD, UPLOADING_FILES, UPLOAD_CHANNEL, PUBLISH_CHANNEL,DONE, LAST}]
+                            [--resume]  [--step {CONSTRUCT_CHANNEL, CREATE_TREE,
+                                                 DOWNLOAD_FILES, GET_FILE_DIFF,
+                                                 START_UPLOAD, UPLOAD_CHANNEL}]
                             [--deploy] [--publish]
-                            
+
     required arguments:
-      --token TOKEN         Access token (can be token or path to file with token)
-      
+      --token TOKEN         Studio API Access Token (specify wither the token
+                            value or the path of a file that contains the token).
+
     optional arguments:
       -h, --help            show this help message and exit
-      -v, --verbose         Verbose mode
-      --debug               Print debugging log info to stderr
-      --compress            Compress high resolution videos to low resolution videos
-      --thumbnails          Automatically generate thumbnails for topics
-      --reset               Restart session, overwriting previous session
-      --resume              Resume from ricecooker step
+      --debug               Print extra debugging infomation.
+      -v, --verbose         Verbose mode (default).
+      --compress            Compress videos using ffmpeg -crf=32 -b:a 32k mono.
+      --thumbnails          Automatically generate thumbnails for content nodes.
+      --resume              Resume chef session from a specified step.
       --step  {INIT, ...    Step to resume progress from (must be used with --resume flag)
       --update              Force re-download of files (skip .ricecookerfilecache/ check)
-      --sample SIZE         Upload a sample of SIZE content nodes from the channel
+      --sample SIZE         Upload a sample of SIZE nodes from the channel.
       --deploy              Immediately deploy changes to channel's main tree.
-                            This operation will delete the previous channel
-                            content once upload completes. Default (recommended)
-                            behavior is to post new tree for review.
-      --publish             Publish newly uploaded version of the channel
-      --daemon              Run chef in daemon mode
-
+                            This operation will overwrite the previous channel
+                            content. Use only during development.
+      --publish             Publish newly uploaded version of the channel.
+      --daemon              Run chef in daemon mode lisenting to commands.
 
 As you can tell, there are lot of arguments to choose from, and this is not even
 the complete list: you'll have to run `./sushichef.py -h` to see the latest version.
@@ -49,13 +47,6 @@ specific nodes and files in the channel, or use `--compress` and `--thumbnails`
 to apply compression to ALL videos, and automatically generate thumbnails for
 all the supported content kinds. **We recommend you always use the `--thumbnails`**
 in order to create more colorful, lively channels that learners will want to browse.
-
-
-### Resuming and resetting chef runs
-If your `ricecooker` session gets interrupted, you can resume from any step that
-has already completed using `--resume --step=<step>` option.
-More commonly, we want to start the chef run from the beginning.
-The `--reset` flag is often given to avoid the "do you want to resume?" prompt.
 
 
 ### Caching
@@ -148,7 +139,7 @@ time to complete so it is best to run them on a dedicated server for this purpos
   - Clone the sushi chef git repository in the `/data` folder on the server
   - Run the chef script as follows `nohup <chef cmd> &`, where `<chef cmd>`
     is contains the entire script name and command line options,
-    e.g. `./sushichef.py -v --reset --token=... --thumbnails lang=fr`.
+    e.g. `./sushichef.py --token=... --thumbnails lang=fr`.
   - By default `nohup` logs stderr and stdout output to a file called `nohup.out`
     in the current working directory. Use `tail -f nohup.out` to follow this log file.
 

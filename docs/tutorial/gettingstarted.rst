@@ -90,13 +90,10 @@ You can run a chef script by calling it on the command line:
 
 .. code:: bash
 
-    python sushichef.py --reset --token=<your-access-token>
+    python sushichef.py  --token=<your-access-token>
 
 The most important argument when running a chef script is ``--token``, which is
 used to pass in the Studio Access Token and authenticates you in Kolibri Studio.
-The flag ``--reset`` is generally useful in development. It ensures the chef script
-starts the upload process from scratch every time you run the script
-(otherwise the script will prompt you to resume from the last saved checkpoint).
 To see all the ``ricecooker`` command line options, run ``python sushichef.py -h``.
 For more details about running chef scripts see the `chefops page <../chefops.html>`__.
 
@@ -111,7 +108,7 @@ If the command succeeds, you should see something like this printed in your term
 
 .. parsed-literal::
 
-    In SushiChef.run method. args={'command': 'uploadchannel', 'token': '<your-access-token>', 'update': False, 'reset': True, 'resume': False, 'stage': True, 'publish': False} options={}
+    In SushiChef.run method. args={'command': 'uploadchannel', 'token': '<your-access-token>', 'update': False, 'resume': False, 'stage': True, 'publish': False} options={}
     Logged in with username you@yourdomain.org
     Ricecooker v0.6.42 is up-to-date.
 

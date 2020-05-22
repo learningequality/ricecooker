@@ -39,7 +39,7 @@ class SimpleChef(SushiChef):
 if __name__ == "__main__":
     """
     Run this script on the command line using:
-        python sushichef.py --reset --token=YOURTOKENHERE9139139f3a23232
+        python sushichef.py  --token=YOURTOKENHERE9139139f3a23232
     """
     simple_chef = SimpleChef()
     simple_chef.main()

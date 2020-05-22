@@ -45,7 +45,7 @@ Step 3: Edit the channel metadata
 
 Try running the sushi chef by entering the following command in your terminal::
 
-    python --reset sushichef.py --token=<your-access-token>
+    python sushichef.py  --token=<your-access-token>
 
 Click the link to `Kolibri Studio <https://studio.learningequality.org/>`__ that
 shows up in the final step and make sure your channel looks OK.
