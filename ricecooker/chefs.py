@@ -58,30 +58,30 @@ class BaseChef(object):
             description="Ricecooker puts your content in the conten server.",
             add_help=(self.__class__ == BaseChef)  # only add help if not subclassed
         )
-        parser.add_argument('command', nargs='?', default='uploadchannel', help='Desired action: dryrun or uploadchannel')
+        parser.add_argument('command', nargs='?', default='uploadchannel', help='Desired action: dryrun or uploadchannel (default).')
         if self.compatibility_mode:
             parser.add_argument('chef_script', help='Path to chef script file')
-        parser.add_argument('--token', default='#',                   help='Authorization token (can be token or path to file with token)')
-        parser.add_argument('-u', '--update', action='store_true',    help='Force re-download of files (skip .ricecookerfilecache/ check)')
-        parser.add_argument('-v', '--verbose', action='store_true', default=True, help='Verbose mode')
-        parser.add_argument('--quiet', action='store_true',           help='Print only errors to stderr')
-        parser.add_argument('--warn', action='store_true',            help='Print warnings to stderr')
-        parser.add_argument('--debug', action='store_true',           help='Print debugging log info to stderr')
-        parser.add_argument('--compress', action='store_true',        help='Compress high resolution videos to low resolution videos')
-        parser.add_argument('--thumbnails', action='store_true',      help='Automatically generate thumbnails for topics')
-        parser.add_argument('--download-attempts',type=int,default=3, help='Maximum number of times to retry downloading files')
-        parser.add_argument('--reset', dest="reset_deprecated", action='store_true',
-                                                                      help='(Deprecated.) Restarting the chef session is now the default')
-        parser.add_argument('--resume', action='store_true',          help='Resume chef session from a specified step')
+        parser.add_argument('--token', default='#',                   help='Studio API Access Token (specify wither the token value or the path of a file that contains the token).')
+        parser.add_argument('-u', '--update', action='store_true',    help='Force file re-download (skip .ricecookerfilecache/).')
+        parser.add_argument('--debug', action='store_true',           help='Print extra debugging infomation.')
+        parser.add_argument('-v', '--verbose', action='store_true', default=True, help='Verbose mode (default).')
+        parser.add_argument('--warn', action='store_true',            help='Print errors and warnings.')
+        parser.add_argument('--quiet', action='store_true',           help='Print only errors.')
+        parser.add_argument('--compress', action='store_true',        help='Compress videos using ffmpeg -crf=32 -b:a 32k mono.')
+        parser.add_argument('--thumbnails', action='store_true',      help='Automatically generate thumbnails for content nodes.')
+        parser.add_argument('--download-attempts',type=int,default=3, help='Maximum number of times to retry downloading files.')
+        parser.add_argument('--resume', action='store_true',          help='Resume chef session from a specified step.')
         allsteps = [step.name.upper() for step in Status]
-        parser.add_argument('--step',choices=allsteps,default='LAST', help='Step to resume progress from (use in conjunction with the --resume flag)')
-        parser.add_argument('--prompt', action='store_true',          help='Prompt user to open the channel after creating it')
-        parser.add_argument('--stage', dest='stage_deprecated', action='store_true',
-                                                                      help='(Deprecated.) Stage updated content for review. Uploading to a staging tree is now the default behavior. Use --deploy to upload immediately to the main tree.')
+        parser.add_argument('--step',choices=allsteps,default='LAST', help='Step to resume progress from (use with the --resume).')
+        parser.add_argument('--prompt', action='store_true',          help='Prompt user to open the channel after the chef run.')
         parser.add_argument('--deploy', dest='stage', action='store_false',
-                                                                      help='Immediately deploy changes to channel\'s main tree. This operation will overwrite the previous channel content. Use only in development.')
-        parser.add_argument('--publish', action='store_true',         help='Publish newly uploaded version of the channel')
-        parser.add_argument('--sample', type=int, metavar='SIZE',     help='Upload a sample of SIZE content nodes from the channel')
+                                                                      help='Immediately deploy changes to channel\'s main tree. This operation will overwrite the previous channel content. Use only during development.')
+        parser.add_argument('--publish', action='store_true',         help='Publish newly uploaded version of the channel.')
+        parser.add_argument('--sample', type=int, metavar='SIZE',     help='Upload a sample of SIZE nodes from the channel.')
+        parser.add_argument('--reset', dest="reset_deprecated", action='store_true',
+                                                                      help='(deprecated) Restarting the chef run is the default.')
+        parser.add_argument('--stage', dest='stage_deprecated', action='store_true',
+                                                                      help='(deprecated) Stage updated content for review. Uploading a staging tree is now the default behavior. Use --deploy to upload to the main tree.')
 
         # [OPTIONS] --- extra key=value options are supported, but do not appear in help
         self.arg_parser = parser
@@ -349,9 +349,9 @@ class SushiChef(BaseChef):
             add_help=add_parser_help,
             parents=[self.arg_parser]
         )
-        self.arg_parser.add_argument('--daemon', action='store_true', help='Run chef in daemon mode')
-        self.arg_parser.add_argument('--nomonitor', action='store_true', help='Disable SushiBar progress monitoring')
-        self.arg_parser.add_argument('--cmdsock', help='Local command socket (for cronjobs)')
+        self.arg_parser.add_argument('--daemon', action='store_true', help='Run chef in daemon mode lisenting to commands.')
+        self.arg_parser.add_argument('--nomonitor', action='store_true', help='Disable SushiBar progress monitoring.')
+        self.arg_parser.add_argument('--cmdsock', help='Local command socket (for cronjobs).')
         # self.arg_parser.add_argument('--sushibar', help='Hostname of SushiBar server (e.g. "sushibar.learningequality.org")')
         # TODO: --bartoken
 
