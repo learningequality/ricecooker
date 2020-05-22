@@ -70,17 +70,16 @@ class BaseChef(object):
         parser.add_argument('--compress', action='store_true',        help='Compress high resolution videos to low resolution videos')
         parser.add_argument('--thumbnails', action='store_true',      help='Automatically generate thumbnails for topics')
         parser.add_argument('--download-attempts',type=int,default=3, help='Maximum number of times to retry downloading files')
-        rrgroup = parser.add_mutually_exclusive_group()
-        rrgroup.add_argument('--reset', dest="reset_deprecated", action='store_true',
-                                                                      help='(Deprecated.) This is now the default. Restart session, overwriting previous session (cannot be used with --resume flag)')
-        rrgroup.add_argument('--resume', action='store_true',         help='Resume from ricecooker step (cannot be used with --reset flag)')
+        parser.add_argument('--reset', dest="reset_deprecated", action='store_true',
+                                                                      help='(Deprecated.) Restarting the chef session is now the default')
+        parser.add_argument('--resume', action='store_true',          help='Resume chef session from a specified step')
         allsteps = [step.name.upper() for step in Status]
-        parser.add_argument('--step',choices=allsteps,default='LAST', help='Step to resume progress from (must be used with --resume flag)')
+        parser.add_argument('--step',choices=allsteps,default='LAST', help='Step to resume progress from (use in conjunction with the --resume flag)')
         parser.add_argument('--prompt', action='store_true',          help='Prompt user to open the channel after creating it')
         parser.add_argument('--stage', dest='stage_deprecated', action='store_true',
-                            help='(Deprecated.) Stage updated content for review. This flag is now the default and has been kept solely to maintain compatibility. Use --deploy to immediately push changes.')
+                                                                      help='(Deprecated.) Stage updated content for review. Uploading to a staging tree is now the default behavior. Use --deploy to upload immediately to the main tree.')
         parser.add_argument('--deploy', dest='stage', action='store_false',
-                            help='Immediately deploy changes to channel\'s main tree. This operation will delete the previous channel content once upload completes. Default (recommended) behavior is to post new tree for review.')
+                                                                      help='Immediately deploy changes to channel\'s main tree. This operation will overwrite the previous channel content. Use only in development.')
         parser.add_argument('--publish', action='store_true',         help='Publish newly uploaded version of the channel')
         parser.add_argument('--sample', type=int, metavar='SIZE',     help='Upload a sample of SIZE content nodes from the channel')
 
@@ -117,10 +116,10 @@ class BaseChef(object):
 
         # Print CLI deprecation warnings info
         if args['stage_deprecated']:
-            config.LOGGER.warning('DEPRECATION WARNING: --stage is now default, so the --stage flag has been deprecated and will be removed in ricecooker 1.0.')
+            config.LOGGER.warning('DEPRECATION WARNING: --stage is now the default bevavior. The --stage flag has been deprecated and will be removed in ricecooker 1.0.')
         if args['reset_deprecated']:
             config.LOGGER.warning(
-                'DEPRECATION WARNING: --reset is now default, so the --reset flag has been deprecated and will be removed in ricecooker 1.0.')
+                'DEPRECATION WARNING: --reset is now the default bevavior. The --reset flag has been deprecated and will be removed in ricecooker 1.0.')
         if args['publish'] and args['stage']:
             raise InvalidUsageException('The --publish argument must be used together with --deploy argument.')
         logging_args = [key for key in ['quiet', 'warn', 'debug'] if args[key]]
