@@ -168,7 +168,7 @@ def process_wikipedia_page(content, baseurl, destpath, **kwargs):
 if __name__ == '__main__':
     """
     Call this script using:
-        ./wikipedia_chef.py -v --token=<t> --reset
+        ./wikipedia_chef.py --token=<t>
     """
     wikichef = WikipediaChef()
     wikichef.main()

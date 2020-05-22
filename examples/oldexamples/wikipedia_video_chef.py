@@ -143,14 +143,14 @@ def process_wikipedia_page(content, baseurl, destpath, **kwargs):
 if __name__ == '__main__':
     """
     Call this script using:
-        ./wikipedia_video_chef.py -v --token=<t> --reset
+        ./wikipedia_video_chef.py --token=<t>
     """
     wikichef = WikipediaVideoChef()
     wikichef.main()
 
 
 # Run the chef using
-#   ./wikipedia_video_chef.py  -v --reset --thumbnails --token=<yourstudiotoken>
+#   ./wikipedia_video_chef.py  --thumbnails --token=<yourstudiotoken>
 # and you should see something like:
 #
 #    Downloading https://commons.wikimedia.org/w/api.php?action=timedtext&title=File%3AA_Is_for_Atom_1953.webm&lang=en&trackformat=srt

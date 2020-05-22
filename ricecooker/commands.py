@@ -52,7 +52,6 @@ def uploadchannel(chef, command='uploadchannel', update=False, thumbnails=False,
             download_attempts (int): number of times to retry downloading files (optional)
             resume (bool): indicates whether to resume last session automatically (optional)
             step (str): step to resume process from (optional)
-            reset (bool): indicates whether to start session from beginning automatically (optional)
             token (str): content server authorization token
             prompt (bool): indicates whether to prompt user to open channel when done (optional)
             publish (bool): indicates whether to automatically publish channel (optional)

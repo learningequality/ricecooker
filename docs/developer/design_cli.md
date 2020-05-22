@@ -2,7 +2,7 @@ Command line interface
 ======================
 
 This document describes logic `ricecooker` uses to parse command line arguments.
-Under normal use cases you shouldn't need modify the command line parsing, but 
+Under normal use cases you shouldn't need modify the command line parsing, but
 you need to understand how `argparse` works if you want to add new command line
 arguments for your chef script.
 
@@ -152,7 +152,7 @@ There are three types of arguments involved in a chef run:
 
   - `args` (dict): command line args as parsed by the sushi chef class and its parents
     - BaseChef: the method ` BaseChef.__init__` configures argparse for the following:
-        - `compress`, `download_attempts`, `prompt`, `publish`, `reset`, `resume`,
+        - `compress`, `download_attempts`, `prompt`, `publish`, `resume`,
           `stage`, `step`, `thumbnails`, `token`, `update`, `verbose`, `warn`
         - in compatibility mode, also handles `uploadchannel` and `chef_script` positional arguments
     - SushiChef:

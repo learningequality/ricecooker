@@ -56,7 +56,7 @@ class SimpleChef(SushiChef):                                                 # (
 if __name__ == '__main__':                                                   # (12)
     """
     Run this script on the command line using:
-        python simple_chef.py -v --reset --token=YOURTOKENHERE9139139f3a23232
+        python simple_chef.py  --token=YOURTOKENHERE9139139f3a23232
     """
     simple_chef = SimpleChef()
     simple_chef.main()                                                       # (13)
@@ -165,13 +165,10 @@ The `--update` must be used whenever files are modified but the path stays the s
 ### Command line interface
 You can run your chef script by passing the appropriate command line arguments:
 
-    ./sushichef.py -v --reset --token=YOURTOKENHERE9139139f3a23232
+    ./sushichef.py --token=YOURTOKENHERE9139139f3a23232
 
 The most important argument when running a chef script is `--token` which is used
 to pass in the Studio Access Token obtained in Step 1.
-The flags `-v` (verbose) and `--reset` are generally useful in development.
-These make sure the chef script will start the process from scratch and displays
-useful debugging information on the command line.
 
 To see the full list of `ricecooker` command line options, run `./sushichef.py -h`.
 For more details about running chef scripts see the [chefops page](../chefops.md).

@@ -14,7 +14,7 @@ from ricecooker.chefs import BaseChef
 FAKE_CHEF_SCRIPT = 'chefs/fake_chef.py'
 
 
-OLD_DOCOP_SPEC = """Usage: ricecooker uploadchannel [-huv] <file_path> [--warn] [--stage] [--compress] [--token=<t>] [--thumbnails] [--download-attempts=<n>] [--resume [--step=<step>] | --reset] [--prompt] [--publish] [[OPTIONS] ...]
+OLD_DOCOP_SPEC = """Usage: ricecooker uploadchannel [-huv] <file_path> [--warn] [--stage] [--compress] [--token=<t>] [--thumbnails] [--download-attempts=<n>] [--resume [--step=<step>]] [--prompt] [--publish] [[OPTIONS] ...]
 
 Arguments:
   file_path        Path to file with channel data
@@ -29,9 +29,8 @@ Options:
   --thumbnails                Automatically generate thumbnails for topics
   --token=<t>                 Authorization token (can be token or path to file with token) [default: #]
   --download-attempts=<n>     Maximum number of times to retry downloading files [default: 3]
-  --resume                    Resume from ricecooker step (cannot be used with --reset flag)
+  --resume                    Resume from ricecooker step.
   --step=<step>               Step to resume progress from (must be used with --resume flag) [default: LAST]
-  --reset                     Restart session, overwriting previous session (cannot be used with --resume flag)
   --prompt                    Receive prompt to open the channel once it's uploaded
   --publish                   Automatically publish channel once it's been created
   [OPTIONS]                   Extra arguments to add to command line (e.g. key='field')
@@ -60,7 +59,7 @@ def fake_chef_path():
 def command_line_inputs(fake_chef_path):
     test_input_templates = [
       'ricecooker uploadchannel {} --token=letoken --resume --step=START_UPLOAD',
-      'ricecooker uploadchannel {} --token=letoken --reset somethin=else extrakey=extraval',
+      'ricecooker uploadchannel {} --token=letoken somethin=else extrakey=extraval',
       'ricecooker uploadchannel -uv {} --warn --compress --download-attempts=4 --token=besttokenever --resume --step=PUBLISH_CHANNEL --prompt --publish',
       'ricecooker uploadchannel {} -v --compress --token=katoken lang=en',
       'ricecooker uploadchannel {} -v --compress --token=katoken lang=en-us',

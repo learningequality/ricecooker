@@ -138,8 +138,6 @@ class BaseChef(object):
 
         if args['command'] == 'dryrun':
             args['nomonitor'] = True    # no Sushibar logs and progress tracking
-            if not args['resume']:
-                args['reset'] = True    # set the --reset flag to avoid prompt
 
         # Parse additional keyword arguments from `options_list`
         options = {}
