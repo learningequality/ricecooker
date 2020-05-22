@@ -393,7 +393,7 @@ class TreeNode(Node):
             "license_description": None,
             "copyright_holder": "",
             "questions": [],
-            "extra_fields": {},
+            "extra_fields": json.dumps(self.extra_fields),
         }
 
     def validate(self):

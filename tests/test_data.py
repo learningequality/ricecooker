@@ -91,6 +91,7 @@ def test_channel_to_dict(channel, channel_data):
 
 def test_topic_to_dict(topic, topic_data):
     topic_dict = topic.to_dict()
+    topic_data['extra_fields'] = json.dumps(topic_data['extra_fields'])
     for key, _ in topic_data.items():
         assert key in topic_dict, "Key {} is not found in topic to_dict method".format(key)
     for key, value in topic_dict.items():
@@ -100,6 +101,7 @@ def test_video_to_dict(video, video_data):
     video_dict = video.to_dict()
     video_dict.pop('files')
     expected_files = video_data.pop('files')
+    video_data['extra_fields'] = json.dumps(video_data['extra_fields'])
     assert video.files == expected_files, "Video files do not match"
     for key, _ in video_data.items():
         assert key in video_dict, "Key {} is not found in to_dict method".format(key)
@@ -110,6 +112,7 @@ def test_audio_to_dict(audio, audio_data):
     audio_dict = audio.to_dict()
     audio_dict.pop('files')
     expected_files = audio_data.pop('files')
+    audio_data['extra_fields'] = json.dumps(audio_data['extra_fields'])
     assert audio.files == expected_files, "Audio files do not match"
     for key, _ in audio_data.items():
         assert key in audio_dict, "Key {} is not found in to_dict method".format(key)
@@ -120,6 +123,7 @@ def test_document_to_dict(document, document_data):
     document_dict = document.to_dict()
     document_dict.pop('files')
     expected_files = document_data.pop('files')
+    document_data['extra_fields'] = json.dumps(document_data['extra_fields'])
     assert document.files == expected_files, "Document files do not match"
     for key, _ in document_data.items():
         assert key in document_dict, "Key {} is not found in to_dict method".format(key)
@@ -130,6 +134,7 @@ def test_html_to_dict(html, html_data):
     html_dict = html.to_dict()
     html_dict.pop('files')
     expected_files = html_data.pop('files')
+    html_data['extra_fields'] = json.dumps(html_data['extra_fields'])
     assert html.files == expected_files, "HTML files do not match"
     for key, _ in html_data.items():
         assert key in html_dict, "Key {} is not found in to_dict method".format(key)

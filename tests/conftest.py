@@ -94,7 +94,9 @@ def invalid_channel(channel_source_id, domain_namespace):
 @pytest.fixture
 def base_data(channel_domain_namespace, title):
     """
-    The dictionary returned by this function resembles outpout of `to_dict` method.
+    The dictionary returned by this function resembles output of `to_dict` except
+    for `extra_fields` which is dict when used as input kwarg but serialized as
+    string when sending to Studio.
     """
     return {
         "kind": None,
@@ -105,7 +107,7 @@ def base_data(channel_domain_namespace, title):
         "files" : [],
         "tags": [],
         "questions": [],
-        "extra_fields": "{}",  # because Ricecookr uses `json.dumps` for this field
+        "extra_fields": {},  # dict as input kwarg, but json.dumps-ed in to_dict
         "license": None,
         "copyright_holder": "",
         "license_description": None,
@@ -174,8 +176,7 @@ def topic_data(base_data, channel_domain_namespace, channel_node_id):
     topic_data = copy.deepcopy(base_data)
     ids_dict = genrate_random_ids(channel_domain_namespace, channel_node_id)
     topic_data.update(ids_dict)
-    topic_data.update({ "kind": content_kinds.TOPIC,
-                        "extra_fields": {} })
+    topic_data.update({ "kind": content_kinds.TOPIC })
     return topic_data
 
 @pytest.fixture
