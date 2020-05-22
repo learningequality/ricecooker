@@ -97,6 +97,9 @@ def uploadchannel(chef, command='uploadchannel', update=False, thumbnails=False,
         else:
             config.PROGRESS_MANAGER.init_session()
 
+    if hasattr(chef, 'download_content'):
+        chef.download_content()
+
     # Construct channel if it hasn't been constructed already
     if config.PROGRESS_MANAGER.get_status_val() <= Status.CONSTRUCT_CHANNEL.value:
         config.LOGGER.info("Calling construct_channel... ")

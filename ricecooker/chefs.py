@@ -419,7 +419,7 @@ class SushiChef(BaseChef):
     def save_channel_tree_as_json(self, channel):
         filename = os.path.join(self.TREES_DATA_DIR, '{}.json'.format(self.CHEF_RUN_DATA['current_run']))
         os.makedirs(self.TREES_DATA_DIR, exist_ok=True)
-        json.dump(open(filename, 'w'), indent=2)
+        json.dump(channel.get_json_tree(), open(filename, 'w'), indent=2)
         self.CHEF_RUN_DATA['tree_archives']['previous'] = self.CHEF_RUN_DATA['tree_archives']['current']
         self.CHEF_RUN_DATA['tree_archives']['current'] = filename.replace(os.getcwd() + '/', '')
         self.save_chef_data()

@@ -3,14 +3,14 @@ import os
 import re
 import requests
 import time
-from urllib.parse import urlparse, parse_qs, urljoin
+from urllib.parse import urlparse, urljoin
 import uuid
 
 from bs4 import BeautifulSoup
 from selenium import webdriver
 import selenium.webdriver.support.ui as selenium_ui
 from requests_file import FileAdapter
-from ricecooker.config import PHANTOMJS_PATH
+from ricecooker.config import LOGGER, PHANTOMJS_PATH
 from ricecooker.utils.html import download_file
 from ricecooker.utils.caching import CacheForeverHeuristic, FileCache, CacheControlAdapter, InvalidatingCacheControlAdapter
 
@@ -297,6 +297,10 @@ def archive_page(url, download_root):
     urls_to_replace = {}
     def html5_derive_filename(url):
         file_url_parsed = urlparse(url)
+
+        no_scheme_url = url
+        if file_url_parsed.scheme != '':
+            no_scheme_url = url.replace(file_url_parsed.scheme + '://', '')
         rel_path = file_url_parsed.path.replace('%', '_')
         domain = file_url_parsed.netloc.replace(':', '_')
         if not domain:
@@ -309,7 +313,7 @@ def archive_page(url, download_root):
         if local_dir_name != url_local_dir:
             full_dir = os.path.join(download_root, local_dir_name)
             os.makedirs(full_dir, exist_ok=True)
-            urls_to_replace[url] = url_local_dir
+            urls_to_replace[url] = no_scheme_url
         return url_local_dir
 
     if content:
@@ -317,23 +321,28 @@ def archive_page(url, download_root):
 
         for key in urls_to_replace:
             url_parts = urlparse(key)
-            path_key = url_parts.path
             # When we get an absolute URL, it may appear in one of three different ways in the page:
             key_variants = [
                 # 1. /path/to/file.html
-                path_key,
+                key.replace(url_parts.scheme + '://' + url_parts.netloc, ''),
                 # 2. https://www.domain.com/path/to/file.html
                 key,
                 # 3. //www.domain.com/path/to/file.html
                 key.replace(url_parts.scheme + ':', ''),
             ]
 
-            # FIXME: add CSS file link handling to this too.
-
+            orig_content = content
             for variant in key_variants:
                 # searching within quotes ensures we only replace the exact URL we are
                 # trying to replace
+                # we avoid using BeautifulSoup because Python HTML parsers can be destructive and
+                # do things like strip out the doctype.
                 content = content.replace('="{}"'.format(variant), '="{}"'.format(urls_to_replace[key]))
+                content = content.replace('url({})"'.format(variant), 'url({})'.format(urls_to_replace[key]))
+
+            if content == orig_content:
+                LOGGER.debug("link not replaced: {}".format(key))
+                LOGGER.debug("key_variants = {}".format(key_variants))
 
         download_dir = os.path.join(page_domain, parsed_url.path.split('/')[-1].replace('?', '_'))
         download_path = os.path.join(download_root, download_dir)
