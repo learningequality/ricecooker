@@ -8,7 +8,7 @@ and run this script to upload the PDF to Kolibri Studio so it can then be import
 
 .. Note:: The software tools developed by the Learning Equality content team
    have food-related code names. Content integration scripts are called "sushi chefs"
-   since they perform the detailed-oriented task of taking external educational resources (🐟),
+   since they perform the detail-oriented task of taking external educational resources (🐟),
    packaging them as individual Kolibri content nodes (🍣),
    and organizing them neatly into Kolibri channels (🍱).
 

@@ -10,6 +10,7 @@ process that require careful consideration and are best explained in code:
 
    Learn how to work with language codes <languages>
    How to create exercises and questions <exercises>
+   Document conversions <document_conversion>
    Step-by-step tutorial <https://github.com/learningequality/ricecooker/blob/master/examples/tutorial/sushichef.py>
    Wikipedia scraping example <https://github.com/learningequality/ricecooker/blob/master/examples/wikipedia/sushichef.py>
    Kitchen sink example that includes all content kinds <https://github.com/learningequality/sample-channels/blob/master/channels/ricecooker_channel/sushichef.py>
