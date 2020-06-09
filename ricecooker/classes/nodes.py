@@ -199,7 +199,7 @@ class Node(object):
             Args: indent (int): What level of indentation at which to start printing
             Returns: None
         """
-        config.LOGGER.info("{indent}{data}".format(indent="   " * indent, data=str(self)))
+        config.LOGGER.info("{indent}{data}".format(indent="   " * indent, data=str(self).encode('utf-8')))
         for child in self.children:
             child.print_tree(indent + 1)
 

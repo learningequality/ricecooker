@@ -218,7 +218,7 @@ class ChannelManager:
             count=self.node_count_dict['upload_count'],
             total=self.node_count_dict['total_count'],
             indent="   " * indent,
-            title=current_node.title,
+            title=current_node.title.encode('utf-8'),
             kind=current_node.__class__.__name__)
         )
 
