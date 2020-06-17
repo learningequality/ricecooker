@@ -254,6 +254,8 @@ class ChannelNode(Node):
         # Map parameters to model variables
         self.source_domain = source_domain
         self.source_id = source_id
+        # TODO: Add this to channel_info? Currently you need to set this after calling get_channel.
+        self.tagline = None
 
         super(ChannelNode, self).__init__(*args, **kwargs)
 
@@ -283,6 +285,7 @@ class ChannelNode(Node):
             "thumbnail": self.thumbnail.filename if self.thumbnail else None,
             "language" : self.language,
             "description": self.description or "",
+            "tagline": self.tagline or "",
             "license": self.license,
             "source_domain": self.source_domain,
             "source_id": self.source_id,
