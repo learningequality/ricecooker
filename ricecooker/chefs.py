@@ -280,6 +280,7 @@ class BaseChef(object):
                 source_domain=self.channel_info['CHANNEL_SOURCE_DOMAIN'],
                 source_id=self.channel_info['CHANNEL_SOURCE_ID'],
                 title=self.channel_info['CHANNEL_TITLE'],
+                tagline=self.channel_info.get('CHANNEL_TAGLINE'),
                 thumbnail=self.channel_info.get('CHANNEL_THUMBNAIL'),
                 language=self.channel_info.get('CHANNEL_LANGUAGE'),
                 description=self.channel_info.get('CHANNEL_DESCRIPTION'),

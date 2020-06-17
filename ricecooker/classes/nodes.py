@@ -250,12 +250,11 @@ class ChannelNode(Node):
             files ([<File>]): list of file objects for node (optional)
     """
     kind = "Channel"
-    def __init__(self, source_id, source_domain, *args, **kwargs):
+    def __init__(self, source_id, source_domain, tagline=None, *args, **kwargs):
         # Map parameters to model variables
         self.source_domain = source_domain
         self.source_id = source_id
-        # TODO: Add this to channel_info? Currently you need to set this after calling get_channel.
-        self.tagline = None
+        self.tagline = tagline
 
         super(ChannelNode, self).__init__(*args, **kwargs)
 
