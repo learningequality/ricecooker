@@ -5,11 +5,12 @@ import tempfile
 
 from ricecooker.chefs import SushiChef
 from ricecooker.classes import licenses
-from ricecooker.classes.files import HTMLZipFile, ThumbnailFile
+from ricecooker.classes.files import HTMLZipFile
 from ricecooker.classes.nodes import ChannelNode, HTML5AppNode, TopicNode
-from ricecooker.utils.caching import CacheForeverHeuristic, FileCache, CacheControlAdapter, InvalidatingCacheControlAdapter
+from ricecooker.utils.caching import CacheForeverHeuristic, FileCache, CacheControlAdapter
 from ricecooker.utils.html import download_file
 from ricecooker.utils.zip import create_predictable_zip
+from ricecooker.config import LOGGER
 
 
 # CHANNEL SETTINGS
@@ -32,15 +33,17 @@ def make_fully_qualified_url(url):
         return "https:" + url
     if url.startswith("/"):
         return "https://en.wikipedia.org" + url
-    assert url.startswith("http"), "Bad URL (relative to unknown location): " + url
+    if not url.startswith("http"):
+        LOGGER.warning("Skipping bad URL (relative to unknown location): " + url)
+        return None
     return url
 
 def make_request(url, *args, **kwargs):
     response = sess.get(url, *args, **kwargs)
     if response.status_code != 200:
-        print("NOT FOUND:", url)
+        LOGGER.warning("URL NOT FOUND: " + url)
     elif not response.from_cache:
-        print("NOT CACHED:", url)
+        LOGGER.warning("NOT CACHED: " + url)
     return response
 
 def get_parsed_html_from_url(url, *args, **kwargs):
@@ -109,6 +112,8 @@ def add_subpages_from_wikipedia_list(topic, list_url):
 
         # extract the URL and title for the subpage
         url = make_fully_qualified_url(link["href"])
+        if url is None:
+            continue  # skip internal links and or bad URLs
         title = link.text
 
         # attempt to extract a thumbnail for the subpage, from the second column in the table
@@ -168,7 +173,7 @@ def process_wikipedia_page(content, baseurl, destpath, **kwargs):
 if __name__ == '__main__':
     """
     Call this script using:
-        ./wikipedia_chef.py --token=<t>
+        ./sushichef.py --token=YOURSTUDIOTOKENHERE9139139f3a23232
     """
     wikichef = WikipediaChef()
     wikichef.main()
