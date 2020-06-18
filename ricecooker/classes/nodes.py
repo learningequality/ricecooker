@@ -250,10 +250,11 @@ class ChannelNode(Node):
             files ([<File>]): list of file objects for node (optional)
     """
     kind = "Channel"
-    def __init__(self, source_id, source_domain, *args, **kwargs):
+    def __init__(self, source_id, source_domain, tagline=None, *args, **kwargs):
         # Map parameters to model variables
         self.source_domain = source_domain
         self.source_id = source_id
+        self.tagline = tagline
 
         super(ChannelNode, self).__init__(*args, **kwargs)
 
@@ -270,6 +271,9 @@ class ChannelNode(Node):
         if self.description and len(self.description) > config.MAX_DESCRIPTION_LENGTH:
             config.print_truncate("description", self.source_id, self.description, kind=self.kind)
             self.description = self.description[:config.MAX_DESCRIPTION_LENGTH]
+        if self.tagline and len(self.tagline) > config.MAX_TAGLINE_LENGTH:
+            config.print_truncate("tagline", self.source_id, self.tagline, kind=self.kind)
+            self.tagline = self.tagline[:config.MAX_TAGLINE_LENGTH]
         super(ChannelNode, self).truncate_fields()
 
     def to_dict(self):
@@ -283,6 +287,7 @@ class ChannelNode(Node):
             "thumbnail": self.thumbnail.filename if self.thumbnail else None,
             "language" : self.language,
             "description": self.description or "",
+            "tagline": self.tagline or "",
             "license": self.license,
             "source_domain": self.source_domain,
             "source_id": self.source_id,

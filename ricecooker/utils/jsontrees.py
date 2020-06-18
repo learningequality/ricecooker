@@ -81,6 +81,7 @@ def get_channel_node_from_json(json_tree):
         source_domain=json_tree['source_domain'],
         source_id=json_tree['source_id'],
         language=json_tree['language'],
+        tagline=json_tree.get('tagline', None),
         thumbnail=json_tree.get('thumbnail', None),
     )
     return channel
