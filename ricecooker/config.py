@@ -206,6 +206,7 @@ TRUNCATE_MSG = "\t\t{kind} {id}: {field} {value} is too long - max {max} charact
 MAX_TITLE_LENGTH = 200
 MAX_SOURCE_ID_LENGTH = 200
 MAX_DESCRIPTION_LENGTH = 400
+MAX_TAGLINE_LENGTH = 150
 MAX_AUTHOR_LENGTH = 200
 MAX_AGGREGATOR_LENGTH = 200
 MAX_PROVIDER_LENGTH = 200
@@ -229,6 +230,11 @@ MAX_CHAR_LIMITS = {
         "kind": "Node",
         "field": "description",
         "max": MAX_DESCRIPTION_LENGTH
+    },
+    "tagline": {
+        "kind": "Channel",
+        "field": "tagline",
+        "max": MAX_TAGLINE_LENGTH
     },
     "author": {
         "kind": "Node",

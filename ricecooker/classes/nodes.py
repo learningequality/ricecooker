@@ -271,6 +271,9 @@ class ChannelNode(Node):
         if self.description and len(self.description) > config.MAX_DESCRIPTION_LENGTH:
             config.print_truncate("description", self.source_id, self.description, kind=self.kind)
             self.description = self.description[:config.MAX_DESCRIPTION_LENGTH]
+        if self.tagline and len(self.tagline) > config.MAX_TAGLINE_LENGTH:
+            config.print_truncate("tagline", self.source_id, self.tagline, kind=self.kind)
+            self.tagline = self.tagline[:config.MAX_TAGLINE_LENGTH]
         super(ChannelNode, self).truncate_fields()
 
     def to_dict(self):
