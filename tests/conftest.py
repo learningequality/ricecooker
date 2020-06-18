@@ -56,7 +56,8 @@ def channel_data(channel_node_id, channel_content_id, domain_namespace, channel_
         "id": channel_node_id.hex,
         "name": "Channel",
         "thumbnail": None,
-        "description": "Channel description",
+        "description": "Long channel description that can be up to 400 characters.",
+        "tagline": "Short channel description to show on content cards",
         "license": None,
         "source_domain": domain_namespace,
         "source_id": channel_source_id,
@@ -71,6 +72,7 @@ def channel(domain_namespace, channel_source_id, channel_data):
         domain_namespace,
         title=channel_data['name'],
         description=channel_data['description'],
+        tagline=channel_data['tagline'],
         language=channel_data['language']
     )
     return channel
