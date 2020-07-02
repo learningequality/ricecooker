@@ -1,11 +1,8 @@
 import argparse
-import atexit
 import json
 import logging
 import os
-import shutil
 import sys
-import tempfile
 from datetime import datetime
 from importlib.machinery import SourceFileLoader
 
@@ -31,39 +28,9 @@ from .utils.metadata_provider import DEFAULT_CONTENT_INFO_FILENAME
 from .utils.metadata_provider import DEFAULT_EXERCISE_QUESTIONS_INFO_FILENAME
 from .utils.metadata_provider import DEFAULT_EXERCISES_INFO_FILENAME
 from .utils.tokens import get_content_curation_token
-# for JsonTreeChef chef
-# for LineCook chef
 
 
-chef_temp_dir = os.path.join(os.getcwd(), '.ricecooker-temp')
 
-
-@atexit.register
-def delete_temp_dir():
-    if os.path.exists(chef_temp_dir):
-        config.LOGGER.info("Deleting chef temp files at {}".format(chef_temp_dir))
-        shutil.rmtree(chef_temp_dir)
-
-# While in most cases a chef run will clean up after itself, make sure that if it didn't, temp files
-# from the old run are deleted so that they do not accumulate.
-delete_temp_dir()
-
-# If tempdir is set already, that means the user has explicitly chosen a location for temp storage
-if not tempfile.tempdir:
-    os.makedirs(chef_temp_dir)
-    config.LOGGER.info("Setting chef temp dir to {}".format(chef_temp_dir))
-    # Store all chef temp files in one dir to avoid issues with temp or even primary storage filling up
-    # because of failure by the chef to clean up temp files manually.
-    tempfile.tempdir = chef_temp_dir
-
-CHEF_DATA_DEFAULT = {
-    'current_run': None,
-    'runs': [],
-    'tree_archives': {
-        'previous': None,
-        'current': None
-    }
-}
 
 
 # SUSHI CHEF BASE CLASS (and backward compatibiliry)
@@ -454,6 +421,7 @@ class SushiChef(BaseChef):
             self.run(args, options)
 
 
+
 # JSON TREE CHEF
 ################################################################################
 
@@ -627,7 +595,3 @@ class LineCook(JsonTreeChef):
         kwargs.update(options)
         json_tree_path = self.get_json_tree_path(**kwargs)
         build_ricecooker_json_tree(args, options, self.metadata_provider, json_tree_path)
-
-    # UNCOMMENT BELOW TO DISABLE CHANNEL UPLOAD
-    # def run(self, args, options):
-    #     self.pre_run(args, options)
