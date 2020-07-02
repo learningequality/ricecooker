@@ -330,8 +330,8 @@ class SushiChef(BaseChef):
     Sushi chef scripts call the `main` method as the entry point, which in turn
     calls the `run` method to performs all the work (see `uploadchannel`).
     """
-    CHEF_RUN_DATA = config.CHEF_DATA_DEFAULT
-    TREES_DATA_DIR = config.TREES_DATA_DIR
+    CHEF_RUN_DATA = config.CHEF_DATA_DEFAULT  # loaded from chefdata/chef_data.json
+    TREES_DATA_DIR = config.TREES_DATA_DIR    # tree archives and JsonTreeChef inputs
 
 
     def __init__(self, *args, **kwargs):
