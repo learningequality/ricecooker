@@ -574,7 +574,7 @@ class VideoFile(DownloadFile):
 class WebVideoFile(File):
     is_primary = True
     # In future, look into postprocessors and progress_hooks
-    def __init__(self, web_url, download_settings=None, high_resolution=True, maxheight=None, **kwargs):
+    def __init__(self, web_url, download_settings=None, high_resolution=False, maxheight=None, **kwargs):
         self.web_url = web_url
         self.download_settings = download_settings or {}
         if "format" not in self.download_settings:
@@ -711,7 +711,6 @@ class SubtitleFile(DownloadFile):
         convertible_exts = CONVERTIBLE_FORMATS[self.get_preset()]
         if ext != self.default_ext and ext not in convertible_exts and self.subtitlesformat is None:
             raise ValueError('Incompatible extension {} for SubtitleFile at {}'.format(ext, self.path))
-
 
     def process_file(self):
         self.validate()
