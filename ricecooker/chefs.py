@@ -330,11 +330,9 @@ class SushiChef(BaseChef):
     Sushi chef scripts call the `main` method as the entry point, which in turn
     calls the `run` method to performs all the work (see `uploadchannel`).
     """
-    DATA_DIR = 'chefdata'
-    TREES_DATA_DIR = os.path.join(DATA_DIR, 'trees')
-    DATA_FILENAME = 'chef_data.json'
-    DATA_PATH = os.path.join(DATA_DIR, DATA_FILENAME)
-    CHEF_RUN_DATA = CHEF_DATA_DEFAULT
+    CHEF_RUN_DATA = config.CHEF_DATA_DEFAULT
+    TREES_DATA_DIR = config.TREES_DATA_DIR
+
 
     def __init__(self, *args, **kwargs):
         """
@@ -392,7 +390,7 @@ class SushiChef(BaseChef):
         self.save_chef_data()
 
     def save_chef_data(self):
-        json.dump(self.CHEF_RUN_DATA, open(self.DATA_PATH, 'w'), indent=2)
+        json.dump(self.CHEF_RUN_DATA, open(config.DATA_PATH, 'w'), indent=2)
 
     def run(self, args, options):
         """

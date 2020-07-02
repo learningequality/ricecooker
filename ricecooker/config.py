@@ -227,7 +227,19 @@ if not tempfile.tempdir:
     tempfile.tempdir = chef_temp_dir
 
 
-
+# Record data about past chef runs in chefdata/ dir
+DATA_DIR = 'chefdata'
+DATA_FILENAME = 'chef_data.json'
+DATA_PATH = os.path.join(DATA_DIR, DATA_FILENAME)
+CHEF_DATA_DEFAULT = {
+    'current_run': None,
+    'runs': [],
+    'tree_archives': {
+        'previous': None,
+        'current': None
+    }
+}
+TREES_DATA_DIR = os.path.join(DATA_DIR, 'trees')
 
 
 # Character limits based on Kolibri models
