@@ -413,8 +413,8 @@ class SushiChef(BaseChef):
         cws.join()
 
     def load_chef_data(self):
-        if os.path.exists(self.DATA_FILENAME):
-            self.CHEF_RUN_DATA = json.load(open(self.DATA_FILENAME))
+        if os.path.exists(config.DATA_PATH):
+            self.CHEF_RUN_DATA = json.load(open(config.DATA_PATH))
 
     def save_channel_tree_as_json(self, channel):
         filename = os.path.join(self.TREES_DATA_DIR, '{}.json'.format(self.CHEF_RUN_DATA['current_run']))
