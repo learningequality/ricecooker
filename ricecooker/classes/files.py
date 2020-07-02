@@ -901,14 +901,11 @@ class ExtractedThumbnailFile(ThumbnailFile):
     extractor_kwargs = {}  # subclass can specify additional options
 
     def process_file(self):
-        """Generates the thumbnail from source file in `self.path` by calling
-        the ``extractor_fun`` on the subclass.
+        """
+        Generate the thumbnail from source file in `self.path` by calling the
+        ``extractor_fun`` method of the subclass.
         Returns: filename or None
         """
-        key = "EXTRACTED: {}".format(self.path)
-        if not config.UPDATE and FILECACHE.get(key):
-            return FILECACHE.get(key).decode('utf-8')
-
         config.LOGGER.info("\t--- Extracting thumbnail from {}".format(self.path))
         tempf = tempfile.NamedTemporaryFile(suffix=".{}".format(file_formats.PNG), delete=False)
         tempf.close()
@@ -917,25 +914,25 @@ class ExtractedThumbnailFile(ThumbnailFile):
             filename = "{}.{}".format(get_hash(tempf.name), file_formats.PNG)
             copy_file_to_storage(filename, tempf.name)
             os.unlink(tempf.name)
-            FILECACHE.set(key, bytes(filename, "utf-8"))
             config.LOGGER.info("\t--- Extracted thumbnail {}".format(filename))
             self.filename = filename
         except ThumbnailGenerationError as err:
-            config.LOGGER.warning("\t    Failed to extract thumbnail from file {} -- {}".format(self.path, err))
+            config.LOGGER.warning("\t    Failed to extract thumbnail {}".format(err))
             self.filename = None
             self.error = err
             config.FAILED_FILES.append(self)
         return self.filename
 
     def extractor_fun(self, fpath_in, thumbpath_out, **kwargs):
-        """The function in the subclass that performs the thumbnail generation.
-
+        """
+        The function in the subclass that performs the thumbnail generation.
         Args:
             fpath_in: the local path of the source file
             thumbpath_out: the destination path to write thumbnail to (temp file)
             **kwargs: any additional class-specific arguments passed in
         """
         raise NotImplementedError('The subclass must implement this method.')
+
 
 class ExtractedPdfThumbnailFile(ExtractedThumbnailFile):
     extractor_kwargs = {'page_number': 0, 'crop': None}
