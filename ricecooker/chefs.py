@@ -1,10 +1,8 @@
 import argparse
-import atexit
+import json
 import logging
 import os
-import shutil
 import sys
-import tempfile
 from datetime import datetime
 from importlib.machinery import SourceFileLoader
 
@@ -30,30 +28,9 @@ from .utils.metadata_provider import DEFAULT_CONTENT_INFO_FILENAME
 from .utils.metadata_provider import DEFAULT_EXERCISE_QUESTIONS_INFO_FILENAME
 from .utils.metadata_provider import DEFAULT_EXERCISES_INFO_FILENAME
 from .utils.tokens import get_content_curation_token
-# for JsonTreeChef chef
-# for LineCook chef
 
 
-chef_temp_dir = os.path.join(os.getcwd(), '.ricecooker-temp')
 
-
-@atexit.register
-def delete_temp_dir():
-    if os.path.exists(chef_temp_dir):
-        config.LOGGER.info("Deleting chef temp files at {}".format(chef_temp_dir))
-        shutil.rmtree(chef_temp_dir)
-
-# While in most cases a chef run will clean up after itself, make sure that if it didn't, temp files
-# from the old run are deleted so that they do not accumulate.
-delete_temp_dir()
-
-# If tempdir is set already, that means the user has explicitly chosen a location for temp storage
-if not tempfile.tempdir:
-    os.makedirs(chef_temp_dir)
-    config.LOGGER.info("Setting chef temp dir to {}".format(chef_temp_dir))
-    # Store all chef temp files in one dir to avoid issues with temp or even primary storage filling up
-    # because of failure by the chef to clean up temp files manually.
-    tempfile.tempdir = chef_temp_dir
 
 
 # SUSHI CHEF BASE CLASS (and backward compatibiliry)
@@ -353,6 +330,9 @@ class SushiChef(BaseChef):
     Sushi chef scripts call the `main` method as the entry point, which in turn
     calls the `run` method to performs all the work (see `uploadchannel`).
     """
+    CHEF_RUN_DATA = config.CHEF_DATA_DEFAULT  # loaded from chefdata/chef_data.json
+    TREES_DATA_DIR = config.TREES_DATA_DIR    # tree archives and JsonTreeChef inputs
+
 
     def __init__(self, *args, **kwargs):
         """
@@ -379,6 +359,8 @@ class SushiChef(BaseChef):
         # self.arg_parser.add_argument('--sushibar', help='Hostname of SushiBar server (e.g. "sushibar.learningequality.org")')
         # TODO: --bartoken
 
+        self.load_chef_data()
+
 
     def daemon_mode(self, args, options):
         """
@@ -395,6 +377,20 @@ class SushiChef(BaseChef):
             lcs.join()
         cws.join()
 
+    def load_chef_data(self):
+        if os.path.exists(config.DATA_PATH):
+            self.CHEF_RUN_DATA = json.load(open(config.DATA_PATH))
+
+    def save_channel_tree_as_json(self, channel):
+        filename = os.path.join(self.TREES_DATA_DIR, '{}.json'.format(self.CHEF_RUN_DATA['current_run']))
+        os.makedirs(self.TREES_DATA_DIR, exist_ok=True)
+        json.dump(channel.get_json_tree(), open(filename, 'w'), indent=2)
+        self.CHEF_RUN_DATA['tree_archives']['previous'] = self.CHEF_RUN_DATA['tree_archives']['current']
+        self.CHEF_RUN_DATA['tree_archives']['current'] = filename.replace(os.getcwd() + '/', '')
+        self.save_chef_data()
+
+    def save_chef_data(self):
+        json.dump(self.CHEF_RUN_DATA, open(config.DATA_PATH, 'w'), indent=2)
 
     def run(self, args, options):
         """
@@ -406,9 +402,13 @@ class SushiChef(BaseChef):
         args_copy = args.copy()
         args_copy['token'] = args_copy['token'][0:6] + '...'
         config.LOGGER.info('In SushiChef.run method. args=' + str(args_copy) + ' options=' + str(options))
+
+        run_id = datetime.now().strftime("%Y-%m-%d__%H%M")
+        self.CHEF_RUN_DATA['current_run'] = run_id
+        self.CHEF_RUN_DATA['runs'].append({'id': run_id})
+
         self.pre_run(args, options)
         uploadchannel_wrapper(self, args, options)
-
 
     def main(self):
         args, options = self.parse_args_and_options()
@@ -417,6 +417,7 @@ class SushiChef(BaseChef):
             self.daemon_mode(args, options)
         else:
             self.run(args, options)
+
 
 
 # JSON TREE CHEF
@@ -462,8 +463,6 @@ class JsonTreeChef(SushiChef):
     Each object in the json tree correponds to a TopicNode, a ContentNode that
     contains a Files or an Exercise that contains Question.
     """
-    DATA_DIR = 'chefdata'
-    TREES_DATA_DIR = os.path.join(DATA_DIR, 'trees')
     RICECOOKER_JSON_TREE = 'ricecooker_json_tree.json'
 
     def pre_run(self, args, options):
@@ -594,7 +593,3 @@ class LineCook(JsonTreeChef):
         kwargs.update(options)
         json_tree_path = self.get_json_tree_path(**kwargs)
         build_ricecooker_json_tree(args, options, self.metadata_provider, json_tree_path)
-
-    # UNCOMMENT BELOW TO DISABLE CHANNEL UPLOAD
-    # def run(self, args, options):
-    #     self.pre_run(args, options)

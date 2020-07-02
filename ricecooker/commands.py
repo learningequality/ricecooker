@@ -18,7 +18,6 @@ except NameError:
     pass
 
 
-
 def uploadchannel_wrapper(chef, args, options):
     """
     Call `uploadchannel` with SushiBar monitoring and progress reporting enabled.
@@ -98,6 +97,9 @@ def uploadchannel(chef, command='uploadchannel', update=False, thumbnails=False,
         else:
             config.PROGRESS_MANAGER.init_session()
 
+    if hasattr(chef, 'download_content'):
+        chef.download_content()
+
     # Construct channel if it hasn't been constructed already
     if config.PROGRESS_MANAGER.get_status_val() <= Status.CONSTRUCT_CHANNEL.value:
         config.LOGGER.info("Calling construct_channel... ")
@@ -117,6 +119,9 @@ def uploadchannel(chef, command='uploadchannel', update=False, thumbnails=False,
         config.LOGGER.info("")
         config.LOGGER.info("Downloading files...")
         config.PROGRESS_MANAGER.set_files(*process_tree_files(tree))
+
+    # Save the data about the current run in chefdata/
+    chef.save_channel_tree_as_json(channel)
 
     if command == 'dryrun':
         config.LOGGER.info('Command is dryrun so we are not uploading chanel.')

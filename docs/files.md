@@ -137,7 +137,7 @@ which will be used to determine compression settings for the video file.
 ```
 video_file = VideoFile(
     path = "file:///path/to/file.mp4",
-    ffmpeg_settings = {"max_width": 480, "crf": 28},
+    ffmpeg_settings = {"max_height": 480, "crf": 28},
     language=getlang('en').code
 )
 ```
@@ -234,7 +234,7 @@ Below are some general guidelines for handling video files:
     `--compress` command line argument, or by setting the `ffmpeg_settings` property
     when creating `VideoFile`s. The default values for `ffmpeg_settings` are as follows:
     ```
-    ffmpeg_settings = {'crf':32, 'max_width':"'trunc(oh*a/2)*2:min(ih,480)'" }
+    ffmpeg_settings = {'crf':32, 'max_height':480 }
     ```
   - The `ffmpeg` setting `crf` stands for Constant Rate Factor and is very useful
     for controlling overall video quality. Setting `crf=24` produces high quality
