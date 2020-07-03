@@ -88,7 +88,8 @@ def download(path, default_ext=None):
     :rtype: sting (path of the form `{md5hash(file at path)}.ext`
     """
     key = "DOWNLOAD:{}".format(path)
-    if not config.UPDATE and FILECACHE.get(key):
+
+    if is_valid_url(path) and not config.UPDATE and FILECACHE.get(key):
         return FILECACHE.get(key).decode('utf-8')
 
     config.LOGGER.info("\tDownloading {}".format(path))
@@ -111,7 +112,7 @@ def download_and_convert_video(path, default_ext=file_formats.MP4, ffmpeg_settin
     """
     ffmpeg_settings = ffmpeg_settings or {}
     key = "DOWNLOAD:{}".format(path)
-    if not config.UPDATE and FILECACHE.get(key):
+    if is_valid_url(path) and not config.UPDATE and FILECACHE.get(key):
         return FILECACHE.get(key).decode('utf-8')
 
     config.LOGGER.info("\tDownloading {}".format(path))
@@ -743,7 +744,7 @@ class SubtitleFile(DownloadFile):
         Returns: filename of final .vtt file
         """
         key = "DOWNLOAD:{}".format(path)
-        if not config.UPDATE and FILECACHE.get(key):
+        if is_valid_url(path) and not config.UPDATE and FILECACHE.get(key):
             return FILECACHE.get(key).decode('utf-8')
 
         config.LOGGER.info("\tDownloading {}".format(path))
