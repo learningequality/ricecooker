@@ -260,7 +260,7 @@ def download_from_web(web_url, download_settings, file_format=file_formats.MP4, 
     :return: filename derived from hash of file contents {md5hash(file)}.ext
     """
     key = generate_key("DOWNLOADED", web_url, settings=download_settings)
-    if not config.UPDATE and FILECACHE.get(key):
+    if FILECACHE.get(key):
         return FILECACHE.get(key).decode('utf-8')
 
     # Get hash of web_url to act as temporary storage name
