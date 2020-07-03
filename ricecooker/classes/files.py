@@ -6,6 +6,7 @@ import hashlib
 import os
 from PIL import Image
 import json
+import requests
 from requests.exceptions import MissingSchema, HTTPError, ConnectionError, InvalidURL, InvalidSchema
 import shutil
 from subprocess import CalledProcessError
@@ -142,11 +143,23 @@ def download_and_convert_video(path, default_ext=file_formats.MP4, ffmpeg_settin
         return filename
 
 
+def is_valid_url(path):
+    """
+    Return `True` if path is a valid URL, else `False` if path is a local path.
+    """
+    try:
+        pre_flight_request = requests.Request('GET', path)
+        pre_flight_request.prepare()
+        return True
+    except (InvalidURL, MissingSchema, InvalidSchema):
+        return False
+
+
 def write_and_get_hash(path, write_to_file, hash=None):
     """
     Download file at `path` and write its contents to the file `write_to_file`.
-    Attempts a HTTP GET request for the path and if that fails, we'll try to read
-    from `path` on the local filesystem.
+    First check if `path` is a URL and if so perform a GET request for the path,
+    otherwise try to access `path` on the local filesystem.
 
     :param path: An URL or a local filepath
     :type path: str
@@ -157,24 +170,21 @@ def write_and_get_hash(path, write_to_file, hash=None):
     :return: updated hasher state
     :rtype: hashlib hasher (updated)
     """
-    hash = hash or hashlib.md5()
-    try:
-        # Access path
+    hash = hash or hashlib.md5()  # start hasher if an existing one not provided
+    if is_valid_url(path):
+        # CASE A: path is a URL (http://, https://, or file://, etc.)
         r = config.DOWNLOAD_SESSION.get(path, stream=True)
         r.raise_for_status()
         for chunk in r:
             write_to_file.write(chunk)
             hash.update(chunk)
-
-    except (MissingSchema, InvalidSchema):
-        # If path is a local file path, try to open the file (generate hash if none provided)
+    else:
+        # CASE B: path points to a local filesystem file
         with open(path, 'rb') as fobj:
             for chunk in iter(lambda: fobj.read(2097152), b""):
                 write_to_file.write(chunk)
                 hash.update(chunk)
-
     assert write_to_file.tell() > 0, "File failed to write (corrupted)."
-
     return hash
 
 
