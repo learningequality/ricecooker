@@ -42,7 +42,7 @@ def setup_logging(level=logging.INFO, main_log=None, error_log=None, add_loggers
     Set up logging, useful to call from your sushi chef main script
 
     :param level: Minimum default level for all loggers and handlers
-    :param main_log: Main log (typically added in chefs.BaseChef)
+    :param main_log: Main log (typically added in chefs.SushiChef)
     :param error_log: Name of file to log (append) errors in
     :param add_loggers: An iterable of other loggers to configure (['scrapy'])
     """
@@ -127,7 +127,7 @@ def setup_logging(level=logging.INFO, main_log=None, error_log=None, add_loggers
 
 
 # Setup default logging. This is required so we have a basic logging setup until
-# prope user-confgured logging is configured in `BaseChef.config_logger`.
+# prope user-confgured logging is configured in `SushiChef.config_logger`.
 setup_logging()
 
 
