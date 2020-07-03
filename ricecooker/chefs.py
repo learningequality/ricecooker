@@ -58,7 +58,7 @@ class SushiChef(object):
         else:
             add_parser_help = True
         parser = argparse.ArgumentParser(
-            description="Chef scripts upload content to the Kolibri Studio server.",
+            description="Chef script for uploading content to Kolibri Studio.",
             add_help=add_parser_help,
         )
         self.arg_parser = parser  # save as class attr. for subclasses to extend
@@ -202,9 +202,9 @@ class SushiChef(object):
 
     def get_channel(self, **kwargs):
         """
-        This method create an empty `ChannelNode` object with info from the chef
-        class' `channel_info` class attribute. Subclass can ovveride this method
-        in cases where channel metadata is determined based on `kwargs`.
+        This method creates an empty `ChannelNode` object based on info from the
+        chef class' `channel_info` attribute. A subclass can ovveride this method
+        in cases where channel metadata is dynamic and depends on `kwargs`.
         Args:
             kwargs (dict): additional keyword arguments given to `uploadchannel`
         Returns: an empty `ChannelNode` that contains all the channel metadata

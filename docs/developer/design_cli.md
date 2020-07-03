@@ -111,7 +111,7 @@ Args, options, and kwargs
 There are three types of arguments involved in a chef run:
 
   - `args` (dict): command line args as parsed by the sushi chef class and its parents
-    - SushiChef: the method ` SushiChef.__init__` configures argparse for the following:
+    - SushiChef: the `SushiChef.__init__` method configures argparse for the following:
         - `compress`, `download_attempts`, `prompt`, `publish`, `resume`,
           `stage`, `step`, `thumbnails`, `token`, `update`, `verbose`, `warn`
         - also `daemon` for runs in daemon mode, and `nomonitor` to disable SushiBar progress monitoring
