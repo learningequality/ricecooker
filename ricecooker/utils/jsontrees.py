@@ -255,7 +255,7 @@ def add_files(node, file_list):
                 video_file = files.YouTubeVideoFile(
                     youtube_id=f['youtube_id'],
                     download_settings=f.get('download_settings', None),
-                    high_resolution=f.get('high_resolution', True),
+                    high_resolution=f.get('high_resolution', False),
                     maxheight=f.get('maxheight', None),
                     language=f.get('language', None),
                 )
@@ -263,7 +263,7 @@ def add_files(node, file_list):
                 video_file = files.WebVideoFile(
                     web_url=f['web_url'],
                     download_settings=f.get('download_settings', None),
-                    high_resolution=f.get('high_resolution', True),
+                    high_resolution=f.get('high_resolution', False),
                     maxheight=f.get('maxheight', None),
                     language=f.get('language', None),
                 )
