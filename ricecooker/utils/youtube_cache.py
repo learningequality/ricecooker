@@ -5,7 +5,6 @@ import youtube_dl
 
 from pressurecooker.youtube import YouTubeResource
 from ricecooker.config import LOGGER
-from ricecooker.exceptions import InvalidFormatException
 
 
 # CONSTANTS for YouTube cache
@@ -14,7 +13,7 @@ CHEFDATA_DIR = 'chefdata'
 YOUTUBE_CACHE_DIR = os.path.join(CHEFDATA_DIR, 'youtubecache')
 if not os.path.exists(YOUTUBE_CACHE_DIR):
     os.makedirs(YOUTUBE_CACHE_DIR)
-    
+
 
 # CONSTANTS for YouTube resources
 ################################################################################
@@ -26,8 +25,8 @@ YOUTUBE_VIDEO_URL_FORMAT = "https://www.youtube.com/watch?v={0}"
 
 
 class YouTubeVideoCache(object):
-        
-    def __init__(self, video_id, alias = ''):
+
+    def __init__(self, video_id, alias=''):
         """
         Initializes YouTubeVideoCache object with video_id
         :param alias: Alias name for the JSON cache filename, which will be named as youtube_id if such field not specified
@@ -45,12 +44,12 @@ class YouTubeVideoCache(object):
     def __str__(self):
         return 'YouTubeVideoCache (%s)' % (self.cachename)
 
-    def get_video_info(self, use_cache = True, options = None):
+    def get_video_info(self, use_cache=True, options=None):
         """
         Get YouTube video info by either requesting URL or extracting local cache
         :param use_cache: Define if allowed to get video info from local JSON cache, default to True
         :param options: Additional options for youtube_dl.
-                        For full list of available options: https://github.com/ytdl-org/youtube-dl/blob/7947a1f7dbc6ba47a6f22ab67fd330e57c0ef87c/youtube_dl/YoutubeDL.py
+                        For full list of available options: https://github.com/ytdl-org/youtube-dl/blob/master/youtube_dl/YoutubeDL.py
         :return: A ricecooker-like info dict info about the video or None if extraction fails
         """
         # 1. Try to get from cache if allowed:
@@ -87,7 +86,7 @@ class YouTubeVideoCache(object):
 
 class YouTubePlaylistCache(object):
 
-    def __init__(self, playlist_id, alias = ''):
+    def __init__(self, playlist_id, alias=''):
         """
         Initializes YouTubePlaylistCache object
         :param alias: Alias name for the JSON cache filename, which will be named as playlist_id if such field not specified
@@ -100,19 +99,19 @@ class YouTubePlaylistCache(object):
         if not os.path.isdir(YOUTUBE_CACHE_DIR):
             os.mkdir(YOUTUBE_CACHE_DIR)
         self.playlist_info_json_path = os.path.join(YOUTUBE_CACHE_DIR, self.cachename + '.json')
-        
+
     def __str__(self):
         return 'YouTubePlaylistCache (%s)' % (self.cachename)
 
-    def get_playlist_info(self, use_cache = True, youtube_ignore_error = True, youtube_skip_download = True, options = None):
+    def get_playlist_info(self, use_cache=True, youtube_ignore_error=True, youtube_skip_download=True, options=None):
         """
         Get YouTube playlist info by either requesting URL or extracting local cache
         :param use_cache: Define if allowed to get playlist info from local JSON cache, default to True
-        :param youtube_ignore_error: Do not stop on download errors. 
+        :param youtube_ignore_error: Do not stop on download errors.
                                      Please enable this option when videos of playlist is private or deleted thus extraction won't be blocked on those videos
         :param youtube_skip_download: Skip the actual download of the YouTube video files
         :param options: Additional options for youtube_dl.
-                        For full list of available options: https://github.com/ytdl-org/youtube-dl/blob/7947a1f7dbc6ba47a6f22ab67fd330e57c0ef87c/youtube_dl/YoutubeDL.py
+                        For full list of available options: https://github.com/ytdl-org/youtube-dl/blob/master/youtube_dl/YoutubeDL.py
         :return: A ricecooker-like info dict info about the playlist or None if extraction fails
         """
         playlist_info = None
@@ -132,7 +131,6 @@ class YouTubePlaylistCache(object):
             if playlist_resource:
                 try:
                     playlist_info = playlist_resource.get_resource_info(youtube_extract_options)
-                    
                     # Traverse through the video list to remove duplicates
                     video_set = set()
                     videos = playlist_info.get('children')
