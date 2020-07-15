@@ -14,7 +14,6 @@ with open('docs/history.rst') as history_file:
 requirements = [
     "pytest>=3.0.2",
     "requests>=2.11.1",
-    "docopt>=0.6.2",
     "le_utils>=0.1.24",
     "validators",
     "requests_file",

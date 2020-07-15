@@ -42,9 +42,9 @@ def uploadchannel_wrapper(chef, args, options):
 
 
 def uploadchannel(chef, command='uploadchannel', update=False, thumbnails=False, download_attempts=3, resume=False, step=Status.LAST.name, token="#", prompt=False, publish=False, compress=False, stage=False, **kwargs):
-    """ uploadchannel: Upload channel to Kolibri Studio server
+    """ uploadchannel: Upload channel to Kolibri Studio
         Args:
-            chef (BaseChef or subclass): class that implements the construct_channel method
+            chef (SushiChef subclass): class that implements the construct_channel method
             command (str): the action we want to perform in this run
             update (bool): indicates whether to re-download files (optional)
             thumbnails (bool): indicates whether to automatically derive thumbnails from content (optional)

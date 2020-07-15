@@ -4,12 +4,10 @@ import logging
 import os
 import sys
 from datetime import datetime
-from importlib.machinery import SourceFileLoader
 
 from . import config
 from .classes.nodes import ChannelNode
 from .commands import authenticate_user
-from .commands import uploadchannel
 from .commands import uploadchannel_wrapper
 from .exceptions import InvalidUsageException
 from .exceptions import raise_for_invalid_channel
@@ -33,36 +31,39 @@ from .utils.tokens import get_content_curation_token
 
 
 
-# SUSHI CHEF BASE CLASS (and backward compatibiliry)
+# SUSHI CHEF BASE CLASS
 ################################################################################
 
-class BaseChef(object):
+class SushiChef(object):
     """
-    The base class that parses command line arguments for sushichef scripts.
-    Sushi chef sctipts call the `main` method as the entry point, which in turn
-    calls the `run` method to performs all the work (see `uploadchannel`).
-
-    This class also provides backward compaibility with old chef scripts.
-    When invoking the a sushi chef script using the old API: \
-        python -m ricecooker uploadchannel chef_script.py --token=123 ...
-    an instance of this class with `compatibility_mode = True` will be created.
-    Calling `BaseChef.run` will call the function `construct_channel` in `chef_module`.
+    This is the base class that all content integration scripts should subclass.
+    Sushi chef scripts call the `main` method as the entry point, which in turn
+    calls the `run` method to do the work (see `uploadchannel` in `commands.py`).
     """
+    CHEF_RUN_DATA = config.CHEF_DATA_DEFAULT  # loaded from chefdata/chef_data.json
+    TREES_DATA_DIR = config.TREES_DATA_DIR    # tree archives and JsonTreeChef inputs
 
-    def __init__(self, *args, compatibility_mode=False, **kwargs):
-        """
-        Setup argparse arguments.
-        """
-        self.compatibility_mode = compatibility_mode
 
-        # argparse setup
+    def __init__(self, *args, **kwargs):
+        """
+        The SushiChef initialization concerns maintly parsing command line args.
+        Overrride this method in your sushi chef class to add custom arguments.
+        """
+
+        # ARGPARSE SETUP
+        # We don't want to add argparse help if subclass has an __init__ method
+        subclasses = self.__class__.__mro__[:-2]     # all subclasses after this
+        if any(['__init__' in c.__dict__.keys() for c in subclasses]):
+            add_parser_help = False    # assume subclass' __init__ will add help
+        else:
+            add_parser_help = True
         parser = argparse.ArgumentParser(
-            description="Ricecooker puts your content in the conten server.",
-            add_help=(self.__class__ == BaseChef)  # only add help if not subclassed
+            description="Chef script for uploading content to Kolibri Studio.",
+            add_help=add_parser_help,
         )
+        self.arg_parser = parser  # save as class attr. for subclasses to extend
+        # ARGS
         parser.add_argument('command', nargs='?', default='uploadchannel', help='Desired action: dryrun or uploadchannel (default).')
-        if self.compatibility_mode:
-            parser.add_argument('chef_script', help='Path to chef script file')
         parser.add_argument('--token', default='#',                   help='Studio API Access Token (specify wither the token value or the path of a file that contains the token).')
         parser.add_argument('-u', '--update', action='store_true',    help='Force file re-download (skip .ricecookerfilecache/).')
         parser.add_argument('--debug', action='store_true',           help='Print extra debugging infomation.')
@@ -84,9 +85,12 @@ class BaseChef(object):
                                                                       help='(deprecated) Restarting the chef run is the default.')
         parser.add_argument('--stage', dest='stage_deprecated', action='store_true',
                                                                       help='(deprecated) Stage updated content for review. Uploading a staging tree is now the default behavior. Use --deploy to upload to the main tree.')
-
+        parser.add_argument('--daemon', action='store_true', help='Run chef in daemon mode lisenting to commands.')
+        parser.add_argument('--nomonitor', action='store_true', help='Disable SushiBar progress monitoring.')
+        parser.add_argument('--cmdsock', help='Local command socket (for cronjobs).')
         # [OPTIONS] --- extra key=value options are supported, but do not appear in help
-        self.arg_parser = parser
+
+        self.load_chef_data()
 
 
     def parse_args_and_options(self):
@@ -114,7 +118,6 @@ class BaseChef(object):
             # a key=value options pair was incorrectly recognized as the command
             args['command'] = 'uploadchannel'
             options_list.append(command_arg)  # put command_arg where it belongs
-
 
         # Print CLI deprecation warnings info
         if args['stage_deprecated']:
@@ -151,15 +154,8 @@ class BaseChef(object):
                 msg = "Invalid option '{0}': use [key]=[value] format (no whitespace)".format(preoption)
                 raise InvalidUsageException(msg)
 
-        # For compatibility mode, we check the chef script file exists and load it
-        if self.compatibility_mode:
-            try:
-                # Try to load the chef_script as a module
-                self.chef_module = SourceFileLoader("mod", args['chef_script']).load_module()
-            except FileNotFoundError as e:
-                raise InvalidUsageException('Error: must specify `chef_module` for compatibility_mode')
-
         return args, options
+
 
     def config_logger(self, args, options):
         """
@@ -204,65 +200,17 @@ class BaseChef(object):
             config.LOGGER.warning('Unable to use remote logging due to: %s' % e)
 
 
-    def pre_run(self, args, options):
-        """
-        This function is called before the Chef's `run` mehod is called.
-        By default this function does nothing, but subclass can use this hook to
-        run prerequisite tasks.
-        Args:
-            args (dict): chef command line arguments
-            options (dict): extra key=value options given on command line
-        """
-        pass
-
-
-    def run(self, args, options):
-        """
-        This function calls uploadchannel which performs all the run steps:
-          - Create ChannelNode
-          - Pupulate Tree with TopicNodes, ContentNodes, and associated File objects
-          - .
-          - ..
-          - ...
-
-        Args:
-            args (dict): ricecooker command line arguments
-            options (dict): extra key=value options given on command line
-        """
-        self.pre_run(args, options)
-        args_and_options = args.copy()
-        args_and_options.update(options)
-        uploadchannel(self, **args_and_options)
-
-
     def get_channel(self, **kwargs):
         """
-        Call chef script's get_channel method in compatibility mode
-        ...or...
-        Create a `ChannelNode` from the Chef's `channel_info` class attribute.
-
+        This method creates an empty `ChannelNode` object based on info from the
+        chef class' `channel_info` attribute. A subclass can ovveride this method
+        in cases where channel metadata is dynamic and depends on `kwargs`.
         Args:
-            kwargs (dict): additional keyword arguments that `uploadchannel` received
-        Returns: channel created from get_channel method or None
+            kwargs (dict): additional keyword arguments given to `uploadchannel`
+        Returns: an empty `ChannelNode` that contains all the channel metadata
         """
-        if self.compatibility_mode:
-            # For pre-sushibar scritps that do not implement `get_channel`,
-            # we must check it this function exists before calling it...
-            if hasattr(self.chef_module, 'get_channel'):
-                config.LOGGER.info("Calling get_channel... ")
-                # Create channel (using the function in the chef script)
-                channel = self.chef_module.get_channel(**kwargs)
-            # For chefs with a `create_channel` method instead of `get_channel`
-            if hasattr(self.chef_module, 'create_channel'):
-                config.LOGGER.info("Calling create_channel... ")
-                # Create channel (using the function in the chef script)
-                channel = self.chef_module.create_channel(**kwargs)
-            else:
-                channel = None  # since no channel info, SushiBar functionality will be disabled...
-            return channel
-
-        elif hasattr(self, 'channel_info'):
-            # Before going any further, make sure there aren't template id values in channel_info
+        if hasattr(self, 'channel_info'):
+            # Make sure we're not using the template id values in `channel_info`
             template_domains = ['<yourdomain.org>']
             using_template_domain = self.channel_info['CHANNEL_SOURCE_DOMAIN'] in template_domains
             if using_template_domain:
@@ -276,7 +224,7 @@ class BaseChef(object):
             if using_template_domain or using_template_source_id:
                sys.exit(1)
 
-            # If a sublass has an `channel_info` attribute (a dict) it doesn't need
+            # If a sublass has an `channel_info` attribute (dict) it doesn't need
             # to define a `get_channel` method and instead rely on this code:
             channel = ChannelNode(
                 source_domain=self.channel_info['CHANNEL_SOURCE_DOMAIN'],
@@ -288,78 +236,18 @@ class BaseChef(object):
                 description=self.channel_info.get('CHANNEL_DESCRIPTION'),
             )
             return channel
-
         else:
-            raise NotImplementedError('BaseChef must overrride the get_channel method')
+            raise NotImplementedError('Subclass must define get_channel method or have a channel_info (dict) attribute.')
 
 
     def construct_channel(self, **kwargs):
         """
-        Calls chef script's construct_channel method. Used only in compatibility mode.
+        This should be overriden by the chef script's construct_channel method.
         Args:
-            kwargs (dict): additional keyword arguments that `uploadchannel` received
-        Returns: channel populated from construct_channel method
+            kwargs (dict): additional keyword arguments given to `uploadchannel`
+        Returns: a `ChannelNode` object representing the populated topic tree
         """
-        if self.compatibility_mode:
-            # Constuct channel (using function from imported chef script)
-            config.LOGGER.info("Populating channel... ")
-            channel = self.chef_module.construct_channel(**kwargs)
-            return channel
-        else:
-            raise NotImplementedError('Your chef class must overrride the construct_channel method')
-
-
-    def main(self):
-        args, options = self.parse_args_and_options()
-        self.config_logger(args, options)
-        self.run(args, options)
-
-
-
-
-
-# THE DEFAULT SUSHI CHEF
-################################################################################
-
-class SushiChef(BaseChef):
-    """
-    This is the main class that all suchi chefs should subclass. This class uses
-    remote logging, remote stage and progress reporting, and remote commands.
-    The `SushiChef` class a subclass of the `BaseChef` and supports the same
-    command line arguments, additionally handles arguments for Sushi Bar server.
-    Sushi chef scripts call the `main` method as the entry point, which in turn
-    calls the `run` method to performs all the work (see `uploadchannel`).
-    """
-    CHEF_RUN_DATA = config.CHEF_DATA_DEFAULT  # loaded from chefdata/chef_data.json
-    TREES_DATA_DIR = config.TREES_DATA_DIR    # tree archives and JsonTreeChef inputs
-
-
-    def __init__(self, *args, **kwargs):
-        """
-        The SushiChef supports all the command line args of a BaseChef and more.
-        Overrride this method in your sushi chef class to add custom arguments.
-        """
-        super(SushiChef, self).__init__(*args, **kwargs)
-
-        # We don't want to add argparse help if subclass has an __init__ method
-        subclasses = self.__class__.__mro__[:-3]     # all subclasses after this
-        if any(['__init__' in c.__dict__.keys() for c in subclasses]):
-            add_parser_help = False    # assume subclass' __init__ will add help
-        else:
-            add_parser_help = True
-
-        self.arg_parser = argparse.ArgumentParser(
-            description="Chef scripts upload content to the Kolibri Studio server.",
-            add_help=add_parser_help,
-            parents=[self.arg_parser]
-        )
-        self.arg_parser.add_argument('--daemon', action='store_true', help='Run chef in daemon mode lisenting to commands.')
-        self.arg_parser.add_argument('--nomonitor', action='store_true', help='Disable SushiBar progress monitoring.')
-        self.arg_parser.add_argument('--cmdsock', help='Local command socket (for cronjobs).')
-        # self.arg_parser.add_argument('--sushibar', help='Hostname of SushiBar server (e.g. "sushibar.learningequality.org")')
-        # TODO: --bartoken
-
-        self.load_chef_data()
+        raise NotImplementedError('Chef subclass must implement this method')
 
 
     def daemon_mode(self, args, options):
@@ -377,9 +265,11 @@ class SushiChef(BaseChef):
             lcs.join()
         cws.join()
 
+
     def load_chef_data(self):
         if os.path.exists(config.DATA_PATH):
             self.CHEF_RUN_DATA = json.load(open(config.DATA_PATH))
+
 
     def save_channel_tree_as_json(self, channel):
         filename = os.path.join(self.TREES_DATA_DIR, '{}.json'.format(self.CHEF_RUN_DATA['current_run']))
@@ -389,8 +279,22 @@ class SushiChef(BaseChef):
         self.CHEF_RUN_DATA['tree_archives']['current'] = filename.replace(os.getcwd() + '/', '')
         self.save_chef_data()
 
+
     def save_chef_data(self):
         json.dump(self.CHEF_RUN_DATA, open(config.DATA_PATH, 'w'), indent=2)
+
+
+    def pre_run(self, args, options):
+        """
+        This function is called before the Chef's `run` mehod is called.
+        By default this function does nothing, but subclass can use this hook to
+        run prerequisite tasks.
+        Args:
+            args (dict): chef command line arguments
+            options (dict): extra key=value options given on command line
+        """
+        pass
+
 
     def run(self, args, options):
         """
@@ -407,16 +311,22 @@ class SushiChef(BaseChef):
         self.CHEF_RUN_DATA['current_run'] = run_id
         self.CHEF_RUN_DATA['runs'].append({'id': run_id})
 
+        # TODO(Kevin): move self.download_content() call here
         self.pre_run(args, options)
         uploadchannel_wrapper(self, args, options)
 
+
     def main(self):
+        """
+        Main entry point that content integration scripts should call.
+        """
         args, options = self.parse_args_and_options()
         self.config_logger(args, options)
         if args['daemon']:
             self.daemon_mode(args, options)
         else:
             self.run(args, options)
+
 
 
 
