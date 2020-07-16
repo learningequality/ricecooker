@@ -2,10 +2,24 @@
 History
 =======
 
+0.6.44 (2020-07-16)
+-------------------
+* Documentation overhaul and refresh, see `ricecooker.readthedocs.io <https://ricecooker.readthedocs.io/>`__
+* Add support for specifying a Channel tagline
+* Ensure we send ``extra_fields`` data for all node types
+* Make ``--reset`` behavior the default
+* Remove legacy code around ``compatibiliry_mode`` and BaseChef class
+* Improved caching logic (no caching for thumbnails and local paths, always cache youtube downloads)
+* Ensure chefs clean up after run (automatic temp files removal)
+* Added ``save_channel_tree_as_json`` full channel metadata as part of every run.
+* Added support for web content archiving
+* Further improvements to logging
+* Bugfix: deep deterministic cache keys for nested dicts values in ``ffmpeg_settings``
+
 
 0.6.42 (2020-04-10)
 -------------------
-* Added ``--sample N`` command line option. Run script with ``--sample 10`` to 
+* Added ``--sample N`` command line option. Run script with ``--sample 10`` to
   produce a test version of the channel with 10 randomly selected nodes from
   the full channel. Use this to check transformations are working as expected.
 * Added ``dryrun`` command. Use the command ``./sushichef.py dryrun`` to run the
