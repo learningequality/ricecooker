@@ -32,13 +32,13 @@ class YouTubeVideoCache(object):
         self.video_id = video_id
         self.url = YOUTUBE_VIDEO_URL_FORMAT.format(self.video_id)
         if not alias:
-            self.cachename = alias
-        else:
             self.cachename = self.video_id
-        if not cache_dir:
-            self.cache_dir = cache_dir
         else:
+            self.cachename = alias
+        if not cache_dir:
             self.cache_dir = DEFAULT_YOUTUBE_CACHE_DIR
+        else:
+            self.cache_dir = cache_dir
         if not os.path.isdir(self.cache_dir):
             os.mkdir(self.cache_dir)
         self.vinfo_json_path = os.path.join(self.cache_dir, self.cachename + '.json')
@@ -95,13 +95,13 @@ class YouTubePlaylistCache(object):
         """
         self.playlist_id = playlist_id
         if not alias:
+            self.cachename = self.video_id
+        else:
             self.cachename = alias
-        else:
-            self.cachename = self.playlist_id
         if not cache_dir:
-            self.cache_dir = cache_dir
-        else:
             self.cache_dir = DEFAULT_YOUTUBE_CACHE_DIR
+        else:
+            self.cache_dir = cache_dir
         if not os.path.isdir(self.cache_dir):
             os.mkdir(self.cache_dir)
         self.playlist_info_json_path = os.path.join(self.cache_dir, self.cachename + '.json')

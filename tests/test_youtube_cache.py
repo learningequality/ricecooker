@@ -1,7 +1,7 @@
 import os
 import pytest
 
-from ricecooker.utils.youtube_cache import * 
+from ricecooker.utils.youtube_cache import YouTubeVideoCache 
 
 
 
