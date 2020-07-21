@@ -46,10 +46,11 @@ class YouTubeVideoCache(object):
     def __str__(self):
         return 'YouTubeVideoCache (%s)' % (self.cachename)
 
-    def get_video_info(self, use_cache=True, options=None):
+    def get_video_info(self, use_cache=True, get_subtitle_languages=False, options=None):
         """
         Get YouTube video info by either requesting URL or extracting local cache
         :param use_cache: Define if allowed to get video info from local JSON cache, default to True
+        :param get_subtitle_languages: Define if need to get info as available subtitle languages, default to False
         :param options: Additional options for youtube_dl.
                         For full list of available options: https://github.com/ytdl-org/youtube-dl/blob/master/youtube_dl/YoutubeDL.py
         :return: A ricecooker-like info dict info about the video or None if extraction fails
@@ -72,7 +73,17 @@ class YouTubeVideoCache(object):
             if video:
                 try:
                     # Save video info to JSON cache file
-                    vinfo = video.get_resource_info(options)
+                    extract_options = dict()
+                    if get_subtitle_languages:
+                        options_for_subtitles = dict(
+                            writesubtitles = True,      # extract subtitles info
+                            allsubtitles = True,        # get all available languages
+                            writeautomaticsub = False,  # do not include auto-generated subs
+                        )
+                        extract_options.update(options_for_subtitles)
+                    if options:
+                        extract_options.update(options)
+                    vinfo = video.get_resource_info(extract_options)
                     json.dump(vinfo,
                               open(self.vinfo_json_path, 'w'),
                               indent=4,

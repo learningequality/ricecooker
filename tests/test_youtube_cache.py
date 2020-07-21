@@ -22,7 +22,7 @@ def youtube_playlist_cache():
 """ *********** YouTube Cache TESTS *********** """
 
 def test_youtube_video_cache(youtube_video_cache):
-    youtube_video_cache.get_video_info()
+    youtube_video_cache.get_video_info(get_subtitle_languages=True)
     video_cache_filepath = os.path.join('tests', 'testcontent', 'youtubecache', 'test-video.json')
     assert os.path.exists(video_cache_filepath)
 
