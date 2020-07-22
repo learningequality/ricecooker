@@ -1,7 +1,7 @@
 import os
 import pytest
 
-from ricecooker.utils.youtube_cache import YouTubeVideoCache, YouTubePlaylistCache
+from ricecooker.utils.youtube import YouTubeUtils
 
 
 """ *********** YouTube Cache FIXTURES *********** """
@@ -10,13 +10,13 @@ from ricecooker.utils.youtube_cache import YouTubeVideoCache, YouTubePlaylistCac
 def youtube_video_cache():
     cache_dir = os.path.join('tests', 'testcontent', 'youtubecache')
     assert os.path.isdir(cache_dir), 'Incorrect directory path setting'
-    return YouTubeVideoCache(video_id='DFZb2qBIrEw', alias='test-video', cache_dir=cache_dir)
+    return YouTubeUtils(id='DFZb2qBIrEw', alias='test-video', cache_dir=cache_dir)
 
 @pytest.fixture
 def youtube_playlist_cache():
     cache_dir = os.path.join('tests', 'testcontent', 'youtubecache')
     assert os.path.isdir(cache_dir), 'Incorrect directory path setting'
-    return YouTubePlaylistCache(playlist_id='PLOZioxrIwCv33zt5aFFjWqDoEMm55MVA9', alias='test-playlist', cache_dir=cache_dir)
+    return YouTubeUtils(id='PLOZioxrIwCv33zt5aFFjWqDoEMm55MVA9', alias='test-playlist', cache_dir=cache_dir)
 
 
 """ *********** YouTube Cache TESTS *********** """

@@ -22,29 +22,28 @@ YOUTUBE_PLAYLIST_URL_FORMAT = "https://www.youtube.com/playlist?list={0}"
 YOUTUBE_VIDEO_URL_FORMAT = "https://www.youtube.com/watch?v={0}"
 
 
-class YouTubeVideoCache(object):
+class YouTubeUtils(object):
 
-    def __init__(self, video_id, alias='', cache_dir=''):
+    def __init__(self, id, alias='', cache_dir=''):
         """
-        Initializes YouTubeVideoCache object with video_id
+        Initializes YouTubeUtils object with id
+        :param id: YouTube resource ID, could be either YouTube video ID or playlist ID
         :param alias: Alias name for the JSON cache filename, which will be named as youtube_id if such field not specified
         """
-        self.video_id = video_id
-        self.url = YOUTUBE_VIDEO_URL_FORMAT.format(self.video_id)
+        self.id = id
         if not alias:
-            self.cachename = self.video_id
+            self.cachename = self.id
         else:
             self.cachename = alias
         if not cache_dir:
             self.cache_dir = DEFAULT_YOUTUBE_CACHE_DIR
         else:
             self.cache_dir = cache_dir
-        if not os.path.isdir(self.cache_dir):
-            os.mkdir(self.cache_dir)
-        self.vinfo_json_path = os.path.join(self.cache_dir, self.cachename + '.json')
+        os.makedirs(self.cache_dir, exist_ok=True)
+        self.json_path = os.path.join(self.cache_dir, self.cachename + '.json')
 
     def __str__(self):
-        return 'YouTubeVideoCache (%s)' % (self.cachename)
+        return 'YouTubeUtils (%s)' % (self.cachename)
 
     def get_video_info(self, use_cache=True, get_subtitle_languages=False, options=None):
         """
@@ -57,11 +56,12 @@ class YouTubeVideoCache(object):
         """
         # 1. Try to get from cache if allowed:
         vinfo = None
-        if use_cache and os.path.exists(self.vinfo_json_path):
-            vinfo = json.load(open(self.vinfo_json_path))
+        if use_cache and os.path.exists(self.json_path):
+            vinfo = json.load(open(self.json_path))
             LOGGER.info("==> [Video %s] Retrieving cached video information...", self.cachename)
         # 2. Fetch info from youtube_dl
         if not vinfo:
+            self.url = YOUTUBE_VIDEO_URL_FORMAT.format(self.id)
             LOGGER.info("==> [Video %s] Requesting %s from youtube...", self.cachename, self.url)
             try:
                 video = YouTubeResource(self.url)
@@ -85,7 +85,7 @@ class YouTubeVideoCache(object):
                         extract_options.update(options)
                     vinfo = video.get_resource_info(extract_options)
                     json.dump(vinfo,
-                              open(self.vinfo_json_path, 'w'),
+                              open(self.json_path, 'w'),
                               indent=4,
                               ensure_ascii=False,
                               sort_keys=True)
@@ -95,30 +95,6 @@ class YouTubeVideoCache(object):
             else:
                 return None
         return vinfo
-
-
-class YouTubePlaylistCache(object):
-
-    def __init__(self, playlist_id, alias='', cache_dir=''):
-        """
-        Initializes YouTubePlaylistCache object
-        :param alias: Alias name for the JSON cache filename, which will be named as playlist_id if such field not specified
-        """
-        self.playlist_id = playlist_id
-        if not alias:
-            self.cachename = self.video_id
-        else:
-            self.cachename = alias
-        if not cache_dir:
-            self.cache_dir = DEFAULT_YOUTUBE_CACHE_DIR
-        else:
-            self.cache_dir = cache_dir
-        if not os.path.isdir(self.cache_dir):
-            os.mkdir(self.cache_dir)
-        self.playlist_info_json_path = os.path.join(self.cache_dir, self.cachename + '.json')
-
-    def __str__(self):
-        return 'YouTubePlaylistCache (%s)' % (self.cachename)
 
     def get_playlist_info(self, use_cache=True, youtube_skip_download=True, options=None):
         """
@@ -130,12 +106,12 @@ class YouTubePlaylistCache(object):
         :return: A ricecooker-like info dict info about the playlist or None if extraction fails
         """
         playlist_info = None
-        if os.path.exists(self.playlist_info_json_path) and use_cache:
+        if os.path.exists(self.json_path) and use_cache:
             LOGGER.info("==> [Playlist %s] Retrieving cached playlist information...", self.cachename)
-            playlist_info = json.load(open(self.playlist_info_json_path))
+            playlist_info = json.load(open(self.json_path))
 
         if not playlist_info:
-            playlist_url = YOUTUBE_PLAYLIST_URL_FORMAT.format(self.playlist_id)
+            playlist_url = YOUTUBE_PLAYLIST_URL_FORMAT.format(self.id)
             playlist_resource = YouTubeResource(playlist_url)
             youtube_extract_options = dict(
                 skip_download=youtube_skip_download,
@@ -156,7 +132,7 @@ class YouTubePlaylistCache(object):
                             video_set.add(video['id'])
 
                     json.dump(playlist_info,
-                              open(self.playlist_info_json_path, 'w'),
+                              open(self.json_path, 'w'),
                               indent=4,
                               ensure_ascii=False,
                               sort_keys=False)
