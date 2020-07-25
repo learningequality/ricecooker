@@ -196,23 +196,6 @@ DOWNLOAD_SESSION.mount('file://', FileAdapter())
 USEPROXY = False
 USEPROXY = True if os.getenv('USEPROXY') is not None or os.getenv('PROXY_LIST') is not None else False
 
-# Sushibar server
-SUSHIBAR_URL = os.getenv('SUSHIBAR_URL', "https://sushibar.learningequality.org")
-if SUSHIBAR_URL.endswith('/'):
-    SUSHIBAR_URL = SUSHIBAR_URL.rstrip('/')
-if not SUSHIBAR_URL.startswith('http'):
-    SUSHIBAR_URL = 'https://' + SUSHIBAR_URL        # in case only hostname given
-SUSHI_BAR_HTTP = SUSHIBAR_URL
-SUSHI_BAR_WEBSOCKET = SUSHIBAR_URL.replace('http', 'ws', 1)
-SUSHI_BAR_CHANNEL_URL = "{domain}/api/channels/"
-SUSHI_BAR_CHANNEL_RUNS_URL = "{domain}/api/channelruns/"
-SUSHI_BAR_CHANNEL_RUNS_DETAIL_URL = "{domain}/api/channelruns/{run_id}/"
-SUSHI_BAR_STAGES_URL = "{domain}/api/channelruns/{run_id}/stages/"
-SUSHI_BAR_PROGRESS_URL = "{domain}/api/channelruns/{run_id}/progress/"
-SUSHI_BAR_LOGS_URL = "{domain}/logs/{run_id}/"
-SUSHI_BAR_CONTROL_URL = "{domain}/control/{channel_id}/"
-
-
 # Automatic temporary direcotry cleanup
 chef_temp_dir = os.path.join(os.getcwd(), '.ricecooker-temp')
 
@@ -437,46 +420,3 @@ def publish_channel_url():
         Returns: string url to publish channel
     """
     return PUBLISH_CHANNEL_URL.format(domain=DOMAIN)
-
-def sushi_bar_channels_url():
-    """
-    Returns the url to report the progress of a sushi chef
-    """
-    return SUSHI_BAR_CHANNEL_URL.format(domain=SUSHI_BAR_HTTP)
-
-def sushi_bar_channel_runs_url():
-    """
-    Returns the url to report the progress of a sushi chef
-    """
-    return SUSHI_BAR_CHANNEL_RUNS_URL.format(domain=SUSHI_BAR_HTTP)
-
-def sushi_bar_channel_runs_detail_url(run_id):
-    """
-    Returns the url to patch a channel run.
-    """
-    return SUSHI_BAR_CHANNEL_RUNS_DETAIL_URL.format(domain=SUSHI_BAR_HTTP,
-                                                    run_id=run_id)
-
-def sushi_bar_stages_url(run_id):
-    """
-    Returns the url to report the progress of a sushi chef
-    """
-    return SUSHI_BAR_STAGES_URL.format(domain=SUSHI_BAR_HTTP, run_id=run_id)
-
-def sushi_bar_progress_url(run_id):
-    """
-    Returns the url to report the progress of a sushi chef
-    """
-    return SUSHI_BAR_PROGRESS_URL.format(domain=SUSHI_BAR_HTTP, run_id=run_id)
-
-def sushi_bar_logs_url(run_id):
-    """
-    Returns the url to report the progress of a sushi chef
-    """
-    return SUSHI_BAR_LOGS_URL.format(domain=SUSHI_BAR_WEBSOCKET, run_id=run_id)
-
-def sushi_bar_control_url(channel_id):
-    """
-    Returns the url to report the progress of a sushi chef
-    """
-    return SUSHI_BAR_CONTROL_URL.format(domain=SUSHI_BAR_WEBSOCKET, channel_id=channel_id)

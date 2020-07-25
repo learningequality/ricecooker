@@ -7,14 +7,10 @@ from datetime import datetime
 
 from . import config
 from .classes.nodes import ChannelNode
-from .commands import authenticate_user
 from .commands import uploadchannel_wrapper
 from .exceptions import InvalidUsageException
 from .exceptions import raise_for_invalid_channel
 from .managers.progress import Status
-from .sushi_bar_client import ControlWebSocket
-from .sushi_bar_client import LocalControlSocket
-from .sushi_bar_client import SushiBarClient
 from .utils.jsontrees import build_tree_from_json
 from .utils.jsontrees import get_channel_node_from_json
 from .utils.jsontrees import read_tree_from_json
@@ -85,9 +81,7 @@ class SushiChef(object):
                                                                       help='(deprecated) Restarting the chef run is the default.')
         parser.add_argument('--stage', dest='stage_deprecated', action='store_true',
                                                                       help='(deprecated) Stage updated content for review. Uploading a staging tree is now the default behavior. Use --deploy to upload to the main tree.')
-        parser.add_argument('--daemon', action='store_true', help='Run chef in daemon mode lisenting to commands.')
-        parser.add_argument('--nomonitor', action='store_true', help='Disable SushiBar progress monitoring.')
-        parser.add_argument('--cmdsock', help='Local command socket (for cronjobs).')
+
         # [OPTIONS] --- extra key=value options are supported, but do not appear in help
 
         self.load_chef_data()
@@ -141,9 +135,6 @@ class SushiChef(object):
             # If ALL of these fail, this call will raise and chef run will stop.
             args['token'] = get_content_curation_token(args['token'])
 
-        if args['command'] == 'dryrun':
-            args['nomonitor'] = True    # no Sushibar logs and progress tracking
-
         # Parse additional keyword arguments from `options_list`
         options = {}
         for preoption in options_list:
@@ -159,11 +150,10 @@ class SushiChef(object):
 
     def config_logger(self, args, options):
         """
-        Set up stream (stderr), local file logging (logs/yyyy-mm-dd__HHMM.log),
-        and remote logging to SushiBar server. This method is called as soon as
-        we parse args so we can apply the user-preferred logging level settings.
+        Set up stream (stderr), local file logging (logs/yyyy-mm-dd__HHMM.log).
+        This method is called as soon as we parse args so we can apply the
+        user-preferred logging level settings.
         """
-
         # Set desired logging level based on command line arguments
         level = logging.INFO
         if args['debug']:
@@ -188,16 +178,6 @@ class SushiChef(object):
 
         except Exception as e:
             config.LOGGER.warning('Unable to setup file logging due to %s' % e)
-
-        # 3. Remote logging handler (sushibar logs via WebSockets)
-        try:
-            nomonitor = args.get('nomonitor', False)
-            if not nomonitor:
-                channel = self.get_channel(**options)
-                username, token = authenticate_user(args['token'])
-                config.SUSHI_BAR_CLIENT = SushiBarClient(channel, username, token, nomonitor=nomonitor)
-        except Exception as e:
-            config.LOGGER.warning('Unable to use remote logging due to: %s' % e)
 
 
     def get_channel(self, **kwargs):
@@ -248,22 +228,6 @@ class SushiChef(object):
         Returns: a `ChannelNode` object representing the populated topic tree
         """
         raise NotImplementedError('Chef subclass must implement this method')
-
-
-    def daemon_mode(self, args, options):
-        """
-        Open a ControlWebSocket to SushiBar server and listend for remote commands.
-        Args:
-            args (dict): chef command line arguments
-            options (dict): additional key=value options given on command line
-        """
-        cws = ControlWebSocket(self, args, options)
-        cws.start()
-        if 'cmdsock' in args and args['cmdsock']:
-            lcs = LocalControlSocket(self, args, options)
-            lcs.start()
-            lcs.join()
-        cws.join()
 
 
     def load_chef_data(self):
@@ -322,10 +286,7 @@ class SushiChef(object):
         """
         args, options = self.parse_args_and_options()
         self.config_logger(args, options)
-        if args['daemon']:
-            self.daemon_mode(args, options)
-        else:
-            self.run(args, options)
+        self.run(args, options)
 
 
 

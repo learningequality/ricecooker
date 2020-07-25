@@ -12,7 +12,5 @@ To learn about the inner workings of the ``ricecooker`` library, consult the fol
    ids
    uploadprocess
    design_cli
-   daemonization
    corrections
-
 
