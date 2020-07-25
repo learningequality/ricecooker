@@ -20,25 +20,14 @@ except NameError:
 
 def uploadchannel_wrapper(chef, args, options):
     """
-    Call `uploadchannel` with SushiBar monitoring and progress reporting enabled.
+    Call the `uploadchannel` function with combined `args` and `options`.
     Args:
         args (dict): chef command line arguments
         options (dict): extra key=value options given on the command line
     """
-    try:
-        args_and_options = args.copy()
-        args_and_options.update(options)
-        uploadchannel(chef, **args_and_options)
-        if config.SUSHI_BAR_CLIENT:
-            config.SUSHI_BAR_CLIENT.report_stage('COMPLETED', 0)
-    except Exception as e:
-        if config.SUSHI_BAR_CLIENT:
-            config.SUSHI_BAR_CLIENT.report_stage('FAILURE', 0)
-        config.LOGGER.critical(str(e))
-        raise
-    finally:
-        if config.SUSHI_BAR_CLIENT:
-            config.SUSHI_BAR_CLIENT.close()
+    args_and_options = args.copy()
+    args_and_options.update(options)
+    uploadchannel(chef, **args_and_options)
 
 
 def uploadchannel(chef, command='uploadchannel', update=False, thumbnails=False, download_attempts=3, resume=False, step=Status.LAST.name, token="#", prompt=False, publish=False, compress=False, stage=False, **kwargs):
@@ -248,8 +237,6 @@ def process_tree_files(tree):
     # Fill in values necessary for next steps
     config.LOGGER.info("Processing content...")
     files_to_diff = tree.process_tree(tree.channel)
-    if config.SUSHI_BAR_CLIENT:
-        config.SUSHI_BAR_CLIENT.report_statistics(files_to_diff, topic_count=tree.channel.get_topic_count())
     tree.check_for_files_failed()
     return files_to_diff, config.FAILED_FILES
 

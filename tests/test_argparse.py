@@ -20,7 +20,6 @@ def cli_args_and_expected():
         'stage': True, 'stage_deprecated': False,
         'publish': False,
         'sample': None,
-        'nomonitor': False, 'daemon': False, 'cmdsock': None,
     }
     return [
         {   # this used to be the old recommended CLI args to run chefs

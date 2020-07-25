@@ -2,6 +2,11 @@
 History
 =======
 
+0.6.45 (2020-07-??)
+-------------------
+* Remove SushiBar remote monitoring and remote command functionality
+
+
 0.6.44 (2020-07-16)
 -------------------
 * Documentation overhaul and refresh, see `ricecooker.readthedocs.io <https://ricecooker.readthedocs.io/>`__

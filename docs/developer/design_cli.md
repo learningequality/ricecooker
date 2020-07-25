@@ -114,7 +114,6 @@ There are three types of arguments involved in a chef run:
     - SushiChef: the `SushiChef.__init__` method configures argparse for the following:
         - `compress`, `download_attempts`, `prompt`, `publish`, `resume`,
           `stage`, `step`, `thumbnails`, `token`, `update`, `verbose`, `warn`
-        - also `daemon` for runs in daemon mode, and `nomonitor` to disable SushiBar progress monitoring
     - MySushiChef: the chef's `__init__` method can define additional cli args
 
   - `options` (dict): additional [OPTIONS...] passed at the end of the command line
@@ -127,22 +126,3 @@ There are three types of arguments involved in a chef run:
         explicitly expected by the `uploadchannel` function
       - The function `uploadchannel` will pass `**kwargs` on to the `chef`'s
         `get_channel` and `construct_channel` methods as part of the chef run.
-
-
-Daemon mode
------------
-In daemon mode, we open a `ControlWebSocket` connection with the SushiBar and
-wait for commands.
-
-When a command comes in on the control channel, it looks like this:
-
-     message = {"command":"start", "args":{...}, "options":{...}}
-
-Then the handler  `ControlWebSocket.on_message` will start a new run:
-
-     args.update(message['args'])        # remote arguments overwrite ricecooker cli args
-     options.update(message['options'])  # remote options overwrite cli options
-     chef.run(args, options)
-
-After finishing the run, a chef started with the `--daemon` option remains connected
-to the SushiBar server and listens for more commands.
