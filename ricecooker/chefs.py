@@ -7,7 +7,6 @@ from datetime import datetime
 
 from . import config
 from .classes.nodes import ChannelNode
-from .commands import authenticate_user
 from .commands import uploadchannel_wrapper
 from .exceptions import InvalidUsageException
 from .exceptions import raise_for_invalid_channel
