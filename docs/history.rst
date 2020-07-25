@@ -2,7 +2,7 @@
 History
 =======
 
-0.6.45 (2020-07-??)
+0.6.45 (2020-07-25)
 -------------------
 * Remove SushiBar remote monitoring and remote command functionality
 
