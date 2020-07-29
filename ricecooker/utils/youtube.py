@@ -1,3 +1,4 @@
+from enum import Enum
 import json
 import os
 import re
@@ -21,16 +22,74 @@ YOUTUBE_VIDEO_REGEX = re.compile(
 YOUTUBE_PLAYLIST_URL_FORMAT = "https://www.youtube.com/playlist?list={0}"
 YOUTUBE_VIDEO_URL_FORMAT = "https://www.youtube.com/watch?v={0}"
 
+class YouTubeTypes(Enum):
+    """
+    Enum containing YouTube resource types
+    """
+    YOUTUBE_BASE = "YouTubeBase"
+    YOUTUBE_VIDEO = "YouTubeVideo"
+    YOUTUBE_PLAYLIST = "YouTubePlayList"
+    YOUTUBE_CHANNEL = "YouTubeChannel"
 
 class YouTubeUtils(object):
 
+    def __init__(self, id, type=YouTubeTypes.YOUTUBE_BASE):
+        self.id = id
+        self.type = type
+        self.cache_dir = ''
+        self.cache_path = ''
+        self.url = ''
+
+    def __str__(self):
+        return '%s (%s)' % (self.type, self.cachename)
+
+    def _get_youtube_info(self, use_cache=True, options=None):
+        youtube_info = None
+        # 1. Try to get from cache if allowed:
+        if os.path.exists(self.cache_path) and use_cache:
+            LOGGER.info("==> [%s] Retrieving cached information...", self.__str__(), self.cachename)
+            youtube_info = json.load(open(self.cache_path))
+        # 2. Fetch info from youtube_dl
+        if not youtube_info:
+            LOGGER.info("==> [%s] Requesting info from youtube...", self.__str__())
+            os.makedirs(self.cache_dir, exist_ok=True)
+            try:
+                youtube_resource = YouTubeResource(self.url)
+            except youtube_dl.utils.ExtractorError as e:
+                if "unavailable" in str(e):
+                    LOGGER.error("==> [%s] Resource unavailable for URL: %s", self.__str__, self.url)
+                    return None
+
+            if youtube_resource:
+                try:
+                    # Save YouTube info to JSON cache file
+                    youtube_info = youtube_resource.get_resource_info(options)
+                    if youtube_info:
+                        json.dump(youtube_info,
+                                  open(self.cache_path, 'w'),
+                                  indent=4,
+                                  ensure_ascii=False,
+                                  sort_keys=True)
+                    else:
+                        LOGGER.error("==> [%s] Failed to extract YouTube info", self.__str__())
+                except Exception as e:
+                    LOGGER.error("==> [%s] Failed to get YouTube info: %s", self.__str__(), e)
+                    return None
+        return youtube_info
+
+class YouTubeVideoUtils(YouTubeUtils):
+
+    def __init_subclass__(cls):
+        return super().__init_subclass__()
+
     def __init__(self, id, alias='', cache_dir=''):
         """
-        Initializes YouTubeUtils object with id
-        :param id: YouTube resource ID, could be either YouTube video ID or playlist ID
+        Initializes YouTubeVideoUtils object with id
+        :param id: YouTube video ID
         :param alias: Alias name for the JSON cache filename, which will be named as youtube_id if such field not specified
         """
-        self.id = id
+        super().__init__(id, YouTubeTypes.YOUTUBE_VIDEO)
+        self.url = YOUTUBE_VIDEO_URL_FORMAT.format(self.id)
         if not alias:
             self.cachename = self.id
         else:
@@ -39,11 +98,7 @@ class YouTubeUtils(object):
             self.cache_dir = DEFAULT_YOUTUBE_CACHE_DIR
         else:
             self.cache_dir = cache_dir
-        os.makedirs(self.cache_dir, exist_ok=True)
-        self.json_path = os.path.join(self.cache_dir, self.cachename + '.json')
-
-    def __str__(self):
-        return 'YouTubeUtils (%s)' % (self.cachename)
+        self.cache_path = os.path.join(self.cache_dir, self.cachename + '.json')
 
     def get_video_info(self, use_cache=True, get_subtitle_languages=False, options=None):
         """
@@ -54,47 +109,37 @@ class YouTubeUtils(object):
                         For full list of available options: https://github.com/ytdl-org/youtube-dl/blob/master/youtube_dl/YoutubeDL.py
         :return: A ricecooker-like info dict info about the video or None if extraction fails
         """
-        # 1. Try to get from cache if allowed:
-        vinfo = None
-        if use_cache and os.path.exists(self.json_path):
-            vinfo = json.load(open(self.json_path))
-            LOGGER.info("==> [Video %s] Retrieving cached video information...", self.cachename)
-        # 2. Fetch info from youtube_dl
-        if not vinfo:
-            self.url = YOUTUBE_VIDEO_URL_FORMAT.format(self.id)
-            LOGGER.info("==> [Video %s] Requesting %s from youtube...", self.cachename, self.url)
-            try:
-                video = YouTubeResource(self.url)
-            except youtube_dl.utils.ExtractorError as e:
-                if "unavailable" in str(e):
-                    LOGGER.error("==> [Video %s] Video not found at URL: %s", self.cachename, self.url)
-                    return None
+        extract_options = dict()
+        if get_subtitle_languages:
+            options_for_subtitles = dict(
+                writesubtitles=True,      # extract subtitles info
+                allsubtitles=True,        # get all available languages
+                writeautomaticsub=False,  # do not include auto-generated subs
+            )
+            extract_options.update(options_for_subtitles)
+        if options:
+            extract_options.update(options)
+        return self._get_youtube_info(use_cache=use_cache, options=extract_options)
 
-            if video:
-                try:
-                    # Save video info to JSON cache file
-                    extract_options = dict()
-                    if get_subtitle_languages:
-                        options_for_subtitles = dict(
-                            writesubtitles = True,      # extract subtitles info
-                            allsubtitles = True,        # get all available languages
-                            writeautomaticsub = False,  # do not include auto-generated subs
-                        )
-                        extract_options.update(options_for_subtitles)
-                    if options:
-                        extract_options.update(options)
-                    vinfo = video.get_resource_info(extract_options)
-                    json.dump(vinfo,
-                              open(self.json_path, 'w'),
-                              indent=4,
-                              ensure_ascii=False,
-                              sort_keys=True)
-                except Exception as e:
-                    LOGGER.error("==> [Video %s] Failed to get video info: %s", self.cachename, e)
-                    return None
-            else:
-                return None
-        return vinfo
+class YouTubePlaylistUtils(YouTubeUtils):
+
+    def __init__(self, id, alias='', cache_dir=''):
+        """
+        Initializes YouTubePlaylistUtils object with id
+        :param id: YouTube playlist ID
+        :param alias: Alias name for the JSON cache filename, which will be named as youtube_id if such field not specified
+        """
+        super().__init__(id, YouTubeTypes.YOUTUBE_PLAYLIST)
+        self.url = YOUTUBE_PLAYLIST_URL_FORMAT.format(self.id)
+        if not alias:
+            self.cachename = self.id
+        else:
+            self.cachename = alias
+        if not cache_dir:
+            self.cache_dir = DEFAULT_YOUTUBE_CACHE_DIR
+        else:
+            self.cache_dir = cache_dir
+        self.cache_path = os.path.join(self.cache_dir, self.cachename + '.json')
 
     def get_playlist_info(self, use_cache=True, youtube_skip_download=True, options=None):
         """
@@ -105,39 +150,10 @@ class YouTubeUtils(object):
                         For full list of available options: https://github.com/ytdl-org/youtube-dl/blob/master/youtube_dl/YoutubeDL.py
         :return: A ricecooker-like info dict info about the playlist or None if extraction fails
         """
-        playlist_info = None
-        if os.path.exists(self.json_path) and use_cache:
-            LOGGER.info("==> [Playlist %s] Retrieving cached playlist information...", self.cachename)
-            playlist_info = json.load(open(self.json_path))
-
-        if not playlist_info:
-            playlist_url = YOUTUBE_PLAYLIST_URL_FORMAT.format(self.id)
-            playlist_resource = YouTubeResource(playlist_url)
-            youtube_extract_options = dict(
-                skip_download=youtube_skip_download,
-                extract_flat=True
-            )
-            if options:
-                youtube_extract_options.update(options)
-            if playlist_resource:
-                try:
-                    playlist_info = playlist_resource.get_resource_info(youtube_extract_options)
-                    # Traverse through the video list to remove duplicates
-                    video_set = set()
-                    videos = playlist_info.get('children')
-                    for video in videos:
-                        if video['id'] in video_set:
-                            videos.remove(video)
-                        else:
-                            video_set.add(video['id'])
-
-                    json.dump(playlist_info,
-                              open(self.json_path, 'w'),
-                              indent=4,
-                              ensure_ascii=False,
-                              sort_keys=False)
-                    LOGGER.info("==> [Playlist %s] Successfully get playlist info", self.cachename)
-                except Exception as e:
-                    LOGGER.error("==> [Playlist %s] Failed to get playlist info: %s", self.cachename, e)
-                    return None
-        return playlist_info
+        youtube_extract_options = dict(
+            skip_download=youtube_skip_download,
+            extract_flat=True
+        )
+        if options:
+            youtube_extract_options.update(options)
+        return self._get_youtube_info(use_cache=use_cache, options=youtube_extract_options)
