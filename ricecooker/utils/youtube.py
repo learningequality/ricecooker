@@ -43,7 +43,7 @@ class YouTubeUtils(object):
     def __str__(self):
         return '%s (%s)' % (self.type, self.cachename)
 
-    def _get_youtube_info(self, use_cache=True, options=None):
+    def _get_youtube_info(self, use_proxy=True, use_cache=True, options=None):
         youtube_info = None
         # 1. Try to get from cache if allowed:
         if os.path.exists(self.cache_path) and use_cache:
@@ -54,7 +54,7 @@ class YouTubeUtils(object):
             LOGGER.info("==> [%s] Requesting info from youtube...", self.__str__())
             os.makedirs(self.cache_dir, exist_ok=True)
             try:
-                youtube_resource = YouTubeResource(self.url)
+                youtube_resource = YouTubeResource(self.url, useproxy=use_proxy)
             except youtube_dl.utils.ExtractorError as e:
                 if "unavailable" in str(e):
                     LOGGER.error("==> [%s] Resource unavailable for URL: %s", self.__str__, self.url)
@@ -100,7 +100,7 @@ class YouTubeVideoUtils(YouTubeUtils):
             self.cache_dir = cache_dir
         self.cache_path = os.path.join(self.cache_dir, self.cachename + '.json')
 
-    def get_video_info(self, use_cache=True, get_subtitle_languages=False, options=None):
+    def get_video_info(self, use_proxy=True, use_cache=True, get_subtitle_languages=False, options=None):
         """
         Get YouTube video info by either requesting URL or extracting local cache
         :param use_cache: Define if allowed to get video info from local JSON cache, default to True
@@ -119,7 +119,7 @@ class YouTubeVideoUtils(YouTubeUtils):
             extract_options.update(options_for_subtitles)
         if options:
             extract_options.update(options)
-        return self._get_youtube_info(use_cache=use_cache, options=extract_options)
+        return self._get_youtube_info(use_proxy=use_proxy, use_cache=use_cache, options=extract_options)
 
 class YouTubePlaylistUtils(YouTubeUtils):
 
@@ -141,7 +141,7 @@ class YouTubePlaylistUtils(YouTubeUtils):
             self.cache_dir = cache_dir
         self.cache_path = os.path.join(self.cache_dir, self.cachename + '.json')
 
-    def get_playlist_info(self, use_cache=True, youtube_skip_download=True, options=None):
+    def get_playlist_info(self, use_proxy=True, use_cache=True, youtube_skip_download=True, options=None):
         """
         Get YouTube playlist info by either requesting URL or extracting local cache
         :param use_cache: Define if allowed to get playlist info from local JSON cache, default to True
@@ -156,4 +156,4 @@ class YouTubePlaylistUtils(YouTubeUtils):
         )
         if options:
             youtube_extract_options.update(options)
-        return self._get_youtube_info(use_cache=use_cache, options=youtube_extract_options)
+        return self._get_youtube_info(use_proxy=use_proxy, use_cache=use_cache, options=youtube_extract_options)
