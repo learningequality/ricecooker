@@ -412,7 +412,8 @@ def open_channel_url(channel, staging=False):
             channel (str): channel id of uploaded channel
         Returns: string url to open channel
     """
-    return OPEN_CHANNEL_URL.format(domain=DOMAIN, channel_id=channel, access='staging' if staging or STAGE else 'edit')
+    frontend_domain = DOMAIN.replace("api.", "")  # Don't send them to the API domain for preview / review.
+    return OPEN_CHANNEL_URL.format(domain=frontend_domain, channel_id=channel, access='staging' if staging or STAGE else 'edit')
 
 def publish_channel_url():
     """ open_channel_url: returns url to publish channel
