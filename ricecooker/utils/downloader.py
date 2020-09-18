@@ -1,4 +1,5 @@
 import copy
+import mimetypes
 import os
 import re
 import requests
@@ -44,7 +45,7 @@ try:
         content = await page.content()
         cookies = await page.cookies()
         await browser.close()
-        return content, {'cookies': cookies}
+        return content, {'cookies': cookies, 'url': page.url}
     USE_PYPPETEER = True
 except:
     print("Unable to load pyppeteer, using phantomjs for JS loading.")
@@ -157,9 +158,14 @@ def _derive_filename(url):
     return ("%s.%s" % (uuid.uuid4().hex, name)).lower()
 
 
+# global to track URLs already downloaded, so we don't keep downloading the same content over and over
+# because it's referenced in many different places
+downloaded_links = []
+
+
 def download_static_assets(doc, destination, base_url,
         request_fn=make_request, url_blacklist=[], js_middleware=None,
-        css_middleware=None, derive_filename=_derive_filename):
+        css_middleware=None, derive_filename=_derive_filename, link_policy=None):
     """
     Download all static assets referenced from an HTML page.
     The goal is to easily create HTML5 apps! Downloads JS, CSS, images, and
@@ -184,6 +190,12 @@ def download_static_assets(doc, destination, base_url,
     downloaded static files, as a BeautifulSoup object. (Call str() on it to
     extract the raw HTML.)
     """
+    # without the ending /, some functions will treat the last path component like a filename, so add it.
+    if not base_url.endswith('/'):
+        base_url += '/'
+
+    LOGGER.warning("base_url = {}".format(base_url))
+
     if not isinstance(doc, BeautifulSoup):
         doc = BeautifulSoup(doc, "html.parser")
 
@@ -207,7 +219,7 @@ def download_static_assets(doc, destination, base_url,
             url = urljoin(base_url, node[attr])
 
             if _is_blacklisted(url, url_blacklist):
-                print('        Skipping downloading blacklisted url', url)
+                LOGGER.info('        Skipping downloading blacklisted url', url)
                 node[attr] = ""
                 continue
 
@@ -215,11 +227,27 @@ def download_static_assets(doc, destination, base_url,
                 url = url_middleware(url)
 
             filename = derive_filename(url)
+            _path, ext = os.path.splitext(filename)
+            subpath = None
+            if not ext:
+                # This COULD be an index file in a dir, or just a file with no extension. Handle either case by
+                # turning the path into filename + '/index' + the file extension from the content type
+                response = requests.get(url)
+                type = response.headers['content-type'].split(';')[0]
+                ext = mimetypes.guess_extension(type)
+                # if we're really stuck, just default to HTML as that is most likely if this is a redirect.
+                if not ext:
+                    ext = '.html'
+                subpath = os.path.dirname(filename)
+                filename = 'index{}'.format(ext)
+
+                os.makedirs(os.path.join(destination, subpath), exist_ok=True)
+
             node[attr] = filename
 
-            print("        Downloading", url, "to filename", filename)
+            LOGGER.info("Downloading {} to filename {}".format(url, filename))
             download_file(url, destination, request_fn=request_fn,
-                    filename=filename, middleware_callbacks=content_middleware)
+                    filename=filename, subpath=subpath, middleware_callbacks=content_middleware)
 
     def js_content_middleware(content, url, **kwargs):
         if js_middleware:
@@ -252,7 +280,7 @@ def download_static_assets(doc, destination, base_url,
             derived_filename = derive_filename(src_url)
             download_file(src_url, destination, request_fn=request_fn,
                     filename=derived_filename)
-            return 'url("%s")' % derived_filename
+            return 'url("%s")' % src
 
         return _CSS_URL_RE.sub(repl, content)
 
@@ -266,6 +294,35 @@ def download_static_assets(doc, destination, base_url,
     download_assets("source[src]", "src") # Potentially audio
     download_assets("source[srcset]", "srcset") # Potentially audio
 
+    # Link scraping can be expensive, so it's off by default. We decrement the levels value every time we recurse
+    # so skip once we hit zero.
+    if link_policy is not None and link_policy['levels'] > 0:
+        nodes = doc.select("iframe[src]")
+        # TODO: add "a[href]" handling to this and/or ways to whitelist / blacklist tags and urls
+        for node in nodes:
+
+            url = node['src']
+            parts = urlparse(url)
+            should_scrape = False
+            if not parts.scheme or parts.scheme.startswith('http'):
+                if not parts.netloc or parts.netloc in base_url:
+                    should_scrape = link_policy['scope'] in ['same_domain', 'all']
+                    if not parts.netloc:
+                        url = urljoin(base_url, url)
+                        LOGGER.warning("url = {}".format(url))
+                else:
+                    should_scrape = link_policy['scope'] in ['external', 'all']
+
+            if should_scrape and not url in downloaded_links:
+                LOGGER.info("Scraping link, policy is: {}".format(link_policy))
+                # we need to use archive_page because the iframe may have its own set of assets
+                LOGGER.info("Downloading iframe to {}: {}".format(url, destination))
+                policy = copy.copy(link_policy)
+                # make sure we reduce the depth level by one each time we recurse
+                policy['levels'] -= 1
+                archive_page(url, destination, link_policy)
+                downloaded_links.append(url)
+
     # ... and also run the middleware on CSS/JS embedded in the page source to
     # get linked files.
     for node in doc.select('style'):
@@ -277,18 +334,47 @@ def download_static_assets(doc, destination, base_url,
 
     return doc
 
-def archive_page(url, download_root):
+def archive_page(url, download_root, link_policy=None, run_js=False):
     """
     Download fully rendered page and all related assets into ricecooker's site archive format.
 
     :param url: URL to download
     :param download_root: Site archive root directory
+    :param link_policy: a dict of the following policy, or None to ignore all links.
+            key: policy, value: string, one of "scrape" or "ignore"
+            key: scope, value: string, one of "same_domain", "external", "all"
+            key: levels, value: integer, number of levels deep to apply this policy
+
     :return: A dict containing info about the page archive operation
     """
 
     os.makedirs(download_root, exist_ok=True)
-    content, props = asyncio.get_event_loop().run_until_complete(load_page(url))
+    if run_js:
+        content, props = asyncio.get_event_loop().run_until_complete(load_page(url))
+    else:
+        retry_count = 0
+        max_retries = 5
+        while True:
+            try:
+                response = DOWNLOAD_SESSION.get(url, stream=True, timeout=60000)
+                props = {'cookies': requests.utils.dict_from_cookiejar(response.cookies), 'url': response.url}
+                break
+            except (requests.exceptions.ConnectionError, requests.exceptions.ReadTimeout) as e:
+                retry_count += 1
+                print("Error with connection ('{msg}'); about to perform retry {count} of {trymax}."
+                      .format(msg=str(e), count=retry_count, trymax=max_retries))
+                time.sleep(retry_count * 1)
+                if retry_count >= max_retries:
+                    raise e
 
+        response.raise_for_status()
+        content = response.text
+
+
+    LOGGER.warning("Props = {}".format(props))
+
+    # url may be redirected, for relative link handling we want the final URL that was loaded.
+    url = props['url']
     parsed_url = urlparse(url)
     page_domain = parsed_url.netloc.replace(':', '_')
 
@@ -296,6 +382,7 @@ def archive_page(url, download_root):
     base_url = url[:url.rfind('/')]
     urls_to_replace = {}
     def html5_derive_filename(url):
+        LOGGER.warning("url = {}".format(url))
         file_url_parsed = urlparse(url)
 
         no_scheme_url = url
@@ -305,11 +392,27 @@ def archive_page(url, download_root):
         domain = file_url_parsed.netloc.replace(':', '_')
         if not domain:
             domain = page_domain
+            if rel_path.startswith('/') and not url.startswith('/'):
+                # urlparse assumes links that are relative are relative to the domain root, which is not
+                # a safe assumption. Just use the original passed in URL for further processing.
+                rel_path = url
         if rel_path.startswith('/'):
             rel_path = rel_path[1:]
+        else:
+            # it is relative to the current subdir, not the root of the domain
+            if parsed_url.path.endswith('/'):
+                rel_path = parsed_url.path + rel_path
+            else:
+                rel_path = os.path.dirname(parsed_url.path) + '/' + rel_path
         url_local_dir = os.path.join(domain, rel_path)
         assert domain in url_local_dir
-        local_dir_name = os.path.dirname(url_local_dir)
+        LOGGER.warning("rel_path = {}, parsed_url_path = {}".format(rel_path, parsed_url.path))
+        LOGGER.warning("local_dir_name = {}".format(url_local_dir))
+
+        _path, ext = os.path.splitext(url_local_dir)
+        local_dir_name = url_local_dir
+        if ext != '':
+            local_dir_name = os.path.dirname(url_local_dir)
         if local_dir_name != url_local_dir:
             full_dir = os.path.join(download_root, local_dir_name)
             os.makedirs(full_dir, exist_ok=True)
@@ -317,7 +420,9 @@ def archive_page(url, download_root):
         return url_local_dir
 
     if content:
-        download_static_assets(content, download_root, base_url, derive_filename=html5_derive_filename)
+        LOGGER.warning("Downloading assets for {}".format(url))
+        download_static_assets(content, download_root, base_url, derive_filename=html5_derive_filename,
+                               link_policy=link_policy)
 
         for key in urls_to_replace:
             url_parts = urlparse(key)
@@ -337,20 +442,25 @@ def archive_page(url, download_root):
                 # trying to replace
                 # we avoid using BeautifulSoup because Python HTML parsers can be destructive and
                 # do things like strip out the doctype.
-                content = content.replace('="{}"'.format(variant), '="{}"'.format(urls_to_replace[key]))
-                content = content.replace('url({})"'.format(variant), 'url({})'.format(urls_to_replace[key]))
+                old_str = '="{}"'.format(variant)
+                new_str = '="{}"'.format(urls_to_replace[key])
+                content = content.replace(old_str, new_str)
+                # content = content.replace('url({})"'.format(variant), 'url({})'.format(urls_to_replace[key]))
 
             if content == orig_content:
                 LOGGER.debug("link not replaced: {}".format(key))
                 LOGGER.debug("key_variants = {}".format(key_variants))
 
-        download_dir = os.path.join(page_domain, parsed_url.path.split('/')[-1].replace('?', '_'))
-        download_path = os.path.join(download_root, download_dir)
-        os.makedirs(download_path, exist_ok=True)
+        download_path = os.path.join(download_root, html5_derive_filename(parsed_url.path))
+        _path, ext = os.path.splitext(download_path)
+        index_path = download_path
+        if '.htm' not in ext:
+            index_path = os.path.join(download_path, 'index.html')
 
-        index_path = os.path.join(download_path, 'index.html')
-        f = open(index_path, 'w', encoding='utf-8')
-        f.write(content)
+        os.makedirs(os.path.dirname(index_path), exist_ok=True)
+        soup = BeautifulSoup(content)
+        f = open(index_path, 'wb')
+        f.write(soup.prettify(encoding="utf-8"))
         f.close()
 
         page_info = {
