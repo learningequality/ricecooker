@@ -872,8 +872,8 @@ class ExerciseNode(ContentNode):
         mastery_model = self.extra_fields['mastery_model']
 
         # Keep original m/n values or other n/m values if specified
-        m_value = self.extra_fields.get('m') or self.extra_fields.get('n')
-        n_value = self.extra_fields.get('n') or self.extra_fields.get('m')
+        m_value = int(self.extra_fields.get('m') or self.extra_fields.get('n'))
+        n_value = int(self.extra_fields.get('n') or self.extra_fields.get('m'))
 
         # Update mastery model if parameters were not provided
         if mastery_model == exercises.M_OF_N:
@@ -900,7 +900,10 @@ class ExerciseNode(ContentNode):
             Args: None
             Returns: boolean indicating if exercise is valid
         """
+
         try:
+            self.process_exercise_data()
+
             assert self.kind == content_kinds.EXERCISE, "Assumption Failed: Node should be an exercise"
 
             # Check if questions are correct
@@ -908,9 +911,15 @@ class ExerciseNode(ContentNode):
             assert all([q.validate() for q in self.questions]), "Assumption Failed: Exercise has invalid question"
             assert self.extra_fields['mastery_model'] in MASTERY_MODELS, \
                 "Assumption Failed: Unrecognized mastery model {}".format(self.extra_fields['mastery_model'])
+            if self.extra_fields['mastery_model'] == exercises.M_OF_N:
+                assert 'm' in self.extra_fields and 'n' in self.extra_fields, "Assumption failed: M of N mastery model is missing M and/or N values"
+                assert isinstance(self.extra_fields['m'], int), "Assumption failed: M must be an integer value"
+                assert isinstance(self.extra_fields['m'], int), "Assumption failed: N must be an integer value"
+
             return super(ExerciseNode, self).validate()
-        except AssertionError as ae:
+        except (AssertionError, ValueError) as ae:
             raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
+
 
     def truncate_fields(self):
         for q in self.questions:
