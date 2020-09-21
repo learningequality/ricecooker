@@ -6,7 +6,7 @@ import uuid
 import tempfile
 from le_utils.constants import licenses, content_kinds, exercises
 from ricecooker.classes.nodes import *
-from ricecooker.classes.questions import BaseQuestion, PerseusQuestion
+from ricecooker.classes.questions import BaseQuestion, PerseusQuestion, SingleSelectQuestion
 from ricecooker.config import STORAGE_DIRECTORY
 from test_videos import _clear_ricecookerfilecache
 
@@ -46,14 +46,31 @@ def exercise_data(exercise_id):
     }
 
 @pytest.fixture
-def exercise(exercise_data, channel_internal_domain, topic_node_id):
+def exercise_questions():
+    return [
+            SingleSelectQuestion(
+                id='123',
+                question='What is your quest?',
+                correct_answer='To spectacularly fail',
+                all_answers=[
+                    'To seek the grail',
+                    'To eat some hail',
+                    'To spectacularly fail',
+                    'To post bail'
+                ]
+            )
+        ]
+
+@pytest.fixture
+def exercise(exercise_data, channel_internal_domain, topic_node_id, exercise_questions):
     node = ExerciseNode(
-		source_id=exercise_data['id'],
-		# description=exercise_data['description'],
-		title=exercise_data['title'],
-		author=exercise_data['author'],
-		license=exercise_data['license'],
-	)
+        source_id=exercise_data['id'],
+        # description=exercise_data['description'],
+        title=exercise_data['title'],
+        author=exercise_data['author'],
+        license=exercise_data['license'],
+        questions=exercise_questions
+    )
     # node.set_ids(channel_internal_domain, topic_node_id)
     return node
 
@@ -84,6 +101,63 @@ def test_exercise_validate(exercise, exercise_data):
     # assert exercise.author == exercise_data['author']
     # assert exercise.license == exercise_data['license']
     # assert exercise.kind == exercises.PERSEUS_QUESTION
+
+def test_exercise_extra_fields_string(exercise):
+    exercise.extra_fields = {
+        'mastery_model': exercises.M_OF_N,
+        'm': '3',
+        'n': '5'
+    }
+
+    # validate should call process_exercise_data, which will convert the values to
+    # integers and validate values after that.
+    exercise.validate()
+
+    # conversion tools may fail to properly convert these fields to int values,
+    # so make sure an int string gets read as a string.
+    assert exercise.extra_fields['m'] == 3
+    assert exercise.extra_fields['n'] == 5
+
+    # Make sure we throw an error if we have non-int strings
+    exercise.extra_fields = {
+        'mastery_model': exercises.M_OF_N,
+        'm': '3.0',
+        'n': '5.1'
+    }
+
+    with pytest.raises(ValueError):
+        exercise.process_files()
+
+    with pytest.raises(InvalidNodeException):
+        exercise.validate()
+
+    # or any other type of string...
+    exercise.extra_fields = {
+        'mastery_model': exercises.M_OF_N,
+        'm': 'three',
+        'n': 'five'
+    }
+
+    with pytest.raises(ValueError):
+        exercise.process_files()
+
+    with pytest.raises(InvalidNodeException):
+        exercise.validate()
+
+def test_exercise_extra_fields_float(exercise):
+    exercise.extra_fields = {
+        'mastery_model': exercises.M_OF_N,
+        'm': 3.0,
+        'n': 5.6
+    }
+
+    exercise.process_files()
+    # ensure the fields end up as pure ints, using floor.
+    assert exercise.extra_fields['m'] == 3
+    assert exercise.extra_fields['n'] == 5
+
+    exercise.validate()
+
 #
 # def test_exercise_to_dict(exercise):
 #     assert exercise.default_preset == exercises.PERSEUS_QUESTION
