@@ -211,6 +211,7 @@ class SushiChef(object):
                 source_id=self.channel_info['CHANNEL_SOURCE_ID'],
                 title=self.channel_info['CHANNEL_TITLE'],
                 tagline=self.channel_info.get('CHANNEL_TAGLINE'),
+                channel_id=self.channel_info.get('CHANNEL_ID'),
                 thumbnail=self.channel_info.get('CHANNEL_THUMBNAIL'),
                 language=self.channel_info.get('CHANNEL_LANGUAGE'),
                 description=self.channel_info.get('CHANNEL_DESCRIPTION'),
