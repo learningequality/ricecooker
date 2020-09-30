@@ -2,21 +2,42 @@ import os
 import tempfile
 import zipfile
 
+ENTRYPOINT_TEMPLATE = """
+<!DOCTYPE html>
+<html>
+   <head>
+      <title>HTML Meta Tag</title>
+      <meta http-equiv = "refresh" content = "0; url = {}" />
+   </head>
+   <body>
+   </body>
+</html>
+"""
+
+
 def _read_file(path):
     with open(path, "rb") as f:
         return f.read()
 
-def create_predictable_zip(path):
+
+def create_predictable_zip(path, entrypoint=None):
     """
     Create a zip file with predictable sort order and metadata so that MD5 will
     stay consistent if zipping the same content twice.
     Args:
         path (str): absolute path either to a directory to zip up, or an existing zip file to convert.
+        entrypoint (str or None): if specified, a relative file path in the zip to serve as the first page to load
     Returns: path (str) to the output zip file
     """
     # if path is a directory, recursively enumerate all the files under the directory
-    if os.path.isdir(path): 
+    if os.path.isdir(path):
         paths = []
+        if entrypoint:
+            index = os.path.join(path, "index.html")
+            f = open(index, "w", encoding="utf-8")
+            f.write(ENTRYPOINT_TEMPLATE.format(entrypoint.replace("\\", "/")))
+            f.close()
+
         for root, directories, filenames in os.walk(path):
             paths += [os.path.join(root, filename)[len(path)+1:] for filename in filenames]
         reader = lambda x: _read_file(os.path.join(path, x))
