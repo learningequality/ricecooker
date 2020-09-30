@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import sys
+import csv
 from datetime import datetime
 
 from . import config
@@ -287,7 +288,7 @@ class SushiChef(object):
         DATA_DIR = os.path.join('chefdata', 'data')
         if not os.path.isdir(DATA_DIR):
             os.makedirs(DATA_DIR)
-        metadata_csv = csv.writer(open(os.path.join(DATA_DIR, 'content_metadata.csv'), 'w'))
+        metadata_csv = csv.writer(open(os.path.join(DATA_DIR, 'content_metadata.csv'), 'w', newline=''))
         headers = [
             'Source_id',
             'Old Title',
@@ -301,26 +302,26 @@ class SushiChef(object):
             'Old Author',
             'New Author',
             'Last Modified'
-        ]
+            ]
         metadata_csv.writerow(headers)
         for child in channel.children:
-            # Upload video data to csv
-            for video in child.children:
-                video = video.to_dict()
+            # Upload node data to csv
+            for node in child.children:
+                content_node = node.to_dict()
                 # print(video)
                 record = [
-                    video['source_id'],
-                    video['title'],
-                    '',                     # New Title
-                    video['description'],
-                    '',                     # New Description
-                    video['tags'],
-                    '',                     # New Tags
-                    video['license'],
-                    '',                     # New License
-                    video['author'],
-                    '',                     # New Author
-                    ''                      # Last Modified
+                    content_node['source_id'],
+                    content_node['title'],
+                    '',                             # New Title
+                    content_node['description'],
+                    '',                             # New Description
+                    content_node['tags'],
+                    '',                             # New Tags
+                    content_node['license'],
+                    '',                             # New License
+                    content_node['author'],
+                    '',                             # New Author
+                    ''                              # Last Modified
                 ]
                 metadata_csv.writerow(record)
 
