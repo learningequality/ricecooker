@@ -3,7 +3,6 @@ import json
 import logging
 import os
 import sys
-import csv
 from datetime import datetime
 
 from . import config
@@ -324,7 +323,6 @@ class SushiChef(object):
                     ''                      # Last Modified
                 ]
                 metadata_csv.writerow(record)
-
 
     def save_chef_data(self):
         json.dump(self.CHEF_RUN_DATA, open(config.DATA_PATH, 'w'), indent=2)
