@@ -112,6 +112,8 @@ def uploadchannel(chef, command='uploadchannel', update=False, thumbnails=False,
     # Save the data about the current run in chefdata/
     chef.save_channel_tree_as_json(channel)
 
+    chef.save_channel_metadata_as_csv(channel)
+    
     if command == 'dryrun':
         config.LOGGER.info('Command is dryrun so we are not uploading chanel.')
         return
