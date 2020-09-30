@@ -259,8 +259,9 @@ class ChannelNode(Node):
             files ([<File>]): list of file objects for node (optional)
     """
     kind = "Channel"
-    def __init__(self, source_id, source_domain, tagline=None, *args, **kwargs):
+    def __init__(self, source_id, source_domain, tagline=None, channel_id=None, *args, **kwargs):
         # Map parameters to model variables
+        self.channel_id = channel_id
         self.source_domain = source_domain
         self.source_id = source_id
         self.tagline = tagline
@@ -291,7 +292,7 @@ class ChannelNode(Node):
             Returns: dict of channel data
         """
         return {
-            "id": self.get_node_id().hex,
+            "id": self.channel_id or self.get_node_id().hex,
             "name": self.title,
             "thumbnail": self.thumbnail.filename if self.thumbnail else None,
             "language" : self.language,
@@ -872,8 +873,13 @@ class ExerciseNode(ContentNode):
         mastery_model = self.extra_fields['mastery_model']
 
         # Keep original m/n values or other n/m values if specified
-        m_value = int(self.extra_fields.get('m') or self.extra_fields.get('n'))
-        n_value = int(self.extra_fields.get('n') or self.extra_fields.get('m'))
+        m_value = self.extra_fields.get('m') or self.extra_fields.get('n')
+        n_value = self.extra_fields.get('n') or self.extra_fields.get('m')
+
+        if m_value:
+            m_value = int(m_value)
+        if n_value:
+            n_value = int(n_value)
 
         # Update mastery model if parameters were not provided
         if mastery_model == exercises.M_OF_N:

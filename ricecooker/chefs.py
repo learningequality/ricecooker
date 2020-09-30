@@ -39,12 +39,20 @@ class SushiChef(object):
     CHEF_RUN_DATA = config.CHEF_DATA_DEFAULT  # loaded from chefdata/chef_data.json
     TREES_DATA_DIR = config.TREES_DATA_DIR    # tree archives and JsonTreeChef inputs
 
-
     def __init__(self, *args, **kwargs):
         """
         The SushiChef initialization concerns maintly parsing command line args.
         Overrride this method in your sushi chef class to add custom arguments.
         """
+
+        # persistent settings for the chef, we check if it exists first in order to
+        # support assignment as a class-level variable.
+        if not hasattr(self, 'SETTINGS'):
+            self.SETTINGS = {}
+
+        # these will be assigned to later by the argparse handling.
+        self.args = None
+        self.options = None
 
         # ARGPARSE SETUP
         # We don't want to add argparse help if subclass has an __init__ method
@@ -86,6 +94,32 @@ class SushiChef(object):
 
         self.load_chef_data()
 
+    def get_setting(self, setting, default=None):
+        """
+        Gets a setting set on the chef via its SETTINGS dictionary.
+
+        It is recommended to use this method rather than checking SETTINGS directly,
+        as it allows for a default when not set, and allows for command line overrides
+        for some settings.
+
+        :param setting: String key of the setting to check
+        :param default: Value to return if the key is not found.
+        :return: Setting value if set, or default if not set.
+        """
+
+        override = None
+        # If there is a command line flag for this setting, allow for it to override the chef
+        # default. Note that these are all boolean flags, so they are true if set, false if not.
+        if setting == 'generate-missing-thumbnails':
+            override = self.args and self.args['thumbnails']
+
+        if setting == 'compress-videos':
+            override = self.args and self.args['compress']
+
+        if setting in self.SETTINGS:
+            return override or self.SETTINGS[setting]
+
+        return override or default
 
     def parse_args_and_options(self):
         """
@@ -144,6 +178,9 @@ class SushiChef(object):
             except IndexError:
                 msg = "Invalid option '{0}': use [key]=[value] format (no whitespace)".format(preoption)
                 raise InvalidUsageException(msg)
+
+        self.args = args
+        self.options = options
 
         return args, options
 
@@ -211,6 +248,7 @@ class SushiChef(object):
                 source_id=self.channel_info['CHANNEL_SOURCE_ID'],
                 title=self.channel_info['CHANNEL_TITLE'],
                 tagline=self.channel_info.get('CHANNEL_TAGLINE'),
+                channel_id=self.channel_info.get('CHANNEL_ID'),
                 thumbnail=self.channel_info.get('CHANNEL_THUMBNAIL'),
                 language=self.channel_info.get('CHANNEL_LANGUAGE'),
                 description=self.channel_info.get('CHANNEL_DESCRIPTION'),
