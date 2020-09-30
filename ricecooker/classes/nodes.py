@@ -872,8 +872,13 @@ class ExerciseNode(ContentNode):
         mastery_model = self.extra_fields['mastery_model']
 
         # Keep original m/n values or other n/m values if specified
-        m_value = int(self.extra_fields.get('m') or self.extra_fields.get('n'))
-        n_value = int(self.extra_fields.get('n') or self.extra_fields.get('m'))
+        m_value = self.extra_fields.get('m') or self.extra_fields.get('n')
+        n_value = self.extra_fields.get('n') or self.extra_fields.get('m')
+
+        if m_value:
+            m_value = int(m_value)
+        if n_value:
+            n_value = int(n_value)
 
         # Update mastery model if parameters were not provided
         if mastery_model == exercises.M_OF_N:
