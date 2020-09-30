@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import sys
+import csv
 from datetime import datetime
 
 from . import config
@@ -242,6 +243,49 @@ class SushiChef(object):
         self.CHEF_RUN_DATA['tree_archives']['previous'] = self.CHEF_RUN_DATA['tree_archives']['current']
         self.CHEF_RUN_DATA['tree_archives']['current'] = filename.replace(os.getcwd() + '/', '')
         self.save_chef_data()
+
+    def save_channel_metadata_as_csv(self, channel):
+        # create data folder in chefdata
+        # config.LOGGER.info('SAVE METADATA TO CSV')
+        DATA_DIR = os.path.join('chefdata', 'data')
+        if not os.path.isdir(DATA_DIR):
+            os.makedirs(DATA_DIR)
+        metadata_csv = csv.writer(open(os.path.join(DATA_DIR, 'content_metadata.csv'), 'w'))
+        headers = [
+            'Source_id',
+            'Old Title',
+            'New Title',
+            'Old Description',
+            'New Description',
+            'Old Tags',
+            'New Tags',
+            'Old License',
+            'New License',
+            'Old Author',
+            'New Author',
+            'Last Modified'
+        ]
+        metadata_csv.writerow(headers)
+        for child in channel.children:
+            # Upload video data to csv
+            for video in child.children:
+                video = video.to_dict()
+                # print(video)
+                record = [
+                    video['source_id'],
+                    video['title'],
+                    '',                     # New Title
+                    video['description'],
+                    '',                     # New Description
+                    video['tags'],
+                    '',                     # New Tags
+                    video['license'],
+                    '',                     # New License
+                    video['author'],
+                    '',                     # New Author
+                    ''                      # Last Modified
+                ]
+                metadata_csv.writerow(record)
 
 
     def save_chef_data(self):
