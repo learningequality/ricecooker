@@ -51,8 +51,8 @@ def uploadchannel(chef, command='uploadchannel', update=False, thumbnails=False,
 
     # Set configuration settings
     config.UPDATE = update
-    config.COMPRESS = compress
-    config.THUMBNAILS = thumbnails
+    config.COMPRESS = chef.get_setting('compress-videos', False)
+    config.THUMBNAILS = chef.get_setting('generate-missing-thumbnails', False)
     config.STAGE = stage
     config.PUBLISH = publish
 
