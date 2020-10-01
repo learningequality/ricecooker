@@ -216,7 +216,8 @@ class Node(object):
 
     def save_channel_children_to_csv(self, metadata_csv, topic_structure_string = ''):
         # Not including channel title in topic structure
-        if isinstance(self, ChannelNode):
+        is_channel = isinstance(self, ChannelNode)
+        if is_channel:
             current_level = ''
         else:
             # Building topic structure path
@@ -225,15 +226,12 @@ class Node(object):
             topic_structure_string = current_level
         else:
             topic_structure_string = topic_structure_string + '/' + current_level
-        if len(self.children) > 0:
-            for child in self.children:
-                child.save_channel_children_to_csv(metadata_csv, topic_structure_string)
-        else :
-            node_info = self.to_dict()
-            
+        
+        # Do not add channel details to csv
+        if not is_channel:
             # Build out tag string
             tags_string = ''
-            tags = node_info['tags']
+            tags = self.tags
             if len(tags) > 0:
                 tags_string = tags_string + tags[0]
                 for tag in tags[1:]:
@@ -242,21 +240,62 @@ class Node(object):
                 tags_string = ''
 
             record = [
-                node_info['source_id'],
+                self.source_id,
                 topic_structure_string,
-                node_info['title'],
+                self.title,
                 '',                             # New Title
-                node_info['description'],
+                self.description,
                 '',                             # New Description
                 tags_string,
                 '',                             # New Tags
-                node_info['license'],
+                self.license,
                 '',                             # New Licecnse
-                node_info['author'],
+                self.author,
                 '',                             # New Author
                 ''                              # Last Modified
             ]
+            print(record)
             metadata_csv.writerow(record)
+            for child in self.children:
+                child.save_channel_children_to_csv(metadata_csv, topic_structure_string)
+        else:
+            for child in self.children:
+                child.save_channel_children_to_csv(metadata_csv, topic_structure_string)
+            
+            
+
+        # if len(self.children) > 0:
+        #     for child in self.children:
+        #         child.save_channel_children_to_csv(metadata_csv, topic_structure_string)
+        # else :
+        #     node_info = self.to_dict()
+
+        #     # Build out tag string
+        #     tags_string = ''
+        #     tags = node_info['tags']
+        #     if len(tags) > 0:
+        #         tags_string = tags_string + tags[0]
+        #         for tag in tags[1:]:
+        #             tags_string = tags_string + ', ' + tag
+        #     else :
+        #         tags_string = ''
+
+        #     record = [
+        #         node_info['source_id'],
+        #         topic_structure_string,
+        #         node_info['title'],
+        #         '',                             # New Title
+        #         node_info['description'],
+        #         '',                             # New Description
+        #         tags_string,
+        #         '',                             # New Tags
+        #         node_info['license'],
+        #         '',                             # New Licecnse
+        #         node_info['author'],
+        #         '',                             # New Author
+        #         ''                              # Last Modified
+        #     ]
+        #     metadata_csv.writerow(record)
             
 
 
