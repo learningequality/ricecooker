@@ -2,6 +2,8 @@
 
 import json
 import uuid
+import os
+import csv
 
 from le_utils.constants import content_kinds, exercises, file_formats, format_presets, languages, roles
 
@@ -211,6 +213,41 @@ class Node(object):
                 tree['children'].append(child.get_json_tree())
 
         return tree
+
+    def save_channel_children_to_csv(self, metadata_csv, topic_structure_string = ''):
+        channel = self.to_dict()
+        if self.title:
+            # Building topic structure path
+            current_level = self.title or ''
+            if len(topic_structure_string) < 1:
+                topic_structure_string = current_level
+            else:
+                topic_structure_string = topic_structure_string + '/' + current_level
+        if len(self.children) > 0:
+            for child in self.children:
+                child.save_channel_children_to_csv(metadata_csv, topic_structure_string)
+        else :
+            node_info = self.to_dict()
+            print(node_info)
+
+            record = [
+                node_info['source_id'],
+                topic_structure_string,
+                node_info['title'],
+                '',                             # New Title
+                node_info['description'],
+                '',                             # New Description
+                node_info['tags'],
+                '',                             # New Tags
+                node_info['license'],
+                '',                             # New Licecnse
+                node_info['author'],
+                '',                             # New Author
+                ''                              # Last Modified
+            ]
+            metadata_csv.writerow(record)
+            
+
 
     def validate_tree(self):
         """

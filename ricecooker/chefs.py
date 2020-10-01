@@ -291,6 +291,7 @@ class SushiChef(object):
         metadata_csv = csv.writer(open(os.path.join(DATA_DIR, 'content_metadata.csv'), 'w', newline=''))
         headers = [
             'Source_id',
+            'Topic Structure',
             'Old Title',
             'New Title',
             'Old Description',
@@ -302,28 +303,11 @@ class SushiChef(object):
             'Old Author',
             'New Author',
             'Last Modified'
-            ]
+        ]
         metadata_csv.writerow(headers)
-        for child in channel.children:
-            # Upload node data to csv
-            for node in child.children:
-                content_node = node.to_dict()
-                # print(video)
-                record = [
-                    content_node['source_id'],
-                    content_node['title'],
-                    '',                             # New Title
-                    content_node['description'],
-                    '',                             # New Description
-                    content_node['tags'],
-                    '',                             # New Tags
-                    content_node['license'],
-                    '',                             # New License
-                    content_node['author'],
-                    '',                             # New Author
-                    ''                              # Last Modified
-                ]
-                metadata_csv.writerow(record)
+
+        channel.save_channel_children_to_csv(metadata_csv)
+
 
     def save_chef_data(self):
         json.dump(self.CHEF_RUN_DATA, open(config.DATA_PATH, 'w'), indent=2)
