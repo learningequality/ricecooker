@@ -230,7 +230,16 @@ class Node(object):
                 child.save_channel_children_to_csv(metadata_csv, topic_structure_string)
         else :
             node_info = self.to_dict()
-            print(node_info)
+            
+            # Build out tag string
+            tags_string = ''
+            tags = node_info['tags']
+            if len(tags) > 0:
+                tags_string = tags_string + tags[0]
+                for tag in tags[1:]:
+                    tags_string = tags_string + ', ' + tag
+            else :
+                tags_string = ''
 
             record = [
                 node_info['source_id'],
@@ -239,7 +248,7 @@ class Node(object):
                 '',                             # New Title
                 node_info['description'],
                 '',                             # New Description
-                node_info['tags'],
+                tags_string,
                 '',                             # New Tags
                 node_info['license'],
                 '',                             # New Licecnse
