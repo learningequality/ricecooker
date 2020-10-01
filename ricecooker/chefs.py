@@ -288,10 +288,16 @@ class SushiChef(object):
         DATA_DIR = os.path.join('chefdata', 'data')
         if not os.path.isdir(DATA_DIR):
             os.makedirs(DATA_DIR)
+<<<<<<< HEAD
         metadata_csv = csv.writer(open(os.path.join(DATA_DIR, 'content_metadata.csv'), 'w', newline=''))
         headers = [
             'Source_id',
             'Topic Structure',
+=======
+        metadata_csv = csv.writer(open(os.path.join(DATA_DIR, 'content_metadata.csv'), 'w'))
+        headers = [
+            'Source_id',
+>>>>>>> e70501793a9065e71eedfa8a803b5d384017c604
             'Old Title',
             'New Title',
             'Old Description',
@@ -305,8 +311,31 @@ class SushiChef(object):
             'Last Modified'
         ]
         metadata_csv.writerow(headers)
+<<<<<<< HEAD
 
         channel.save_channel_children_to_csv(metadata_csv)
+=======
+        for child in channel.children:
+            # Upload video data to csv
+            for video in child.children:
+                video = video.to_dict()
+                # print(video)
+                record = [
+                    video['source_id'],
+                    video['title'],
+                    '',                     # New Title
+                    video['description'],
+                    '',                     # New Description
+                    video['tags'],
+                    '',                     # New Tags
+                    video['license'],
+                    '',                     # New License
+                    video['author'],
+                    '',                     # New Author
+                    ''                      # Last Modified
+                ]
+                metadata_csv.writerow(record)
+>>>>>>> e70501793a9065e71eedfa8a803b5d384017c604
 
 
     def save_chef_data(self):
