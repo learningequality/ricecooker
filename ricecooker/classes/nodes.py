@@ -215,14 +215,16 @@ class Node(object):
         return tree
 
     def save_channel_children_to_csv(self, metadata_csv, topic_structure_string = ''):
-        channel = self.to_dict()
-        if self.title:
+        # Not including channel title in topic structure
+        if isinstance(self, ChannelNode):
+            current_level = ''
+        else:
             # Building topic structure path
-            current_level = self.title or ''
-            if len(topic_structure_string) < 1:
-                topic_structure_string = current_level
-            else:
-                topic_structure_string = topic_structure_string + '/' + current_level
+            current_level = self.title
+        if len(topic_structure_string) < 1:
+            topic_structure_string = current_level
+        else:
+            topic_structure_string = topic_structure_string + '/' + current_level
         if len(self.children) > 0:
             for child in self.children:
                 child.save_channel_children_to_csv(metadata_csv, topic_structure_string)
