@@ -214,34 +214,25 @@ class Node(object):
 
         return tree
 
-    def save_channel_children_to_csv(self, metadata_csv, topic_structure_string = ''):
+    def save_channel_children_to_csv(self, metadata_csv, topic_structure =[]):
         # Not including channel title in topic structure
         is_channel = isinstance(self, ChannelNode)
-        if is_channel:
-            current_level = ''
-        else:
-            # Building topic structure path
-            current_level = self.title
-        if len(topic_structure_string) < 1:
-            topic_structure_string = current_level
-        else:
-            topic_structure_string = topic_structure_string + '/' + current_level
-        
-        # Do not add channel details to csv
+ 
         if not is_channel:
             # Build out tag string
-            tags_string = ''
-            tags = self.tags
-            if len(tags) > 0:
-                tags_string = tags_string + tags[0]
-                for tag in tags[1:]:
-                    tags_string = tags_string + ', ' + tag
-            else :
-                tags_string = ''
+            current_level = self.title
+            # prevent list from being passed by reference. Create new instance of list
+            structure_list = topic_structure[:]
+            if len(structure_list) < 1:
+                structure_list = [current_level]
+            else:
+                structure_list.append(current_level)
+            structure_list_string = '/'.join(structure_list)
+            tags_string = ','.join(self.tags)
 
             record = [
                 self.source_id,
-                topic_structure_string,
+                structure_list_string,
                 self.title,
                 '',                             # New Title
                 self.description,
@@ -254,13 +245,12 @@ class Node(object):
                 '',                             # New Author
                 ''                              # Last Modified
             ]
-            print(record)
             metadata_csv.writerow(record)
             for child in self.children:
-                child.save_channel_children_to_csv(metadata_csv, topic_structure_string)
+                child.save_channel_children_to_csv(metadata_csv, structure_list)
         else:
             for child in self.children:
-                child.save_channel_children_to_csv(metadata_csv, topic_structure_string)
+                child.save_channel_children_to_csv(metadata_csv, topic_structure)
             
             
 
