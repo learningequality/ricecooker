@@ -1,3 +1,4 @@
+import concurrent.futures
 import copy
 import os
 import re
@@ -367,3 +368,29 @@ def archive_page(url, download_root):
 
 def _is_blacklisted(url, url_blacklist):
     return any((item in url.lower()) for item in url_blacklist)
+
+
+def download_in_parallel(urls, func=None, max_workers=None):
+    """
+    Takes a set of URLs, and downloads them in parallel
+    :param urls: A list of URLs to download in parallel
+    :param func: A function that takes the URL as a parameter.
+                 If not specified, defaults to a session-managed
+                 requests.get function.
+    :return: A dictionary of func return values, indexed by URL
+    """
+    if func is None:
+        func = DOWNLOAD_SESSION.get
+
+    results = {}
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = {executor.submit(func, url): url for url in urls}
+        for future in concurrent.futures.as_completed(futures):
+            url = futures[future]
+            try:
+                result = future.result()
+                results[url] = result
+            except:
+                raise
+
+    return results
