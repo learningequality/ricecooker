@@ -51,6 +51,9 @@ class SushiChef(object):
         if not hasattr(self, 'SETTINGS'):
             self.SETTINGS = {}
 
+        # modification
+        if not hasattr(self, 'modifications'):
+            self.modifications = {}
         # these will be assigned to later by the argparse handling.
         self.args = None
         self.options = None
@@ -298,10 +301,6 @@ class SushiChef(object):
             'New Description',
             'Old Tags',
             'New Tags',
-            'Old License',
-            'New License',
-            'Old Author',
-            'New Author',
             'Last Modified'
         ]
         metadata_csv.writerow(headers)
@@ -311,6 +310,14 @@ class SushiChef(object):
 
     def save_chef_data(self):
         json.dump(self.CHEF_RUN_DATA, open(config.DATA_PATH, 'w'), indent=2)
+
+    def save_modifications(self, data):
+        for row in data:
+            self.modifications[row['Source_id']] = {
+                'New Title': row['New Title'],
+                'New Description': row['New Description'],
+                'New Tags': row['New Tags']
+            }
 
 
     def pre_run(self, args, options):

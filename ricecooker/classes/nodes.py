@@ -239,10 +239,6 @@ class Node(object):
                 '',                             # New Description
                 tags_string,
                 '',                             # New Tags
-                self.license,
-                '',                             # New Licecnse
-                self.author,
-                '',                             # New Author
                 ''                              # Last Modified
             ]
             metadata_csv.writerow(record)
