@@ -19,7 +19,7 @@ class Node(object):
     license = None
     language = None
 
-    def __init__(self, title, language=None, description=None, thumbnail=None, files=None, derive_thumbnail=False):
+    def __init__(self, title, language=None, description=None, thumbnail=None, files=None, derive_thumbnail=False, node_modifications = {}):
         self.files = []
         self.children = []
         self.descendants = []
@@ -35,6 +35,8 @@ class Node(object):
             self.add_file(f)
 
         self.set_thumbnail(thumbnail)
+        # save modifications passed in by csv
+        self.node_modifications = node_modifications
 
     def set_language(self, language):
         """ Set self.language to internal lang. repr. code from str or Language object. """
@@ -214,15 +216,17 @@ class Node(object):
 
         return tree
 
-    def save_channel_children_to_csv(self, metadata_csv, topic_structure =[]):
+
+    def save_channel_children_to_csv(self, metadata_csv, topic_structure = list()):
         # Not including channel title in topic structure
+        
         is_channel = isinstance(self, ChannelNode)
  
         if not is_channel:
             # Build out tag string
             current_level = self.title
             # prevent list from being passed by reference. Create new instance of list
-            structure_list = topic_structure[:]
+            structure_list = list(topic_structure)
             if len(structure_list) < 1:
                 structure_list = [current_level]
             else:
@@ -248,43 +252,7 @@ class Node(object):
             for child in self.children:
                 child.save_channel_children_to_csv(metadata_csv, topic_structure)
             
-            
-
-        # if len(self.children) > 0:
-        #     for child in self.children:
-        #         child.save_channel_children_to_csv(metadata_csv, topic_structure_string)
-        # else :
-        #     node_info = self.to_dict()
-
-        #     # Build out tag string
-        #     tags_string = ''
-        #     tags = node_info['tags']
-        #     if len(tags) > 0:
-        #         tags_string = tags_string + tags[0]
-        #         for tag in tags[1:]:
-        #             tags_string = tags_string + ', ' + tag
-        #     else :
-        #         tags_string = ''
-
-        #     record = [
-        #         node_info['source_id'],
-        #         topic_structure_string,
-        #         node_info['title'],
-        #         '',                             # New Title
-        #         node_info['description'],
-        #         '',                             # New Description
-        #         tags_string,
-        #         '',                             # New Tags
-        #         node_info['license'],
-        #         '',                             # New Licecnse
-        #         node_info['author'],
-        #         '',                             # New Author
-        #         ''                              # Last Modified
-        #     ]
-        #     metadata_csv.writerow(record)
-            
-
-
+        
     def validate_tree(self):
         """
         Validate all nodes in this tree recusively.

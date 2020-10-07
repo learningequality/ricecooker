@@ -51,9 +51,6 @@ class SushiChef(object):
         if not hasattr(self, 'SETTINGS'):
             self.SETTINGS = {}
 
-        # modification
-        if not hasattr(self, 'modifications'):
-            self.modifications = {}
         # these will be assigned to later by the argparse handling.
         self.args = None
         self.options = None
@@ -276,7 +273,7 @@ class SushiChef(object):
         if os.path.exists(config.DATA_PATH):
             self.CHEF_RUN_DATA = json.load(open(config.DATA_PATH))
 
-
+        
     def save_channel_tree_as_json(self, channel):
         filename = os.path.join(self.TREES_DATA_DIR, '{}.json'.format(self.CHEF_RUN_DATA['current_run']))
         os.makedirs(self.TREES_DATA_DIR, exist_ok=True)
@@ -311,13 +308,24 @@ class SushiChef(object):
     def save_chef_data(self):
         json.dump(self.CHEF_RUN_DATA, open(config.DATA_PATH, 'w'), indent=2)
 
-    def save_modifications(self, data):
-        for row in data:
-            self.modifications[row['Source_id']] = {
-                'New Title': row['New Title'],
-                'New Description': row['New Description'],
-                'New Tags': row['New Tags']
-            }
+    def save_modifications(self, contentNode, metadata_csv = None):
+        # Skip if no metadat file passed in
+        if metadata_csv == None:
+            return
+        is_channel = isinstance(contentNode, ChannelNode)
+        print(contentNode.source_id)
+        # for row in metadata_csv:
+        #     if(row['Source_id'] == 'metadata_to_csv_test_topic_2'):
+        #         print(row)
+        # recurse through the tree, and add a modifications dictionary to each node with any fields that have New values in them for that node
+        if not is_channel:
+            print(contentNode.title + ' is not a channel node')
+            for child in contentNode.children:
+                self.save_modifications(child, metadata_csv)
+        else:
+            print(contentNode.title + ' is a channel node')
+            for child in contentNode.children:
+                self.save_modifications(child, metadata_csv)
 
 
     def pre_run(self, args, options):
