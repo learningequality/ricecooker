@@ -142,7 +142,7 @@ def uploadchannel(chef, command='uploadchannel', update=False, thumbnails=False,
         config.PROGRESS_MANAGER.set_files(*process_tree_files(tree))
 
     # Save any modifications to chef
-    chef.save_modifications(channel, metadata_csv)
+    chef.save_modifications(channel, metadata_dict, metadata_csv)
     # Save the data about the current run in chefdata/
     chef.save_channel_tree_as_json(channel)
 

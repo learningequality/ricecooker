@@ -234,16 +234,19 @@ class Node(object):
             structure_list_string = '/'.join(structure_list)
             tags_string = ','.join(self.tags)
 
+            new_title = self.node_modifications.get('New Title') or ''
+            new_description = self.node_modifications.get('New Description') or ''
+
             record = [
                 self.source_id,
                 structure_list_string,
                 self.title,
-                '',                             # New Title
+                self.node_modifications.get('New Title') or '',         # New Title
                 self.description,
-                '',                             # New Description
+                self.node_modifications.get('New Description') or '',  # New Description
                 tags_string,
-                '',                             # New Tags
-                ''                              # Last Modified
+                self.node_modifications.get('New Tags') or '',         # New Tags
+                ''                                                     # Last Modified
             ]
             metadata_csv.writerow(record)
             for child in self.children:
