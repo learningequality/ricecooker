@@ -47,7 +47,7 @@ class YouTubeUtils(object):
         youtube_info = None
         # 1. Try to get from cache if allowed:
         if os.path.exists(self.cache_path) and use_cache:
-            # LOGGER.info("==> [%s] Retrieving cached information...", self.__str__(), self.cachename)
+            LOGGER.debug("==> [%s] Retrieving cached information...", self.__str__(), self.cachename)
             youtube_info = json.load(open(self.cache_path))
         # 2. Fetch info from youtube_dl
         if not youtube_info:

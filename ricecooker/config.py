@@ -196,6 +196,19 @@ DOWNLOAD_SESSION.mount('file://', FileAdapter())
 USEPROXY = False
 USEPROXY = True if os.getenv('USEPROXY') is not None or os.getenv('PROXY_LIST') is not None else False
 
+# CSV headers
+CSV_HEADERS = [
+    'Source ID',
+    'Topic Structure',
+    'Old Title',
+    'New Title',
+    'Old Description',
+    'New Description',
+    'Old Tags',
+    'New Tags',
+    'Last Modified'
+]
+
 # Automatic temporary direcotry cleanup
 chef_temp_dir = os.path.join(os.getcwd(), '.ricecooker-temp')
 

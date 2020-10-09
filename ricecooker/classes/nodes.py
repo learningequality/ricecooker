@@ -227,10 +227,10 @@ class Node(object):
             current_level = self.title
             # prevent list from being passed by reference. Create new instance of list
             structure_list = list(topic_structure)
-            if len(structure_list) < 1:
-                structure_list = [current_level]
-            else:
-                structure_list.append(current_level)
+            # if len(structure_list) < 1:
+            #     structure_list = [current_level]
+            # else:
+            structure_list.append(current_level)
             structure_list_string = '/'.join(structure_list)
             tags_string = ','.join(self.tags)
 

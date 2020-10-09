@@ -289,21 +289,32 @@ class SushiChef(object):
         if not os.path.isdir(DATA_DIR):
             os.makedirs(DATA_DIR)
         metadata_csv = csv.writer(open(os.path.join(DATA_DIR, 'content_metadata.csv'), 'w', newline=''))
-        headers = [
-            'Source_id',
-            'Topic Structure',
-            'Old Title',
-            'New Title',
-            'Old Description',
-            'New Description',
-            'Old Tags',
-            'New Tags',
-            'Last Modified'
-        ]
-        metadata_csv.writerow(headers)
+        metadata_csv.writerow(config.CSV_HEADERS)
 
         channel.save_channel_children_to_csv(metadata_csv)
 
+    def load_channel_metadata_from_csv(self, metadata_csv = None, metadata_dict = {}):
+        CSV_FILE_PATH = os.path.join('chefdata', 'data', 'content_metadata.csv')
+        if os.path.exists(CSV_FILE_PATH):
+            metadata_csv = csv.DictReader(open(CSV_FILE_PATH, 'r'))
+            for line in metadata_csv:
+                # Add to metadata_dict any updated data. Skip if none
+                line_source_id = line['Source ID']
+                line_new_title = line['New Title']
+                line_new_description = line['New Description']
+                line_new_tags = line['New Tags']
+                if line_new_title != '' or line_new_description != '' or line_new_tags != '':
+                    metadata_dict[line_source_id] = {}
+                    if line_new_title != '':
+                        metadata_dict[line_source_id]['New Title'] = line_new_title
+                    if line_new_description != '':
+                        metadata_dict[line_source_id]['New Description'] = line_new_description
+                    if line_new_tags != '':
+                        metadata_dict[line_source_id]['New Tags'] = line_new_tags
+                    print(metadata_dict)
+            return metadata_csv, metadata_dict
+        else:
+            return metadata_csv, metadata_dict
 
     def save_chef_data(self):
         json.dump(self.CHEF_RUN_DATA, open(config.DATA_PATH, 'w'), indent=2)
@@ -319,11 +330,8 @@ class SushiChef(object):
             # Add modifications to contentNode
             if contentNode.source_id in metadata_dict:
                 contentNode.node_modifications = metadata_dict[contentNode.source_id]
-            for child in contentNode.children:
-                self.save_modifications(child, metadata_dict, metadata_csv)
-        else:
-            for child in contentNode.children:
-                self.save_modifications(child, metadata_dict, metadata_csv)
+        for child in contentNode.children:
+            self.save_modifications(child, metadata_dict, metadata_csv)
 
 
     def pre_run(self, args, options):

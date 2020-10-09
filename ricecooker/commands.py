@@ -7,7 +7,6 @@ import webbrowser
 
 import os
 import csv
-from pathlib import Path
 
 from . import config, __version__
 from .classes.nodes import ChannelNode
@@ -67,10 +66,6 @@ def uploadchannel(chef, command='uploadchannel', update=False, thumbnails=False,
     # Get domain to upload to
     config.init_file_mapping_store()
     
-    # Path to chefdata
-    CSV_DIR = os.path.join(Path(__file__).parents[1], 'chefdata', 'data', 'content_metadata.csv')
-    metadata_csv = None
-    metadata_dict = {}
     
     if not command == 'dryrun':
         # Authenticate user and check current Ricecooker version
@@ -99,26 +94,7 @@ def uploadchannel(chef, command='uploadchannel', update=False, thumbnails=False,
         chef.download_content()
 
     # TODO load csv if exists
-    if os.path.exists(CSV_DIR):
-        metadata_csv = csv.DictReader(open(CSV_DIR, 'r'))
-        for line in metadata_csv:
-            # Add to metadata_dict any updated data. Skip if none
-            line_source_id = line['Source_id']
-            line_new_title = line['New Title']
-            line_new_description = line['New Description']
-            line_new_tags = line['New Tags']
-            if line_new_title == '' and line_new_description == '' and line_new_tags == '':
-                print('No updates on this row. Skip adding to metadata_dict')
-            else:
-                print('There are updates on this row')
-                metadata_dict[line_source_id] = {}
-                if line_new_title != '':
-                    metadata_dict[line_source_id]['New Title'] = line_new_title
-                if line_new_description != '':
-                    metadata_dict[line_source_id]['New Description'] = line_new_description
-                if line_new_tags != '':
-                    metadata_dict[line_source_id]['New Tags'] = line_new_tags
-                print(metadata_dict)
+    metadata_csv, metadata_dict = chef.load_channel_metadata_from_csv()
             
 
     # Construct channel if it hasn't been constructed already
