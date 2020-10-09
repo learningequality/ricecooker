@@ -236,16 +236,20 @@ class Node(object):
 
             new_title = self.node_modifications.get('New Title') or ''
             new_description = self.node_modifications.get('New Description') or ''
+            new_tags = self.node_modifications.get('New Tags') or ''
+            # New Tags is being saved as a list. Check if list and if so, join to correctly write it to csv
+            if isinstance(new_tags, list):
+                new_tags = ','.join(new_tags)
 
             record = [
                 self.source_id,
                 structure_list_string,
                 self.title,
-                self.node_modifications.get('New Title') or '',         # New Title
+                new_title,         # New Title
                 self.description,
-                self.node_modifications.get('New Description') or '',  # New Description
+                new_description,  # New Description
                 tags_string,
-                self.node_modifications.get('New Tags') or '',         # New Tags
+                new_tags,         # New Tags
                 ''                                                     # Last Modified
             ]
             metadata_csv.writerow(record)
@@ -435,9 +439,9 @@ class TreeNode(Node):
             Returns: dict of channel data
         """
         return {
-            "title": self.title,
+            "title": self.node_modifications.get('New Title') or self.title,
             "language" : self.language,
-            "description": self.description,
+            "description": self.node_modifications.get('New Description') or self.description,
             "node_id": self.get_node_id().hex,
             "content_id": self.get_content_id().hex,
             "source_domain": self.domain_ns.hex,
@@ -446,7 +450,7 @@ class TreeNode(Node):
             "aggregator": self.aggregator,
             "provider": self.provider,
             "files" : [f.to_dict() for f in self.files if f and f.filename], # Filter out failed downloads
-            "tags": self.tags,
+            "tags": self.node_modifications.get('New Tags') or self.tags,
             "kind": self.kind,
             "license": None,
             "license_description": None,
@@ -566,9 +570,9 @@ class ContentNode(TreeNode):
             Returns: dict of channel data
         """
         return {
-            "title": self.title,
+            "title": self.node_modifications.get('New Title') or self.title,
             "language" : self.language,
-            "description": self.description,
+            "description": self.node_modifications.get('New Description') or self.description,
             "node_id": self.get_node_id().hex,
             "content_id": self.get_content_id().hex,
             "source_domain": self.domain_ns.hex,
@@ -577,7 +581,7 @@ class ContentNode(TreeNode):
             "aggregator": self.aggregator,
             "provider": self.provider,
             "files" : [f.to_dict() for f in filter(lambda x: x and x.filename, self.files)], # Filter out failed downloads
-            "tags": self.tags,
+            "tags": self.node_modifications.get('New Tags') or self.tags,
             "kind": self.kind,
             "license": self.license.license_id,
             "license_description": self.license.description,

@@ -4,6 +4,7 @@ import logging
 import os
 import sys
 import csv
+import re
 from datetime import datetime
 
 from . import config
@@ -288,7 +289,7 @@ class SushiChef(object):
         DATA_DIR = os.path.join('chefdata', 'data')
         if not os.path.isdir(DATA_DIR):
             os.makedirs(DATA_DIR)
-        metadata_csv = csv.writer(open(os.path.join(DATA_DIR, 'content_metadata.csv'), 'w', newline=''))
+        metadata_csv = csv.writer(open(os.path.join(DATA_DIR, 'content_metadata.csv'), 'w', newline='', encoding='utf-8'))
         metadata_csv.writerow(config.CSV_HEADERS)
 
         channel.save_channel_children_to_csv(metadata_csv)
@@ -296,7 +297,7 @@ class SushiChef(object):
     def load_channel_metadata_from_csv(self, metadata_csv = None, metadata_dict = {}):
         CSV_FILE_PATH = os.path.join('chefdata', 'data', 'content_metadata.csv')
         if os.path.exists(CSV_FILE_PATH):
-            metadata_csv = csv.DictReader(open(CSV_FILE_PATH, 'r'))
+            metadata_csv = csv.DictReader(open(CSV_FILE_PATH, 'r', encoding='utf-8'))
             for line in metadata_csv:
                 # Add to metadata_dict any updated data. Skip if none
                 line_source_id = line['Source ID']
@@ -310,8 +311,8 @@ class SushiChef(object):
                     if line_new_description != '':
                         metadata_dict[line_source_id]['New Description'] = line_new_description
                     if line_new_tags != '':
-                        metadata_dict[line_source_id]['New Tags'] = line_new_tags
-                    print(metadata_dict)
+                        tags_arr = re.split(',| ,', line_new_tags)
+                        metadata_dict[line_source_id]['New Tags'] = tags_arr
             return metadata_csv, metadata_dict
         else:
             return metadata_csv, metadata_dict
