@@ -217,7 +217,7 @@ class Node(object):
         return tree
 
 
-    def save_channel_children_to_csv(self, metadata_csv, topic_structure = list()):
+    def save_channel_children_to_csv(self, metadata_csv, structure_list = list()):
         # Not including channel title in topic structure
         
         is_channel = isinstance(self, ChannelNode)
@@ -226,14 +226,10 @@ class Node(object):
             # Build out tag string
             current_level = self.title
             # prevent list from being passed by reference. Create new instance of list
-            structure_list = list(topic_structure)
-            # if len(structure_list) < 1:
-            #     structure_list = [current_level]
-            # else:
+            structure_list = list(structure_list)
             structure_list.append(current_level)
             structure_list_string = '/'.join(structure_list)
             tags_string = ','.join(self.tags)
-
             new_title = self.node_modifications.get('New Title') or ''
             new_description = self.node_modifications.get('New Description') or ''
             new_tags = self.node_modifications.get('New Tags') or ''
@@ -245,19 +241,16 @@ class Node(object):
                 self.source_id,
                 structure_list_string,
                 self.title,
-                new_title,         # New Title
+                new_title,        # New Title
                 self.description,
                 new_description,  # New Description
                 tags_string,
                 new_tags,         # New Tags
-                ''                                                     # Last Modified
+                ''                # Last Modified
             ]
             metadata_csv.writerow(record)
-            for child in self.children:
-                child.save_channel_children_to_csv(metadata_csv, structure_list)
-        else:
-            for child in self.children:
-                child.save_channel_children_to_csv(metadata_csv, topic_structure)
+        for child in self.children:
+            child.save_channel_children_to_csv(metadata_csv, structure_list)
             
         
     def validate_tree(self):

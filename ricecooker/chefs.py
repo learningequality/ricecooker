@@ -285,16 +285,16 @@ class SushiChef(object):
 
     def save_channel_metadata_as_csv(self, channel):
         # create data folder in chefdata
-        # config.LOGGER.info('SAVE METADATA TO CSV')
         DATA_DIR = os.path.join('chefdata', 'data')
-        if not os.path.isdir(DATA_DIR):
-            os.makedirs(DATA_DIR)
+        os.makedirs(DATA_DIR, exist_ok = True)
         metadata_csv = csv.writer(open(os.path.join(DATA_DIR, 'content_metadata.csv'), 'w', newline='', encoding='utf-8'))
         metadata_csv.writerow(config.CSV_HEADERS)
 
         channel.save_channel_children_to_csv(metadata_csv)
 
-    def load_channel_metadata_from_csv(self, metadata_csv = None, metadata_dict = {}):
+    def load_channel_metadata_from_csv(self):
+        metadata_dict = dict()
+        metadata_csv = None
         CSV_FILE_PATH = os.path.join('chefdata', 'data', 'content_metadata.csv')
         if os.path.exists(CSV_FILE_PATH):
             metadata_csv = csv.DictReader(open(CSV_FILE_PATH, 'r', encoding='utf-8'))
@@ -313,9 +313,7 @@ class SushiChef(object):
                     if line_new_tags != '':
                         tags_arr = re.split(',| ,', line_new_tags)
                         metadata_dict[line_source_id]['New Tags'] = tags_arr
-            return metadata_csv, metadata_dict
-        else:
-            return metadata_csv, metadata_dict
+        return metadata_csv, metadata_dict
 
     def save_chef_data(self):
         json.dump(self.CHEF_RUN_DATA, open(config.DATA_PATH, 'w'), indent=2)
