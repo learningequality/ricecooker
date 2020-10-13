@@ -80,6 +80,9 @@ def run_ricecooker(cmd, remote_name=None, extra_args=None):
             else:
                 token = prompt_for_token(remote_name)
             cmd_args.extend(['--token', token])
+        else:
+            print("ERROR: No remote with name {} found. To see available remotes, run: jiro remote list")
+            sys.exit(1)
 
     print("Running {}".format(cmd_args))
     return subprocess.call(cmd_args, env=env)
@@ -107,6 +110,18 @@ def add_remote(args, remainder):
         'token': args.token
     }
     save_config()
+
+
+def list_remotes(args, remainder):
+    """
+    Create a named alias for a remote server to upload to. If none are specified, will use the default server.
+    :param args: Object containing .name and .url arguments.
+    :return:
+    """
+
+    global jiro_config
+    for remote in jiro_config['remotes']:
+        print("{}: {}".format(remote, jiro_config['remotes'][remote]['url']))
 
 
 def set(args, remainder):
@@ -197,11 +212,17 @@ def main():
     set_cmd.add_argument('value', nargs='?', help='Value as string to set property to.')
     set_cmd.set_defaults(func=set)
 
-    add_cmd = commands.add_parser('add-remote')
+    remote_cmd = commands.add_parser('remote')
+    remote_cmds = remote_cmd.add_subparsers(title='remotes', description='Commands related to remote server management.')
+
+    add_cmd = remote_cmds.add_parser('add')
     add_cmd.add_argument('name', nargs='?', help='Name of upload server.')
     add_cmd.add_argument('url', nargs='?', help='URL of server to upload to.')
     add_cmd.add_argument('token', nargs='?', help='User authentication token for server.')
     add_cmd.set_defaults(func=add_remote)
+
+    list_cmd = remote_cmds.add_parser('list')
+    list_cmd.set_defaults(func=list_remotes)
 
     setup_cmd = commands.add_parser('setup')
     setup_cmd.set_defaults(func=setup_env)
