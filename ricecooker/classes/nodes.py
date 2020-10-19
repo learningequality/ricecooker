@@ -217,17 +217,11 @@ class Node(object):
         return tree
 
 
-    def save_channel_children_to_csv(self, metadata_csv, structure_list = list()):
-        # prevent list from being passed by reference. Create new instance of list
-        branch_structure_list = list(structure_list)
+    def save_channel_children_to_csv(self, metadata_csv, structure_string = ''):
         # Not including channel title in topic structure
         is_channel = isinstance(self, ChannelNode)
         if not is_channel:
             # Build out tag string
-            current_level = self.title
-            branch_structure_list.append(current_level)
-            branch_structure_list_string = '/'.join(branch_structure_list)
-            print(branch_structure_list_string)
             tags_string = ','.join(self.tags)
             new_title = self.node_modifications.get('New Title') or ''
             new_description = self.node_modifications.get('New Description') or ''
@@ -237,8 +231,8 @@ class Node(object):
                 new_tags = ','.join(new_tags)
 
             record = [
-                self.source_id,
-                branch_structure_list_string,
+                self.source_id, 
+                structure_string,
                 self.title,
                 new_title,        # New Title
                 self.description,
@@ -248,8 +242,17 @@ class Node(object):
                 ''                # Last Modified
             ]
             metadata_csv.writerow(record)
+
+            current_level = self.title
+            # add current level to structure_string_list
+            if structure_string == '':
+                structure_string = self.title
+            else:
+                structure_string += '/' + self.title
+            print(self.title)
+            print(structure_string)
         for child in self.children:
-            child.save_channel_children_to_csv(metadata_csv, branch_structure_list)
+            child.save_channel_children_to_csv(metadata_csv, structure_string)
             
         
     def validate_tree(self):
