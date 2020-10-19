@@ -313,14 +313,14 @@ class SushiChef(object):
                     if line_new_tags != '':
                         tags_arr = re.split(',| ,', line_new_tags)
                         metadata_dict[line_source_id]['New Tags'] = tags_arr
-        return metadata_csv, metadata_dict
+        return metadata_dict
 
     def save_chef_data(self):
         json.dump(self.CHEF_RUN_DATA, open(config.DATA_PATH, 'w'), indent=2)
 
-    def save_modifications(self, contentNode, metadata_dict = {},metadata_csv = None):
+    def save_modifications(self, contentNode, metadata_dict = {}):
         # Skip if no metadata file passed in or no updates in metadata_dict
-        if metadata_csv == None or metadata_dict == {}:
+        if metadata_dict == {}:
             return
             
         is_channel = isinstance(contentNode, ChannelNode)
@@ -330,7 +330,7 @@ class SushiChef(object):
             if contentNode.source_id in metadata_dict:
                 contentNode.node_modifications = metadata_dict[contentNode.source_id]
         for child in contentNode.children:
-            self.save_modifications(child, metadata_dict, metadata_csv)
+            self.save_modifications(child, metadata_dict)
 
 
     def pre_run(self, args, options):

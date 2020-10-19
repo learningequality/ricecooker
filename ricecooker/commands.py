@@ -94,7 +94,7 @@ def uploadchannel(chef, command='uploadchannel', update=False, thumbnails=False,
         chef.download_content()
 
     # TODO load csv if exists
-    metadata_csv, metadata_dict = chef.load_channel_metadata_from_csv()
+    metadata_dict = chef.load_channel_metadata_from_csv()
             
 
     # Construct channel if it hasn't been constructed already
@@ -118,7 +118,7 @@ def uploadchannel(chef, command='uploadchannel', update=False, thumbnails=False,
         config.PROGRESS_MANAGER.set_files(*process_tree_files(tree))
 
     # Save any modifications to chef
-    chef.save_modifications(channel, metadata_dict, metadata_csv)
+    chef.save_modifications(channel, metadata_dict)
     # Save the data about the current run in chefdata/
     chef.save_channel_tree_as_json(channel)
 

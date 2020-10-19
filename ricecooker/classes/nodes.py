@@ -218,17 +218,16 @@ class Node(object):
 
 
     def save_channel_children_to_csv(self, metadata_csv, structure_list = list()):
+        # prevent list from being passed by reference. Create new instance of list
+        branch_structure_list = list(structure_list)
         # Not including channel title in topic structure
-        
         is_channel = isinstance(self, ChannelNode)
- 
         if not is_channel:
             # Build out tag string
             current_level = self.title
-            # prevent list from being passed by reference. Create new instance of list
-            structure_list = list(structure_list)
-            structure_list.append(current_level)
-            structure_list_string = '/'.join(structure_list)
+            branch_structure_list.append(current_level)
+            branch_structure_list_string = '/'.join(branch_structure_list)
+            print(branch_structure_list_string)
             tags_string = ','.join(self.tags)
             new_title = self.node_modifications.get('New Title') or ''
             new_description = self.node_modifications.get('New Description') or ''
@@ -239,7 +238,7 @@ class Node(object):
 
             record = [
                 self.source_id,
-                structure_list_string,
+                branch_structure_list_string,
                 self.title,
                 new_title,        # New Title
                 self.description,
@@ -250,7 +249,7 @@ class Node(object):
             ]
             metadata_csv.writerow(record)
         for child in self.children:
-            child.save_channel_children_to_csv(metadata_csv, structure_list)
+            child.save_channel_children_to_csv(metadata_csv, branch_structure_list)
             
         
     def validate_tree(self):
