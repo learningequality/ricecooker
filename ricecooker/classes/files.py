@@ -775,7 +775,7 @@ class SubtitleFile(DownloadFile):
         """
         key = "DOWNLOAD:{}".format(path)
         cache_file = get_cache_filename(key)
-        if not config.UPDATE and not cache_is_outdated(cache_file):
+        if not config.UPDATE and not cache_is_outdated(path, cache_file):
             return cache_file
 
         config.LOGGER.info("\tDownloading {}".format(path))
