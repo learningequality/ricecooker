@@ -179,25 +179,25 @@ def test_slideshow_node_via_files(channel):
         license=get_license('CC BY', copyright_holder='Demo Holdings'),
         files=[
             SlideImageFile(
-                path='tests/testcontent/slide0.jpg',
+                path='tests/testcontent/samples/thumbnail.jpg',
                 language='en',
                 caption="Demo blocks are neat.",
                 descriptive_text="Demo blocks are neat."
             ),
             SlideImageFile(
-                path='tests/testcontent/slide1.jpg',
+                path='tests/testcontent/samples/thumbnail.jpg',
                 language='en',
                 caption="Touch the demo to learn new things!",
                 descriptive_text="Touch the demo to learn new things!"
             ),
             SlideImageFile(
-                path='tests/testcontent/slide2.jpg',
+                path='tests/testcontent/samples/thumbnail.jpg',
                 language='en',
                 caption="Made mostly with Python!",
                 descriptive_text="Made mostly with Python!"
             ),
             SlideImageFile(
-                path='tests/testcontent/slide3.jpg',
+                path='tests/testcontent/samples/thumbnail.jpg',
                 language='en',
                 caption="Unlock your potential with this demo.",
                 descriptive_text="Unlock your potential with this demo."
@@ -231,14 +231,14 @@ def test_slideshow_node_via_add_file(channel):
         files=[]
     )
     slideimg1 = SlideImageFile(
-        path='tests/testcontent/slide0.jpg',
+        path='tests/testcontent/samples/thumbnail.jpg',
         language='en',
         caption="Demo blocks are neat.",
         descriptive_text="Demo blocks are neat."
     )
     slideshow_node.add_file(slideimg1)
     slideimg2 = SlideImageFile(
-        path='tests/testcontent/slide1.jpg',
+        path='tests/testcontent/samples/thumbnail.jpg',
         language='en',
         caption="Touch the demo to learn new things!",
         descriptive_text="Touch the demo to learn new things!"
