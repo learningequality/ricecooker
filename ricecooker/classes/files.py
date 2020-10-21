@@ -14,6 +14,8 @@ import tempfile
 import youtube_dl
 import zipfile
 
+from urllib.parse import urlparse
+
 from le_utils.constants import languages
 from le_utils.constants import file_formats, format_presets, exercises
 from pressurecooker.encodings import get_base64_encoding, write_base64_to_file
@@ -178,12 +180,8 @@ def is_valid_url(path):
     """
     Return `True` if path is a valid URL, else `False` if path is a local path.
     """
-    try:
-        pre_flight_request = requests.Request('GET', path)
-        pre_flight_request.prepare()
-        return True
-    except (InvalidURL, MissingSchema, InvalidSchema):
-        return False
+    parts = urlparse(path)
+    return parts.scheme != '' and parts.netloc != ''
 
 
 def write_and_get_hash(path, write_to_file, hash=None):
