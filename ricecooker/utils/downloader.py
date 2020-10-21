@@ -18,7 +18,8 @@ from ricecooker.utils.caching import CacheForeverHeuristic, FileCache, CacheCont
 DOWNLOAD_SESSION = requests.Session()                          # Session for downloading content from urls
 DOWNLOAD_SESSION.mount('https://', requests.adapters.HTTPAdapter(max_retries=3))
 DOWNLOAD_SESSION.mount('file://', FileAdapter())
-cache = FileCache('.webcache')
+# use_dir_lock works with all filesystems and OSes
+cache = FileCache('.webcache', use_dir_lock=True)
 forever_adapter= CacheControlAdapter(heuristic=CacheForeverHeuristic(), cache=cache)
 
 DOWNLOAD_SESSION.mount('http://', forever_adapter)
@@ -278,6 +279,31 @@ def download_static_assets(doc, destination, base_url,
 
     return doc
 
+
+def get_archive_filename(url, page_domain=None, download_root=None, urls_to_replace=None):
+    file_url_parsed = urlparse(url)
+
+    no_scheme_url = url
+    if file_url_parsed.scheme != '':
+        no_scheme_url = url.replace(file_url_parsed.scheme + '://', '')
+    rel_path = file_url_parsed.path.replace('%', '_')
+    domain = file_url_parsed.netloc.replace(':', '_')
+    if not domain and page_domain:
+        domain = page_domain
+    else:
+        domain = ''
+    if rel_path.startswith('/'):
+        rel_path = rel_path[1:]
+    url_local_dir = os.path.join(domain, rel_path)
+    assert domain in url_local_dir
+    local_dir_name = os.path.dirname(url_local_dir)
+    if local_dir_name != url_local_dir and urls_to_replace is not None:
+        full_dir = os.path.join(download_root, local_dir_name)
+        os.makedirs(full_dir, exist_ok=True)
+        urls_to_replace[url] = no_scheme_url
+    return url_local_dir
+
+
 def archive_page(url, download_root):
     """
     Download fully rendered page and all related assets into ricecooker's site archive format.
@@ -296,28 +322,10 @@ def archive_page(url, download_root):
     # get related assets
     base_url = url[:url.rfind('/')]
     urls_to_replace = {}
-    def html5_derive_filename(url):
-        file_url_parsed = urlparse(url)
-
-        no_scheme_url = url
-        if file_url_parsed.scheme != '':
-            no_scheme_url = url.replace(file_url_parsed.scheme + '://', '')
-        rel_path = file_url_parsed.path.replace('%', '_')
-        domain = file_url_parsed.netloc.replace(':', '_')
-        if not domain:
-            domain = page_domain
-        if rel_path.startswith('/'):
-            rel_path = rel_path[1:]
-        url_local_dir = os.path.join(domain, rel_path)
-        assert domain in url_local_dir
-        local_dir_name = os.path.dirname(url_local_dir)
-        if local_dir_name != url_local_dir:
-            full_dir = os.path.join(download_root, local_dir_name)
-            os.makedirs(full_dir, exist_ok=True)
-            urls_to_replace[url] = no_scheme_url
-        return url_local_dir
 
     if content:
+        def html5_derive_filename(url):
+            return get_archive_filename(url, page_domain, download_root, urls_to_replace)
         download_static_assets(content, download_root, base_url, derive_filename=html5_derive_filename)
 
         for key in urls_to_replace:
@@ -370,7 +378,7 @@ def _is_blacklisted(url, url_blacklist):
     return any((item in url.lower()) for item in url_blacklist)
 
 
-def download_in_parallel(urls, func=None, max_workers=None):
+def download_in_parallel(urls, func=None, max_workers=5):
     """
     Takes a set of URLs, and downloads them in parallel
     :param urls: A list of URLs to download in parallel
@@ -380,17 +388,26 @@ def download_in_parallel(urls, func=None, max_workers=None):
     :return: A dictionary of func return values, indexed by URL
     """
     if func is None:
-        func = DOWNLOAD_SESSION.get
+        func = requests.get
 
     results = {}
+    start = 0
+    end = len(urls)
+    batch_size = 100
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = {executor.submit(func, url): url for url in urls}
-        for future in concurrent.futures.as_completed(futures):
-            url = futures[future]
-            try:
-                result = future.result()
-                results[url] = result
-            except:
-                raise
+        while start < end:
+            batch = urls[start:end]
+            futures = {}
+            for url in batch:
+                futures[executor.submit(func, url)] = url
+
+            for future in concurrent.futures.as_completed(futures):
+                url = futures[future]
+                try:
+                    result = future.result()
+                    results[url] = result
+                except:
+                    raise
+            start = start + batch_size
 
     return results
