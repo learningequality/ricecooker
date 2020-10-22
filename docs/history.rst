@@ -2,6 +2,12 @@
 History
 =======
 
+0.6.46 (2020-09-21)
+-------------------
+* Add ``ricecooker.utils.youtube``, containing utilities for handling and caching YouTube videos and playlists.
+* Improve validation of ``m`` and ``n`` mastery model values in ``ExerciseNode``.
+
+
 0.6.45 (2020-07-25)
 -------------------
 * Remove SushiBar remote monitoring and remote command functionality

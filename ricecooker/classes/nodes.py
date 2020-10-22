@@ -259,8 +259,9 @@ class ChannelNode(Node):
             files ([<File>]): list of file objects for node (optional)
     """
     kind = "Channel"
-    def __init__(self, source_id, source_domain, tagline=None, *args, **kwargs):
+    def __init__(self, source_id, source_domain, tagline=None, channel_id=None, *args, **kwargs):
         # Map parameters to model variables
+        self.channel_id = channel_id
         self.source_domain = source_domain
         self.source_id = source_id
         self.tagline = tagline
@@ -291,7 +292,7 @@ class ChannelNode(Node):
             Returns: dict of channel data
         """
         return {
-            "id": self.get_node_id().hex,
+            "id": self.channel_id or self.get_node_id().hex,
             "name": self.title,
             "thumbnail": self.thumbnail.filename if self.thumbnail else None,
             "language" : self.language,
@@ -875,6 +876,11 @@ class ExerciseNode(ContentNode):
         m_value = self.extra_fields.get('m') or self.extra_fields.get('n')
         n_value = self.extra_fields.get('n') or self.extra_fields.get('m')
 
+        if m_value:
+            m_value = int(m_value)
+        if n_value:
+            n_value = int(n_value)
+
         # Update mastery model if parameters were not provided
         if mastery_model == exercises.M_OF_N:
             m_value = m_value or max(min(5, len(self.questions)), 1)
@@ -900,7 +906,10 @@ class ExerciseNode(ContentNode):
             Args: None
             Returns: boolean indicating if exercise is valid
         """
+
         try:
+            self.process_exercise_data()
+
             assert self.kind == content_kinds.EXERCISE, "Assumption Failed: Node should be an exercise"
 
             # Check if questions are correct
@@ -908,9 +917,15 @@ class ExerciseNode(ContentNode):
             assert all([q.validate() for q in self.questions]), "Assumption Failed: Exercise has invalid question"
             assert self.extra_fields['mastery_model'] in MASTERY_MODELS, \
                 "Assumption Failed: Unrecognized mastery model {}".format(self.extra_fields['mastery_model'])
+            if self.extra_fields['mastery_model'] == exercises.M_OF_N:
+                assert 'm' in self.extra_fields and 'n' in self.extra_fields, "Assumption failed: M of N mastery model is missing M and/or N values"
+                assert isinstance(self.extra_fields['m'], int), "Assumption failed: M must be an integer value"
+                assert isinstance(self.extra_fields['m'], int), "Assumption failed: N must be an integer value"
+
             return super(ExerciseNode, self).validate()
-        except AssertionError as ae:
+        except (AssertionError, ValueError) as ae:
             raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
+
 
     def truncate_fields(self):
         for q in self.questions:
