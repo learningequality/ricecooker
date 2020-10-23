@@ -14,6 +14,8 @@ import tempfile
 import youtube_dl
 import zipfile
 
+from urllib.parse import urlparse
+
 from le_utils.constants import languages
 from le_utils.constants import file_formats, format_presets, exercises
 from pressurecooker.encodings import get_base64_encoding, write_base64_to_file
@@ -34,7 +36,7 @@ from .. import config
 from ..exceptions import UnknownFileTypeError
 
 # Cache for filenames
-FILECACHE = FileCache(config.FILECACHE_DIRECTORY, forever=True)
+FILECACHE = FileCache(config.FILECACHE_DIRECTORY, use_dir_lock=True, forever=True)
 HTTP_CAUGHT_EXCEPTIONS = (HTTPError, ConnectionError, InvalidURL, UnicodeDecodeError, UnicodeError, InvalidSchema, IOError, AssertionError)
 
 # Lookup table for convertible file formats for a given preset
@@ -79,6 +81,32 @@ def generate_key(action, path_or_id, settings=None, default=" (default)"):
     return "{}: {} {}".format(action.upper(), path_or_id, settings_str)
 
 
+def get_cache_filename(key):
+    cache_file = FILECACHE.get(key)
+    if cache_file:
+        cache_file = cache_file.decode('utf-8')
+        # if the file was somehow deleted, make sure we don't return it.
+        if not os.path.exists(config.get_storage_path(cache_file)):
+            cache_file = None
+    return cache_file
+
+
+def cache_is_outdated(path, cache_file):
+    outdated = True
+    if not cache_file:
+        return True
+
+    if is_valid_url(path):
+        # Downloading is expensive, so always use cache if we don't explicitly try to update.
+        outdated = False
+    else:
+        # check if the on disk file has changed
+        cache_hash = get_hash(path)
+        outdated = not cache_hash or not cache_file.startswith(cache_hash)
+
+    return outdated
+
+
 def download(path, default_ext=None):
     """
     Download `path` and save to storage based on file extension derived from `path`.
@@ -89,11 +117,12 @@ def download(path, default_ext=None):
     """
     key = "DOWNLOAD:{}".format(path)
 
-    if is_valid_url(path) and not config.UPDATE and FILECACHE.get(key):
-        return FILECACHE.get(key).decode('utf-8')
+    cache_file = get_cache_filename(key)
+    if not config.UPDATE and not cache_is_outdated(path, cache_file):
+        config.LOGGER.info("\tUsing cached file for: {}".format(path))
+        return cache_file
 
     config.LOGGER.info("\tDownloading {}".format(path))
-
     # Write file to temporary file
     with tempfile.TemporaryFile() as tempf:
         hash = write_and_get_hash(path, tempf)
@@ -103,7 +132,9 @@ def download(path, default_ext=None):
         filename = '{0}.{ext}'.format(hash.hexdigest(), ext=ext)
         copy_file_to_storage(filename, tempf)
         FILECACHE.set(key, bytes(filename, "utf-8"))
-        return filename
+        config.LOGGER.info("\t--- Downloaded {}".format(filename))
+
+    return filename
 
 
 def download_and_convert_video(path, default_ext=file_formats.MP4, ffmpeg_settings=None):
@@ -112,8 +143,9 @@ def download_and_convert_video(path, default_ext=file_formats.MP4, ffmpeg_settin
     """
     ffmpeg_settings = ffmpeg_settings or {}
     key = "DOWNLOAD:{}".format(path)
-    if is_valid_url(path) and not config.UPDATE and FILECACHE.get(key):
-        return FILECACHE.get(key).decode('utf-8')
+    cache_file = get_cache_filename(key)
+    if is_valid_url(path) and not config.UPDATE and cache_file:
+        return cache_file
 
     config.LOGGER.info("\tDownloading {}".format(path))
 
@@ -148,12 +180,8 @@ def is_valid_url(path):
     """
     Return `True` if path is a valid URL, else `False` if path is a local path.
     """
-    try:
-        pre_flight_request = requests.Request('GET', path)
-        pre_flight_request.prepare()
-        return True
-    except (InvalidURL, MissingSchema, InvalidSchema):
-        return False
+    parts = urlparse(path)
+    return parts.scheme != '' and parts.netloc != ''
 
 
 def write_and_get_hash(path, write_to_file, hash=None):
@@ -225,8 +253,9 @@ def compress_video_file(filename, ffmpeg_settings):
     ffmpeg_settings = ffmpeg_settings or {}
     key = generate_key("COMPRESSED", filename, settings=ffmpeg_settings, default=" (default compression)")
 
-    if not config.UPDATE and FILECACHE.get(key):
-        return FILECACHE.get(key).decode('utf-8')
+    cache_file = get_cache_filename(key)
+    if not config.UPDATE and cache_file:
+        return cache_file
 
     config.LOGGER.info("\t--- Compressing {}".format(filename))
 
@@ -260,8 +289,9 @@ def download_from_web(web_url, download_settings, file_format=file_formats.MP4, 
     :return: filename derived from hash of file contents {md5hash(file)}.ext
     """
     key = generate_key("DOWNLOADED", web_url, settings=download_settings)
-    if FILECACHE.get(key):
-        return FILECACHE.get(key).decode('utf-8')
+    cache_file = get_cache_filename(key)
+    if cache_file:
+        return cache_file
 
     # Get hash of web_url to act as temporary storage name
     url_hash = hashlib.md5()
@@ -415,11 +445,11 @@ class DownloadFile(File):
     def process_file(self):
         try:
             self.filename = download(self.path, default_ext=self.default_ext)
-            config.LOGGER.info("\t--- Downloaded {}".format(self.filename))
             return self.filename
         # Catch errors related to reading file path and handle silently
         except HTTP_CAUGHT_EXCEPTIONS as err:
             self.error = err
+            config.LOGGER.debug("Failed to download, error is: {}".format(err))
             config.FAILED_FILES.append(self)
             return None
 
@@ -744,8 +774,9 @@ class SubtitleFile(DownloadFile):
         Returns: filename of final .vtt file
         """
         key = "DOWNLOAD:{}".format(path)
-        if is_valid_url(path) and not config.UPDATE and FILECACHE.get(key):
-            return FILECACHE.get(key).decode('utf-8')
+        cache_file = get_cache_filename(key)
+        if not config.UPDATE and not cache_is_outdated(path, cache_file):
+            return cache_file
 
         config.LOGGER.info("\tDownloading {}".format(path))
 
@@ -810,8 +841,9 @@ class Base64ImageFile(ThumbnailPresetMixin, File):
         hashed_content.update(self.encoding.encode('utf-8'))
         key = "ENCODED: {} (base64 encoded)".format(hashed_content.hexdigest())
 
-        if not config.UPDATE and FILECACHE.get(key):
-            return FILECACHE.get(key).decode('utf-8')
+        cache_file = get_cache_filename(key)
+        if not config.UPDATE and cache_file:
+            return cache_file
 
         config.LOGGER.info("\tConverting base64 to file")
 
@@ -879,8 +911,9 @@ class _ExerciseGraphieFile(DownloadFile):
     def generate_graphie_file(self):
         key = "GRAPHIE: {}".format(self.path)
 
-        if not config.UPDATE and FILECACHE.get(key):
-            return FILECACHE.get(key).decode('utf-8')
+        cache_file = get_cache_filename(key)
+        if not config.UPDATE and cache_file:
+            return cache_file
 
         # Create graphie file combining svg and json files
         with tempfile.TemporaryFile() as tempf:
