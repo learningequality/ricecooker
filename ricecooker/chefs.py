@@ -517,9 +517,9 @@ class YouTubeSushiChef(SushiChef):
     """
 
     use_cache = True  # field to indicate whether use cached json data
-    YOUTUBE_CACHE_DIR = os.path.join("chefdata", "youtubecache")
     CONTENT_ARCHIVE_VERSION = 1
     DATA_DIR = os.path.abspath('chefdata')
+    YOUTUBE_CACHE_DIR = os.path.join(DATA_DIR, "youtubecache")
     DOWNLOADS_DIR = os.path.join(DATA_DIR, 'downloads')
     ARCHIVE_DIR = os.path.join(DOWNLOADS_DIR, 'archive_{}'.format(CONTENT_ARCHIVE_VERSION))
 
