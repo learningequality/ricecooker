@@ -3,6 +3,8 @@ import json
 import logging
 import os
 import sys
+import csv
+import re
 from datetime import datetime
 
 from . import config
@@ -272,7 +274,7 @@ class SushiChef(object):
         if os.path.exists(config.DATA_PATH):
             self.CHEF_RUN_DATA = json.load(open(config.DATA_PATH))
 
-
+        
     def save_channel_tree_as_json(self, channel):
         filename = os.path.join(self.TREES_DATA_DIR, '{}.json'.format(self.CHEF_RUN_DATA['current_run']))
         os.makedirs(self.TREES_DATA_DIR, exist_ok=True)
@@ -281,9 +283,54 @@ class SushiChef(object):
         self.CHEF_RUN_DATA['tree_archives']['current'] = filename.replace(os.getcwd() + '/', '')
         self.save_chef_data()
 
+    def save_channel_metadata_as_csv(self, channel):
+        # create data folder in chefdata
+        DATA_DIR = os.path.join('chefdata', 'data')
+        os.makedirs(DATA_DIR, exist_ok = True)
+        metadata_csv = csv.writer(open(os.path.join(DATA_DIR, 'content_metadata.csv'), 'w', newline='', encoding='utf-8'))
+        metadata_csv.writerow(config.CSV_HEADERS)
+
+        channel.save_channel_children_to_csv(metadata_csv)
+
+    def load_channel_metadata_from_csv(self):
+        metadata_dict = dict()
+        metadata_csv = None
+        CSV_FILE_PATH = os.path.join('chefdata', 'data', 'content_metadata.csv')
+        if os.path.exists(CSV_FILE_PATH):
+            metadata_csv = csv.DictReader(open(CSV_FILE_PATH, 'r', encoding='utf-8'))
+            for line in metadata_csv:
+                # Add to metadata_dict any updated data. Skip if none
+                line_source_id = line['Source ID']
+                line_new_title = line['New Title']
+                line_new_description = line['New Description']
+                line_new_tags = line['New Tags']
+                if line_new_title != '' or line_new_description != '' or line_new_tags != '':
+                    metadata_dict[line_source_id] = {}
+                    if line_new_title != '':
+                        metadata_dict[line_source_id]['New Title'] = line_new_title
+                    if line_new_description != '':
+                        metadata_dict[line_source_id]['New Description'] = line_new_description
+                    if line_new_tags != '':
+                        tags_arr = re.split(',| ,', line_new_tags)
+                        metadata_dict[line_source_id]['New Tags'] = tags_arr
+        return metadata_dict
 
     def save_chef_data(self):
         json.dump(self.CHEF_RUN_DATA, open(config.DATA_PATH, 'w'), indent=2)
+
+    def apply_modifications(self, contentNode, metadata_dict = {}):
+        # Skip if no metadata file passed in or no updates in metadata_dict
+        if metadata_dict == {}:
+            return
+            
+        is_channel = isinstance(contentNode, ChannelNode)
+
+        if not is_channel:
+            # Add modifications to contentNode
+            if contentNode.source_id in metadata_dict:
+                contentNode.node_modifications = metadata_dict[contentNode.source_id]
+        for child in contentNode.children:
+            self.apply_modifications(child, metadata_dict)
 
 
     def pre_run(self, args, options):

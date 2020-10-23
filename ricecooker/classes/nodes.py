@@ -2,6 +2,8 @@
 
 import json
 import uuid
+import os
+import csv
 
 from le_utils.constants import content_kinds, exercises, file_formats, format_presets, languages, roles
 
@@ -17,7 +19,7 @@ class Node(object):
     license = None
     language = None
 
-    def __init__(self, title, language=None, description=None, thumbnail=None, files=None, derive_thumbnail=False):
+    def __init__(self, title, language=None, description=None, thumbnail=None, files=None, derive_thumbnail=False, node_modifications = {}):
         self.files = []
         self.children = []
         self.descendants = []
@@ -33,6 +35,8 @@ class Node(object):
             self.add_file(f)
 
         self.set_thumbnail(thumbnail)
+        # save modifications passed in by csv
+        self.node_modifications = node_modifications
 
     def set_language(self, language):
         """ Set self.language to internal lang. repr. code from str or Language object. """
@@ -212,6 +216,45 @@ class Node(object):
 
         return tree
 
+
+    def save_channel_children_to_csv(self, metadata_csv, structure_string = ''):
+        # Not including channel title in topic structure
+        is_channel = isinstance(self, ChannelNode)
+        if not is_channel:
+            # Build out tag string
+            tags_string = ','.join(self.tags)
+            new_title = self.node_modifications.get('New Title') or ''
+            new_description = self.node_modifications.get('New Description') or ''
+            new_tags = self.node_modifications.get('New Tags') or ''
+            # New Tags is being saved as a list. Check if list and if so, join to correctly write it to csv
+            if isinstance(new_tags, list):
+                new_tags = ','.join(new_tags)
+
+            record = [
+                self.source_id, 
+                structure_string,
+                self.title,
+                new_title,        # New Title
+                self.description,
+                new_description,  # New Description
+                tags_string,
+                new_tags,         # New Tags
+                ''                # Last Modified
+            ]
+            metadata_csv.writerow(record)
+
+            current_level = self.title
+            # add current level to structure_string_list
+            if structure_string == '':
+                structure_string = self.title
+            else:
+                structure_string += '/' + self.title
+            print(self.title)
+            print(structure_string)
+        for child in self.children:
+            child.save_channel_children_to_csv(metadata_csv, structure_string)
+            
+        
     def validate_tree(self):
         """
         Validate all nodes in this tree recusively.
@@ -391,9 +434,9 @@ class TreeNode(Node):
             Returns: dict of channel data
         """
         return {
-            "title": self.title,
+            "title": self.node_modifications.get('New Title') or self.title,
             "language" : self.language,
-            "description": self.description,
+            "description": self.node_modifications.get('New Description') or self.description,
             "node_id": self.get_node_id().hex,
             "content_id": self.get_content_id().hex,
             "source_domain": self.domain_ns.hex,
@@ -402,7 +445,7 @@ class TreeNode(Node):
             "aggregator": self.aggregator,
             "provider": self.provider,
             "files" : [f.to_dict() for f in self.files if f and f.filename], # Filter out failed downloads
-            "tags": self.tags,
+            "tags": self.node_modifications.get('New Tags') or self.tags,
             "kind": self.kind,
             "license": None,
             "license_description": None,
@@ -522,9 +565,9 @@ class ContentNode(TreeNode):
             Returns: dict of channel data
         """
         return {
-            "title": self.title,
+            "title": self.node_modifications.get('New Title') or self.title,
             "language" : self.language,
-            "description": self.description,
+            "description": self.node_modifications.get('New Description') or self.description,
             "node_id": self.get_node_id().hex,
             "content_id": self.get_content_id().hex,
             "source_domain": self.domain_ns.hex,
@@ -533,7 +576,7 @@ class ContentNode(TreeNode):
             "aggregator": self.aggregator,
             "provider": self.provider,
             "files" : [f.to_dict() for f in filter(lambda x: x and x.filename, self.files)], # Filter out failed downloads
-            "tags": self.tags,
+            "tags": self.node_modifications.get('New Tags') or self.tags,
             "kind": self.kind,
             "license": self.license.license_id,
             "license_description": self.license.description,
