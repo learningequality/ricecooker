@@ -290,8 +290,6 @@ def get_archive_filename(url, page_domain=None, download_root=None, urls_to_repl
     domain = file_url_parsed.netloc.replace(':', '_')
     if not domain and page_domain:
         domain = page_domain
-    else:
-        domain = ''
     if rel_path.startswith('/'):
         rel_path = rel_path[1:]
     url_local_dir = os.path.join(domain, rel_path)
@@ -347,7 +345,7 @@ def archive_page(url, download_root):
                 # we avoid using BeautifulSoup because Python HTML parsers can be destructive and
                 # do things like strip out the doctype.
                 content = content.replace('="{}"'.format(variant), '="{}"'.format(urls_to_replace[key]))
-                content = content.replace('url({})"'.format(variant), 'url({})'.format(urls_to_replace[key]))
+                content = content.replace('url({})'.format(variant), 'url({})'.format(urls_to_replace[key]))
 
             if content == orig_content:
                 LOGGER.debug("link not replaced: {}".format(key))
