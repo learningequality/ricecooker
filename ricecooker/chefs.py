@@ -516,12 +516,12 @@ class YouTubeSushiChef(SushiChef):
     the get_video_ids() method, along with the get_
     """
 
-    use_cache = True  # field to indicate whether use cached json data
     CONTENT_ARCHIVE_VERSION = 1
     DATA_DIR = os.path.abspath('chefdata')
     YOUTUBE_CACHE_DIR = os.path.join(DATA_DIR, "youtubecache")
     DOWNLOADS_DIR = os.path.join(DATA_DIR, 'downloads')
     ARCHIVE_DIR = os.path.join(DOWNLOADS_DIR, 'archive_{}'.format(CONTENT_ARCHIVE_VERSION))
+    USE_PROXY = False
 
     def get_playlist_ids(self):
         """
@@ -588,7 +588,7 @@ class YouTubeSushiChef(SushiChef):
 
             playlist = YouTubePlaylistUtils(id=playlist_id, cache_dir=self.YOUTUBE_CACHE_DIR)
 
-            playlist_info = playlist.get_playlist_info(use_proxy=False)
+            playlist_info = playlist.get_playlist_info(use_proxy=self.USE_PROXY)
 
             # Get channel description if there is any
             playlist_description = ''
@@ -621,7 +621,7 @@ class YouTubeSushiChef(SushiChef):
 
     def create_video_node(self, video_id, parent_id='', playlist_id=None):
         video = YouTubeVideoUtils(id=video_id, cache_dir=False)
-        video_details = video.get_video_info(use_proxy=False)
+        video_details = video.get_video_info(use_proxy=self.USE_PROXY)
         if not video_details:
             config.LOGGER.error("Unable to retrieve video info: {}".format(video_id))
             return None
@@ -648,8 +648,9 @@ class YouTubeSushiChef(SushiChef):
             with open(dest_file, 'wb') as f:
                 for chunk in response.iter_content(1024):
                     f.write(chunk)
-        if dest_file.lower().endswith(".webp"):
-            dest_file = convert_image(dest_file)
+
+            if dest_file.lower().endswith(".webp"):
+                dest_file = convert_image(dest_file)
 
         video_node = nodes.VideoNode(
             source_id=video_source_id,
