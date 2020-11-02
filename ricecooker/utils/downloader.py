@@ -256,7 +256,7 @@ def download_static_assets(doc, destination, base_url,
             if parts.scheme and parts.netloc:
                 src_url = src
             elif parts.path.startswith('/') and url:
-                src_url = '{}://{}{}'.format(root_parts.scheme, root_parts.netloc, root_parts.path)
+                src_url = '{}://{}{}'.format(root_parts.scheme, root_parts.netloc, parts.path)
             elif url and root_url:
                 src_url = urljoin(root_url, src)
             else:
@@ -267,9 +267,20 @@ def download_static_assets(doc, destination, base_url,
                 return 'url()'
 
             derived_filename = derive_filename(src_url)
+
+            # The _derive_filename function puts all files in the root, so all URLs need
+            # rewritten. When using get_archive_filename, relative URLs will still work.
+            new_url = src
+            if derive_filename == _derive_filename:
+                if url and parts.path.startswith('/'):
+                    parent_url = derive_filename(url)
+                    new_url = os.path.relpath(src, os.path.dirname(parent_url))
+                else:
+                    new_url = derived_filename
+
             download_file(src_url, destination, request_fn=request_fn,
                     filename=derived_filename)
-            return 'url("%s")' % derived_filename
+            return 'url("%s")' % new_url
 
         return _CSS_URL_RE.sub(repl, content)
 
