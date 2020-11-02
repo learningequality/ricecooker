@@ -9,7 +9,7 @@ from selenium import webdriver
 from urllib.parse import urlparse, unquote
 
 from .caching import FileCache, CacheControlAdapter
-from ricecooker.config import PHANTOMJS_PATH
+from ricecooker.config import LOGGER, PHANTOMJS_PATH, STRICT
 
 
 
@@ -98,6 +98,11 @@ def download_file(url, destpath, filename=None, baseurl=None, subpath=None, midd
     # make the actual request to the URL
     response = request_fn(url)
     content = response.content
+
+    if STRICT:
+        response.raise_for_status()
+    elif response.status_code >= 400:
+        LOGGER.warning("URL {} returned status {}".format(url, response.status_code))
 
     # if there are any middleware callbacks, apply them to the content
     if middleware_callbacks:

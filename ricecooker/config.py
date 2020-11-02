@@ -21,6 +21,12 @@ PROGRESS_MANAGER = None
 SUSHI_BAR_CLIENT = None
 STAGE = False
 
+# When this is set to true, any failure will raise an error and stop the chef.
+# This will likely be set to true in a future version of ricecooker, once
+# we can ensure all ricecooker internal functions handle non-fatal errors
+# properly.
+STRICT = False
+
 # Sometimes chef runs will get stuck indefinitely waiting on data from SSL conn,
 # so we add a timeout value as suggested in https://stackoverflow.com/a/30771995
 socket.setdefaulttimeout(20)
