@@ -11,7 +11,7 @@ from bs4 import BeautifulSoup
 from selenium import webdriver
 import selenium.webdriver.support.ui as selenium_ui
 from requests_file import FileAdapter
-from ricecooker.config import LOGGER, PHANTOMJS_PATH
+from ricecooker.config import LOGGER, PHANTOMJS_PATH, STRICT
 from ricecooker.utils.html import download_file
 from ricecooker.utils.caching import CacheForeverHeuristic, FileCache, CacheControlAdapter, InvalidatingCacheControlAdapter
 
@@ -146,6 +146,8 @@ def make_request(url, clear_cookies=False, headers=None, timeout=60, *args, **kw
 
     if response.status_code != 200:
         print("NOT FOUND:", url)
+        if STRICT:
+            response.raise_for_status()
 
     return response
 
@@ -235,17 +237,30 @@ def download_static_assets(doc, destination, base_url,
         if css_middleware:
             content = css_middleware(content, url, **kwargs)
 
-        file_dir = os.path.dirname(urlparse(url).path)
+        root_parts = urlparse(url)
 
         # Download linked fonts and images
         def repl(match):
             src = match.group(1)
+
             if src.startswith('//localhost'):
                 return 'url()'
             # Don't download data: files
             if src.startswith('data:'):
                 return match.group(0)
-            src_url = urljoin(base_url, os.path.join(file_dir, src))
+            parts = urlparse(src)
+            root_url = None
+            if url:
+                root_url = url[:url.rfind('/') + 1]
+
+            if parts.scheme and parts.netloc:
+                src_url = src
+            elif parts.path.startswith('/') and url:
+                src_url = '{}://{}{}'.format(root_parts.scheme, root_parts.netloc, root_parts.path)
+            elif url and root_url:
+                src_url = urljoin(root_url, src)
+            else:
+                src_url = urljoin(base_url, src)
 
             if _is_blacklisted(src_url, url_blacklist):
                 print('        Skipping downloading blacklisted url', src_url)
