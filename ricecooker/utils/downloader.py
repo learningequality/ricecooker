@@ -41,7 +41,9 @@ try:
     async def load_page(path):
         browser = await launch({'headless': True})
         page = await browser.newPage()
-        await page.goto(path, waitUntil='load')
+        # TODO: We may need to add an option for networkidle2 if we want to use this with
+        # pages that are doing constant polling.
+        await page.goto(path, {'waitUntil': ['load', 'domcontentloaded', 'networkidle0']})
         # get the entire rendered page, including the doctype
         content = await page.content()
         cookies = await page.cookies()
