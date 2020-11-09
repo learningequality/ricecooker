@@ -1,7 +1,7 @@
 CSV Exercises Workflow
 ======================
-In addition to content nodes (files) and topics (folders), we can also add also
-specify exercises using CSV metadata files (and associated images).
+In addition to content nodes (files) and topics (folders), we can also specify exercises
+using CSV metadata files (and associated images).
 
 Exercises nodes store the usual metadata that all content nodes have (title,
 description, author, license, etc.) and contain multiple types of questions.
