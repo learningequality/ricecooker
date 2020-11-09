@@ -18,7 +18,7 @@ requirements = [
     "validators",                             # TODO: check if this is necessary
     "requests_file",
     "beautifulsoup4>=4.6.3,<4.9.0",   # pinned to match versions in le-pycaption
-    "pressurecooker>=0.0.29",
+    "pressurecooker>=0.0.30",
     "selenium==3.0.1",
     "youtube-dl>=2020.6.16.1",
     "html5lib",

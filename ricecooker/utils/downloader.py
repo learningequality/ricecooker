@@ -11,7 +11,7 @@ from bs4 import BeautifulSoup
 from selenium import webdriver
 import selenium.webdriver.support.ui as selenium_ui
 from requests_file import FileAdapter
-from ricecooker.config import LOGGER, PHANTOMJS_PATH
+from ricecooker.config import LOGGER, PHANTOMJS_PATH, STRICT
 from ricecooker.utils.html import download_file
 from ricecooker.utils.caching import CacheForeverHeuristic, FileCache, CacheControlAdapter, InvalidatingCacheControlAdapter
 
@@ -41,7 +41,9 @@ try:
     async def load_page(path):
         browser = await launch({'headless': True})
         page = await browser.newPage()
-        await page.goto(path, waitUntil='load')
+        # TODO: We may need to add an option for networkidle2 if we want to use this with
+        # pages that are doing constant polling.
+        await page.goto(path, {'waitUntil': ['load', 'domcontentloaded', 'networkidle0']})
         # get the entire rendered page, including the doctype
         content = await page.content()
         cookies = await page.cookies()
@@ -146,6 +148,8 @@ def make_request(url, clear_cookies=False, headers=None, timeout=60, *args, **kw
 
     if response.status_code != 200:
         print("NOT FOUND:", url)
+        if STRICT:
+            response.raise_for_status()
 
     return response
 
@@ -235,26 +239,50 @@ def download_static_assets(doc, destination, base_url,
         if css_middleware:
             content = css_middleware(content, url, **kwargs)
 
-        file_dir = os.path.dirname(urlparse(url).path)
+        root_parts = urlparse(url)
 
         # Download linked fonts and images
         def repl(match):
             src = match.group(1)
+
             if src.startswith('//localhost'):
                 return 'url()'
             # Don't download data: files
             if src.startswith('data:'):
                 return match.group(0)
-            src_url = urljoin(base_url, os.path.join(file_dir, src))
+            parts = urlparse(src)
+            root_url = None
+            if url:
+                root_url = url[:url.rfind('/') + 1]
+
+            if parts.scheme and parts.netloc:
+                src_url = src
+            elif parts.path.startswith('/') and url:
+                src_url = '{}://{}{}'.format(root_parts.scheme, root_parts.netloc, parts.path)
+            elif url and root_url:
+                src_url = urljoin(root_url, src)
+            else:
+                src_url = urljoin(base_url, src)
 
             if _is_blacklisted(src_url, url_blacklist):
                 print('        Skipping downloading blacklisted url', src_url)
                 return 'url()'
 
             derived_filename = derive_filename(src_url)
+
+            # The _derive_filename function puts all files in the root, so all URLs need
+            # rewritten. When using get_archive_filename, relative URLs will still work.
+            new_url = src
+            if derive_filename == _derive_filename:
+                if url and parts.path.startswith('/'):
+                    parent_url = derive_filename(url)
+                    new_url = os.path.relpath(src, os.path.dirname(parent_url))
+                else:
+                    new_url = derived_filename
+
             download_file(src_url, destination, request_fn=request_fn,
                     filename=derived_filename)
-            return 'url("%s")' % derived_filename
+            return 'url("%s")' % new_url
 
         return _CSS_URL_RE.sub(repl, content)
 
@@ -290,8 +318,6 @@ def get_archive_filename(url, page_domain=None, download_root=None, urls_to_repl
     domain = file_url_parsed.netloc.replace(':', '_')
     if not domain and page_domain:
         domain = page_domain
-    else:
-        domain = ''
     if rel_path.startswith('/'):
         rel_path = rel_path[1:]
     url_local_dir = os.path.join(domain, rel_path)
@@ -347,7 +373,7 @@ def archive_page(url, download_root):
                 # we avoid using BeautifulSoup because Python HTML parsers can be destructive and
                 # do things like strip out the doctype.
                 content = content.replace('="{}"'.format(variant), '="{}"'.format(urls_to_replace[key]))
-                content = content.replace('url({})"'.format(variant), 'url({})'.format(urls_to_replace[key]))
+                content = content.replace('url({})'.format(variant), 'url({})'.format(urls_to_replace[key]))
 
             if content == orig_content:
                 LOGGER.debug("link not replaced: {}".format(key))

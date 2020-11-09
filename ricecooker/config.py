@@ -21,6 +21,12 @@ PROGRESS_MANAGER = None
 SUSHI_BAR_CLIENT = None
 STAGE = False
 
+# When this is set to true, any failure will raise an error and stop the chef.
+# This will likely be set to true in a future version of ricecooker, once
+# we can ensure all ricecooker internal functions handle non-fatal errors
+# properly.
+STRICT = False
+
 # Sometimes chef runs will get stuck indefinitely waiting on data from SSL conn,
 # so we add a timeout value as suggested in https://stackoverflow.com/a/30771995
 socket.setdefaulttimeout(20)
@@ -195,6 +201,19 @@ DOWNLOAD_SESSION.mount('file://', FileAdapter())
 # Environment variable indicating we should use a proxy for youtube_dl downloads
 USEPROXY = False
 USEPROXY = True if os.getenv('USEPROXY') is not None or os.getenv('PROXY_LIST') is not None else False
+
+# CSV headers
+CSV_HEADERS = [
+    'Source ID',
+    'Topic Structure',
+    'Old Title',
+    'New Title',
+    'Old Description',
+    'New Description',
+    'Old Tags',
+    'New Tags',
+    'Last Modified'
+]
 
 # Automatic temporary direcotry cleanup
 chef_temp_dir = os.path.join(os.getcwd(), '.ricecooker-temp')
