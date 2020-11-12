@@ -36,20 +36,28 @@ USE_PYPPETEER = False
 
 try:
     import asyncio
-    from pyppeteer import launch
+    from pyppeteer import launch, errors
 
-    async def load_page(path):
+    async def load_page(path, timeout=30, strict=True):
         browser = await launch({'headless': True})
         content = None
         cookies = None
         try:
             page = await browser.newPage()
-            # TODO: We may need to add an option for networkidle2 if we want to use this with
-            # pages that are doing constant polling.
-            await page.goto(path, {'waitUntil': ['load', 'domcontentloaded', 'networkidle0']})
+            try:
+                await page.goto(path, {'timeout': timeout * 1000, 'waitUntil': ['load', 'domcontentloaded', 'networkidle0']})
+            except errors.TimeoutError:
+                # some sites have API calls running regularly, so the timeout may be that there's never any true
+                # network idle time. Try 'networkidle2' option instead before determining we can't scrape.
+                if not strict:
+                    await page.goto(path, {'timeout': timeout * 1000, 'waitUntil': ['load', 'domcontentloaded', 'networkidle2']})
+                else:
+                    raise
             # get the entire rendered page, including the doctype
             content = await page.content()
             cookies = await page.cookies()
+        except Exception as e:
+            LOGGER.warning("Error scraping page: {}".format(e))
         finally:
             await browser.close()
         return content, {'cookies': cookies}
@@ -60,7 +68,7 @@ except:
 
 
 def read(path, loadjs=False, session=None, driver=None, timeout=60,
-        clear_cookies=True, loadjs_wait_time=3, loadjs_wait_for_callback=None):
+        clear_cookies=True, loadjs_wait_time=3, loadjs_wait_for_callback=None, strict=True):
     """Reads from source and returns contents
 
     Args:
@@ -79,6 +87,8 @@ def read(path, loadjs=False, session=None, driver=None, timeout=60,
             page source. For example, pass in an argument like:
             ``lambda driver: driver.find_element_by_id('list-container')``
             to wait for the #list-container element to be present before rendering.
+        strict: (bool) If False, when download fails, retry but allow parsing even if there
+            is still minimal network traffic happening. Useful for sites that regularly poll APIs.
     Returns: str content from file or page
     """
     session = session or DOWNLOAD_SESSION
