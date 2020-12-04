@@ -5,6 +5,9 @@ from requests.exceptions import HTTPError
 import sys
 import webbrowser
 
+import os
+import csv
+
 from . import config, __version__
 from .classes.nodes import ChannelNode
 from .managers.progress import RestoreManager, Status
@@ -62,7 +65,8 @@ def uploadchannel(chef, command='uploadchannel', update=False, thumbnails=False,
 
     # Get domain to upload to
     config.init_file_mapping_store()
-
+    
+    
     if not command == 'dryrun':
         # Authenticate user and check current Ricecooker version
         username, token = authenticate_user(token)
@@ -89,6 +93,10 @@ def uploadchannel(chef, command='uploadchannel', update=False, thumbnails=False,
     if hasattr(chef, 'download_content'):
         chef.download_content()
 
+    # TODO load csv if exists
+    metadata_dict = chef.load_channel_metadata_from_csv()
+            
+
     # Construct channel if it hasn't been constructed already
     if config.PROGRESS_MANAGER.get_status_val() <= Status.CONSTRUCT_CHANNEL.value:
         config.LOGGER.info("Calling construct_channel... ")
@@ -109,9 +117,13 @@ def uploadchannel(chef, command='uploadchannel', update=False, thumbnails=False,
         config.LOGGER.info("Downloading files...")
         config.PROGRESS_MANAGER.set_files(*process_tree_files(tree))
 
+    # Apply any modifications to chef
+    chef.apply_modifications(channel, metadata_dict)
     # Save the data about the current run in chefdata/
     chef.save_channel_tree_as_json(channel)
 
+    chef.save_channel_metadata_as_csv(channel)
+    
     if command == 'dryrun':
         config.LOGGER.info('Command is dryrun so we are not uploading chanel.')
         return

@@ -2,15 +2,21 @@ import argparse
 import json
 import logging
 import os
+import requests
 import sys
+import csv
+import re
 from datetime import datetime
 
 from . import config
-from .classes.nodes import ChannelNode
+from .classes import files
+from .classes import nodes
 from .commands import uploadchannel_wrapper
 from .exceptions import InvalidUsageException
 from .exceptions import raise_for_invalid_channel
 from .managers.progress import Status
+
+from .utils.downloader import get_archive_filename
 from .utils.jsontrees import build_tree_from_json
 from .utils.jsontrees import get_channel_node_from_json
 from .utils.jsontrees import read_tree_from_json
@@ -22,9 +28,9 @@ from .utils.metadata_provider import DEFAULT_CONTENT_INFO_FILENAME
 from .utils.metadata_provider import DEFAULT_EXERCISE_QUESTIONS_INFO_FILENAME
 from .utils.metadata_provider import DEFAULT_EXERCISES_INFO_FILENAME
 from .utils.tokens import get_content_curation_token
+from .utils.youtube import YouTubeVideoUtils, YouTubePlaylistUtils
 
-
-
+from pressurecooker.images import convert_image
 
 
 # SUSHI CHEF BASE CLASS
@@ -243,7 +249,7 @@ class SushiChef(object):
 
             # If a sublass has an `channel_info` attribute (dict) it doesn't need
             # to define a `get_channel` method and instead rely on this code:
-            channel = ChannelNode(
+            channel = nodes.ChannelNode(
                 source_domain=self.channel_info['CHANNEL_SOURCE_DOMAIN'],
                 source_id=self.channel_info['CHANNEL_SOURCE_ID'],
                 title=self.channel_info['CHANNEL_TITLE'],
@@ -272,7 +278,7 @@ class SushiChef(object):
         if os.path.exists(config.DATA_PATH):
             self.CHEF_RUN_DATA = json.load(open(config.DATA_PATH))
 
-
+        
     def save_channel_tree_as_json(self, channel):
         filename = os.path.join(self.TREES_DATA_DIR, '{}.json'.format(self.CHEF_RUN_DATA['current_run']))
         os.makedirs(self.TREES_DATA_DIR, exist_ok=True)
@@ -281,9 +287,54 @@ class SushiChef(object):
         self.CHEF_RUN_DATA['tree_archives']['current'] = filename.replace(os.getcwd() + '/', '')
         self.save_chef_data()
 
+    def save_channel_metadata_as_csv(self, channel):
+        # create data folder in chefdata
+        DATA_DIR = os.path.join('chefdata', 'data')
+        os.makedirs(DATA_DIR, exist_ok = True)
+        metadata_csv = csv.writer(open(os.path.join(DATA_DIR, 'content_metadata.csv'), 'w', newline='', encoding='utf-8'))
+        metadata_csv.writerow(config.CSV_HEADERS)
+
+        channel.save_channel_children_to_csv(metadata_csv)
+
+    def load_channel_metadata_from_csv(self):
+        metadata_dict = dict()
+        metadata_csv = None
+        CSV_FILE_PATH = os.path.join('chefdata', 'data', 'content_metadata.csv')
+        if os.path.exists(CSV_FILE_PATH):
+            metadata_csv = csv.DictReader(open(CSV_FILE_PATH, 'r', encoding='utf-8'))
+            for line in metadata_csv:
+                # Add to metadata_dict any updated data. Skip if none
+                line_source_id = line['Source ID']
+                line_new_title = line['New Title']
+                line_new_description = line['New Description']
+                line_new_tags = line['New Tags']
+                if line_new_title != '' or line_new_description != '' or line_new_tags != '':
+                    metadata_dict[line_source_id] = {}
+                    if line_new_title != '':
+                        metadata_dict[line_source_id]['New Title'] = line_new_title
+                    if line_new_description != '':
+                        metadata_dict[line_source_id]['New Description'] = line_new_description
+                    if line_new_tags != '':
+                        tags_arr = re.split(',| ,', line_new_tags)
+                        metadata_dict[line_source_id]['New Tags'] = tags_arr
+        return metadata_dict
 
     def save_chef_data(self):
         json.dump(self.CHEF_RUN_DATA, open(config.DATA_PATH, 'w'), indent=2)
+
+    def apply_modifications(self, contentNode, metadata_dict = {}):
+        # Skip if no metadata file passed in or no updates in metadata_dict
+        if metadata_dict == {}:
+            return
+            
+        is_channel = isinstance(contentNode, ChannelNode)
+
+        if not is_channel:
+            # Add modifications to contentNode
+            if contentNode.source_id in metadata_dict:
+                contentNode.node_modifications = metadata_dict[contentNode.source_id]
+        for child in contentNode.children:
+            self.apply_modifications(child, metadata_dict)
 
 
     def pre_run(self, args, options):
@@ -502,3 +553,198 @@ class LineCook(JsonTreeChef):
         kwargs.update(options)
         json_tree_path = self.get_json_tree_path(**kwargs)
         build_ricecooker_json_tree(args, options, self.metadata_provider, json_tree_path)
+
+
+class YouTubeSushiChef(SushiChef):
+    """
+    Class for converting a list of YouTube playlists and/or videos into a channel.
+
+    To use this class, your subclass must implement either the get_playlist_ids() or
+    the get_video_ids() method, along with the get_
+    """
+
+    CONTENT_ARCHIVE_VERSION = 1
+    DATA_DIR = os.path.abspath('chefdata')
+    YOUTUBE_CACHE_DIR = os.path.join(DATA_DIR, "youtubecache")
+    DOWNLOADS_DIR = os.path.join(DATA_DIR, 'downloads')
+    ARCHIVE_DIR = os.path.join(DOWNLOADS_DIR, 'archive_{}'.format(CONTENT_ARCHIVE_VERSION))
+    USE_PROXY = False
+
+    def get_playlist_ids(self):
+        """
+        This method should be implemented by subclasses and return a list of playlist IDs.
+        It currently doesn't support full YouTube URLs.
+
+        :return: A list of playlists to include in the channel, defaults to empty list.
+        """
+        return []
+
+    def get_video_ids(self):
+        """
+        This method should be implemented by subclasses and return a list of video IDs.
+        It currently doesn't support full YouTube URLs.
+
+        :return: A list of videos to include in the channel, defaults to empty list.
+        """
+        return []
+
+    def get_channel_metadata(self):
+        """
+        Must be implemented by subclasses. Returns a dictionary. Keys can be a special value 'defualt'
+        or a specific playlist or video id to apply the value to.
+
+        Currently supported metadata fields are 'license', 'author', and 'provider'.
+
+        :return: A dictionary of metadata values to apply to the content.
+        """
+        raise NotImplementedError("get_channel_metadata must be implemented.")
+
+    def get_metadata_for_video(self, field, youtube_id=None, playlist_id=None):
+        """
+        Retrieves the metadata value for the metadata field "field". If the
+        youtube_id or playlist_id are specified, it will try to retrieve values
+        for that specific video or playlist. If not found, it will look for a default
+        value and return that.
+
+        :param field: String name of metadata field.
+        :param youtube_id: String ID of the video to retrieve data for. Defaults to None.
+        :param playlist_id: String ID of the playlist to retrieve data for. Defaults to None.
+
+        :return: The value (typically string), or None if not found.
+        """
+        metadata = self.get_channel_metadata()
+        if youtube_id and youtube_id in metadata and field in metadata[youtube_id]:
+            return metadata[youtube_id][field]
+        elif playlist_id and playlist_id in metadata and field in metadata[playlist_id]:
+            return metadata[playlist_id][field]
+        elif field in metadata['defaults']:
+            return metadata['defaults'][field]
+
+        return None
+
+    def create_nodes_for_playlists(self):
+        # Note: We build the tree and download at the same time here for convenience. YT playlists
+        # usually aren't massive, and parallel downloading increases the chances of being blocked.
+        # We may want to experiment with parallel downloading in the future.
+
+        os.makedirs(self.ARCHIVE_DIR, exist_ok=True)
+
+        playlist_nodes = []
+
+        for playlist_id in self.get_playlist_ids():
+
+            playlist = YouTubePlaylistUtils(id=playlist_id, cache_dir=self.YOUTUBE_CACHE_DIR)
+
+            playlist_info = playlist.get_playlist_info(use_proxy=self.USE_PROXY)
+
+            # Get channel description if there is any
+            playlist_description = ''
+            if playlist_info["description"]:
+                playlist_description = playlist_info["description"]
+
+            topic_source_id = 'playlist-{0}'.format(playlist_id)
+            topic_node = nodes.TopicNode(
+                title=playlist_info["title"],
+                source_id=topic_source_id,
+                description=playlist_description,
+            )
+            playlist_nodes.append(topic_node)
+
+            video_ids = []
+
+            # insert videos into playlist topic after creation
+            for child in playlist_info["children"]:
+                # check for duplicate videos
+                if child["id"] not in video_ids:
+                    video_node = self.create_video_node(child, parent_id=topic_source_id)
+                    if video_node:
+                        topic_node.add_child(video_node)
+                    video_ids.append(child["id"])
+
+                else:
+                    continue
+
+        return playlist_nodes
+
+    def create_video_node(self, video_id, parent_id='', playlist_id=None):
+        video = YouTubeVideoUtils(id=video_id, cache_dir=False)
+        video_details = video.get_video_info(use_proxy=self.USE_PROXY)
+        if not video_details:
+            config.LOGGER.error("Unable to retrieve video info: {}".format(video_id))
+            return None
+        video_source_id = "{0}-{1}".format(parent_id, video_details["id"])
+
+        # Check youtube thumbnail extension as some are not supported formats
+        thumbnail_link = video_details["thumbnail"]
+        config.LOGGER.info("thumbnail = {}".format(thumbnail_link))
+        archive_filename = get_archive_filename(thumbnail_link, download_root=self.ARCHIVE_DIR)
+
+        dest_file = os.path.join(self.ARCHIVE_DIR, archive_filename)
+        os.makedirs(os.path.dirname(dest_file), exist_ok=True)
+        config.LOGGER.info("dest_file = {}".format(dest_file))
+
+        # Download and convert thumbnail, if necessary.
+        response = requests.get(thumbnail_link, stream=True)
+        # Some images that YT returns are actually webp despite their extension,
+        # so make sure we update our file extension to match.
+        if 'Content-Type' in response.headers and response.headers['Content-Type'] == 'image/webp':
+            base_path, ext = os.path.splitext(dest_file)
+            dest_file = base_path + '.webp'
+
+        if response.status_code == 200:
+            with open(dest_file, 'wb') as f:
+                for chunk in response.iter_content(1024):
+                    f.write(chunk)
+
+            if dest_file.lower().endswith(".webp"):
+                dest_file = convert_image(dest_file)
+
+        video_node = nodes.VideoNode(
+            source_id=video_source_id,
+            title=video_details["title"],
+            description=video_details["description"],
+            language=self.channel_info["CHANNEL_LANGUAGE"],
+            author=self.get_metadata_for_video('author', video_id, playlist_id) or '',
+            provider=self.get_metadata_for_video('provider', video_id, playlist_id) or '',
+            thumbnail=dest_file,
+            license=self.get_metadata_for_video('license', video_id, playlist_id),
+            files=[
+                files.YouTubeVideoFile(
+                    youtube_id=video_id,
+                    language="en",
+                    high_resolution=self.get_metadata_for_video('high_resolution', video_id, playlist_id) or False
+                )
+            ]
+        )
+        return video_node
+
+    def create_nodes_for_videos(self):
+        node_list = []
+        for video_id in self.get_video_ids():
+            node = self.create_video_node(video_id)
+            if node:
+                node_list.append(node)
+
+        return node_list
+
+    def construct_channel(self, *args, **kwargs):
+        """
+        Default construct_channel method for YouTubeSushiChef, override if more custom handling
+        is needed.
+        """
+        channel = self.get_channel(*args, **kwargs)
+
+        if len(self.get_playlist_ids()) == 0 and len(self.get_video_ids()) == 0:
+            raise NotImplementedError("Either get_playlist_ids() or get_video_ids() must be implemented.")
+
+        # TODO: Replace next line with chef code
+        nodes = self.create_nodes_for_playlists()
+        for node in nodes:
+            channel.add_child(node)
+
+        nodes = self.create_nodes_for_videos()
+        for node in nodes:
+            channel.add_child(node)
+
+        return channel
+

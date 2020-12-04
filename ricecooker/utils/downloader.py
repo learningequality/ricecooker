@@ -12,7 +12,7 @@ from bs4 import BeautifulSoup
 from selenium import webdriver
 import selenium.webdriver.support.ui as selenium_ui
 from requests_file import FileAdapter
-from ricecooker.config import LOGGER, PHANTOMJS_PATH
+from ricecooker.config import LOGGER, PHANTOMJS_PATH, STRICT
 from ricecooker.utils.html import download_file
 from ricecooker.utils.caching import CacheForeverHeuristic, FileCache, CacheControlAdapter, InvalidatingCacheControlAdapter
 
@@ -37,17 +37,31 @@ USE_PYPPETEER = False
 
 try:
     import asyncio
-    from pyppeteer import launch
+    from pyppeteer import launch, errors
 
-    async def load_page(path):
+    async def load_page(path, timeout=30, strict=True):
         browser = await launch({'headless': True})
-        page = await browser.newPage()
-        await page.goto(path, waitUntil='load')
-        # get the entire rendered page, including the doctype
-        content = await page.content()
-        cookies = await page.cookies()
-        await browser.close()
-        return content, {'cookies': cookies, 'url': page.url}
+        content = None
+        cookies = None
+        try:
+            page = await browser.newPage()
+            try:
+                await page.goto(path, {'timeout': timeout * 1000, 'waitUntil': ['load', 'domcontentloaded', 'networkidle0']})
+            except errors.TimeoutError:
+                # some sites have API calls running regularly, so the timeout may be that there's never any true
+                # network idle time. Try 'networkidle2' option instead before determining we can't scrape.
+                if not strict:
+                    await page.goto(path, {'timeout': timeout * 1000, 'waitUntil': ['load', 'domcontentloaded', 'networkidle2']})
+                else:
+                    raise
+            # get the entire rendered page, including the doctype
+            content = await page.content()
+            cookies = await page.cookies()
+        except Exception as e:
+            LOGGER.warning("Error scraping page: {}".format(e))
+        finally:
+            await browser.close()
+        return content, {'cookies': cookies}
     USE_PYPPETEER = True
 except:
     print("Unable to load pyppeteer, using phantomjs for JS loading.")
@@ -55,7 +69,7 @@ except:
 
 
 def read(path, loadjs=False, session=None, driver=None, timeout=60,
-        clear_cookies=True, loadjs_wait_time=3, loadjs_wait_for_callback=None):
+        clear_cookies=True, loadjs_wait_time=3, loadjs_wait_for_callback=None, strict=True):
     """Reads from source and returns contents
 
     Args:
@@ -74,6 +88,8 @@ def read(path, loadjs=False, session=None, driver=None, timeout=60,
             page source. For example, pass in an argument like:
             ``lambda driver: driver.find_element_by_id('list-container')``
             to wait for the #list-container element to be present before rendering.
+        strict: (bool) If False, when download fails, retry but allow parsing even if there
+            is still minimal network traffic happening. Useful for sites that regularly poll APIs.
     Returns: str content from file or page
     """
     session = session or DOWNLOAD_SESSION
@@ -147,6 +163,8 @@ def make_request(url, clear_cookies=False, headers=None, timeout=60, *args, **kw
 
     if response.status_code != 200:
         print("NOT FOUND:", url)
+        if STRICT:
+            response.raise_for_status()
 
     return response
 
@@ -263,26 +281,50 @@ def download_static_assets(doc, destination, base_url,
         if css_middleware:
             content = css_middleware(content, url, **kwargs)
 
-        file_dir = os.path.dirname(urlparse(url).path)
+        root_parts = urlparse(url)
 
         # Download linked fonts and images
         def repl(match):
             src = match.group(1)
+
             if src.startswith('//localhost'):
                 return 'url()'
             # Don't download data: files
             if src.startswith('data:'):
                 return match.group(0)
-            src_url = urljoin(base_url, os.path.join(file_dir, src))
+            parts = urlparse(src)
+            root_url = None
+            if url:
+                root_url = url[:url.rfind('/') + 1]
+
+            if parts.scheme and parts.netloc:
+                src_url = src
+            elif parts.path.startswith('/') and url:
+                src_url = '{}://{}{}'.format(root_parts.scheme, root_parts.netloc, parts.path)
+            elif url and root_url:
+                src_url = urljoin(root_url, src)
+            else:
+                src_url = urljoin(base_url, src)
 
             if _is_blacklisted(src_url, url_blacklist):
                 print('        Skipping downloading blacklisted url', src_url)
                 return 'url()'
 
             derived_filename = derive_filename(src_url)
+
+            # The _derive_filename function puts all files in the root, so all URLs need
+            # rewritten. When using get_archive_filename, relative URLs will still work.
+            new_url = src
+            if derive_filename == _derive_filename:
+                if url and parts.path.startswith('/'):
+                    parent_url = derive_filename(url)
+                    new_url = os.path.relpath(src, os.path.dirname(parent_url))
+                else:
+                    new_url = derived_filename
+
             download_file(src_url, destination, request_fn=request_fn,
                     filename=derived_filename)
-            return 'url("%s")' % src
+            return 'url("%s")' % new_url
 
         return _CSS_URL_RE.sub(repl, content)
 
@@ -357,6 +399,7 @@ def get_archive_filename(url, page_domain=None, page_url=None, download_root=Non
             # urlparse assumes links that are relative are relative to the domain root, which is not
             # a safe assumption. Just use the original passed in URL for further processing.
             rel_path = url
+
     if rel_path.startswith('/'):
         rel_path = rel_path[1:]
     else:
@@ -456,10 +499,8 @@ def archive_page(url, download_root, link_policy=None, run_js=False):
                 # trying to replace
                 # we avoid using BeautifulSoup because Python HTML parsers can be destructive and
                 # do things like strip out the doctype.
-                old_str = '="{}"'.format(variant)
-                new_str = '="{}"'.format(urls_to_replace[key])
-                content = content.replace(old_str, new_str)
-                # content = content.replace('url({})"'.format(variant), 'url({})'.format(urls_to_replace[key]))
+                content = content.replace('="{}"'.format(variant), '="{}"'.format(urls_to_replace[key]))
+                content = content.replace('url({})'.format(variant), 'url({})'.format(urls_to_replace[key]))
 
             if content == orig_content:
                 LOGGER.debug("link not replaced: {}".format(key))
