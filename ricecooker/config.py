@@ -20,6 +20,7 @@ PUBLISH = False
 PROGRESS_MANAGER = None
 SUSHI_BAR_CLIENT = None
 STAGE = False
+RUN_FROM_CLI = False
 
 # When this is set to true, any failure will raise an error and stop the chef.
 # This will likely be set to true in a future version of ricecooker, once

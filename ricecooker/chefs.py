@@ -245,7 +245,7 @@ class SushiChef(object):
                 config.LOGGER.error("Template channel source ID detected. Please change CHANNEL_SOURCE_ID before running this chef.")
 
             if using_template_domain or using_template_source_id:
-               sys.exit(1)
+               raise IOError("Invalid CHANNEL_SOURCE_DOMAIN or CHANNEL_SORUCE_ID value, please correct and try again.")
 
             # If a sublass has an `channel_info` attribute (dict) it doesn't need
             # to define a `get_channel` method and instead rely on this code:
@@ -278,7 +278,7 @@ class SushiChef(object):
         if os.path.exists(config.DATA_PATH):
             self.CHEF_RUN_DATA = json.load(open(config.DATA_PATH))
 
-        
+
     def save_channel_tree_as_json(self, channel):
         filename = os.path.join(self.TREES_DATA_DIR, '{}.json'.format(self.CHEF_RUN_DATA['current_run']))
         os.makedirs(self.TREES_DATA_DIR, exist_ok=True)
@@ -326,7 +326,7 @@ class SushiChef(object):
         # Skip if no metadata file passed in or no updates in metadata_dict
         if metadata_dict == {}:
             return
-            
+
         is_channel = isinstance(contentNode, ChannelNode)
 
         if not is_channel:
@@ -339,14 +339,17 @@ class SushiChef(object):
 
     def pre_run(self, args, options):
         """
-        This function is called before the Chef's `run` mehod is called.
+        This function is called before the Chef's `run` method is called.
         By default this function does nothing, but subclass can use this hook to
         run prerequisite tasks.
         Args:
             args (dict): chef command line arguments
             options (dict): extra key=value options given on command line
+        Returns:
+            A bool value that tells the chef if it should continue running. False stops
+            the run method from being called.
         """
-        pass
+        return True
 
 
     def run(self, args, options):
@@ -364,18 +367,30 @@ class SushiChef(object):
         self.CHEF_RUN_DATA['current_run'] = run_id
         self.CHEF_RUN_DATA['runs'].append({'id': run_id})
 
-        # TODO(Kevin): move self.download_content() call here
-        self.pre_run(args, options)
-        uploadchannel_wrapper(self, args, options)
+        should_continue = self.pre_run(args, options)
+        # For backwards compatibility, assume the script should continue running if
+        # pre_run doesn't return a value.
+        if should_continue is None:
+            should_continue = True
+        if should_continue:
+            # TODO(Kevin): move self.download_content() call here?
+            uploadchannel_wrapper(self, args, options)
 
 
     def main(self):
         """
         Main entry point that content integration scripts should call.
         """
-        args, options = self.parse_args_and_options()
-        self.config_logger(args, options)
-        self.run(args, options)
+        try:
+            config.RUN_FROM_CLI = True
+            args, options = self.parse_args_and_options()
+            self.config_logger(args, options)
+            self.run(args, options)
+        except Exception as e:
+            config.LOGGER.error("Unhandled exception during run")
+            import traceback
+            config.LOGGER.error(traceback.format_exc())
+            sys.exit(1)
 
 
 
@@ -531,7 +546,7 @@ class LineCook(JsonTreeChef):
                                                     validate_and_cache=False)
             self.metadata_provider.generate_templates(exercise_questions=True)
             self.metadata_provider.generate_contentinfo_from_channeldir(args, options)
-            sys.exit(0)
+            return False
 
         elif 'importstudioid' in args and args['importstudioid']:
             studio_id = args['importstudioid']
@@ -544,7 +559,7 @@ class LineCook(JsonTreeChef):
                                                     validate_and_cache=False)
             self.metadata_provider.generate_templates(exercise_questions=True)
             self.metadata_provider.generate_exercises_from_importstudioid(args, options)
-            sys.exit(0)
+            return False
 
         if self.metadata_provider is None:
             self._init_metadata_provider(args, options)
@@ -553,6 +568,7 @@ class LineCook(JsonTreeChef):
         kwargs.update(options)
         json_tree_path = self.get_json_tree_path(**kwargs)
         build_ricecooker_json_tree(args, options, self.metadata_provider, json_tree_path)
+        return True
 
 
 class YouTubeSushiChef(SushiChef):

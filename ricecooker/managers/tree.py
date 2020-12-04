@@ -274,9 +274,7 @@ class ChannelManager:
         if response.status_code != 200:
             config.LOGGER.error("")
             config.LOGGER.error("Could not activate channel: {}\n".format(response._content.decode('utf-8')))
-            if response.status_code == 403:
-                config.LOGGER.error("Channel can be viewed at {}\n\n".format(config.open_channel_url(channel_id, staging=True)))
-                sys.exit()
+            raise IOError("Could not activate channel, status code = {}".format(response.status_code))
         response.raise_for_status()
         new_channel = json.loads(response._content.decode("utf-8"))
         channel_link = config.open_channel_url(new_channel['new_channel'])

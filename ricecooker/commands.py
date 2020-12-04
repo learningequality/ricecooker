@@ -65,8 +65,7 @@ def uploadchannel(chef, command='uploadchannel', update=False, thumbnails=False,
 
     # Get domain to upload to
     config.init_file_mapping_store()
-    
-    
+
     if not command == 'dryrun':
         # Authenticate user and check current Ricecooker version
         username, token = authenticate_user(token)
@@ -95,7 +94,7 @@ def uploadchannel(chef, command='uploadchannel', update=False, thumbnails=False,
 
     # TODO load csv if exists
     metadata_dict = chef.load_channel_metadata_from_csv()
-            
+
 
     # Construct channel if it hasn't been constructed already
     if config.PROGRESS_MANAGER.get_status_val() <= Status.CONSTRUCT_CHANNEL.value:
@@ -123,7 +122,7 @@ def uploadchannel(chef, command='uploadchannel', update=False, thumbnails=False,
     chef.save_channel_tree_as_json(channel)
 
     chef.save_channel_metadata_as_csv(channel)
-    
+
     if command == 'dryrun':
         config.LOGGER.info('Command is dryrun so we are not uploading chanel.')
         return
@@ -190,7 +189,7 @@ def authenticate_user(token):
         return user['username'], token
     except HTTPError:
         config.LOGGER.error("Studio token rejected by server " + auth_endpoint)
-        sys.exit()
+        raise
 
 def check_version_number():
     response = config.SESSION.post(config.check_version_url(), data=json.dumps({"version": __version__}))
@@ -204,16 +203,18 @@ def check_version_number():
     elif result['status'] == 2:
         config.LOGGER.error(result['message'])
         if not prompt_yes_or_no("Continue anyways?"):
-            sys.exit()
+            raise RuntimeError("The server requires a newer version of ricecooker.")
     else:
         config.LOGGER.error(result['message'])
-        sys.exit()
 
-def prompt_yes_or_no(message):
+
+def prompt_yes_or_no(message, default=False):
     """ prompt_yes_or_no: Prompt user to reply with a y/n response
         Args: None
         Returns: None
     """
+    if not config.RUN_FROM_CLI:
+        return default
     user_input = input("{} [y/n]:".format(message)).lower()
     if user_input.startswith("y"):
         return True

@@ -50,6 +50,8 @@ def prompt_token(domain):
     Args: domain (str): domain to authenticate user
     Returns: token
     """
+    if not config.RUN_FROM_CLI:
+        raise RuntimeError("You must specify a token argument when running.")
     token = input("\nEnter content curation server token ('q' to quit): ").lower()
     if token == 'q':
         sys.exit()
