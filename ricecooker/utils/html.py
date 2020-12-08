@@ -106,7 +106,13 @@ def download_file(url, destpath, filename=None, baseurl=None, subpath=None, midd
 
     # if there are any middleware callbacks, apply them to the content
     if middleware_callbacks:
-        content = content.decode()
+        if 'content-type' in response.headers:
+            type = response.headers['content-type'].split(';')[0]
+            # Rely on requests to convert bytes to unicode for us when it's a text file
+            # otherwise, we just use bytes
+            if type.startswith('text'):
+                content = response.text
+
         if not isinstance(middleware_callbacks, list):
             middleware_callbacks = [middleware_callbacks]
         kwargs = {
