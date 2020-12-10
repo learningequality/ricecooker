@@ -14,24 +14,24 @@ with open('docs/history.rst') as history_file:
 requirements = [
     "pytest>=3.0.2",
     "requests>=2.11.1",
-    "docopt>=0.6.2",
-    "le_utils>=0.1.24",
-    "validators",
+    "le_utils>=0.1.26",
+    "validators",                             # TODO: check if this is necessary
     "requests_file",
-    "beautifulsoup4>=4.6.3,<4.9.0", # pinned to match versions in le-pycaption
-    "pressurecooker>=0.0.28",
+    "beautifulsoup4>=4.6.3,<4.9.0",   # pinned to match versions in le-pycaption
+    "pressurecooker>=0.0.30",
     "selenium==3.0.1",
-    "youtube-dl>=2020.03.24",
+    "youtube-dl>=2020.6.16.1",
     "html5lib",
     "cachecontrol==0.12.0",
-    "lockfile==0.12.2",
+    "lockfile==0.12.2",                       # TODO: check if this is necessary
     "css-html-js-minify==2.2.2",
-    "websocket-client==0.40.0",
     "mock==2.0.0",
     "pypdf2>=1.26.0",
     "dictdiffer>=0.8.0",
     "Pillow==5.4.1",
     "colorlog>=4.1.0,<4.2",
+    "PyYAML>=5.3.1",
+    "Jinja2>=2.10"
 ]
 
 test_requirements = [
@@ -52,6 +52,7 @@ setup(
     entry_points = {
         'console_scripts': [
             'corrections = ricecooker.utils.corrections:correctionsmain',
+            'jiro = ricecooker.cli:main'
         ],
     },
     include_package_data=True,

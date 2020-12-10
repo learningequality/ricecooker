@@ -2,6 +2,8 @@
 
 import json
 import uuid
+import os
+import csv
 
 from le_utils.constants import content_kinds, exercises, file_formats, format_presets, languages, roles
 
@@ -17,7 +19,7 @@ class Node(object):
     license = None
     language = None
 
-    def __init__(self, title, language=None, description=None, thumbnail=None, files=None, derive_thumbnail=False):
+    def __init__(self, title, language=None, description=None, thumbnail=None, files=None, derive_thumbnail=False, node_modifications = {}):
         self.files = []
         self.children = []
         self.descendants = []
@@ -33,6 +35,8 @@ class Node(object):
             self.add_file(f)
 
         self.set_thumbnail(thumbnail)
+        # save modifications passed in by csv
+        self.node_modifications = node_modifications
 
     def set_language(self, language):
         """ Set self.language to internal lang. repr. code from str or Language object. """
@@ -203,6 +207,54 @@ class Node(object):
         for child in self.children:
             child.print_tree(indent + 1)
 
+    def get_json_tree(self):
+        tree = self.to_dict()
+        if len(self.children) > 0:
+            tree['children'] = []
+            for child in self.children:
+                tree['children'].append(child.get_json_tree())
+
+        return tree
+
+
+    def save_channel_children_to_csv(self, metadata_csv, structure_string = ''):
+        # Not including channel title in topic structure
+        is_channel = isinstance(self, ChannelNode)
+        if not is_channel:
+            # Build out tag string
+            tags_string = ','.join(self.tags)
+            new_title = self.node_modifications.get('New Title') or ''
+            new_description = self.node_modifications.get('New Description') or ''
+            new_tags = self.node_modifications.get('New Tags') or ''
+            # New Tags is being saved as a list. Check if list and if so, join to correctly write it to csv
+            if isinstance(new_tags, list):
+                new_tags = ','.join(new_tags)
+
+            record = [
+                self.source_id, 
+                structure_string,
+                self.title,
+                new_title,        # New Title
+                self.description,
+                new_description,  # New Description
+                tags_string,
+                new_tags,         # New Tags
+                ''                # Last Modified
+            ]
+            metadata_csv.writerow(record)
+
+            current_level = self.title
+            # add current level to structure_string_list
+            if structure_string == '':
+                structure_string = self.title
+            else:
+                structure_string += '/' + self.title
+            print(self.title)
+            print(structure_string)
+        for child in self.children:
+            child.save_channel_children_to_csv(metadata_csv, structure_string)
+            
+        
     def validate_tree(self):
         """
         Validate all nodes in this tree recusively.
@@ -250,10 +302,12 @@ class ChannelNode(Node):
             files ([<File>]): list of file objects for node (optional)
     """
     kind = "Channel"
-    def __init__(self, source_id, source_domain, *args, **kwargs):
+    def __init__(self, source_id, source_domain, tagline=None, channel_id=None, *args, **kwargs):
         # Map parameters to model variables
+        self.channel_id = channel_id
         self.source_domain = source_domain
         self.source_id = source_id
+        self.tagline = tagline
 
         super(ChannelNode, self).__init__(*args, **kwargs)
 
@@ -270,6 +324,9 @@ class ChannelNode(Node):
         if self.description and len(self.description) > config.MAX_DESCRIPTION_LENGTH:
             config.print_truncate("description", self.source_id, self.description, kind=self.kind)
             self.description = self.description[:config.MAX_DESCRIPTION_LENGTH]
+        if self.tagline and len(self.tagline) > config.MAX_TAGLINE_LENGTH:
+            config.print_truncate("tagline", self.source_id, self.tagline, kind=self.kind)
+            self.tagline = self.tagline[:config.MAX_TAGLINE_LENGTH]
         super(ChannelNode, self).truncate_fields()
 
     def to_dict(self):
@@ -278,11 +335,12 @@ class ChannelNode(Node):
             Returns: dict of channel data
         """
         return {
-            "id": self.get_node_id().hex,
+            "id": self.channel_id or self.get_node_id().hex,
             "name": self.title,
             "thumbnail": self.thumbnail.filename if self.thumbnail else None,
             "language" : self.language,
             "description": self.description or "",
+            "tagline": self.tagline or "",
             "license": self.license,
             "source_domain": self.source_domain,
             "source_id": self.source_id,
@@ -376,9 +434,9 @@ class TreeNode(Node):
             Returns: dict of channel data
         """
         return {
-            "title": self.title,
+            "title": self.node_modifications.get('New Title') or self.title,
             "language" : self.language,
-            "description": self.description,
+            "description": self.node_modifications.get('New Description') or self.description,
             "node_id": self.get_node_id().hex,
             "content_id": self.get_content_id().hex,
             "source_domain": self.domain_ns.hex,
@@ -387,7 +445,7 @@ class TreeNode(Node):
             "aggregator": self.aggregator,
             "provider": self.provider,
             "files" : [f.to_dict() for f in self.files if f and f.filename], # Filter out failed downloads
-            "tags": self.tags,
+            "tags": self.node_modifications.get('New Tags') or self.tags,
             "kind": self.kind,
             "license": None,
             "license_description": None,
@@ -507,9 +565,9 @@ class ContentNode(TreeNode):
             Returns: dict of channel data
         """
         return {
-            "title": self.title,
+            "title": self.node_modifications.get('New Title') or self.title,
             "language" : self.language,
-            "description": self.description,
+            "description": self.node_modifications.get('New Description') or self.description,
             "node_id": self.get_node_id().hex,
             "content_id": self.get_content_id().hex,
             "source_domain": self.domain_ns.hex,
@@ -518,7 +576,7 @@ class ContentNode(TreeNode):
             "aggregator": self.aggregator,
             "provider": self.provider,
             "files" : [f.to_dict() for f in filter(lambda x: x and x.filename, self.files)], # Filter out failed downloads
-            "tags": self.tags,
+            "tags": self.node_modifications.get('New Tags') or self.tags,
             "kind": self.kind,
             "license": self.license.license_id,
             "license_description": self.license.description,
@@ -588,7 +646,8 @@ class VideoNode(ContentNode):
                         new_files.append(file)
                         language_codes_seen.add(language_code)
                     else:
-                        config.LOGGER.warning('Skipping duplicate subs for ' + language_code + ' from path ' + file.path)
+                        file_info = file.path if hasattr(file, 'path') else file.youtube_url
+                        config.LOGGER.warning('Skipping duplicate subs for ' + language_code + ' from ' + file_info)
                 else:
                     new_files.append(file)
             self.files = new_files
@@ -860,6 +919,11 @@ class ExerciseNode(ContentNode):
         m_value = self.extra_fields.get('m') or self.extra_fields.get('n')
         n_value = self.extra_fields.get('n') or self.extra_fields.get('m')
 
+        if m_value:
+            m_value = int(m_value)
+        if n_value:
+            n_value = int(n_value)
+
         # Update mastery model if parameters were not provided
         if mastery_model == exercises.M_OF_N:
             m_value = m_value or max(min(5, len(self.questions)), 1)
@@ -885,7 +949,10 @@ class ExerciseNode(ContentNode):
             Args: None
             Returns: boolean indicating if exercise is valid
         """
+
         try:
+            self.process_exercise_data()
+
             assert self.kind == content_kinds.EXERCISE, "Assumption Failed: Node should be an exercise"
 
             # Check if questions are correct
@@ -893,9 +960,15 @@ class ExerciseNode(ContentNode):
             assert all([q.validate() for q in self.questions]), "Assumption Failed: Exercise has invalid question"
             assert self.extra_fields['mastery_model'] in MASTERY_MODELS, \
                 "Assumption Failed: Unrecognized mastery model {}".format(self.extra_fields['mastery_model'])
+            if self.extra_fields['mastery_model'] == exercises.M_OF_N:
+                assert 'm' in self.extra_fields and 'n' in self.extra_fields, "Assumption failed: M of N mastery model is missing M and/or N values"
+                assert isinstance(self.extra_fields['m'], int), "Assumption failed: M must be an integer value"
+                assert isinstance(self.extra_fields['m'], int), "Assumption failed: N must be an integer value"
+
             return super(ExerciseNode, self).validate()
-        except AssertionError as ae:
+        except (AssertionError, ValueError) as ae:
             raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
+
 
     def truncate_fields(self):
         for q in self.questions:

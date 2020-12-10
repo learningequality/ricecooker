@@ -5,12 +5,16 @@ from cachecontrol.caches.file_cache import FileCache
 import hashlib
 import os
 from PIL import Image
+import json
+import requests
 from requests.exceptions import MissingSchema, HTTPError, ConnectionError, InvalidURL, InvalidSchema
 import shutil
 from subprocess import CalledProcessError
 import tempfile
 import youtube_dl
 import zipfile
+
+from urllib.parse import urlparse
 
 from le_utils.constants import languages
 from le_utils.constants import file_formats, format_presets, exercises
@@ -32,7 +36,7 @@ from .. import config
 from ..exceptions import UnknownFileTypeError
 
 # Cache for filenames
-FILECACHE = FileCache(config.FILECACHE_DIRECTORY, forever=True)
+FILECACHE = FileCache(config.FILECACHE_DIRECTORY, use_dir_lock=True, forever=True)
 HTTP_CAUGHT_EXCEPTIONS = (HTTPError, ConnectionError, InvalidURL, UnicodeDecodeError, UnicodeError, InvalidSchema, IOError, AssertionError)
 
 # Lookup table for convertible file formats for a given preset
@@ -68,8 +72,39 @@ def generate_key(action, path_or_id, settings=None, default=" (default)"):
             default (str): if settings are None, default to this extension (avoid overwriting keys)
         Returns: filename
     """
-    settings = " {}".format(str(sorted(settings.items()))) if settings else default
-    return "{}: {}{}".format(action.upper(), path_or_id, settings)
+    if settings and 'postprocessors' in settings:
+        # get determinisic dict serialization for nested dicts under Python 3.5
+        settings_str = json.dumps(settings, sort_keys=True)
+    else:
+        # keep using old strategy to avoid invalidating all chef caches
+        settings_str = "{}".format(str(sorted(settings.items()))) if settings else default
+    return "{}: {} {}".format(action.upper(), path_or_id, settings_str)
+
+
+def get_cache_filename(key):
+    cache_file = FILECACHE.get(key)
+    if cache_file:
+        cache_file = cache_file.decode('utf-8')
+        # if the file was somehow deleted, make sure we don't return it.
+        if not os.path.exists(config.get_storage_path(cache_file)):
+            cache_file = None
+    return cache_file
+
+
+def cache_is_outdated(path, cache_file):
+    outdated = True
+    if not cache_file:
+        return True
+
+    if is_valid_url(path):
+        # Downloading is expensive, so always use cache if we don't explicitly try to update.
+        outdated = False
+    else:
+        # check if the on disk file has changed
+        cache_hash = get_hash(path)
+        outdated = not cache_hash or not cache_file.startswith(cache_hash)
+
+    return outdated
 
 
 def download(path, default_ext=None):
@@ -81,11 +116,13 @@ def download(path, default_ext=None):
     :rtype: sting (path of the form `{md5hash(file at path)}.ext`
     """
     key = "DOWNLOAD:{}".format(path)
-    if not config.UPDATE and FILECACHE.get(key):
-        return FILECACHE.get(key).decode('utf-8')
+
+    cache_file = get_cache_filename(key)
+    if not config.UPDATE and not cache_is_outdated(path, cache_file):
+        config.LOGGER.info("\tUsing cached file for: {}".format(path))
+        return cache_file
 
     config.LOGGER.info("\tDownloading {}".format(path))
-
     # Write file to temporary file
     with tempfile.TemporaryFile() as tempf:
         hash = write_and_get_hash(path, tempf)
@@ -95,7 +132,9 @@ def download(path, default_ext=None):
         filename = '{0}.{ext}'.format(hash.hexdigest(), ext=ext)
         copy_file_to_storage(filename, tempf)
         FILECACHE.set(key, bytes(filename, "utf-8"))
-        return filename
+        config.LOGGER.info("\t--- Downloaded {}".format(filename))
+
+    return filename
 
 
 def download_and_convert_video(path, default_ext=file_formats.MP4, ffmpeg_settings=None):
@@ -104,8 +143,9 @@ def download_and_convert_video(path, default_ext=file_formats.MP4, ffmpeg_settin
     """
     ffmpeg_settings = ffmpeg_settings or {}
     key = "DOWNLOAD:{}".format(path)
-    if not config.UPDATE and FILECACHE.get(key):
-        return FILECACHE.get(key).decode('utf-8')
+    cache_file = get_cache_filename(key)
+    if is_valid_url(path) and not config.UPDATE and cache_file:
+        return cache_file
 
     config.LOGGER.info("\tDownloading {}".format(path))
 
@@ -136,11 +176,19 @@ def download_and_convert_video(path, default_ext=file_formats.MP4, ffmpeg_settin
         return filename
 
 
+def is_valid_url(path):
+    """
+    Return `True` if path is a valid URL, else `False` if path is a local path.
+    """
+    parts = urlparse(path)
+    return parts.scheme != '' and parts.netloc != ''
+
+
 def write_and_get_hash(path, write_to_file, hash=None):
     """
     Download file at `path` and write its contents to the file `write_to_file`.
-    Attempts a HTTP GET request for the path and if that fails, we'll try to read
-    from `path` on the local filesystem.
+    First check if `path` is a URL and if so perform a GET request for the path,
+    otherwise try to access `path` on the local filesystem.
 
     :param path: An URL or a local filepath
     :type path: str
@@ -151,24 +199,21 @@ def write_and_get_hash(path, write_to_file, hash=None):
     :return: updated hasher state
     :rtype: hashlib hasher (updated)
     """
-    hash = hash or hashlib.md5()
-    try:
-        # Access path
+    hash = hash or hashlib.md5()  # start hasher if an existing one not provided
+    if is_valid_url(path):
+        # CASE A: path is a URL (http://, https://, or file://, etc.)
         r = config.DOWNLOAD_SESSION.get(path, stream=True)
         r.raise_for_status()
         for chunk in r:
             write_to_file.write(chunk)
             hash.update(chunk)
-
-    except (MissingSchema, InvalidSchema):
-        # If path is a local file path, try to open the file (generate hash if none provided)
+    else:
+        # CASE B: path points to a local filesystem file
         with open(path, 'rb') as fobj:
             for chunk in iter(lambda: fobj.read(2097152), b""):
                 write_to_file.write(chunk)
                 hash.update(chunk)
-
     assert write_to_file.tell() > 0, "File failed to write (corrupted)."
-
     return hash
 
 
@@ -208,8 +253,9 @@ def compress_video_file(filename, ffmpeg_settings):
     ffmpeg_settings = ffmpeg_settings or {}
     key = generate_key("COMPRESSED", filename, settings=ffmpeg_settings, default=" (default compression)")
 
-    if not config.UPDATE and FILECACHE.get(key):
-        return FILECACHE.get(key).decode('utf-8')
+    cache_file = get_cache_filename(key)
+    if not config.UPDATE and cache_file:
+        return cache_file
 
     config.LOGGER.info("\t--- Compressing {}".format(filename))
 
@@ -243,8 +289,9 @@ def download_from_web(web_url, download_settings, file_format=file_formats.MP4, 
     :return: filename derived from hash of file contents {md5hash(file)}.ext
     """
     key = generate_key("DOWNLOADED", web_url, settings=download_settings)
-    if not config.UPDATE and FILECACHE.get(key):
-        return FILECACHE.get(key).decode('utf-8')
+    cache_file = get_cache_filename(key)
+    if cache_file:
+        return cache_file
 
     # Get hash of web_url to act as temporary storage name
     url_hash = hashlib.md5()
@@ -398,11 +445,11 @@ class DownloadFile(File):
     def process_file(self):
         try:
             self.filename = download(self.path, default_ext=self.default_ext)
-            config.LOGGER.info("\t--- Downloaded {}".format(self.filename))
             return self.filename
         # Catch errors related to reading file path and handle silently
         except HTTP_CAUGHT_EXCEPTIONS as err:
             self.error = err
+            config.LOGGER.debug("Failed to download, error is: {}".format(err))
             config.FAILED_FILES.append(self)
             return None
 
@@ -568,7 +615,7 @@ class VideoFile(DownloadFile):
 class WebVideoFile(File):
     is_primary = True
     # In future, look into postprocessors and progress_hooks
-    def __init__(self, web_url, download_settings=None, high_resolution=True, maxheight=None, **kwargs):
+    def __init__(self, web_url, download_settings=None, high_resolution=False, maxheight=None, **kwargs):
         self.web_url = web_url
         self.download_settings = download_settings or {}
         if "format" not in self.download_settings:
@@ -706,7 +753,6 @@ class SubtitleFile(DownloadFile):
         if ext != self.default_ext and ext not in convertible_exts and self.subtitlesformat is None:
             raise ValueError('Incompatible extension {} for SubtitleFile at {}'.format(ext, self.path))
 
-
     def process_file(self):
         self.validate()
         caught_errors = HTTP_CAUGHT_EXCEPTIONS + \
@@ -728,8 +774,9 @@ class SubtitleFile(DownloadFile):
         Returns: filename of final .vtt file
         """
         key = "DOWNLOAD:{}".format(path)
-        if not config.UPDATE and FILECACHE.get(key):
-            return FILECACHE.get(key).decode('utf-8')
+        cache_file = get_cache_filename(key)
+        if not config.UPDATE and not cache_is_outdated(path, cache_file):
+            return cache_file
 
         config.LOGGER.info("\tDownloading {}".format(path))
 
@@ -794,8 +841,9 @@ class Base64ImageFile(ThumbnailPresetMixin, File):
         hashed_content.update(self.encoding.encode('utf-8'))
         key = "ENCODED: {} (base64 encoded)".format(hashed_content.hexdigest())
 
-        if not config.UPDATE and FILECACHE.get(key):
-            return FILECACHE.get(key).decode('utf-8')
+        cache_file = get_cache_filename(key)
+        if not config.UPDATE and cache_file:
+            return cache_file
 
         config.LOGGER.info("\tConverting base64 to file")
 
@@ -863,8 +911,9 @@ class _ExerciseGraphieFile(DownloadFile):
     def generate_graphie_file(self):
         key = "GRAPHIE: {}".format(self.path)
 
-        if not config.UPDATE and FILECACHE.get(key):
-            return FILECACHE.get(key).decode('utf-8')
+        cache_file = get_cache_filename(key)
+        if not config.UPDATE and cache_file:
+            return cache_file
 
         # Create graphie file combining svg and json files
         with tempfile.TemporaryFile() as tempf:
@@ -895,14 +944,11 @@ class ExtractedThumbnailFile(ThumbnailFile):
     extractor_kwargs = {}  # subclass can specify additional options
 
     def process_file(self):
-        """Generates the thumbnail from source file in `self.path` by calling
-        the ``extractor_fun`` on the subclass.
+        """
+        Generate the thumbnail from source file in `self.path` by calling the
+        ``extractor_fun`` method of the subclass.
         Returns: filename or None
         """
-        key = "EXTRACTED: {}".format(self.path)
-        if not config.UPDATE and FILECACHE.get(key):
-            return FILECACHE.get(key).decode('utf-8')
-
         config.LOGGER.info("\t--- Extracting thumbnail from {}".format(self.path))
         tempf = tempfile.NamedTemporaryFile(suffix=".{}".format(file_formats.PNG), delete=False)
         tempf.close()
@@ -911,25 +957,25 @@ class ExtractedThumbnailFile(ThumbnailFile):
             filename = "{}.{}".format(get_hash(tempf.name), file_formats.PNG)
             copy_file_to_storage(filename, tempf.name)
             os.unlink(tempf.name)
-            FILECACHE.set(key, bytes(filename, "utf-8"))
             config.LOGGER.info("\t--- Extracted thumbnail {}".format(filename))
             self.filename = filename
         except ThumbnailGenerationError as err:
-            config.LOGGER.warning("\t    Failed to extract thumbnail from file {} -- {}".format(self.path, err))
+            config.LOGGER.warning("\t    Failed to extract thumbnail {}".format(err))
             self.filename = None
             self.error = err
             config.FAILED_FILES.append(self)
         return self.filename
 
     def extractor_fun(self, fpath_in, thumbpath_out, **kwargs):
-        """The function in the subclass that performs the thumbnail generation.
-
+        """
+        The function in the subclass that performs the thumbnail generation.
         Args:
             fpath_in: the local path of the source file
             thumbpath_out: the destination path to write thumbnail to (temp file)
             **kwargs: any additional class-specific arguments passed in
         """
         raise NotImplementedError('The subclass must implement this method.')
+
 
 class ExtractedPdfThumbnailFile(ExtractedThumbnailFile):
     extractor_kwargs = {'page_number': 0, 'crop': None}
@@ -991,17 +1037,11 @@ class TiledThumbnailFile(ThumbnailPresetMixin, File):
             num_pictures = 1
         else:
             return None
-
-        images = [config.get_storage_path(f.get_filename()) for f in self.sources[:num_pictures]]
-        key = "TILED {}".format("+".join(sorted(images)))
-        if not config.UPDATE and FILECACHE.get(key):
-            return FILECACHE.get(key).decode('utf-8')
-
         config.LOGGER.info("\tGenerating tiled thumbnail.")
+        images = [config.get_storage_path(f.get_filename()) for f in self.sources[:num_pictures]]
         with tempfile.NamedTemporaryFile(suffix=".{}".format(file_formats.PNG)) as tempf:
             tempf.close()
             create_tiled_image(images, tempf.name)
             filename = "{}.{}".format(get_hash(tempf.name), file_formats.PNG)
             copy_file_to_storage(filename, tempf.name)
-            FILECACHE.set(key, bytes(filename, "utf-8"))
             return filename

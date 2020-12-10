@@ -81,6 +81,7 @@ def get_channel_node_from_json(json_tree):
         source_domain=json_tree['source_domain'],
         source_id=json_tree['source_id'],
         language=json_tree['language'],
+        tagline=json_tree.get('tagline', None),
         thumbnail=json_tree.get('thumbnail', None),
     )
     return channel
@@ -254,7 +255,7 @@ def add_files(node, file_list):
                 video_file = files.YouTubeVideoFile(
                     youtube_id=f['youtube_id'],
                     download_settings=f.get('download_settings', None),
-                    high_resolution=f.get('high_resolution', True),
+                    high_resolution=f.get('high_resolution', False),
                     maxheight=f.get('maxheight', None),
                     language=f.get('language', None),
                 )
@@ -262,7 +263,7 @@ def add_files(node, file_list):
                 video_file = files.WebVideoFile(
                     web_url=f['web_url'],
                     download_settings=f.get('download_settings', None),
-                    high_resolution=f.get('high_resolution', True),
+                    high_resolution=f.get('high_resolution', False),
                     maxheight=f.get('maxheight', None),
                     language=f.get('language', None),
                 )

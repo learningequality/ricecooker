@@ -5,6 +5,9 @@ from requests.exceptions import HTTPError
 import sys
 import webbrowser
 
+import os
+import csv
+
 from . import config, __version__
 from .classes.nodes import ChannelNode
 from .managers.progress import RestoreManager, Status
@@ -18,34 +21,22 @@ except NameError:
     pass
 
 
-
 def uploadchannel_wrapper(chef, args, options):
     """
-    Call `uploadchannel` with SushiBar monitoring and progress reporting enabled.
+    Call the `uploadchannel` function with combined `args` and `options`.
     Args:
         args (dict): chef command line arguments
         options (dict): extra key=value options given on the command line
     """
-    try:
-        args_and_options = args.copy()
-        args_and_options.update(options)
-        uploadchannel(chef, **args_and_options)
-        if config.SUSHI_BAR_CLIENT:
-            config.SUSHI_BAR_CLIENT.report_stage('COMPLETED', 0)
-    except Exception as e:
-        if config.SUSHI_BAR_CLIENT:
-            config.SUSHI_BAR_CLIENT.report_stage('FAILURE', 0)
-        config.LOGGER.critical(str(e))
-        raise
-    finally:
-        if config.SUSHI_BAR_CLIENT:
-            config.SUSHI_BAR_CLIENT.close()
+    args_and_options = args.copy()
+    args_and_options.update(options)
+    uploadchannel(chef, **args_and_options)
 
 
 def uploadchannel(chef, command='uploadchannel', update=False, thumbnails=False, download_attempts=3, resume=False, step=Status.LAST.name, token="#", prompt=False, publish=False, compress=False, stage=False, **kwargs):
-    """ uploadchannel: Upload channel to Kolibri Studio server
+    """ uploadchannel: Upload channel to Kolibri Studio
         Args:
-            chef (BaseChef or subclass): class that implements the construct_channel method
+            chef (SushiChef subclass): class that implements the construct_channel method
             command (str): the action we want to perform in this run
             update (bool): indicates whether to re-download files (optional)
             thumbnails (bool): indicates whether to automatically derive thumbnails from content (optional)
@@ -63,8 +54,8 @@ def uploadchannel(chef, command='uploadchannel', update=False, thumbnails=False,
 
     # Set configuration settings
     config.UPDATE = update
-    config.COMPRESS = compress
-    config.THUMBNAILS = thumbnails
+    config.COMPRESS = chef.get_setting('compress-videos', False)
+    config.THUMBNAILS = chef.get_setting('generate-missing-thumbnails', False)
     config.STAGE = stage
     config.PUBLISH = publish
 
@@ -74,7 +65,8 @@ def uploadchannel(chef, command='uploadchannel', update=False, thumbnails=False,
 
     # Get domain to upload to
     config.init_file_mapping_store()
-
+    
+    
     if not command == 'dryrun':
         # Authenticate user and check current Ricecooker version
         username, token = authenticate_user(token)
@@ -98,6 +90,13 @@ def uploadchannel(chef, command='uploadchannel', update=False, thumbnails=False,
         else:
             config.PROGRESS_MANAGER.init_session()
 
+    if hasattr(chef, 'download_content'):
+        chef.download_content()
+
+    # TODO load csv if exists
+    metadata_dict = chef.load_channel_metadata_from_csv()
+            
+
     # Construct channel if it hasn't been constructed already
     if config.PROGRESS_MANAGER.get_status_val() <= Status.CONSTRUCT_CHANNEL.value:
         config.LOGGER.info("Calling construct_channel... ")
@@ -118,6 +117,13 @@ def uploadchannel(chef, command='uploadchannel', update=False, thumbnails=False,
         config.LOGGER.info("Downloading files...")
         config.PROGRESS_MANAGER.set_files(*process_tree_files(tree))
 
+    # Apply any modifications to chef
+    chef.apply_modifications(channel, metadata_dict)
+    # Save the data about the current run in chefdata/
+    chef.save_channel_tree_as_json(channel)
+
+    chef.save_channel_metadata_as_csv(channel)
+    
     if command == 'dryrun':
         config.LOGGER.info('Command is dryrun so we are not uploading chanel.')
         return
@@ -243,8 +249,6 @@ def process_tree_files(tree):
     # Fill in values necessary for next steps
     config.LOGGER.info("Processing content...")
     files_to_diff = tree.process_tree(tree.channel)
-    if config.SUSHI_BAR_CLIENT:
-        config.SUSHI_BAR_CLIENT.report_statistics(files_to_diff, topic_count=tree.channel.get_topic_count())
     tree.check_for_files_failed()
     return files_to_diff, config.FAILED_FILES
 

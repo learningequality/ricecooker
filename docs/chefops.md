@@ -34,7 +34,6 @@ This listing shows the `ricecooker` command line interface (CLI) arguments:
                             This operation will overwrite the previous channel
                             content. Use only during development.
       --publish             Publish newly uploaded version of the channel.
-      --daemon              Run chef in daemon mode lisenting to commands.
 
 As you can tell, there are lot of arguments to choose from, and this is not even
 the complete list: you'll have to run `./sushichef.py -h` to see the latest version.
@@ -142,11 +141,4 @@ time to complete so it is best to run them on a dedicated server for this purpos
     e.g. `./sushichef.py --token=... --thumbnails lang=fr`.
   - By default `nohup` logs stderr and stdout output to a file called `nohup.out`
     in the current working directory. Use `tail -f nohup.out` to follow this log file.
-
-
-Daemon mode
------------
-Starting a chef script with the `--daemon` argument makes it listen for remote
-control commands from the [sushibar](https://sushibar.learningequality.org/) host.
-For more information, see the page on [daemonization](developer/daemonization).
 

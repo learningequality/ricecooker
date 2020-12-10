@@ -1,38 +1,76 @@
+import concurrent.futures
+import copy
 import os
 import re
 import requests
 import time
-from urllib.parse import urlparse, parse_qs, urljoin
+from urllib.parse import urlparse, urljoin
 import uuid
 
 from bs4 import BeautifulSoup
 from selenium import webdriver
 import selenium.webdriver.support.ui as selenium_ui
 from requests_file import FileAdapter
-from ricecooker.config import PHANTOMJS_PATH
+from ricecooker.config import LOGGER, PHANTOMJS_PATH, STRICT
 from ricecooker.utils.html import download_file
 from ricecooker.utils.caching import CacheForeverHeuristic, FileCache, CacheControlAdapter, InvalidatingCacheControlAdapter
 
 DOWNLOAD_SESSION = requests.Session()                          # Session for downloading content from urls
 DOWNLOAD_SESSION.mount('https://', requests.adapters.HTTPAdapter(max_retries=3))
 DOWNLOAD_SESSION.mount('file://', FileAdapter())
-cache = FileCache('.webcache')
+# use_dir_lock works with all filesystems and OSes
+cache = FileCache('.webcache', use_dir_lock=True)
 forever_adapter= CacheControlAdapter(heuristic=CacheForeverHeuristic(), cache=cache)
 
 DOWNLOAD_SESSION.mount('http://', forever_adapter)
 DOWNLOAD_SESSION.mount('https://', forever_adapter)
 
-headers = {
+DEFAULT_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:20.0) Gecko/20100101 Firefox/20.0",
     "Accept-Encoding": "gzip, deflate",
     "Connection": "keep-alive"
 }
 
 
+USE_PYPPETEER = False
+
+try:
+    import asyncio
+    from pyppeteer import launch, errors
+
+    async def load_page(path, timeout=30, strict=True):
+        browser = await launch({'headless': True})
+        content = None
+        cookies = None
+        try:
+            page = await browser.newPage()
+            try:
+                await page.goto(path, {'timeout': timeout * 1000, 'waitUntil': ['load', 'domcontentloaded', 'networkidle0']})
+            except errors.TimeoutError:
+                # some sites have API calls running regularly, so the timeout may be that there's never any true
+                # network idle time. Try 'networkidle2' option instead before determining we can't scrape.
+                if not strict:
+                    await page.goto(path, {'timeout': timeout * 1000, 'waitUntil': ['load', 'domcontentloaded', 'networkidle2']})
+                else:
+                    raise
+            # get the entire rendered page, including the doctype
+            content = await page.content()
+            cookies = await page.cookies()
+        except Exception as e:
+            LOGGER.warning("Error scraping page: {}".format(e))
+        finally:
+            await browser.close()
+        return content, {'cookies': cookies}
+    USE_PYPPETEER = True
+except:
+    print("Unable to load pyppeteer, using phantomjs for JS loading.")
+    pass
+
+
 def read(path, loadjs=False, session=None, driver=None, timeout=60,
-        clear_cookies=True, loadjs_wait_time=3, loadjs_wait_for_callback=None):
+        clear_cookies=True, loadjs_wait_time=3, loadjs_wait_for_callback=None, strict=True):
     """Reads from source and returns contents
-    
+
     Args:
         path: (str) url or local path to download
         loadjs: (boolean) indicates whether to load js (optional)
@@ -49,6 +87,8 @@ def read(path, loadjs=False, session=None, driver=None, timeout=60,
             page source. For example, pass in an argument like:
             ``lambda driver: driver.find_element_by_id('list-container')``
             to wait for the #list-container element to be present before rendering.
+        strict: (bool) If False, when download fails, retry but allow parsing even if there
+            is still minimal network traffic happening. Useful for sites that regularly poll APIs.
     Returns: str content from file or page
     """
     session = session or DOWNLOAD_SESSION
@@ -58,6 +98,10 @@ def read(path, loadjs=False, session=None, driver=None, timeout=60,
 
     try:
         if loadjs:                                              # Wait until js loads then return contents
+            if USE_PYPPETEER:
+                content = asyncio.get_event_loop().run_until_complete(load_page(path))
+                return content
+
             if PHANTOMJS_PATH:
                 driver = driver or webdriver.PhantomJS(executable_path=PHANTOMJS_PATH)
             else:
@@ -91,7 +135,7 @@ def read(path, loadjs=False, session=None, driver=None, timeout=60,
             return fobj.read()
 
 
-def make_request(url, clear_cookies=True, timeout=60, *args, **kwargs):
+def make_request(url, clear_cookies=False, headers=None, timeout=60, *args, **kwargs):
     sess = DOWNLOAD_SESSION
 
     if clear_cookies:
@@ -99,9 +143,14 @@ def make_request(url, clear_cookies=True, timeout=60, *args, **kwargs):
 
     retry_count = 0
     max_retries = 5
+    request_headers = DEFAULT_HEADERS
+    if headers:
+        request_headers = copy.copy(DEFAULT_HEADERS)
+        request_headers.update(headers)
+
     while True:
         try:
-            response = sess.get(url, headers=headers, timeout=timeout, *args, **kwargs)
+            response = sess.get(url, headers=request_headers, timeout=timeout, *args, **kwargs)
             break
         except (requests.exceptions.ConnectionError, requests.exceptions.ReadTimeout) as e:
             retry_count += 1
@@ -113,6 +162,8 @@ def make_request(url, clear_cookies=True, timeout=60, *args, **kwargs):
 
     if response.status_code != 200:
         print("NOT FOUND:", url)
+        if STRICT:
+            response.raise_for_status()
 
     return response
 
@@ -202,26 +253,50 @@ def download_static_assets(doc, destination, base_url,
         if css_middleware:
             content = css_middleware(content, url, **kwargs)
 
-        file_dir = os.path.dirname(urlparse(url).path)
+        root_parts = urlparse(url)
 
         # Download linked fonts and images
         def repl(match):
             src = match.group(1)
+
             if src.startswith('//localhost'):
                 return 'url()'
             # Don't download data: files
             if src.startswith('data:'):
                 return match.group(0)
-            src_url = urljoin(base_url, os.path.join(file_dir, src))
+            parts = urlparse(src)
+            root_url = None
+            if url:
+                root_url = url[:url.rfind('/') + 1]
+
+            if parts.scheme and parts.netloc:
+                src_url = src
+            elif parts.path.startswith('/') and url:
+                src_url = '{}://{}{}'.format(root_parts.scheme, root_parts.netloc, parts.path)
+            elif url and root_url:
+                src_url = urljoin(root_url, src)
+            else:
+                src_url = urljoin(base_url, src)
 
             if _is_blacklisted(src_url, url_blacklist):
                 print('        Skipping downloading blacklisted url', src_url)
                 return 'url()'
 
             derived_filename = derive_filename(src_url)
+
+            # The _derive_filename function puts all files in the root, so all URLs need
+            # rewritten. When using get_archive_filename, relative URLs will still work.
+            new_url = src
+            if derive_filename == _derive_filename:
+                if url and parts.path.startswith('/'):
+                    parent_url = derive_filename(url)
+                    new_url = os.path.relpath(src, os.path.dirname(parent_url))
+                else:
+                    new_url = derived_filename
+
             download_file(src_url, destination, request_fn=request_fn,
                     filename=derived_filename)
-            return 'url("%s")' % derived_filename
+            return 'url("%s")' % new_url
 
         return _CSS_URL_RE.sub(repl, content)
 
@@ -247,5 +322,132 @@ def download_static_assets(doc, destination, base_url,
     return doc
 
 
+def get_archive_filename(url, page_domain=None, download_root=None, urls_to_replace=None):
+    file_url_parsed = urlparse(url)
+
+    no_scheme_url = url
+    if file_url_parsed.scheme != '':
+        no_scheme_url = url.replace(file_url_parsed.scheme + '://', '')
+    rel_path = file_url_parsed.path.replace('%', '_')
+    domain = file_url_parsed.netloc.replace(':', '_')
+    if not domain and page_domain:
+        domain = page_domain
+    if rel_path.startswith('/'):
+        rel_path = rel_path[1:]
+    url_local_dir = os.path.join(domain, rel_path)
+    assert domain in url_local_dir
+    local_dir_name = os.path.dirname(url_local_dir)
+    if local_dir_name != url_local_dir and urls_to_replace is not None:
+        full_dir = os.path.join(download_root, local_dir_name)
+        os.makedirs(full_dir, exist_ok=True)
+        urls_to_replace[url] = no_scheme_url
+    return url_local_dir
+
+
+def archive_page(url, download_root):
+    """
+    Download fully rendered page and all related assets into ricecooker's site archive format.
+
+    :param url: URL to download
+    :param download_root: Site archive root directory
+    :return: A dict containing info about the page archive operation
+    """
+
+    os.makedirs(download_root, exist_ok=True)
+    content, props = asyncio.get_event_loop().run_until_complete(load_page(url))
+
+    parsed_url = urlparse(url)
+    page_domain = parsed_url.netloc.replace(':', '_')
+
+    # get related assets
+    base_url = url[:url.rfind('/')]
+    urls_to_replace = {}
+
+    if content:
+        def html5_derive_filename(url):
+            return get_archive_filename(url, page_domain, download_root, urls_to_replace)
+        download_static_assets(content, download_root, base_url, derive_filename=html5_derive_filename)
+
+        for key in urls_to_replace:
+            url_parts = urlparse(key)
+            # When we get an absolute URL, it may appear in one of three different ways in the page:
+            key_variants = [
+                # 1. /path/to/file.html
+                key.replace(url_parts.scheme + '://' + url_parts.netloc, ''),
+                # 2. https://www.domain.com/path/to/file.html
+                key,
+                # 3. //www.domain.com/path/to/file.html
+                key.replace(url_parts.scheme + ':', ''),
+            ]
+
+            orig_content = content
+            for variant in key_variants:
+                # searching within quotes ensures we only replace the exact URL we are
+                # trying to replace
+                # we avoid using BeautifulSoup because Python HTML parsers can be destructive and
+                # do things like strip out the doctype.
+                content = content.replace('="{}"'.format(variant), '="{}"'.format(urls_to_replace[key]))
+                content = content.replace('url({})'.format(variant), 'url({})'.format(urls_to_replace[key]))
+
+            if content == orig_content:
+                LOGGER.debug("link not replaced: {}".format(key))
+                LOGGER.debug("key_variants = {}".format(key_variants))
+
+        download_dir = os.path.join(page_domain, parsed_url.path.split('/')[-1].replace('?', '_'))
+        download_path = os.path.join(download_root, download_dir)
+        os.makedirs(download_path, exist_ok=True)
+
+        index_path = os.path.join(download_path, 'index.html')
+        f = open(index_path, 'w', encoding='utf-8')
+        f.write(content)
+        f.close()
+
+        page_info = {
+            'url': url,
+            'cookies': props['cookies'],
+            'index_path': index_path,
+            'resources': list(urls_to_replace.values())
+        }
+
+        return page_info
+
+    return None
+
+
 def _is_blacklisted(url, url_blacklist):
     return any((item in url.lower()) for item in url_blacklist)
+
+
+def download_in_parallel(urls, func=None, max_workers=5):
+    """
+    Takes a set of URLs, and downloads them in parallel
+    :param urls: A list of URLs to download in parallel
+    :param func: A function that takes the URL as a parameter.
+                 If not specified, defaults to a session-managed
+                 requests.get function.
+    :return: A dictionary of func return values, indexed by URL
+    """
+    if func is None:
+        func = requests.get
+
+    results = {}
+    start = 0
+    end = len(urls)
+    batch_size = 100
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        while start < end:
+            batch = urls[start:end]
+            futures = {}
+            for url in batch:
+                futures[executor.submit(func, url)] = url
+
+            for future in concurrent.futures.as_completed(futures):
+                url = futures[future]
+                try:
+                    result = future.result()
+                    results[url] = result
+                except:
+                    raise
+            start = start + batch_size
+
+    return results

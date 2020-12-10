@@ -1,21 +1,22 @@
 import argparse
+import json
 import logging
 import os
+import requests
 import sys
+import csv
+import re
 from datetime import datetime
-from importlib.machinery import SourceFileLoader
 
 from . import config
-from .classes.nodes import ChannelNode
-from .commands import authenticate_user
-from .commands import uploadchannel
+from .classes import files
+from .classes import nodes
 from .commands import uploadchannel_wrapper
 from .exceptions import InvalidUsageException
 from .exceptions import raise_for_invalid_channel
 from .managers.progress import Status
-from .sushi_bar_client import ControlWebSocket
-from .sushi_bar_client import LocalControlSocket
-from .sushi_bar_client import SushiBarClient
+
+from .utils.downloader import get_archive_filename
 from .utils.jsontrees import build_tree_from_json
 from .utils.jsontrees import get_channel_node_from_json
 from .utils.jsontrees import read_tree_from_json
@@ -27,40 +28,52 @@ from .utils.metadata_provider import DEFAULT_CONTENT_INFO_FILENAME
 from .utils.metadata_provider import DEFAULT_EXERCISE_QUESTIONS_INFO_FILENAME
 from .utils.metadata_provider import DEFAULT_EXERCISES_INFO_FILENAME
 from .utils.tokens import get_content_curation_token
-# for JsonTreeChef chef
-# for LineCook chef
+from .utils.youtube import YouTubeVideoUtils, YouTubePlaylistUtils
+
+from pressurecooker.images import convert_image
 
 
-# SUSHI CHEF BASE CLASS (and backward compatibiliry)
+# SUSHI CHEF BASE CLASS
 ################################################################################
 
-class BaseChef(object):
+class SushiChef(object):
     """
-    The base class that parses command line arguments for sushichef scripts.
-    Sushi chef sctipts call the `main` method as the entry point, which in turn
-    calls the `run` method to performs all the work (see `uploadchannel`).
-
-    This class also provides backward compaibility with old chef scripts.
-    When invoking the a sushi chef script using the old API: \
-        python -m ricecooker uploadchannel chef_script.py --token=123 ...
-    an instance of this class with `compatibility_mode = True` will be created.
-    Calling `BaseChef.run` will call the function `construct_channel` in `chef_module`.
+    This is the base class that all content integration scripts should subclass.
+    Sushi chef scripts call the `main` method as the entry point, which in turn
+    calls the `run` method to do the work (see `uploadchannel` in `commands.py`).
     """
+    CHEF_RUN_DATA = config.CHEF_DATA_DEFAULT  # loaded from chefdata/chef_data.json
+    TREES_DATA_DIR = config.TREES_DATA_DIR    # tree archives and JsonTreeChef inputs
 
-    def __init__(self, *args, compatibility_mode=False, **kwargs):
+    def __init__(self, *args, **kwargs):
         """
-        Setup argparse arguments.
+        The SushiChef initialization concerns maintly parsing command line args.
+        Overrride this method in your sushi chef class to add custom arguments.
         """
-        self.compatibility_mode = compatibility_mode
 
-        # argparse setup
+        # persistent settings for the chef, we check if it exists first in order to
+        # support assignment as a class-level variable.
+        if not hasattr(self, 'SETTINGS'):
+            self.SETTINGS = {}
+
+        # these will be assigned to later by the argparse handling.
+        self.args = None
+        self.options = None
+
+        # ARGPARSE SETUP
+        # We don't want to add argparse help if subclass has an __init__ method
+        subclasses = self.__class__.__mro__[:-2]     # all subclasses after this
+        if any(['__init__' in c.__dict__.keys() for c in subclasses]):
+            add_parser_help = False    # assume subclass' __init__ will add help
+        else:
+            add_parser_help = True
         parser = argparse.ArgumentParser(
-            description="Ricecooker puts your content in the conten server.",
-            add_help=(self.__class__ == BaseChef)  # only add help if not subclassed
+            description="Chef script for uploading content to Kolibri Studio.",
+            add_help=add_parser_help,
         )
+        self.arg_parser = parser  # save as class attr. for subclasses to extend
+        # ARGS
         parser.add_argument('command', nargs='?', default='uploadchannel', help='Desired action: dryrun or uploadchannel (default).')
-        if self.compatibility_mode:
-            parser.add_argument('chef_script', help='Path to chef script file')
         parser.add_argument('--token', default='#',                   help='Studio API Access Token (specify wither the token value or the path of a file that contains the token).')
         parser.add_argument('-u', '--update', action='store_true',    help='Force file re-download (skip .ricecookerfilecache/).')
         parser.add_argument('--debug', action='store_true',           help='Print extra debugging infomation.')
@@ -84,8 +97,35 @@ class BaseChef(object):
                                                                       help='(deprecated) Stage updated content for review. Uploading a staging tree is now the default behavior. Use --deploy to upload to the main tree.')
 
         # [OPTIONS] --- extra key=value options are supported, but do not appear in help
-        self.arg_parser = parser
 
+        self.load_chef_data()
+
+    def get_setting(self, setting, default=None):
+        """
+        Gets a setting set on the chef via its SETTINGS dictionary.
+
+        It is recommended to use this method rather than checking SETTINGS directly,
+        as it allows for a default when not set, and allows for command line overrides
+        for some settings.
+
+        :param setting: String key of the setting to check
+        :param default: Value to return if the key is not found.
+        :return: Setting value if set, or default if not set.
+        """
+
+        override = None
+        # If there is a command line flag for this setting, allow for it to override the chef
+        # default. Note that these are all boolean flags, so they are true if set, false if not.
+        if setting == 'generate-missing-thumbnails':
+            override = self.args and self.args['thumbnails']
+
+        if setting == 'compress-videos':
+            override = self.args and self.args['compress']
+
+        if setting in self.SETTINGS:
+            return override or self.SETTINGS[setting]
+
+        return override or default
 
     def parse_args_and_options(self):
         """
@@ -113,7 +153,6 @@ class BaseChef(object):
             args['command'] = 'uploadchannel'
             options_list.append(command_arg)  # put command_arg where it belongs
 
-
         # Print CLI deprecation warnings info
         if args['stage_deprecated']:
             config.LOGGER.warning('DEPRECATION WARNING: --stage is now the default bevavior. The --stage flag has been deprecated and will be removed in ricecooker 1.0.')
@@ -136,9 +175,6 @@ class BaseChef(object):
             # If ALL of these fail, this call will raise and chef run will stop.
             args['token'] = get_content_curation_token(args['token'])
 
-        if args['command'] == 'dryrun':
-            args['nomonitor'] = True    # no Sushibar logs and progress tracking
-
         # Parse additional keyword arguments from `options_list`
         options = {}
         for preoption in options_list:
@@ -149,23 +185,18 @@ class BaseChef(object):
                 msg = "Invalid option '{0}': use [key]=[value] format (no whitespace)".format(preoption)
                 raise InvalidUsageException(msg)
 
-        # For compatibility mode, we check the chef script file exists and load it
-        if self.compatibility_mode:
-            try:
-                # Try to load the chef_script as a module
-                self.chef_module = SourceFileLoader("mod", args['chef_script']).load_module()
-            except FileNotFoundError as e:
-                raise InvalidUsageException('Error: must specify `chef_module` for compatibility_mode')
+        self.args = args
+        self.options = options
 
         return args, options
 
+
     def config_logger(self, args, options):
         """
-        Set up stream (stderr), local file logging (logs/yyyy-mm-dd__HHMM.log),
-        and remote logging to SushiBar server. This method is called as soon as
-        we parse args so we can apply the user-preferred logging level settings.
+        Set up stream (stderr), local file logging (logs/yyyy-mm-dd__HHMM.log).
+        This method is called as soon as we parse args so we can apply the
+        user-preferred logging level settings.
         """
-
         # Set desired logging level based on command line arguments
         level = logging.INFO
         if args['debug']:
@@ -191,15 +222,119 @@ class BaseChef(object):
         except Exception as e:
             config.LOGGER.warning('Unable to setup file logging due to %s' % e)
 
-        # 3. Remote logging handler (sushibar logs via WebSockets)
-        try:
-            nomonitor = args.get('nomonitor', False)
-            if not nomonitor:
-                channel = self.get_channel(**options)
-                username, token = authenticate_user(args['token'])
-                config.SUSHI_BAR_CLIENT = SushiBarClient(channel, username, token, nomonitor=nomonitor)
-        except Exception as e:
-            config.LOGGER.warning('Unable to use remote logging due to: %s' % e)
+
+    def get_channel(self, **kwargs):
+        """
+        This method creates an empty `ChannelNode` object based on info from the
+        chef class' `channel_info` attribute. A subclass can ovveride this method
+        in cases where channel metadata is dynamic and depends on `kwargs`.
+        Args:
+            kwargs (dict): additional keyword arguments given to `uploadchannel`
+        Returns: an empty `ChannelNode` that contains all the channel metadata
+        """
+        if hasattr(self, 'channel_info'):
+            # Make sure we're not using the template id values in `channel_info`
+            template_domains = ['<yourdomain.org>']
+            using_template_domain = self.channel_info['CHANNEL_SOURCE_DOMAIN'] in template_domains
+            if using_template_domain:
+                config.LOGGER.error("Template source domain detected. Please change CHANNEL_SOURCE_DOMAIN before running this chef.")
+
+            template_ids = ['<unique id for the channel>', '<yourid>']
+            using_template_source_id = self.channel_info['CHANNEL_SOURCE_ID'] in template_ids
+            if using_template_source_id:
+                config.LOGGER.error("Template channel source ID detected. Please change CHANNEL_SOURCE_ID before running this chef.")
+
+            if using_template_domain or using_template_source_id:
+               sys.exit(1)
+
+            # If a sublass has an `channel_info` attribute (dict) it doesn't need
+            # to define a `get_channel` method and instead rely on this code:
+            channel = nodes.ChannelNode(
+                source_domain=self.channel_info['CHANNEL_SOURCE_DOMAIN'],
+                source_id=self.channel_info['CHANNEL_SOURCE_ID'],
+                title=self.channel_info['CHANNEL_TITLE'],
+                tagline=self.channel_info.get('CHANNEL_TAGLINE'),
+                channel_id=self.channel_info.get('CHANNEL_ID'),
+                thumbnail=self.channel_info.get('CHANNEL_THUMBNAIL'),
+                language=self.channel_info.get('CHANNEL_LANGUAGE'),
+                description=self.channel_info.get('CHANNEL_DESCRIPTION'),
+            )
+            return channel
+        else:
+            raise NotImplementedError('Subclass must define get_channel method or have a channel_info (dict) attribute.')
+
+
+    def construct_channel(self, **kwargs):
+        """
+        This should be overriden by the chef script's construct_channel method.
+        Args:
+            kwargs (dict): additional keyword arguments given to `uploadchannel`
+        Returns: a `ChannelNode` object representing the populated topic tree
+        """
+        raise NotImplementedError('Chef subclass must implement this method')
+
+
+    def load_chef_data(self):
+        if os.path.exists(config.DATA_PATH):
+            self.CHEF_RUN_DATA = json.load(open(config.DATA_PATH))
+
+        
+    def save_channel_tree_as_json(self, channel):
+        filename = os.path.join(self.TREES_DATA_DIR, '{}.json'.format(self.CHEF_RUN_DATA['current_run']))
+        os.makedirs(self.TREES_DATA_DIR, exist_ok=True)
+        json.dump(channel.get_json_tree(), open(filename, 'w'), indent=2)
+        self.CHEF_RUN_DATA['tree_archives']['previous'] = self.CHEF_RUN_DATA['tree_archives']['current']
+        self.CHEF_RUN_DATA['tree_archives']['current'] = filename.replace(os.getcwd() + '/', '')
+        self.save_chef_data()
+
+    def save_channel_metadata_as_csv(self, channel):
+        # create data folder in chefdata
+        DATA_DIR = os.path.join('chefdata', 'data')
+        os.makedirs(DATA_DIR, exist_ok = True)
+        metadata_csv = csv.writer(open(os.path.join(DATA_DIR, 'content_metadata.csv'), 'w', newline='', encoding='utf-8'))
+        metadata_csv.writerow(config.CSV_HEADERS)
+
+        channel.save_channel_children_to_csv(metadata_csv)
+
+    def load_channel_metadata_from_csv(self):
+        metadata_dict = dict()
+        metadata_csv = None
+        CSV_FILE_PATH = os.path.join('chefdata', 'data', 'content_metadata.csv')
+        if os.path.exists(CSV_FILE_PATH):
+            metadata_csv = csv.DictReader(open(CSV_FILE_PATH, 'r', encoding='utf-8'))
+            for line in metadata_csv:
+                # Add to metadata_dict any updated data. Skip if none
+                line_source_id = line['Source ID']
+                line_new_title = line['New Title']
+                line_new_description = line['New Description']
+                line_new_tags = line['New Tags']
+                if line_new_title != '' or line_new_description != '' or line_new_tags != '':
+                    metadata_dict[line_source_id] = {}
+                    if line_new_title != '':
+                        metadata_dict[line_source_id]['New Title'] = line_new_title
+                    if line_new_description != '':
+                        metadata_dict[line_source_id]['New Description'] = line_new_description
+                    if line_new_tags != '':
+                        tags_arr = re.split(',| ,', line_new_tags)
+                        metadata_dict[line_source_id]['New Tags'] = tags_arr
+        return metadata_dict
+
+    def save_chef_data(self):
+        json.dump(self.CHEF_RUN_DATA, open(config.DATA_PATH, 'w'), indent=2)
+
+    def apply_modifications(self, contentNode, metadata_dict = {}):
+        # Skip if no metadata file passed in or no updates in metadata_dict
+        if metadata_dict == {}:
+            return
+            
+        is_channel = isinstance(contentNode, ChannelNode)
+
+        if not is_channel:
+            # Add modifications to contentNode
+            if contentNode.source_id in metadata_dict:
+                contentNode.node_modifications = metadata_dict[contentNode.source_id]
+        for child in contentNode.children:
+            self.apply_modifications(child, metadata_dict)
 
 
     def pre_run(self, args, options):
@@ -217,162 +352,6 @@ class BaseChef(object):
     def run(self, args, options):
         """
         This function calls uploadchannel which performs all the run steps:
-          - Create ChannelNode
-          - Pupulate Tree with TopicNodes, ContentNodes, and associated File objects
-          - .
-          - ..
-          - ...
-
-        Args:
-            args (dict): ricecooker command line arguments
-            options (dict): extra key=value options given on command line
-        """
-        self.pre_run(args, options)
-        args_and_options = args.copy()
-        args_and_options.update(options)
-        uploadchannel(self, **args_and_options)
-
-
-    def get_channel(self, **kwargs):
-        """
-        Call chef script's get_channel method in compatibility mode
-        ...or...
-        Create a `ChannelNode` from the Chef's `channel_info` class attribute.
-
-        Args:
-            kwargs (dict): additional keyword arguments that `uploadchannel` received
-        Returns: channel created from get_channel method or None
-        """
-        if self.compatibility_mode:
-            # For pre-sushibar scritps that do not implement `get_channel`,
-            # we must check it this function exists before calling it...
-            if hasattr(self.chef_module, 'get_channel'):
-                config.LOGGER.info("Calling get_channel... ")
-                # Create channel (using the function in the chef script)
-                channel = self.chef_module.get_channel(**kwargs)
-            # For chefs with a `create_channel` method instead of `get_channel`
-            if hasattr(self.chef_module, 'create_channel'):
-                config.LOGGER.info("Calling create_channel... ")
-                # Create channel (using the function in the chef script)
-                channel = self.chef_module.create_channel(**kwargs)
-            else:
-                channel = None  # since no channel info, SushiBar functionality will be disabled...
-            return channel
-
-        elif hasattr(self, 'channel_info'):
-            # Before going any further, make sure there aren't template id values in channel_info
-            template_domains = ['<yourdomain.org>']
-            using_template_domain = self.channel_info['CHANNEL_SOURCE_DOMAIN'] in template_domains
-            if using_template_domain:
-                config.LOGGER.error("Template source domain detected. Please change CHANNEL_SOURCE_DOMAIN before running this chef.")
-
-            template_ids = ['<unique id for the channel>', '<yourid>']
-            using_template_source_id = self.channel_info['CHANNEL_SOURCE_ID'] in template_ids
-            if using_template_source_id:
-                config.LOGGER.error("Template channel source ID detected. Please change CHANNEL_SOURCE_ID before running this chef.")
-
-            if using_template_domain or using_template_source_id:
-               sys.exit(1)
-
-            # If a sublass has an `channel_info` attribute (a dict) it doesn't need
-            # to define a `get_channel` method and instead rely on this code:
-            channel = ChannelNode(
-                source_domain=self.channel_info['CHANNEL_SOURCE_DOMAIN'],
-                source_id=self.channel_info['CHANNEL_SOURCE_ID'],
-                title=self.channel_info['CHANNEL_TITLE'],
-                thumbnail=self.channel_info.get('CHANNEL_THUMBNAIL'),
-                language=self.channel_info.get('CHANNEL_LANGUAGE'),
-                description=self.channel_info.get('CHANNEL_DESCRIPTION'),
-            )
-            return channel
-
-        else:
-            raise NotImplementedError('BaseChef must overrride the get_channel method')
-
-
-    def construct_channel(self, **kwargs):
-        """
-        Calls chef script's construct_channel method. Used only in compatibility mode.
-        Args:
-            kwargs (dict): additional keyword arguments that `uploadchannel` received
-        Returns: channel populated from construct_channel method
-        """
-        if self.compatibility_mode:
-            # Constuct channel (using function from imported chef script)
-            config.LOGGER.info("Populating channel... ")
-            channel = self.chef_module.construct_channel(**kwargs)
-            return channel
-        else:
-            raise NotImplementedError('Your chef class must overrride the construct_channel method')
-
-
-    def main(self):
-        args, options = self.parse_args_and_options()
-        self.config_logger(args, options)
-        self.run(args, options)
-
-
-
-
-
-# THE DEFAULT SUSHI CHEF
-################################################################################
-
-class SushiChef(BaseChef):
-    """
-    This is the main class that all suchi chefs should subclass. This class uses
-    remote logging, remote stage and progress reporting, and remote commands.
-    The `SushiChef` class a subclass of the `BaseChef` and supports the same
-    command line arguments, additionally handles arguments for Sushi Bar server.
-    Sushi chef scripts call the `main` method as the entry point, which in turn
-    calls the `run` method to performs all the work (see `uploadchannel`).
-    """
-
-    def __init__(self, *args, **kwargs):
-        """
-        The SushiChef supports all the command line args of a BaseChef and more.
-        Overrride this method in your sushi chef class to add custom arguments.
-        """
-        super(SushiChef, self).__init__(*args, **kwargs)
-
-        # We don't want to add argparse help if subclass has an __init__ method
-        subclasses = self.__class__.__mro__[:-3]     # all subclasses after this
-        if any(['__init__' in c.__dict__.keys() for c in subclasses]):
-            add_parser_help = False    # assume subclass' __init__ will add help
-        else:
-            add_parser_help = True
-
-        self.arg_parser = argparse.ArgumentParser(
-            description="Chef scripts upload content to the Kolibri Studio server.",
-            add_help=add_parser_help,
-            parents=[self.arg_parser]
-        )
-        self.arg_parser.add_argument('--daemon', action='store_true', help='Run chef in daemon mode lisenting to commands.')
-        self.arg_parser.add_argument('--nomonitor', action='store_true', help='Disable SushiBar progress monitoring.')
-        self.arg_parser.add_argument('--cmdsock', help='Local command socket (for cronjobs).')
-        # self.arg_parser.add_argument('--sushibar', help='Hostname of SushiBar server (e.g. "sushibar.learningequality.org")')
-        # TODO: --bartoken
-
-
-    def daemon_mode(self, args, options):
-        """
-        Open a ControlWebSocket to SushiBar server and listend for remote commands.
-        Args:
-            args (dict): chef command line arguments
-            options (dict): additional key=value options given on command line
-        """
-        cws = ControlWebSocket(self, args, options)
-        cws.start()
-        if 'cmdsock' in args and args['cmdsock']:
-            lcs = LocalControlSocket(self, args, options)
-            lcs.start()
-            lcs.join()
-        cws.join()
-
-
-    def run(self, args, options):
-        """
-        This function calls uploadchannel which performs all the run steps:
         Args:
             args (dict): chef command line arguments
             options (dict): additional key=value options given on command line
@@ -380,17 +359,25 @@ class SushiChef(BaseChef):
         args_copy = args.copy()
         args_copy['token'] = args_copy['token'][0:6] + '...'
         config.LOGGER.info('In SushiChef.run method. args=' + str(args_copy) + ' options=' + str(options))
+
+        run_id = datetime.now().strftime("%Y-%m-%d__%H%M")
+        self.CHEF_RUN_DATA['current_run'] = run_id
+        self.CHEF_RUN_DATA['runs'].append({'id': run_id})
+
+        # TODO(Kevin): move self.download_content() call here
         self.pre_run(args, options)
         uploadchannel_wrapper(self, args, options)
 
 
     def main(self):
+        """
+        Main entry point that content integration scripts should call.
+        """
         args, options = self.parse_args_and_options()
         self.config_logger(args, options)
-        if args['daemon']:
-            self.daemon_mode(args, options)
-        else:
-            self.run(args, options)
+        self.run(args, options)
+
+
 
 
 # JSON TREE CHEF
@@ -436,8 +423,6 @@ class JsonTreeChef(SushiChef):
     Each object in the json tree correponds to a TopicNode, a ContentNode that
     contains a Files or an Exercise that contains Question.
     """
-    DATA_DIR = 'chefdata'
-    TREES_DATA_DIR = os.path.join(DATA_DIR, 'trees')
     RICECOOKER_JSON_TREE = 'ricecooker_json_tree.json'
 
     def pre_run(self, args, options):
@@ -569,6 +554,197 @@ class LineCook(JsonTreeChef):
         json_tree_path = self.get_json_tree_path(**kwargs)
         build_ricecooker_json_tree(args, options, self.metadata_provider, json_tree_path)
 
-    # UNCOMMENT BELOW TO DISABLE CHANNEL UPLOAD
-    # def run(self, args, options):
-    #     self.pre_run(args, options)
+
+class YouTubeSushiChef(SushiChef):
+    """
+    Class for converting a list of YouTube playlists and/or videos into a channel.
+
+    To use this class, your subclass must implement either the get_playlist_ids() or
+    the get_video_ids() method, along with the get_
+    """
+
+    CONTENT_ARCHIVE_VERSION = 1
+    DATA_DIR = os.path.abspath('chefdata')
+    YOUTUBE_CACHE_DIR = os.path.join(DATA_DIR, "youtubecache")
+    DOWNLOADS_DIR = os.path.join(DATA_DIR, 'downloads')
+    ARCHIVE_DIR = os.path.join(DOWNLOADS_DIR, 'archive_{}'.format(CONTENT_ARCHIVE_VERSION))
+    USE_PROXY = False
+
+    def get_playlist_ids(self):
+        """
+        This method should be implemented by subclasses and return a list of playlist IDs.
+        It currently doesn't support full YouTube URLs.
+
+        :return: A list of playlists to include in the channel, defaults to empty list.
+        """
+        return []
+
+    def get_video_ids(self):
+        """
+        This method should be implemented by subclasses and return a list of video IDs.
+        It currently doesn't support full YouTube URLs.
+
+        :return: A list of videos to include in the channel, defaults to empty list.
+        """
+        return []
+
+    def get_channel_metadata(self):
+        """
+        Must be implemented by subclasses. Returns a dictionary. Keys can be a special value 'defualt'
+        or a specific playlist or video id to apply the value to.
+
+        Currently supported metadata fields are 'license', 'author', and 'provider'.
+
+        :return: A dictionary of metadata values to apply to the content.
+        """
+        raise NotImplementedError("get_channel_metadata must be implemented.")
+
+    def get_metadata_for_video(self, field, youtube_id=None, playlist_id=None):
+        """
+        Retrieves the metadata value for the metadata field "field". If the
+        youtube_id or playlist_id are specified, it will try to retrieve values
+        for that specific video or playlist. If not found, it will look for a default
+        value and return that.
+
+        :param field: String name of metadata field.
+        :param youtube_id: String ID of the video to retrieve data for. Defaults to None.
+        :param playlist_id: String ID of the playlist to retrieve data for. Defaults to None.
+
+        :return: The value (typically string), or None if not found.
+        """
+        metadata = self.get_channel_metadata()
+        if youtube_id and youtube_id in metadata and field in metadata[youtube_id]:
+            return metadata[youtube_id][field]
+        elif playlist_id and playlist_id in metadata and field in metadata[playlist_id]:
+            return metadata[playlist_id][field]
+        elif field in metadata['defaults']:
+            return metadata['defaults'][field]
+
+        return None
+
+    def create_nodes_for_playlists(self):
+        # Note: We build the tree and download at the same time here for convenience. YT playlists
+        # usually aren't massive, and parallel downloading increases the chances of being blocked.
+        # We may want to experiment with parallel downloading in the future.
+
+        os.makedirs(self.ARCHIVE_DIR, exist_ok=True)
+
+        playlist_nodes = []
+
+        for playlist_id in self.get_playlist_ids():
+
+            playlist = YouTubePlaylistUtils(id=playlist_id, cache_dir=self.YOUTUBE_CACHE_DIR)
+
+            playlist_info = playlist.get_playlist_info(use_proxy=self.USE_PROXY)
+
+            # Get channel description if there is any
+            playlist_description = ''
+            if playlist_info["description"]:
+                playlist_description = playlist_info["description"]
+
+            topic_source_id = 'playlist-{0}'.format(playlist_id)
+            topic_node = nodes.TopicNode(
+                title=playlist_info["title"],
+                source_id=topic_source_id,
+                description=playlist_description,
+            )
+            playlist_nodes.append(topic_node)
+
+            video_ids = []
+
+            # insert videos into playlist topic after creation
+            for child in playlist_info["children"]:
+                # check for duplicate videos
+                if child["id"] not in video_ids:
+                    video_node = self.create_video_node(child, parent_id=topic_source_id)
+                    if video_node:
+                        topic_node.add_child(video_node)
+                    video_ids.append(child["id"])
+
+                else:
+                    continue
+
+        return playlist_nodes
+
+    def create_video_node(self, video_id, parent_id='', playlist_id=None):
+        video = YouTubeVideoUtils(id=video_id, cache_dir=False)
+        video_details = video.get_video_info(use_proxy=self.USE_PROXY)
+        if not video_details:
+            config.LOGGER.error("Unable to retrieve video info: {}".format(video_id))
+            return None
+        video_source_id = "{0}-{1}".format(parent_id, video_details["id"])
+
+        # Check youtube thumbnail extension as some are not supported formats
+        thumbnail_link = video_details["thumbnail"]
+        config.LOGGER.info("thumbnail = {}".format(thumbnail_link))
+        archive_filename = get_archive_filename(thumbnail_link, download_root=self.ARCHIVE_DIR)
+
+        dest_file = os.path.join(self.ARCHIVE_DIR, archive_filename)
+        os.makedirs(os.path.dirname(dest_file), exist_ok=True)
+        config.LOGGER.info("dest_file = {}".format(dest_file))
+
+        # Download and convert thumbnail, if necessary.
+        response = requests.get(thumbnail_link, stream=True)
+        # Some images that YT returns are actually webp despite their extension,
+        # so make sure we update our file extension to match.
+        if 'Content-Type' in response.headers and response.headers['Content-Type'] == 'image/webp':
+            base_path, ext = os.path.splitext(dest_file)
+            dest_file = base_path + '.webp'
+
+        if response.status_code == 200:
+            with open(dest_file, 'wb') as f:
+                for chunk in response.iter_content(1024):
+                    f.write(chunk)
+
+            if dest_file.lower().endswith(".webp"):
+                dest_file = convert_image(dest_file)
+
+        video_node = nodes.VideoNode(
+            source_id=video_source_id,
+            title=video_details["title"],
+            description=video_details["description"],
+            language=self.channel_info["CHANNEL_LANGUAGE"],
+            author=self.get_metadata_for_video('author', video_id, playlist_id) or '',
+            provider=self.get_metadata_for_video('provider', video_id, playlist_id) or '',
+            thumbnail=dest_file,
+            license=self.get_metadata_for_video('license', video_id, playlist_id),
+            files=[
+                files.YouTubeVideoFile(
+                    youtube_id=video_id,
+                    language="en",
+                    high_resolution=self.get_metadata_for_video('high_resolution', video_id, playlist_id) or False
+                )
+            ]
+        )
+        return video_node
+
+    def create_nodes_for_videos(self):
+        node_list = []
+        for video_id in self.get_video_ids():
+            node = self.create_video_node(video_id)
+            if node:
+                node_list.append(node)
+
+        return node_list
+
+    def construct_channel(self, *args, **kwargs):
+        """
+        Default construct_channel method for YouTubeSushiChef, override if more custom handling
+        is needed.
+        """
+        channel = self.get_channel(*args, **kwargs)
+
+        if len(self.get_playlist_ids()) == 0 and len(self.get_video_ids()) == 0:
+            raise NotImplementedError("Either get_playlist_ids() or get_video_ids() must be implemented.")
+
+        # TODO: Replace next line with chef code
+        nodes = self.create_nodes_for_playlists()
+        for node in nodes:
+            channel.add_child(node)
+
+        nodes = self.create_nodes_for_videos()
+        for node in nodes:
+            channel.add_child(node)
+
+        return channel
+

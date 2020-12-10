@@ -1,10 +1,17 @@
-# Settings for rice cooker
+"""
+Settings and global config values for ricecooker.
+"""
+import atexit
 import hashlib
 import logging.config
 import os
-
 import requests
 from requests_file import FileAdapter
+import shutil
+import socket
+import tempfile
+
+
 
 UPDATE = False
 COMPRESS = False
@@ -14,9 +21,20 @@ PROGRESS_MANAGER = None
 SUSHI_BAR_CLIENT = None
 STAGE = False
 
-# Don't use this - call logging.getLogger(__name__) from each
-# individual module. Logging is configured centrally by calling
-# setup_logging()
+# When this is set to true, any failure will raise an error and stop the chef.
+# This will likely be set to true in a future version of ricecooker, once
+# we can ensure all ricecooker internal functions handle non-fatal errors
+# properly.
+STRICT = False
+
+# Sometimes chef runs will get stuck indefinitely waiting on data from SSL conn,
+# so we add a timeout value as suggested in https://stackoverflow.com/a/30771995
+socket.setdefaulttimeout(20)
+
+
+# Logging is configured globally by calling setup_logging() in the chef's `main`
+# Use this as `from ricecooker.config import LOGGER` in your suchichef.py code,
+# or use the stanard `logging.getLogger(__name__)` to get a namespaced logger.
 LOGGER = logging.getLogger()
 
 
@@ -30,7 +48,7 @@ def setup_logging(level=logging.INFO, main_log=None, error_log=None, add_loggers
     Set up logging, useful to call from your sushi chef main script
 
     :param level: Minimum default level for all loggers and handlers
-    :param main_log: Main log (typically added in chefs.BaseChef)
+    :param main_log: Main log (typically added in chefs.SushiChef)
     :param error_log: Name of file to log (append) errors in
     :param add_loggers: An iterable of other loggers to configure (['scrapy'])
     """
@@ -114,7 +132,8 @@ def setup_logging(level=logging.INFO, main_log=None, error_log=None, add_loggers
     logging.getLogger("PIL.PngImagePlugin").setLevel(logging.WARNING)
 
 
-# Setup default logging - can be called again to reconfigure
+# Setup default logging. This is required so we have a basic logging setup until
+# prope user-confgured logging is configured in `SushiChef.config_logger`.
 setup_logging()
 
 
@@ -183,21 +202,54 @@ DOWNLOAD_SESSION.mount('file://', FileAdapter())
 USEPROXY = False
 USEPROXY = True if os.getenv('USEPROXY') is not None or os.getenv('PROXY_LIST') is not None else False
 
-# Sushibar server
-SUSHIBAR_URL = os.getenv('SUSHIBAR_URL', "https://sushibar.learningequality.org")
-if SUSHIBAR_URL.endswith('/'):
-    SUSHIBAR_URL = SUSHIBAR_URL.rstrip('/')
-if not SUSHIBAR_URL.startswith('http'):
-    SUSHIBAR_URL = 'https://' + SUSHIBAR_URL        # in case only hostname given
-SUSHI_BAR_HTTP = SUSHIBAR_URL
-SUSHI_BAR_WEBSOCKET = SUSHIBAR_URL.replace('http', 'ws', 1)
-SUSHI_BAR_CHANNEL_URL = "{domain}/api/channels/"
-SUSHI_BAR_CHANNEL_RUNS_URL = "{domain}/api/channelruns/"
-SUSHI_BAR_CHANNEL_RUNS_DETAIL_URL = "{domain}/api/channelruns/{run_id}/"
-SUSHI_BAR_STAGES_URL = "{domain}/api/channelruns/{run_id}/stages/"
-SUSHI_BAR_PROGRESS_URL = "{domain}/api/channelruns/{run_id}/progress/"
-SUSHI_BAR_LOGS_URL = "{domain}/logs/{run_id}/"
-SUSHI_BAR_CONTROL_URL = "{domain}/control/{channel_id}/"
+# CSV headers
+CSV_HEADERS = [
+    'Source ID',
+    'Topic Structure',
+    'Old Title',
+    'New Title',
+    'Old Description',
+    'New Description',
+    'Old Tags',
+    'New Tags',
+    'Last Modified'
+]
+
+# Automatic temporary direcotry cleanup
+chef_temp_dir = os.path.join(os.getcwd(), '.ricecooker-temp')
+
+@atexit.register
+def delete_temp_dir():
+    if os.path.exists(chef_temp_dir):
+        LOGGER.info("Deleting chef temp files at {}".format(chef_temp_dir))
+        shutil.rmtree(chef_temp_dir)
+
+# While in most cases a chef run will clean up after itself, make sure that if it didn't,
+# temp files from the old run are deleted so that they do not accumulate.
+delete_temp_dir()
+
+# If tempdir is set already, that means the user has explicitly chosen a location for temp storage
+if not tempfile.tempdir:
+    os.makedirs(chef_temp_dir)
+    LOGGER.info("Setting chef temp dir to {}".format(chef_temp_dir))
+    # Store all chef temp files in one dir to avoid issues with temp or even primary storage filling up
+    # because of failure by the chef to clean up temp files manually.
+    tempfile.tempdir = chef_temp_dir
+
+
+# Record data about past chef runs in chefdata/ dir
+DATA_DIR = 'chefdata'
+DATA_FILENAME = 'chef_data.json'
+DATA_PATH = os.path.join(DATA_DIR, DATA_FILENAME)
+CHEF_DATA_DEFAULT = {
+    'current_run': None,
+    'runs': [],
+    'tree_archives': {
+        'previous': None,
+        'current': None
+    }
+}
+TREES_DATA_DIR = os.path.join(DATA_DIR, 'trees')
 
 
 # Character limits based on Kolibri models
@@ -206,6 +258,7 @@ TRUNCATE_MSG = "\t\t{kind} {id}: {field} {value} is too long - max {max} charact
 MAX_TITLE_LENGTH = 200
 MAX_SOURCE_ID_LENGTH = 200
 MAX_DESCRIPTION_LENGTH = 400
+MAX_TAGLINE_LENGTH = 150
 MAX_AUTHOR_LENGTH = 200
 MAX_AGGREGATOR_LENGTH = 200
 MAX_PROVIDER_LENGTH = 200
@@ -229,6 +282,11 @@ MAX_CHAR_LIMITS = {
         "kind": "Node",
         "field": "description",
         "max": MAX_DESCRIPTION_LENGTH
+    },
+    "tagline": {
+        "kind": "Channel",
+        "field": "tagline",
+        "max": MAX_TAGLINE_LENGTH
     },
     "author": {
         "kind": "Node",
@@ -373,7 +431,8 @@ def open_channel_url(channel, staging=False):
             channel (str): channel id of uploaded channel
         Returns: string url to open channel
     """
-    return OPEN_CHANNEL_URL.format(domain=DOMAIN, channel_id=channel, access='staging' if staging or STAGE else '')
+    frontend_domain = DOMAIN.replace("api.", "")  # Don't send them to the API domain for preview / review.
+    return OPEN_CHANNEL_URL.format(domain=frontend_domain, channel_id=channel, access='staging' if staging or STAGE else '')
 
 def publish_channel_url():
     """ open_channel_url: returns url to publish channel
@@ -381,46 +440,3 @@ def publish_channel_url():
         Returns: string url to publish channel
     """
     return PUBLISH_CHANNEL_URL.format(domain=DOMAIN)
-
-def sushi_bar_channels_url():
-    """
-    Returns the url to report the progress of a sushi chef
-    """
-    return SUSHI_BAR_CHANNEL_URL.format(domain=SUSHI_BAR_HTTP)
-
-def sushi_bar_channel_runs_url():
-    """
-    Returns the url to report the progress of a sushi chef
-    """
-    return SUSHI_BAR_CHANNEL_RUNS_URL.format(domain=SUSHI_BAR_HTTP)
-
-def sushi_bar_channel_runs_detail_url(run_id):
-    """
-    Returns the url to patch a channel run.
-    """
-    return SUSHI_BAR_CHANNEL_RUNS_DETAIL_URL.format(domain=SUSHI_BAR_HTTP,
-                                                    run_id=run_id)
-
-def sushi_bar_stages_url(run_id):
-    """
-    Returns the url to report the progress of a sushi chef
-    """
-    return SUSHI_BAR_STAGES_URL.format(domain=SUSHI_BAR_HTTP, run_id=run_id)
-
-def sushi_bar_progress_url(run_id):
-    """
-    Returns the url to report the progress of a sushi chef
-    """
-    return SUSHI_BAR_PROGRESS_URL.format(domain=SUSHI_BAR_HTTP, run_id=run_id)
-
-def sushi_bar_logs_url(run_id):
-    """
-    Returns the url to report the progress of a sushi chef
-    """
-    return SUSHI_BAR_LOGS_URL.format(domain=SUSHI_BAR_WEBSOCKET, run_id=run_id)
-
-def sushi_bar_control_url(channel_id):
-    """
-    Returns the url to report the progress of a sushi chef
-    """
-    return SUSHI_BAR_CONTROL_URL.format(domain=SUSHI_BAR_WEBSOCKET, channel_id=channel_id)

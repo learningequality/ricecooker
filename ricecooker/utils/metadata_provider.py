@@ -385,10 +385,10 @@ class CsvMetadataProvider(MetadataProvider):
         )
         m_value = row_cleaned.get(EXERCISE_M_KEY, None)
         if m_value:
-            exercise_data['m'] = m_value
+            exercise_data['m'] = int(m_value)
         n_value = row_cleaned.get(EXERCISE_N_KEY, None)
         if n_value:
-            exercise_data['n'] = n_value
+            exercise_data['n'] = int(n_value)
 
         exercise_dict = dict(
             chan_path=row_cleaned[CONTENT_PATH_KEY],
@@ -593,7 +593,6 @@ class CsvMetadataProvider(MetadataProvider):
         path_tuple = [ self.channeldir.split('/')[-1] ]
         _write_subtree(path_tuple, channel_dict, is_root=True)
 
-    
     def write_commont_studio_dict_from_row(self, studio_dict, row):
         if studio_dict['license']:
             license_dict = self.studioapi.licenses_by_id[studio_dict['license']]
@@ -642,8 +641,8 @@ class CsvMetadataProvider(MetadataProvider):
                 extra_fields = json.loads(studio_dict['extra_fields'])
             else:
                 extra_fields = studio_dict['extra_fields']
-            exercise_row[EXERCISE_M_KEY] = extra_fields['m']
-            exercise_row[EXERCISE_N_KEY] = extra_fields['n']
+            exercise_row[EXERCISE_M_KEY] = int(extra_fields['m'])
+            exercise_row[EXERCISE_N_KEY] = int(extra_fields['n'])
             exercise_row[EXERCISE_RANDOMIZE_KEY] = extra_fields['randomize']
             # WRITE EXERCISE ROW
             csvwriter.writerow(exercise_row)
