@@ -156,7 +156,7 @@ ADD_NODES_FROM_FILE_URL = "{domain}/api/internal/api_add_nodes_from_file"
 FINISH_CHANNEL_URL = "{domain}/api/internal/finish_channel"
 
 # URL to return after channel is created
-OPEN_CHANNEL_URL = "{domain}/channels/{channel_id}/{access}"
+OPEN_CHANNEL_URL = "{domain}/channels/{channel_id}/#/{access}"
 
 # URL for publishing channel
 PUBLISH_CHANNEL_URL = "{domain}/api/internal/publish_channel"
@@ -373,7 +373,7 @@ def open_channel_url(channel, staging=False):
             channel (str): channel id of uploaded channel
         Returns: string url to open channel
     """
-    return OPEN_CHANNEL_URL.format(domain=DOMAIN, channel_id=channel, access='staging' if staging or STAGE else 'edit')
+    return OPEN_CHANNEL_URL.format(domain=DOMAIN, channel_id=channel, access='staging' if staging or STAGE else '')
 
 def publish_channel_url():
     """ open_channel_url: returns url to publish channel
