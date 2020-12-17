@@ -221,7 +221,7 @@ chef_temp_dir = os.path.join(os.getcwd(), '.ricecooker-temp')
 @atexit.register
 def delete_temp_dir():
     if os.path.exists(chef_temp_dir):
-        LOGGER.info("Deleting chef temp files at {}".format(chef_temp_dir))
+        LOGGER.debug("Deleting chef temp files at {}".format(chef_temp_dir))
         shutil.rmtree(chef_temp_dir)
 
 # While in most cases a chef run will clean up after itself, make sure that if it didn't,
@@ -231,7 +231,7 @@ delete_temp_dir()
 # If tempdir is set already, that means the user has explicitly chosen a location for temp storage
 if not tempfile.tempdir:
     os.makedirs(chef_temp_dir)
-    LOGGER.info("Setting chef temp dir to {}".format(chef_temp_dir))
+    LOGGER.debug("Setting chef temp dir to {}".format(chef_temp_dir))
     # Store all chef temp files in one dir to avoid issues with temp or even primary storage filling up
     # because of failure by the chef to clean up temp files manually.
     tempfile.tempdir = chef_temp_dir
