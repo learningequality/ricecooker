@@ -42,6 +42,11 @@ DEFAULT_HEADERS = {
 
 USE_PYPPETEER = False
 
+# HACK ALERT! This is to allow ArchiveDownloader to be used from within link scraping.
+# Once this code stabilizes, we should refactor it so that all downloading is
+# encapsulated into a class.
+archiver = None
+
 try:
     import asyncio
     from pyppeteer import launch, errors
@@ -377,7 +382,11 @@ def download_static_assets(doc, destination, base_url,
                     if not url in downloaded_pages:
                         LOGGER.info("Downloading linked HTML page {}".format(url))
                         downloaded_pages.append(url)
-                        archive_page(url, destination, link_policy=policy, run_js=run_js)
+                        global archiver
+                        if archiver:
+                            archiver.get_page(url, link_policy=policy, run_js=run_js)
+                        else:
+                            archive_page(url, destination, link_policy=policy, run_js=run_js)
                 else:
                     full_path = os.path.join(destination, derived_filename)
                     if not os.path.exists(full_path):
@@ -398,18 +407,16 @@ def download_static_assets(doc, destination, base_url,
     return doc
 
 
-def get_archive_filename(url, page_domain=None, page_url=None, download_root=None, urls_to_replace=None):
+def get_archive_filename(url, page_url=None, download_root=None, urls_to_replace=None):
     file_url_parsed = urlparse(url)
     page_url_parsed = None
-    LOGGER.debug("page_domain = {}, page_url = {}".format(page_domain, page_url))
+    page_domain = None
     if page_url:
         page_url_parsed = urlparse(page_url)
-        if not page_domain and page_url_parsed.netloc:
-            page_domain = page_url_parsed.netloc
+        page_domain = page_url_parsed.netloc
 
-    no_scheme_url = url
-    if file_url_parsed.scheme != '':
-        no_scheme_url = url.replace(file_url_parsed.scheme + '://', '')
+    LOGGER.debug("page_domain = {}, page_url = {}".format(page_domain, page_url))
+
     rel_path = file_url_parsed.path.replace('%', '_')
     domain = file_url_parsed.netloc.replace(':', '_')
     if not domain and page_domain:
@@ -419,36 +426,43 @@ def get_archive_filename(url, page_domain=None, page_url=None, download_root=Non
             # a safe assumption. Just use the original passed in URL for further processing.
             rel_path = url
 
+    assert domain, "Relative links need page_url to be set in order to resolve them."
+
+    if rel_path:
+        LOGGER.info("rel_path = '{}'".format(rel_path))
+        # resolve any paths that are relative to the url they're linked from.
+        if page_url:
+            if page_url_parsed.path.endswith('/'):
+                rel_path = page_url_parsed.path + rel_path
+            else:
+                rel_path = os.path.dirname(page_url_parsed.path) + '/' + rel_path
+
     if rel_path.startswith('/'):
         LOGGER.info("rel_path = {}, parsed path = {}".format(rel_path, file_url_parsed.path))
         rel_path = rel_path[1:]
         assert not rel_path.startswith('/')
-    elif rel_path:
-        LOGGER.info("rel_path = '{}'".format(rel_path))
-        # it is relative to the current subdir, not the root of the domain
-        if page_url_parsed.path.endswith('/'):
-            rel_path = page_url_parsed.path + rel_path
-        else:
-            rel_path = os.path.dirname(page_url_parsed.path) + '/' + rel_path
+
     if file_url_parsed.query:
         rel_path += "_{}".format(file_url_parsed.query.replace('=', '_').replace('&', '_'))
         LOGGER.info("rel_path is now {}".format(rel_path))
 
-    assert not rel_path.startswith('/')
-    url_local_dir = os.path.join(domain, rel_path)
-    assert domain in url_local_dir, "error: {} not in {} for {}, rel_path = '{}'".format(domain, url_local_dir, url, rel_path)
+    local_path = os.path.normpath(os.path.join(domain, rel_path))
+    assert domain in local_path, "error: {} not in {} for {}, rel_path = '{}'".format(domain, local_path, url, rel_path)
 
-    _path, ext = os.path.splitext(url_local_dir)
-    local_dir_name = os.path.dirname(url_local_dir)
+    _path, ext = os.path.splitext(local_path)
+    local_dir_name = local_path
     if ext != '':
-        local_dir_name = os.path.dirname(url_local_dir)
-    if local_dir_name != url_local_dir and urls_to_replace is not None:
+        local_dir_name = os.path.dirname(local_path)
+    LOGGER.info("local_path = {}, local_dir_name = {}".format(local_path, local_dir_name))
+    if local_dir_name != local_path and urls_to_replace is not None:
         full_dir = os.path.join(download_root, local_dir_name)
         os.makedirs(full_dir, exist_ok=True)
-        urls_to_replace[url] = no_scheme_url
+        LOGGER.info("replacing {} with {}".format(url, local_path))
+        urls_to_replace[url] = local_path
     elif urls_to_replace:
+        LOGGER.info("not replacing {}".format(url))
         urls_to_replace[url] = url
-    return url_local_dir
+    return local_path
 
 
 def archive_page(url, download_root, link_policy=None, run_js=False, strict=False):
@@ -475,8 +489,6 @@ def archive_page(url, download_root, link_policy=None, run_js=False, strict=Fals
 
     # url may be redirected, for relative link handling we want the final URL that was loaded.
     url = props['url']
-    parsed_url = urlparse(url)
-    page_domain = parsed_url.netloc.replace(':', '_')
 
     # get related assets
     base_url = url[:url.rfind('/')]
@@ -486,7 +498,7 @@ def archive_page(url, download_root, link_policy=None, run_js=False, strict=Fals
         LOGGER.warning("Downloading linked files for {}".format(url))
         page_url = url
         def html5_derive_filename(url):
-            return get_archive_filename(url, page_domain, page_url, download_root, urls_to_replace)
+            return get_archive_filename(url, page_url, download_root, urls_to_replace)
         download_static_assets(content, download_root, base_url, derive_filename=html5_derive_filename,
                                link_policy=link_policy, run_js=run_js)
 
@@ -592,6 +604,13 @@ class ArchiveDownloader:
         if os.path.exists(self.cache_file):
             self.cache_data = json.load(open(self.cache_file))
 
+        global archiver
+        archiver = self
+
+    def __del__(self):
+        global archiver
+        archiver = None
+
     def save_cache_data(self):
         with open(self.cache_file, 'w') as f:
             f.write(json.dumps(self.cache_data, ensure_ascii=False, indent=2))
@@ -606,6 +625,21 @@ class ArchiveDownloader:
             self.save_cache_data()
 
         return self.cache_data[url]
+
+    def find_page_by_index_path(self, index_path):
+        for url in self.cache_data:
+            if self.cache_data[url]['index_path'] == index_path:
+                return self.cache_data[url]
+
+        return None
+
+    def get_page_soup(self, url):
+        if not url in self.cache_data:
+            raise KeyError("Unable to find page {} in archive. Did you call get_page?".format(url))
+
+        info = self.cache_data[url]
+        soup = BeautifulSoup(open(info['index_path'], 'rb'))
+        return soup
 
     def create_dependency_zip(self, count_threshold=2):
         resource_counts = {}
@@ -625,7 +659,7 @@ class ArchiveDownloader:
         temp_dir = tempfile.mkdtemp()
         self._copy_resources_to_dir(temp_dir, shared_resources)
 
-        self.dep_path = zip.create_predictable_zip(temp_dir)
+        self.dep_path = create_predictable_zip(temp_dir)
         return self.dep_path
 
     def _copy_resources_to_dir(self, base_dir, resources):
@@ -642,7 +676,7 @@ class ArchiveDownloader:
         info = self.cache_data[url]
 
         # TODO: Add dependency zip handling that replaces links with the dependency zip location
-        self._copy_resources_to_dir(temp_dir, info['resources'].values())
+        self._copy_resources_to_dir(temp_dir, info['resources'])
 
         shutil.copy(info['index_path'], os.path.join(temp_dir, 'index.html'))
         return temp_dir
@@ -650,4 +684,4 @@ class ArchiveDownloader:
     def export_page_as_zip(self, url):
         zip_dir = self.create_zip_dir_for_page(url)
 
-        return zip.create_predictable_zip(zip_dir)
+        return create_predictable_zip(zip_dir)
