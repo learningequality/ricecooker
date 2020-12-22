@@ -11,6 +11,8 @@ import time
 from urllib.parse import urlparse, urljoin
 import uuid
 
+import chardet
+
 from bs4 import BeautifulSoup
 from selenium import webdriver
 import selenium.webdriver.support.ui as selenium_ui
@@ -331,6 +333,7 @@ def download_static_assets(doc, destination, base_url,
 
     # Download all linked static assets.
     download_assets("img[src]", "src")  # Images
+    download_assets("img[srcset]", "srcset")  # Images
     download_assets("link[href]", "href",
             content_middleware=css_content_middleware,
             node_filter=css_node_filter)  # CSS
@@ -429,7 +432,7 @@ def get_archive_filename(url, page_url=None, download_root=None, urls_to_replace
     assert domain, "Relative links need page_url to be set in order to resolve them."
 
     if rel_path:
-        LOGGER.info("rel_path = '{}'".format(rel_path))
+        LOGGER.debug("rel_path = '{}'".format(rel_path))
         # resolve any paths that are relative to the url they're linked from.
         if page_url:
             if page_url_parsed.path.endswith('/'):
@@ -438,13 +441,13 @@ def get_archive_filename(url, page_url=None, download_root=None, urls_to_replace
                 rel_path = os.path.dirname(page_url_parsed.path) + '/' + rel_path
 
     if rel_path.startswith('/'):
-        LOGGER.info("rel_path = {}, parsed path = {}".format(rel_path, file_url_parsed.path))
+        LOGGER.debug("rel_path = {}, parsed path = {}".format(rel_path, file_url_parsed.path))
         rel_path = rel_path[1:]
         assert not rel_path.startswith('/')
 
     if file_url_parsed.query:
         rel_path += "_{}".format(file_url_parsed.query.replace('=', '_').replace('&', '_'))
-        LOGGER.info("rel_path is now {}".format(rel_path))
+        LOGGER.debug("rel_path is now {}".format(rel_path))
 
     local_path = os.path.normpath(os.path.join(domain, rel_path))
     assert domain in local_path, "error: {} not in {} for {}, rel_path = '{}'".format(domain, local_path, url, rel_path)
@@ -453,14 +456,14 @@ def get_archive_filename(url, page_url=None, download_root=None, urls_to_replace
     local_dir_name = local_path
     if ext != '':
         local_dir_name = os.path.dirname(local_path)
-    LOGGER.info("local_path = {}, local_dir_name = {}".format(local_path, local_dir_name))
+    LOGGER.debug("local_path = {}, local_dir_name = {}".format(local_path, local_dir_name))
     if local_dir_name != local_path and urls_to_replace is not None:
         full_dir = os.path.join(download_root, local_dir_name)
         os.makedirs(full_dir, exist_ok=True)
-        LOGGER.info("replacing {} with {}".format(url, local_path))
+        LOGGER.debug("replacing {} with {}".format(url, local_path))
         urls_to_replace[url] = local_path
     elif urls_to_replace:
-        LOGGER.info("not replacing {}".format(url))
+        LOGGER.debug("not replacing {}".format(url))
         urls_to_replace[url] = url
     return local_path
 
@@ -485,6 +488,13 @@ def archive_page(url, download_root, link_policy=None, run_js=False, strict=Fals
     else:
         response = make_request(url)
         props = {'cookies': requests.utils.dict_from_cookiejar(response.cookies), 'url': response.url}
+        if not 'encoding' in response.headers['Content-Type']:
+            # It seems requests defaults to ISO-8859-1 when the headers don't explicitly declare an
+            # encoding. In this case, we're better off using chardet to guess instead.
+            encoding = chardet.detect(response.content)
+            if encoding and 'encoding' in encoding:
+                response.encoding = encoding['encoding']
+            LOGGER.warning("Encoding = {}".format(response.encoding))
         content = response.text
 
     # url may be redirected, for relative link handling we want the final URL that was loaded.
@@ -497,16 +507,31 @@ def archive_page(url, download_root, link_policy=None, run_js=False, strict=Fals
     if content:
         LOGGER.warning("Downloading linked files for {}".format(url))
         page_url = url
+
         def html5_derive_filename(url):
             return get_archive_filename(url, page_url, download_root, urls_to_replace)
         download_static_assets(content, download_root, base_url, derive_filename=html5_derive_filename,
                                link_policy=link_policy, run_js=run_js)
+
+        download_path = os.path.join(download_root, html5_derive_filename(url))
+        _path, ext = os.path.splitext(download_path)
+        index_path = download_path
+        if '.htm' not in ext:
+            if download_path.endswith('/'):
+                index_path = download_path + 'index.html'
+            else:
+                index_path = download_path + '.html'
 
         for key in urls_to_replace:
             value = urls_to_replace[key]
             if key == value:
                 continue
             url_parts = urlparse(key)
+
+            # Because of how derive_filename works, all relative URLs are converted to absolute.
+            # So here we reconstruct the relative URL so we can replace relative links in the source.
+            rel_path = os.path.relpath(os.path.join(download_root, value), os.path.dirname(index_path))
+
             # When we get an absolute URL, it may appear in one of three different ways in the page:
             key_variants = [
                 # 1. /path/to/file.html
@@ -515,6 +540,8 @@ def archive_page(url, download_root, link_policy=None, run_js=False, strict=Fals
                 key,
                 # 3. //www.domain.com/path/to/file.html
                 key.replace(url_parts.scheme + ':', ''),
+                # We also add relative paths from the index (see note above).
+                rel_path
             ]
 
             orig_content = content
@@ -530,16 +557,8 @@ def archive_page(url, download_root, link_policy=None, run_js=False, strict=Fals
                 LOGGER.debug("link not replaced: {}".format(key))
                 LOGGER.debug("key_variants = {}".format(key_variants))
 
-        download_path = os.path.join(download_root, html5_derive_filename(url))
-        _path, ext = os.path.splitext(download_path)
-        index_path = download_path
-        if '.htm' not in ext:
-            if download_path.endswith('/'):
-                index_path = download_path + 'index.html'
-            else:
-                index_path = download_path + '.html'
-
         os.makedirs(os.path.dirname(index_path), exist_ok=True)
+
         soup = BeautifulSoup(content)
         f = open(index_path, 'wb')
         f.write(soup.prettify(encoding="utf-8"))

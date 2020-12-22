@@ -4,6 +4,8 @@ import signal
 import time
 import urllib
 
+import chardet
+
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from urllib.parse import urlparse, unquote
@@ -91,6 +93,7 @@ def download_file(url, destpath, filename=None, baseurl=None, subpath=None, midd
 
     relative_file_url, subpath, filename = calculate_relative_url(url, filename=filename, baseurl=baseurl, subpath=subpath)
 
+    LOGGER.info("Download called for {}".format(url))
     # ensure that the destination directory exists
     fulldestpath = os.path.join(destpath, *subpath)
     os.makedirs(fulldestpath, exist_ok=True)
@@ -111,6 +114,12 @@ def download_file(url, destpath, filename=None, baseurl=None, subpath=None, midd
             # Rely on requests to convert bytes to unicode for us when it's a text file
             # otherwise, we just use bytes
             if type.startswith('text'):
+                # It seems requests defaults to ISO-8859-1 when the headers don't explicitly declare an
+                # encoding. In this case, we're better off using chardet to guess instead.
+                encoding = chardet.detect(response.content)
+                if encoding and 'encoding' in encoding:
+                    response.encoding = encoding['encoding']
+                LOGGER.warning("encoding for {} = {}".format(url, response.encoding))
                 content = response.text
 
         if not isinstance(middleware_callbacks, list):
@@ -130,7 +139,7 @@ def download_file(url, destpath, filename=None, baseurl=None, subpath=None, midd
 
     # ensure content is encoded, as we're doing a binary write
     if isinstance(content, str):
-        content = content.encode()
+        content = content.encode('utf-8')
 
     # calculate the final destination for the file, and write the content out to there
     dest = os.path.join(fulldestpath, filename)
