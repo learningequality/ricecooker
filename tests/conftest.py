@@ -73,7 +73,8 @@ def channel(domain_namespace, channel_source_id, channel_data):
         title=channel_data['name'],
         description=channel_data['description'],
         tagline=channel_data['tagline'],
-        language=channel_data['language']
+        language=channel_data['language'],
+        channel_id='1' * 32
     )
     return channel
 

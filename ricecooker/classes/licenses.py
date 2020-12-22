@@ -37,6 +37,22 @@ class License(object):
     def __init__(self, copyright_holder=None, description=None):
         self.copyright_holder = copyright_holder or ""
         self.description = description
+        self.is_custom = False
+
+    @property
+    def license_name(self):
+        if self.license_id:
+            for license in licenses.LICENSELIST:
+                import logging
+                logging.info("comparing {} == {}".format(license.id, self.license_id))
+                if license.name == self.license_id:
+                    return license.name
+
+        return None
+
+    @property
+    def license_description(self):
+        return self.description
 
     def get_id(self):
         return self.license_id
@@ -160,3 +176,4 @@ class SpecialPermissionsLicense(License):
     def __init__(self, copyright_holder=None, description=None):
         assert description, "Special Permissions licenses must have a description"
         super(SpecialPermissionsLicense, self).__init__(copyright_holder=copyright_holder, description=description)
+        self.is_custom = True

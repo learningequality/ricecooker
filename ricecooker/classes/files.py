@@ -11,6 +11,7 @@ from requests.exceptions import MissingSchema, HTTPError, ConnectionError, Inval
 import shutil
 from subprocess import CalledProcessError
 import tempfile
+import uuid
 import youtube_dl
 import zipfile
 
@@ -362,7 +363,7 @@ class File(object):
     is_primary = False
 
     def __init__(self, preset=None, language=None, default_ext=None, source_url=None):
-        self.preset = preset
+        self._preset = preset
         self.set_language(language)
         self.default_ext = default_ext or self.default_ext
         self.source_url = source_url
@@ -382,12 +383,26 @@ class File(object):
         pass
 
     def get_preset(self):
-        if self.preset:
-            return self.preset
+        if self._preset:
+            return self._preset
         raise NotImplementedError("preset must be set if preset isn't specified when creating File object")
 
     def get_filename(self):
         return self.filename or self.process_file()
+
+    @property
+    def id(self):
+        return uuid.uuid5(self.node.id, self.checksum)
+
+    @property
+    def checksum(self):
+        filename = self.get_filename()
+        hash = os.path.splitext(os.path.basename(filename))[0]
+        return hash
+
+    @property
+    def file_size(self):
+        return os.path.getsize(config.get_storage_path(self.get_filename()))
 
     def truncate_fields(self):
         if self.original_filename and len(self.original_filename) > config.MAX_ORIGINAL_FILENAME_LENGTH:
@@ -406,7 +421,7 @@ class File(object):
         if filename:
             if os.path.isfile(config.get_storage_path(filename)):
                 return {
-                    'size' : os.path.getsize(config.get_storage_path(filename)),
+                    'size' : self.file_size,
                     'preset' : self.get_preset(),
                     'filename' : filename,
                     'original_filename' : self.original_filename,
@@ -423,12 +438,43 @@ class File(object):
         pass
 
 
+class FileFormat:
+    def __init__(self, ext):
+        self.extension = ext
+        for format in file_formats.FORMATLIST:
+            if format.id == ext:
+                self.mimetype = format.mimetype
+                break
+
+
 class DownloadFile(File):
     allowed_formats = []
 
     def __init__(self, path, **kwargs):
         self.path = path.strip()
         super(DownloadFile, self).__init__(**kwargs)
+
+    @property
+    def file_format(self):
+        """
+        For compatibility with Studio DB structure.
+        :return: A FileFormat object that mimics Studio's FileFormat ORM model.
+        """
+        ext = extract_path_ext(self.path, default_ext=self.default_ext)
+        return FileFormat(ext)
+
+    @property
+    def preset(self):
+        preset_id = self.get_preset()
+        for preset in format_presets.PRESETLIST:
+            if preset.id == preset_id:
+                return preset
+
+        return None
+
+    @property
+    def preset_id(self):
+        return self.get_preset()
 
     def validate(self):
         """
@@ -499,7 +545,7 @@ class AudioFile(DownloadFile):
     is_primary = True
 
     def get_preset(self):
-        return self.preset or format_presets.AUDIO
+        return self._preset or format_presets.AUDIO
 
 
 class DocumentFile(DownloadFile):
@@ -508,7 +554,16 @@ class DocumentFile(DownloadFile):
     is_primary = True
 
     def get_preset(self):
-        return self.preset or format_presets.DOCUMENT
+        return self._preset or format_presets.DOCUMENT
+
+
+class ExerciseFile(DownloadFile):
+    default_ext = file_formats.PERSEUS
+    allowed_formats = [file_formats.PERSEUS]
+    is_primary = True
+
+    def get_preset(self):
+        return self._preset or format_presets.EXERCISE
 
 
 class EPubFile(DownloadFile):
@@ -517,7 +572,7 @@ class EPubFile(DownloadFile):
     is_primary = True
 
     def get_preset(self):
-        return self.preset or format_presets.EPUB
+        return self._preset or format_presets.EPUB
 
 
 class HTMLZipFile(DownloadFile):
@@ -526,7 +581,7 @@ class HTMLZipFile(DownloadFile):
     is_primary = True
 
     def get_preset(self):
-        return self.preset or format_presets.HTML5_ZIP
+        return self._preset or format_presets.HTML5_ZIP
 
     def process_file(self):
         self.filename = super(HTMLZipFile, self).process_file()
@@ -550,7 +605,7 @@ class H5PFile(DownloadFile):
     is_primary = True
 
     def get_preset(self):
-        return self.preset or format_presets.H5P_ZIP
+        return self._preset or format_presets.H5P_ZIP
 
 
 class VideoFile(DownloadFile):
@@ -563,7 +618,10 @@ class VideoFile(DownloadFile):
         super(VideoFile, self).__init__(path, **kwargs)
 
     def get_preset(self):
-        return self.preset or guess_video_preset_by_resolution(config.get_storage_path(self.filename))
+        if self._preset:
+            return self._preset
+        filename = self.filename or self.process_file()
+        return guess_video_preset_by_resolution(config.get_storage_path(filename))
 
     def validate(self):
         """
@@ -625,7 +683,7 @@ class WebVideoFile(File):
         super(WebVideoFile, self).__init__(**kwargs)
 
     def get_preset(self):
-        return self.preset or guess_video_preset_by_resolution(config.get_storage_path(self.filename))
+        return self._preset or guess_video_preset_by_resolution(config.get_storage_path(self.filename))
 
     def process_file(self):
         try:
@@ -701,7 +759,7 @@ class YouTubeSubtitleFile(File):
         assert self.language, "Subtitles must have a language"
 
     def get_preset(self):
-        return self.preset or format_presets.VIDEO_SUBTITLE
+        return self._preset or format_presets.VIDEO_SUBTITLE
 
     def process_file(self):
         try:
@@ -739,7 +797,7 @@ class SubtitleFile(DownloadFile):
         assert self.language, "Subtitles must have a language"
 
     def get_preset(self):
-        return self.preset or format_presets.VIDEO_SUBTITLE
+        return self._preset or format_presets.VIDEO_SUBTITLE
 
     def validate(self):
         """
@@ -865,7 +923,7 @@ class _ExerciseBase64ImageFile(Base64ImageFile):
     default_ext = file_formats.PNG
 
     def get_preset(self):
-        return self.preset or format_presets.EXERCISE_IMAGE
+        return self._preset or format_presets.EXERCISE_IMAGE
 
     def get_replacement_str(self):
         return self.get_filename() or self.encoding
@@ -878,7 +936,7 @@ class _ExerciseImageFile(DownloadFile):
         return self.get_filename() or self.path
 
     def get_preset(self):
-        return self.preset or format_presets.EXERCISE_IMAGE
+        return self._preset or format_presets.EXERCISE_IMAGE
 
 
 class _ExerciseGraphieFile(DownloadFile):
@@ -889,7 +947,7 @@ class _ExerciseGraphieFile(DownloadFile):
         super(_ExerciseGraphieFile, self).__init__(path, **kwargs)
 
     def get_preset(self):
-        return self.preset or format_presets.EXERCISE_GRAPHIE
+        return self._preset or format_presets.EXERCISE_GRAPHIE
 
     def get_replacement_str(self):
         return self.path.split("/")[-1].split(".")[0] or self.path

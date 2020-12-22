@@ -55,7 +55,7 @@ class BaseQuestion:
             Returns: dict of node's data
         """
         return {
-            "assessment_id": self.id.hex,
+            "assessment_id": self.assessment_id,
             "type": self.question_type,
             "files": [f.to_dict() for f in filter(lambda x: x and x.filename, self.files)],
             "question": self.question,
@@ -65,6 +65,14 @@ class BaseQuestion:
             "source_url": self.source_url,
             "randomize": self.randomize,
         }
+
+    @property
+    def assessment_id(self):
+        return self.id.hex
+
+    @property
+    def type(self):
+        return self.question_type
 
     def create_answer(self, answer, correct=True):
         """ create_answer: Put answer in standard format

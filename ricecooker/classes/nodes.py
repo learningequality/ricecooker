@@ -7,6 +7,7 @@ import csv
 
 from le_utils.constants import content_kinds, exercises, file_formats, format_presets, languages, roles
 
+from .files import ExerciseFile
 from .licenses import License
 from .. import config, __version__
 from ..exceptions import InvalidNodeException
@@ -24,12 +25,13 @@ class Node(object):
         self.children = []
         self.descendants = []
         self.parent = None
-        self.node_id = None
-        self.content_id = None
+        self._node_id = None
+        self._content_id = None
         self.title = title
         self.set_language(language)
         self.description = description or ""
         self.derive_thumbnail = derive_thumbnail
+        self.extra_fields = {}
 
         for f in files or []:
             self.add_file(f)
@@ -37,6 +39,26 @@ class Node(object):
         self.set_thumbnail(thumbnail)
         # save modifications passed in by csv
         self.node_modifications = node_modifications
+
+    @property
+    def id(self):
+        return self.get_node_id()
+
+    @property
+    def content_id(self):
+        return self.get_content_id()
+
+    @content_id.setter
+    def content_id(self, value):
+        self._content_id = value
+
+    @property
+    def node_id(self):
+        return self.get_node_id()
+
+    @node_id.setter
+    def node_id(self, value):
+        self._node_id = value
 
     def set_language(self, language):
         """ Set self.language to internal lang. repr. code from str or Language object. """
@@ -231,7 +253,7 @@ class Node(object):
                 new_tags = ','.join(new_tags)
 
             record = [
-                self.source_id, 
+                self.source_id,
                 structure_string,
                 self.title,
                 new_title,        # New Title
@@ -253,8 +275,8 @@ class Node(object):
             print(structure_string)
         for child in self.children:
             child.save_channel_children_to_csv(metadata_csv, structure_string)
-            
-        
+
+
     def validate_tree(self):
         """
         Validate all nodes in this tree recusively.
@@ -287,6 +309,105 @@ class Node(object):
         assert len(duplicates) == 0, "Assumption Failed: Node must have unique source id among siblings ({} appears multiple times)".format(duplicates)
         return True
 
+    # Interface methods for compatibility with MPTT Django model APIs
+    def get_children(self):
+        """
+
+        :return:
+        """
+        return self.children
+
+    def get_kind(self):
+        return self.kind
+
+    def has_perseus_exercise(self):
+        # TODO: Add the ability for ricecooker to create perseus exercises.
+        return False
+
+    def is_empty_topic(self):
+        is_empty = True
+        if self.kind != content_kinds.TOPIC:
+            return False
+        elif len(self.children) > 0:
+            for child in self.children:
+                is_empty = child.is_empty_topic()
+                if not is_empty:
+                    break
+
+        return is_empty
+
+    def get_descendants(self, include_self=False):
+        descendants = self.children
+        for child in self.children:
+            descendants.extend(child.get_descendants())
+        if include_self:
+            descendants.insert(0, self)
+        return descendants
+
+    def get_descendant_count(self, include_self=False):
+        """
+        For compatibility with MPTT API so we can share code.
+        :param include_self: Include this node in the total count.
+        :return: Total nodes in the tree below this point, possibly including self.
+        """
+        node_count = self.count()
+        if include_self:
+            node_count += 1
+        return node_count
+
+    @property
+    def complete(self):
+        return True
+
+    @property
+    def language_id(self):
+        return self.language
+
+    @property
+    def sort_order(self):
+        # if we're a child, just use the list order as sort order.
+        if self.parent:
+            return self.parent.children.index(self) + 1
+        return 1
+
+    @property
+    def copyright_holder(self):
+        if self.license:
+            return self.license.copyright_holder
+
+        return None
+
+    @property
+    def changed(self):
+        return True
+
+    @property
+    def role_visibility(self):
+        if hasattr(self, 'role'):
+            return self.role
+
+        return roles.LEARNER
+
+    def get_assessment_items(self, order_by='order'):
+        if hasattr(self, 'questions'):
+            return self.questions
+
+        return []
+
+    def add_exercise_file(self, path):
+        for afile in self.files:
+            if afile.preset.id == format_presets.EXERCISE:
+                self.files.pop(afile)
+                break
+
+        # When this function is called, it's called with a temp file that will be deleted after,
+        # so make sure we call process_file while the file still exists.
+        exercise_file = ExerciseFile(path)
+        self.add_file(exercise_file)
+        exercise_file.process_file()
+
+
+
 
 class ChannelNode(Node):
     """ Model representing the channel you are creating
@@ -310,6 +431,15 @@ class ChannelNode(Node):
         self.tagline = tagline
 
         super(ChannelNode, self).__init__(*args, **kwargs)
+
+        # For local db publishing, mimic the root node Studio creates for the channel.
+        # This will not be used when publishing to Studio and should not be part of the
+        # channel node hierarchy. it is accessed via the `get_root_node` method.
+        self.root_node = TopicNode(source_id=self.source_id, title=self.title)
+        self.root_node.domain_ns = self.get_domain_namespace()
+        self.root_node.node_id = self.get_node_id()
+        self.root_node.content_id = self.get_content_id()
+        self.root_node.children = self.children
 
     def get_domain_namespace(self):
         return uuid.uuid5(uuid.NAMESPACE_DNS, self.source_domain)
@@ -359,6 +489,55 @@ class ChannelNode(Node):
         except AssertionError as ae:
             raise InvalidNodeException("Invalid channel ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
 
+    # For compatibility with Studio
+    def set_publishing(self, publishing):
+        pass
+
+    def set_changed(self, changed):
+        pass
+
+    def save(self):
+        pass
+
+    def has_changed_nodes(self):
+        return True
+
+    @property
+    def name(self):
+        return self.title
+
+    @property
+    def version(self):
+        # TODO: Directly published Kolibri channels need to persist their version
+        return 1
+
+    @property
+    def id(self):
+        return self.channel_id
+
+    def get_root_id(self):
+        return '2' * 32
+
+    def get_root_node(self):
+        return self.root_node
+
+    def increment_version(self):
+        pass
+
+    def fill_published_fields(self, version_notes):
+        pass
+
+    def record_publish_stats(self):
+        pass
+
+    def export_to_kolibri_db(self):
+        os.environ['DJANGO_SETTINGS_MODULE'] = 'ricecooker.django_settings'
+        from django import setup
+        setup()
+
+        from ricecooker.utils.publish import publish_channel
+        publish_channel('1', self)
+
 
 class TreeNode(Node):
     """ Model representing the content nodes in the channel's tree
@@ -394,21 +573,24 @@ class TreeNode(Node):
         super(TreeNode, self).__init__(title, **kwargs)
 
     def get_domain_namespace(self):
-        if not self.domain_ns:
+        if not self.domain_ns and self.parent:
             self.domain_ns = self.parent.get_domain_namespace()
+        assert self.domain_ns
         return self.domain_ns
 
     def get_content_id(self):
-        if not self.content_id:
-            self.content_id = uuid.uuid5(self.get_domain_namespace(), self.source_id)
-        return self.content_id
+        if not self._content_id:
+            self._content_id = uuid.uuid5(self.get_domain_namespace(), self.source_id)
+        return self._content_id
 
     def get_node_id(self):
-        assert self.parent, "Parent not found: node id must be calculated based on parent"
-        if not self.node_id:
-            self.node_id = uuid.uuid5(self.parent.get_node_id(), self.get_content_id().hex)
-        return self.node_id
+        if not self._node_id:
+            assert self.parent, "Parent not found: node id must be calculated based on parent"
+            self._node_id = uuid.uuid5(self.parent.get_node_id(), self.get_content_id().hex)
+        return self._node_id
 
+    def get_tags(self):
+        return self.tags
 
     def truncate_fields(self):
         if self.author and len(self.author) > config.MAX_AUTHOR_LENGTH:

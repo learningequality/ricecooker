@@ -31,7 +31,8 @@ requirements = [
     "Pillow==5.4.1",
     "colorlog>=4.1.0,<4.2",
     "PyYAML>=5.3.1",
-    "Jinja2>=2.10"
+    "Jinja2>=2.10",
+    "django>=1.11"
 ]
 
 test_requirements = [
