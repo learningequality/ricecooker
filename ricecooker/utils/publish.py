@@ -331,7 +331,7 @@ def create_perseus_exercise(ccnode, kolibrinode, exercise_data, user_id=None):
     filename = "{0}.{ext}".format(ccnode.title, ext=file_formats.PERSEUS)
     temppath = None
     try:
-        with tempfile.NamedTemporaryFile(suffix="zip", delete=False) as tempf:
+        with tempfile.NamedTemporaryFile(suffix=".perseus", delete=False) as tempf:
             temppath = tempf.name
             create_perseus_zip(ccnode, exercise_data, tempf)
             file_size = tempf.tell()

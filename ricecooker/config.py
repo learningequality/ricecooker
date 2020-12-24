@@ -336,12 +336,12 @@ def print_truncate(field, id, value, kind=None):
     limit = MAX_CHAR_LIMITS.get(field)
     LOGGER.warning(TRUNCATE_MSG.format(kind=kind or limit["kind"], id=id, field=limit["field"], value=value, max=limit["max"]))
 
-def get_storage_path(filename):
+def get_storage_path(filename, root=STORAGE_DIRECTORY):
     """ get_storage_path: returns path to storage directory for downloading content
         Args: filename (str): Name of file to store
         Returns: string path to file
     """
-    directory = os.path.join(STORAGE_DIRECTORY, filename[0], filename[1])
+    directory = os.path.join(root, filename[0], filename[1])
     # Make storage directory for downloaded files if it doesn't already exist
     if not os.path.exists(directory):
         os.makedirs(directory)

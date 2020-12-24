@@ -468,7 +468,7 @@ def get_archive_filename(url, page_url=None, download_root=None, urls_to_replace
     return local_path
 
 
-def archive_page(url, download_root, link_policy=None, run_js=False, strict=False):
+def archive_page(url, download_root, link_policy=None, run_js=False, strict=False, links_relative_to_root=True):
     """
     Download fully rendered page and all related assets into ricecooker's site archive format.
 
@@ -527,6 +527,9 @@ def archive_page(url, download_root, link_policy=None, run_js=False, strict=Fals
             if key == value:
                 continue
             url_parts = urlparse(key)
+            # make links relative to the actual file referencing them.
+            if not links_relative_to_root:
+                value = os.path.relpath(os.path.join(download_root, value), os.path.dirname(index_path))
 
             # Because of how derive_filename works, all relative URLs are converted to absolute.
             # So here we reconstruct the relative URL so we can replace relative links in the source.

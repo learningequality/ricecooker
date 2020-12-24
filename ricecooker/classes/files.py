@@ -495,7 +495,7 @@ class DownloadFile(File):
         # Catch errors related to reading file path and handle silently
         except HTTP_CAUGHT_EXCEPTIONS as err:
             self.error = err
-            config.LOGGER.debug("Failed to download, error is: {}".format(err))
+            config.LOGGER.warning("Failed to download, error is: {}".format(err))
             config.FAILED_FILES.append(self)
             return None
 

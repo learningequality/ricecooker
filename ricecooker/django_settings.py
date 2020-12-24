@@ -4,6 +4,7 @@ import os
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+MEDIA_ROOT = os.environ.get('EXPORT_DIR') or os.path.join(BASE_DIR, 'storage')
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.11/howto/deployment/checklist/
@@ -69,8 +70,8 @@ DATABASES = {
 }
 
 
-DB_ROOT = os.path.join(BASE_DIR, 'databases')
-
+DB_ROOT = os.path.join(MEDIA_ROOT, 'databases')
+STORAGE_ROOT = os.path.join(MEDIA_ROOT, 'storage')
 
 DATABASE_ROUTERS = [
     "kolibri_content.router.ContentDBRouter",

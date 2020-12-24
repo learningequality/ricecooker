@@ -1,9 +1,9 @@
 # Node models to represent channel's tree
 
 import json
-import uuid
 import os
-import csv
+import shutil
+import uuid
 
 from le_utils.constants import content_kinds, exercises, file_formats, format_presets, languages, roles
 
@@ -31,7 +31,9 @@ class Node(object):
         self.set_language(language)
         self.description = description or ""
         self.derive_thumbnail = derive_thumbnail
-        self.extra_fields = {}
+        # Make sure we set a default if none of the subclasses have set extra_fields yet.
+        if not hasattr(self, 'extra_fields'):
+            self.extra_fields = {}
 
         for f in files or []:
             self.add_file(f)
@@ -401,10 +403,11 @@ class Node(object):
                 break
 
         # When this function is called, it's called with a temp file that will be deleted after,
-        # so make sure we call process_file while the file still exists.
-        exercise_file = ExerciseFile(path)
+        # so make sure we make a copy in our own cache while the file still exists.
+        dest_file = os.path.join(config.FILECACHE_DIRECTORY, os.path.basename(path))
+        shutil.copy2(path, dest_file)
+        exercise_file = ExerciseFile(dest_file)
         self.add_file(exercise_file)
-        exercise_file.process_file()
 
 
 
@@ -530,13 +533,42 @@ class ChannelNode(Node):
     def record_publish_stats(self):
         pass
 
-    def export_to_kolibri_db(self):
+    def export_to_kolibri_db(self, export_dir):
+        """
+        Exports content to a Kolibri database file for direct import into Kolibri.
+
+        :param export_dir: Directory to export to. If the folder is a Kolibri home folder (i.e. has a content subdir)
+                           files will be saved in place. Otherwise, a KOLIBRI_DATA folder will be created to hold
+                           the exported files.
+        :return:
+        """
+        content_dir = os.path.join(export_dir, 'content')
+        if not os.path.exists(content_dir) and (not 'KOLIBRI_DATA' or '.kolibri' in content_dir):
+            content_dir = os.path.join(export_dir, 'KOLIBRI_DATA', 'content')
+        os.environ['EXPORT_DIR'] = content_dir
         os.environ['DJANGO_SETTINGS_MODULE'] = 'ricecooker.django_settings'
         from django import setup
         setup()
 
         from ricecooker.utils.publish import publish_channel
-        publish_channel('1', self)
+        publish_channel('1', self, force_exercises=True)
+
+        def process_node_recursive(node, file_names):
+            for child_node in node.children:
+                process_node_recursive(child_node, file_names)  # Call children first in case a tiled thumbnail is needed
+
+            file_names.extend(node.process_files())
+
+        file_names = []
+        process_node_recursive(self, file_names)
+        for afile in file_names:
+            if afile is None:
+                continue
+            source_file = config.get_storage_path(afile)
+            dest_file = config.get_storage_path(afile, root=os.path.join(content_dir, 'storage'))
+            shutil.copy2(source_file, dest_file)
+
+        config.LOGGER.info("Filenames = {}".format(file_names))
 
 
 class TreeNode(Node):
