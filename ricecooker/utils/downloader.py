@@ -214,6 +214,30 @@ def download_static_assets(doc, destination, base_url,
     if not isinstance(doc, BeautifulSoup):
         doc = BeautifulSoup(doc, "html.parser")
 
+    def download_srcset(selector, attr, content_middleware=None):
+        nodes = doc.select(selector)
+
+        for i, node in enumerate(nodes):
+            srcset = node[attr]
+            sources = srcset.split(',')
+            new_sources = []
+            for source in sources:
+                # a source can be just a URL, or a URL + a space character and then a width or resolution.
+                parts = source.split(" ")
+                url = urljoin(base_url, parts[0])
+                filename = derive_filename(url)
+
+                fullpath = os.path.join(destination, filename)
+                if not os.path.exists(fullpath):
+                    LOGGER.info("Downloading {} to filename {}".format(url, fullpath))
+                    download_file(url, destination, request_fn=request_fn,
+                                  filename=filename, middleware_callbacks=content_middleware)
+                if len(parts) > 1:
+                    new_sources.append(" ".join([filename,  parts[1]]))
+                else:
+                    new_sources.append(filename)
+            node[attr] = ', '.join(new_sources)
+
     # Helper function to download all assets for a given CSS selector.
     def download_assets(selector, attr, url_middleware=None,
             content_middleware=None, node_filter=None):
@@ -264,7 +288,7 @@ def download_static_assets(doc, destination, base_url,
             if not os.path.exists(fullpath):
                 LOGGER.info("Downloading {} to filename {}".format(url, fullpath))
                 download_file(url, destination, request_fn=request_fn,
-                    filename=filename, subpath=subpath, middleware_callbacks=content_middleware)
+                    filename=filename, middleware_callbacks=content_middleware)
 
     def js_content_middleware(content, url, **kwargs):
         if js_middleware:
@@ -333,14 +357,14 @@ def download_static_assets(doc, destination, base_url,
 
     # Download all linked static assets.
     download_assets("img[src]", "src")  # Images
-    download_assets("img[srcset]", "srcset")  # Images
+    download_srcset("img[srcset]", "srcset")  # Images
     download_assets("link[href]", "href",
             content_middleware=css_content_middleware,
             node_filter=css_node_filter)  # CSS
     download_assets("script[src]", "src",
             content_middleware=js_content_middleware) # JS
     download_assets("source[src]", "src") # Potentially audio
-    download_assets("source[srcset]", "srcset") # Potentially audio
+    download_srcset("source[srcset]", "srcset") # Potentially audio
 
     # Link scraping can be expensive, so it's off by default. We decrement the levels value every time we recurse
     # so skip once we hit zero.
