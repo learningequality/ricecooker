@@ -9,6 +9,7 @@ import shutil
 import tempfile
 import time
 from urllib.parse import urlparse, urljoin
+from urllib.request import pathname2url
 import uuid
 
 import chardet
@@ -558,6 +559,10 @@ def archive_page(url, download_root, link_policy=None, run_js=False, strict=Fals
             # Because of how derive_filename works, all relative URLs are converted to absolute.
             # So here we reconstruct the relative URL so we can replace relative links in the source.
             rel_path = os.path.relpath(os.path.join(download_root, value), os.path.dirname(index_path))
+
+            # Make sure we remove any native path separators
+            rel_path = pathname2url(rel_path)
+            value = pathname2url(value)
 
             # When we get an absolute URL, it may appear in one of three different ways in the page:
             key_variants = [
