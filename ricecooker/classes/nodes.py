@@ -468,7 +468,7 @@ class ChannelNode(Node):
             Returns: dict of channel data
         """
         return {
-            "id": self.channel_id or self.get_node_id().hex,
+            "id": self.id,
             "name": self.title,
             "thumbnail": self.thumbnail.filename if self.thumbnail else None,
             "language" : self.language,
@@ -516,7 +516,7 @@ class ChannelNode(Node):
 
     @property
     def id(self):
-        return self.channel_id
+        return self.channel_id or self.get_node_id().hex
 
     def get_root_id(self):
         return '2' * 32
