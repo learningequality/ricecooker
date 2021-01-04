@@ -9,7 +9,6 @@ import shutil
 import tempfile
 import time
 from urllib.parse import urlparse, urljoin
-from urllib.request import pathname2url
 import uuid
 
 import chardet
@@ -19,7 +18,7 @@ from selenium import webdriver
 import selenium.webdriver.support.ui as selenium_ui
 from requests_file import FileAdapter
 from ricecooker.config import LOGGER, PHANTOMJS_PATH, STRICT
-from ricecooker.utils.html import download_file
+from ricecooker.utils.html import download_file, replace_links
 from ricecooker.utils.caching import CacheForeverHeuristic, FileCache, CacheControlAdapter, InvalidatingCacheControlAdapter
 from ricecooker.utils.zip import create_predictable_zip
 
@@ -547,46 +546,10 @@ def archive_page(url, download_root, link_policy=None, run_js=False, strict=Fals
             else:
                 index_path = download_path + '.html'
 
-        for key in urls_to_replace:
-            value = urls_to_replace[key]
-            if key == value:
-                continue
-            url_parts = urlparse(key)
+        index_dir = os.path.dirname(index_path)
+        content = replace_links(content, urls_to_replace, download_root, index_dir)
 
-            # Because of how derive_filename works, all relative URLs are converted to absolute.
-            # So here we reconstruct the relative URL so we can replace relative links in the source.
-            rel_path = os.path.relpath(os.path.join(download_root, value), os.path.dirname(index_path))
-
-            # Make sure we remove any native path separators
-            rel_path = pathname2url(rel_path)
-            value = pathname2url(value)
-
-            # When we get an absolute URL, it may appear in one of three different ways in the page:
-            key_variants = [
-                # 1. /path/to/file.html
-                key.replace(url_parts.scheme + '://' + url_parts.netloc, ''),
-                # 2. https://www.domain.com/path/to/file.html
-                key,
-                # 3. //www.domain.com/path/to/file.html
-                key.replace(url_parts.scheme + ':', ''),
-                # We also add relative paths from the index (see note above).
-                rel_path
-            ]
-
-            orig_content = content
-            for variant in key_variants:
-                # searching within quotes ensures we only replace the exact URL we are
-                # trying to replace
-                # we avoid using BeautifulSoup because Python HTML parsers can be destructive and
-                # do things like strip out the doctype.
-                content = content.replace('="{}"'.format(variant), '="{}"'.format(value))
-                content = content.replace('url({})'.format(variant), 'url({})'.format(value))
-
-            if content == orig_content:
-                LOGGER.debug("link not replaced: {}".format(key))
-                LOGGER.debug("key_variants = {}".format(key_variants))
-
-        os.makedirs(os.path.dirname(index_path), exist_ok=True)
+        os.makedirs(index_dir, exist_ok=True)
 
         soup = BeautifulSoup(content)
         f = open(index_path, 'wb')
