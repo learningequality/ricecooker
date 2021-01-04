@@ -550,7 +550,7 @@ class ChannelNode(Node):
         from django import setup
         setup()
 
-        from ricecooker.utils.publish import publish_channel
+        from kolibri_content_tools.kolibri_db.publish import publish_channel
         publish_channel('1', self, force_exercises=True)
 
         def process_node_recursive(node, file_names):
