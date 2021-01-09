@@ -475,7 +475,10 @@ def get_archive_filename(url, page_url=None, download_root=None, resource_urls=N
         assert not rel_path.startswith('/'), "url = {}, rel_path = {}".format(url, rel_path)
 
     if file_url_parsed.query:
-        rel_path += "_{}".format(file_url_parsed.query.replace('=', '_').replace('&', '_'))
+        # Append the query to the filename, so that the filename is unique for each set of params.
+        query_string = "_{}".format(file_url_parsed.query.replace('=', '_').replace('&', '_'))
+        basepath, ext = os.path.splitext(rel_path)
+        rel_path = basepath + query_string + ext
         LOGGER.debug("rel_path is now {}".format(rel_path))
 
     local_path = os.path.join(domain, rel_path)
