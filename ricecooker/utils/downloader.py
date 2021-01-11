@@ -289,6 +289,18 @@ def download_static_assets(doc, destination, base_url,
                 LOGGER.info("Downloading {} to filename {}".format(url, fullpath))
                 download_file(url, destination, request_fn=request_fn,
                     filename=filename, middleware_callbacks=content_middleware)
+            elif content_middleware:
+                # Make sure we run middleware, as it creates a list of file dependencies that we need when
+                # converting the content into a zip file.
+                # TODO: We should probably separate out the download step from the middleware step, so
+                # that middleware can be run regardless of how we get the content.
+                content = open(fullpath, 'r').read()
+                new_content = content_middleware(content, url)
+                if new_content != content:
+                    # if the middleware changed the content, update it.
+                    with open(fullpath, 'w') as f:
+                        f.write(new_content)
+
 
     def js_content_middleware(content, url, **kwargs):
         if js_middleware:
@@ -498,12 +510,13 @@ def get_archive_filename(url, page_url=None, download_root=None, resource_urls=N
     if local_dir_name != local_path and resource_urls is not None:
         full_dir = os.path.join(download_root, local_dir_name)
         os.makedirs(full_dir, exist_ok=True)
-        LOGGER.debug("replacing {} with {}".format(url, local_path))
+
         # TODO: Determine the best way to handle non-resource file links, e.g. links to other pages
         # Right now, this code depends on any file links having an extension, as in this function
         # we don't know the mimetype of the resource yet. We should probably pass in mimetype to this
         # function so we can construct filenames for extensionless URLs.
         if os.path.splitext(local_path)[1].strip() != '':
+            LOGGER.debug("replacing {} with {}".format(url, local_path))
             resource_urls[url] = local_path
     return local_path
 
