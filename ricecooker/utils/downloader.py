@@ -294,7 +294,7 @@ def download_static_assets(doc, destination, base_url,
                 # converting the content into a zip file.
                 # TODO: We should probably separate out the download step from the middleware step, so
                 # that middleware can be run regardless of how we get the content.
-                content = open(fullpath, 'r').read()
+                content = open(fullpath, 'r', encoding='utf-8').read()
                 new_content = content_middleware(content, url)
                 if new_content != content:
                     # if the middleware changed the content, update it.
