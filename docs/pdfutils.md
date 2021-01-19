@@ -44,7 +44,7 @@ them in a `TopicNode` that corresponds to the book:
     for chapter in chapters:
         chapter_node = nodes.DocumentNode(
             title=chapter['title'],
-            files=files.DocumentFile(chapter['path']),
+            files=[files.DocumentFile(chapter['path'])],
             ...
         )
         book_node.add_child(chapter_node)
