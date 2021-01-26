@@ -392,6 +392,8 @@ def download_static_assets(doc, destination, base_url,
                 url = node['href']
             assert url is not None
             download_url = url.split('#')[0]  # Ignore bookmarks in URL
+            if download_url.strip() == "":
+                continue
             parts = urlparse(download_url)
             # if we're scraping links, always scrape relative links regardless of setting.
             should_scrape = 'all' in link_policy['scope'] or (not parts.scheme and not parts.netloc)
