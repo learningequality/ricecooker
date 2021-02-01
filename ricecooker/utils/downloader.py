@@ -267,7 +267,6 @@ def download_static_assets(doc, destination, base_url,
 
             filename = derive_filename(url)
             _path, ext = os.path.splitext(filename)
-            subpath = None
             if not ext:
                 # This COULD be an index file in a dir, or just a file with no extension. Handle either case by
                 # turning the path into filename + '/index' + the file extension from the content type
@@ -347,15 +346,15 @@ def download_static_assets(doc, destination, base_url,
 
             derived_filename = derive_filename(src_url)
 
-            # The _derive_filename function puts all files in the root, so all URLs need
-            # rewritten. When using get_archive_filename, relative URLs will still work.
             new_url = src
-            if derive_filename == _derive_filename:
-                if url and parts.path.startswith('/'):
-                    parent_url = derive_filename(url)
-                    new_url = os.path.relpath(src, os.path.dirname(parent_url))
-                else:
-                    new_url = derived_filename
+            if url and parts.path.startswith('/'):
+                parent_url = derive_filename(url)
+                new_url = os.path.relpath(derived_filename, os.path.dirname(parent_url))
+            elif derive_filename == _derive_filename:
+                # The _derive_filename function puts all files in the root, so all URLs need
+                # rewritten. When using get_archive_filename, relative URLs will still work.
+                new_url = derived_filename
+            LOGGER.info("src url = {}, new_url = {}".format(src, new_url))
 
             fullpath = os.path.join(destination, derived_filename)
             if not os.path.exists(fullpath):
@@ -429,6 +428,7 @@ def download_static_assets(doc, destination, base_url,
                             info = archiver.get_page(download_url, link_policy=policy, run_js=run_js)
                         else:
                             info = archive_page(download_url, destination, link_policy=policy, run_js=run_js)
+                        assert info, "Download failed for {}".format(download_url)
 
                         if resource_urls:
                             resource_urls[url] = info['index_path'].replace(destination + os.sep, '')
@@ -556,7 +556,10 @@ def archive_page(url, download_root, link_policy=None, run_js=False, strict=Fals
     url = props['url']
 
     # get related assets
-    base_url = url[:url.rfind('/')]
+    parts = urlparse(url)
+    if not parts.scheme:
+        parts.scheme = 'https'
+    base_url = urljoin("{}://{}".format(parts.scheme, parts.netloc), parts.path[:parts.path.rfind('/')])
     resource_urls = {}
 
     if content:
@@ -583,7 +586,7 @@ def archive_page(url, download_root, link_policy=None, run_js=False, strict=Fals
 
         os.makedirs(index_dir, exist_ok=True)
 
-        soup = BeautifulSoup(content)
+        soup = BeautifulSoup(content, features='lxml')
         f = open(index_path, 'wb')
         f.write(soup.prettify(encoding="utf-8"))
         f.close()
@@ -682,7 +685,9 @@ class ArchiveDownloader:
             raise KeyError("Unable to find page {} in archive. Did you call get_page?".format(url))
 
         info = self.cache_data[url]
-        soup = BeautifulSoup(open(info['index_path'], 'rb'))
+        # lxml enables some nice features like being able to search for individual
+        # class names using BeautifulSoup, so let's just require it.
+        soup = BeautifulSoup(open(info['index_path'], 'rb'), features='lxml')
         return soup
 
     def create_dependency_zip(self, count_threshold=2):
