@@ -1060,3 +1060,37 @@ class SlideshowNode(ContentNode):
         except AssertionError as ae:
             raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
         super(SlideshowNode, self).validate()
+
+
+class CustomNavigationNode(ContentNode):
+    kind = content_kinds.TOPIC
+    required_file_format = file_formats.HTML5
+
+    def __init__(self, *args, **kwargs):
+        kwargs["extra_fields"] = {'modality': "CUSTOM_NAVIGATION"}
+        super(CustomNavigationNode, self).__init__(*args, **kwargs)
+
+    def generate_thumbnail(self):
+        from .files import HTMLZipFile, ExtractedHTMLZipThumbnailFile
+        html5_files = [f for f in self.files if isinstance(f, HTMLZipFile)]
+        if html5_files:
+            html_file = html5_files[0]
+            if html_file.filename and not html_file.error:
+                storage_path = config.get_storage_path(html_file.filename)
+                return ExtractedHTMLZipThumbnailFile(storage_path)
+        else:
+            return None
+
+    def validate(self):
+        """ validate: Makes sure Custom Navigation app is valid
+            Args: None
+            Returns: boolean indicating if Custom Navigation app is valid
+        """
+        from .files import HTMLZipFile
+        try:
+            assert self.kind == content_kinds.TOPIC, "Assumption Failed: Node should be a Topic Node"
+            assert self.questions == [], "Assumption Failed: Custom Navigation should not have questions"
+            assert any(f for f in self.files if isinstance(f, HTMLZipFile)), "Assumption Failed: Custom Navigation should have at least one html file"
+            return super(CustomNavigationNode, self).validate()
+        except AssertionError as ae:
+            raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))

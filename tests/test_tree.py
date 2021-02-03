@@ -8,6 +8,7 @@ from ricecooker.classes.nodes import *
 from ricecooker.classes.files import *
 from ricecooker.classes.licenses import *
 from ricecooker.exceptions import InvalidNodeException
+from ricecooker.utils.zip import create_predictable_zip
 
 
 """ *********** TOPIC FIXTURES *********** """
@@ -256,4 +257,79 @@ def test_slideshow_node_via_add_file(channel):
 
     channel.add_child(slideshow_node)
     assert channel.validate_tree()
+
+
+""" *********** CUSTOM NAVIGATION CONTENT NODE TESTS *********** """
+
+
+def test_custom_navigation_node_via_files(channel):
+    inputdir = tempfile.mkdtemp()
+    with open(os.path.join(inputdir,'index.html'), 'w') as testf:
+        testf.write('something something')
+    zip_path = create_predictable_zip(inputdir)
+
+    custom_navigation_node = CustomNavigationNode(
+        title="The Nav App",
+        description="Custom Navigation Content Demo",
+        source_id='demo',
+        author="DE Mo",
+        language='en',
+        license=get_license('CC BY', copyright_holder='Demo Holdings'),
+        files=[
+            HTMLZipFile(
+                path=zip_path,
+                language='en',
+            ),
+            ThumbnailFile(
+                path='tests/testcontent/samples/thumbnail.png',
+                language='en'
+            )
+        ]
+    )
+    assert custom_navigation_node
+    assert custom_navigation_node.kind == 'topic'
+    assert len(custom_navigation_node.files) == 2, 'missing files'
+    assert custom_navigation_node.extra_fields, 'missing extra_fields'
+    assert 'modality' in custom_navigation_node.extra_fields and custom_navigation_node.extra_fields["modality"] == "CUSTOM_NAVIGATION", 'missing custom navigation modality'
+    custom_navigation_node.process_files()
+    channel.add_child(custom_navigation_node)
+    assert channel.validate_tree()
+    assert custom_navigation_node.to_dict()
+
+
+
+def test_custom_navigation_node_via_add_file(channel):
+    inputdir = tempfile.mkdtemp()
+    with open(os.path.join(inputdir,'index.html'), 'w') as testf:
+        testf.write('something something')
+    zip_path = create_predictable_zip(inputdir)
+    custom_navigation_node = CustomNavigationNode(
+        title="The Slideshow via add_files",
+        description="Slideshow Content Demo",
+        source_id='demo2',
+        author="DE Mo",
+        language='en',
+        license=get_license('CC BY', copyright_holder='Demo Holdings'),
+        files=[]
+    )
+    zipfile = HTMLZipFile(
+        path=zip_path,
+        language='en',
+    )
+    custom_navigation_node.add_file(zipfile)
+    thumbimg1 = ThumbnailFile(
+        path='tests/testcontent/samples/thumbnail.jpg',
+        language='en'
+    )
+    custom_navigation_node.add_file(thumbimg1)
+
+    assert custom_navigation_node
+    assert custom_navigation_node.kind == 'topic'
+    assert len(custom_navigation_node.files) == 2, 'missing files'
+    assert custom_navigation_node.extra_fields, 'missing extra_fields'
+    assert 'modality' in custom_navigation_node.extra_fields and custom_navigation_node.extra_fields["modality"] == "CUSTOM_NAVIGATION", 'missing custom navigation modality'
+    custom_navigation_node.process_files()
+    channel.add_child(custom_navigation_node)
+    assert channel.validate_tree()
+    assert custom_navigation_node.to_dict()
 
