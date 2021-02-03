@@ -19,7 +19,7 @@ class Node(object):
     license = None
     language = None
 
-    def __init__(self, title, language=None, description=None, thumbnail=None, files=None, derive_thumbnail=False, node_modifications = {}):
+    def __init__(self, title, language=None, description=None, thumbnail=None, files=None, derive_thumbnail=False, node_modifications = {}, extra_fields=None):
         self.files = []
         self.children = []
         self.descendants = []
@@ -30,6 +30,7 @@ class Node(object):
         self.set_language(language)
         self.description = description or ""
         self.derive_thumbnail = derive_thumbnail
+        self.extra_fields = extra_fields or {}
 
         for f in files or []:
             self.add_file(f)
@@ -345,6 +346,8 @@ class ChannelNode(Node):
             "source_domain": self.source_domain,
             "source_id": self.source_id,
             "ricecooker_version": __version__,
+            "extra_fields": json.dumps(self.extra_fields),
+            "files": [f.to_dict() for f in self.files if f and f.filename and not (self.thumbnail and self.thumbnail.filename is f.filename)],
         }
 
     def validate(self):
@@ -379,7 +382,7 @@ class TreeNode(Node):
             extra_fields (dict): any additional data needed for node (optional)
             domain_ns (str): who is providing the content (e.g. learningequality.org) (optional)
     """
-    def __init__(self, source_id, title, author="", aggregator="", provider="", tags=None, extra_fields=None, domain_ns=None, **kwargs):
+    def __init__(self, source_id, title, author="", aggregator="", provider="", tags=None, domain_ns=None, **kwargs):
         # Map parameters to model variables
         assert isinstance(source_id, str), "source_id must be a string"
         self.source_id = source_id
@@ -389,7 +392,6 @@ class TreeNode(Node):
         self.tags = tags or []
         self.domain_ns = domain_ns
         self.questions = self.questions if hasattr(self, 'questions') else [] # Needed for to_dict method
-        self.extra_fields = extra_fields or {}
 
         super(TreeNode, self).__init__(title, **kwargs)
 
@@ -1092,5 +1094,26 @@ class CustomNavigationNode(ContentNode):
             assert self.questions == [], "Assumption Failed: Custom Navigation should not have questions"
             assert any(f for f in self.files if isinstance(f, HTMLZipFile)), "Assumption Failed: Custom Navigation should have at least one html file"
             return super(CustomNavigationNode, self).validate()
+        except AssertionError as ae:
+            raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
+
+
+class CustomNavigationChannelNode(ChannelNode):
+    required_file_format = file_formats.HTML5
+
+    def __init__(self, *args, **kwargs):
+        kwargs["extra_fields"] = {'modality': "CUSTOM_NAVIGATION"}
+        super(CustomNavigationChannelNode, self).__init__(*args, **kwargs)
+
+    def validate(self):
+        """ validate: Makes sure Custom Navigation app is valid
+            Args: None
+            Returns: boolean indicating if Custom Navigation app is valid
+        """
+        from .files import HTMLZipFile
+        try:
+            assert self.kind == "Channel", "Assumption Failed: Node should be a Topic Node"
+            assert any(f for f in self.files if isinstance(f, HTMLZipFile)), "Assumption Failed: Custom Navigation should have at least one html file"
+            return super(CustomNavigationChannelNode, self).validate()
         except AssertionError as ae:
             raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
