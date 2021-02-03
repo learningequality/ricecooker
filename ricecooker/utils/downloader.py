@@ -87,20 +87,7 @@ try:
                             {'timeout': timeout * 1000, 'waitUntil': ['load', 'domcontentloaded', 'networkidle0']})
             screenshot_element = page
             if element:
-                await page.waitForSelector(element, {'timeout': 10000})            page = await browser.newPage()
-            await page.goto(url,
-                            {'timeout': timeout * 1000, 'waitUntil': ['load', 'domcontentloaded', 'networkidle0']})
-            screenshot_element = page
-            if element:
                 await page.waitForSelector(element, {'timeout': 10000})
-                elements = await page.querySelectorAll(element)
-                if len(list(elements)) > 1:
-                    LOGGER.warning("Multiple elements matched screenshot element, using first...")
-                screenshot_element = elements[0]
-
-            LOGGER.info("Saving screenshot to {}".format(filename))
-            await screenshot_element.screenshot({'path': filename})
-
                 elements = await page.querySelectorAll(element)
                 if len(list(elements)) > 1:
                     LOGGER.warning("Multiple elements matched screenshot element, using first...")
