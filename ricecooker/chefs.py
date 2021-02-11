@@ -45,7 +45,7 @@ class SushiChef(object):
     CHEF_RUN_DATA = config.CHEF_DATA_DEFAULT  # loaded from chefdata/chef_data.json
     TREES_DATA_DIR = config.TREES_DATA_DIR    # tree archives and JsonTreeChef inputs
 
-    channel_node = nodes.ChannelNode
+    channel_node_class = nodes.ChannelNode
 
     def __init__(self, *args, **kwargs):
         """
@@ -251,7 +251,7 @@ class SushiChef(object):
 
             # If a sublass has an `channel_info` attribute (dict) it doesn't need
             # to define a `get_channel` method and instead rely on this code:
-            channel = self.channel_node(
+            channel = self.channel_node_class(
                 source_domain=self.channel_info['CHANNEL_SOURCE_DOMAIN'],
                 source_id=self.channel_info['CHANNEL_SOURCE_ID'],
                 title=self.channel_info['CHANNEL_TITLE'],
