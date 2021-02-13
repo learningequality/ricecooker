@@ -30,7 +30,7 @@ cache = FileCache('.webcache', use_dir_lock=True)
 forever_adapter= CacheControlAdapter(heuristic=CacheForeverHeuristic(), cache=cache)
 
 # we can't use requests caching for pyppeteer / phantomjs, so track those separately.
-downloaded_pages = []
+downloaded_pages = {}
 
 DOWNLOAD_SESSION.mount('http://', forever_adapter)
 DOWNLOAD_SESSION.mount('https://', forever_adapter)
@@ -199,9 +199,12 @@ def _derive_filename(url):
     return ("%s.%s" % (uuid.uuid4().hex, name)).lower()
 
 
+# TODO: The number of args and inner functions in this strongly suggest this needs
+# to be a class or have its functionality separated out.
 def download_static_assets(doc, destination, base_url,
         request_fn=make_request, url_blacklist=[], js_middleware=None,
-        css_middleware=None, derive_filename=_derive_filename, link_policy=None, run_js=False, resource_urls=None):
+        css_middleware=None, derive_filename=_derive_filename, link_policy=None,
+        run_js=False, resource_urls=None, relative_links=False):
     """
     Download all static assets referenced from an HTML page.
     The goal is to easily create HTML5 apps! Downloads JS, CSS, images, and
@@ -233,7 +236,7 @@ def download_static_assets(doc, destination, base_url,
     LOGGER.debug("base_url = {}".format(base_url))
 
     if not isinstance(doc, BeautifulSoup):
-        doc = BeautifulSoup(doc, "html.parser")
+        doc = BeautifulSoup(doc, "lxml")
 
     def download_srcset(selector, attr, content_middleware=None):
         nodes = doc.select(selector)
@@ -247,6 +250,10 @@ def download_static_assets(doc, destination, base_url,
                 parts = source.split(" ")
                 url = urljoin(base_url, parts[0])
                 filename = derive_filename(url)
+                new_url = filename
+                if relative_links and base_url:
+                    base_filename = derive_filename(base_url)
+                    new_url = get_relative_url_for_archive_filename(filename, base_filename)
 
                 fullpath = os.path.join(destination, filename)
                 if not os.path.exists(fullpath):
@@ -254,9 +261,9 @@ def download_static_assets(doc, destination, base_url,
                     download_file(url, destination, request_fn=request_fn,
                                   filename=filename, middleware_callbacks=content_middleware)
                 if len(parts) > 1:
-                    new_sources.append(" ".join([filename,  parts[1]]))
+                    new_sources.append(" ".join([new_url,  parts[1]]))
                 else:
-                    new_sources.append(filename)
+                    new_sources.append(new_url)
             node[attr] = ', '.join(new_sources)
 
     # Helper function to download all assets for a given CSS selector.
@@ -302,7 +309,11 @@ def download_static_assets(doc, destination, base_url,
 
                 os.makedirs(os.path.join(destination, subpath), exist_ok=True)
 
-            node[attr] = filename
+            new_url = filename
+            if relative_links and base_url:
+                base_filename = get_archive_filename(base_url)
+                new_url = get_relative_url_for_archive_filename(filename, base_filename)
+            node[attr] = new_url
 
             fullpath = os.path.join(destination, filename)
             if not os.path.exists(fullpath):
@@ -368,21 +379,20 @@ def download_static_assets(doc, destination, base_url,
             derived_filename = derive_filename(src_url)
 
             new_url = src
-            if url and parts.path.startswith('/'):
-                parent_url = derive_filename(url)
-                new_url = os.path.relpath(derived_filename, os.path.dirname(parent_url))
+            if url and parts.path.startswith('/') or relative_links:
+                page_filename = derive_filename(url)
+                new_url = get_relative_url_for_archive_filename(derived_filename, page_filename)
             elif derive_filename == _derive_filename:
                 # The _derive_filename function puts all files in the root, so all URLs need
                 # rewritten. When using get_archive_filename, relative URLs will still work.
                 new_url = derived_filename
-            LOGGER.info("src url = {}, new_url = {}".format(src, new_url))
 
             fullpath = os.path.join(destination, derived_filename)
             if not os.path.exists(fullpath):
                 download_file(src_url, destination, request_fn=request_fn,
                     filename=derived_filename)
             else:
-                LOGGER.info("Resource already downloaded, skipping: {}".format(src_url))
+                LOGGER.debug("Resource already downloaded, skipping: {}".format(src_url))
             return 'url("%s")' % new_url
 
         return _CSS_URL_RE.sub(repl, content)
@@ -440,26 +450,44 @@ def download_static_assets(doc, destination, base_url,
                 # no extension is most likely going to return HTML as well.
                 is_html = os.path.splitext(download_url)[1] in ['.htm', '.html', '.xhtml', '']
                 derived_filename = derive_filename(download_url)
+                new_url = derived_filename
                 if is_html:
-                    if not url in downloaded_pages:
+                    if not download_url in downloaded_pages:
                         LOGGER.info("Downloading linked HTML page {}".format(download_url))
-                        downloaded_pages.append(download_url)
+
                         global archiver
                         if archiver:
-                            info = archiver.get_page(download_url, link_policy=policy, run_js=run_js)
+                            info = archiver.get_page(download_url, link_policy=policy, run_js=run_js, relative_links=relative_links)
+                            filename = info['index_path'].replace(archiver.root_dir + os.sep, '')
                         else:
-                            info = archive_page(download_url, destination, link_policy=policy, run_js=run_js)
+                            info = archive_page(download_url, destination, link_policy=policy, run_js=run_js, relative_links=relative_links)
+                            filename = info['index_path'].replace(destination + os.sep, '')
+
+                        new_url = filename
+                        downloaded_pages[download_url] = new_url
                         assert info, "Download failed for {}".format(download_url)
 
                         if resource_urls:
-                            resource_urls[url] = info['index_path'].replace(destination + os.sep, '')
+                            resource_urls[download_url] = filename
+                    else:
+                        new_url = downloaded_pages[download_url]
+
+                    if relative_links and base_url:
+                        page_filename = derive_filename(base_url)
+                        new_url = get_relative_url_for_archive_filename(new_url, page_filename)
                 else:
                     full_path = os.path.join(destination, derived_filename)
+                    new_url = derived_filename
                     if not os.path.exists(full_path):
                         LOGGER.info("Downloading file {}".format(url))
                         download_file(url, destination, filename=derived_filename)
                     else:
                         LOGGER.info("File already downloaded, skipping: {}".format(url))
+
+                if node.name == 'iframe':
+                    node['src'] = new_url
+                elif node.name == 'a':
+                    node['href'] = new_url
 
     # ... and also run the middleware on CSS/JS embedded in the page source to
     # get linked files.
@@ -530,6 +558,7 @@ def get_archive_filename(url, page_url=None, download_root=None, resource_urls=N
     if ext != '':
         local_dir_name = os.path.dirname(local_path)
     LOGGER.debug("local_path = {}, local_dir_name = {}".format(local_path, local_dir_name))
+
     if local_dir_name != local_path and resource_urls is not None:
         full_dir = os.path.join(download_root, local_dir_name)
         os.makedirs(full_dir, exist_ok=True)
@@ -544,7 +573,13 @@ def get_archive_filename(url, page_url=None, download_root=None, resource_urls=N
     return local_path
 
 
-def archive_page(url, download_root, link_policy=None, run_js=False, strict=False):
+def get_relative_url_for_archive_filename(filename, relative_to):
+    if os.path.isfile(relative_to) or os.path.splitext(relative_to)[1] != '':
+        relative_to = os.path.dirname(relative_to)
+    return os.path.relpath(filename, relative_to).replace("\\", "/")
+
+
+def archive_page(url, download_root, link_policy=None, run_js=False, strict=False, relative_links=False):
     """
     Download fully rendered page and all related assets into ricecooker's site archive format.
 
@@ -589,8 +624,9 @@ def archive_page(url, download_root, link_policy=None, run_js=False, strict=Fals
 
         def get_resource_filename(url):
             return get_archive_filename(url, page_url, download_root, resource_urls)
-        download_static_assets(content, download_root, base_url, derive_filename=get_resource_filename,
-                               link_policy=link_policy, run_js=run_js, resource_urls=resource_urls)
+        doc = download_static_assets(content, download_root, base_url, derive_filename=get_resource_filename,
+                               link_policy=link_policy, run_js=run_js, resource_urls=resource_urls,
+                               relative_links=relative_links)
 
         download_path = os.path.join(download_root, get_archive_filename(url, page_url, download_root))
         _path, ext = os.path.splitext(download_path)
@@ -603,11 +639,14 @@ def archive_page(url, download_root, link_policy=None, run_js=False, strict=Fals
 
         index_dir = os.path.dirname(index_path)
 
-        content = replace_links(content, resource_urls, download_root, index_dir)
+        new_content = doc.prettify()
+        # Replace any links with relative links that we haven't changed already.
+        # TODO: Find a way to determine when this check is no longer needed.
+        new_content = replace_links(new_content, resource_urls, download_root, index_dir, relative_links=relative_links)
 
         os.makedirs(index_dir, exist_ok=True)
 
-        soup = BeautifulSoup(content, features='lxml')
+        soup = BeautifulSoup(new_content, features='lxml')
         f = open(index_path, 'wb')
         f.write(soup.prettify(encoding="utf-8"))
         f.close()
@@ -617,7 +656,8 @@ def archive_page(url, download_root, link_policy=None, run_js=False, strict=Fals
             'url': url,
             'cookies': props['cookies'],
             'index_path': index_path,
-            'resources': list(resource_urls.values())
+            'resources': list(resource_urls.values()),
+            'resource_urls': resource_urls
         }
         LOGGER.info("archive_page finished...")
         return page_info
@@ -687,9 +727,9 @@ class ArchiveDownloader:
         self.cache_data = {}
         self.save_cache_data()
 
-    def get_page(self, url, refresh=False, link_policy=None, run_js=False, strict=False):
+    def get_page(self, url, refresh=False, link_policy=None, run_js=False, strict=False, relative_links=False):
         if refresh or not url in self.cache_data:
-            self.cache_data[url] = archive_page(url, download_root=self.root_dir, link_policy=link_policy, run_js=run_js, strict=strict)
+            self.cache_data[url] = archive_page(url, download_root=self.root_dir, link_policy=link_policy, run_js=run_js, strict=strict, relative_links=relative_links)
             self.save_cache_data()
 
         return self.cache_data[url]
@@ -734,8 +774,13 @@ class ArchiveDownloader:
 
     def _copy_resources_to_dir(self, base_dir, resources):
         for res in resources:
-            full_path = os.path.join(self.root_dir, res)
-            dest_path = os.path.join(base_dir, res)
+            res_path = res
+            if res_path.startswith(self.root_dir):
+                res_path = res_path.replace(self.root_dir, '')
+                if res_path.startswith('/'):
+                    res_path = res_path[1:]
+            full_path = os.path.join(self.root_dir, res_path)
+            dest_path = os.path.join(base_dir, res_path)
             os.makedirs(os.path.dirname(dest_path), exist_ok=True)
             if os.path.isfile(full_path):
                 shutil.copy2(full_path, dest_path)
@@ -748,6 +793,10 @@ class ArchiveDownloader:
 
         # TODO: Add dependency zip handling that replaces links with the dependency zip location
         self._copy_resources_to_dir(temp_dir, info['resources'])
+        for res_url in info['resource_urls']:
+            if res_url in self.cache_data:
+                resources = self.cache_data[res_url]['resources']
+                self._copy_resources_to_dir(temp_dir, resources)
 
         shutil.copy(info['index_path'], os.path.join(temp_dir, 'index.html'))
         return temp_dir
