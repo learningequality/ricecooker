@@ -243,8 +243,6 @@ def get_hash(filepath):
     return file_hash.hexdigest()
 
 
-
-
 def compress_video_file(filename, ffmpeg_settings):
     """
     Calls the pressurecooker function `compress_video` to compress filename (source)
@@ -268,8 +266,6 @@ def compress_video_file(filename, ffmpeg_settings):
     os.unlink(tempf.name)
     FILECACHE.set(key, bytes(compressedfilename, "utf-8"))
     return compressedfilename
-
-
 
 
 def download_from_web(web_url, download_settings, file_format=file_formats.MP4, ext="", download_ext=""):
@@ -339,9 +335,6 @@ def download_from_web(web_url, download_settings, file_format=file_formats.MP4, 
     return filename
 
 
-
-
-
 class ThumbnailPresetMixin(object):
 
     def get_preset(self):
@@ -406,11 +399,11 @@ class File(object):
         if filename:
             if os.path.isfile(config.get_storage_path(filename)):
                 return {
-                    'size' : os.path.getsize(config.get_storage_path(filename)),
-                    'preset' : self.get_preset(),
-                    'filename' : filename,
-                    'original_filename' : self.original_filename,
-                    'language' : self.language,
+                    'size': os.path.getsize(config.get_storage_path(filename)),
+                    'preset': self.get_preset(),
+                    'filename': filename,
+                    'original_filename': self.original_filename,
+                    'language': self.language,
                     'source_url': self.source_url,
                 }
             else:
@@ -440,7 +433,7 @@ class DownloadFile(File):
         if len(ext) > 1:
             assert ext in self.allowed_formats, "{} must have one of the " \
                 "following extensions: {} (instead, got '{}' from '{}')".format(
-                self.__class__.__name__, self.allowed_formats, ext, self.path)
+                    self.__class__.__name__, self.allowed_formats, ext, self.path)
 
     def process_file(self):
         try:
@@ -543,7 +536,6 @@ class HTMLZipFile(DownloadFile):
         return self.filename
 
 
-
 class H5PFile(DownloadFile):
     default_ext = file_formats.H5P
     allowed_formats = [file_formats.H5P]
@@ -555,7 +547,7 @@ class H5PFile(DownloadFile):
 
 class VideoFile(DownloadFile):
     default_ext = file_formats.MP4
-    allowed_formats = [file_formats.MP4]
+    allowed_formats = [file_formats.MP4, file_formats.WEBM]
     is_primary = True
 
     def __init__(self, path, ffmpeg_settings=None, **kwargs):
@@ -591,14 +583,12 @@ class VideoFile(DownloadFile):
         if ext not in self.allowed_formats and ext not in CONVERTIBLE_FORMATS[format_presets.VIDEO_HIGH_RES]:
             raise ValueError('Incompatible extension {} for VideoFile at {}'.format(ext, self.path))
         try:
-            _, ext = os.path.splitext(self.path)
-            if ext and not ext.endswith(self.default_ext):
-                # Handle videos that don't have a .mp4 extension
+            if ext not in self.allowed_formats:
+                # Handle videos that don't have an .mp4 or .webm extension
                 self.filename = self.process_unsupported_video_file()
             else:
                 # Get copy of video before compression (if specified)
                 self.filename = super(VideoFile, self).process_file()
-
                 # Compress the video if compress flag is set or ffmpeg settings were given
                 if self.filename and (self.ffmpeg_settings or config.COMPRESS):
                     self.filename = compress_video_file(self.filename, self.ffmpeg_settings)
@@ -615,12 +605,15 @@ class VideoFile(DownloadFile):
 class WebVideoFile(File):
     is_primary = True
     # In future, look into postprocessors and progress_hooks
+
     def __init__(self, web_url, download_settings=None, high_resolution=False, maxheight=None, **kwargs):
         self.web_url = web_url
         self.download_settings = download_settings or {}
         if "format" not in self.download_settings:
             maxheight = maxheight or (720 if high_resolution else 480)
-            self.download_settings['format'] = "bestvideo[height<={maxheight}][ext=mp4]+bestaudio[ext=m4a]/best[height<={maxheight}][ext=mp4]".format(maxheight=maxheight)
+            # Download the best mp4 format available, or best webm format available, or any other best mp4
+            self.download_settings['format'] = "bestvideo[height<={maxheight}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<={maxheight}][ext=webm]+bestaudio[ext=webm]/best[height<={maxheight}][ext=mp4]".format(
+                maxheight=maxheight)
             # self.download_settings['recodevideo'] = file_formats.MP4
         super(WebVideoFile, self).__init__(**kwargs)
 
@@ -643,7 +636,6 @@ class WebVideoFile(File):
             config.FAILED_FILES.append(self)
 
         return self.filename
-
 
 class YouTubeVideoFile(WebVideoFile):
     def __init__(self, youtube_id, **kwargs):
@@ -691,6 +683,7 @@ class YouTubeSubtitleFile(File):
     Use the helper method `is_youtube_subtitle_file_supported_language` to check
     if `language` is a supported code before creating the `YouTubeSubtitleFile`.
     """
+
     def __init__(self, youtube_id, language=None, **kwargs):
         self.youtube_url = 'http://www.youtube.com/watch?v={}'.format(youtube_id)
         if isinstance(language, languages.Language):
@@ -756,7 +749,7 @@ class SubtitleFile(DownloadFile):
     def process_file(self):
         self.validate()
         caught_errors = HTTP_CAUGHT_EXCEPTIONS + \
-                 (InvalidSubtitleFormatError, InvalidSubtitleLanguageError)
+            (InvalidSubtitleFormatError, InvalidSubtitleLanguageError)
 
         try:
             self.filename = self.download_and_transform_file(self.path)
@@ -921,7 +914,6 @@ class _ExerciseGraphieFile(DownloadFile):
             delimiter = bytes(exercises.GRAPHIE_DELIMITER, 'UTF-8')
             config.LOGGER.info("\tDownloading graphie {}".format(self.original_filename))
 
-
             # Write to graphie file
             hash = write_and_get_hash(self.path + ".svg", tempf)
             tempf.write(delimiter)
@@ -934,7 +926,6 @@ class _ExerciseGraphieFile(DownloadFile):
 
             FILECACHE.set(key, bytes(filename, "utf-8"))
             return filename
-
 
 
 # EXTRACTED THUMBNAILS

@@ -65,8 +65,8 @@ def uploadchannel(chef, command='uploadchannel', update=False, thumbnails=False,
 
     # Get domain to upload to
     config.init_file_mapping_store()
-    
-    
+
+
     if not command == 'dryrun':
         # Authenticate user and check current Ricecooker version
         username, token = authenticate_user(token)
@@ -95,7 +95,7 @@ def uploadchannel(chef, command='uploadchannel', update=False, thumbnails=False,
 
     # TODO load csv if exists
     metadata_dict = chef.load_channel_metadata_from_csv()
-            
+
 
     # Construct channel if it hasn't been constructed already
     if config.PROGRESS_MANAGER.get_status_val() <= Status.CONSTRUCT_CHANNEL.value:
@@ -123,7 +123,7 @@ def uploadchannel(chef, command='uploadchannel', update=False, thumbnails=False,
     chef.save_channel_tree_as_json(channel)
 
     chef.save_channel_metadata_as_csv(channel)
-    
+
     if command == 'dryrun':
         config.LOGGER.info('Command is dryrun so we are not uploading chanel.')
         return
