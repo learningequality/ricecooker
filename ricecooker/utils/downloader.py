@@ -457,7 +457,7 @@ def download_static_assets(doc, destination, base_url,
 
                         global archiver
                         if archiver:
-                            info = archiver.get_page(download_url, link_policy=policy, run_js=run_js, relative_links=relative_links)
+                            info = archiver.get_page(download_url, link_policy=policy, run_js=run_js)
                             filename = info['index_path'].replace(archiver.root_dir + os.sep, '')
                         else:
                             info = archive_page(download_url, destination, link_policy=policy, run_js=run_js, relative_links=relative_links)
@@ -705,10 +705,16 @@ def download_in_parallel(urls, func=None, max_workers=5):
 
 
 class ArchiveDownloader:
-    def __init__(self, root_dir):
+    def __init__(self, root_dir, relative_links=True):
         self.root_dir = root_dir
         self.cache_file = os.path.join(self.root_dir, 'archive_files.json')
         self.cache_data = {}
+
+        # This is temporarily configurable for ArchiveDownloader-based chefs that
+        # rely on the old, non-relative behavior of using full archive paths.
+        # This can be hardcoded to True once existing chefs have been updated.
+        self.relative_links = relative_links
+
         if os.path.exists(self.cache_file):
             self.cache_data = json.load(open(self.cache_file))
 
@@ -727,12 +733,21 @@ class ArchiveDownloader:
         self.cache_data = {}
         self.save_cache_data()
 
-    def get_page(self, url, refresh=False, link_policy=None, run_js=False, strict=False, relative_links=False):
+    def get_page(self, url, refresh=False, link_policy=None, run_js=False, strict=False):
         if refresh or not url in self.cache_data:
-            self.cache_data[url] = archive_page(url, download_root=self.root_dir, link_policy=link_policy, run_js=run_js, strict=strict, relative_links=relative_links)
+            self.cache_data[url] = archive_page(url, download_root=self.root_dir, link_policy=link_policy, run_js=run_js, strict=strict, relative_links=self.relative_links)
             self.save_cache_data()
 
         return self.cache_data[url]
+
+    def get_relative_index_path(self, url):
+        if url in self.cache_data and 'index_path' in self.cache_data[url]:
+            if not self.relative_links:
+                # we copy the main page to index.html in the root of the page archive.
+                return "index.html"
+            return self.cache_data[url]['index_path'].replace(self.root_dir + os.sep, '')
+
+        return None
 
     def find_page_by_index_path(self, index_path):
         for url in self.cache_data:
@@ -798,10 +813,17 @@ class ArchiveDownloader:
                 resources = self.cache_data[res_url]['resources']
                 self._copy_resources_to_dir(temp_dir, resources)
 
-        shutil.copy(info['index_path'], os.path.join(temp_dir, 'index.html'))
+        index_path = self.get_relative_index_path(url)
+
+        shutil.copy(info['index_path'], os.path.join(temp_dir, index_path))
         return temp_dir
 
     def export_page_as_zip(self, url):
         zip_dir = self.create_zip_dir_for_page(url)
+        info = self.cache_data[url]
 
-        return create_predictable_zip(zip_dir)
+        entrypoint = None
+        if self.relative_links:
+            entrypoint = self.get_relative_index_path(url)
+
+        return create_predictable_zip(zip_dir, entrypoint=entrypoint)
