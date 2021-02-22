@@ -1,7 +1,7 @@
-Ricecooker utils
+Working with content
 ================
-The ``ricecooker.utils`` module includes a number of utility functions to help
-chef authors with common content extraction and transformation tasks.
+Ricecooker includes a number of utility functions to help chef authors
+with common content extraction and transformation tasks.
 
 .. toctree::
    :maxdepth: 1
