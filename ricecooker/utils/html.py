@@ -1,3 +1,4 @@
+import logging
 import os
 import re
 import requests
@@ -27,6 +28,7 @@ sess.mount('https://', basic_adapter)
 if PHANTOMJS_PATH is None:
     PHANTOMJS_PATH = os.path.join(os.getcwd(), "node_modules", "phantomjs-prebuilt", "bin", "phantomjs")
 
+
 class WebDriver(object):
 
     def __init__(self, url, delay=1000):
@@ -55,7 +57,7 @@ def get_generated_html_from_driver(driver, tagname="html"):
     driver.execute_script("return document.getElementsByTagName('{tagname}')[0].innerHTML".format(tagname=tagname))
 
 
-def replace_links(content, urls_to_replace, download_root=None, base_url=None):
+def replace_links(content, urls_to_replace, download_root=None, content_dir=None, relative_links=False):
     for key in urls_to_replace:
         value = urls_to_replace[key]
         if key == value:
@@ -65,13 +67,16 @@ def replace_links(content, urls_to_replace, download_root=None, base_url=None):
         rel_path = None
         # Because of how derive_filename works, all relative URLs are converted to absolute.
         # So here we reconstruct the relative URL so we can replace relative links in the source.
-        if download_root and base_url:
-            rel_path = os.path.relpath(os.path.join(download_root, value), base_url)
+        if download_root and content_dir:
+            rel_path = os.path.relpath(os.path.join(download_root, value), content_dir)
 
         # Make sure we remove any native path separators in constructed paths
         value = pathname2url(value)
         if rel_path:
             rel_path = pathname2url(rel_path)
+
+        if relative_links:
+            value = os.path.relpath(os.path.join(download_root, value), content_dir)
 
         # When we get an absolute URL, it may appear in one of three different ways in the page:
         key_variants = [
@@ -83,7 +88,7 @@ def replace_links(content, urls_to_replace, download_root=None, base_url=None):
             key.replace(url_parts.scheme + ':', ''),
         ]
 
-        if base_url:
+        if rel_path and content_dir:
             # We also add relative paths from the index (see note above).
             key_variants.append(rel_path)
 
@@ -95,13 +100,14 @@ def replace_links(content, urls_to_replace, download_root=None, base_url=None):
         srcset_re = "(srcset=['\"])(.+)([\"'])"
         srcset_links = re.findall(srcset_re, content, flags=re.I | re.M)
         for variant in key_variants:
+            if variant == value:
+                continue
             # searching within quotes ensures we only replace the exact URL we are
             # trying to replace
             # we avoid using BeautifulSoup because Python HTML parsers can be destructive and
             # do things like strip out the doctype.
             content = content.replace('="{}"'.format(variant), '="{}"'.format(value))
             content = content.replace('url({})'.format(variant), 'url({})'.format(value))
-
 
             for match in srcset_links:
                 url = match[1]
@@ -140,7 +146,7 @@ def calculate_relative_url(url, filename=None, baseurl=None, subpath=None):
     # if a base path was supplied, calculate the file's subpath relative to it
     if baseurl:
         baseurl = urllib.parse.urljoin(baseurl, ".")  # ensure baseurl is normalized (to remove '/./' and '/../')
-        assert url.startswith(baseurl), "URL must start with baseurl"
+        assert url.startswith(baseurl), "URL {} must start with baseurl {}".format(url, baseurl)
         subpath = subpath + url[len(baseurl):].strip("/").split("/")[:-1]
 
     # if we don't have a filename, extract it from the URL

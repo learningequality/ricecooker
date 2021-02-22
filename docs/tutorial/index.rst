@@ -6,5 +6,6 @@ These purpose of these pages is to help you learn the ``ricecooker`` framework.
    :maxdepth: 2
 
    gettingstarted
+   jiro
    tutorial
    explanations
