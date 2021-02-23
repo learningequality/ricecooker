@@ -438,7 +438,7 @@ class TreeNode(Node):
             convert = lambda text: int(text) if text.isdigit() else text.lower() 
             key = lambda key: [ convert(re.sub(r'[^A-Za-z0-9]+', '', c.replace('&', 'and'))) for c in re.split('([0-9]+)', key.title) ]
         self.children = sorted(self.children, key = key, reverse = reverse)
-        return self
+        return self.children
 
     def to_dict(self):
         """ to_dict: puts Topic or Content node data into the format that Kolibri Studio expects
