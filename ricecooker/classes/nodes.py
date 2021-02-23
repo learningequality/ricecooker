@@ -427,6 +427,26 @@ class TreeNode(Node):
 
         super(TreeNode, self).truncate_fields()
 
+    def sort_topic_nodes(self, channel, key = None, reverse = False):
+        """
+        Sort Topic Nodes in channel
+        :param channel: Channel to sort
+        :param key: A Function to execute to decide the order. Default None
+        :param reverse: A Boolean. False will sort ascending, True will sort descending. False by default
+        :return: Sorted channel
+        """
+        # default natural sorting
+        if not key:
+            convert = lambda text: int(text) if text.isdigit() else text.lower() 
+            key = lambda key: [ convert(re.sub(r'[^A-Za-z0-9]+', '', c.replace('&', 'and'))) for c in re.split('([0-9]+)', key.title) ]
+        try:
+            channel.children = sorted(channel.children, key = key, reverse = reverse)
+        except Exception as e:
+            LOGGER.error("Failed to sort: [%s]. Calling default sorting method", e)
+            convert = lambda text: int(text) if text.isdigit() else text.lower() 
+            key = lambda key: [ convert(re.sub(r'[^A-Za-z0-9]+', '', c.replace('&', 'and'))) for c in re.split('([0-9]+)', key.title) ]
+            channel.children = sorted(channel.children, key = key, reverse = reverse)
+        return channel
 
     def to_dict(self):
         """ to_dict: puts Topic or Content node data into the format that Kolibri Studio expects
