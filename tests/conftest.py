@@ -63,6 +63,8 @@ def channel_data(channel_node_id, channel_content_id, domain_namespace, channel_
         "source_id": channel_source_id,
         "language": "en",
         "ricecooker_version": __version__,
+        "files": [],
+        "extra_fields": "{}",
     }
 
 @pytest.fixture

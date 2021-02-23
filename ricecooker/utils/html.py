@@ -1,4 +1,6 @@
+import logging
 import os
+import re
 import requests
 import signal
 import time
@@ -9,6 +11,7 @@ import chardet
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from urllib.parse import urlparse, unquote
+from urllib.request import pathname2url
 
 from .caching import FileCache, CacheControlAdapter
 from ricecooker.config import LOGGER, PHANTOMJS_PATH, STRICT
@@ -24,6 +27,7 @@ sess.mount('https://', basic_adapter)
 
 if PHANTOMJS_PATH is None:
     PHANTOMJS_PATH = os.path.join(os.getcwd(), "node_modules", "phantomjs-prebuilt", "bin", "phantomjs")
+
 
 class WebDriver(object):
 
@@ -53,6 +57,81 @@ def get_generated_html_from_driver(driver, tagname="html"):
     driver.execute_script("return document.getElementsByTagName('{tagname}')[0].innerHTML".format(tagname=tagname))
 
 
+def replace_links(content, urls_to_replace, download_root=None, content_dir=None, relative_links=False):
+    for key in urls_to_replace:
+        value = urls_to_replace[key]
+        if key == value:
+            continue
+        url_parts = urlparse(key)
+
+        rel_path = None
+        # Because of how derive_filename works, all relative URLs are converted to absolute.
+        # So here we reconstruct the relative URL so we can replace relative links in the source.
+        if download_root and content_dir:
+            rel_path = os.path.relpath(os.path.join(download_root, value), content_dir)
+
+        # Make sure we remove any native path separators in constructed paths
+        value = pathname2url(value)
+        if rel_path:
+            rel_path = pathname2url(rel_path)
+
+        if relative_links:
+            value = os.path.relpath(os.path.join(download_root, value), content_dir)
+
+        # When we get an absolute URL, it may appear in one of three different ways in the page:
+        key_variants = [
+            # 1. /path/to/file.html
+            key.replace(url_parts.scheme + '://' + url_parts.netloc, ''),
+            # 2. https://www.domain.com/path/to/file.html
+            key,
+            # 3. //www.domain.com/path/to/file.html
+            key.replace(url_parts.scheme + ':', ''),
+        ]
+
+        if rel_path and content_dir:
+            # We also add relative paths from the index (see note above).
+            key_variants.append(rel_path)
+
+        orig_content = content
+
+        # The simple replace rules above won't work with srcset links, as they can be multiple urls that are
+        # comma-separated and may contain resolution specifiers like a specific width or 1x/2x values.
+        # Here we use a simple regex to grab srcset and parse and rebuild the value.
+        srcset_re = "(srcset=['\"])(.+)([\"'])"
+        srcset_links = re.findall(srcset_re, content, flags=re.I | re.M)
+        for variant in key_variants:
+            if variant == value:
+                continue
+            # searching within quotes ensures we only replace the exact URL we are
+            # trying to replace
+            # we avoid using BeautifulSoup because Python HTML parsers can be destructive and
+            # do things like strip out the doctype.
+            content = content.replace('="{}"'.format(variant), '="{}"'.format(value))
+            content = content.replace('url({})'.format(variant), 'url({})'.format(value))
+
+            for match in srcset_links:
+                url = match[1]
+                new_url_parts = []
+                for src in url.split(","):
+                    parts = src.split(" ")
+                    new_parts = []
+                    for part in parts:
+                        if part.strip() == variant:
+                            # this preserves whitespace
+                            part = part.replace(variant, value)
+                        new_parts.append(part)
+                    new_url_parts.append(" ".join(new_parts))
+                new_url = ",".join(new_url_parts)
+                new_string = "".join(match).replace(url, new_url)
+                content = content.replace("".join(match), new_string)
+
+        if content == orig_content:
+            LOGGER.debug("link not replaced: {}".format(key))
+            LOGGER.debug("key_variants = {}".format(key_variants))
+
+    return content
+
+
 def calculate_relative_url(url, filename=None, baseurl=None, subpath=None):
     """
     Calculate the relative path for a URL relative to a base URL, possibly also injecting in a subpath prefix.
@@ -67,7 +146,7 @@ def calculate_relative_url(url, filename=None, baseurl=None, subpath=None):
     # if a base path was supplied, calculate the file's subpath relative to it
     if baseurl:
         baseurl = urllib.parse.urljoin(baseurl, ".")  # ensure baseurl is normalized (to remove '/./' and '/../')
-        assert url.startswith(baseurl), "URL must start with baseurl"
+        assert url.startswith(baseurl), "URL {} must start with baseurl {}".format(url, baseurl)
         subpath = subpath + url[len(baseurl):].strip("/").split("/")[:-1]
 
     # if we don't have a filename, extract it from the URL

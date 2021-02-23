@@ -142,9 +142,6 @@ to activate the "draft copy" and make it visible to all Studio users.
 This is implemented by replacing the channel's `main` tree with the `staging` tree.
 During [this step](https://github.com/learningequality/studio/blob/5564c1fc540d8a936fc2907c9d65bf0fb2bacb14/contentcuration/contentcuration/api.py#L103-L105), a "backup copy" of channel is saved, called the `previous_tree`.
 
-Running the chef script with the `--deploy` flag will have this effect.
-Do not use this for production channels: always DEPLOY on Studio after reviewing what changed.
-
 
 Publish channel (optional)
 --------------------------
@@ -156,10 +153,6 @@ This step is a prerequisite for getting the channel out of Studio and into Kolib
 The combination of `{{channel_id}}.sqlite3` file and the files in `/content/storage`
 define the Kolibri Channels content format. This is what gets exported to the folder
 `KOLIBRI_DATA` on sdcard or external drives when you use the `EXPORT` action in Kolibri.
-
-Running the chef scrip with the args `--deploy --publish` will perform the `DEPLOY`
-and `PUBLISH` actions after the chef run completes. This is not recommended for
-any channel other than small testing channels and for debugging.
 
 
 

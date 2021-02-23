@@ -185,9 +185,7 @@ uploaded to "draft version" of the channel called a "`staging` tree".
 The purpose of the staging tree is to allow channel editors can to review the
 changes in the "draft version" as compared to the current version of the channel.
 Use the **DEPLOY** button in the Studio web interface to activate the "draft copy"
-and make it visible to all Studio users. Running the chef script with the `--deploy`
-flag will perform this step automatically at the end of the chef run.
-
+and make it visible to all Studio users.
 
 
 Publishing the channel
@@ -197,12 +195,6 @@ The **PUBLISH** action exports all the channel metadata to a sqlite3 DB file ser
 by Studio at the URL `/content/{{channel_id}}.sqlite3` and ensure the associated
 files exist in `/content/storage/` which is served by a CDN.
 This step is a prerequisite for getting the channel out of Studio and into Kolibri.
-Running the chef scrip with the args `--deploy --publish` will perform both
-the **DEPLOY** and **PUBLISH** actions after the chef run completes.
-This combination of arguments can be used for testing and debugging, and never
-for "production" channels, which should be deployed only after reviewing what changed.
-
-
 
 
 Next steps
