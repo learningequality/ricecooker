@@ -437,13 +437,7 @@ class TreeNode(Node):
         if not key:
             convert = lambda text: int(text) if text.isdigit() else text.lower() 
             key = lambda key: [ convert(re.sub(r'[^A-Za-z0-9]+', '', c.replace('&', 'and'))) for c in re.split('([0-9]+)', key.title) ]
-        try:
-            self.children = sorted(self.children, key = key, reverse = reverse)
-        except Exception as e:
-            LOGGER.error("Failed to sort: [%s]. Calling default sorting method", e)
-            convert = lambda text: int(text) if text.isdigit() else text.lower() 
-            key = lambda key: [ convert(re.sub(r'[^A-Za-z0-9]+', '', c.replace('&', 'and'))) for c in re.split('([0-9]+)', key.title) ]
-            self.children = sorted(self.children, key = key, reverse = reverse)
+        self.children = sorted(self.children, key = key, reverse = reverse)
         return self
 
     def to_dict(self):
