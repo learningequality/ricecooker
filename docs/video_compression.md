@@ -68,7 +68,7 @@ Before proceeding, please go and download the `ffmpeg` program for you OS:
 
 Links:
   - Homepage: https://www.ffmpeg.org/
-  - Downloads for windows users: https://ffmpeg.zeranoe.com/builds/
+  - Downloads for windows users: https://web.archive.org/web/20200918193047/https://ffmpeg.zeranoe.com/builds/
     Choose 64bit "static" version to download, unzip the archive, then go to the folder
     called `bin/` inside the zip file. Copy the files `ffmpeg.exe` and `ffprobe.exe`
     to the folder on your computer where your videos are stored.
