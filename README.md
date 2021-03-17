@@ -1,7 +1,7 @@
 ricecooker
 ==========
 [![PyPI pyversions](https://img.shields.io/pypi/pyversions/ricecooker.svg)](https://pypi.python.org/pypi/ricecooker/)
-[![build](https://travis-ci.com/learningequality/ricecooker.svg?branch=master)](https://travis-ci.com/github/learningequality/ricecooker) 
+[![build](https://github.com/learningequality/ricecooker/actions/workflows/pythontest.yml/badge.svg?branch=master)](https://github.com/learningequality/ricecooker/actions)
 [![docs](https://readthedocs.org/projects/ricecooker/badge/?version=latest&style=flat)](https://ricecooker.readthedocs.io/) 
 
 
