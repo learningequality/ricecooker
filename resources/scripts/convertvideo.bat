@@ -17,7 +17,7 @@ REM ############################################################################
 WHERE ffmpeg >nul 2>nul
 IF %ERRORLEVEL% NEQ 0 (
     echo Error: ffmpeg not installed.
-    echo Please download zip from https://ffmpeg.zeranoe.com/builds/
+    echo Please download zip from https://web.archive.org/web/20200918193047/https://ffmpeg.zeranoe.com/builds/
     echo Then copy the files ffmpeg.exe and ffprobe.exe from bin/ folder to this folder.
     exit /b 1
 )
