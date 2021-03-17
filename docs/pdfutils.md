@@ -7,13 +7,13 @@ The module `ricecooker.utils.pdf` contains helper functions for manipulating PDF
 
 PDF splitter
 ------------
-When importing source PDFs like books that is a very long documents (100+ pages),
-it is better for Kolibri user experience to split them into multiple shorter PDF
+When importing source PDFs like books that are very long documents (100+ pages),
+it is better for the Kolibri user experience to split them into multiple shorter PDF
 content nodes.
 
 The `PDFParser` class in `ricecooker.utils.pdf` is a wrapper around the `PyPDF2`
 library that allows us to split long PDF documents into individual chapters,
-based on the information available in the PDF's table of contents.
+based on either the information available in the PDF's table of contents, or user-defined page ranges.
 
 
 ### Split into chapters
@@ -35,7 +35,7 @@ The output `chapters` is list of dictionaries with `title` and `path` attributes
       ... 
     ]
 
-Use this information to create individual `DocumentNode`s for each PDF and store
+Use this information to create an individual `DocumentNode` for each PDF and store
 them in a `TopicNode` that corresponds to the book:
 
     from ricecooker.classes import nodes, files
@@ -44,7 +44,7 @@ them in a `TopicNode` that corresponds to the book:
     for chapter in chapters:
         chapter_node = nodes.DocumentNode(
             title=chapter['title'],
-            files=files.DocumentFile(chapter['path']),
+            files=[files.DocumentFile(chapter['path'])],
             ...
         )
         book_node.add_child(chapter_node)
@@ -54,7 +54,7 @@ where the files are saved by passing the optional argument `directory` when init
 the `PDFParser` class, e.g., `PDFParser(pdf_path, directory='somedircustomdir')`.
 
 
-The `split_chapters` method uses `get_toc` method internally to obtain the list
+The `split_chapters` method uses the internal `get_toc` method to obtain a list
 of page ranges for each chapter. Use `pdfparser.get_toc()` to inspect the PDF's
 table of contents. The table of contents data returned by the `get_toc` method
 has the following format:
@@ -130,7 +130,7 @@ tree of title and paths:
     ]
 
 You'll need to create a `TopicNode` for each chapter that has `children` and
-create `DocmentNode`s for each of the children of that chapter.
+create a `DocumentNode` for each of the children of that chapter.
 
 
 
@@ -138,6 +138,6 @@ create `DocmentNode`s for each of the children of that chapter.
 
 Accessibility notes
 -------------------
-Do not use the `PDFParser` for tagged PDFs because splitting and processing loses
+Do not use `PDFParser` for tagged PDFs because splitting and processing loses
 the accessibility features of the original PDF document.
 
