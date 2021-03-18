@@ -19,23 +19,27 @@ jobs:
     name: Python unit tests
     needs: pre_job
     if: ${{ needs.pre_job.outputs.should_skip != 'true' }}
-    runs-on: ubuntu-18.04
+    runs-on: ${{ matrix.os }}
     strategy:
       max-parallel: 5
       matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
         python-version: [3.5, 3.6, 3.7]
-
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Install system dependencies
+    - name: Install Ubuntu dependencies
       run: |
         sudo apt-get -y -qq update
         sudo apt-get install -y ffmpeg
         sudo apt-get install -y poppler-utils
+      if: matrix.os == 'ubuntu-latest'
+    - name: Install Mac dependencies
+      run: brew install ffmpeg poppler
+      if: matrix.os == 'macos-latest'
     - name: Install tox
       run: |
         python -m pip install --upgrade pip
