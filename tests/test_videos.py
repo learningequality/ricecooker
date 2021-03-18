@@ -15,7 +15,6 @@ from ricecooker.classes.files import SubtitleFile, VideoFile, YouTubeVideoFile
 from ricecooker.classes.nodes import VideoNode
 
 from conftest import download_fixture_file
-IS_TRAVIS_TESTING = "TRAVIS" in os.environ and os.environ["TRAVIS"] == "true"
 
 
 @pytest.fixture
@@ -78,7 +77,6 @@ def make_video_file(video_file_file, language='en'):
 """ *********** TEST BASIC VIDEO PROCESSING  *********** """
 
 
-@pytest.mark.skipif(IS_TRAVIS_TESTING, reason="Skipping ffmpeg tests on Travis.")
 class Test_video_processing_and_presets(object):
 
     def setup_method(self):
@@ -117,7 +115,6 @@ def get_resolution(videopath):
     width, height = int(m.group(1)), int(m.group(2))
     return width, height
 
-@pytest.mark.skipif(IS_TRAVIS_TESTING, reason="Skipping ffmpeg tests on Travis.")
 class Test_video_compression(object):
 
     def setup_method(self):
@@ -167,7 +164,6 @@ class Test_video_compression(object):
 
 """ *********** TEST VIDEO CONVERSION  *********** """
 
-@pytest.mark.skipif(IS_TRAVIS_TESTING, reason="Skipping ffmpeg tests on Travis.")
 class Test_video_conversion(object):
 
     def setup_method(self):

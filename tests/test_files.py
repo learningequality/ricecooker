@@ -15,8 +15,6 @@ from ricecooker import config
 
 from test_pdfutils import _save_file_url_to_path
 
-IS_TRAVIS_TESTING = "TRAVIS" in os.environ and os.environ["TRAVIS"] == "true"
-
 
 # Process all of the files
 def process_files(video_file, html_file, audio_file, document_file, epub_file, thumbnail_file, subtitle_file):
@@ -171,7 +169,7 @@ def test_webvideo_to_dict():
 
 """ *********** YOUTUBEVIDEOFILE TESTS *********** """
 
-@pytest.mark.skipif(IS_TRAVIS_TESTING, reason="Requires connecting to youtube.")
+@pytest.mark.skipif(True, reason="Requires connecting to youtube.")
 def test_youtubevideo_process_file(youtube_video_dict):
     video_file = YouTubeVideoFile(youtube_id=youtube_video_dict['youtube_id'])
     filename = video_file.process_file()
@@ -226,7 +224,7 @@ def test_is_youtube_subtitle_file_unsupported_language(subtitles_langs_ubsupport
         lang_obj = _get_language_with_alpha2_fallback(lang)
         assert lang_obj is None, 'lookup should fail'
 
-@pytest.mark.skipif(IS_TRAVIS_TESTING, reason="Requires connecting to youtube.")
+@pytest.mark.skipif(True, reason="Requires connecting to youtube.")
 def test_youtubesubtitle_process_file(youtube_video_with_subs_dict):
     youtube_id = youtube_video_with_subs_dict['youtube_id']
     lang = youtube_video_with_subs_dict['subtitles_langs'][0]
