@@ -691,6 +691,7 @@ def download_fixture_file(source_url, local_path):
         return
     with open(local_path, 'wb') as f:
         response = requests.get(source_url, stream=True)
+        assert response.status_code == 200, "Fixture file with url: {} not found".format(source_url)
         for chunk in response.iter_content(chunk_size=1048576):
             f.write(chunk)
         f.flush()

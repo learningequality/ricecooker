@@ -29,7 +29,8 @@ def low_res_video():
 
 @pytest.fixture
 def low_res_video_webm():
-    source_url = "http://mirrors.standaloneinstaller.com/video-sample/TRA3106.webm"
+    source_url = "https://ia801800.us.archive.org/28/items/rick-astley-never-gonna-give-you-up-video_202012/" \
+                 "Rick%20Astley%20-%20Never%20Gonna%20Give%20You%20Up%20Video.webm"
     local_path = os.path.join("tests", "testcontent", "downloaded", "low_res_video.webm")
     download_fixture_file(source_url, local_path)
     assert os.path.exists(local_path)
@@ -109,7 +110,7 @@ class Test_video_processing_and_presets(object):
         assert video_file.get_preset() == format_presets.VIDEO_LOW_RES, 'Should have low res preset'
 
     def test_basic_video_processing_low_res_webm(self, low_res_video_webm):
-        expected_video_filename = 'c4ec2da50809d411a827c7934fed8543.webm'
+        expected_video_filename = '5a2172860b2de19d746d00e3deeae3a7.webm'
         video_file = make_video_file(low_res_video_webm)
         video_filename = video_file.process_file()
         assert video_filename == expected_video_filename, "Video file should have filename {}".format(expected_video_filename)
