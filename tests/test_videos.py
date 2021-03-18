@@ -28,11 +28,32 @@ def low_res_video():
     return f  # returns a closed file descriptor which we use for name attribute
 
 @pytest.fixture
+def low_res_video_webm():
+    source_url = "https://ia801800.us.archive.org/28/items/rick-astley-never-gonna-give-you-up-video_202012/" \
+                 "Rick%20Astley%20-%20Never%20Gonna%20Give%20You%20Up%20Video.webm"
+    local_path = os.path.join("tests", "testcontent", "downloaded", "low_res_video.webm")
+    download_fixture_file(source_url, local_path)
+    assert os.path.exists(local_path)
+    f = open(local_path, 'rb')
+    f.close()
+    return f  # returns a closed file descriptor which we use for name attribute
+
+@pytest.fixture
 def high_res_video():
     source_url = "https://ia800201.us.archive.org/7/items/" \
                  "UnderConstructionFREEVideoBackgroundLoopHD1080p/" \
                  "UnderConstruction%20-%20FREE%20Video%20Background%20Loop%20HD%201080p.mp4"
     local_path = os.path.join("tests", "testcontent", "downloaded", "high_res_video.mp4")
+    download_fixture_file(source_url, local_path)
+    assert os.path.exists(local_path)
+    f = open(local_path, 'rb')
+    f.close()
+    return f  # returns a closed file descriptor which we use for name attribute
+
+@pytest.fixture
+def high_res_video_webm():
+    source_url = "https://mirrors.creativecommons.org/movingimages/webm/CreativeCommonsPlusCommercial_720p.webm"
+    local_path = os.path.join("tests", "testcontent", "downloaded", "high_res_video.webm")
     download_fixture_file(source_url, local_path)
     assert os.path.exists(local_path)
     f = open(local_path, 'rb')
@@ -64,14 +85,11 @@ def bad_video():
     return f  # returns a closed file descriptor which we use for name attribute
 
 
-
 def make_video_file(video_file_file, language='en'):
     """
     Creates a VideoFile object with path taken from `video_file_file.name`.
     """
     return VideoFile(video_file_file.name, language=language)
-
-
 
 
 """ *********** TEST BASIC VIDEO PROCESSING  *********** """
@@ -91,10 +109,25 @@ class Test_video_processing_and_presets(object):
         assert os.path.isfile(video_path), "Video should be stored at {}".format(video_path)
         assert video_file.get_preset() == format_presets.VIDEO_LOW_RES, 'Should have low res preset'
 
+    def test_basic_video_processing_low_res_webm(self, low_res_video_webm):
+        expected_video_filename = '5a2172860b2de19d746d00e3deeae3a7.webm'
+        video_file = make_video_file(low_res_video_webm)
+        video_filename = video_file.process_file()
+        assert video_filename == expected_video_filename, "Video file should have filename {}".format(expected_video_filename)
+        video_path = config.get_storage_path(video_filename)
+        assert os.path.isfile(video_path), "Video should be stored at {}".format(video_path)
+        assert video_file.get_preset() == format_presets.VIDEO_LOW_RES, 'Should have low res preset'
 
     def test_basic_video_processing_high_res(self, high_res_video):
         expected_video_filename = 'e0ca22680786379362d0c95db2318853.mp4'
         video_file = make_video_file(high_res_video)
+        video_filename = video_file.process_file()
+        assert video_filename == expected_video_filename, "Video file should have filename {}".format(expected_video_filename)
+        assert video_file.get_preset() == format_presets.VIDEO_HIGH_RES, 'Should have high res preset'
+
+    def test_basic_video_processing_high_res_webm(self, high_res_video_webm):
+        expected_video_filename = '06b4e0d8c50f2224868086ad2fb92511.webm'
+        video_file = make_video_file(high_res_video_webm)
         video_filename = video_file.process_file()
         assert video_filename == expected_video_filename, "Video file should have filename {}".format(expected_video_filename)
         assert video_file.get_preset() == format_presets.VIDEO_HIGH_RES, 'Should have high res preset'
