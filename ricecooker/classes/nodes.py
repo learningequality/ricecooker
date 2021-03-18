@@ -232,7 +232,7 @@ class Node(object):
                 new_tags = ','.join(new_tags)
 
             record = [
-                self.source_id, 
+                self.source_id,
                 structure_string,
                 self.title,
                 new_title,        # New Title
@@ -254,8 +254,8 @@ class Node(object):
             print(structure_string)
         for child in self.children:
             child.save_channel_children_to_csv(metadata_csv, structure_string)
-            
-        
+
+
     def validate_tree(self):
         """
         Validate all nodes in this tree recusively.
@@ -609,8 +609,7 @@ class VideoNode(ContentNode):
             files ([<File>]): list of file objects for node (optional)
     """
     kind = content_kinds.VIDEO
-    required_file_format_1 = file_formats.MP4
-    required_file_format_2 = file_formats.WEBM
+    required_file_format = (file_formats.MP4, file_formats.WEBM)
 
     def __init__(self, source_id, title, license, **kwargs):
         super(VideoNode, self).__init__(source_id, title, license, **kwargs)
