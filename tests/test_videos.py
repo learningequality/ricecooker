@@ -148,7 +148,6 @@ def get_resolution(videopath):
     width, height = int(m.group(1)), int(m.group(2))
     return width, height
 
-@pytest.mark.skipif(os.name == 'nt', reason="Skipping ffmpeg tests on Windows.")
 class Test_video_compression(object):
 
     def setup_method(self):
@@ -197,7 +196,6 @@ class Test_video_compression(object):
 
 
 """ *********** TEST VIDEO CONVERSION  *********** """
-@pytest.mark.skipif(os.name == 'nt', reason="Skipping ffmpeg tests on Windows.")
 class Test_video_conversion(object):
 
     def setup_method(self):
