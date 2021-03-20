@@ -102,17 +102,8 @@ def filter_thumbnail_files(chan_path, filenames, metadata_provider):
     """
     We don't want to create `ContentNode` from thumbnail files.
     """
-    thumbnail_files_to_skip = metadata_provider.get_thumbnail_paths()
-    filenames_cleaned = []
-    for filename in filenames:
-        keep = True
-        chan_filepath = os.path.join(chan_path, filename)
-        chan_filepath_tuple = path_to_tuple(chan_filepath)
-        if chan_filepath_tuple in thumbnail_files_to_skip:
-            keep = False
-        if keep:
-            filenames_cleaned.append(filename)
-    return filenames_cleaned
+    thumbnail_files_to_skip = set(os.path.join(*p) for p in metadata_provider.get_thumbnail_paths())
+    return [filename for filename in filenames if os.path.join(chan_path, filename) not in thumbnail_files_to_skip]
 
 def keep_folder(raw_path):
     """

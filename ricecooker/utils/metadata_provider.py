@@ -127,7 +127,30 @@ EXERCISE_QUESTIONS_INFO_HEADER = [
 # HELPER FUNCTIONS
 ################################################################################
 
-def path_to_tuple(path, windows=False):
+def path_to_tuple(path):
+    """
+    Split a current file system path into individual parts and form a tuple for key lookups.
+    """
+    allparts = []
+    while 1:
+        parts = os.path.split(path)
+        if parts[0] == path:  # sentinel for absolute paths
+            allparts.insert(0, parts[0])
+            break
+        elif parts[1] == path:  # sentinel for relative paths
+            allparts.insert(0, parts[1])
+            break
+        else:
+            path = parts[0]
+            allparts.insert(0, parts[1])
+
+    # Normalize UTF-8 encoding to consistent form so cache lookups will work, see
+    # https://docs.python.org/3.6/library/unicodedata.html#unicodedata.normalize
+    path_tup = tuple(normalize('NFD', part) for part in allparts)
+    return path_tup
+
+
+def input_path_to_tuple(path, windows=False):
     """
     Split `chan_path` into individual parts and form a tuple (used as key).
     """
@@ -204,7 +227,7 @@ class CsvMetadataProvider(MetadataProvider):
         dict_reader = csv.DictReader(csv_lines)
         for row in dict_reader:
             row_dict = self._map_content_row_to_dict(row)
-            path_tuple = path_to_tuple(row_dict['chan_path'], windows=self.winpaths)
+            path_tuple = input_path_to_tuple(row_dict['chan_path'], windows=self.winpaths)
             self.contentcache[path_tuple] = row_dict
 
         # Additional handling of data in Exercises.csv and ExerciseQuestions.txt
@@ -226,7 +249,7 @@ class CsvMetadataProvider(MetadataProvider):
             dict_reader = csv.DictReader(csv_lines)
             for exercise_row in dict_reader:
                 exercise_dict = self._map_exercise_row_to_dict(exercise_row)
-                path_tuple = path_to_tuple(exercise_dict['chan_path'], windows=self.winpaths)
+                path_tuple = input_path_to_tuple(exercise_dict['chan_path'], windows=self.winpaths)
                 question_source_id = exercise_dict['source_id']
                 exercise_dict['questions'] = questions_by_source_id[question_source_id]
                 # B1: exercises are standard content nodes, so add to contentcache
@@ -276,13 +299,13 @@ class CsvMetadataProvider(MetadataProvider):
         channel_info = self.get_channel_info()
         chthumbnail_path = channel_info.get('thumbnail_chan_path', None)
         if chthumbnail_path:
-            chthumbnail_path_tuple = path_to_tuple(chthumbnail_path, windows=self.winpaths)
+            chthumbnail_path_tuple = input_path_to_tuple(chthumbnail_path, windows=self.winpaths)
             thumbnail_path_tuples.append(chthumbnail_path_tuple)
         # content thumbnails
         for content_file_path_tuple, row in self.contentcache.items():
             thumbnail_path = row.get('thumbnail_chan_path', None)
             if thumbnail_path:
-                thumbnail_path_tuple = path_to_tuple(thumbnail_path, windows=self.winpaths)
+                thumbnail_path_tuple = input_path_to_tuple(thumbnail_path, windows=self.winpaths)
                 thumbnail_path_tuples.append(thumbnail_path_tuple)
         return thumbnail_path_tuples
 
