@@ -813,8 +813,16 @@ class SubtitleFile(DownloadFile):
             copy_file_to_storage(filename, temp_out_file)
             FILECACHE.set(key, bytes(filename, "utf-8"))
 
-        os.remove(temp_in_file_name)
-        os.remove(temp_out_file_name)
+        # This can raise permission errors on Windows
+        # so just let this get cleaned up later by the system
+        try:
+            os.remove(temp_in_file_name)
+        except OSError:
+            pass
+        try:
+            os.remove(temp_out_file_name)
+        except OSError:
+            pass
 
         return filename
 
