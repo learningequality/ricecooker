@@ -1,3 +1,5 @@
+import os
+
 from ricecooker.utils.html import replace_links
 
 
@@ -44,7 +46,7 @@ def test_replace_relative_links():
         'http://replace.me/img/hello.jpg': 'replace.me/img/hello.jpg',
         'http://replace.me/link/to/page.html': 'replace.me/link/to/page.html'
     }
-    content_dir = 'replace.me/link/from'
+    content_dir = os.path.join('replace.me', 'link', 'from')
     download_root = '.'
 
     output = replace_links(img_content, urls_to_replace, download_root=download_root, content_dir=content_dir, relative_links=True)
