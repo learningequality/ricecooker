@@ -25,6 +25,13 @@ jobs:
       matrix:
         os: [windows-latest, ubuntu-latest, macos-latest]
         python-version: [3.5, 3.6, 3.7]
+        include:
+        - os: ubuntu-latest
+          pippath: ~/.cache/pip
+        - os: macos-latest
+          pippath: ~/Library/Caches/pip
+        - os: windows-latest
+          pippath: ~\AppData\Local\pip\Cache
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python ${{ matrix.python-version }}
@@ -37,6 +44,12 @@ jobs:
         sudo apt-get install -y ffmpeg
         sudo apt-get install -y poppler-utils
       if: matrix.os == 'ubuntu-latest'
+    - name: Cache Mac dependencies
+      uses: actions/cache@v2
+      if: matrix.os == 'macos-latest'
+      with:
+        path: ~/Library/Caches/Homebrew
+        key: ${{ runner.os }}-brew-${{ hashFiles('.github/workflows/pythontest.yml') }}
     - name: Install Mac dependencies
       run: brew install ffmpeg poppler
       if: matrix.os == 'macos-latest'
@@ -59,6 +72,12 @@ jobs:
       run: |
         echo "$pwd\tools\ffmpeg" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
         echo "$pwd\tools\poppler" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+    - name: Cache pip
+      if: ${{ !startsWith(runner.os, 'windows') }}
+      uses: actions/cache@v2
+      with:
+        path: ${{ matrix.pippath }}
+        key: ${{ runner.os }}-pip-py${{ matrix.python-version }}-${{ hashFiles('setup.py') }}
     - name: Install tox
       run: |
         python -m pip install --upgrade pip
@@ -68,12 +87,6 @@ jobs:
       uses: actions/cache@v2
       with:
         path: ${{ github.workspace }}/.tox/py${{ matrix.python-version }}
-        key: ${{ runner.os }}-tox-py${{ matrix.python-version }}-${{ hashFiles('requirements/*.txt') }}
-    - name: tox env cache (windows)
-      if: ${{ startsWith(runner.os, 'windows') }}
-      uses: actions/cache@v2
-      with:
-        path: ${{ github.workspace }}\.tox\py${{ matrix.python-version }}
-        key: ${{ runner.os }}-tox-py${{ matrix.python-version }}-${{ hashFiles('requirements/*.txt') }}
+        key: ${{ runner.os }}-tox-py${{ matrix.python-version }}-${{ hashFiles('setup.py') }}
     - name: Test with tox
       run: tox -e py${{ matrix.python-version }}
