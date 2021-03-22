@@ -773,8 +773,11 @@ class SubtitleFile(DownloadFile):
 
         config.LOGGER.info("\tDownloading {}".format(path))
 
-        with tempfile.NamedTemporaryFile() as temp_in_file,\
-                tempfile.NamedTemporaryFile() as temp_out_file:
+        fdin, temp_in_file_name = tempfile.mkstemp()
+        fdout, temp_out_file_name = tempfile.mkstemp()
+
+        with open(temp_in_file_name, mode="w+b") as temp_in_file,\
+                open(temp_out_file_name, mode="w+b") as temp_out_file:
             write_and_get_hash(path, temp_in_file)
             temp_in_file.seek(0)
 
@@ -810,6 +813,10 @@ class SubtitleFile(DownloadFile):
             copy_file_to_storage(filename, temp_out_file)
             FILECACHE.set(key, bytes(filename, "utf-8"))
 
+        os.close(fdin)
+        os.remove(temp_in_file_name)
+        os.close(fdout)
+        os.remove(temp_out_file_name)
         return filename
 
 

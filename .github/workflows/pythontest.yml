@@ -19,31 +19,74 @@ jobs:
     name: Python unit tests
     needs: pre_job
     if: ${{ needs.pre_job.outputs.should_skip != 'true' }}
-    runs-on: ubuntu-18.04
+    runs-on: ${{ matrix.os }}
     strategy:
       max-parallel: 5
       matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
         python-version: [3.5, 3.6, 3.7]
-
+        include:
+        - os: ubuntu-latest
+          pippath: ~/.cache/pip
+        - os: macos-latest
+          pippath: ~/Library/Caches/pip
+        - os: windows-latest
+          pippath: ~\AppData\Local\pip\Cache
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Install system dependencies
+    - name: Install Ubuntu dependencies
       run: |
         sudo apt-get -y -qq update
         sudo apt-get install -y ffmpeg
         sudo apt-get install -y poppler-utils
+      if: matrix.os == 'ubuntu-latest'
+    - name: Cache Mac dependencies
+      uses: actions/cache@v2
+      if: matrix.os == 'macos-latest'
+      with:
+        path: ~/Library/Caches/Homebrew
+        key: ${{ runner.os }}-brew-${{ hashFiles('.github/workflows/pythontest.yml') }}
+    - name: Install Mac dependencies
+      run: brew install ffmpeg poppler
+      if: matrix.os == 'macos-latest'
+    - name: Windows dependencies cache
+      id: windowscache
+      if: matrix.os == 'windows-latest'
+      uses: actions/cache@v2
+      with:
+        path: ${{ github.workspace }}\tools
+        key: ${{ runner.os }}-tools-${{ hashFiles('.github/workflows/pythontest.yml') }}
+    - name: Download and unpack Windows dependencies
+      if: steps.cache.windowscache.cache-hit != 'true' && matrix.os == 'windows-latest'
+      run: |
+        curl --output ffmpeg.zip https://web.archive.org/web/20200916110500if_/https://ffmpeg.zeranoe.com/builds/win64/static/ffmpeg-20200831-4a11a6f-win64-static.zip
+        curl --output poppler.7z http://blog.alivate.com.au/wp-content/uploads/2018/10/poppler-0.68.0_x86.7z
+        7z x ffmpeg.zip -otools -y
+        7z x poppler.7z -otools -y
+    - name: Set paths to Windows dependencies
+      if: matrix.os == 'windows-latest'
+      run: |
+        echo "$pwd\tools\ffmpeg-20200831-4a11a6f-win64-static\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        echo "$pwd\tools\poppler-0.68.0\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+    - name: Cache pip
+      if: ${{ !startsWith(runner.os, 'windows') }}
+      uses: actions/cache@v2
+      with:
+        path: ${{ matrix.pippath }}
+        key: ${{ runner.os }}-pip-py${{ matrix.python-version }}-${{ hashFiles('setup.py') }}
     - name: Install tox
       run: |
         python -m pip install --upgrade pip
         pip install tox
     - name: tox env cache
+      if: ${{ !startsWith(runner.os, 'windows') }}
       uses: actions/cache@v2
       with:
         path: ${{ github.workspace }}/.tox/py${{ matrix.python-version }}
-        key: ${{ runner.os }}-tox-py${{ matrix.python-version }}-${{ hashFiles('requirements/*.txt') }}
+        key: ${{ runner.os }}-tox-py${{ matrix.python-version }}-${{ hashFiles('setup.py') }}
     - name: Test with tox
       run: tox -e py${{ matrix.python-version }}

@@ -167,7 +167,7 @@ class BaseQuestion:
         if exercises.CONTENT_STORAGE_PLACEHOLDER in text:
             return text, []
         # Strip `text` of whitespace
-        stripped_text = text.strip().replace('\\n', '')
+        stripped_text = re.sub(r"\s", "", text)
         # If `stripped_text` is a web+graphie: path, we need special processing
         graphie_regex = re.compile(WEB_GRAPHIE_URL_REGEX, flags=re.IGNORECASE)
         graphie_match = graphie_regex.match(stripped_text)

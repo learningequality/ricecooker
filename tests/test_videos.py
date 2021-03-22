@@ -196,7 +196,6 @@ class Test_video_compression(object):
 
 
 """ *********** TEST VIDEO CONVERSION  *********** """
-
 class Test_video_conversion(object):
 
     def setup_method(self):

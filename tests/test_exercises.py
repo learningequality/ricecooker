@@ -587,7 +587,7 @@ def persues_question_json_fixtures():
     Load entire perseus questions
     """
     test_data = []
-    with open(os.path.join(TESTCONTENT_DIR, 'exercises', 'perseus_question_x43bbec76d5f14f88_en.json')) as inf:
+    with open(os.path.join(TESTCONTENT_DIR, 'exercises', 'perseus_question_x43bbec76d5f14f88_en.json'), encoding="utf-8") as inf:
         # ENGLISH JSON = KNOWN GOOD
         item_data_en = json.load(inf)
         datum = {
@@ -597,7 +597,7 @@ def persues_question_json_fixtures():
         test_data.append(datum)
     # Missing images in the KA BULGARIAN channel BUG
     # see https://github.com/learningequality/ricecooker/issues/178
-    with open(os.path.join(TESTCONTENT_DIR, 'exercises', 'perseus_question_x43bbec76d5f14f88_bg.json')) as inf:
+    with open(os.path.join(TESTCONTENT_DIR, 'exercises', 'perseus_question_x43bbec76d5f14f88_bg.json'), encoding="utf-8") as inf:
 
         item_data_bg = json.load(inf)
         datum = {

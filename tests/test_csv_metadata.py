@@ -11,7 +11,7 @@ from ricecooker.utils.metadata_provider import CsvMetadataProvider
 
 @pytest.fixture
 def channeldir():
-    return 'tests/testchannels/csv_channel_with_exercises/channeldir'
+    return os.path.join('tests', 'testchannels', 'csv_channel_with_exercises', 'channeldir')
 
 
 def test_exercises_metadata_provider(channeldir):

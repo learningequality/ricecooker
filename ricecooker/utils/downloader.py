@@ -9,6 +9,7 @@ import shutil
 import tempfile
 import time
 from urllib.parse import urlparse, urljoin
+from urllib.request import url2pathname
 import uuid
 
 import chardet
@@ -509,51 +510,26 @@ def get_archive_filename(url, page_url=None, download_root=None, resource_urls=N
         page_url_parsed = urlparse(page_url)
         page_domain = page_url_parsed.netloc
 
-    LOGGER.debug("page_domain = {}, page_url = {}".format(page_domain, page_url))
+    LOGGER.debug(" page_url = {}".format(page_url))
 
-    rel_path = file_url_parsed.path.replace('%', '_')
-    domain = file_url_parsed.netloc.replace(':', '_')
+    domain = file_url_parsed.netloc
+
     if not domain and page_domain:
         domain = page_domain
-        if rel_path.startswith('/') and not url.startswith('/'):
-            # urlparse assumes links that are relative are relative to the domain root, which is not
-            # a safe assumption. Just use the original passed in URL for further processing.
-            rel_path = url
 
     assert domain, "Relative links need page_url to be set in order to resolve them."
 
-    if rel_path and not rel_path.startswith('/'):
-        LOGGER.debug("rel_path = '{}'".format(rel_path))
-        # resolve any paths that are relative to the url they're linked from.
-        if page_url:
-            LOGGER.debug("page_url path = {}".format(page_url_parsed.path))
-            if page_url_parsed.path.endswith('/'):
-                rel_path = page_url_parsed.path + rel_path
-            else:
-                rel_path = os.path.dirname(page_url_parsed.path) + '/' + rel_path
+    rel_path = urlparse(urljoin(page_url, url))
 
-    if rel_path.startswith('/'):
-        LOGGER.debug("rel_path = {}, parsed path = {}".format(rel_path, file_url_parsed.path))
-        rel_path = rel_path[1:]
-        assert not rel_path.startswith('/'), "url = {}, rel_path = {}".format(url, rel_path)
+    local_path = url2pathname(rel_path.netloc + rel_path.path)
+    _path, ext = os.path.splitext(local_path)
 
     if file_url_parsed.query:
         # Append the query to the filename, so that the filename is unique for each set of params.
         query_string = "_{}".format(file_url_parsed.query.replace('=', '_').replace('&', '_'))
-        basepath, ext = os.path.splitext(rel_path)
-        rel_path = basepath + query_string + ext
-        LOGGER.debug("rel_path is now {}".format(rel_path))
+        local_path = _path + query_string + ext
+        LOGGER.debug("local_path is now {}".format(local_path))
 
-    local_path = os.path.join(domain, rel_path)
-    ending_slash = local_path.endswith('/')
-    local_path = os.path.normpath(local_path)
-    # normpath can remove ending slashes, but we use those to know when the URL points to
-    # a directory, so restore it.
-    if ending_slash:
-        local_path += '/'
-    assert domain in local_path, "error: {} not in {} for {}, rel_path = '{}'".format(domain, local_path, url, rel_path)
-
-    _path, ext = os.path.splitext(local_path)
     local_dir_name = local_path
     if ext != '':
         local_dir_name = os.path.dirname(local_path)

@@ -76,7 +76,7 @@ def replace_links(content, urls_to_replace, download_root=None, content_dir=None
             rel_path = pathname2url(rel_path)
 
         if relative_links:
-            value = os.path.relpath(os.path.join(download_root, value), content_dir)
+            value = pathname2url(os.path.relpath(os.path.join(download_root, value), content_dir))
 
         # When we get an absolute URL, it may appear in one of three different ways in the page:
         key_variants = [

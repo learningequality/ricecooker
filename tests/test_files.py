@@ -256,7 +256,7 @@ def test_convertible_substitles_ar_srt():
     assert filename, 'converted filename must exist'
     assert filename.endswith('.vtt'), 'converted filename must have .vtt extension'
     storage_path = config.get_storage_path(filename)
-    with open(storage_path) as converted_vtt:
+    with open(storage_path, encoding="utf-8") as converted_vtt:
         filecontents = converted_vtt.read()
         check_words = 'لناس على'
         assert check_words in filecontents, 'missing check word in converted subs'
@@ -364,7 +364,7 @@ def test_convertible_substitles_from_pressurcooker(pressurcooker_test_files):
         assert filename, 'conferted filename must exit'
         assert filename.endswith('.vtt'), 'conferted filename must have .vtt extension'
         storage_path = config.get_storage_path(filename)
-        with open(storage_path) as converted_vtt:
+        with open(storage_path, encoding="utf-8") as converted_vtt:
             filecontents = converted_vtt.read()
             assert fixture['check_words'] in filecontents, 'missing check_words in converted subs'
 
@@ -416,7 +416,7 @@ def test_convertible_substitles_weirdext_subtitlesformat():
     assert filename, 'conferted filename must exit'
     assert filename.endswith('.vtt'), 'conferted filename must have .vtt extension'
     storage_path = config.get_storage_path(filename)
-    with open(storage_path) as converted_vtt:
+    with open(storage_path, encoding="utf-8") as converted_vtt:
         filecontents = converted_vtt.read()
         assert 'El total de los protones y neutrones de un átomo' in filecontents, \
             'missing check words in converted subs'
