@@ -773,8 +773,8 @@ class SubtitleFile(DownloadFile):
 
         config.LOGGER.info("\tDownloading {}".format(path))
 
-        _, temp_in_file_name = tempfile.mkstemp()
-        _, temp_out_file_name = tempfile.mkstemp()
+        fdin, temp_in_file_name = tempfile.mkstemp()
+        fdout, temp_out_file_name = tempfile.mkstemp()
 
         with open(temp_in_file_name, mode="w+b") as temp_in_file,\
                 open(temp_out_file_name, mode="w+b") as temp_out_file:
@@ -813,17 +813,10 @@ class SubtitleFile(DownloadFile):
             copy_file_to_storage(filename, temp_out_file)
             FILECACHE.set(key, bytes(filename, "utf-8"))
 
-        # This can raise permission errors on Windows
-        # so just let this get cleaned up later by the system
-        try:
-            os.remove(temp_in_file_name)
-        except OSError:
-            pass
-        try:
-            os.remove(temp_out_file_name)
-        except OSError:
-            pass
-
+        os.close(fdin)
+        os.remove(temp_in_file_name)
+        os.close(fdout)
+        os.remove(temp_out_file_name)
         return filename
 
 
