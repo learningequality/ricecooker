@@ -815,7 +815,7 @@ class ArchiveDownloader:
 
         index_path = self.get_relative_index_path(url)
 
-        os.makedirs(os.path.dirname(os.path.join(temp_dir, index_path)))
+        os.makedirs(os.path.dirname(os.path.join(temp_dir, index_path)), exist_ok=True)
         shutil.copy(info['index_path'], os.path.join(temp_dir, index_path))
         return temp_dir
 
