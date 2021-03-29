@@ -44,8 +44,7 @@ jobs:
         sudo apt-get install -y ffmpeg
         sudo apt-get install -y poppler-utils
         curl --output pdftk https://gitlab.com/pdftk-java/pdftk/-/jobs/924565150/artifacts/raw/build/native-image/pdftk
-        sudo chmod +x pdftk
-        export PATH="$(pwd):$PATH"
+        sudo install pdftk /usr/bin
       if: matrix.os == 'ubuntu-latest'
     - name: Cache Mac dependencies
       uses: actions/cache@v2
