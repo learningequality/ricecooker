@@ -43,6 +43,7 @@ jobs:
         sudo apt-get -y -qq update
         sudo apt-get install -y ffmpeg
         sudo apt-get install -y poppler-utils
+        sudo apt-get install -y pdftk-java
       if: matrix.os == 'ubuntu-latest'
     - name: Cache Mac dependencies
       uses: actions/cache@v2
@@ -51,7 +52,10 @@ jobs:
         path: ~/Library/Caches/Homebrew
         key: ${{ runner.os }}-brew-${{ hashFiles('.github/workflows/pythontest.yml') }}
     - name: Install Mac dependencies
-      run: brew install ffmpeg poppler
+      run: |
+        brew install ffmpeg poppler
+        curl --output pdftk.pgk https://www.pdflabs.com/tools/pdftk-the-pdf-toolkit/pdftk_server-2.02-mac_osx-10.6-setup.pkg
+        installer -pkg pdftk.pkg -target CurrentUserHomeDirectory
       if: matrix.os == 'macos-latest'
     - name: Windows dependencies cache
       id: windowscache
@@ -65,13 +69,16 @@ jobs:
       run: |
         curl --output ffmpeg.zip https://web.archive.org/web/20200916110500if_/https://ffmpeg.zeranoe.com/builds/win64/static/ffmpeg-20200831-4a11a6f-win64-static.zip
         curl --output poppler.7z http://blog.alivate.com.au/wp-content/uploads/2018/10/poppler-0.68.0_x86.7z
+        curl --output pdftk.exe https://www.pdflabs.com/tools/pdftk-the-pdf-toolkit/pdftk_server-2.02-win-setup.exe
         7z x ffmpeg.zip -otools -y
         7z x poppler.7z -otools -y
+        pdftx.exe /extract:tools /passive /quiet
     - name: Set paths to Windows dependencies
       if: matrix.os == 'windows-latest'
       run: |
         echo "$pwd\tools\ffmpeg-20200831-4a11a6f-win64-static\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
         echo "$pwd\tools\poppler-0.68.0\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        echo "$pwd\tools\pdftk\bin\pdftk.exe" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
     - name: Cache pip
       if: ${{ !startsWith(runner.os, 'windows') }}
       uses: actions/cache@v2
