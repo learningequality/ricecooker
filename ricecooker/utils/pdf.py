@@ -1,5 +1,7 @@
 import os
+import subprocess
 
+from tempfile import NamedTemporaryFile
 from PyPDF2 import PdfFileWriter, PdfFileReader
 from PyPDF2.generic import Destination, NullObject
 from PyPDF2.utils import PdfReadError
@@ -71,8 +73,100 @@ class PDFParser(object):
         if not self.path:
             raise ValueError("self.path not found; call `open` first")
 
-
     def get_toc(self, subchapters=False):
+        temp_file = NamedTemporaryFile()
+        subprocess.run(["pdftk", self.file.name, "dump_data_utf8", "output", temp_file.name])
+
+        # pdftk output keys for parsing control simplicity
+        CHAPTER_DELIMITER = "BookmarkBegin"
+        LAST_CHAPTER_DELIMITER = "PageMediaBegin"
+        TITLE = "BookmarkTitle"
+        LEVEL = "BookmarkLevel"
+        PAGE_START = "BookmarkPageNumber"
+        NUM_OF_PAGES = "NumberOfPages"
+
+        def get_line_value(_line):
+            # Get everything right of the : sans spaces and newlines and quotes
+            return _line.split(":")[-1].strip(" \n")
+
+        # Start by parsing each of the Bookmarks from the pdftk output into a
+        # usable Python dictionary for further processing - this includes children
+        chapters = []
+        num_of_pages = None
+        chapter = None
+        for line in temp_file.readlines():
+            line = line.decode('utf-8')
+
+            # If we're at the delimiters, we're parsing a new chapter or we're done
+            if CHAPTER_DELIMITER in line or LAST_CHAPTER_DELIMITER in line:
+                # If we have chapter and we already filled it out - cast it to dict
+                # to pass by value and not by reference to append() (shallow copy only)
+                if chapter and None not in chapter.values():
+                    chapters.append(dict(chapter))
+                # No matter what, we should leave this by initializing chapter anew
+                chapter = {key: None for key in [TITLE, LEVEL, PAGE_START]}
+                continue
+            elif NUM_OF_PAGES in line:
+                num_of_pages = int(get_line_value(line))
+            elif TITLE in line:
+                chapter[TITLE] = get_line_value(line).replace("\xa0", " ")
+            elif LEVEL in line:
+                chapter[LEVEL] = int(get_line_value(line))
+            elif PAGE_START in line:
+                chapter[PAGE_START] = int(get_line_value(line)) - 1
+
+
+        toc = []
+        for idx, chapter in enumerate(chapters):
+            if chapter[LEVEL] == 1:
+                try:
+                    # page_end is the start_page of the next chapter where it is level 1 (root node)
+                    page_end = [ch for ch in chapters[idx+1:] if ch[LEVEL] == 1][0][PAGE_START]
+                except (KeyError, IndexError):
+                    # We got the `num_of_pages` variable for this exact reason - we're at the last
+                    # chapter and it's last page is going to be this value
+                    page_end = num_of_pages
+
+                content = {
+                    'title': chapter[TITLE],
+                    'page_start': chapter[PAGE_START],
+                    'page_end': page_end
+                }
+                toc.append(content)
+            else:
+                if not subchapters:
+                    continue
+
+                # We want to get the next child to help us get correct page numbers
+                next_child = None
+                try:
+                    next_child = chapters[idx+1]
+                except (KeyError, IndexError):
+                    # We're not mad about it, just don't want to crash over it as
+                    # the other acceptable value for next_child is None
+                    pass
+
+                # All items are in order - so the last in toc is the parent
+                parent = toc[-1]
+
+                if "children" not in parent:
+                    parent["children"] = list()
+
+                parent["children"].append(
+                    {
+                        'title': chapter[TITLE],
+                        'page_start': chapter[PAGE_START],
+                        # If there is not next_child, we're on the last item and page_end == page_start + 1
+                        # - the +1 is because `page_end` refers to the page after you end.
+                        'page_end': next_child and next_child[PAGE_START] or (chapter[PAGE_START] + 1)
+                    }
+                )
+
+        toc[-1]['page_end'] = num_of_pages
+        temp_file.close()
+        return toc
+
+    def get_old_toc(self, subchapters=False):
         """
         Returns table-of-contents information extracted from the PDF doc.
         When `subchapters=False`, the output is a list of this form
@@ -134,7 +228,6 @@ class PDFParser(object):
                         subindex +=1
 
         return chapters
-
 
     def write_pagerange(self, pagerange, prefix=''):
         """

@@ -24,7 +24,7 @@ def downloads_dir():
 @pytest.fixture
 def doc1_with_toc_path():
     doc1_with_toc_path = os.path.join('tests', 'testcontent', 'samples', 'sample_doc_with_toc.pdf')
-    assert os.path.exists(doc1_with_toc_path), 'Error mising test file ' + doc1_with_toc_path
+    assert os.path.exists(doc1_with_toc_path), 'Error missing test file ' + doc1_with_toc_path
     return doc1_with_toc_path
 
 def _save_file_url_to_path(url, path):
