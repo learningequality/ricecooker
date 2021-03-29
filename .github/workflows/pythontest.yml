@@ -72,7 +72,7 @@ jobs:
         curl --output pdftk.exe https://www.pdflabs.com/tools/pdftk-the-pdf-toolkit/pdftk_server-2.02-win-setup.exe
         7z x ffmpeg.zip -otools -y
         7z x poppler.7z -otools -y
-        pdftx.exe /extract:tools /passive /quiet
+        pdftk.exe /extract:tools /passive /quiet
     - name: Set paths to Windows dependencies
       if: matrix.os == 'windows-latest'
       run: |
