@@ -43,7 +43,9 @@ jobs:
         sudo apt-get -y -qq update
         sudo apt-get install -y ffmpeg
         sudo apt-get install -y poppler-utils
-        sudo apt-get install -y pdftk-java
+        curl --output pdftk https://gitlab.com/pdftk-java/pdftk/-/jobs/924565150/artifacts/raw/build/native-image/pdftk
+        sudo chmod +x pdftk
+        export PATH="$(pwd):$PATH"
       if: matrix.os == 'ubuntu-latest'
     - name: Cache Mac dependencies
       uses: actions/cache@v2
@@ -54,8 +56,8 @@ jobs:
     - name: Install Mac dependencies
       run: |
         brew install ffmpeg poppler
-        curl --output pdftk.pgk https://www.pdflabs.com/tools/pdftk-the-pdf-toolkit/pdftk_server-2.02-mac_osx-10.6-setup.pkg
-        installer -pkg pdftk.pkg -target CurrentUserHomeDirectory
+        curl --output ./pdftk.pgk https://www.pdflabs.com/tools/pdftk-the-pdf-toolkit/pdftk_server-2.02-mac_osx-10.6-setup.pkg
+        installer -pkg ./pdftk.pkg -target CurrentUserHomeDirectory
       if: matrix.os == 'macos-latest'
     - name: Windows dependencies cache
       id: windowscache
