@@ -1,0 +1,10 @@
+{% extends "!footer.html" %}
+{%- block extrafooter %}
+    <span>
+      &copy; {% trans %}Copyright{% endtrans %} {{ copyright }}
+    </span><br />
+    <span>
+      Licensed under a Creative Commons Attribution-ShareAlike 4.0 International License.
+    </span>
+    {{ super() }}
+{% endblock %}

@@ -1,3 +1,5 @@
+:orphan:
+
 .. Note this page exists for backward compatibility (since we sent this link)
    to partners, we don't want them to hit a 404.
 
