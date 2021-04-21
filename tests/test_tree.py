@@ -290,7 +290,7 @@ def test_custom_navigation_node_via_files(channel):
     assert custom_navigation_node.kind == 'topic'
     assert len(custom_navigation_node.files) == 2, 'missing files'
     assert custom_navigation_node.extra_fields, 'missing extra_fields'
-    assert 'modality' in custom_navigation_node.extra_fields and custom_navigation_node.extra_fields["modality"] == "CUSTOM_NAVIGATION", 'missing custom navigation modality'
+    assert "options" in custom_navigation_node.extra_fields and 'modality' in custom_navigation_node.extra_fields["options"] and custom_navigation_node.extra_fields["options"]["modality"] == "CUSTOM_NAVIGATION", 'missing custom navigation modality'
     custom_navigation_node.process_files()
     channel.add_child(custom_navigation_node)
     assert channel.validate_tree()
@@ -327,7 +327,7 @@ def test_custom_navigation_node_via_add_file(channel):
     assert custom_navigation_node.kind == 'topic'
     assert len(custom_navigation_node.files) == 2, 'missing files'
     assert custom_navigation_node.extra_fields, 'missing extra_fields'
-    assert 'modality' in custom_navigation_node.extra_fields and custom_navigation_node.extra_fields["modality"] == "CUSTOM_NAVIGATION", 'missing custom navigation modality'
+    assert "options" in custom_navigation_node.extra_fields and 'modality' in custom_navigation_node.extra_fields["options"] and custom_navigation_node.extra_fields["options"]["modality"] == "CUSTOM_NAVIGATION", 'missing custom navigation modality'
     custom_navigation_node.process_files()
     channel.add_child(custom_navigation_node)
     assert channel.validate_tree()
@@ -365,7 +365,7 @@ def test_custom_navigation_channel_node_via_files():
     assert custom_navigation_channel_node.kind == 'Channel'
     assert len(custom_navigation_channel_node.files) == 2, 'missing files'
     assert custom_navigation_channel_node.extra_fields, 'missing extra_fields'
-    assert 'modality' in custom_navigation_channel_node.extra_fields and custom_navigation_channel_node.extra_fields["modality"] == "CUSTOM_NAVIGATION", 'missing custom navigation modality'
+    assert 'options' in custom_navigation_channel_node.extra_fields and 'modality' in custom_navigation_channel_node.extra_fields["options"] and custom_navigation_channel_node.extra_fields["options"]["modality"] == "CUSTOM_NAVIGATION", 'missing custom navigation modality'
     custom_navigation_channel_node.set_thumbnail(thumbimg1)
     custom_navigation_channel_node.process_files()
     assert custom_navigation_channel_node.validate_tree()
@@ -403,7 +403,7 @@ def test_custom_navigation_channel_node_via_add_file():
     assert custom_navigation_channel_node.kind == 'Channel'
     assert len(custom_navigation_channel_node.files) == 2, 'missing files'
     assert custom_navigation_channel_node.extra_fields, 'missing extra_fields'
-    assert 'modality' in custom_navigation_channel_node.extra_fields and custom_navigation_channel_node.extra_fields["modality"] == "CUSTOM_NAVIGATION", 'missing custom navigation modality'
+    assert 'options' in custom_navigation_channel_node.extra_fields and 'modality' in custom_navigation_channel_node.extra_fields["options"] and custom_navigation_channel_node.extra_fields["options"]["modality"] == "CUSTOM_NAVIGATION", 'missing custom navigation modality'
     custom_navigation_channel_node.set_thumbnail(thumbimg1)
     custom_navigation_channel_node.process_files()
     assert custom_navigation_channel_node.validate_tree()

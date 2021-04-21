@@ -1069,7 +1069,9 @@ class CustomNavigationNode(ContentNode):
     required_file_format = file_formats.HTML5
 
     def __init__(self, *args, **kwargs):
-        kwargs["extra_fields"] = {'modality': "CUSTOM_NAVIGATION"}
+        kwargs["extra_fields"] = kwargs.get("extra_fields", {})
+        kwargs["extra_fields"]["options"] = kwargs["extra_fields"].get("options", {})
+        kwargs["extra_fields"]["options"].update({'modality': "CUSTOM_NAVIGATION"})
         super(CustomNavigationNode, self).__init__(*args, **kwargs)
 
     def generate_thumbnail(self):
@@ -1102,7 +1104,9 @@ class CustomNavigationChannelNode(ChannelNode):
     required_file_format = file_formats.HTML5
 
     def __init__(self, *args, **kwargs):
-        kwargs["extra_fields"] = {'modality': "CUSTOM_NAVIGATION"}
+        kwargs["extra_fields"] = kwargs.get("extra_fields", {})
+        kwargs["extra_fields"]["options"] = kwargs["extra_fields"].get("options", {})
+        kwargs["extra_fields"]["options"].update({'modality': "CUSTOM_NAVIGATION"})
         super(CustomNavigationChannelNode, self).__init__(*args, **kwargs)
 
     def validate(self):
