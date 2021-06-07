@@ -6,7 +6,6 @@ import re
 import requests
 from tempfile import TemporaryDirectory
 
-from PyPDF2 import PdfFileReader
 from ricecooker.classes import nodes, files
 
 from ricecooker.utils.pdf import PDFParser                                 # SIT
@@ -160,17 +159,16 @@ def test_split_subchapters(doc1_with_toc_path, downloads_dir):
         assert _get_pdf_len(chapters[3]) == 3, 'wrong num pages in ' + str(chapters[3])
 
         ch4 = chapters[4]
-        assert 'children' in ch4, 'no children'
+        assert ('children' in ch4) == True, 'no children'
         assert len(ch4['children']) == 2
         assert _get_pdf_len(ch4['children'][0]) == 1, 'wrong num pages in ' + str(ch4['children'][0])
         assert _get_pdf_len(ch4['children'][1]) == 1, 'wrong num pages in ' + str(ch4['children'][1])
 
         ch5 = chapters[5]
-        assert 'children' in ch5, 'no children'
-        assert len(ch5['children']) == 3
+        assert ('children' in ch5) == True, 'no children'
+        assert len(ch5['children']) == 2
         assert _get_pdf_len(ch5['children'][0]) == 1, 'wrong num pages in ' + str(ch5['children'][0])
         assert _get_pdf_len(ch5['children'][1]) == 1, 'wrong num pages in ' + str(ch5['children'][1])
-        assert _get_pdf_len(ch5['children'][2]) == 1, 'wrong num pages in ' + str(ch5['children'][2])
 
 
 
@@ -209,9 +207,8 @@ def _get_pdf_len(str_or_dict_with_path_attr):
         path = str_or_dict_with_path_attr
     else:
         path = str_or_dict_with_path_attr['path']
-    with open(path, 'rb') as pdffile:
-        pdf = PdfFileReader(pdffile)
-        return pdf.numPages
+    with PDFParser(path) as pdf:
+        return pdf.number_of_pages()
 
 
 def _check_pagerange_matches_title_len(pagerange):

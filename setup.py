@@ -26,7 +26,6 @@ requirements = [
     "lockfile==0.12.2",                       # TODO: check if this is necessary
     "css-html-js-minify==2.2.2",
     "mock==2.0.0",
-    "pypdf2>=1.26.0",
     "dictdiffer>=0.8.0",
     "Pillow==5.4.1",
     "colorlog>=4.1.0,<4.2",
