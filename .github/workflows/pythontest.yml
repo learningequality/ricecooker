@@ -55,7 +55,7 @@ jobs:
     - name: Install Mac dependencies
       run: |
         brew install ffmpeg poppler
-        curl --output ./pdftk.pgk https://www.pdflabs.com/tools/pdftk-the-pdf-toolkit/pdftk_server-2.02-mac_osx-10.6-setup.pkg
+        curl --output ./pdftk.pkg https://www.pdflabs.com/tools/pdftk-the-pdf-toolkit/pdftk_server-2.02-mac_osx-10.6-setup.pkg
         installer -pkg ./pdftk.pkg -target CurrentUserHomeDirectory
       if: matrix.os == 'macos-latest'
     - name: Windows dependencies cache
