@@ -381,6 +381,18 @@ class File(object):
 
     def get_filename(self):
         return self.filename or self.process_file()
+    
+    @property
+    def checksum(self):
+        return self.get_filename().split(".")[0]
+    
+    @property
+    def extension(self):
+        return self.get_filename().split(".")[1]
+    
+    @property
+    def size(self):
+        return os.path.getsize(config.get_storage_path(self.get_filename()))
 
     def truncate_fields(self):
         if self.original_filename and len(self.original_filename) > config.MAX_ORIGINAL_FILENAME_LENGTH:
@@ -399,7 +411,7 @@ class File(object):
         if filename:
             if os.path.isfile(config.get_storage_path(filename)):
                 return {
-                    'size': os.path.getsize(config.get_storage_path(filename)),
+                    'size': self.size,
                     'preset': self.get_preset(),
                     'filename': filename,
                     'original_filename': self.original_filename,

@@ -162,6 +162,12 @@ FILE_DIFF_URL = "{domain}/api/internal/file_diff"
 # URL for uploading files to server
 FILE_UPLOAD_URL = "{domain}/api/internal/file_upload"
 
+# URL for getting an upload URL from the server
+GET_UPLOAD_URL = "{domain}/api/file/upload_url"
+
+# URL for getting a file from the server
+FILE_STORAGE_URL = "{domain}/content/storage/{f}/{s}/{filename}"
+
 # URL for creating channel on server
 CREATE_CHANNEL_URL = "{domain}/api/internal/create_channel"
 
@@ -396,6 +402,20 @@ def file_upload_url():
         Returns: string url to file_upload endpoint
     """
     return FILE_UPLOAD_URL.format(domain=DOMAIN)
+
+def get_upload_url():
+    """ file_upload_url: returns url to upload files
+        Args: None
+        Returns: string url to file_upload endpoint
+    """
+    return GET_UPLOAD_URL.format(domain=DOMAIN)
+
+def get_storage_url(filename):
+    """ get_storage_url: returns the URL for a given file on the storage service
+        Args: filename (str): Name of file
+        Returns: string URL for file
+    """
+    return FILE_STORAGE_URL.format(domain=DOMAIN, f=filename[0], s=filename[1], filename=filename)
 
 def create_channel_url():
     """ create_channel_url: returns url to create channel

@@ -1,5 +1,9 @@
+import codecs
 import json
+import requests
 import sys
+
+from requests.exceptions import RequestException
 
 from .. import config
 
@@ -15,6 +19,7 @@ class ChannelManager:
         self.uploaded_files = []
         self.failed_node_builds = {}
         self.failed_uploads = {}
+        self.file_map = {}
 
     def validate(self):
         """ validate: checks if tree structure is valid
@@ -46,6 +51,9 @@ class ChannelManager:
             self.process_tree_recur(file_names, child_node)  # Call children first in case a tiled thumbnail is needed
 
         file_names.extend(node.process_files())
+
+        for node_file in node.files:
+            self.file_map[node_file.get_filename()] = node_file
 
 
     def check_for_files_failed(self):
@@ -89,6 +97,39 @@ class ChannelManager:
 
         return file_diff_result
 
+    def do_file_upload(self, f):
+        with open(config.get_storage_path(f), 'rb') as file_obj:
+            file_data = self.file_map[f]
+            data = {
+                "size": file_data.size,
+                "checksum": file_data.checksum,
+                "name": file_data.original_filename or file_data.get_filename(),
+                "file_format": file_data.extension,
+                "preset": file_data.get_preset(),
+            }
+            url_response = config.SESSION.post(config.get_upload_url(), data=data)
+            if url_response.status_code == 200:
+                response_data = url_response.json()
+                upload_url = response_data['uploadURL']
+                content_type = response_data['mimetype']
+                might_skip = response_data['might_skip']
+                if might_skip:
+                    head_response = config.SESSION.head(config.get_storage_url(f))
+                    if head_response.status_code == 200:
+                        return
+                b64checksum = codecs.encode(codecs.decode(file_data.checksum, 'hex'), 'base64').decode().strip()
+                headers = {
+                    'Content-Type': content_type,
+                    'Content-MD5': b64checksum,
+                }
+                response = config.SESSION.put(upload_url, headers=headers, data=file_obj)
+                if response.status_code == 200:
+                    return
+                raise RequestException(response._content.decode("utf-8"))
+            else:
+                raise RequestException(url_response._content.decode("utf-8"))
+
+
     def upload_files(self, file_list):
         """ upload_files: uploads files to server
             Args:
@@ -99,15 +140,14 @@ class ChannelManager:
         files_to_upload = list(set(file_list) - set(self.uploaded_files)) # In case restoring from previous session
         try:
             for f in files_to_upload:
-                with open(config.get_storage_path(f), 'rb') as file_obj:
-                    response = config.SESSION.post(config.file_upload_url(), files={'file': file_obj})
-                    if response.status_code == 200:
-                        response.raise_for_status()
-                        self.uploaded_files.append(f)
-                        counter += 1
-                        config.LOGGER.info("\tUploaded {0} ({count}/{total}) ".format(f, count=counter, total=len(files_to_upload)))
-                    else:
-                        self.failed_uploads[f] = response._content.decode('utf-8')
+                try:
+                    self.do_file_upload(f)
+                    self.uploaded_files.append(f)
+                    counter += 1
+                    config.LOGGER.info("\tUploaded {0} ({count}/{total}) ".format(f, count=counter, total=len(files_to_upload)))
+                except Exception as e:
+                    config.LOGGER.info(e)
+                    self.failed_uploads[f] = str(e)
         finally:
             config.PROGRESS_MANAGER.set_uploading(self.uploaded_files)
 
