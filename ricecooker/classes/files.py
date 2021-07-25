@@ -18,19 +18,19 @@ from urllib.parse import urlparse
 
 from le_utils.constants import languages
 from le_utils.constants import file_formats, format_presets, exercises
-from pressurecooker.encodings import get_base64_encoding, write_base64_to_file
-from pressurecooker.images import create_image_from_pdf_page
-from pressurecooker.images import create_image_from_epub
-from pressurecooker.images import create_image_from_zip
-from pressurecooker.videos import extract_thumbnail_from_video
-from pressurecooker.images import create_waveform_image
-from pressurecooker.images import create_tiled_image
-from pressurecooker.images import ThumbnailGenerationError
-from pressurecooker.subtitles import build_subtitle_converter_from_file
-from pressurecooker.subtitles import LANGUAGE_CODE_UNKNOWN
-from pressurecooker.subtitles import InvalidSubtitleFormatError, InvalidSubtitleLanguageError
-from pressurecooker.videos import guess_video_preset_by_resolution, compress_video, VideoCompressionError
-from pressurecooker.youtube import YouTubeResource
+from ricecooker.utils.encodings import get_base64_encoding, write_base64_to_file
+from ricecooker.utils.images import create_image_from_pdf_page
+from ricecooker.utils.images import create_image_from_epub
+from ricecooker.utils.images import create_image_from_zip
+from ricecooker.utils.videos import extract_thumbnail_from_video
+from ricecooker.utils.images import create_waveform_image
+from ricecooker.utils.images import create_tiled_image
+from ricecooker.utils.images import ThumbnailGenerationError
+from ricecooker.utils.subtitles import build_subtitle_converter_from_file
+from ricecooker.utils.subtitles import LANGUAGE_CODE_UNKNOWN
+from ricecooker.utils.subtitles import InvalidSubtitleFormatError, InvalidSubtitleLanguageError
+from ricecooker.utils.videos import guess_video_preset_by_resolution, compress_video, VideoCompressionError
+from ricecooker.utils.youtube import YouTubeResource
 
 from .. import config
 from ..exceptions import UnknownFileTypeError

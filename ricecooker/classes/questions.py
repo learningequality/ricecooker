@@ -12,7 +12,7 @@ from le_utils.constants import content_kinds,file_formats, format_presets, licen
 from .. import config
 from ..exceptions import UnknownQuestionTypeError, InvalidQuestionException
 from .files import _ExerciseImageFile, _ExerciseGraphieFile, _ExerciseBase64ImageFile
-from pressurecooker.encodings import get_base64_encoding
+from ricecooker.utils.encodings import get_base64_encoding
 
 
 WEB_GRAPHIE_URL_REGEX = r'web\+graphie:(?P<rawpath>[^\)]+)'  # match web_graphie:{{path}}

@@ -18,7 +18,6 @@ requirements = [
     "validators",                             # TODO: check if this is necessary
     "requests_file",
     "beautifulsoup4>=4.6.3,<4.9.0",   # pinned to match versions in le-pycaption
-    "pressurecooker>=0.0.30",
     "selenium==3.0.1",
     "youtube-dl>=2020.6.16.1",
     "html5lib",
@@ -32,12 +31,15 @@ requirements = [
     "colorlog>=4.1.0,<4.2",
     "PyYAML>=5.3.1",
     "Jinja2>=2.10",
-    "chardet==4.0.0"
+    "chardet==4.0.0",
+    "ffmpy>=0.2.2",
+    "matplotlib==2.2.3",
+    "numpy==1.15.4",
+    "pdf2image==1.11.0",
+    "le-pycaption>=2.2.0a1",
+    "EbookLib>=0.17.1",
 ]
 
-test_requirements = [
-    # TODO: put package test requirements here
-]
 
 setup(
     name='ricecooker',
@@ -72,5 +74,4 @@ setup(
         'Topic :: Education',
     ],
     test_suite='tests',
-    tests_require=test_requirements
 )

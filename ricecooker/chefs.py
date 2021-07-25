@@ -30,7 +30,7 @@ from .utils.metadata_provider import DEFAULT_EXERCISES_INFO_FILENAME
 from .utils.tokens import get_content_curation_token
 from .utils.youtube import YouTubeVideoUtils, YouTubePlaylistUtils
 
-from pressurecooker.images import convert_image
+from ricecooker.utils.images import convert_image
 
 
 # SUSHI CHEF BASE CLASS
