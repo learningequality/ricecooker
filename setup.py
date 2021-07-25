@@ -33,8 +33,6 @@ requirements = [
     "Jinja2>=2.10",
     "chardet==4.0.0",
     "ffmpy>=0.2.2",
-    "matplotlib==2.2.3",
-    "numpy==1.15.4",
     "pdf2image==1.11.0",
     "le-pycaption>=2.2.0a1",
     "EbookLib>=0.17.1",

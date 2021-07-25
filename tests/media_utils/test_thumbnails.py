@@ -1,4 +1,3 @@
-import matplotlib
 import os
 import PIL
 import pytest
@@ -57,32 +56,6 @@ class BaseThumbnailGeneratorTestCase(object):
         assert float(width)/float(height) == 16.0/9.0
         if SHOW_THUMBS: im.show()
         return im
-
-
-
-class Test_mp3_thumbnail_generation(BaseThumbnailGeneratorTestCase):
-
-    def test_generates_16_9_thumbnail(self, tmpdir):
-        input_file = os.path.join(files_dir, 'Wilhelm_Scream.mp3')
-        assert os.path.exists(input_file)
-        output_file = tmpdir.join('Wilhelm_Screen_thumbnail.png').strpath
-        images.create_waveform_image(input_file, output_file, colormap_options=studio_cmap_options)
-        self.check_16_9_format(output_file)
-        # TODO: Store the expected output and compare the contents to the generated file?
-
-    def test_raises_for_missing_file(self, tmpdir):
-        input_file = os.path.join(files_dir, 'file_that_does_not_exist.mp3')
-        assert not os.path.exists(input_file)
-        output_file = tmpdir.join('thumbnail.png').strpath
-        with pytest.raises(images.ThumbnailGenerationError):
-            images.create_waveform_image(input_file, output_file, colormap_options=studio_cmap_options)
-
-    def test_raises_for_invalid_mp3(self, tmpdir, bad_audio_file):
-        input_file = bad_audio_file.name
-        output_file = tmpdir.join('thumbnail.png').strpath
-        with pytest.raises(images.ThumbnailGenerationError):
-            images.create_waveform_image(input_file, output_file, colormap_options=studio_cmap_options)
-
 
 class Test_pdf_thumbnail_generation(BaseThumbnailGeneratorTestCase):
 

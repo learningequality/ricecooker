@@ -1,27 +1,12 @@
-import math
-import tempfile
-import numpy as np
 import os
-import wave
-import subprocess
-import sys
-import matplotlib
 import zipfile
 import ebooklib
 import ebooklib.epub
 from io import BytesIO
 
-# Set the backend to avoid platform-specific differences in MPLBACKEND
-matplotlib.use("PS")
 
-import matplotlib.pyplot as plt
-from matplotlib.figure import Figure
-from matplotlib.colors import LinearSegmentedColormap
-from matplotlib.backends.backend_agg import FigureCanvasAgg
 from pdf2image import convert_from_path
-from PIL import Image, ImageOps
-
-from le_utils.constants import file_formats
+from PIL import Image
 
 from .thumbscropping import scale_and_crop
 
@@ -133,72 +118,6 @@ def create_image_from_pdf_page(fpath_in, fpath_out, page_number=0, crop=None):
         page.save(fpath_out, 'PNG')
     except Exception as e:
         raise ThumbnailGenerationError("Fail on PDF {} {}".format(fpath_in, e))
-
-
-def create_waveform_image(fpath_in, fpath_out, max_num_of_points=None, colormap_options=None):
-    """
-    Create a waveform image from audio file at fpath_in and write to fpath_out.
-    Colormap info: http://matplotlib.org/examples/color/colormaps_reference.html
-    """
-    colormap_options = colormap_options or {}
-    cmap_name = colormap_options.get('name') or 'cool'
-    vmin = colormap_options.get('vmin') or 0
-    vmax = colormap_options.get('vmax') or 1
-    color = colormap_options.get('color') or 'w'
-
-    tempwav_fh, tempwav_name = tempfile.mkstemp(suffix=".wav")
-    os.close(tempwav_fh)  # close the file handle so ffmpeg can write to the file
-    try:
-        ffmpeg_cmd = ['ffmpeg', '-y', '-loglevel', 'panic', '-i', fpath_in]
-        # The below settings apply to the WebM encoder, which doesn't seem to be
-        # built by Homebrew on Mac, so we apply them conditionally
-        if not sys.platform.startswith('darwin'):
-            ffmpeg_cmd.extend(['-cpu-used', '-16'])
-        ffmpeg_cmd += [tempwav_name]
-        result = subprocess.check_output(ffmpeg_cmd)
-
-        spf = wave.open(tempwav_name, 'r')
-
-        # Extract raw audio from wav file
-        signal = spf.readframes(-1)
-        spf.close()
-        signal = np.frombuffer(signal, np.int16)
-
-        # Get subarray from middle
-        length = len(signal)
-        count = max_num_of_points or length
-        subsignals = signal[int((length-count)/2):int((length+count)/2)]
-
-        # Set up max and min values for axes
-        X = [[.6, .6], [.7, .7]]
-        xmin, xmax = xlim = 0, count
-        max_y_axis = max(-min(subsignals), max(subsignals))
-        ymin, ymax = ylim = -max_y_axis, max_y_axis
-
-        # Set up canvas according to user settings
-        (xsize, ysize) = (THUMBNAIL_SIZE[0]/100.0, THUMBNAIL_SIZE[1]/100.0)
-        figure = Figure(figsize=(xsize, ysize), dpi=100)
-        canvas = FigureCanvasAgg(figure)
-        ax = figure.add_subplot(111, xlim=xlim, ylim=ylim, autoscale_on=False, frameon=False)
-        ax.set_yticklabels([])
-        ax.set_xticklabels([])
-        ax.set_xticks([])
-        ax.set_yticks([])
-        cmap = plt.get_cmap(cmap_name)
-        cmap = LinearSegmentedColormap.from_list(
-            'trunc({n},{a:.2f},{b:.2f})'.format(n=cmap.name, a=vmin, b=vmax),
-            cmap(np.linspace(vmin, vmax, 100))
-        )
-        ax.imshow(X, interpolation='bicubic', cmap=cmap, extent=(xmin, xmax, ymin, ymax), alpha=1)
-
-        # Plot points
-        ax.plot(np.arange(count), subsignals, color)
-        ax.set_aspect("auto")
-        canvas.print_figure(fpath_out)
-    except (subprocess.CalledProcessError, Exception) as e:
-        raise ThumbnailGenerationError("Failed file {} {}".format(fpath_in, e))
-    finally:
-        os.remove(tempwav_name)
 
 
 # TILED THUMBNAILS FOR TOPIC NODES (FOLDERS)

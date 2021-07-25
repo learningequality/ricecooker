@@ -6,8 +6,7 @@ import hashlib
 import os
 from PIL import Image
 import json
-import requests
-from requests.exceptions import MissingSchema, HTTPError, ConnectionError, InvalidURL, InvalidSchema
+from requests.exceptions import HTTPError, ConnectionError, InvalidURL, InvalidSchema
 import shutil
 from subprocess import CalledProcessError
 import tempfile
@@ -23,7 +22,6 @@ from ricecooker.utils.images import create_image_from_pdf_page
 from ricecooker.utils.images import create_image_from_epub
 from ricecooker.utils.images import create_image_from_zip
 from ricecooker.utils.videos import extract_thumbnail_from_video
-from ricecooker.utils.images import create_waveform_image
 from ricecooker.utils.images import create_tiled_image
 from ricecooker.utils.images import ThumbnailGenerationError
 from ricecooker.utils.subtitles import build_subtitle_converter_from_file
@@ -1001,15 +999,6 @@ class ExtractedVideoThumbnailFile(ExtractedThumbnailFile):
 
     def extractor_fun(self, fpath_in, thumbpath_out, **kwargs):
         extract_thumbnail_from_video(fpath_in, thumbpath_out, **kwargs)
-
-
-class ExtractedAudioThumbnailFile(ExtractedThumbnailFile):
-    studio_cmap_options = {'name': 'BuPu', 'vmin': 0.3, 'vmax': 0.7, 'color': 'black'}
-    extractor_kwargs = {'colormap_options': studio_cmap_options}
-
-    def extractor_fun(self, fpath_in, thumbpath_out, **kwargs):
-        create_waveform_image(fpath_in, thumbpath_out, **kwargs)
-
 
 class TiledThumbnailFile(ThumbnailPresetMixin, File):
     allowed_formats = [file_formats.JPG, file_formats.JPEG, file_formats.PNG]

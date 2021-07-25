@@ -682,17 +682,6 @@ class AudioNode(ContentNode):
     kind = content_kinds.AUDIO
     required_file_format = file_formats.MP3
 
-    def generate_thumbnail(self):
-        from .files import AudioFile, ExtractedAudioThumbnailFile
-        audio_files = [f for f in self.files if isinstance(f, AudioFile)]
-        if audio_files:
-            audio_file = audio_files[0]
-            if audio_file.filename and not audio_file.error:
-                storage_path = config.get_storage_path(audio_file.filename)
-                return ExtractedAudioThumbnailFile(storage_path)
-        return None
-
-
     def validate(self):
         """ validate: Makes sure audio is valid
             Args: None
