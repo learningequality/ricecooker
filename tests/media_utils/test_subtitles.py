@@ -43,9 +43,13 @@ class SubtitleConverterTest(TestCase):
         converter = build_subtitle_converter_from_file(os.path.join(test_files_dir, 'basic.srt'))
         converter.replace_unknown_language(expected_language.code)
 
-        with tempfile.NamedTemporaryFile() as actual_file:
-            converter.write(actual_file.name, expected_language.code)
-            self.assertFileHashesEqual(expected_file, actual_file.name)
+        actual_file_d, actual_file_name = tempfile.mkstemp()
+
+        converter.write(actual_file_name, expected_language.code)
+        self.assertFileHashesEqual(expected_file, actual_file_name)
+
+        os.close(actual_file_d)
+        os.remove(actual_file_name)
 
     def test_expected_srt_conversion(self):
         expected_format = file_formats.SRT
@@ -56,9 +60,14 @@ class SubtitleConverterTest(TestCase):
             os.path.join(test_files_dir, 'basic.srt'), in_format=expected_format)
         converter.replace_unknown_language(expected_language.code)
 
-        with tempfile.NamedTemporaryFile() as actual_file:
-            converter.write(actual_file.name, expected_language.code)
-            self.assertFileHashesEqual(expected_file, actual_file.name)
+        actual_file_d, actual_file_name = tempfile.mkstemp()
+
+        converter.write(actual_file_name, expected_language.code)
+        self.assertFileHashesEqual(expected_file, actual_file_name)
+
+        os.close(actual_file_d)
+        os.remove(actual_file_name)
+
 
     def test_not_expected_type(self):
         expected_format = file_formats.SCC
@@ -94,9 +103,13 @@ class SubtitleConverterTest(TestCase):
             os.path.join(test_files_dir, 'encapsulated.sami'))
         self.assertTrue(converter.has_language(expected_language.code))
 
-        with tempfile.NamedTemporaryFile() as actual_file:
-            converter.write(actual_file.name, expected_language.code)
-            self.assertFileHashesEqual(expected_file, actual_file.name)
+        actual_file_d, actual_file_name = tempfile.mkstemp()
+
+        converter.write(actual_file_name, expected_language.code)
+        self.assertFileHashesEqual(expected_file, actual_file_name)
+
+        os.close(actual_file_d)
+        os.remove(actual_file_name)
 
     def test_invalid_language(self):
         expected_language = languages.getlang_by_name('Spanish')
