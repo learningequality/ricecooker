@@ -1,3 +1,4 @@
+import codecs
 import os
 import hashlib
 import tempfile
@@ -20,10 +21,10 @@ class SubtitleConverterTest(TestCase):
 
         return hash.hexdigest()
 
-    def assertFileHashesEqual(self, expected_file, actual_file):
-        expected_hash = self.get_file_hash(expected_file)
-        actual_hash = self.get_file_hash(actual_file)
-        self.assertEqual(expected_hash, actual_hash)
+    def assertFilesEqual(self, expected_file, actual_file):
+        with codecs.open(actual_file, 'rb', encoding='utf-8') as act, codecs.open(expected_file, 'rb', encoding='utf-8') as exp:
+            for actual_str, expected_str in zip(act.readlines(), exp.readlines()):
+                self.assertEqual(actual_str.strip(), expected_str.strip())
 
     def test_replace_unknown_language(self):
         expected_language = languages.getlang_by_name('Arabic')
@@ -46,7 +47,7 @@ class SubtitleConverterTest(TestCase):
         actual_file_d, actual_file_name = tempfile.mkstemp()
 
         converter.write(actual_file_name, expected_language.code)
-        self.assertFileHashesEqual(expected_file, actual_file_name)
+        self.assertFilesEqual(expected_file, actual_file_name)
 
         os.close(actual_file_d)
         os.remove(actual_file_name)
@@ -63,7 +64,7 @@ class SubtitleConverterTest(TestCase):
         actual_file_d, actual_file_name = tempfile.mkstemp()
 
         converter.write(actual_file_name, expected_language.code)
-        self.assertFileHashesEqual(expected_file, actual_file_name)
+        self.assertFilesEqual(expected_file, actual_file_name)
 
         os.close(actual_file_d)
         os.remove(actual_file_name)
@@ -106,7 +107,7 @@ class SubtitleConverterTest(TestCase):
         actual_file_d, actual_file_name = tempfile.mkstemp()
 
         converter.write(actual_file_name, expected_language.code)
-        self.assertFileHashesEqual(expected_file, actual_file_name)
+        self.assertFilesEqual(expected_file, actual_file_name)
 
         os.close(actual_file_d)
         os.remove(actual_file_name)
