@@ -152,14 +152,11 @@ You’re probably already a legend in Ireland!
 
 What just happened?
 ~~~~~~~~~~~~~~~~~~~
-As you can tell from the above messages, running a ``sushichef.py`` involves all
-kinds of steps that are orchestrated by the ricecooker framework:
-  - The channel structure is created based on the output of the method
-    ``construct_channel`` of the ``SimpleChef`` class
+As you can tell from the above messages, running a ``sushichef.py`` involves all kinds of steps that are orchestrated by the ricecooker framework:
+  - The channel structure is created based on the output of the method ``construct_channel`` of the ``SimpleChef`` class
   - The tree structure and metadata are validated
   - All referenced files are downloaded locally (saved in the ``storage`` directory)
-  - New files are uploaded to Kolibri Studio (in the above case no new files are
-    uploaded because the files already exist on Studio from a previous run)
+  - New files are uploaded to Kolibri Studio (in the above case no new files are uploaded because the files already exist on Studio from a previous run)
   - The channel structure and metadata is uploaded to Kolibri Studio
   - A link is printed for you to view the channel draft you just uploaded
 
