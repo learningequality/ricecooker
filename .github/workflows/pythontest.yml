@@ -54,6 +54,7 @@ jobs:
         key: ${{ runner.os }}-brew-${{ hashFiles('.github/workflows/pythontest.yml') }}
     - name: Install Mac dependencies
       run: |
+        chsh -s /bin/zsh
         brew install ffmpeg poppler
         curl --output ./pdftk.pkg https://www.pdflabs.com/tools/pdftk-the-pdf-toolkit/pdftk_server-2.02-mac_osx-10.6-setup.pkg
         installer -pkg ./pdftk.pkg -target CurrentUserHomeDirectory
