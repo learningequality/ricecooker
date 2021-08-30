@@ -4,8 +4,8 @@ import pytest
 
 from le_utils.constants import licenses
 from ricecooker import config
-from ricecooker.classes.files import AudioFile, DocumentFile, EPubFile, HTMLZipFile, ThumbnailFile, TiledThumbnailFile, SlideImageFile, SubtitleFile, VideoFile
-from ricecooker.classes.nodes import AudioNode, ChannelNode, DocumentNode, ExerciseNode, HTML5AppNode, SlideshowNode, TopicNode, VideoNode
+from ricecooker.classes.files import AudioFile, DocumentFile, HTMLZipFile, ThumbnailFile, TiledThumbnailFile, VideoFile
+from ricecooker.classes.nodes import AudioNode, DocumentNode, HTML5AppNode, TopicNode, VideoNode
 
 from test_tree import thumbnail_path, thumbnail_path_jpg
 from test_videos import low_res_video
@@ -191,14 +191,6 @@ class TestThumbnailGeneration(object):
     def test_generate_thumbnail_from_video(self, video_file):
         node = VideoNode('vid-src-id', "Video", licenses.PUBLIC_DOMAIN, thumbnail=None)
         node.add_file(video_file)
-        config.THUMBNAILS = True
-        filenames = node.process_files()
-        assert len(filenames) == 2, 'expected two filenames'
-        self.check_has_thumbnail(node)
-
-    def test_generate_thumbnail_from_audio(self, audio_file):
-        node = AudioNode('audio-src-id', "Audio", licenses.PUBLIC_DOMAIN, thumbnail=None)
-        node.add_file(audio_file)
         config.THUMBNAILS = True
         filenames = node.process_files()
         assert len(filenames) == 2, 'expected two filenames'
