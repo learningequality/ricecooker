@@ -232,7 +232,6 @@ def test_add_files_with_preset(channel):
         testf.write('something something')
     zip_path = create_predictable_zip(inputdir)
 
-
     files = [{
         "file_type": file_types.HTML5,
         "path": zip_path,
@@ -255,14 +254,17 @@ def test_add_files_with_preset(channel):
         thumbnail="tests/testcontent/samples/thumbnail.jpg",
         files=files
     )
-    topic_node["children"].append(audio_node)
     topic_node["children"].append(html5_dict)
+    topic_node["children"].append(audio_node)
     parent_node = build_tree_from_json(channel, [topic_node])
-    print("*******************")
-    print(parent_node.print_tree())
-    print(parent_node.get_json_tree())
+    topic_node = parent_node.children[0]
+    html5_node = topic_node.children[0]
     assert parent_node.validate_tree()
-    assert parent_node.to_dict()
+    assert parent_node
+    assert parent_node.children[0]
+    assert topic_node.kind == 'topic'
+    assert len(html5_node.files) == 3
+    assert html5_node.files[2].get_preset() == format_presets.AUDIO_DEPENDENCY
 
 
 """ *********** SLIDESHOW CONTENT NODE TESTS *********** """
