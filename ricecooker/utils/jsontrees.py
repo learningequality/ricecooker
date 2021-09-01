@@ -256,7 +256,7 @@ def add_files(node, file_list):
             raise NotImplementedError('Unexpected File type found in channel json.')
 
         path = f.get('path')  # path can be an URL or a local path (or None)
-        preset = f.get('preset')
+        preset = f.get('preset', None)
 
         # handle different types of files
         if file_type == VIDEO_FILE:
