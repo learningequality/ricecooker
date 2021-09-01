@@ -1,28 +1,9 @@
 import os
 import subprocess
 
+from re import sub
 from tempfile import mkstemp
 from ricecooker.utils.downloader import read
-
-
-# pdftk output keys for parsing control simplicity
-BOOKMARK_BEGIN = "BookmarkBegin"
-LAST_BOOKMARK_BEGIN = "PageMediaBegin"
-TITLE = "BookmarkTitle"
-LEVEL = "BookmarkLevel"
-PAGE_START = "BookmarkPageNumber"
-NUM_OF_PAGES = "NumberOfPages"
-
-
-def get_pdftk_line_value(line):
-    """
-    Returns everything right of the : in the given line. Useful for getting the value
-    for a key in pdftk dump_data* output
-    :param line:string
-    :return:string
-    """
-    # Get everything right of the : sans spaces and newlines and quotes
-    return line.split(":")[-1].strip(" \n")
 
 
 class PDFParser(object):
@@ -67,7 +48,8 @@ class PDFParser(object):
                 fobj.write(read(self.source_path))
 
         self.file = open(self.path, "rb")
-        self.pdftk_dump_data = self._pdftk_dump_data()
+        self.cpdf_output = self._cpdf_output()
+        self.page_count = self._number_of_pages()
 
     def close(self):
         """
@@ -75,76 +57,78 @@ class PDFParser(object):
         """
         self.file.close()  # Make sure zipfile closes no matter what
 
-    def number_of_pages(self):
+    def _number_of_pages(self):
         """
         Returns the number of pages in the document
         """
-        x = int(
-            get_pdftk_line_value(
-                # Find the line where the # of pages is defined
-                next(line for line in self.pdftk_dump_data if NUM_OF_PAGES in line)
+        try:
+            out = subprocess.run(
+                ["cpdf", self.file.name, "-pages"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
             )
-        )
-        return x
+        except subprocess.CalledProcessError as e:
+            print("Error: ", e.stderr.decode('utf8'))
+            raise
+
+        return int(out.stdout.decode('utf8').strip())
+
 
     def check_path(self):
         if not self.path:
             raise ValueError("self.path not found; call `open` first")
 
     def get_toc(self, subchapters=False):
-        # This function was reimplemented in the move from PyPDF2 to pdftk for
-        # processing PDF files and extracting the bookmarks metadata.
-        # PyPDF2 was 0-indexed
-        # pdftk is 1-indexed - so you'll see some -1s going on in here to simplify
-        # the transition so that PDFParser works just as it did before
+        """
+        Parses self.cpdf_output to generate list of Bookmarks where a
+        Bookmark has a title, page_start, page_end and optionally children
+        of that same form
+        """
+
         chapters = list()
+        for idx, line in enumerate(self.cpdf_output):
+            try:
+                if line:
+                    level, title, page_start = line.split('"')[0:3]
+                else:
+                    continue
+            except ValueError as e:
+                print("Error splitting line ", line.split('"'), e)
+                raise
 
-        # Init a chapter dict with None for its values. Note: page_end isn't
-        # initialized here because it is calculated later on
-        def new_chapter():
-            return {key: None for key in [TITLE, LEVEL, PAGE_START]}
+            # Splitting this way makes it easy to get the data I want, but 
+            # comes along with padded whitespace
+            level = int(level.strip())
+            # Sometimes this isn't only numbers - cpdf output is funky
+            page_start = int(sub(r"[^0-9]", "", page_start)) - 1 
 
-        # Checks that given chapter does not have None in its values
-        def chapter_is_completed(chapter):
-            return None not in chapter.values()
-
-        chapter = new_chapter()
-
-        # The dump needs to be processed line-by-line to get chapter data
-        for idx, line in enumerate(self.pdftk_dump_data):
-            # If the line is BOOKMARK_BEGIN or LAST_BOOKMARK_BEGIN then we
-            # are about to start building a new set of chapter data.
-            if BOOKMARK_BEGIN in line or LAST_BOOKMARK_BEGIN in line:
-                if chapter_is_completed(chapter):
-                    parent_chapter = next(
-                        (
-                            c
-                            for c in reversed(chapters)
-                            if chapter[LEVEL] - c[LEVEL] == 1
-                        ),
-                        None,
-                    )
-                    if parent_chapter:
-                        chapter["parent"] = parent_chapter["id"]
-                    chapter["id"] = idx  # Used to simplify hierarchy lookups
-                    chapters.append(dict(chapter))
-                    chapter = new_chapter()
-            elif NUM_OF_PAGES in line:
-                num_of_pages = int(get_pdftk_line_value(line))
-            elif TITLE in line:
-                chapter[TITLE] = get_pdftk_line_value(line).replace("\xa0", " ")
-            elif LEVEL in line:
-                chapter[LEVEL] = int(get_pdftk_line_value(line))
-            elif PAGE_START in line:
-                # Accommodate with -1 change to pdftk from PyPDF2
-                chapter[PAGE_START] = int(get_pdftk_line_value(line)) - 1
+            # add all level 0 in any case, but everything if subchapters is True
+            if level == 0 or subchapters:
+                parent_chapter = next(
+                    (
+                        c
+                        for c in reversed(chapters)
+                        if level - c["level"] == 1
+                    ),
+                    None,
+                )
+                parent = None
+                if parent_chapter:
+                    parent = parent_chapter["id"]
+                chapters.append({
+                    "id": idx,
+                    "title": title,
+                    "level": level,
+                    "page_start": page_start,
+                    "parent": parent,
+                })
 
         flat_chapters = list()
         for idx, chapter in enumerate(chapters):
-
+            chapter["id"] = idx # simplifies hierarchy lookups
             def are_siblings(ch1, ch2):
                 # Returns whether both items are root or are children of the same parent
-                return (ch1[LEVEL] == 1 and ch2[LEVEL] == 1) or ch1.get(
+                return (ch1["level"] == 0 and ch2["level"] == 0) or ch1.get(
                     "parent", True
                 ) == ch2.get("parent", False)
 
@@ -154,7 +138,7 @@ class PDFParser(object):
             )
 
             # Handle potential subchapters (or skip them)
-            if chapter[LEVEL] > 1:
+            if chapter["level"] > 0:
                 if not subchapters:
                     continue
 
@@ -166,33 +150,34 @@ class PDFParser(object):
                         (
                             c
                             for c in reversed(flat_chapters)
-                            if chapter[LEVEL] - c[LEVEL] == 1
+                            if chapter["level"] - c["level"] == 1
                         ),
                         None,
-                    )
+                    ) or dict()
                     chapter["page_end"] = parent_chapter["page_end"]
                     flat_chapters.append(chapter)
                     continue
 
                 # We're working with one of several children of the same level - the page end of this is
-                # the PAGE_START of the next_chapter_of_same_level
-                chapter["page_end"] = next_chapter_of_same_level[PAGE_START]
+                # the page_start of the next_chapter_of_same_level
+                chapter["page_end"] = next_chapter_of_same_level["page_start"]
                 flat_chapters.append(chapter)
+
             else:
                 # For non-subchapters, the process is the same
                 if not next_chapter_of_same_level:
                     # For the last chapter the page_end is the last page of the doc
-                    chapter["page_end"] = num_of_pages
+                    chapter["page_end"] = self.page_count
                 else:
-                    chapter["page_end"] = next_chapter_of_same_level[PAGE_START]
+                    chapter["page_end"] = next_chapter_of_same_level["page_start"]
                 flat_chapters.append(chapter)
 
         # Recursively takes the chapter data we built above and converts it to the dict
         # that this class's methods expect
         def chapter_to_toc(chapter):
             content = {
-                "title": chapter[TITLE],
-                "page_start": chapter[PAGE_START],
+                "title": chapter["title"],
+                "page_start": chapter["page_start"],
                 "page_end": chapter["page_end"],  # for now
             }
             if subchapters:
@@ -207,34 +192,34 @@ class PDFParser(object):
             return content
 
         # Get just the root bookmark chapters - we'll use these as a starting point
-        root_chapters = [chapter for chapter in flat_chapters if chapter[LEVEL] == 1]
+        root_chapters = [chapter for chapter in flat_chapters if chapter["level"] == 0]
         toc = list()
         for chapter in root_chapters:
             toc.append(chapter_to_toc(chapter))
 
         return toc
 
+
     def write_pagerange(self, pagerange, prefix=""):
         """
         Save the subset of pages specified in `pagerange` (dict) as separate PDF.
-        e.g. pagerange = {'title':'First chapter', 'page_start':0, 'page_end':5}
+        e.g. pagerange = {"title": "First chapter", "page_start": 0, "page_end": 1 }
         """
         slug = "".join(
-            [c for c in pagerange["title"].replace(" ", "-") if c.isalnum() or c == "-"]
+            [c for c in pagerange["title"].replace(" ","-") if c.isalnum() or c == "-"]
         )
         write_to_path = os.path.sep.join(
-            [self.directory, "{}{}.pdf".format(prefix, slug)]
+            [self.directory, "{}{}.pdf".format(prefix,slug)]
         )
-        pdftk_command = "pdftk A={} cat A{}-{} output {}".format(
-            self.file.name,
-            pagerange["page_start"] + 1,
-            pagerange["page_end"],
-            write_to_path,
-        ).split(" ")
-        subprocess.run(pdftk_command)
-        print(write_to_path)
-        print(pagerange)
+        formatted_range = "{}-{}".format(pagerange["page_start"] + 1, pagerange["page_end"])
+        command = ["cpdf", self.file.name, formatted_range, "-o", write_to_path]
+        try:
+            out = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        except subprocess.CalledProcessError as e:
+            print("Error: ", e.stderr.decode('utf8'))
+            raise
         return write_to_path
+
 
     def split_chapters(self, jsondata=None, prefix=""):
         """
@@ -302,16 +287,19 @@ class PDFParser(object):
 
         return chapters
 
-    def _pdftk_dump_data(self):
+    def _cpdf_output(self):
         """
-        Runs pdftk dump_data_utf8 and puts it into tempfile. This method
-        returns the contents of that file as a list via readlines()
-        :param self:
-        :return: list of lines from the pdftk dump_data_utf8 output
+        Runs the cpdf command extracting utf-8 bookmarks
+        :return: list of lines from cpdf -utf-8 -list-bookmarks output for self.file
         """
-        fptr, file_path = mkstemp()
-        subprocess.run(["pdftk", self.file.name, "dump_data_utf8", "output", file_path])
-        lines = list()
-        with open(file_path) as f:
-            lines = f.readlines()
-        return lines
+        try:
+            out = subprocess.run(
+                ["cpdf", self.file.name, "-utf8", "-list-bookmarks", "-stdout"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+        except subprocess.CalledProcessError as e:
+            print("Error: ", e.stderr.decode('utf8'))
+            raise
+        return out.stdout.decode('utf8').split("\n")
+

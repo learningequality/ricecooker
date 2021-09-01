@@ -116,7 +116,7 @@ def test_split_chapters2(doc2_with_toc_path, downloads_dir):
 
 
 def test_split_chapters3(doc3_with_toc_path, downloads_dir):
-    # print(doc3_with_toc_path)
+    print(doc3_with_toc_path)
     with PDFParser(doc3_with_toc_path, directory=downloads_dir) as pdfparser:
         chapters = pdfparser.split_chapters()
         # pprint(chapters)
@@ -208,7 +208,7 @@ def _get_pdf_len(str_or_dict_with_path_attr):
     else:
         path = str_or_dict_with_path_attr['path']
     with PDFParser(path) as pdf:
-        return pdf.number_of_pages()
+        return pdf.page_count
 
 
 def _check_pagerange_matches_title_len(pagerange):
