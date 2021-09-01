@@ -72,13 +72,12 @@ jobs:
         curl --output cpdf.exe https://github.com/coherentgraphics/cpdf-binaries/blob/master/Windows64bit/cpdf.exe
         7z x ffmpeg.zip -otools -y
         7z x poppler.7z -otools -y
-        Start-Process -Filepath "$pwd\cpdf.exe" -ArgumentList @("/extract:tools", "/passive", "/quiet")
     - name: Set paths to Windows dependencies
       if: matrix.os == 'windows-latest'
       run: |
         echo "$pwd\tools\ffmpeg-20200831-4a11a6f-win64-static\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
         echo "$pwd\tools\poppler-0.68.0\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-        echo "$pwd\tools\cpdf\bin\cpdf.exe" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        echo "$pwd\cpdf.exe" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
     - name: Cache pip
       if: ${{ !startsWith(runner.os, 'windows') }}
       uses: actions/cache@v2
