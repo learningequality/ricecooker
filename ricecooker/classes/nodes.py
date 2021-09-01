@@ -382,7 +382,7 @@ class TreeNode(Node):
             extra_fields (dict): any additional data needed for node (optional)
             domain_ns (str): who is providing the content (e.g. learningequality.org) (optional)
     """
-    def __init__(self, source_id, title, author="", aggregator="", provider="", tags=None, domain_ns=None, **kwargs):
+    def __init__(self, source_id, title, author="", aggregator="", provider="", tags=None, domain_ns=None,preset=None, **kwargs):
         # Map parameters to model variables
         assert isinstance(source_id, str), "source_id must be a string"
         self.source_id = source_id
@@ -391,6 +391,7 @@ class TreeNode(Node):
         self.provider = provider or ""
         self.tags = tags or []
         self.domain_ns = domain_ns
+        self.preset = preset
         self.questions = self.questions if hasattr(self, 'questions') else [] # Needed for to_dict method
 
         super(TreeNode, self).__init__(title, **kwargs)
@@ -437,7 +438,7 @@ class TreeNode(Node):
         """
         # default natural sorting
         if not key:
-            convert = lambda text: int(text) if text.isdigit() else text.lower() 
+            convert = lambda text: int(text) if text.isdigit() else text.lower()
             key = lambda key: [ convert(re.sub(r'[^A-Za-z0-9]+', '', c.replace('&', 'and'))) for c in re.split('([0-9]+)', key.title) ]
         self.children = sorted(self.children, key = key, reverse = reverse)
         return self.children

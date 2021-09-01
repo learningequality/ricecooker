@@ -1,4 +1,3 @@
-
 import json
 import os
 
@@ -8,13 +7,15 @@ from ricecooker.config import LOGGER
 from ricecooker.exceptions import UnknownFileTypeError, UnknownQuestionTypeError
 from ricecooker.classes.nodes import ChannelNode
 
-
-
 # CONSTANTS USED TO SELECT APPROPRIATE CLASS DURING DESERIALIZATION FROM JSON
 ################################################################################
 from le_utils.constants import roles
 
 from le_utils.constants import content_kinds
+# TODO(Ivan): add constants.file_types to le_utils and discuss with Jordan
+from le_utils.constants import file_types
+from le_utils.constants import exercises
+
 TOPIC_NODE = content_kinds.TOPIC
 VIDEO_NODE = content_kinds.VIDEO
 AUDIO_NODE = content_kinds.AUDIO
@@ -23,8 +24,7 @@ DOCUMENT_NODE = content_kinds.DOCUMENT
 HTML5_NODE = content_kinds.HTML5
 SLIDESHOW_NODE = content_kinds.SLIDESHOW
 
-# TODO(Ivan): add constants.file_types to le_utils and discuss with Jordan
-from le_utils.constants import file_types
+
 VIDEO_FILE = file_types.VIDEO
 AUDIO_FILE = file_types.AUDIO
 DOCUMENT_FILE = file_types.DOCUMENT
@@ -34,14 +34,12 @@ THUMBNAIL_FILE = file_types.THUMBNAIL
 SUBTITLES_FILE = file_types.SUBTITLES
 SLIDESHOW_IMAGE_FILE = file_types.SLIDESHOW_IMAGE
 
-from le_utils.constants import exercises
+
 INPUT_QUESTION = exercises.INPUT_QUESTION
 MULTIPLE_SELECTION = exercises.MULTIPLE_SELECTION
 SINGLE_SELECTION = exercises.SINGLE_SELECTION
 FREE_RESPONSE = exercises.FREE_RESPONSE
 PERSEUS_QUESTION = exercises.PERSEUS_QUESTION
-
-
 
 
 # JSON READ/WRITE HELPERS
@@ -56,6 +54,7 @@ def read_tree_from_json(srcpath):
         if json_tree is None:
             raise ValueError('Could not find ricecooker json tree')
     return json_tree
+
 
 def write_tree_to_json_tree(destpath, json_tree):
     """
@@ -85,6 +84,7 @@ def get_channel_node_from_json(json_tree):
         thumbnail=json_tree.get('thumbnail', None),
     )
     return channel
+
 
 def build_tree_from_json(parent_node, sourcetree):
     """
@@ -132,6 +132,7 @@ def build_tree_from_json(parent_node, sourcetree):
                 thumbnail=source_node.get('thumbnail'),
                 derive_thumbnail=source_node.get('derive_thumbnail', False),
                 tags=source_node.get('tags'),
+                preset=source_node.get('preset')
             )
             add_files(child_node, source_node.get('files') or [])
             parent_node.add_child(child_node)
@@ -150,6 +151,7 @@ def build_tree_from_json(parent_node, sourcetree):
                 thumbnail=source_node.get('thumbnail'),
                 derive_thumbnail=source_node.get('derive_thumbnail', False),
                 tags=source_node.get('tags'),
+                preset=source_node.get('preset')
             )
             add_files(child_node, source_node.get('files') or [])
             parent_node.add_child(child_node)
@@ -205,6 +207,7 @@ def build_tree_from_json(parent_node, sourcetree):
                 thumbnail=source_node.get('thumbnail'),
                 derive_thumbnail=source_node.get('derive_thumbnail', False),
                 tags=source_node.get('tags'),
+                preset=source_node.get('preset')
             )
             add_files(child_node, source_node.get('files') or [])
             parent_node.add_child(child_node)
@@ -247,6 +250,7 @@ def add_files(node, file_list):
             raise NotImplementedError('Unexpected File type found in channel json.')
 
         path = f.get('path')  # path can be an URL or a local path (or None)
+        preset = f.get('preset', None)
 
         # handle different types of files
         if file_type == VIDEO_FILE:
@@ -258,6 +262,7 @@ def add_files(node, file_list):
                     high_resolution=f.get('high_resolution', False),
                     maxheight=f.get('maxheight', None),
                     language=f.get('language', None),
+                    preset=preset
                 )
             elif 'web_url' in f:
                 video_file = files.WebVideoFile(
@@ -266,6 +271,7 @@ def add_files(node, file_list):
                     high_resolution=f.get('high_resolution', False),
                     maxheight=f.get('maxheight', None),
                     language=f.get('language', None),
+                    preset=preset
                 )
             else:
                 video_file = files.VideoFile(
@@ -275,12 +281,13 @@ def add_files(node, file_list):
                 )
             node.add_file(video_file)
 
-
         elif file_type == AUDIO_FILE:
             node.add_file(
                 files.AudioFile(
                     path=f['path'],
-                    language=f.get('language', None)
+                    language=f.get('language', None),
+                    preset=preset
+
                 )
             )
 
@@ -288,7 +295,9 @@ def add_files(node, file_list):
             node.add_file(
                 files.DocumentFile(
                     path=path,
-                    language=f.get('language', None)
+                    language=f.get('language', None),
+                    preset=preset
+
                 )
             )
 
@@ -296,7 +305,9 @@ def add_files(node, file_list):
             node.add_file(
                 files.EPubFile(
                     path=path,
-                    language=f.get('language', None)
+                    language=f.get('language', None),
+                    preset=preset
+
                 )
             )
 
@@ -304,7 +315,9 @@ def add_files(node, file_list):
             node.add_file(
                 files.HTMLZipFile(
                     path=path,
-                    language=f.get('language', None)
+                    language=f.get('language', None),
+                    preset=preset
+
                 )
             )
 
@@ -405,4 +418,6 @@ def add_questions(exercise_node, question_list):
             exercise_node.add_question(q_obj)
 
         else:
-            raise UnknownQuestionTypeError('Unrecognized question type {0}: accepted types are {1}'.format(question_type, [key for key, value in exercises.question_choices]))
+            raise UnknownQuestionTypeError(
+                'Unrecognized question type {0}: accepted types are {1}'.format(question_type, [key for key, value in
+                                                                                                exercises.question_choices]))
