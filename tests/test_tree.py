@@ -207,13 +207,31 @@ def test_add_files_with_preset(channel):
         language=getlang('ar').code,
         children=[],
     )
+    audio_path = os.path.join("tests/media_utils/audio/file_example_MP3_700KB.mp3")
+
+    audio_node = dict(
+        kind=content_kinds.AUDIO,
+        source_id="audio_node",
+        title='audio_node',
+        description='audio_node description',
+        language=getlang("ar").code,
+        license=get_license('CC BY', copyright_holder='Demo Holdings').as_dict(),
+        author='author name',
+        preset=format_presets.AUDIO_DEPENDENCY,
+        files=[
+            {
+                "file_type": file_types.AUDIO,
+                "path": audio_path,
+                "language": getlang("ar").code,
+            }
+        ],
+    )
 
     inputdir = tempfile.mkdtemp()
     with open(os.path.join(inputdir, 'index.html'), 'w') as testf:
         testf.write('something something')
     zip_path = create_predictable_zip(inputdir)
 
-    audio_path = os.path.join("tests/media_utils/audio/file_example_MP3_700KB.mp3")
 
     files = [{
         "file_type": file_types.HTML5,
@@ -237,11 +255,12 @@ def test_add_files_with_preset(channel):
         thumbnail="tests/testcontent/samples/thumbnail.jpg",
         files=files
     )
-
+    topic_node["children"].append(audio_node)
     topic_node["children"].append(html5_dict)
     parent_node = build_tree_from_json(channel, [topic_node])
     print("*******************")
-    print("parent_node.files", parent_node.print_tree(indent=0))
+    print(parent_node.print_tree())
+    print(parent_node.get_json_tree())
     assert parent_node.validate_tree()
     assert parent_node.to_dict()
 

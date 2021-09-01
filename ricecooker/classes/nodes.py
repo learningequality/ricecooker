@@ -467,6 +467,7 @@ class TreeNode(Node):
             "copyright_holder": "",
             "questions": [],
             "extra_fields": json.dumps(self.extra_fields),
+            "preset": self.preset
         }
 
     def validate(self):
@@ -599,6 +600,7 @@ class ContentNode(TreeNode):
             "questions": [question.to_dict() for question in self.questions],
             "extra_fields": json.dumps(self.extra_fields),
             "role": self.role,
+            "preset": self.preset
         }
 
 

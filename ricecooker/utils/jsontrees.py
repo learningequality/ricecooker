@@ -113,6 +113,7 @@ def build_tree_from_json(parent_node, sourcetree):
                 thumbnail=source_node.get('thumbnail'),
                 derive_thumbnail=source_node.get('derive_thumbnail', False),
                 tags=source_node.get('tags'),
+                preset=source_node.get('preset')
             )
             parent_node.add_child(child_node)
             source_tree_children = source_node.get('children', [])
@@ -172,6 +173,7 @@ def build_tree_from_json(parent_node, sourcetree):
                 tags=source_node.get('tags'),
                 exercise_data=source_node.get('exercise_data'),
                 questions=[],
+                preset=source_node.get('preset')
             )
             add_questions(child_node, source_node.get('questions') or [])
             parent_node.add_child(child_node)
@@ -189,6 +191,7 @@ def build_tree_from_json(parent_node, sourcetree):
                 language=source_node.get('language'),
                 thumbnail=source_node.get('thumbnail'),
                 tags=source_node.get('tags'),
+                preset=source_node.get('preset')
             )
             add_files(child_node, source_node.get('files') or [])
             parent_node.add_child(child_node)
@@ -225,7 +228,9 @@ def build_tree_from_json(parent_node, sourcetree):
                 language=source_node.get('language'),
                 thumbnail=source_node.get('thumbnail'),
                 derive_thumbnail=source_node.get('derive_thumbnail', False),
-                tags=source_node.get('tags')
+                tags=source_node.get('tags'),
+                preset=source_node.get('preset')
+
             )
             add_files(child_node, source_node.get('files') or [])
             parent_node.add_child(child_node)
