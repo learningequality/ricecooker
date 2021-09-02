@@ -217,7 +217,6 @@ def test_add_files_with_preset(channel):
         language=getlang("ar").code,
         license=get_license('CC BY', copyright_holder='Demo Holdings').as_dict(),
         author='author name',
-        preset=format_presets.AUDIO_DEPENDENCY,
         files=[
             {
                 "file_type": file_types.AUDIO,
