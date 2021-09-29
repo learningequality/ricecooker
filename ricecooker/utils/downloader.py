@@ -608,7 +608,7 @@ def archive_page(url, download_root, link_policy=None, run_js=False, strict=Fals
         _path, ext = os.path.splitext(download_path)
         index_path = download_path
         if '.htm' not in ext:
-            if download_path.endswith('/'):
+            if page_url.endswith('/'):
                 index_path = download_path + 'index.html'
             else:
                 index_path = download_path + '.html'
