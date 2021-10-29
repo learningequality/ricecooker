@@ -195,10 +195,11 @@ def download_file(url, destpath, filename=None, baseurl=None, subpath=None, midd
             if type.startswith('text'):
                 # It seems requests defaults to ISO-8859-1 when the headers don't explicitly declare an
                 # encoding. In this case, we're better off using chardet to guess instead.
-                encoding = chardet.detect(response.content)
-                if encoding and 'encoding' in encoding:
-                    response.encoding = encoding['encoding']
-                LOGGER.warning("encoding for {} = {}".format(url, response.encoding))
+                if not response.encoding:
+                    encoding = chardet.detect(response.content)
+                    if encoding and 'encoding' in encoding:
+                        response.encoding = encoding['encoding']
+                    LOGGER.warning("encoding for {} = {}".format(url, response.encoding))
                 content = response.text
 
         if not isinstance(middleware_callbacks, list):
