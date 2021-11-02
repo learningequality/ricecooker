@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 
 __author__ = 'Learning Equality'
-__email__ = 'jordan@learningequality.org'
-__version__ = '0.6.46'
+__email__ = 'info@learningequality.org'
+__version__ = '0.7.0b1'
 
 
 import sys
 
-if sys.version_info < (3, 5, 0):
-    raise RuntimeError("Ricecooker only supports Python 3.5+")
+if sys.version_info < (3, 6, 0):
+    raise RuntimeError("Ricecooker only supports Python 3.6+")
