@@ -1,5 +1,6 @@
 import os
 import zipfile
+
 from ricecooker.utils.downloader import read
 
 class HTMLWriter():

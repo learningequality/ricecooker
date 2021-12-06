@@ -1,10 +1,17 @@
 #!/usr/bin/env python
+from le_utils.constants import licenses
 
 from ricecooker.chefs import SushiChef
-from ricecooker.classes.nodes import ChannelNode, HTML5AppNode, TopicNode, VideoNode, DocumentNode, AudioNode
-from ricecooker.classes.files import DocumentFile, VideoFile, AudioFile
-from le_utils.constants import licenses
+from ricecooker.classes.files import AudioFile
+from ricecooker.classes.files import DocumentFile
+from ricecooker.classes.files import VideoFile
 from ricecooker.classes.licenses import get_license
+from ricecooker.classes.nodes import AudioNode
+from ricecooker.classes.nodes import ChannelNode
+from ricecooker.classes.nodes import DocumentNode
+from ricecooker.classes.nodes import HTML5AppNode
+from ricecooker.classes.nodes import TopicNode
+from ricecooker.classes.nodes import VideoNode
 
 class TutorialChef(SushiChef):
     """

@@ -1,7 +1,9 @@
 import os
+
 import pytest
 
-from ricecooker.utils.youtube import YouTubeVideoUtils, YouTubePlaylistUtils
+from ricecooker.utils.youtube import YouTubePlaylistUtils
+from ricecooker.utils.youtube import YouTubeVideoUtils
 
 
 """ *********** YouTube Cache FIXTURES *********** """
@@ -30,4 +32,3 @@ def test_youtube_playlist_cache(youtube_playlist_cache):
     playlist_info = youtube_playlist_cache.get_playlist_info(use_proxy=False)
     playlist_cache_filepath = os.path.join('tests', 'testcontent', 'youtubecache', 'test-playlist.json')
     assert playlist_info and os.path.exists(playlist_cache_filepath)
-    

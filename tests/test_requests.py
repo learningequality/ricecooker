@@ -1,12 +1,14 @@
 """ Tests for handling requests to Kolibri Studio """
-
 import copy
-import pytest
 import uuid
+
+import pytest
 from le_utils.constants import licenses
-from ricecooker.classes.nodes import TopicNode, DocumentNode
-from ricecooker.managers.tree import ChannelManager
+
+from ricecooker.classes.nodes import DocumentNode
+from ricecooker.classes.nodes import TopicNode
 from ricecooker.exceptions import InvalidNodeException
+from ricecooker.managers.tree import ChannelManager
 
 
 """ *********** TOPIC FIXTURES *********** """

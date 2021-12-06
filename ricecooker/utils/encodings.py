@@ -1,5 +1,5 @@
-import re
 import base64
+import re
 
 BASE64_REGEX_STR = r'data:image\/([A-Za-z]*);base64,((?:[A-Za-z0-9+\/]{4})*(?:[A-Za-z0-9+\/]{2}==|[A-Za-z0-9+\/]{3}=)*)'
 BASE64_REGEX = re.compile(BASE64_REGEX_STR, flags=re.IGNORECASE)

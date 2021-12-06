@@ -37,4 +37,3 @@ if __name__ == '__main__':
     parser.add_argument('--destzip', help='Path to a HTML5 zip file in local Kolibri installation', required=True)
     args = parser.parse_args()
     main(args)
-

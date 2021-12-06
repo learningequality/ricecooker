@@ -4,23 +4,30 @@ import json
 import mimetypes
 import os
 import re
-import requests
+import selenium.webdriver.support.ui as selenium_ui
 import shutil
 import tempfile
 import time
-from urllib.parse import urlparse, urljoin
-from urllib.request import url2pathname
 import uuid
+from selenium import webdriver
+from urllib.parse import urljoin
+from urllib.parse import urlparse
+from urllib.request import url2pathname
 
 import chardet
-
+import requests
 from bs4 import BeautifulSoup
-from selenium import webdriver
-import selenium.webdriver.support.ui as selenium_ui
 from requests_file import FileAdapter
-from ricecooker.config import LOGGER, PHANTOMJS_PATH, STRICT
-from ricecooker.utils.html import download_file, replace_links
-from ricecooker.utils.caching import CacheForeverHeuristic, FileCache, CacheControlAdapter, InvalidatingCacheControlAdapter
+
+from ricecooker.config import LOGGER
+from ricecooker.config import PHANTOMJS_PATH
+from ricecooker.config import STRICT
+from ricecooker.utils.caching import CacheControlAdapter
+from ricecooker.utils.caching import CacheForeverHeuristic
+from ricecooker.utils.caching import FileCache
+from ricecooker.utils.caching import InvalidatingCacheControlAdapter
+from ricecooker.utils.html import download_file
+from ricecooker.utils.html import replace_links
 from ricecooker.utils.zip import create_predictable_zip
 
 DOWNLOAD_SESSION = requests.Session()                          # Session for downloading content from urls

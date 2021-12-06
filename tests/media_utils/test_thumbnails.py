@@ -1,11 +1,14 @@
 import os
+
 import PIL
 import pytest
 
+from .test_videos import bad_video
+from .test_videos import high_res_video
+from .test_videos import low_res_video
+from .test_videos import TempFile
 from ricecooker.utils import images
 from ricecooker.utils import videos
-
-from .test_videos import low_res_video, high_res_video, bad_video, TempFile
 
 
 tests_dir = os.path.dirname(os.path.abspath(__file__))
@@ -271,4 +274,3 @@ def bad_png_file():
         f.write(b'no image here; tiled thumbnail processing should error out.')
         f.flush()
     return f            # returns a temporary file with a closed file descriptor
-

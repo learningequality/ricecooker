@@ -1,8 +1,8 @@
 # License models
-
-from ..exceptions import UnknownLicenseError
-from .. import config
 from le_utils.constants import licenses
+
+from .. import config
+from ..exceptions import UnknownLicenseError
 
 
 def get_license(license_id, copyright_holder=None, description=None):

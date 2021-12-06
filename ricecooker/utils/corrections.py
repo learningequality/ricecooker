@@ -2,10 +2,11 @@
 import argparse
 import copy
 import csv
-from datetime import datetime
-import dictdiffer
 import json
 import os
+from datetime import datetime
+
+import dictdiffer
 import requests
 
 from ricecooker.config import LOGGER
@@ -412,7 +413,7 @@ def remap_original_source_node_id_to_node_id(channel_tree, corrections_by_origin
                 assert results, 'no match found based on original_source_node_id search'
                 assert len(results)==1, 'multiple matches found...'
                 tree_node = results[0]
-                node_id = tree_node['node_id'] 
+                node_id = tree_node['node_id']
                 corrections_by_node_id[correction_kind][node_id] = correction
     return corrections_by_node_id
 
@@ -463,7 +464,7 @@ def apply_modifications_for_node_id(api, channel_tree, node_id, modifications_di
     for attr in ATTRS_TO_COPY:
         data[attr] = node_before[attr]
     #
-    # ADD new_values modified 
+    # ADD new_values modified
     modifications = modifications_dict['attributes']
     for attr, values_diff in modifications.items():
         if values_diff['changed']:
@@ -498,7 +499,7 @@ def apply_deletion_for_node_id(api, channel_tree, channel_id, node_id, deletion_
     studio_id = tree_node['id']
     # node_before = unresolve_children(tree_node)
     node_before = api.get_contentnode(studio_id)
-    
+
     # PREPARE data for DLETE request
     data = {}
     data['id'] = node_before['id']
@@ -655,4 +656,3 @@ def correctionsmain():
 
 if __name__ == '__main__':
     correctionsmain()
-

@@ -3,10 +3,10 @@ import shutil
 import tempfile
 
 import pytest
+from le_utils.constants import file_formats
 
 from ricecooker.utils import utils
 from ricecooker.utils import youtube
-from le_utils.constants import file_formats
 
 trees = {}
 yt_resources = {}

@@ -1,10 +1,8 @@
 import os
 import zipfile
-import ebooklib
-import ebooklib.epub
 from io import BytesIO
 
-
+import ebooklib.epub
 from pdf2image import convert_from_path
 from PIL import Image
 

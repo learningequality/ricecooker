@@ -1,6 +1,6 @@
+import logging
 import re
 import subprocess
-import logging
 
 from le_utils.constants import format_presets
 

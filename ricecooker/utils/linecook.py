@@ -1,14 +1,24 @@
 import argparse
 import os
 
-from ricecooker.config import LOGGER
 from le_utils.constants import content_kinds
-from .metadata_provider import path_to_tuple
-from .jsontrees import (TOPIC_NODE, VIDEO_NODE, AUDIO_NODE, EXERCISE_NODE,
-                        DOCUMENT_NODE, HTML5_NODE)
-from .jsontrees import (VIDEO_FILE, AUDIO_FILE, DOCUMENT_FILE, EPUB_FILE, HTML5_FILE,
-                        THUMBNAIL_FILE, SUBTITLES_FILE)
+
+from .jsontrees import AUDIO_FILE
+from .jsontrees import AUDIO_NODE
+from .jsontrees import DOCUMENT_FILE
+from .jsontrees import DOCUMENT_NODE
+from .jsontrees import EPUB_FILE
+from .jsontrees import EXERCISE_NODE
+from .jsontrees import HTML5_FILE
+from .jsontrees import HTML5_NODE
+from .jsontrees import SUBTITLES_FILE
+from .jsontrees import THUMBNAIL_FILE
+from .jsontrees import TOPIC_NODE
+from .jsontrees import VIDEO_FILE
+from .jsontrees import VIDEO_NODE
 from .jsontrees import write_tree_to_json_tree
+from .metadata_provider import path_to_tuple
+from ricecooker.config import LOGGER
 
 
 # LINECOOK CONFIGS

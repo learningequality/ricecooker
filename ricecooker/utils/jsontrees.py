@@ -1,17 +1,19 @@
 import json
 import os
 
-from ricecooker.classes import files, nodes, questions
-from ricecooker.classes.licenses import get_license
-from ricecooker.config import LOGGER
-from ricecooker.exceptions import UnknownFileTypeError, UnknownQuestionTypeError
-from ricecooker.classes.nodes import ChannelNode
-
-# CONSTANTS USED TO SELECT APPROPRIATE CLASS DURING DESERIALIZATION FROM JSON
-################################################################################
+from le_utils.constants import content_kinds
 from le_utils.constants import roles
 
-from le_utils.constants import content_kinds
+from ricecooker.classes import files
+from ricecooker.classes import nodes
+from ricecooker.classes import questions
+from ricecooker.classes.licenses import get_license
+from ricecooker.classes.nodes import ChannelNode
+from ricecooker.config import LOGGER
+from ricecooker.exceptions import UnknownFileTypeError
+from ricecooker.exceptions import UnknownQuestionTypeError
+# CONSTANTS USED TO SELECT APPROPRIATE CLASS DURING DESERIALIZATION FROM JSON
+################################################################################
 
 TOPIC_NODE = content_kinds.TOPIC
 VIDEO_NODE = content_kinds.VIDEO

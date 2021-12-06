@@ -240,7 +240,7 @@ with HTMLWriter('./myzipfile.zip') as zipper:
     # Add your code here
 ```
 
-To write the main file (`index.html` in the root of the zip file), use the 
+To write the main file (`index.html` in the root of the zip file), use the
 `write_index_contents` method:
 ```python
 contents = "<html><head></head><body>Hello, World!</body></html>"
@@ -283,4 +283,3 @@ Further reading
  - The new H5P content format (experimental support) is also conceptually similar
    but contains much more structure and metadata about the javascript libraries
    that are used. See `H5PAppNode` and the `H5PFile` for more info.
-

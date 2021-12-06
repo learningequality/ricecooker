@@ -1,4 +1,5 @@
 import requests
+
 from ricecooker.config import LOGGER
 
 
@@ -147,7 +148,7 @@ class StudioApi(object):
         """
         CONTENTNODE_ENDPOINT = self.studio_url + '/api/contentnode'
         REQUIRED_FIELDS = ['id', 'tags', 'prerequisite', 'parent']
-        assert data_has_required_keys(data, REQUIRED_FIELDS), 'missing necessary attributes'        
+        assert data_has_required_keys(data, REQUIRED_FIELDS), 'missing necessary attributes'
         # studio_id = data['id']
         url = CONTENTNODE_ENDPOINT
         # print('  semantic PATCH using PUT ' + url)
@@ -212,10 +213,3 @@ def data_has_required_keys(data, required_keys):
         if key not in data:
             verdict = False
     return verdict
-
-
-
-
-
-
-

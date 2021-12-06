@@ -1,16 +1,18 @@
 from __future__ import print_function
+
 import atexit
 import os
-import PIL
-import pytest
 import re
-import requests
-import requests_cache
 import subprocess
 import sys
 import tempfile
 
+import PIL
+import pytest
+import requests
+import requests_cache
 from le_utils.constants import format_presets
+
 from ricecooker.utils import videos
 
 

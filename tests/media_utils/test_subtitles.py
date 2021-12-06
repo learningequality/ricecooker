@@ -1,13 +1,16 @@
 import codecs
-import os
 import hashlib
+import os
 import tempfile
 from unittest import TestCase
+
+from le_utils.constants import file_formats
+from le_utils.constants import languages
+
 from ricecooker.utils.subtitles import build_subtitle_converter_from_file
-from ricecooker.utils.subtitles import LANGUAGE_CODE_UNKNOWN
 from ricecooker.utils.subtitles import InvalidSubtitleFormatError
 from ricecooker.utils.subtitles import InvalidSubtitleLanguageError
-from le_utils.constants import languages, file_formats
+from ricecooker.utils.subtitles import LANGUAGE_CODE_UNKNOWN
 
 test_files_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'files', 'subtitles')
 

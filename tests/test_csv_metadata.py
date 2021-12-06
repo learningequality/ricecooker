@@ -1,7 +1,8 @@
 """ Tests for CSV exercises channel logic """
 import os
-import pytest
 import tempfile
+
+import pytest
 
 from ricecooker.chefs import LineCook
 from ricecooker.utils.jsontrees import read_tree_from_json
@@ -20,7 +21,7 @@ def test_exercises_metadata_provider(channeldir):
     assert mp is not None, 'CsvMetadataProvider does not exist'
     mp.validate_headers()
     assert mp.has_exercises(), 'has exercises'
-    assert mp.get_channel_info()['source_id'] == 'csv_channel_with_exercises', 'check source id'    
+    assert mp.get_channel_info()['source_id'] == 'csv_channel_with_exercises', 'check source id'
     #
     assert len(mp.contentcache.keys()) == 8, 'Found too many items'
     assert len(mp.get_exercises_for_dir((channeldirname,))) == 1, 'one exercise in root'
@@ -44,7 +45,7 @@ def test_exercises_linecook(channeldir):
     )
     options = {}
     linecook.pre_run(args, options)
-    
+
     jsontree_path = os.path.join(tmpdir_path, linecook.RICECOOKER_JSON_TREE)
     assert os.path.exists(jsontree_path), 'output json exists'
     test_tree = read_tree_from_json(jsontree_path)
@@ -53,5 +54,3 @@ def test_exercises_linecook(channeldir):
     # cleanup
     os.remove(jsontree_path)
     os.rmdir(tmpdir_path)
-
-

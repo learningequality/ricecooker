@@ -1,13 +1,18 @@
 """ Tests for data validation and construction """
-
 import json
 import os
-import pytest
 import uuid
 
-from le_utils.constants import licenses, content_kinds, exercises, roles
-from ricecooker.classes.nodes import ChannelNode, TopicNode
-from ricecooker.exceptions import InvalidNodeException, InvalidQuestionException
+import pytest
+from le_utils.constants import content_kinds
+from le_utils.constants import exercises
+from le_utils.constants import licenses
+from le_utils.constants import roles
+
+from ricecooker.classes.nodes import ChannelNode
+from ricecooker.classes.nodes import TopicNode
+from ricecooker.exceptions import InvalidNodeException
+from ricecooker.exceptions import InvalidQuestionException
 
 
 """ *********** CHANNEL TESTS *********** """
@@ -170,4 +175,3 @@ def test_slideshow_to_dict(slideshow, slideshow_data):
         assert key in slideshow_dict, "Key {} is not found in to_dict method".format(key)
     for key, value in slideshow_dict.items():
          assert value == slideshow_data.get(key), "Mismatched {}: {} != {}".format(key, value, slideshow_data[key])
-

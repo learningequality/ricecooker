@@ -1,12 +1,14 @@
-import requests
-import cachecontrol
-
-from datetime import datetime, timedelta
+from datetime import datetime
+from datetime import timedelta
 from email.utils import parsedate
 
+import cachecontrol
+import requests
 from cachecontrol import CacheControlAdapter
 from cachecontrol.caches.file_cache import FileCache
-from cachecontrol.heuristics import BaseHeuristic, expire_after, datetime_to_header
+from cachecontrol.heuristics import BaseHeuristic
+from cachecontrol.heuristics import datetime_to_header
+from cachecontrol.heuristics import expire_after
 
 
 class NeverCache(BaseHeuristic):
@@ -26,7 +28,7 @@ class CacheForeverHeuristic(BaseHeuristic):
         expires = expire_after(timedelta(weeks=10*52), date=datetime.now())
         headers['expires'] = datetime_to_header(expires)
         headers['cache-control'] = 'public'
-        
+
         return headers
 
 

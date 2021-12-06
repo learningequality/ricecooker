@@ -1,14 +1,20 @@
 """ Tests for exercise nodes, questions, and files """
 import os
-import pytest
 import re
-import uuid
 import tempfile
-from le_utils.constants import licenses, content_kinds, exercises
-from ricecooker.classes.nodes import *
-from ricecooker.classes.questions import BaseQuestion, PerseusQuestion, SingleSelectQuestion
-from ricecooker.config import STORAGE_DIRECTORY
+import uuid
+
+import pytest
+from le_utils.constants import content_kinds
+from le_utils.constants import exercises
+from le_utils.constants import licenses
 from test_videos import _clear_ricecookerfilecache
+
+from ricecooker.classes.nodes import *
+from ricecooker.classes.questions import BaseQuestion
+from ricecooker.classes.questions import PerseusQuestion
+from ricecooker.classes.questions import SingleSelectQuestion
+from ricecooker.config import STORAGE_DIRECTORY
 
 TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
 TESTCONTENT_DIR = os.path.join(TESTS_DIR, 'testcontent')

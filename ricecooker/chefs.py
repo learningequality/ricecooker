@@ -1,12 +1,13 @@
 import argparse
+import csv
 import json
 import logging
 import os
-import requests
-import sys
-import csv
 import re
+import sys
 from datetime import datetime
+
+import requests
 
 from . import config
 from .classes import files
@@ -15,7 +16,6 @@ from .commands import uploadchannel_wrapper
 from .exceptions import InvalidUsageException
 from .exceptions import raise_for_invalid_channel
 from .managers.progress import Status
-
 from .utils.downloader import get_archive_filename
 from .utils.jsontrees import build_tree_from_json
 from .utils.jsontrees import get_channel_node_from_json
@@ -28,8 +28,8 @@ from .utils.metadata_provider import DEFAULT_CONTENT_INFO_FILENAME
 from .utils.metadata_provider import DEFAULT_EXERCISE_QUESTIONS_INFO_FILENAME
 from .utils.metadata_provider import DEFAULT_EXERCISES_INFO_FILENAME
 from .utils.tokens import get_content_curation_token
-from .utils.youtube import YouTubeVideoUtils, YouTubePlaylistUtils
-
+from .utils.youtube import YouTubePlaylistUtils
+from .utils.youtube import YouTubeVideoUtils
 from ricecooker.utils.images import convert_image
 
 
@@ -280,7 +280,7 @@ class SushiChef(object):
         if os.path.exists(config.DATA_PATH):
             self.CHEF_RUN_DATA = json.load(open(config.DATA_PATH))
 
-        
+
     def save_channel_tree_as_json(self, channel):
         filename = os.path.join(self.TREES_DATA_DIR, '{}.json'.format(self.CHEF_RUN_DATA['current_run']))
         os.makedirs(self.TREES_DATA_DIR, exist_ok=True)
@@ -328,7 +328,7 @@ class SushiChef(object):
         # Skip if no metadata file passed in or no updates in metadata_dict
         if metadata_dict == {}:
             return
-            
+
         is_channel = isinstance(contentNode, ChannelNode)
 
         if not is_channel:
@@ -749,4 +749,3 @@ class YouTubeSushiChef(SushiChef):
             channel.add_child(node)
 
         return channel
-

@@ -1,15 +1,20 @@
 # Node models to represent channel's tree
-
-import json
-import uuid
-import os
 import csv
+import json
+import os
+import uuid
 
-from le_utils.constants import content_kinds, exercises, file_formats, format_presets, languages, roles
+from le_utils.constants import content_kinds
+from le_utils.constants import exercises
+from le_utils.constants import file_formats
+from le_utils.constants import format_presets
+from le_utils.constants import languages
+from le_utils.constants import roles
 
-from .licenses import License
-from .. import config, __version__
+from .. import __version__
+from .. import config
 from ..exceptions import InvalidNodeException
+from .licenses import License
 
 MASTERY_MODELS = [id for id, name in exercises.MASTERY_MODELS]
 ROLES = [id for id, name in roles.choices]
@@ -887,7 +892,7 @@ class ExerciseNode(ContentNode):
             'mastery_model': exercise_data.get('mastery_model', exercises.M_OF_N),
             'randomize': exercise_data.get('randomize', True),
         })
-
+        kwargs["extra_fields"]["options"].update({'modality': "QUIZ"})
         super(ExerciseNode, self).__init__(source_id, title, license, extra_fields=exercise_data, **kwargs)
 
     def __str__(self):

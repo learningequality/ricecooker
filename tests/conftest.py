@@ -1,17 +1,38 @@
 import copy
 import glob
 import os
-import pytest
-import requests
 import uuid
 import zipfile
 
-from le_utils.constants import licenses, content_kinds, exercises, roles
+import pytest
+import requests
+from le_utils.constants import content_kinds
+from le_utils.constants import exercises
+from le_utils.constants import licenses
+from le_utils.constants import roles
+
 from ricecooker.__init__ import __version__
-from ricecooker.classes.files import AudioFile, DocumentFile, EPubFile, HTMLZipFile, ThumbnailFile, SlideImageFile, SubtitleFile, VideoFile
-from ricecooker.classes.files import _ExerciseImageFile, _ExerciseBase64ImageFile, _ExerciseGraphieFile
-from ricecooker.classes.nodes import AudioNode, ChannelNode, DocumentNode, ExerciseNode, HTML5AppNode, SlideshowNode, TopicNode, VideoNode
-from ricecooker.classes.questions import InputQuestion, SingleSelectQuestion
+from ricecooker.classes.files import _ExerciseBase64ImageFile
+from ricecooker.classes.files import _ExerciseGraphieFile
+from ricecooker.classes.files import _ExerciseImageFile
+from ricecooker.classes.files import AudioFile
+from ricecooker.classes.files import DocumentFile
+from ricecooker.classes.files import EPubFile
+from ricecooker.classes.files import HTMLZipFile
+from ricecooker.classes.files import SlideImageFile
+from ricecooker.classes.files import SubtitleFile
+from ricecooker.classes.files import ThumbnailFile
+from ricecooker.classes.files import VideoFile
+from ricecooker.classes.nodes import AudioNode
+from ricecooker.classes.nodes import ChannelNode
+from ricecooker.classes.nodes import DocumentNode
+from ricecooker.classes.nodes import ExerciseNode
+from ricecooker.classes.nodes import HTML5AppNode
+from ricecooker.classes.nodes import SlideshowNode
+from ricecooker.classes.nodes import TopicNode
+from ricecooker.classes.nodes import VideoNode
+from ricecooker.classes.questions import InputQuestion
+from ricecooker.classes.questions import SingleSelectQuestion
 
 
 
@@ -696,5 +717,3 @@ def download_fixture_file(source_url, local_path):
             f.write(chunk)
         f.flush()
         f.close()
-
-

@@ -1,9 +1,16 @@
 import codecs
-from pycaption import CaptionSet, WebVTTWriter
-from pycaption import WebVTTReader, SRTReader, SAMIReader, SCCReader, DFXPReader
-from pycaption import CaptionReadError, CaptionReadNoCaptions
-from pycaption.base import DEFAULT_LANGUAGE_CODE
+
 from le_utils.constants import file_formats
+from pycaption import CaptionReadError
+from pycaption import CaptionReadNoCaptions
+from pycaption import CaptionSet
+from pycaption import DFXPReader
+from pycaption import SAMIReader
+from pycaption import SCCReader
+from pycaption import SRTReader
+from pycaption import WebVTTReader
+from pycaption import WebVTTWriter
+from pycaption.base import DEFAULT_LANGUAGE_CODE
 
 
 LANGUAGE_CODE_UNKNOWN = DEFAULT_LANGUAGE_CODE
@@ -260,5 +267,3 @@ def build_subtitle_converter_from_file(captions_filename, in_format=None):
         captions_str = captions_file.read()
 
     return build_subtitle_converter(captions_str, in_format)
-
-

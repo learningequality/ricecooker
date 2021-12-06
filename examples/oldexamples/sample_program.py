@@ -1,16 +1,27 @@
 #!/usr/bin/env python
-
-from enum import Enum
 import json
 import os
-from os.path import join
 import re
+from enum import Enum
+from os.path import join
+
+from le_utils.constants import content_kinds
+from le_utils.constants import exercises
+from le_utils.constants import file_formats
+from le_utils.constants import format_presets
+from le_utils.constants import languages
+from le_utils.constants import licenses
 
 from ricecooker.chefs import SushiChef
-from ricecooker.classes import nodes, questions, files
+from ricecooker.classes import files
+from ricecooker.classes import nodes
+from ricecooker.classes import questions
 from ricecooker.classes.licenses import get_license
-from ricecooker.exceptions import UnknownContentKindError, UnknownFileTypeError, UnknownQuestionTypeError, InvalidFormatException, raise_for_invalid_channel
-from le_utils.constants import content_kinds,file_formats, format_presets, licenses, exercises, languages
+from ricecooker.exceptions import InvalidFormatException
+from ricecooker.exceptions import raise_for_invalid_channel
+from ricecooker.exceptions import UnknownContentKindError
+from ricecooker.exceptions import UnknownFileTypeError
+from ricecooker.exceptions import UnknownQuestionTypeError
 from ricecooker.utils.encodings import get_base64_encoding
 
 

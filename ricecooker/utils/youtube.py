@@ -1,18 +1,18 @@
-from enum import Enum
 import copy
 import json
 import logging
 import os
-import time
 import re
-import youtube_dl
-
+import time
 from datetime import datetime
+from enum import Enum
+
+import youtube_dl
 from le_utils.constants import languages
-from ricecooker.config import LOGGER
 
 from . import proxy
 from . import utils
+from ricecooker.config import LOGGER
 
 
 LOGGER = logging.getLogger("YouTubeResource")

@@ -1,10 +1,10 @@
-import pytest
 import sys
 
+import pytest
 from mock import patch
 
-from ricecooker.exceptions import InvalidUsageException
 from ricecooker.chefs import SushiChef
+from ricecooker.exceptions import InvalidUsageException
 
 
 @pytest.fixture
@@ -101,4 +101,3 @@ def test_cannot_publish_without_deploy():
     args, options = chef_arg_parser(good_cli_input)
     assert args['stage'] == False
     assert args['publish'] == True
-

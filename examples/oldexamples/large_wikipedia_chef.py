@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 import tempfile
 
 import requests
@@ -8,8 +7,12 @@ from bs4 import BeautifulSoup
 from ricecooker.chefs import SushiChef
 from ricecooker.classes import licenses
 from ricecooker.classes.files import HTMLZipFile
-from ricecooker.classes.nodes import ChannelNode, HTML5AppNode, TopicNode
-from ricecooker.utils.caching import CacheForeverHeuristic, FileCache, CacheControlAdapter
+from ricecooker.classes.nodes import ChannelNode
+from ricecooker.classes.nodes import HTML5AppNode
+from ricecooker.classes.nodes import TopicNode
+from ricecooker.utils.caching import CacheControlAdapter
+from ricecooker.utils.caching import CacheForeverHeuristic
+from ricecooker.utils.caching import FileCache
 from ricecooker.utils.html import download_file
 from ricecooker.utils.zip import create_predictable_zip
 

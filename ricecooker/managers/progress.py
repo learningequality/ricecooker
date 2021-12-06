@@ -1,7 +1,8 @@
-import pickle
 import os
+import pickle
 import time
 from enum import Enum
+
 from .. import config
 
 class Status(Enum):

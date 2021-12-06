@@ -1,14 +1,15 @@
 import copy
 import os
-from pprint import pprint
-import pytest
 import re
-import requests
+from pprint import pprint
 from tempfile import TemporaryDirectory
 
+import pytest
+import requests
 from PyPDF2 import PdfFileReader
-from ricecooker.classes import nodes, files
 
+from ricecooker.classes import files
+from ricecooker.classes import nodes
 from ricecooker.utils.pdf import PDFParser                                 # SIT
 
 
@@ -231,4 +232,3 @@ def _check_path_matches_title_len(chapter_dict):
     len_expected = int(m.groupdict()['len'])
     len_observed = _get_pdf_len(chapter_dict['path'])
     assert len_observed == len_expected, 'Wrong len detected in ' + str(chapter_dict)
-

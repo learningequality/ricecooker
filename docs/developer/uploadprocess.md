@@ -84,7 +84,7 @@ functions that currently support PDF, ePub, HTML5, mp3 files, and videos.
 File diff
 ---------
 Ricecooker then sends the list of filenames (using the content-hash based names)
-to Studio to check which files are already present. 
+to Studio to check which files are already present.
 
 ```python
     get_file_diff(tree, files_to_diff)
@@ -136,7 +136,7 @@ like nodes modified/added/removed and the total storage space requirements.
 
 
 Deploying the channel (optional)
--------------------------------- 
+--------------------------------
 Studio channel editors can use the `DEPLOY` button in the Studio web interface
 to activate the "draft copy" and make it visible to all Studio users.
 This is implemented by replacing the channel's `main` tree with the `staging` tree.
@@ -146,16 +146,10 @@ During [this step](https://github.com/learningequality/studio/blob/5564c1fc540d8
 Publish channel (optional)
 --------------------------
 The `PUBLISH` channel button on Studio is used to save and export a new version of the channel.
-The PUBLISH action exports all the channel metadata to a sqlite3 DB file served 
+The PUBLISH action exports all the channel metadata to a sqlite3 DB file served
 by Studio at the URL `/content/{{channel_id}}.sqlite3` and ensure the associated
-files exist in `/content/storage/` which is served by a CDN. 
+files exist in `/content/storage/` which is served by a CDN.
 This step is a prerequisite for getting the channel out of Studio and into Kolibri.
 The combination of `{{channel_id}}.sqlite3` file and the files in `/content/storage`
 define the Kolibri Channels content format. This is what gets exported to the folder
 `KOLIBRI_DATA` on sdcard or external drives when you use the `EXPORT` action in Kolibri.
-
-
-
-
-
-

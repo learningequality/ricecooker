@@ -1,16 +1,18 @@
+import csv
 import json
+import os
 import random
-import requests
-from requests.exceptions import HTTPError
 import sys
 import webbrowser
 
-import os
-import csv
+import requests
+from requests.exceptions import HTTPError
 
-from . import config, __version__
+from . import __version__
+from . import config
 from .classes.nodes import ChannelNode
-from .managers.progress import RestoreManager, Status
+from .managers.progress import RestoreManager
+from .managers.progress import Status
 from .managers.tree import ChannelManager
 
 # Fix to support Python 2.x.

@@ -1,5 +1,10 @@
-import os, urllib, posixpath, webbrowser
-from http.server import HTTPServer, BaseHTTPRequestHandler, SimpleHTTPRequestHandler
+import os
+import posixpath
+import urllib
+import webbrowser
+from http.server import BaseHTTPRequestHandler
+from http.server import HTTPServer
+from http.server import SimpleHTTPRequestHandler
 
 
 def preview_in_browser(directory, filename="index.html", port=8282):

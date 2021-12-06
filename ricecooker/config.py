@@ -5,11 +5,12 @@ import atexit
 import hashlib
 import logging.config
 import os
-import requests
-from requests_file import FileAdapter
 import shutil
 import socket
 import tempfile
+
+import requests
+from requests_file import FileAdapter
 
 
 

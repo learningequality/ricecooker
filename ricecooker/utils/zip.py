@@ -74,4 +74,3 @@ def write_file_to_zip_with_neutral_metadata(zfile, filename, content):
     info.comment = "".encode()
     info.create_system = 0
     zfile.writestr(info, content)
-

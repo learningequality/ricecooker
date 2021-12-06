@@ -1,37 +1,45 @@
 # Node models to represent channel's tree
 from __future__ import unicode_literals
 
-from cachecontrol.caches.file_cache import FileCache
 import hashlib
-import os
-from PIL import Image
 import json
-from requests.exceptions import HTTPError, ConnectionError, InvalidURL, InvalidSchema
+import os
 import shutil
-from subprocess import CalledProcessError
 import tempfile
-import youtube_dl
 import zipfile
-
+from subprocess import CalledProcessError
 from urllib.parse import urlparse
 
+import youtube_dl
+from cachecontrol.caches.file_cache import FileCache
+from le_utils.constants import exercises
+from le_utils.constants import file_formats
+from le_utils.constants import format_presets
 from le_utils.constants import languages
-from le_utils.constants import file_formats, format_presets, exercises
-from ricecooker.utils.encodings import get_base64_encoding, write_base64_to_file
-from ricecooker.utils.images import create_image_from_pdf_page
-from ricecooker.utils.images import create_image_from_epub
-from ricecooker.utils.images import create_image_from_zip
-from ricecooker.utils.videos import extract_thumbnail_from_video
-from ricecooker.utils.images import create_tiled_image
-from ricecooker.utils.images import ThumbnailGenerationError
-from ricecooker.utils.subtitles import build_subtitle_converter_from_file
-from ricecooker.utils.subtitles import LANGUAGE_CODE_UNKNOWN
-from ricecooker.utils.subtitles import InvalidSubtitleFormatError, InvalidSubtitleLanguageError
-from ricecooker.utils.videos import guess_video_preset_by_resolution, compress_video, VideoCompressionError
-from ricecooker.utils.youtube import YouTubeResource
+from PIL import Image
+from requests.exceptions import ConnectionError
+from requests.exceptions import HTTPError
+from requests.exceptions import InvalidSchema
+from requests.exceptions import InvalidURL
 
 from .. import config
 from ..exceptions import UnknownFileTypeError
+from ricecooker.utils.encodings import get_base64_encoding
+from ricecooker.utils.encodings import write_base64_to_file
+from ricecooker.utils.images import create_image_from_epub
+from ricecooker.utils.images import create_image_from_pdf_page
+from ricecooker.utils.images import create_image_from_zip
+from ricecooker.utils.images import create_tiled_image
+from ricecooker.utils.images import ThumbnailGenerationError
+from ricecooker.utils.subtitles import build_subtitle_converter_from_file
+from ricecooker.utils.subtitles import InvalidSubtitleFormatError
+from ricecooker.utils.subtitles import InvalidSubtitleLanguageError
+from ricecooker.utils.subtitles import LANGUAGE_CODE_UNKNOWN
+from ricecooker.utils.videos import compress_video
+from ricecooker.utils.videos import extract_thumbnail_from_video
+from ricecooker.utils.videos import guess_video_preset_by_resolution
+from ricecooker.utils.videos import VideoCompressionError
+from ricecooker.utils.youtube import YouTubeResource
 
 # Cache for filenames
 FILECACHE = FileCache(config.FILECACHE_DIRECTORY, use_dir_lock=True, forever=True)

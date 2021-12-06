@@ -2,11 +2,11 @@ ricecooker
 ==========
 [![PyPI pyversions](https://img.shields.io/pypi/pyversions/ricecooker.svg)](https://pypi.python.org/pypi/ricecooker/)
 [![build](https://github.com/learningequality/ricecooker/actions/workflows/pythontest.yml/badge.svg?branch=master)](https://github.com/learningequality/ricecooker/actions)
-[![docs](https://readthedocs.org/projects/ricecooker/badge/?version=latest&style=flat)](https://ricecooker.readthedocs.io/) 
+[![docs](https://readthedocs.org/projects/ricecooker/badge/?version=latest&style=flat)](https://ricecooker.readthedocs.io/)
 
 
 The `ricecooker` library is a framework for automating the conversion of educational content into
-Kolibri content channels and uploading them to [Kolibri Studio](https://studio.learningequality.org/), 
+Kolibri content channels and uploading them to [Kolibri Studio](https://studio.learningequality.org/),
 which is the central content server for [Kolibri](http://learningequality.org/kolibri/).
 
 
@@ -36,7 +36,7 @@ The basic process of getting new content into Kolibri is as follows:
 The diagram below illustrates how content flows within the Kolibri ecosystem
 and highlights the part which is covered by the `ricecooker` framework (bottom left).
 
-![Overview of steps for integrating external content sources for use in the Kolibri Learning Platform](docs/figures/content_pipeline_diagram_with_highlight.png)  
+![Overview of steps for integrating external content sources for use in the Kolibri Learning Platform](docs/figures/content_pipeline_diagram_with_highlight.png)
 *External content sources (left) are first uploaded to [Kolibri Studio](https://studio.learningequality.org/) (middle), so they can be used in the [Kolibri Learning Platform](http://learningequality.org/kolibri/) (right).*
 
 
@@ -48,7 +48,7 @@ place to learn about writing automated content integration scripts.
 
 Here are some links to other documents and guides you can read to learn about
 the other parts of the Kolibri content platform:
-  
+
   - The [Kolibri Content Integration Guide](https://learningequality.org/r/integration-guide)
     is a comprehensive guide to the decisions, processes, and tools for integrating
     external content sources for use in the Kolibri Learning Platform.

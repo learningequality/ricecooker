@@ -1,8 +1,9 @@
 import math
 import re
-from PIL import Image
 import sys
 import types
+
+from PIL import Image
 
 # Useful for very coarse version differentiation.
 PY2 = sys.version_info[0] == 2

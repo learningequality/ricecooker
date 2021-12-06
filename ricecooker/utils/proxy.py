@@ -7,8 +7,9 @@ from proxyscrape.com (note the default proxies can be very slow).
 import os
 import random
 import re
-import requests
 import time
+
+import requests
 
 
 
