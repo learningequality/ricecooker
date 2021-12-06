@@ -64,9 +64,9 @@ jobs:
       if: steps.cache.windowscache.cache-hit != 'true' && matrix.os == 'windows-latest'
       run: |
         curl --output ffmpeg.zip https://web.archive.org/web/20200916110500if_/https://ffmpeg.zeranoe.com/builds/win64/static/ffmpeg-20200831-4a11a6f-win64-static.zip
-        curl --output poppler.7z https://github.com/oschwartz10612/poppler-windows/releases/download/v21.11.0-0/Release-21.11.0-0.zip
+        curl --output poppler.zip https://github.com/oschwartz10612/poppler-windows/releases/download/v21.11.0-0/Release-21.11.0-0.zip
         7z x ffmpeg.zip -otools -y
-        7z x poppler.7z -otools -y
+        7z x poppler.zip -otools -y
     - name: Set paths to Windows dependencies
       if: matrix.os == 'windows-latest'
       run: |
