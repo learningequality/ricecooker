@@ -71,7 +71,7 @@ jobs:
       if: matrix.os == 'windows-latest'
       run: |
         echo "$pwd\tools\ffmpeg-20200831-4a11a6f-win64-static\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-        echo "$pwd\tools\poppler-0.68.0\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        echo "$pwd\tools\poppler-21.11.0\Library\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
     - name: Cache pip
       if: ${{ !startsWith(runner.os, 'windows') }}
       uses: actions/cache@v2
