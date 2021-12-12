@@ -250,8 +250,6 @@ class Node(object):
                 structure_string = self.title
             else:
                 structure_string += '/' + self.title
-            print(self.title)
-            print(structure_string)
         for child in self.children:
             child.save_channel_children_to_csv(metadata_csv, structure_string)
 
