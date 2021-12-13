@@ -1070,6 +1070,7 @@ class CustomNavigationNode(ContentNode):
     def __init__(self, *args, **kwargs):
         kwargs["extra_fields"] = kwargs.get("extra_fields", {})
         kwargs["extra_fields"]["options"] = kwargs["extra_fields"].get("options", {})
+        # TODO: update le-utils version and use a constant value here
         kwargs["extra_fields"]["options"].update({'modality': "CUSTOM_NAVIGATION"})
         super(CustomNavigationNode, self).__init__(*args, **kwargs)
 
@@ -1105,6 +1106,7 @@ class CustomNavigationChannelNode(ChannelNode):
     def __init__(self, *args, **kwargs):
         kwargs["extra_fields"] = kwargs.get("extra_fields", {})
         kwargs["extra_fields"]["options"] = kwargs["extra_fields"].get("options", {})
+        # TODO: update le-utils version and use a constant value here
         kwargs["extra_fields"]["options"].update({'modality': "CUSTOM_NAVIGATION"})
         super(CustomNavigationChannelNode, self).__init__(*args, **kwargs)
 
@@ -1120,3 +1122,16 @@ class CustomNavigationChannelNode(ChannelNode):
             return super(CustomNavigationChannelNode, self).validate()
         except AssertionError as ae:
             raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))
+
+
+class PracticeQuizNode(ExerciseNode):
+    """
+    Node class for creating Practice Quizzes that are exercises under the hood but
+    are displayed as Practice Quizzes in Kolibri.
+    """
+    def __init__(self, *args, **kwargs):
+        kwargs["exercise_data"] = kwargs.get("exercise_data", {})
+        kwargs["exercise_data"]["options"] = kwargs["exercise_data"].get("options", {})
+        # TODO: update le-utils version and use a constant value here
+        kwargs["exercise_data"]["options"].update({'modality': "QUIZ"})
+        super(PracticeQuizNode, self).__init__(*args, **kwargs)
