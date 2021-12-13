@@ -2,7 +2,7 @@
 
 __author__ = 'Learning Equality'
 __email__ = 'info@learningequality.org'
-__version__ = '0.7.0b1'
+__version__ = '0.7.0b2'
 
 
 import sys
