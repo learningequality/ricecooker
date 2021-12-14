@@ -54,5 +54,3 @@ with that name. Otherwise, it will upload to production Studio.
 
 If you have never registered an API token for the Studio server you're uploading to,
 it may prompt you to enter it when running this command.
-
-

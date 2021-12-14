@@ -19,7 +19,7 @@ then
   exit 1
 fi
 
-# 2. Parse input filename 
+# 2. Parse input filename
 ################################################################################
 if [ ! -z "$1" ]
 then

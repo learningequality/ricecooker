@@ -1,10 +1,18 @@
 #!/usr/bin/env python
+from le_utils.constants import licenses
 
 from ricecooker.chefs import SushiChef
-from ricecooker.classes.nodes import ChannelNode, HTML5AppNode, TopicNode, VideoNode, DocumentNode, AudioNode
-from ricecooker.classes.files import DocumentFile, VideoFile, AudioFile
-from le_utils.constants import licenses
+from ricecooker.classes.files import AudioFile
+from ricecooker.classes.files import DocumentFile
+from ricecooker.classes.files import VideoFile
 from ricecooker.classes.licenses import get_license
+from ricecooker.classes.nodes import AudioNode
+from ricecooker.classes.nodes import ChannelNode
+from ricecooker.classes.nodes import DocumentNode
+from ricecooker.classes.nodes import HTML5AppNode
+from ricecooker.classes.nodes import TopicNode
+from ricecooker.classes.nodes import VideoNode
+
 
 class TutorialChef(SushiChef):
     """
@@ -14,13 +22,13 @@ class TutorialChef(SushiChef):
     # 1. PROVIDE CHANNEL INFO  (replace <placeholders> with your own values)
     ############################################################################
     channel_info = {
-        'CHANNEL_SOURCE_DOMAIN': '<yourdomain.org>',       # who is providing the content (e.g. learningequality.org)
-        'CHANNEL_SOURCE_ID': '<yourid>',                   # channel's unique id
-        'CHANNEL_TITLE': 'The tutorial channel',
-        'CHANNEL_LANGUAGE': 'en',
+        "CHANNEL_SOURCE_DOMAIN": "<yourdomain.org>",  # who is providing the content (e.g. learningequality.org)
+        "CHANNEL_SOURCE_ID": "<yourid>",  # channel's unique id
+        "CHANNEL_TITLE": "The tutorial channel",
+        "CHANNEL_LANGUAGE": "en",
         # 'CHANNEL_THUMBNAIL': 'http://yourdomain.org/img/logo.jpg', # (optional) local path or url to image file
         # 'CHANNEL_DESCRIPTION': 'What is this channel about?',      # (optional) description of the channel (optional)
-     }
+    }
 
     # 2. CONSTRUCT CHANNEL
     ############################################################################
@@ -31,8 +39,7 @@ class TutorialChef(SushiChef):
         """
         # Create channel
         ########################################################################
-        channel = self.get_channel(*args, **kwargs)     # uses self.channel_info
-
+        channel = self.get_channel(*args, **kwargs)  # uses self.channel_info
 
         # Create topics to add to your channel
         ########################################################################
@@ -53,30 +60,56 @@ class TutorialChef(SushiChef):
         exampletopic.add_child(examplesubtopic)
         # TODO: Add your subtopic to your topic here
 
-
         # Content
         # You can add documents (pdfs and ePubs), videos, audios, and other content
         ########################################################################
         # let's create a document file called 'Example PDF'
         document_file = DocumentFile(path="http://www.pdf995.com/samples/pdf.pdf")
-        examplepdf = DocumentNode(title="Example PDF", source_id="example-pdf", files=[document_file], license=get_license(licenses.PUBLIC_DOMAIN))
+        examplepdf = DocumentNode(
+            title="Example PDF",
+            source_id="example-pdf",
+            files=[document_file],
+            license=get_license(licenses.PUBLIC_DOMAIN),
+        )
         # TODO: Create your pdf file here (use any url to a .pdf file)
 
         # We are also going to add a video file called 'Example Video'
-        video_file = VideoFile(path="https://ia600209.us.archive.org/27/items/RiceChef/Rice Chef.mp4")
-        fancy_license = get_license(licenses.SPECIAL_PERMISSIONS, description='Special license for ricecooker fans only.', copyright_holder='The chef video makers')
-        examplevideo = VideoNode(title="Example Video", source_id="example-video", files=[video_file], license=fancy_license)
+        video_file = VideoFile(
+            path="https://ia600209.us.archive.org/27/items/RiceChef/Rice Chef.mp4"
+        )
+        fancy_license = get_license(
+            licenses.SPECIAL_PERMISSIONS,
+            description="Special license for ricecooker fans only.",
+            copyright_holder="The chef video makers",
+        )
+        examplevideo = VideoNode(
+            title="Example Video",
+            source_id="example-video",
+            files=[video_file],
+            license=fancy_license,
+        )
         # TODO: Create your video file here (use any url to a .mp4 file)
 
         # Finally, we are creating an audio file called 'Example Audio'
-        audio_file = AudioFile(path="https://ia802508.us.archive.org/5/items/testmp3testfile/mpthreetest.mp3")
-        exampleaudio = AudioNode(title="Example Audio", source_id="example-audio", files=[audio_file], license=get_license(licenses.PUBLIC_DOMAIN))
+        audio_file = AudioFile(
+            path="https://ia802508.us.archive.org/5/items/testmp3testfile/mpthreetest.mp3"
+        )
+        exampleaudio = AudioNode(
+            title="Example Audio",
+            source_id="example-audio",
+            files=[audio_file],
+            license=get_license(licenses.PUBLIC_DOMAIN),
+        )
         # TODO: Create your audio file here (use any url to a .mp3 file)
 
         # Now that we have our files, let's add them to our channel
-        channel.add_child(examplepdf) # Adding 'Example PDF' to your channel
-        exampletopic.add_child(examplevideo) # Adding 'Example Video' to 'Example Topic'
-        examplesubtopic.add_child(exampleaudio) # Adding 'Example Audio' to 'Example Subtopic'
+        channel.add_child(examplepdf)  # Adding 'Example PDF' to your channel
+        exampletopic.add_child(
+            examplevideo
+        )  # Adding 'Example Video' to 'Example Topic'
+        examplesubtopic.add_child(
+            exampleaudio
+        )  # Adding 'Example Audio' to 'Example Subtopic'
 
         # TODO: Add your pdf file to your channel
         # TODO: Add your video file to your topic
@@ -87,7 +120,7 @@ class TutorialChef(SushiChef):
         return channel
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     """
     This code will run when the sushi chef is called from the command line.
     """

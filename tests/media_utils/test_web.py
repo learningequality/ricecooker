@@ -12,13 +12,13 @@ def test_get_links():
     links = parser.get_links()
 
     expected_links = [
-        'assets/css/empty.css',
-        'assets/css/empty2.css',
-        'assets/js/empty.js',
-        'assets/images/4933759886_098e9acf93_m.jpg',
-        'the_spanish_inquisition.html',
-        'http://www.learningequality.org',
-        'Wilhelm_Scream.mp3'
+        "assets/css/empty.css",
+        "assets/css/empty2.css",
+        "assets/js/empty.js",
+        "assets/images/4933759886_098e9acf93_m.jpg",
+        "the_spanish_inquisition.html",
+        "http://www.learningequality.org",
+        "Wilhelm_Scream.mp3",
     ]
 
     # make sure the link order is the same to do an equality test
@@ -34,12 +34,12 @@ def test_get_local_files():
     links = parser.get_local_files()
 
     expected_links = [
-        'assets/css/empty.css',
-        'assets/css/empty2.css',
-        'assets/js/empty.js',
-        'assets/images/4933759886_098e9acf93_m.jpg',
-        'the_spanish_inquisition.html',
-        'Wilhelm_Scream.mp3'
+        "assets/css/empty.css",
+        "assets/css/empty2.css",
+        "assets/js/empty.js",
+        "assets/images/4933759886_098e9acf93_m.jpg",
+        "the_spanish_inquisition.html",
+        "Wilhelm_Scream.mp3",
     ]
 
     # make sure the link order is the same to do an equality test
@@ -54,17 +54,17 @@ def test_replace_links():
     parser = web.HTMLParser(filename)
 
     original_links = [
-        'assets/css/empty.css',
-        'assets/css/empty2.css',
-        'assets/js/empty.js',
-        'assets/images/4933759886_098e9acf93_m.jpg',
-        'the_spanish_inquisition.html',
-        'Wilhelm_Scream.mp3'
+        "assets/css/empty.css",
+        "assets/css/empty2.css",
+        "assets/js/empty.js",
+        "assets/images/4933759886_098e9acf93_m.jpg",
+        "the_spanish_inquisition.html",
+        "Wilhelm_Scream.mp3",
     ]
 
     replacement_links = {}
     for link in original_links:
-        replacement_links[link] = '/zipcontent/012343545454645454/{}'.format(link)
+        replacement_links[link] = "/zipcontent/012343545454645454/{}".format(link)
 
     new_html = parser.replace_links(replacement_links)
 

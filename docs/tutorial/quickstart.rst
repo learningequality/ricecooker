@@ -15,4 +15,3 @@ The following links will get you started with content integration process in no 
  - For more info see the `ricecooker docs main page <../index.html>`_ 📚.
 
 Welcome to the team!
-

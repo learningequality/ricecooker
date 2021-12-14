@@ -15,7 +15,7 @@ def file_exists(filepath):
 
 def get_name_from_url(url):
     """
-    get the filename from a url 
+    get the filename from a url
     url = http://abc.com/xyz.txt
     get_name_from_url(url) -> xyz.txt
     """
@@ -37,7 +37,7 @@ def get_name_from_url(url):
 
 def get_name_from_url_no_ext(url):
     """
-    get the filename without the extension name from a url 
+    get the filename without the extension name from a url
     url = http://abc.com/xyz.txt
     get_name_from_url(url) -> xyz
     """

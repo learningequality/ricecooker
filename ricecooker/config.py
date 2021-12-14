@@ -5,12 +5,12 @@ import atexit
 import hashlib
 import logging.config
 import os
-import requests
-from requests_file import FileAdapter
 import shutil
 import socket
 import tempfile
 
+import requests
+from requests_file import FileAdapter
 
 
 UPDATE = False
@@ -98,12 +98,12 @@ def setup_logging(level=logging.INFO, main_log=None, error_log=None, add_loggers
     }
 
     config = {
-        'version': 1,
-        'disable_existing_loggers': False,
-        'formatters': {
-            'colored': {
-                '()': 'colorlog.ColoredFormatter',
-                'format': "%(log_color)s%(levelname)-8s%(reset)s %(blue)s%(message)s"
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {
+            "colored": {
+                "()": "colorlog.ColoredFormatter",
+                "format": "%(log_color)s%(levelname)-8s%(reset)s %(blue)s%(message)s",
             },
             "simple_date": {
                 "format": "%(levelname)-8s %(asctime)s %(name)s - %(message)s",
@@ -139,16 +139,16 @@ setup_logging()
 
 # Domain and file store location for uploading to production Studio server
 DEFAULT_DOMAIN = "https://api.studio.learningequality.org"
-DOMAIN_ENV = os.getenv('STUDIO_URL', None)
+DOMAIN_ENV = os.getenv("STUDIO_URL", None)
 if DOMAIN_ENV is None:  # check old ENV varable for backward compatibility
-    DOMAIN_ENV = os.getenv('CONTENTWORKSHOP_URL', None)
+    DOMAIN_ENV = os.getenv("CONTENTWORKSHOP_URL", None)
 DOMAIN = DOMAIN_ENV if DOMAIN_ENV else DEFAULT_DOMAIN
-if DOMAIN.endswith('/'):
-    DOMAIN = DOMAIN.rstrip('/')
-FILE_STORE_LOCATION = hashlib.md5(DOMAIN.encode('utf-8')).hexdigest()
+if DOMAIN.endswith("/"):
+    DOMAIN = DOMAIN.rstrip("/")
+FILE_STORE_LOCATION = hashlib.md5(DOMAIN.encode("utf-8")).hexdigest()
 
 # Allow users to choose which phantomjs they use
-PHANTOMJS_PATH = os.getenv('PHANTOMJS_PATH', None)
+PHANTOMJS_PATH = os.getenv("PHANTOMJS_PATH", None)
 
 # URL for authenticating user on Kolibri Studio
 AUTHENTICATION_URL = "{domain}/api/internal/authenticate_user_internal"
@@ -196,33 +196,39 @@ FAILED_FILES = []
 
 # Session for downloading files
 DOWNLOAD_SESSION = requests.Session()
-DOWNLOAD_SESSION.mount('file://', FileAdapter())
+DOWNLOAD_SESSION.mount("file://", FileAdapter())
 
 # Environment variable indicating we should use a proxy for youtube_dl downloads
 USEPROXY = False
-USEPROXY = True if os.getenv('USEPROXY') is not None or os.getenv('PROXY_LIST') is not None else False
+USEPROXY = (
+    True
+    if os.getenv("USEPROXY") is not None or os.getenv("PROXY_LIST") is not None
+    else False
+)
 
 # CSV headers
 CSV_HEADERS = [
-    'Source ID',
-    'Topic Structure',
-    'Old Title',
-    'New Title',
-    'Old Description',
-    'New Description',
-    'Old Tags',
-    'New Tags',
-    'Last Modified'
+    "Source ID",
+    "Topic Structure",
+    "Old Title",
+    "New Title",
+    "Old Description",
+    "New Description",
+    "Old Tags",
+    "New Tags",
+    "Last Modified",
 ]
 
 # Automatic temporary direcotry cleanup
-chef_temp_dir = os.path.join(os.getcwd(), '.ricecooker-temp')
+chef_temp_dir = os.path.join(os.getcwd(), ".ricecooker-temp")
+
 
 @atexit.register
 def delete_temp_dir():
     if os.path.exists(chef_temp_dir):
         LOGGER.debug("Deleting chef temp files at {}".format(chef_temp_dir))
         shutil.rmtree(chef_temp_dir)
+
 
 # While in most cases a chef run will clean up after itself, make sure that if it didn't,
 # temp files from the old run are deleted so that they do not accumulate.
@@ -238,22 +244,21 @@ if not tempfile.tempdir:
 
 
 # Record data about past chef runs in chefdata/ dir
-DATA_DIR = 'chefdata'
-DATA_FILENAME = 'chef_data.json'
+DATA_DIR = "chefdata"
+DATA_FILENAME = "chef_data.json"
 DATA_PATH = os.path.join(DATA_DIR, DATA_FILENAME)
 CHEF_DATA_DEFAULT = {
-    'current_run': None,
-    'runs': [],
-    'tree_archives': {
-        'previous': None,
-        'current': None
-    }
+    "current_run": None,
+    "runs": [],
+    "tree_archives": {"previous": None, "current": None},
 }
-TREES_DATA_DIR = os.path.join(DATA_DIR, 'trees')
+TREES_DATA_DIR = os.path.join(DATA_DIR, "trees")
 
 
 # Character limits based on Kolibri models
-TRUNCATE_MSG = "\t\t{kind} {id}: {field} {value} is too long - max {max} characters (truncating)"
+TRUNCATE_MSG = (
+    "\t\t{kind} {id}: {field} {value} is too long - max {max} characters (truncating)"
+)
 
 MAX_TITLE_LENGTH = 200
 MAX_SOURCE_ID_LENGTH = 200
@@ -268,77 +273,66 @@ MAX_LICENSE_DESCRIPTION_LENGTH = 400
 MAX_COPYRIGHT_HOLDER_LENGTH = 200
 
 MAX_CHAR_LIMITS = {
-    "title": {
-        "kind": "Node",
-        "field": "title",
-        "max": MAX_TITLE_LENGTH
-    },
-    "source_id": {
-        "kind": "Node",
-        "field": "source_id",
-        "max": MAX_SOURCE_ID_LENGTH
-    },
+    "title": {"kind": "Node", "field": "title", "max": MAX_TITLE_LENGTH},
+    "source_id": {"kind": "Node", "field": "source_id", "max": MAX_SOURCE_ID_LENGTH},
     "description": {
         "kind": "Node",
         "field": "description",
-        "max": MAX_DESCRIPTION_LENGTH
+        "max": MAX_DESCRIPTION_LENGTH,
     },
-    "tagline": {
-        "kind": "Channel",
-        "field": "tagline",
-        "max": MAX_TAGLINE_LENGTH
-    },
-    "author": {
-        "kind": "Node",
-        "field": "author",
-        "max": MAX_AUTHOR_LENGTH
-    },
+    "tagline": {"kind": "Channel", "field": "tagline", "max": MAX_TAGLINE_LENGTH},
+    "author": {"kind": "Node", "field": "author", "max": MAX_AUTHOR_LENGTH},
     "question_source_url": {
         "kind": "Question",
         "field": "source url",
-        "max": MAX_SOURCE_URL_LENGTH
+        "max": MAX_SOURCE_URL_LENGTH,
     },
     "original_filename": {
         "kind": "File",
         "field": "original filename",
-        "max": MAX_ORIGINAL_FILENAME_LENGTH
+        "max": MAX_ORIGINAL_FILENAME_LENGTH,
     },
     "file_source_url": {
         "kind": "File",
         "field": "source url",
-        "max": MAX_SOURCE_URL_LENGTH
+        "max": MAX_SOURCE_URL_LENGTH,
     },
     "license_description": {
         "kind": "License",
         "field": "license description",
-        "max": MAX_LICENSE_DESCRIPTION_LENGTH
+        "max": MAX_LICENSE_DESCRIPTION_LENGTH,
     },
     "copyright_holder": {
         "kind": "License",
         "field": "copyright holder",
-        "max": MAX_COPYRIGHT_HOLDER_LENGTH
+        "max": MAX_COPYRIGHT_HOLDER_LENGTH,
     },
-    "provider": {
-        "kind": "Provider",
-        "field": "provider",
-        "max": MAX_PROVIDER_LENGTH
-    },
+    "provider": {"kind": "Provider", "field": "provider", "max": MAX_PROVIDER_LENGTH},
     "aggregator": {
         "kind": "Aggregator",
         "field": "aggregator",
-        "max": MAX_AGGREGATOR_LENGTH
+        "max": MAX_AGGREGATOR_LENGTH,
     },
 }
 
 
 def print_truncate(field, id, value, kind=None):
     limit = MAX_CHAR_LIMITS.get(field)
-    LOGGER.warning(TRUNCATE_MSG.format(kind=kind or limit["kind"], id=id, field=limit["field"], value=value, max=limit["max"]))
+    LOGGER.warning(
+        TRUNCATE_MSG.format(
+            kind=kind or limit["kind"],
+            id=id,
+            field=limit["field"],
+            value=value,
+            max=limit["max"],
+        )
+    )
+
 
 def get_storage_path(filename):
-    """ get_storage_path: returns path to storage directory for downloading content
-        Args: filename (str): Name of file to store
-        Returns: string path to file
+    """get_storage_path: returns path to storage directory for downloading content
+    Args: filename (str): Name of file to store
+    Returns: string path to file
     """
     directory = os.path.join(STORAGE_DIRECTORY, filename[0], filename[1])
     # Make storage directory for downloaded files if it doesn't already exist
@@ -346,97 +340,113 @@ def get_storage_path(filename):
         os.makedirs(directory)
     return os.path.join(directory, filename)
 
+
 def authentication_url():
-    """ authentication_url: returns url to login to Kolibri Studio
-        Args: None
-        Returns: string url to authenticate_user_internal endpoint
+    """authentication_url: returns url to login to Kolibri Studio
+    Args: None
+    Returns: string url to authenticate_user_internal endpoint
     """
     return AUTHENTICATION_URL.format(domain=DOMAIN)
 
+
 def init_file_mapping_store():
-    """ init_file_mapping_store: creates log to keep track of downloaded files
-        Args: None
-        Returns: None
+    """init_file_mapping_store: creates log to keep track of downloaded files
+    Args: None
+    Returns: None
     """
     # Make storage directory for restore files if it doesn't already exist
     path = os.path.join(RESTORE_DIRECTORY, FILE_STORE_LOCATION)
     if not os.path.exists(path):
         os.makedirs(path)
 
+
 def get_restore_path(filename):
-    """ get_restore_path: returns path to directory for restoration points
-        Args:
-            filename (str): Name of file to store
-        Returns: string path to file
+    """get_restore_path: returns path to directory for restoration points
+    Args:
+        filename (str): Name of file to store
+    Returns: string path to file
     """
     path = os.path.join(RESTORE_DIRECTORY, FILE_STORE_LOCATION)
     if not os.path.exists(path):
         os.makedirs(path)
-    return os.path.join(path, filename + '.pickle')
+    return os.path.join(path, filename + ".pickle")
 
 
 def check_version_url():
-    """ check_version_url: returns url to check ricecooker version
-        Args: None
-        Returns: string url to check version endpoint
+    """check_version_url: returns url to check ricecooker version
+    Args: None
+    Returns: string url to check version endpoint
     """
     return VERSION_CHECK_URL.format(domain=DOMAIN)
 
 
 def file_diff_url():
-    """ file_diff_url: returns url to get file diff
-        Args: None
-        Returns: string url to file_diff endpoint
+    """file_diff_url: returns url to get file diff
+    Args: None
+    Returns: string url to file_diff endpoint
     """
     return FILE_DIFF_URL.format(domain=DOMAIN)
 
+
 def file_upload_url():
-    """ file_upload_url: returns url to upload files
-        Args: None
-        Returns: string url to file_upload endpoint
+    """file_upload_url: returns url to upload files
+    Args: None
+    Returns: string url to file_upload endpoint
     """
     return FILE_UPLOAD_URL.format(domain=DOMAIN)
 
+
 def create_channel_url():
-    """ create_channel_url: returns url to create channel
-        Args: None
-        Returns: string url to create_channel endpoint
+    """create_channel_url: returns url to create channel
+    Args: None
+    Returns: string url to create_channel endpoint
     """
     return CREATE_CHANNEL_URL.format(domain=DOMAIN)
 
+
 def add_nodes_url():
-    """ add_nodes_url: returns url to add nodes to channel
-        Args: None
-        Returns: string url to add_nodes endpoint
+    """add_nodes_url: returns url to add nodes to channel
+    Args: None
+    Returns: string url to add_nodes endpoint
     """
     return ADD_NODES_URL.format(domain=DOMAIN)
 
+
 def add_nodes_from_file_url():
-    """ add_nodes_from_file_url: returns url to add nodes to channel using json file
-        Args: None
-        Returns: string url to add_nodes endpoint
+    """add_nodes_from_file_url: returns url to add nodes to channel using json file
+    Args: None
+    Returns: string url to add_nodes endpoint
     """
     return ADD_NODES_FROM_FILE_URL.format(domain=DOMAIN)
 
+
 def finish_channel_url():
-    """ finish_channel_url: returns url to finish uploading a channel
-        Args: None
-        Returns: string url to finish_channel endpoint
+    """finish_channel_url: returns url to finish uploading a channel
+    Args: None
+    Returns: string url to finish_channel endpoint
     """
     return FINISH_CHANNEL_URL.format(domain=DOMAIN)
 
+
 def open_channel_url(channel, staging=False):
-    """ open_channel_url: returns url to uploaded channel
-        Args:
-            channel (str): channel id of uploaded channel
-        Returns: string url to open channel
+    """open_channel_url: returns url to uploaded channel
+    Args:
+        channel (str): channel id of uploaded channel
+    Returns: string url to open channel
     """
-    frontend_domain = DOMAIN.replace("api.", "")  # Don't send them to the API domain for preview / review.
-    return OPEN_CHANNEL_URL.format(domain=frontend_domain, channel_id=channel, access='staging' if staging or STAGE else 'edit')
+    frontend_domain = DOMAIN.replace(
+        "api.", ""
+    )  # Don't send them to the API domain for preview / review.
+    return OPEN_CHANNEL_URL.format(
+        domain=frontend_domain,
+        channel_id=channel,
+        access="staging" if staging or STAGE else "edit",
+    )
+
 
 def publish_channel_url():
-    """ open_channel_url: returns url to publish channel
-        Args: None
-        Returns: string url to publish channel
+    """open_channel_url: returns url to publish channel
+    Args: None
+    Returns: string url to publish channel
     """
     return PUBLISH_CHANNEL_URL.format(domain=DOMAIN)

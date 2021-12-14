@@ -1,32 +1,38 @@
 #!/usr/bin/env python
-from bs4 import BeautifulSoup
-import requests
 import tempfile
+
+import requests
+from bs4 import BeautifulSoup
 
 from ricecooker.chefs import SushiChef
 from ricecooker.classes import licenses
 from ricecooker.classes.files import HTMLZipFile
-from ricecooker.classes.nodes import ChannelNode, HTML5AppNode, TopicNode
-from ricecooker.utils.caching import CacheForeverHeuristic, FileCache, CacheControlAdapter
+from ricecooker.classes.nodes import ChannelNode
+from ricecooker.classes.nodes import HTML5AppNode
+from ricecooker.classes.nodes import TopicNode
+from ricecooker.config import LOGGER
+from ricecooker.utils.caching import CacheControlAdapter
+from ricecooker.utils.caching import CacheForeverHeuristic
+from ricecooker.utils.caching import FileCache
 from ricecooker.utils.html import download_file
 from ricecooker.utils.zip import create_predictable_zip
-from ricecooker.config import LOGGER
 
 
 # CHANNEL SETTINGS
-SOURCE_DOMAIN = "<yourdomain.org>" #
-SOURCE_ID = "<yourid>"             # an alphanumeric ID refering to this channel
-CHANNEL_TITLE = "<channeltitle>"   # a humand-readbale title
-CHANNEL_LANGUAGE = "en"            # language of channel
+SOURCE_DOMAIN = "<yourdomain.org>"  #
+SOURCE_ID = "<yourid>"  # an alphanumeric ID refering to this channel
+CHANNEL_TITLE = "<channeltitle>"  # a humand-readbale title
+CHANNEL_LANGUAGE = "en"  # language of channel
 
 
 sess = requests.Session()
-cache = FileCache('.webcache')
+cache = FileCache(".webcache")
 basic_adapter = CacheControlAdapter(cache=cache)
-forever_adapter= CacheControlAdapter(heuristic=CacheForeverHeuristic(), cache=cache)
+forever_adapter = CacheControlAdapter(heuristic=CacheForeverHeuristic(), cache=cache)
 
-sess.mount('http://', forever_adapter)
-sess.mount('https://', forever_adapter)
+sess.mount("http://", forever_adapter)
+sess.mount("https://", forever_adapter)
+
 
 def make_fully_qualified_url(url):
     if url.startswith("//"):
@@ -38,6 +44,7 @@ def make_fully_qualified_url(url):
         return None
     return url
 
+
 def make_request(url, *args, **kwargs):
     response = sess.get(url, *args, **kwargs)
     if response.status_code != 200:
@@ -46,14 +53,13 @@ def make_request(url, *args, **kwargs):
         LOGGER.warning("NOT CACHED: " + url)
     return response
 
+
 def get_parsed_html_from_url(url, *args, **kwargs):
     html = make_request(url, *args, **kwargs).content
     return BeautifulSoup(html, "html.parser")
 
 
-
 class WikipediaChef(SushiChef):
-
     def get_channel(self, *args, **kwargs):
 
         channel = ChannelNode(
@@ -71,14 +77,19 @@ class WikipediaChef(SushiChef):
         channel = self.get_channel(**kwargs)
         citrus_topic = TopicNode(source_id="List_of_citrus_fruits", title="Citrus!")
         channel.add_child(citrus_topic)
-        add_subpages_from_wikipedia_list(citrus_topic, "https://en.wikipedia.org/wiki/List_of_citrus_fruits")
+        add_subpages_from_wikipedia_list(
+            citrus_topic, "https://en.wikipedia.org/wiki/List_of_citrus_fruits"
+        )
 
-        potato_topic = TopicNode(source_id="List_of_potato_cultivars", title="Potatoes!")
+        potato_topic = TopicNode(
+            source_id="List_of_potato_cultivars", title="Potatoes!"
+        )
         channel.add_child(potato_topic)
-        add_subpages_from_wikipedia_list(potato_topic, "https://en.wikipedia.org/wiki/List_of_potato_cultivars")
+        add_subpages_from_wikipedia_list(
+            potato_topic, "https://en.wikipedia.org/wiki/List_of_potato_cultivars"
+        )
 
         return channel
-
 
 
 def add_subpages_from_wikipedia_list(topic, list_url):
@@ -119,7 +130,9 @@ def add_subpages_from_wikipedia_list(topic, list_url):
         # attempt to extract a thumbnail for the subpage, from the second column in the table
         image = columns[1].find("img")
         thumbnail_url = make_fully_qualified_url(image["src"]) if image else None
-        if thumbnail_url and not (thumbnail_url.endswith("jpg") or thumbnail_url.endswith("png")):
+        if thumbnail_url and not (
+            thumbnail_url.endswith("jpg") or thumbnail_url.endswith("png")
+        ):
             thumbnail_url = None
 
         # download the wikipedia page into an HTML5 app node
@@ -163,14 +176,15 @@ def process_wikipedia_page(content, baseurl, destpath, **kwargs):
     page = BeautifulSoup(content, "html.parser")
 
     for image in page.find_all("img"):
-        relpath, _ = download_file(make_fully_qualified_url(image["src"]), destpath, request_fn=make_request)
+        relpath, _ = download_file(
+            make_fully_qualified_url(image["src"]), destpath, request_fn=make_request
+        )
         image["src"] = relpath
 
     return str(page)
 
 
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     """
     Call this script using:
         ./sushichef.py --token=YOURSTUDIOTOKENHERE9139139f3a23232

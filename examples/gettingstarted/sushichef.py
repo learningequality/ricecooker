@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 from ricecooker.chefs import SushiChef
-from ricecooker.classes.nodes import ChannelNode, TopicNode, DocumentNode
 from ricecooker.classes.files import DocumentFile
 from ricecooker.classes.licenses import get_license
+from ricecooker.classes.nodes import ChannelNode
+from ricecooker.classes.nodes import DocumentNode
+from ricecooker.classes.nodes import TopicNode
 
 
 class SimpleChef(SushiChef):
