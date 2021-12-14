@@ -1,3 +1,4 @@
+repos:
 -   repo: git://github.com/pre-commit/pre-commit-hooks
     rev: v2.5.0
     hooks:
@@ -12,8 +13,9 @@
     rev: v2.1.0
     hooks:
     -   id: reorder-python-imports
--   repo: git://github.com/pre-commit/mirrors-eslint
-    sha: v3.14.0
-    hooks:
-    -   id: eslint
-        additional_dependencies: ['eslint', 'eslint-plugin-html', 'eslint-config-airbnb', 'eslint-plugin-import', 'eslint-plugin-jsx-a11y']
+#-   repo: git://github.com/pre-commit/mirrors-eslint
+#    sha: v3.14.0
+#    hooks:
+#    -   id: eslint
+#        additional_dependencies: ['eslint', 'eslint-plugin-html', 'eslint-config-airbnb', 'eslint-plugin-import', 'eslint-plugin-jsx-a11y']
+-   repo: https://github.com/python/black
