@@ -33,7 +33,7 @@ def get_chef_script():
     if os.path.exists("chef.py"):
         return "chef.py"
 
-    return "sushichef.py"
+    return "sushichef.py.template"
 
 
 def prompt_for_token(remote_name):
