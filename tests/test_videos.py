@@ -1,19 +1,21 @@
 from __future__ import print_function
-from cachecontrol.caches.file_cache import FileCache
+
 import os
-import pytest
 import re
 import shutil
 import subprocess
 
+import pytest
+from cachecontrol.caches.file_cache import FileCache
+from conftest import download_fixture_file
 from le_utils.constants import format_presets
 from le_utils.constants import licenses
+
 from ricecooker import config
 from ricecooker.classes.files import FILECACHE
-from ricecooker.classes.files import SubtitleFile, VideoFile
+from ricecooker.classes.files import SubtitleFile
+from ricecooker.classes.files import VideoFile
 from ricecooker.classes.nodes import VideoNode
-
-from conftest import download_fixture_file
 
 
 @pytest.fixture

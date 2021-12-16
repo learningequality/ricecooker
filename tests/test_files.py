@@ -1,19 +1,19 @@
 """ Tests for file downloading and processing """
 import os.path
-import pytest
-from shutil import copyfile
 import tempfile
+from shutil import copyfile
 
+import pytest
 from le_utils.constants import languages
-from ricecooker.classes.files import YouTubeVideoFile
-from ricecooker.classes.files import YouTubeSubtitleFile
-from ricecooker.classes.files import SubtitleFile
-from ricecooker.classes.files import is_youtube_subtitle_file_supported_language
-from ricecooker.classes.files import _get_language_with_alpha2_fallback
-from ricecooker.utils.zip import create_predictable_zip
-from ricecooker import config
-
 from test_pdfutils import _save_file_url_to_path
+
+from ricecooker import config
+from ricecooker.classes.files import _get_language_with_alpha2_fallback
+from ricecooker.classes.files import is_youtube_subtitle_file_supported_language
+from ricecooker.classes.files import SubtitleFile
+from ricecooker.classes.files import YouTubeSubtitleFile
+from ricecooker.classes.files import YouTubeVideoFile
+from ricecooker.utils.zip import create_predictable_zip
 
 
 # Process all of the files

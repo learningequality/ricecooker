@@ -1,16 +1,17 @@
-from collections import defaultdict
 import csv
 import json
 import os
 import re
-import requests
+from collections import defaultdict
 from unicodedata import normalize
 
-from le_utils.constants import content_kinds, exercises
-from ricecooker.config import LOGGER
-from ricecooker.utils.libstudio import StudioApi
+import requests
+from le_utils.constants import content_kinds
+from le_utils.constants import exercises
 
 from ricecooker.classes.questions import MARKDOWN_IMAGE_REGEX
+from ricecooker.config import LOGGER
+from ricecooker.utils.libstudio import StudioApi
 
 
 # CONSTANTS

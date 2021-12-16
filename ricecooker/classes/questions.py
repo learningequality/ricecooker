@@ -1,23 +1,25 @@
 # Question models for exercises
-
-import uuid
-import json
-import html
-import re
 import copy
+import html
+import json
+import re
 import sys
-from bs4 import BeautifulSoup
+import uuid
 from functools import partial
-from le_utils.constants import (
-    content_kinds,
-    file_formats,
-    format_presets,
-    licenses,
-    exercises,
-)
+
+from bs4 import BeautifulSoup
+from le_utils.constants import content_kinds
+from le_utils.constants import exercises
+from le_utils.constants import file_formats
+from le_utils.constants import format_presets
+from le_utils.constants import licenses
+
 from .. import config
-from ..exceptions import UnknownQuestionTypeError, InvalidQuestionException
-from .files import _ExerciseImageFile, _ExerciseGraphieFile, _ExerciseBase64ImageFile
+from ..exceptions import InvalidQuestionException
+from ..exceptions import UnknownQuestionTypeError
+from .files import _ExerciseBase64ImageFile
+from .files import _ExerciseGraphieFile
+from .files import _ExerciseImageFile
 from ricecooker.utils.encodings import get_base64_encoding
 
 

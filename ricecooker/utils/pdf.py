@@ -1,8 +1,11 @@
 import os
 
-from PyPDF2 import PdfFileWriter, PdfFileReader
-from PyPDF2.generic import Destination, NullObject
+from PyPDF2 import PdfFileReader
+from PyPDF2 import PdfFileWriter
+from PyPDF2.generic import Destination
+from PyPDF2.generic import NullObject
 from PyPDF2.utils import PdfReadError
+
 from ricecooker.utils.downloader import read
 
 
