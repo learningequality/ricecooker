@@ -124,5 +124,3 @@ Further reading
 ---------------
 
   - Tutorial on the Python [requests module](https://stackabuse.com/the-python-requests-module/).
-
-

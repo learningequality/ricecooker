@@ -12,7 +12,6 @@
 #
 # All configuration values have a default; values that are commented out
 # serve to show the default.
-
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
@@ -21,7 +20,8 @@
 import os
 import sys
 from datetime import datetime
-sys.path.insert(0, os.path.abspath('..'))
+
+sys.path.insert(0, os.path.abspath(".."))
 # from recommonmark.parser import CommonMarkParser
 
 from ricecooker import __version__ as current_ricecooker_version
@@ -37,13 +37,13 @@ from ricecooker import __version__ as current_ricecooker_version
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    'sphinx.ext.autodoc',
-    'sphinx.ext.napoleon',
-    'sphinx.ext.doctest',
-    'sphinx.ext.intersphinx',
-    'sphinx.ext.todo',
-    'sphinx.ext.mathjax',
-    'sphinx.ext.viewcode',
+    "sphinx.ext.autodoc",
+    "sphinx.ext.napoleon",
+    "sphinx.ext.doctest",
+    "sphinx.ext.intersphinx",
+    "sphinx.ext.todo",
+    "sphinx.ext.mathjax",
+    "sphinx.ext.viewcode",
     "recommonmark",
     "nbsphinx",
     "sphinx_rtd_theme",
@@ -51,19 +51,19 @@ extensions = [
 ]
 
 # Add any paths that contain templates here, relative to this directory.
-templates_path = ['_templates']
+templates_path = ["_templates"]
 
 # The encoding of source files.
 #
 # source_encoding = 'utf-8-sig'
 
 # The master toctree document.
-master_doc = 'index'
+master_doc = "index"
 
 # General information about the project.
-project = 'ricecooker'
-copyright = u'{year:d}, Learning Equality'.format(year=datetime.now().year)
-author = 'Learning Equality Content Team'
+project = "ricecooker"
+copyright = u"{year:d}, Learning Equality".format(year=datetime.now().year)
+author = "Learning Equality Content Team"
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -94,10 +94,10 @@ language = None
 # directories to ignore when looking for source files.
 # This patterns also effect to html_static_path and html_extra_path
 exclude_patterns = [
-    'examples/.ipynb_checkpoints',
-    'examples/drafts',
-    '_build',
-    'build',
+    "examples/.ipynb_checkpoints",
+    "examples/drafts",
+    "_build",
+    "build",
 ]
 
 # The reST default role (used for this markup: `text`) to use for all
@@ -120,7 +120,7 @@ exclude_patterns = [
 # show_authors = False
 
 # The name of the Pygments (syntax highlighting) style to use.
-pygments_style = 'sphinx'
+pygments_style = "sphinx"
 
 # A list of ignored prefixes for module index sorting.
 # modindex_common_prefix = []
@@ -137,7 +137,7 @@ todo_include_todos = True
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'sphinx_rtd_theme'
+html_theme = "sphinx_rtd_theme"
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -160,17 +160,17 @@ html_theme = 'sphinx_rtd_theme'
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
 #
-html_logo = 'figures/kolibri_logo.png'
+html_logo = "figures/kolibri_logo.png"
 
 # The name of an image file (within the static path) to use as favicon of the
 # docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
 # pixels large.
-html_favicon = 'figures/logo.ico'
+html_favicon = "figures/logo.ico"
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = [] # ['_static']
+html_static_path = []  # ['_static']
 
 # Add any extra paths that contain custom files (such as robots.txt or
 # .htaccess) here, relative to this directory. These files are copied
@@ -181,7 +181,7 @@ html_static_path = [] # ['_static']
 # bottom, using the given strftime format.
 # The empty string is equivalent to '%b %d, %Y'.
 #
-#html_last_updated_fmt = ''
+# html_last_updated_fmt = ''
 
 # If true, SmartyPants will be used to convert quotes and dashes to
 # typographically correct entities.
@@ -249,7 +249,7 @@ html_show_copyright = False
 # html_search_scorer = 'scorer.js'
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'ricecookerdoc'
+htmlhelp_basename = "ricecookerdoc"
 
 # -- Options for LaTeX output ---------------------------------------------
 
@@ -257,18 +257,18 @@ htmlhelp_basename = 'ricecookerdoc'
 
 latex_elements = {
     # The paper size ('letterpaper' or 'a4paper').
-    'papersize': 'letterpaper',
-    'fncychap': '\\usepackage{fncychap}',
-    'fontpkg': '\\usepackage[default]{lato}\\usepackage[T1]{fontenc}',
-    'figure_align':'htbp',
+    "papersize": "letterpaper",
+    "fncychap": "\\usepackage{fncychap}",
+    "fontpkg": "\\usepackage[default]{lato}\\usepackage[T1]{fontenc}",
+    "figure_align": "htbp",
     # The font size ('10pt', '11pt' or '12pt').
     #
-    'pointsize': '11pt',
-    'extraclassoptions': 'oneside',
+    "pointsize": "11pt",
+    "extraclassoptions": "oneside",
     # The font size ('10pt', '11pt' or '12pt').
     #'pointsize': '10pt',
     # Additional stuff for the LaTeX preamble.
-    'preamble': r'''
+    "preamble": r"""
         %%% FRONTMATTER %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         %
         %%%add number to subsubsection 2=subsection, 3=subsubsection
@@ -346,9 +346,8 @@ latex_elements = {
         \newunicodechar{🍣}{sushi}
         \newunicodechar{🍱}{lunchbox}
 
-    ''',
-
-    'maketitle': r'''
+    """,
+    "maketitle": r"""
 
         %%% SET PDF INFO %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         % Note: this has to be after preamble where \title and \author are defined
@@ -404,21 +403,20 @@ latex_elements = {
         % \listoftables
         \clearpage
         \pagenumbering{arabic}
-        ''',
+        """,
     # Latex figure (float) alignment
     # 'figure_align': 'htbp',
     #
     # GLOBAL OPTIONS FOR THE sphynx.sty STYLE CLASS ############################
-    'sphinxsetup': \
-        'hmargin={1in,1in}, vmargin={1.2in,0.7in}, \
+    "sphinxsetup": "hmargin={1in,1in}, vmargin={1.2in,0.7in}, \
         TitleColor={rgb}{0,0,0}, \
         InnerLinkColor={rgb}{0,0,1}, \
         OuterLinkColor={rgb}{0,0,1}, \
         verbatimwithframe=false, \
         VerbatimColor={rgb}{0.95,0.95,0.95}, \
         verbatimvisiblespace={}, \
-        verbatimcontinued={}',
-        'tableofcontents':' ',
+        verbatimcontinued={}",
+    "tableofcontents": " ",
 }
 # other sphinxsetup options:
 #       verbatimwithframe=true, \
@@ -439,36 +437,16 @@ latex_elements = {
 ############################################################################
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc,                              # source start file,
-     'ricecooker.tex',                        # target name,
-     'ricecooker docs',                       # title,
-     'Learning Equality Content Team',        # author,
-     'manual'                                 # documentclass [howto, manual, or own class])
+    (
+        master_doc,  # source start file,
+        "ricecooker.tex",  # target name,
+        "ricecooker docs",  # title,
+        "Learning Equality Content Team",  # author,
+        "manual",  # documentclass [howto, manual, or own class])
     ),
 ]
 
@@ -476,7 +454,7 @@ latex_documents = [
 # The name of an image file (relative to this directory) to place at the top of
 # the title page.
 #
-latex_logo = 'figures/content_pipeline_diagram_with_highlight.png'
+latex_logo = "figures/content_pipeline_diagram_with_highlight.png"
 
 # For "manual" documents, if this is true, then toplevel headings are parts,
 # not chapters.
@@ -510,12 +488,7 @@ latex_logo = 'figures/content_pipeline_diagram_with_highlight.png'
 
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
-man_pages = [
-    (master_doc,
-    'ricecooker',
-    'ricecooker Documentation',
-    [author], 1)
-]
+man_pages = [(master_doc, "ricecooker", "ricecooker Documentation", [author], 1)]
 
 # If true, show URL addresses after external links.
 #
@@ -528,13 +501,15 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc,
-     'ricecooker',
-     'ricecooker Documentation',
-     author,
-     'ricecooker',
-     'One line description of project.',
-     'Miscellaneous'),
+    (
+        master_doc,
+        "ricecooker",
+        "ricecooker Documentation",
+        author,
+        "ricecooker",
+        "One line description of project.",
+        "Miscellaneous",
+    ),
 ]
 
 # Documents to append as an appendix to all manuals.
@@ -547,7 +522,7 @@ texinfo_documents = [
 
 # How to display URL addresses: 'footnote', 'no', or 'inline'.
 #
-texinfo_show_urls = 'inline'
+texinfo_show_urls = "inline"
 
 # If true, do not generate a @detailmenu in the "Top" node's menu.
 #
@@ -608,7 +583,7 @@ epub_copyright = copyright
 # epub_post_files = []
 
 # A list of files that should not be packed into the epub file.
-epub_exclude_files = ['search.html']
+epub_exclude_files = ["search.html"]
 
 # The depth of the table of contents in toc.ncx.
 #
@@ -642,22 +617,22 @@ epub_exclude_files = ['search.html']
 # Configuration for intersphinx for various LE projects
 
 intersphinx_mapping = {
-    'python':       ('https://docs.python.org/3.6/', None),
-    'django':       ('https://django.readthedocs.io/en/latest/', None),
-    'kolibri-user': ('http://kolibri.readthedocs.io/en/latest/', None),
-    'kolibri':      ('http://kolibri-dev.readthedocs.io/en/latest/', None),
-    'studio-user':  ('https://kolibri-studio.readthedocs.io/en/latest/', None),
+    "python": ("https://docs.python.org/3.6/", None),
+    "django": ("https://django.readthedocs.io/en/latest/", None),
+    "kolibri-user": ("http://kolibri.readthedocs.io/en/latest/", None),
+    "kolibri": ("http://kolibri-dev.readthedocs.io/en/latest/", None),
+    "studio-user": ("https://kolibri-studio.readthedocs.io/en/latest/", None),
 }
 
 
 # Also accept .md files  (via https://github.com/rtfd/recommonmark)
-source_suffix = ['.md', '.rst', '.ipynb']
+source_suffix = [".md", ".rst", ".ipynb"]
 
 autodoc_default_options = {
-        # Make sure that any autodoc declarations show the right members
-        "members": None,
-        "inherited-members": None,
-        "undoc-members": None,
-        #"private-members": True,
-        "show-inheritance": None,
+    # Make sure that any autodoc declarations show the right members
+    "members": None,
+    "inherited-members": None,
+    "undoc-members": None,
+    # "private-members": True,
+    "show-inheritance": None,
 }

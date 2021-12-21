@@ -1,8 +1,11 @@
 import os
 
-from PyPDF2 import PdfFileWriter, PdfFileReader
-from PyPDF2.generic import Destination, NullObject
+from PyPDF2 import PdfFileReader
+from PyPDF2 import PdfFileWriter
+from PyPDF2.generic import Destination
+from PyPDF2.generic import NullObject
 from PyPDF2.utils import PdfReadError
+
 from ricecooker.utils.downloader import read
 
 
@@ -12,6 +15,7 @@ class CustomDestination(Destination):
             super(CustomDestination, self).__init__(title, page, typ, *args)
         except PdfReadError:
             pass
+
 
 class CustomPDFReader(PdfFileReader):
     def _buildDestination(self, title, array):
@@ -24,7 +28,8 @@ class PDFParser(object):
     """
     Helper class for extracting table of contents and splitting PDFs into chapters.
     """
-    path = None       # Local path to source PDF document that will be processed
+
+    path = None  # Local path to source PDF document that will be processed
 
     def __init__(self, source_path, directory="downloads"):
         self.directory = directory
@@ -58,19 +63,18 @@ class PDFParser(object):
             with open(self.path, "wb") as fobj:
                 fobj.write(read(self.source_path))
 
-        self.file = open(self.path, 'rb')
+        self.file = open(self.path, "rb")
         self.pdf = CustomPDFReader(self.file)
 
     def close(self):
         """
         Close main pdf file when done.
         """
-        self.file.close() # Make sure zipfile closes no matter what
+        self.file.close()  # Make sure zipfile closes no matter what
 
     def check_path(self):
         if not self.path:
             raise ValueError("self.path not found; call `open` first")
-
 
     def get_toc(self, subchapters=False):
         """
@@ -96,10 +100,12 @@ class PDFParser(object):
         for dest in self.pdf.getOutlines():
 
             # Process chapters
-            if isinstance(dest, CustomDestination) and not isinstance(dest['/Page'], NullObject):
+            if isinstance(dest, CustomDestination) and not isinstance(
+                dest["/Page"], NullObject
+            ):
                 page_num = self.pdf.getDestinationPageNumber(dest)
                 chapter_pagerange = {
-                    "title": dest['/Title'].replace('\xa0', ' '),
+                    "title": dest["/Title"].replace("\xa0", " "),
                     "page_start": page_num if index != 0 else 0,
                     "page_end": self.pdf.numPages,
                 }
@@ -122,37 +128,43 @@ class PDFParser(object):
                 parent = chapters[index - 1]
                 subindex = 0
                 for subdest in dest:
-                    if isinstance(subdest, CustomDestination) and not isinstance(subdest['/Page'], NullObject):
+                    if isinstance(subdest, CustomDestination) and not isinstance(
+                        subdest["/Page"], NullObject
+                    ):
                         subpage_num = self.pdf.getDestinationPageNumber(subdest)
-                        parent['children'].append({
-                            "title": subdest['/Title'].replace('\xa0', ' '),
-                            "page_start": subpage_num,
-                            "page_end": self.pdf.numPages
-                        })
+                        parent["children"].append(
+                            {
+                                "title": subdest["/Title"].replace("\xa0", " "),
+                                "page_start": subpage_num,
+                                "page_end": self.pdf.numPages,
+                            }
+                        )
                         if subindex > 0:
-                            parent['children'][subindex - 1]["page_end"] = subpage_num
-                        subindex +=1
+                            parent["children"][subindex - 1]["page_end"] = subpage_num
+                        subindex += 1
 
         return chapters
 
-
-    def write_pagerange(self, pagerange, prefix=''):
+    def write_pagerange(self, pagerange, prefix=""):
         """
         Save the subset of pages specified in `pagerange` (dict) as separate PDF.
         e.g. pagerange = {'title':'First chapter', 'page_start':0, 'page_end':5}
         """
         writer = PdfFileWriter()
-        slug = "".join([c for c in pagerange['title'].replace(" ", "-") if c.isalnum() or c == "-"])
-        write_to_path = os.path.sep.join([self.directory, "{}{}.pdf".format(prefix, slug)])
-        for page in range(pagerange['page_start'], pagerange['page_end']):
+        slug = "".join(
+            [c for c in pagerange["title"].replace(" ", "-") if c.isalnum() or c == "-"]
+        )
+        write_to_path = os.path.sep.join(
+            [self.directory, "{}{}.pdf".format(prefix, slug)]
+        )
+        for page in range(pagerange["page_start"], pagerange["page_end"]):
             writer.addPage(self.pdf.getPage(page))
-            writer.removeLinks()                   # must be done every page
-        with open(write_to_path, 'wb') as outfile:
+            writer.removeLinks()  # must be done every page
+        with open(write_to_path, "wb") as outfile:
             writer.write(outfile)
         return write_to_path
 
-
-    def split_chapters(self, jsondata=None, prefix=''):
+    def split_chapters(self, jsondata=None, prefix=""):
         """
         Split the PDF doc into individual chapters based on the page-range info,
         storing individual split PDFs in the output folder `self.directory`.
@@ -164,11 +176,10 @@ class PDFParser(object):
         toc = jsondata or self.get_toc()
         chapters = []
         for index, chpagerange in enumerate(toc):
-            newprefix = prefix + str(index) + '-'
+            newprefix = prefix + str(index) + "-"
             write_to_path = self.write_pagerange(chpagerange, prefix=newprefix)
-            chapters.append({"title": chpagerange['title'], "path": write_to_path})
+            chapters.append({"title": chpagerange["title"], "path": write_to_path})
         return chapters
-
 
     def split_subchapters(self, jsondata=None):
         """
@@ -184,31 +195,37 @@ class PDFParser(object):
 
         for index, chpagerange in enumerate(toc):
             # chapter prefix of the form 1-, 2-, 3-,... to avoid name conflicsts
-            chprefix = str(index) + '-'
+            chprefix = str(index) + "-"
             # Case A: chapter with no subchapters
-            if 'children' not in chpagerange or not chpagerange['children']:
+            if "children" not in chpagerange or not chpagerange["children"]:
                 write_to_path = self.write_pagerange(chpagerange, prefix=chprefix)
-                chapters.append({"title": chpagerange['title'], "path": write_to_path})
+                chapters.append({"title": chpagerange["title"], "path": write_to_path})
 
             # Case B: chapter with subchapters
-            elif 'children' in chpagerange:
-                chapter_topic = { 'title': chpagerange['title'], 'children': [] }
-                subchpageranges = chpagerange['children']
+            elif "children" in chpagerange:
+                chapter_topic = {"title": chpagerange["title"], "children": []}
+                subchpageranges = chpagerange["children"]
                 first_subchapter = subchpageranges[0]
 
                 # Handle case when chapter has "intro pages" before first subchapter
-                if first_subchapter['page_start'] > chpagerange['page_start']:
+                if first_subchapter["page_start"] > chpagerange["page_start"]:
                     chintro_pagerange = {
-                        'title': chpagerange['title'],
-                        'page_start': chpagerange['page_start'],
-                        'page_end': first_subchapter['page_start']
+                        "title": chpagerange["title"],
+                        "page_start": chpagerange["page_start"],
+                        "page_end": first_subchapter["page_start"],
                     }
-                    write_to_path = self.write_pagerange(chintro_pagerange, prefix=chprefix)
-                    chapter_topic['children'].append({"title": chpagerange['title'], "path": write_to_path})
+                    write_to_path = self.write_pagerange(
+                        chintro_pagerange, prefix=chprefix
+                    )
+                    chapter_topic["children"].append(
+                        {"title": chpagerange["title"], "path": write_to_path}
+                    )
 
                 # Handle all subchapters
-                subchapter_nodes = self.split_chapters(jsondata=subchpageranges, prefix=chprefix)
-                chapter_topic['children'].extend(subchapter_nodes)
+                subchapter_nodes = self.split_chapters(
+                    jsondata=subchpageranges, prefix=chprefix
+                )
+                chapter_topic["children"].extend(subchapter_nodes)
                 chapters.append(chapter_topic)
 
         return chapters

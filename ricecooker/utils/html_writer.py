@@ -1,20 +1,22 @@
 import os
 import zipfile
+
 from ricecooker.utils.downloader import read
 
-class HTMLWriter():
+
+class HTMLWriter:
     """
-        Class for writing zipfiles
+    Class for writing zipfiles
     """
 
-    zf = None               # Zip file to write to
-    write_to_path = None    # Where to write zip file
+    zf = None  # Zip file to write to
+    write_to_path = None  # Where to write zip file
 
     def __init__(self, write_to_path, mode="w"):
         """ Args: write_to_path: (str) where to write zip file """
-        self.map = {}                       # Keeps track of content to write to csv
+        self.map = {}  # Keeps track of content to write to csv
         self.write_to_path = write_to_path  # Where to write zip file
-        self.mode = mode                    # What mode to open zipfile in
+        self.mode = mode  # What mode to open zipfile in
 
     def __enter__(self):
         """ Called when opening context (e.g. with HTMLWriter() as writer: ) """
@@ -41,49 +43,55 @@ class HTMLWriter():
     """ USER-FACING METHODS """
 
     def open(self):
-        """ open: Opens zipfile to write to
-            Args: None
-            Returns: None
+        """open: Opens zipfile to write to
+        Args: None
+        Returns: None
         """
         self.zf = zipfile.ZipFile(self.write_to_path, self.mode)
 
     def close(self):
-        """ close: Close zipfile when done
-            Args: None
-            Returns: None
+        """close: Close zipfile when done
+        Args: None
+        Returns: None
         """
-        index_present = self.contains('index.html')
-        self.zf.close() # Make sure zipfile closes no matter what
+        index_present = self.contains("index.html")
+        self.zf.close()  # Make sure zipfile closes no matter what
         if not index_present:
-            raise ReferenceError("Invalid Zip at {}: missing index.html file (use write_index_contents method)".format(self.write_to_path))
+            raise ReferenceError(
+                "Invalid Zip at {}: missing index.html file (use write_index_contents method)".format(
+                    self.write_to_path
+                )
+            )
 
     def contains(self, filename):
-        """ contains: Checks if filename is in the zipfile
-            Args: filename: (str) name of file to check
-            Returns: boolean indicating whether or not filename is in the zip
+        """contains: Checks if filename is in the zipfile
+        Args: filename: (str) name of file to check
+        Returns: boolean indicating whether or not filename is in the zip
         """
         return filename in self.zf.namelist()
 
     def write_contents(self, filename, contents, directory=None):
-        """ write_contents: Write contents to filename in zip
-            Args:
-                contents: (str) contents of file
-                filename: (str) name of file in zip
-                directory: (str) directory in zipfile to write file to (optional)
-            Returns: path to file in zip
+        """write_contents: Write contents to filename in zip
+        Args:
+            contents: (str) contents of file
+            filename: (str) name of file in zip
+            directory: (str) directory in zipfile to write file to (optional)
+        Returns: path to file in zip
         """
-        filepath = "{}/{}".format(directory.rstrip("/"), filename) if directory else filename
+        filepath = (
+            "{}/{}".format(directory.rstrip("/"), filename) if directory else filename
+        )
         self._write_to_zipfile(filepath, contents)
         return filepath
 
     def write_file(self, filepath, filename=None, directory=None):
-        """ write_file: Write local file to zip
-            Args:
-                filepath: (str) location to local file
-                directory: (str) directory in zipfile to write file to (optional)
-            Returns: path to file in zip
+        """write_file: Write local file to zip
+        Args:
+            filepath: (str) location to local file
+            directory: (str) directory in zipfile to write file to (optional)
+        Returns: path to file in zip
 
-            Note: filepath must be a relative path
+        Note: filepath must be a relative path
         """
         arcname = None
         if filename or directory:
@@ -94,22 +102,24 @@ class HTMLWriter():
         return arcname or filepath
 
     def write_url(self, url, filename, directory=None):
-        """ write_url: Write contents from url to filename in zip
-            Args:
-                url: (str) url to file to download
-                filename: (str) name of file in zip
-                directory: (str) directory in zipfile to write file to (optional)
-            Returns: path to file in zip
+        """write_url: Write contents from url to filename in zip
+        Args:
+            url: (str) url to file to download
+            filename: (str) name of file in zip
+            directory: (str) directory in zipfile to write file to (optional)
+        Returns: path to file in zip
         """
-        filepath = "{}/{}".format(directory.rstrip("/"), filename) if directory else filename
+        filepath = (
+            "{}/{}".format(directory.rstrip("/"), filename) if directory else filename
+        )
         if not self.contains(filepath):
             self._write_to_zipfile(filepath, read(url))
         return filepath
 
     def write_index_contents(self, contents):
-        """ write_index_contents: Write main index file to zip
-            Args:
-                contents: (str) contents of file
-            Returns: path to file in zip
+        """write_index_contents: Write main index file to zip
+        Args:
+            contents: (str) contents of file
+        Returns: path to file in zip
         """
-        self._write_to_zipfile('index.html', contents)
+        self._write_to_zipfile("index.html", contents)

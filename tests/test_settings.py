@@ -5,10 +5,7 @@ from mock import patch
 from ricecooker import chefs
 
 
-settings = {
-    'generate-missing-thumbnails': True,
-    'compress-videos': True
-}
+settings = {"generate-missing-thumbnails": True, "compress-videos": True}
 
 
 def test_settings_unset_default():
@@ -35,45 +32,45 @@ def test_cli_args_override_settings():
     takes precedence over the default setting.
     """
 
-    test_argv = ['sushichef.py', '--compress', '--thumbnails', '--token', '12345']
+    test_argv = ["sushichef.py", "--compress", "--thumbnails", "--token", "12345"]
 
-    with patch.object(sys, 'argv', test_argv):
+    with patch.object(sys, "argv", test_argv):
         chef = chefs.SushiChef()
-        chef.SETTINGS['generate-missing-thumbnails'] = False
-        chef.SETTINGS['compress-videos'] = False
+        chef.SETTINGS["generate-missing-thumbnails"] = False
+        chef.SETTINGS["compress-videos"] = False
 
-        assert chef.get_setting('generate-missing-thumbnails') == False
-        assert chef.get_setting('compress-videos') == False
+        assert chef.get_setting("generate-missing-thumbnails") == False
+        assert chef.get_setting("compress-videos") == False
 
         chef.parse_args_and_options()
-        assert chef.get_setting('generate-missing-thumbnails') == True
-        assert chef.get_setting('compress-videos') == True
+        assert chef.get_setting("generate-missing-thumbnails") == True
+        assert chef.get_setting("compress-videos") == True
 
-    test_argv = ['sushichef.py', '--compress', '--thumbnails', '--token', '12345']
+    test_argv = ["sushichef.py", "--compress", "--thumbnails", "--token", "12345"]
 
-    with patch.object(sys, 'argv', test_argv):
+    with patch.object(sys, "argv", test_argv):
         chef = chefs.SushiChef()
 
         assert len(chef.SETTINGS) == 0
 
-        assert chef.get_setting('generate-missing-thumbnails') == None
-        assert chef.get_setting('compress-videos') == None
+        assert chef.get_setting("generate-missing-thumbnails") == None
+        assert chef.get_setting("compress-videos") == None
 
         chef.parse_args_and_options()
-        assert chef.get_setting('generate-missing-thumbnails') == True
-        assert chef.get_setting('compress-videos') == True
+        assert chef.get_setting("generate-missing-thumbnails") == True
+        assert chef.get_setting("compress-videos") == True
 
     # now test without setting the flags
-    test_argv = ['sushichef.py', '--token', '12345']
+    test_argv = ["sushichef.py", "--token", "12345"]
 
-    with patch.object(sys, 'argv', test_argv):
+    with patch.object(sys, "argv", test_argv):
         chef = chefs.SushiChef()
-        chef.SETTINGS['generate-missing-thumbnails'] = False
-        chef.SETTINGS['compress-videos'] = False
+        chef.SETTINGS["generate-missing-thumbnails"] = False
+        chef.SETTINGS["compress-videos"] = False
 
-        assert chef.get_setting('generate-missing-thumbnails') == False
-        assert chef.get_setting('compress-videos') == False
+        assert chef.get_setting("generate-missing-thumbnails") == False
+        assert chef.get_setting("compress-videos") == False
 
         chef.parse_args_and_options()
-        assert chef.get_setting('generate-missing-thumbnails') == False
-        assert chef.get_setting('compress-videos') == False
+        assert chef.get_setting("generate-missing-thumbnails") == False
+        assert chef.get_setting("compress-videos") == False

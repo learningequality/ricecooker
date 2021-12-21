@@ -91,4 +91,3 @@ There are also some excellent tutorials online you can read:
   - [http://akul.me/blog/2016/beautifulsoup-cheatsheet/](http://akul.me/blog/2016/beautifulsoup-cheatsheet/)
   - [http://youkilljohnny.blogspot.com/2014/03/beautifulsoup-cheat-sheet-parse-html-by.html](http://youkilljohnny.blogspot.com/2014/03/beautifulsoup-cheat-sheet-parse-html-by.html)
   - [http://www.compjour.org/warmups/govt-text-releases/intro-to-bs4-lxml-parsing-wh-press-briefings/](http://www.compjour.org/warmups/govt-text-releases/intro-to-bs4-lxml-parsing-wh-press-briefings/)
-

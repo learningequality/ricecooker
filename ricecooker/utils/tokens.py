@@ -1,9 +1,8 @@
-
 import json
 import os
 import sys
 
-try: # to support Python 2.x.
+try:  # to support Python 2.x.
     input = raw_input
 except NameError:
     pass
@@ -22,6 +21,7 @@ def get_env(envvar):
     else:
         return os.environ[envvar]
 
+
 def get_content_curation_token(args_token):
     """
     Get the token through one of four possible ways. Input `args_token` can be
@@ -31,18 +31,19 @@ def get_content_curation_token(args_token):
     3a. if environment variable STUDIO_TOKEN exists, we'll use that
     3b. else we prompt the user interactively
     """
-    if args_token != "#":                               # retrieval methods 1, 2
+    if args_token != "#":  # retrieval methods 1, 2
         if os.path.isfile(args_token):
-            with open(args_token, 'r') as fobj:
+            with open(args_token, "r") as fobj:
                 return fobj.read().strip()
         else:
             return args_token
-    else:                                               # retrieval strategies 3
-        token = get_env('STUDIO_TOKEN') or get_env('CONTENT_CURATION_TOKEN')
+    else:  # retrieval strategies 3
+        token = get_env("STUDIO_TOKEN") or get_env("CONTENT_CURATION_TOKEN")
         if token is not None:
-            return token                                # 3a
+            return token  # 3a
         else:
-            return prompt_token(config.DOMAIN)          # 3b
+            return prompt_token(config.DOMAIN)  # 3b
+
 
 def prompt_token(domain):
     """
@@ -51,9 +52,10 @@ def prompt_token(domain):
     Returns: token
     """
     token = input("\nEnter content curation server token ('q' to quit): ").lower()
-    if token == 'q':
+    if token == "q":
         sys.exit()
     else:
         return token.strip()
+
 
 # SUSHI_BAR_TOKEN = get_env('SUSHI_BAR_TOKEN')  # TODO in near future

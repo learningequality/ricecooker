@@ -80,7 +80,7 @@ Here are the steps for setting up `ricecooker` for local development:
 
 3. Create a Python virtual environment for this project (optional, but recommended):
 
-   * Install the `virtualenv` package using the command 
+   * Install the `virtualenv` package using the command
      ```
      pip install virtualenv
      ```
@@ -88,11 +88,11 @@ Here are the steps for setting up `ricecooker` for local development:
    * The next steps depends if you're using a UNIX system (Mac/Linux) or Windows:
       * For UNIX operating systems:
          * Create a virtual env called `venv` in the current directory using the
-           command: 
+           command:
            ```
            virtualenv -p python3 venv
            ```
-         * Activate the virtualenv called `venv` by running: 
+         * Activate the virtualenv called `venv` by running:
            ```
            source venv/bin/activate
            ```
@@ -100,13 +100,13 @@ Here are the steps for setting up `ricecooker` for local development:
 
       * For Windows systems:
          * Create a virtual env called `venv` in the current directory using the
-           following command: 
+           following command:
            ```
            virtualenv -p C:/Python36/python.exe venv
            ```
            You may need to adjust the `-p` argument depending on where your version
            of Python is located. Note you'll need Python version 3.5 or higher.
-         * Activate the virtualenv called `venv` by running: 
+         * Activate the virtualenv called `venv` by running:
            ```
            .\venv\Scripts\activate
            ```

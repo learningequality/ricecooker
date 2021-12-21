@@ -22,17 +22,17 @@ Here is how to split a PDF document located at `pdf_path`, which can be either
 a local path or a URL:
 
     from ricecooker.utils.pdf import PDFParser
-    
+
     pdf_path = '/some/local/doc.pdf' or 'https://somesite.org/some/remote/doc.pdf'
     with PDFParser(pdf_path) as pdfparser:
         chapters = pdfparser.split_chapters()
 
 The output `chapters` is list of dictionaries with `title` and `path` attributes:
 
-    [ 
+    [
       {'title':'First chapter',  'path':'downloads/doc/First-chapter.pdf'},
       {'title':'Second chapter', 'path':'downloads/doc/Second-chapter.pdf'},
-      ... 
+      ...
     ]
 
 Use this information to create an individual `DocumentNode` for each PDF and store
@@ -67,7 +67,7 @@ has the following format:
 
 If the page ranges automatically detected form the PDF's table of contents are
 not suitable for the document you're processing, or if the PDF document does not
-contain table of contents information, you can manually create the title and 
+contain table of contents information, you can manually create the title and
 page range data and pass it as the `jsondata` argument to the `split_chapters()`.
 
     page_ranges = pdfparser.get_toc()
@@ -140,4 +140,3 @@ Accessibility notes
 -------------------
 Do not use `PDFParser` for tagged PDFs because splitting and processing loses
 the accessibility features of the original PDF document.
-

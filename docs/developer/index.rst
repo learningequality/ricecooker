@@ -13,4 +13,3 @@ To learn about the inner workings of the ``ricecooker`` library, consult the fol
    uploadprocess
    design_cli
    corrections
-

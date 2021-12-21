@@ -1,23 +1,27 @@
-import os, urllib, posixpath, webbrowser
-from http.server import HTTPServer, BaseHTTPRequestHandler, SimpleHTTPRequestHandler
+import os
+import posixpath
+import urllib
+import webbrowser
+from http.server import BaseHTTPRequestHandler
+from http.server import HTTPServer
+from http.server import SimpleHTTPRequestHandler
 
 
 def preview_in_browser(directory, filename="index.html", port=8282):
-
     class RequestHandler(SimpleHTTPRequestHandler):
-
         def translate_path(self, path):
             # abandon query parameters
-            path = path.split('?',1)[0]
-            path = path.split('#',1)[0]
+            path = path.split("?", 1)[0]
+            path = path.split("#", 1)[0]
             path = posixpath.normpath(urllib.parse.unquote(path))
-            words = path.split('/')
+            words = path.split("/")
             words = filter(None, words)
             path = directory
             for word in words:
                 drive, word = os.path.splitdrive(word)
                 head, word = os.path.split(word)
-                if word in (os.curdir, os.pardir): continue
+                if word in (os.curdir, os.pardir):
+                    continue
                 path = os.path.join(path, word)
             return path
 

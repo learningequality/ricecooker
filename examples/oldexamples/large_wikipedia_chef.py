@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 import tempfile
 
 import requests
@@ -8,8 +7,12 @@ from bs4 import BeautifulSoup
 from ricecooker.chefs import SushiChef
 from ricecooker.classes import licenses
 from ricecooker.classes.files import HTMLZipFile
-from ricecooker.classes.nodes import ChannelNode, HTML5AppNode, TopicNode
-from ricecooker.utils.caching import CacheForeverHeuristic, FileCache, CacheControlAdapter
+from ricecooker.classes.nodes import ChannelNode
+from ricecooker.classes.nodes import HTML5AppNode
+from ricecooker.classes.nodes import TopicNode
+from ricecooker.utils.caching import CacheControlAdapter
+from ricecooker.utils.caching import CacheForeverHeuristic
+from ricecooker.utils.caching import FileCache
 from ricecooker.utils.html import download_file
 from ricecooker.utils.zip import create_predictable_zip
 
@@ -17,15 +20,15 @@ from ricecooker.utils.zip import create_predictable_zip
 SOURCE_DOMAIN = "<yourdomain.org>"  #
 SOURCE_ID = "<yourid>"  # an alphanumeric ID refering to this channel
 CHANNEL_TITLE = "<channeltitle>"  # a humand-readbale title
-CHANNEL_LANGUAGE = "en"            # language of channel
+CHANNEL_LANGUAGE = "en"  # language of channel
 
 sess = requests.Session()
-cache = FileCache('.webcache')
+cache = FileCache(".webcache")
 basic_adapter = CacheControlAdapter(cache=cache)
 forever_adapter = CacheControlAdapter(heuristic=CacheForeverHeuristic(), cache=cache)
 
-sess.mount('http://', forever_adapter)
-sess.mount('https://', forever_adapter)
+sess.mount("http://", forever_adapter)
+sess.mount("https://", forever_adapter)
 
 
 def make_fully_qualified_url(url):
@@ -51,29 +54,33 @@ def get_parsed_html_from_url(url, *args, **kwargs):
     return BeautifulSoup(html, "html.parser")
 
 
-
 class LargeWikipediaChef(SushiChef):
     """
     The chef class that takes care of uploading channel to the content curation server.
     We'll call its `main()` method from the command line script.
     """
-    channel_info = {    #
-        'CHANNEL_SOURCE_DOMAIN': SOURCE_DOMAIN,       # who is providing the content (e.g. learningequality.org)
-        'CHANNEL_SOURCE_ID': SOURCE_ID,                   # channel's unique id
-        'CHANNEL_TITLE': CHANNEL_TITLE,
-        'CHANNEL_LANGUAGE': CHANNEL_LANGUAGE,
-        'CHANNEL_THUMBNAIL': 'https://lh3.googleusercontent.com/zwwddqxgFlP14DlucvBV52RUMA-cV3vRvmjf-iWqxuVhYVmB-l8XN9NDirb0687DSw=w300', # (optional) local path or url to image file
-        'CHANNEL_DESCRIPTION': 'A large channel created from Wikipedia content.',      # (optional) description of the channel (optional)
+
+    channel_info = {  #
+        "CHANNEL_SOURCE_DOMAIN": SOURCE_DOMAIN,  # who is providing the content (e.g. learningequality.org)
+        "CHANNEL_SOURCE_ID": SOURCE_ID,  # channel's unique id
+        "CHANNEL_TITLE": CHANNEL_TITLE,
+        "CHANNEL_LANGUAGE": CHANNEL_LANGUAGE,
+        "CHANNEL_THUMBNAIL": "https://lh3.googleusercontent.com/zwwddqxgFlP14DlucvBV52RUMA-cV3vRvmjf-iWqxuVhYVmB-l8XN9NDirb0687DSw=w300",  # (optional) local path or url to image file
+        "CHANNEL_DESCRIPTION": "A large channel created from Wikipedia content.",  # (optional) description of the channel (optional)
     }
 
     def construct_channel(self, *args, **kwargs):
         """
         Create ChannelNode and build topic tree.
         """
-        channel = self.get_channel(*args, **kwargs)  # creates ChannelNode from data in self.channel_info
+        channel = self.get_channel(
+            *args, **kwargs
+        )  # creates ChannelNode from data in self.channel_info
         city_topic = TopicNode(source_id="List_of_largest_cities", title="Cities!")
         channel.add_child(city_topic)
-        add_subpages_from_wikipedia_list(city_topic, "https://en.wikipedia.org/wiki/List_of_largest_cities")
+        add_subpages_from_wikipedia_list(
+            city_topic, "https://en.wikipedia.org/wiki/List_of_largest_cities"
+        )
 
         return channel
 
@@ -87,7 +94,11 @@ def add_subpages_from_wikipedia_list(topic, list_url):
     page = get_parsed_html_from_url(list_url)
 
     # extract the main table from the page
-    table = page.find(lambda tag: tag.name == 'table' and tag.has_attr('class') and 'wikitable' in tag['class'])
+    table = page.find(
+        lambda tag: tag.name == "table"
+        and tag.has_attr("class")
+        and "wikitable" in tag["class"]
+    )
 
     # loop through all the rows in the table
     for row in table.find_all("tr"):
@@ -117,7 +128,9 @@ def add_subpages_from_wikipedia_list(topic, list_url):
         # attempt to extract a thumbnail for the subpage, from the second column in the table
         image = columns[1].find("img")
         thumbnail_url = make_fully_qualified_url(image["src"]) if image else None
-        if thumbnail_url and not (thumbnail_url.endswith("jpg") or thumbnail_url.endswith("png")):
+        if thumbnail_url and not (
+            thumbnail_url.endswith("jpg") or thumbnail_url.endswith("png")
+        ):
             thumbnail_url = None
 
         # download the wikipedia page into an HTML5 app node
@@ -159,14 +172,15 @@ def process_wikipedia_page(content, baseurl, destpath, **kwargs):
     page = BeautifulSoup(content, "html.parser")
 
     for image in page.find_all("img"):
-        relpath, _ = download_file(make_fully_qualified_url(image["src"]), destpath, request_fn=make_request)
+        relpath, _ = download_file(
+            make_fully_qualified_url(image["src"]), destpath, request_fn=make_request
+        )
         image["src"] = relpath
 
     return str(page)
 
 
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     """
     This code will run when the sushi chef is called from the command line.
     """

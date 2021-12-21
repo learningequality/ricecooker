@@ -1,9 +1,16 @@
 import codecs
-from pycaption import CaptionSet, WebVTTWriter
-from pycaption import WebVTTReader, SRTReader, SAMIReader, SCCReader, DFXPReader
-from pycaption import CaptionReadError, CaptionReadNoCaptions
-from pycaption.base import DEFAULT_LANGUAGE_CODE
+
 from le_utils.constants import file_formats
+from pycaption import CaptionReadError
+from pycaption import CaptionReadNoCaptions
+from pycaption import CaptionSet
+from pycaption import DFXPReader
+from pycaption import SAMIReader
+from pycaption import SCCReader
+from pycaption import SRTReader
+from pycaption import WebVTTReader
+from pycaption import WebVTTWriter
+from pycaption.base import DEFAULT_LANGUAGE_CODE
 
 
 LANGUAGE_CODE_UNKNOWN = DEFAULT_LANGUAGE_CODE
@@ -13,6 +20,7 @@ class InvalidSubtitleFormatError(TypeError):
     """
     Custom error indicating a format that is invalid
     """
+
     pass
 
 
@@ -20,6 +28,7 @@ class InvalidSubtitleLanguageError(ValueError):
     """
     Custom error indicating that the provided language isn't present in a captions file
     """
+
     pass
 
 
@@ -28,6 +37,7 @@ class SubtitleReader:
     A wrapper class for the pycaption readers since the interface differs between all. This will
     call read with `LANGUAGE_CODE_UNKNOWN` if `requires_language` is `True`
     """
+
     def __init__(self, reader, requires_language=False):
         """
         :param reader: A pycaption reader
@@ -61,9 +71,9 @@ class SubtitleReader:
 
             return self.reader.read(caption_str)
         except CaptionReadNoCaptions:
-            raise InvalidSubtitleFormatError('Caption file has no captions')
+            raise InvalidSubtitleFormatError("Caption file has no captions")
         except (CaptionReadError, UnicodeDecodeError) as e:
-            raise InvalidSubtitleFormatError('Caption file is invalid: {}'.format(e))
+            raise InvalidSubtitleFormatError("Caption file is invalid: {}".format(e))
         # allow other errors to be passed through
 
 
@@ -71,6 +81,7 @@ class SubtitleConverter:
     """
     This class converts subtitle files to the preferred VTT format
     """
+
     def __init__(self, readers, caption_str):
         """
         :param readers: An array of `SubtitleReader` instances
@@ -99,10 +110,12 @@ class SubtitleConverter:
                 break
         else:
             self.caption_set = None
-            raise InvalidSubtitleFormatError('Subtitle file is unsupported or unreadable')
+            raise InvalidSubtitleFormatError(
+                "Subtitle file is unsupported or unreadable"
+            )
 
         if self.caption_set.is_empty():
-            raise InvalidSubtitleLanguageError('Captions set is invalid')
+            raise InvalidSubtitleLanguageError("Captions set is invalid")
         return self.caption_set
 
     def get_language_codes(self):
@@ -141,7 +154,10 @@ class SubtitleConverter:
 
         # Replace caption_set with new version, having replaced unknown language
         self.caption_set = CaptionSet(
-            captions, styles=dict(caption_set.get_styles()), layout_info=caption_set.layout_info)
+            captions,
+            styles=dict(caption_set.get_styles()),
+            layout_info=caption_set.layout_info,
+        )
 
     def write(self, out_filename, lang_code):
         """
@@ -151,7 +167,7 @@ class SubtitleConverter:
         :param out_filename: A string path to put the converted captions contents
         :param lang_code: A string of the language code to write
         """
-        with codecs.open(out_filename, 'w', encoding='utf-8') as converted_file:
+        with codecs.open(out_filename, "w", encoding="utf-8") as converted_file:
             converted_file.write(self.convert(lang_code))
 
     def convert(self, lang_code):
@@ -168,18 +184,21 @@ class SubtitleConverter:
 
         if not captions:
             raise InvalidSubtitleLanguageError(
-                "Language '{}' is not present in caption set".format(lang_code))
+                "Language '{}' is not present in caption set".format(lang_code)
+            )
 
         styles = caption_set.get_styles()
         layout_info = caption_set.get_layout_info(lang_code)
         lang_caption_set = CaptionSet(
-            {lang_code: captions}, styles=dict(styles), layout_info=layout_info)
+            {lang_code: captions}, styles=dict(styles), layout_info=layout_info
+        )
         return self.writer.write(lang_caption_set)
 
 
 #####################
 # FACTORY FUNCTIONS #
 #####################
+
 
 def build_dfxp_reader():
     return SubtitleReader(DFXPReader())
@@ -213,7 +232,7 @@ BUILD_READER_MAP = {
 
 def build_subtitle_reader(reader_format):
     if reader_format not in BUILD_READER_MAP:
-        raise InvalidSubtitleFormatError('Unsupported')
+        raise InvalidSubtitleFormatError("Unsupported")
     return BUILD_READER_MAP[reader_format]()
 
 
@@ -256,9 +275,7 @@ def build_subtitle_converter_from_file(captions_filename, in_format=None):
     :return: A SubtitleConverter
     :rtype: SubtitleConverter
     """
-    with codecs.open(captions_filename, encoding='utf-8') as captions_file:
+    with codecs.open(captions_filename, encoding="utf-8") as captions_file:
         captions_str = captions_file.read()
 
     return build_subtitle_converter(captions_str, in_format)
-
-
