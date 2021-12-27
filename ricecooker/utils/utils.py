@@ -17,6 +17,8 @@ def make_dir_if_needed(path):
 
 class VideoURLFormatError(Exception):
     def __init__(self, url, expected_format):
-        self.message = "The video at {} does not appear to be a proper {} video URL.".format(
-            url, expected_format
+        self.message = (
+            "The video at {} does not appear to be a proper {} video URL.".format(
+                url, expected_format
+            )
         )

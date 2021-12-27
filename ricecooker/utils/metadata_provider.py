@@ -85,9 +85,7 @@ DEFAULT_EXERCISE_QUESTIONS_INFO_FILENAME = "ExerciseQuestions.csv"
 EXERCISE_QUESTIONS_QUESTIONID_KEY = (
     "Question ID *"  # unique idendifier for this question
 )
-EXERCISE_QUESTIONS_TYPE_KEY = (
-    "Question type *"
-)  # one of ['SingleSelectQuestion', 'MultipleSelectQuestion', 'InputQuestion']
+EXERCISE_QUESTIONS_TYPE_KEY = "Question type *"  # one of ['SingleSelectQuestion', 'MultipleSelectQuestion', 'InputQuestion']
 EXERCISE_QUESTIONS_QUESTION_KEY = (
     "Question *"  # string that contains the question setup and the prompt
 )
@@ -96,9 +94,7 @@ EXERCISE_QUESTIONS_OPTION_B_KEY = "Option B"
 EXERCISE_QUESTIONS_OPTION_C_KEY = "Option C"
 EXERCISE_QUESTIONS_OPTION_D_KEY = "Option D"
 EXERCISE_QUESTIONS_OPTION_E_KEY = "Option E"
-EXERCISE_QUESTIONS_OPTION_FGHI_KEY = (
-    "Options F..."
-)  # This field can contain a list of multiple '🍣'-separated string values,
+EXERCISE_QUESTIONS_OPTION_FGHI_KEY = "Options F..."  # This field can contain a list of multiple '🍣'-separated string values,
 # e.g.,   'Anser F🍣Answer G🍣Answer H'  (or other suitable unicode character)
 EXERCISE_QUESTIONS_CORRECT_ANSWER_KEY = (
     "Correct Answer *"  # A string that equals one of the options strings
