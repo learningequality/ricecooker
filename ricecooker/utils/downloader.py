@@ -4,20 +4,20 @@ import json
 import mimetypes
 import os
 import re
-import selenium.webdriver.support.ui as selenium_ui
 import shutil
 import tempfile
 import time
 import uuid
-from selenium import webdriver
 from urllib.parse import urljoin
 from urllib.parse import urlparse
 from urllib.request import url2pathname
 
 import chardet
 import requests
+import selenium.webdriver.support.ui as selenium_ui
 from bs4 import BeautifulSoup
 from requests_file import FileAdapter
+from selenium import webdriver
 
 from ricecooker.config import LOGGER
 from ricecooker.config import PHANTOMJS_PATH
