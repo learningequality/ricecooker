@@ -93,12 +93,7 @@ language = None
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This patterns also effect to html_static_path and html_extra_path
-exclude_patterns = [
-    "examples/.ipynb_checkpoints",
-    "examples/drafts",
-    "_build",
-    "build",
-]
+exclude_patterns = ["examples/.ipynb_checkpoints", "examples/drafts", "_build", "build"]
 
 # The reST default role (used for this markup: `text`) to use for all
 # documents.
@@ -447,7 +442,7 @@ latex_documents = [
         "ricecooker docs",  # title,
         "Learning Equality Content Team",  # author,
         "manual",  # documentclass [howto, manual, or own class])
-    ),
+    )
 ]
 
 
@@ -509,7 +504,7 @@ texinfo_documents = [
         "ricecooker",
         "One line description of project.",
         "Miscellaneous",
-    ),
+    )
 ]
 
 # Documents to append as an appendix to all manuals.

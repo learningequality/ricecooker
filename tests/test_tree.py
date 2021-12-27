@@ -411,10 +411,7 @@ def test_custom_navigation_node_via_files(channel):
         language="en",
         license=get_license("CC BY", copyright_holder="Demo Holdings"),
         files=[
-            HTMLZipFile(
-                path=zip_path,
-                language="en",
-            ),
+            HTMLZipFile(path=zip_path, language="en"),
             ThumbnailFile(
                 path="tests/testcontent/samples/thumbnail.png", language="en"
             ),
@@ -450,10 +447,7 @@ def test_custom_navigation_node_via_add_file(channel):
         license=get_license("CC BY", copyright_holder="Demo Holdings"),
         files=[],
     )
-    zipfile = HTMLZipFile(
-        path=zip_path,
-        language="en",
-    )
+    zipfile = HTMLZipFile(path=zip_path, language="en")
     custom_navigation_node.add_file(zipfile)
     thumbimg1 = ThumbnailFile(
         path="tests/testcontent/samples/thumbnail.jpg", language="en"
@@ -484,10 +478,7 @@ def test_custom_navigation_channel_node_via_files():
     with open(os.path.join(inputdir, "index.html"), "w") as testf:
         testf.write("something something")
     zip_path = create_predictable_zip(inputdir)
-    zipfile = HTMLZipFile(
-        path=zip_path,
-        language="en",
-    )
+    zipfile = HTMLZipFile(path=zip_path, language="en")
     thumbimg1 = ThumbnailFile(
         path="tests/testcontent/samples/thumbnail.png", language="en"
     )
@@ -497,10 +488,7 @@ def test_custom_navigation_channel_node_via_files():
         source_id="demo",
         source_domain="DEMO",
         language="en",
-        files=[
-            zipfile,
-            thumbimg1,
-        ],
+        files=[zipfile, thumbimg1],
     )
     assert custom_navigation_channel_node
     assert custom_navigation_channel_node.kind == "Channel"
@@ -537,10 +525,7 @@ def test_custom_navigation_channel_node_via_add_file():
         language="en",
         files=[],
     )
-    zipfile = HTMLZipFile(
-        path=zip_path,
-        language="en",
-    )
+    zipfile = HTMLZipFile(path=zip_path, language="en")
     custom_navigation_channel_node.add_file(zipfile)
     thumbimg1 = ThumbnailFile(
         path="tests/testcontent/samples/thumbnail.jpg", language="en"

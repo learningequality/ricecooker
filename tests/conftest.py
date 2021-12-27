@@ -153,11 +153,7 @@ def genrate_random_ids(channel_domain_namespace, channel_node_id):
     source_id = uuid.uuid4().hex
     content_id = uuid.uuid5(channel_domain_namespace, source_id)
     node_id = uuid.uuid5(channel_node_id, content_id.hex)
-    ids_dict = dict(
-        source_id=source_id,
-        content_id=content_id.hex,
-        node_id=node_id.hex,
-    )
+    ids_dict = dict(source_id=source_id, content_id=content_id.hex, node_id=node_id.hex)
     return ids_dict
 
 

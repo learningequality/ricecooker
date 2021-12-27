@@ -310,10 +310,7 @@ def get_csv_corrections(csvfilepath):
             deletions.append(row)
         else:
             print("Uknown Action", row[ACTION_KEY])
-    return {
-        "modifications": modifications,
-        "deletions": deletions,
-    }
+    return {"modifications": modifications, "deletions": deletions}
 
 
 def get_corrections_by_node_id(csvfilepath, modifyattrs):
@@ -348,9 +345,7 @@ def get_corrections_by_node_id(csvfilepath, modifyattrs):
                     "old_value": row[old_key],
                 }
         # prepare modifications_dict
-        modifications_dict = {
-            "attributes": attributes,
-        }
+        modifications_dict = {"attributes": attributes}
         # add to to corrections_by_node_id
         corrections_by_node_id["nodes_modified"][node_id] = modifications_dict
     #

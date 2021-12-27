@@ -490,7 +490,7 @@ def youtube_test_file():
                 "language": "ar",
                 "check_words": "Mohammed Liyaudheen wafy",
                 "url": "https://www.youtube.com/api/timedtext?lang=ar&v=C_9f7Qq4YZc&fmt=ttml&name=",
-            },
+            }
         ]
     )
 

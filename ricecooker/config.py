@@ -70,7 +70,7 @@ def setup_logging(level=logging.INFO, main_log=None, error_log=None, add_loggers
             "level": level,
             "class": "logging.StreamHandler",
             "formatter": "colored",
-        },
+        }
     }
     logger_handlers = ["console"]
     if main_log:

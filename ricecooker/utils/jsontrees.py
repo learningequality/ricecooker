@@ -332,17 +332,10 @@ def add_files(node, file_list):
 
         elif file_type == THUMBNAIL_FILE:
             if "encoding" in f:
-                node.add_file(
-                    files.Base64ImageFile(
-                        encoding=f["encoding"],
-                    )
-                )
+                node.add_file(files.Base64ImageFile(encoding=f["encoding"]))
             else:
                 node.add_file(
-                    files.ThumbnailFile(
-                        path=path,
-                        language=f.get("language", None),
-                    )
+                    files.ThumbnailFile(path=path, language=f.get("language", None))
                 )
 
         elif file_type == SUBTITLES_FILE:

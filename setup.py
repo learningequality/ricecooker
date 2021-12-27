@@ -54,7 +54,7 @@ setup(
         "console_scripts": [
             "corrections = ricecooker.utils.corrections:correctionsmain",
             "jiro = ricecooker.cli:main",
-        ],
+        ]
     },
     include_package_data=True,
     install_requires=requirements,

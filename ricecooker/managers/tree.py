@@ -142,10 +142,7 @@ class ChannelManager:
                     .decode()
                     .strip()
                 )
-                headers = {
-                    "Content-Type": content_type,
-                    "Content-MD5": b64checksum,
-                }
+                headers = {"Content-Type": content_type, "Content-MD5": b64checksum}
                 response = config.SESSION.put(
                     upload_url, headers=headers, data=file_obj
                 )
@@ -275,9 +272,7 @@ class ChannelManager:
         """
         config.LOGGER.info("   Creating channel {0}".format(self.channel.title))
         self.channel.truncate_fields()
-        payload = {
-            "channel_data": self.channel.to_dict(),
-        }
+        payload = {"channel_data": self.channel.to_dict()}
         response = config.SESSION.post(
             config.create_channel_url(), data=json.dumps(payload)
         )
@@ -379,10 +374,7 @@ class ChannelManager:
             channel_id (str): channel's id on Kolibri Studio
         Returns: channel id and link to uploadedchannel
         """
-        payload = {
-            "channel_id": channel_id,
-            "stage": config.STAGE,
-        }
+        payload = {"channel_id": channel_id, "stage": config.STAGE}
         response = config.SESSION.post(
             config.finish_channel_url(), data=json.dumps(payload)
         )
@@ -411,9 +403,7 @@ class ChannelManager:
             channel_id (str): channel's id on Kolibri Studio
         Returns: None
         """
-        payload = {
-            "channel_id": channel_id,
-        }
+        payload = {"channel_id": channel_id}
         response = config.SESSION.post(
             config.publish_channel_url(), data=json.dumps(payload)
         )

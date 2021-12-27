@@ -103,10 +103,7 @@ class WikipediaVideoChef(SushiChef):
         )
 
         subtitle_url = "https://commons.wikimedia.org/w/api.php?action=timedtext&title=File%3AA_Is_for_Atom_1953.webm&lang={}&trackformat=srt"
-        subtitle_languages = [
-            "en",
-            "es",
-        ]
+        subtitle_languages = ["en", "es"]
         for lang in subtitle_languages:
             subtitle_file = SubtitleFile(
                 path=subtitle_url.format(lang), language=lang, subtitlesformat="srt"

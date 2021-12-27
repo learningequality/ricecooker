@@ -154,11 +154,7 @@ def record_error_for_proxy(proxy, exception=None):
     """
     global MAYBE_BROKEN_PROXIES
 
-    error_dict = dict(
-        proxy=proxy,
-        timestamp=time.time(),
-        exception=exception,
-    )
+    error_dict = dict(proxy=proxy, timestamp=time.time(), exception=exception)
     if proxy in MAYBE_BROKEN_PROXIES:
         proxy_errors = MAYBE_BROKEN_PROXIES[proxy]
         recent_proxy_errors = []
