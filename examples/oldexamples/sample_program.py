@@ -151,11 +151,7 @@ def guess_content_kind(path=None, web_video_data=None, questions=None):
         ext = os.path.splitext(path)[1][1:].lower()
         if ext in content_kinds.MAPPING:
             return content_kinds.MAPPING[ext]
-        raise InvalidFormatException(
-            "Invalid file type: Allowed formats are {0}".format(
-                [key for key, value in content_kinds.MAPPING.items()]
-            )
-        )
+        raise InvalidFormatException("Invalid file type: Allowed formats are {0}".format([key for key, value in content_kinds.MAPPING.items()]))
     elif web_video_data:
         return content_kinds.VIDEO
     else:
@@ -335,9 +331,7 @@ class SampleChef(SushiChef):
         """
         Create ChannelNode and build topic tree.
         """
-        channel = self.get_channel(
-            *args, **kwargs
-        )  # creates ChannelNode from data in self.channel_info
+        channel = self.get_channel(*args, **kwargs)  # creates ChannelNode from data in self.channel_info
         _build_tree(channel, SAMPLE_TREE)
         raise_for_invalid_channel(channel)
 
@@ -350,9 +344,7 @@ def _build_tree(node, sourcetree):
     """
     for child_source_node in sourcetree:
         try:
-            main_file = (
-                child_source_node["files"][0] if "files" in child_source_node else {}
-            )
+            main_file = child_source_node["files"][0] if "files" in child_source_node else {}
             kind = guess_content_kind(
                 path=main_file.get("path"),
                 web_video_data=main_file.get("youtube_id") or main_file.get("web_url"),
@@ -419,10 +411,7 @@ def _build_tree(node, sourcetree):
             node.add_child(child_node)
 
         elif kind == content_kinds.EXERCISE:
-            mastery_model = (
-                child_source_node.get("mastery_model")
-                and {"mastery_model": child_source_node["mastery_model"]}
-            ) or {}
+            mastery_model = (child_source_node.get("mastery_model") and {"mastery_model": child_source_node["mastery_model"]}) or {}
             child_node = nodes.ExerciseNode(
                 source_id=child_source_node["id"],
                 title=child_source_node["title"],
@@ -476,9 +465,7 @@ def add_files(node, file_list):
 
         path = f.get("path")
         if path is not None:
-            abspath = get_abspath(
-                path
-            )  # NEW: expand  content://  -->  ./content/  in file paths
+            abspath = get_abspath(path)  # NEW: expand  content://  -->  ./content/  in file paths
         else:
             abspath = None
 
@@ -513,20 +500,10 @@ def add_files(node, file_list):
         elif file_type == FileTypes.BASE64_FILE:
             node.add_file(files.Base64ImageFile(encoding=f["encoding"]))
         elif file_type == FileTypes.WEB_VIDEO_FILE:
-            node.add_file(
-                files.WebVideoFile(
-                    web_url=f["web_url"], high_resolution=f.get("high_resolution")
-                )
-            )
+            node.add_file(files.WebVideoFile(web_url=f["web_url"], high_resolution=f.get("high_resolution")))
         elif file_type == FileTypes.YOUTUBE_VIDEO_FILE:
-            node.add_file(
-                files.YouTubeVideoFile(
-                    youtube_id=f["youtube_id"], high_resolution=f.get("high_resolution")
-                )
-            )
-            node.add_file(
-                files.YouTubeSubtitleFile(youtube_id=f["youtube_id"], language="en")
-            )
+            node.add_file(files.YouTubeVideoFile(youtube_id=f["youtube_id"], high_resolution=f.get("high_resolution")))
+            node.add_file(files.YouTubeSubtitleFile(youtube_id=f["youtube_id"], language="en"))
         else:
             raise UnknownFileTypeError("Unrecognized file type '{0}'".format(f["path"]))
 
@@ -534,22 +511,14 @@ def add_files(node, file_list):
 def create_question(raw_question):
     question = parse_images(raw_question.get("question"))
     hints = raw_question.get("hints")
-    hints = (
-        parse_images(hints)
-        if isinstance(hints, str)
-        else [parse_images(hint) for hint in hints or []]
-    )
+    hints = parse_images(hints) if isinstance(hints, str) else [parse_images(hint) for hint in hints or []]
 
     if raw_question["type"] == exercises.MULTIPLE_SELECTION:
         return questions.MultipleSelectQuestion(
             id=raw_question["id"],
             question=question,
-            correct_answers=[
-                parse_images(answer) for answer in raw_question["correct_answers"]
-            ],
-            all_answers=[
-                parse_images(answer) for answer in raw_question["all_answers"]
-            ],
+            correct_answers=[parse_images(answer) for answer in raw_question["correct_answers"]],
+            all_answers=[parse_images(answer) for answer in raw_question["all_answers"]],
             hints=hints,
         )
     if raw_question["type"] == exercises.SINGLE_SELECTION:
@@ -557,9 +526,7 @@ def create_question(raw_question):
             id=raw_question["id"],
             question=question,
             correct_answer=parse_images(raw_question["correct_answer"]),
-            all_answers=[
-                parse_images(answer) for answer in raw_question["all_answers"]
-            ],
+            all_answers=[parse_images(answer) for answer in raw_question["all_answers"]],
             hints=hints,
         )
     if raw_question["type"] == exercises.INPUT_QUESTION:
@@ -577,9 +544,7 @@ def create_question(raw_question):
         )
     else:
         raise UnknownQuestionTypeError(
-            "Unrecognized question type '{0}': accepted types are {1}".format(
-                raw_question["type"], [key for key, value in exercises.question_choices]
-            )
+            "Unrecognized question type '{0}': accepted types are {1}".format(raw_question["type"], [key for key, value in exercises.question_choices])
         )
 
 

@@ -119,13 +119,9 @@ def compress_video(source_file_path, target_file, overwrite=False, **kwargs):
     # using value -2 to get robust behaviour: maintains the aspect ratio and also
     # ensure the calculated dimension is divisible by 2
     if "max_width" in kwargs:
-        scale = "'w=trunc(min(iw,{max_width})/2)*2:h=-2'".format(
-            max_width=kwargs["max_width"]
-        )
+        scale = "'w=trunc(min(iw,{max_width})/2)*2:h=-2'".format(max_width=kwargs["max_width"])
     elif "max_height" in kwargs:
-        scale = "'w=-2:h=trunc(min(ih,{max_height})/2)*2'".format(
-            max_height=kwargs["max_height"]
-        )
+        scale = "'w=-2:h=trunc(min(ih,{max_height})/2)*2'".format(max_height=kwargs["max_height"])
     else:
         scale = "'w=-2:h=trunc(min(ih,480)/2)*2'"  # default to max-height 480px
 

@@ -31,18 +31,12 @@ def youtube_playlist_cache():
 
 
 def test_youtube_video_cache(youtube_video_cache):
-    video_info = youtube_video_cache.get_video_info(
-        use_proxy=False, get_subtitle_languages=True
-    )
-    video_cache_filepath = os.path.join(
-        "tests", "testcontent", "youtubecache", "test-video.json"
-    )
+    video_info = youtube_video_cache.get_video_info(use_proxy=False, get_subtitle_languages=True)
+    video_cache_filepath = os.path.join("tests", "testcontent", "youtubecache", "test-video.json")
     assert video_info and os.path.exists(video_cache_filepath)
 
 
 def test_youtube_playlist_cache(youtube_playlist_cache):
     playlist_info = youtube_playlist_cache.get_playlist_info(use_proxy=False)
-    playlist_cache_filepath = os.path.join(
-        "tests", "testcontent", "youtubecache", "test-playlist.json"
-    )
+    playlist_cache_filepath = os.path.join("tests", "testcontent", "youtubecache", "test-playlist.json")
     assert playlist_info and os.path.exists(playlist_cache_filepath)

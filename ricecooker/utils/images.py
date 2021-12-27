@@ -56,9 +56,7 @@ def create_image_from_epub(epubfile, fpath_out, crop=None):
             # 2. fallback to get first image in the ePub file
             images = list(book.get_items_of_type(ebooklib.ITEM_IMAGE))
             if not images:
-                raise ThumbnailGenerationError(
-                    "ePub file {} contains no images.".format(epubfile)
-                )
+                raise ThumbnailGenerationError("ePub file {} contains no images.".format(epubfile))
             # TODO: get largest image of the bunch
             image_data = BytesIO(images[0].get_content())
 
@@ -94,9 +92,7 @@ def create_image_from_zip(htmlfile, fpath_out, crop="smart"):
                                 biggest_name = filename
                                 size = img_size
             if biggest_name is None:
-                raise ThumbnailGenerationError(
-                    "HTML5 zip file {} contains no images.".format(htmlfile)
-                )
+                raise ThumbnailGenerationError("HTML5 zip file {} contains no images.".format(htmlfile))
             with zf.open(biggest_name) as fhandle:
                 image_data = fhandle.read()
                 with BytesIO(image_data) as bhandle:
@@ -113,9 +109,7 @@ def create_image_from_pdf_page(fpath_in, fpath_out, page_number=0, crop=None):
     """
     try:
         assert fpath_in.endswith("pdf"), "File must be in pdf format"
-        pages = convert_from_path(
-            fpath_in, 500, first_page=page_number, last_page=page_number + 1
-        )
+        pages = convert_from_path(fpath_in, 500, first_page=page_number, last_page=page_number + 1)
         page = pages[0]
         # resize
         page = scale_and_crop_thumbnail(page, zoom=10, crop=crop)
@@ -135,9 +129,7 @@ def create_tiled_image(source_images, fpath_out):
     """
     try:
         sizes = {1: 1, 4: 2, 9: 3, 16: 4, 25: 5, 36: 6, 49: 7}
-        assert (
-            len(source_images) in sizes.keys()
-        ), "Number of images must be a perfect square <= 49"
+        assert len(source_images) in sizes.keys(), "Number of images must be a perfect square <= 49"
         root = sizes[len(source_images)]
 
         images = list(map(Image.open, source_images))
@@ -171,9 +163,7 @@ def convert_image(filename, dest_dir=None, size=None, format="PNG"):
     :returns: Path to converted file.
     """
 
-    assert os.path.exists(filename), "Image file not found: {}".format(
-        os.path.abspath(filename)
-    )
+    assert os.path.exists(filename), "Image file not found: {}".format(os.path.abspath(filename))
 
     if not dest_dir:
         dest_dir = os.path.dirname(os.path.abspath(filename))

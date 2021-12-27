@@ -78,9 +78,7 @@ def channel_content_id(channel_domain_namespace, channel_node_id):
 
 
 @pytest.fixture
-def channel_data(
-    channel_node_id, channel_content_id, domain_namespace, channel_source_id
-):
+def channel_data(channel_node_id, channel_content_id, domain_namespace, channel_source_id):
     return {
         "id": channel_node_id.hex,
         "name": "Channel",
@@ -301,9 +299,7 @@ def contentnode_no_source_id(title):
 
 @pytest.fixture
 def video_file():  # uses same file as test_videos.low_res_video fixture
-    source_url = (
-        "https://archive.org/download/vd_is_for_everybody/vd_is_for_everybody_512kb.mp4"
-    )
+    source_url = "https://archive.org/download/vd_is_for_everybody/vd_is_for_everybody_512kb.mp4"
     local_path = os.path.join("tests", "testcontent", "downloaded", "low_res_video.mp4")
     download_fixture_file(source_url, local_path)
     assert os.path.exists(local_path)
@@ -407,10 +403,7 @@ def youtube_video_with_subs_dict():
 
 @pytest.fixture
 def audio_file():
-    source_url = (
-        "https://ia800103.us.archive.org/9/items/cd_prince_prince/"
-        "disc1/02.%20Prince%20-%201999%20%28Edit%29_sample.mp3"
-    )
+    source_url = "https://ia800103.us.archive.org/9/items/cd_prince_prince/" "disc1/02.%20Prince%20-%201999%20%28Edit%29_sample.mp3"
     local_path = os.path.join("tests", "testcontent", "downloaded", "testaudio.mp3")
     download_fixture_file(source_url, local_path)
     assert os.path.exists(local_path)
@@ -423,9 +416,7 @@ def audio_filename():
 
 
 @pytest.fixture
-def audio_data(
-    contentnode_base_data, audio_file, channel_domain_namespace, channel_node_id
-):
+def audio_data(contentnode_base_data, audio_file, channel_domain_namespace, channel_node_id):
     audio_data = copy.deepcopy(contentnode_base_data)
     ids_dict = genrate_random_ids(channel_domain_namespace, channel_node_id)
     audio_data.update(ids_dict)
@@ -482,9 +473,7 @@ def document_filename():
 
 
 @pytest.fixture
-def document_data(
-    contentnode_base_data, document_file, channel_domain_namespace, channel_node_id
-):
+def document_data(contentnode_base_data, document_file, channel_domain_namespace, channel_node_id):
     document_data = copy.deepcopy(contentnode_base_data)
     ids_dict = genrate_random_ids(channel_domain_namespace, channel_node_id)
     document_data.update(ids_dict)
@@ -527,9 +516,7 @@ def epub_filename():
 
 @pytest.fixture
 def invalid_document_file():
-    local_path = os.path.join(
-        "tests", "testcontent", "generated", "invalid_document.pdf"
-    )
+    local_path = os.path.join("tests", "testcontent", "generated", "invalid_document.pdf")
     if not os.path.exists(local_path):
         with open(local_path, "wb") as f:
             f.write(b"invalid PDF")
@@ -538,9 +525,7 @@ def invalid_document_file():
 
 @pytest.fixture
 def invalid_epub_file():
-    local_path = os.path.join(
-        "tests", "testcontent", "generated", "invalid_document.epub"
-    )
+    local_path = os.path.join("tests", "testcontent", "generated", "invalid_document.epub")
     if not os.path.exists(local_path):
         with open(local_path, "wb") as f:
             f.write(b"invalid ePub")
@@ -553,10 +538,7 @@ def invalid_epub_file():
 
 @pytest.fixture
 def html_file():
-    source_url = (
-        "https://studio.learningequality.org/content/storage/"
-        "e/d/ed494d6547b603b8ff22095cf5f5b624.zip"
-    )
+    source_url = "https://studio.learningequality.org/content/storage/" "e/d/ed494d6547b603b8ff22095cf5f5b624.zip"
     local_path = os.path.join("tests", "testcontent", "downloaded", "testhtml.zip")
     download_fixture_file(source_url, local_path)
     assert os.path.exists(local_path)
@@ -569,9 +551,7 @@ def html_filename():
 
 
 @pytest.fixture
-def html_data(
-    contentnode_base_data, html_file, channel_domain_namespace, channel_node_id
-):
+def html_data(contentnode_base_data, html_file, channel_domain_namespace, channel_node_id):
     html_data = copy.deepcopy(contentnode_base_data)
     ids_dict = genrate_random_ids(channel_domain_namespace, channel_node_id)
     html_data.update(ids_dict)
@@ -605,9 +585,7 @@ def html_invalid_files(html_data, document_file):
 
 @pytest.fixture
 def html_invalid_file():
-    local_path = os.path.join(
-        "tests", "testcontent", "generated", "testinvalidhtml.zip"
-    )
+    local_path = os.path.join("tests", "testcontent", "generated", "testinvalidhtml.zip")
     if not os.path.exists(local_path):
         with zipfile.ZipFile(local_path, "w", zipfile.ZIP_DEFLATED) as archive:
             archive.writestr("notindex.html", "<div></div>")
@@ -734,9 +712,7 @@ def exercise_base64_image_filename():
 
 @pytest.fixture
 def exercise_graphie_file():
-    return _ExerciseGraphieFile(
-        "tests/testcontent/exercises/eb3f3bf7c317408ee90995b5bcf4f3a59606aedd"
-    )
+    return _ExerciseGraphieFile("tests/testcontent/exercises/eb3f3bf7c317408ee90995b5bcf4f3a59606aedd")
 
 
 @pytest.fixture
@@ -766,9 +742,7 @@ def slideshow_files():
 
 
 @pytest.fixture
-def slideshow_data(
-    contentnode_base_data, slideshow_files, channel_domain_namespace, channel_node_id
-):
+def slideshow_data(contentnode_base_data, slideshow_files, channel_domain_namespace, channel_node_id):
     slideshow_data = copy.deepcopy(contentnode_base_data)
     ids_dict = genrate_random_ids(channel_domain_namespace, channel_node_id)
     slideshow_data.update(ids_dict)
@@ -802,9 +776,7 @@ def download_fixture_file(source_url, local_path):
         return
     with open(local_path, "wb") as f:
         response = requests.get(source_url, stream=True)
-        assert (
-            response.status_code == 200
-        ), "Fixture file with url: {} not found".format(source_url)
+        assert response.status_code == 200, "Fixture file with url: {} not found".format(source_url)
         for chunk in response.iter_content(chunk_size=1048576):
             f.write(chunk)
         f.flush()

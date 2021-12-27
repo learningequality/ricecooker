@@ -82,13 +82,9 @@ EXERCISE_INFO_HEADER = [
 ]
 
 DEFAULT_EXERCISE_QUESTIONS_INFO_FILENAME = "ExerciseQuestions.csv"
-EXERCISE_QUESTIONS_QUESTIONID_KEY = (
-    "Question ID *"  # unique idendifier for this question
-)
+EXERCISE_QUESTIONS_QUESTIONID_KEY = "Question ID *"  # unique idendifier for this question
 EXERCISE_QUESTIONS_TYPE_KEY = "Question type *"  # one of ['SingleSelectQuestion', 'MultipleSelectQuestion', 'InputQuestion']
-EXERCISE_QUESTIONS_QUESTION_KEY = (
-    "Question *"  # string that contains the question setup and the prompt
-)
+EXERCISE_QUESTIONS_QUESTION_KEY = "Question *"  # string that contains the question setup and the prompt
 EXERCISE_QUESTIONS_OPTION_A_KEY = "Option A"
 EXERCISE_QUESTIONS_OPTION_B_KEY = "Option B"
 EXERCISE_QUESTIONS_OPTION_C_KEY = "Option C"
@@ -96,9 +92,7 @@ EXERCISE_QUESTIONS_OPTION_D_KEY = "Option D"
 EXERCISE_QUESTIONS_OPTION_E_KEY = "Option E"
 EXERCISE_QUESTIONS_OPTION_FGHI_KEY = "Options F..."  # This field can contain a list of multiple '🍣'-separated string values,
 # e.g.,   'Anser F🍣Answer G🍣Answer H'  (or other suitable unicode character)
-EXERCISE_QUESTIONS_CORRECT_ANSWER_KEY = (
-    "Correct Answer *"  # A string that equals one of the options strings
-)
+EXERCISE_QUESTIONS_CORRECT_ANSWER_KEY = "Correct Answer *"  # A string that equals one of the options strings
 EXERCISE_QUESTIONS_CORRECT_ANSWER2_KEY = "Correct Answer 2"  # (for multiple select)
 EXERCISE_QUESTIONS_CORRECT_ANSWER3_KEY = "Correct Answer 3"  # (for multiple select)
 EXERCISE_QUESTIONS_HINT_1_KEY = "Hint 1"
@@ -106,9 +100,7 @@ EXERCISE_QUESTIONS_HINT_2_KEY = "Hint 2"
 EXERCISE_QUESTIONS_HINT_3_KEY = "Hint 3"
 EXERCISE_QUESTIONS_HINT_4_KEY = "Hint 4"
 EXERCISE_QUESTIONS_HINT_5_KEY = "Hint 5"
-EXERCISE_QUESTIONS_HINT_6789_KEY = (
-    "Hint 6+"  # This field can contain a list of multiple '🍣'-separated string values,
-)
+EXERCISE_QUESTIONS_HINT_6789_KEY = "Hint 6+"  # This field can contain a list of multiple '🍣'-separated string values,
 # e.g.,   'Hint 6 text🍣Hint 7 text🍣Hing 8 text'
 EXERCISE_QUESTIONS_INFO_HEADER = [
     EXERCISE_SOURCEID_KEY,
@@ -217,12 +209,8 @@ class CsvMetadataProvider(MetadataProvider):
         self.contentinfo = contentinfo
         self.exercisesinfo = exercisesinfo
         self.questionsinfo = questionsinfo
-        self.contentcache = (
-            {}
-        )  # { ('chan', 'path','as','tuple's) --> node metadata dict
-        self.exercise_filenames_in_dir = defaultdict(
-            list
-        )  # { ('chan', 'path','some','dir) --> list of exercises (virtual filenames)
+        self.contentcache = {}  # { ('chan', 'path','as','tuple's) --> node metadata dict
+        self.exercise_filenames_in_dir = defaultdict(list)  # { ('chan', 'path','some','dir) --> list of exercises (virtual filenames)
         self.winpaths = winpaths  # paths separator in .csv is windows '\'
         if validate_and_cache:
             self.validate_headers()
@@ -243,9 +231,7 @@ class CsvMetadataProvider(MetadataProvider):
         dict_reader = csv.DictReader(csv_lines)
         for row in dict_reader:
             row_dict = self._map_content_row_to_dict(row)
-            path_tuple = input_path_to_tuple(
-                row_dict["chan_path"], windows=self.winpaths
-            )
+            path_tuple = input_path_to_tuple(row_dict["chan_path"], windows=self.winpaths)
             self.contentcache[path_tuple] = row_dict
 
         # Additional handling of data in Exercises.csv and ExerciseQuestions.txt
@@ -267,9 +253,7 @@ class CsvMetadataProvider(MetadataProvider):
             dict_reader = csv.DictReader(csv_lines)
             for exercise_row in dict_reader:
                 exercise_dict = self._map_exercise_row_to_dict(exercise_row)
-                path_tuple = input_path_to_tuple(
-                    exercise_dict["chan_path"], windows=self.winpaths
-                )
+                path_tuple = input_path_to_tuple(exercise_dict["chan_path"], windows=self.winpaths)
                 question_source_id = exercise_dict["source_id"]
                 exercise_dict["questions"] = questions_by_source_id[question_source_id]
                 # B1: exercises are standard content nodes, so add to contentcache
@@ -299,9 +283,7 @@ class CsvMetadataProvider(MetadataProvider):
         """
         Returns the first data row from Channel.csv
         """
-        csv_filename = get_metadata_file_path(
-            channeldir=self.channeldir, filename=self.channelinfo
-        )
+        csv_filename = get_metadata_file_path(channeldir=self.channeldir, filename=self.channelinfo)
         csv_lines = _read_csv_lines(csv_filename)
         dict_reader = csv.DictReader(csv_lines)
         channel_csvs_list = list(dict_reader)
@@ -321,17 +303,13 @@ class CsvMetadataProvider(MetadataProvider):
         channel_info = self.get_channel_info()
         chthumbnail_path = channel_info.get("thumbnail_chan_path", None)
         if chthumbnail_path:
-            chthumbnail_path_tuple = input_path_to_tuple(
-                chthumbnail_path, windows=self.winpaths
-            )
+            chthumbnail_path_tuple = input_path_to_tuple(chthumbnail_path, windows=self.winpaths)
             thumbnail_path_tuples.append(chthumbnail_path_tuple)
         # content thumbnails
         for content_file_path_tuple, row in self.contentcache.items():
             thumbnail_path = row.get("thumbnail_chan_path", None)
             if thumbnail_path:
-                thumbnail_path_tuple = input_path_to_tuple(
-                    thumbnail_path, windows=self.winpaths
-                )
+                thumbnail_path_tuple = input_path_to_tuple(thumbnail_path, windows=self.winpaths)
                 thumbnail_path_tuples.append(thumbnail_path_tuple)
         return thumbnail_path_tuples
 
@@ -365,9 +343,7 @@ class CsvMetadataProvider(MetadataProvider):
             license_dict = dict(
                 license_id=row_cleaned[CONTENT_LICENSE_ID_KEY],
                 description=row_cleaned.get(CONTENT_LICENSE_DESCRIPTION_KEY, None),
-                copyright_holder=row_cleaned.get(
-                    CONTENT_LICENSE_COPYRIGHT_HOLDER_KEY, None
-                ),
+                copyright_holder=row_cleaned.get(CONTENT_LICENSE_COPYRIGHT_HOLDER_KEY, None),
             )
         else:
             license_dict = None
@@ -412,9 +388,7 @@ class CsvMetadataProvider(MetadataProvider):
             license_dict = dict(
                 license_id=row_cleaned[CONTENT_LICENSE_ID_KEY],
                 description=row_cleaned.get(CONTENT_LICENSE_DESCRIPTION_KEY, None),
-                copyright_holder=row_cleaned.get(
-                    CONTENT_LICENSE_COPYRIGHT_HOLDER_KEY, None
-                ),
+                copyright_holder=row_cleaned.get(CONTENT_LICENSE_COPYRIGHT_HOLDER_KEY, None),
             )
         else:
             license_dict = None
@@ -426,9 +400,7 @@ class CsvMetadataProvider(MetadataProvider):
         elif randomize_raw.lower() in CSV_STR_FALSE_VALUES:
             randomize = False
         else:
-            raise ValueError(
-                "Unrecognized value " + randomize_raw + " for randomzied key"
-            )
+            raise ValueError("Unrecognized value " + randomize_raw + " for randomzied key")
         exercise_data = dict(
             mastery_model=exercises.M_OF_N,
             randomize=randomize,
@@ -545,9 +517,7 @@ class CsvMetadataProvider(MetadataProvider):
                 hints=hints,
             )
         elif question_type == exercises.PERSEUS_QUESTION:
-            raise ValueError(
-                "Perseus questions not currently supported in CSV workflow."
-            )
+            raise ValueError("Perseus questions not currently supported in CSV workflow.")
 
         return question_dict
 
@@ -562,12 +532,8 @@ class CsvMetadataProvider(MetadataProvider):
         self.validate_header(self.channeldir, self.channelinfo, CHANNEL_INFO_HEADER)
         self.validate_header(self.channeldir, self.contentinfo, CONTENT_INFO_HEADER)
         if self.has_exercises():
-            self.validate_header(
-                self.channeldir, self.exercisesinfo, EXERCISE_INFO_HEADER
-            )
-            self.validate_header(
-                self.channeldir, self.questionsinfo, EXERCISE_QUESTIONS_INFO_HEADER
-            )
+            self.validate_header(self.channeldir, self.exercisesinfo, EXERCISE_INFO_HEADER)
+            self.validate_header(self.channeldir, self.questionsinfo, EXERCISE_QUESTIONS_INFO_HEADER)
 
     def validate_header(self, channeldir, filename, expected_header):
         """
@@ -579,12 +545,7 @@ class CsvMetadataProvider(MetadataProvider):
         dict_reader = csv.DictReader(csv_lines)
         actual = set(dict_reader.fieldnames)
         if not actual == expected:
-            raise ValueError(
-                "Unexpected CSV file header in "
-                + csv_filename
-                + " Expected header:"
-                + str(expected)
-            )
+            raise ValueError("Unexpected CSV file header in " + csv_filename + " Expected header:" + str(expected))
 
     def validate(self):
         """
@@ -600,9 +561,7 @@ class CsvMetadataProvider(MetadataProvider):
         Create rows in Exercises.csv and ExerciseQuestions.csv from a Studio channel,
         specified based on a studio_id (e.g. studio_id of main_tree for some channel)'
         """
-        print(
-            "Generating Exercises.csv and ExerciseQuestions.csv from a Studio channel"
-        )
+        print("Generating Exercises.csv and ExerciseQuestions.csv from a Studio channel")
         self.studioapi = StudioApi(token=args["token"])
         channel_dict = self.studioapi.get_tree_for_studio_id(args["importstudioid"])
         json.dump(
@@ -636,9 +595,7 @@ class CsvMetadataProvider(MetadataProvider):
             if kind == "topic":
 
                 if is_root:
-                    self.write_topic_row_from_studio_dict(
-                        path_tuple, subtree, is_root=is_root
-                    )
+                    self.write_topic_row_from_studio_dict(path_tuple, subtree, is_root=is_root)
                     for child in subtree["children"]:
                         _write_subtree(path_tuple, child)
                 else:
@@ -734,18 +691,11 @@ class CsvMetadataProvider(MetadataProvider):
             for match in matches:
                 file_result = match[1]
                 file_name = file_result.replace(contentstorage_prefix, "")
-                file_url = (
-                    studio_storage + file_name[0] + "/" + file_name[1] + "/" + file_name
-                )
+                file_url = studio_storage + file_name[0] + "/" + file_name[1] + "/" + file_name
                 file_local_path = os.path.join(dest_path, file_name)
                 response = requests.get(file_url)
                 if response.status_code != 200:
-                    print(
-                        "Failed for image "
-                        + str(response.status_code)
-                        + " >> "
-                        + file_url
-                    )
+                    print("Failed for image " + str(response.status_code) + " >> " + file_url)
                     return string
                 with open(file_local_path, "wb") as local_file:
                     local_file.write(response.content)
@@ -810,44 +760,21 @@ class CsvMetadataProvider(MetadataProvider):
             if hints_raw:
                 raise ValueError("Found hints but not handled..")
 
-            LOGGER.info(
-                "     - writing question with studio_id="
-                + question_dict["assessment_id"]
-            )
+            LOGGER.info("     - writing question with studio_id=" + question_dict["assessment_id"])
             question_row = {}
             question_row[EXERCISE_SOURCEID_KEY] = source_id
-            question_row[EXERCISE_QUESTIONS_QUESTIONID_KEY] = question_dict[
-                "assessment_id"
-            ]  # question_dict['assessment_id']
-            question_row[EXERCISE_QUESTIONS_TYPE_KEY] = type_lookup[
-                question_dict["type"]
-            ]
+            question_row[EXERCISE_QUESTIONS_QUESTIONID_KEY] = question_dict["assessment_id"]  # question_dict['assessment_id']
+            question_row[EXERCISE_QUESTIONS_TYPE_KEY] = type_lookup[question_dict["type"]]
             question_row[EXERCISE_QUESTIONS_QUESTION_KEY] = question_dict["question"]
-            question_row[EXERCISE_QUESTIONS_OPTION_A_KEY] = _safe_list_get(
-                options, 0, None
-            )
-            question_row[EXERCISE_QUESTIONS_OPTION_B_KEY] = _safe_list_get(
-                options, 1, None
-            )
-            question_row[EXERCISE_QUESTIONS_OPTION_C_KEY] = _safe_list_get(
-                options, 2, None
-            )
-            question_row[EXERCISE_QUESTIONS_OPTION_D_KEY] = _safe_list_get(
-                options, 3, None
-            )
-            question_row[EXERCISE_QUESTIONS_OPTION_E_KEY] = _safe_list_get(
-                options, 4, None
-            )
+            question_row[EXERCISE_QUESTIONS_OPTION_A_KEY] = _safe_list_get(options, 0, None)
+            question_row[EXERCISE_QUESTIONS_OPTION_B_KEY] = _safe_list_get(options, 1, None)
+            question_row[EXERCISE_QUESTIONS_OPTION_C_KEY] = _safe_list_get(options, 2, None)
+            question_row[EXERCISE_QUESTIONS_OPTION_D_KEY] = _safe_list_get(options, 3, None)
+            question_row[EXERCISE_QUESTIONS_OPTION_E_KEY] = _safe_list_get(options, 4, None)
             question_row[EXERCISE_QUESTIONS_OPTION_FGHI_KEY] = extra_options
-            question_row[EXERCISE_QUESTIONS_CORRECT_ANSWER_KEY] = _safe_list_get(
-                correct, 0, None
-            )
-            question_row[EXERCISE_QUESTIONS_CORRECT_ANSWER2_KEY] = _safe_list_get(
-                correct, 1, None
-            )
-            question_row[EXERCISE_QUESTIONS_CORRECT_ANSWER3_KEY] = _safe_list_get(
-                correct, 2, None
-            )
+            question_row[EXERCISE_QUESTIONS_CORRECT_ANSWER_KEY] = _safe_list_get(correct, 0, None)
+            question_row[EXERCISE_QUESTIONS_CORRECT_ANSWER2_KEY] = _safe_list_get(correct, 1, None)
+            question_row[EXERCISE_QUESTIONS_CORRECT_ANSWER3_KEY] = _safe_list_get(correct, 2, None)
             question_row[EXERCISE_QUESTIONS_HINT_1_KEY] = None  # TODO
             question_row[EXERCISE_QUESTIONS_HINT_2_KEY] = None  # TODO
             question_row[EXERCISE_QUESTIONS_HINT_3_KEY] = None  # TODO
@@ -885,14 +812,8 @@ class CsvMetadataProvider(MetadataProvider):
             for rel_path, _subfolders, filenames in content_folders:
                 LOGGER.info("processing folder " + str(rel_path))
                 sorted_filenames = sorted(filenames)
-                self.generate_contentinfo_from_folder(
-                    csvwriter, rel_path, sorted_filenames
-                )
-        LOGGER.info(
-            "Generted {} row for all folders and files in {}".format(
-                self.contentinfo, self.channeldir
-            )
-        )
+                self.generate_contentinfo_from_folder(csvwriter, rel_path, sorted_filenames)
+        LOGGER.info("Generted {} row for all folders and files in {}".format(self.contentinfo, self.channeldir))
 
     def generate_contentinfo_from_folder(self, csvwriter, rel_path, filenames):
         """
@@ -927,9 +848,7 @@ class CsvMetadataProvider(MetadataProvider):
         row = dict()
         for key in CONTENT_INFO_HEADER:
             row[key] = None
-        row[CONTENT_PATH_KEY] = "/".join(
-            path_tuple
-        )  # use / in .csv on Windows and UNIX
+        row[CONTENT_PATH_KEY] = "/".join(path_tuple)  # use / in .csv on Windows and UNIX
         title = path_tuple[-1].replace("_", " ")
         for ext in content_kinds.MAPPING.keys():
             if title.endswith(ext):

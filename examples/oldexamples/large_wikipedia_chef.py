@@ -73,14 +73,10 @@ class LargeWikipediaChef(SushiChef):
         """
         Create ChannelNode and build topic tree.
         """
-        channel = self.get_channel(
-            *args, **kwargs
-        )  # creates ChannelNode from data in self.channel_info
+        channel = self.get_channel(*args, **kwargs)  # creates ChannelNode from data in self.channel_info
         city_topic = TopicNode(source_id="List_of_largest_cities", title="Cities!")
         channel.add_child(city_topic)
-        add_subpages_from_wikipedia_list(
-            city_topic, "https://en.wikipedia.org/wiki/List_of_largest_cities"
-        )
+        add_subpages_from_wikipedia_list(city_topic, "https://en.wikipedia.org/wiki/List_of_largest_cities")
 
         return channel
 
@@ -94,11 +90,7 @@ def add_subpages_from_wikipedia_list(topic, list_url):
     page = get_parsed_html_from_url(list_url)
 
     # extract the main table from the page
-    table = page.find(
-        lambda tag: tag.name == "table"
-        and tag.has_attr("class")
-        and "wikitable" in tag["class"]
-    )
+    table = page.find(lambda tag: tag.name == "table" and tag.has_attr("class") and "wikitable" in tag["class"])
 
     # loop through all the rows in the table
     for row in table.find_all("tr"):
@@ -128,9 +120,7 @@ def add_subpages_from_wikipedia_list(topic, list_url):
         # attempt to extract a thumbnail for the subpage, from the second column in the table
         image = columns[1].find("img")
         thumbnail_url = make_fully_qualified_url(image["src"]) if image else None
-        if thumbnail_url and not (
-            thumbnail_url.endswith("jpg") or thumbnail_url.endswith("png")
-        ):
+        if thumbnail_url and not (thumbnail_url.endswith("jpg") or thumbnail_url.endswith("png")):
             thumbnail_url = None
 
         # download the wikipedia page into an HTML5 app node
@@ -172,9 +162,7 @@ def process_wikipedia_page(content, baseurl, destpath, **kwargs):
     page = BeautifulSoup(content, "html.parser")
 
     for image in page.find_all("img"):
-        relpath, _ = download_file(
-            make_fully_qualified_url(image["src"]), destpath, request_fn=make_request
-        )
+        relpath, _ = download_file(make_fully_qualified_url(image["src"]), destpath, request_fn=make_request)
         image["src"] = relpath
 
     return str(page)

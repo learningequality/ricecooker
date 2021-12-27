@@ -1,9 +1,17 @@
 repos:
+    -   repo: https://github.com/ambv/black
+        rev: 21.9b0
+        hooks:
+            - id: black
+              language: python
+              types: [python]
+              args: ["--line-length=160"]
     -   repo: https://github.com/pycqa/flake8
         rev: 4.0.1
         hooks:
             -   id: flake8
                 exclude: '^.+?\.template$'
+                additional_dependencies: [ flake8-docstrings ]
     -   repo: git://github.com/pre-commit/pre-commit-hooks
         rev: v4.1.0
         hooks:
@@ -22,9 +30,4 @@ repos:
         rev: v2.1.0
         hooks:
             -   id: reorder-python-imports
-                exclude: '^.+?\.template$'
-    -   repo: https://github.com/python/black
-        rev: 20.8b1
-        hooks:
-            -   id: black
                 exclude: '^.+?\.template$'

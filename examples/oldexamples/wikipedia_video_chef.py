@@ -108,9 +108,7 @@ class WikipediaVideoChef(SushiChef):
             "es",
         ]
         for lang in subtitle_languages:
-            subtitle_file = SubtitleFile(
-                path=subtitle_url.format(lang), language=lang, subtitlesformat="srt"
-            )
+            subtitle_file = SubtitleFile(path=subtitle_url.format(lang), language=lang, subtitlesformat="srt")
             video_node.add_file(subtitle_file)
 
         videos_topic.add_child(video_node)
@@ -152,9 +150,7 @@ def process_wikipedia_page(content, baseurl, destpath, **kwargs):
     page = BeautifulSoup(content, "html.parser")
 
     for image in page.find_all("img"):
-        rel_path, _ = download_file(
-            make_fully_qualified_url(image["src"]), destpath, request_fn=make_request
-        )
+        rel_path, _ = download_file(make_fully_qualified_url(image["src"]), destpath, request_fn=make_request)
         image["src"] = rel_path
 
     return str(page)

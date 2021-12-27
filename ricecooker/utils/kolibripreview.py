@@ -33,9 +33,7 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=main.__doc__)
-    parser.add_argument(
-        "--srcdir", help="HTML5 webroot (source directory)", default="."
-    )
+    parser.add_argument("--srcdir", help="HTML5 webroot (source directory)", default=".")
     parser.add_argument(
         "--destzip",
         help="Path to a HTML5 zip file in local Kolibri installation",

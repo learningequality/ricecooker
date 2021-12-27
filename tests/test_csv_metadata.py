@@ -11,9 +11,7 @@ from ricecooker.utils.metadata_provider import CsvMetadataProvider
 
 @pytest.fixture
 def channeldir():
-    return os.path.join(
-        "tests", "testchannels", "csv_channel_with_exercises", "channeldir"
-    )
+    return os.path.join("tests", "testchannels", "csv_channel_with_exercises", "channeldir")
 
 
 def test_exercises_metadata_provider(channeldir):
@@ -22,15 +20,11 @@ def test_exercises_metadata_provider(channeldir):
     assert mp is not None, "CsvMetadataProvider does not exist"
     mp.validate_headers()
     assert mp.has_exercises(), "has exercises"
-    assert (
-        mp.get_channel_info()["source_id"] == "csv_channel_with_exercises"
-    ), "check source id"
+    assert mp.get_channel_info()["source_id"] == "csv_channel_with_exercises", "check source id"
     #
     assert len(mp.contentcache.keys()) == 8, "Found too many items"
     assert len(mp.get_exercises_for_dir((channeldirname,))) == 1, "one exercise in root"
-    assert (
-        len(mp.get_exercises_for_dir((channeldirname, "exercises"))) == 3
-    ), "3 exercise in exercises/"
+    assert len(mp.get_exercises_for_dir((channeldirname, "exercises"))) == 3, "3 exercise in exercises/"
 
 
 def test_exercises_linecook(channeldir):

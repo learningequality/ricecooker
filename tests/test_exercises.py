@@ -377,9 +377,7 @@ def test_WEB_GRAPHIE_URL_REGEX_matches(graphie_strings_and_rawpath):
         m = pat.search(sample_str)
         rawpath = m.groupdict()["rawpath"]
         assert m, "WEB_GRAPHIE_URL_REGEX failed to match string " + sample_str
-        assert rawpath == expected_rawpath, (
-            "found " + rawpath + " expected " + expected_rawpath
-        )
+        assert rawpath == expected_rawpath, "found " + rawpath + " expected " + expected_rawpath
 
 
 @pytest.fixture
@@ -415,9 +413,7 @@ def test_MARKDOWN_IMAGE_REGEX_matches(markdown_link_strings_and_match):
     for sample_str, expected_matches in markdown_link_strings_and_match.items():
         m = pat.search(sample_str)
         assert m, "MARKDOWN_IMAGE_REGEX failed to match string " + sample_str
-        assert m.groups() == expected_matches, (
-            "found " + m.groups() + " expected " + expected_matches
-        )
+        assert m.groups() == expected_matches, "found " + m.groups() + " expected " + expected_matches
 
 
 ## Tests to make sure BaseQuestion.set_image works correctly
@@ -435,14 +431,12 @@ def image_texts_fixtures():
     test_data = [
         {
             "text": "web+graphie://ka-perseus-graphie.s3.amazonaws.com/eb3f3bf7c317408ee90995b5bcf4f3a59606aedd",
-            "replacement_str": WEB_GRAPHIE_PREFIX
-            + "eb3f3bf7c317408ee90995b5bcf4f3a59606aedd",
+            "replacement_str": WEB_GRAPHIE_PREFIX + "eb3f3bf7c317408ee90995b5bcf4f3a59606aedd",
             "hash": "ea2269bb5cf487f8d883144b9c06fbc7",
         },
         {
             "text": "web+graphie://ka-perseus-graphie.s3.amazonaws.com/d8daa074ec7d09ce3819d6259b3e4670701d2540",
-            "replacement_str": WEB_GRAPHIE_PREFIX
-            + "d8daa074ec7d09ce3819d6259b3e4670701d2540",
+            "replacement_str": WEB_GRAPHIE_PREFIX + "d8daa074ec7d09ce3819d6259b3e4670701d2540",
             "hash": "db98ca9d35b2fb97cde378a1fabddd26",
         },
         {
@@ -456,9 +450,7 @@ def image_texts_fixtures():
             "hash": "599aa896313be22dea6c0257772a464e",
         },
         {  # slightly modified version of the above
-            "text": os.path.relpath(
-                os.path.join(TESTCONTENT_DIR, "exercises", "no-wifi.png")
-            ),
+            "text": os.path.relpath(os.path.join(TESTCONTENT_DIR, "exercises", "no-wifi.png")),
             "replacement_str": WEB_PREFIX + "599aa896313be22dea6c0257772a464e.png",
             "hash": "599aa896313be22dea6c0257772a464e",
         },
@@ -479,15 +471,11 @@ def test_base_question_set_image(image_texts_fixtures):
         replacement_str = datum["replacement_str"]
 
         # SIT ##################################################################
-        testq = BaseQuestion(
-            id="someid", question="somequestion", question_type="input", raw_data={}
-        )
+        testq = BaseQuestion(id="someid", question="somequestion", question_type="input", raw_data={})
         new_text, images = testq.set_image(text)
 
         # check 1
-        assert (
-            new_text == replacement_str
-        ), "Unexpected replacement text produced by set_image"
+        assert new_text == replacement_str, "Unexpected replacement text produced by set_image"
 
         # check 2
         assert len(images) == 1, "Should find exactly one image"
@@ -502,9 +490,7 @@ def test_base_question_set_image(image_texts_fixtures):
             assert filename.endswith(".graphie"), "wrong extension for web+graphie text"
         expected_storage_dir = os.path.join(STORAGE_DIRECTORY, filename[0], filename[1])
         expected_storage_path = os.path.join(expected_storage_dir, filename)
-        assert os.path.exists(
-            expected_storage_path
-        ), "Image file not saved to ricecooker storage dir"
+        assert os.path.exists(expected_storage_path), "Image file not saved to ricecooker storage dir"
 
 
 # Test _recursive_url_find method
@@ -551,9 +537,7 @@ def test_perseus__recursive_url_find(persues_question_json_fixtures):
     testq._recursive_url_find(test_data, image_files)
 
     # checks
-    new_url = test_data["question"]["widgets"]["interactive-graph 1"]["options"][
-        "backgroundImage"
-    ]["url"]
+    new_url = test_data["question"]["widgets"]["interactive-graph 1"]["options"]["backgroundImage"]["url"]
     assert "☣ CONTENTSTORAGE" in new_url, "url replacement not done"
     assert hash in new_url, "wrong url replacement"
     assert len(image_files) == 1
@@ -678,9 +662,7 @@ def persues_question_json_fixtures():
     """
     test_data = []
     with open(
-        os.path.join(
-            TESTCONTENT_DIR, "exercises", "perseus_question_x43bbec76d5f14f88_en.json"
-        ),
+        os.path.join(TESTCONTENT_DIR, "exercises", "perseus_question_x43bbec76d5f14f88_en.json"),
         encoding="utf-8",
     ) as inf:
         # ENGLISH JSON = KNOWN GOOD
@@ -696,9 +678,7 @@ def persues_question_json_fixtures():
     # Missing images in the KA BULGARIAN channel BUG
     # see https://github.com/learningequality/ricecooker/issues/178
     with open(
-        os.path.join(
-            TESTCONTENT_DIR, "exercises", "perseus_question_x43bbec76d5f14f88_bg.json"
-        ),
+        os.path.join(TESTCONTENT_DIR, "exercises", "perseus_question_x43bbec76d5f14f88_bg.json"),
         encoding="utf-8",
     ) as inf:
 
@@ -752,23 +732,13 @@ def test_exercise_image_file(exercise_image_file, exercise_image_filename):
     assert filename == exercise_image_filename, "wrong filename for _ExerciseImageFile"
 
 
-def test_exercise_base64_image_file(
-    exercise_base64_image_file, exercise_base64_image_filename
-):
+def test_exercise_base64_image_file(exercise_base64_image_file, exercise_base64_image_filename):
     filename = exercise_base64_image_file.get_filename()
-    assert (
-        filename == exercise_base64_image_filename
-    ), "wrong filename for _ExerciseBase64ImageFile"
+    assert filename == exercise_base64_image_filename, "wrong filename for _ExerciseBase64ImageFile"
 
 
-def test_exercise_graphie_filename(
-    exercise_graphie_file, exercise_graphie_replacement_str, exercise_graphie_filename
-):
+def test_exercise_graphie_filename(exercise_graphie_file, exercise_graphie_replacement_str, exercise_graphie_filename):
     filename = exercise_graphie_file.get_filename()
-    assert (
-        filename == exercise_graphie_filename
-    ), "wrong filename for _ExerciseGraphieFile"
+    assert filename == exercise_graphie_filename, "wrong filename for _ExerciseGraphieFile"
     replacement_str = exercise_graphie_file.get_replacement_str()
-    assert (
-        replacement_str == exercise_graphie_replacement_str
-    ), "wrong replacement string for _ExerciseGraphieFile "
+    assert replacement_str == exercise_graphie_replacement_str, "wrong replacement string for _ExerciseGraphieFile "

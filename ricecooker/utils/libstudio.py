@@ -19,9 +19,7 @@ class StudioApi(object):
     corrections, and other automation.
     """
 
-    def __init__(
-        self, token, username=None, password=None, studio_url=DEFAULT_STUDIO_URL
-    ):
+    def __init__(self, token, username=None, password=None, studio_url=DEFAULT_STUDIO_URL):
         self.studio_url = studio_url.rstrip("/")
         self.token = token
         self.licenses_by_id = self.get_licenses()
@@ -109,10 +107,7 @@ class StudioApi(object):
         NODES_ENDPOINT = self.studio_url + "/api/get_nodes_by_ids_complete/"
         headers = {"Authorization": "Token {0}".format(self.token)}
         studio_nodes = []
-        studio_ids_chunks = [
-            studio_ids[i : i + CHUNK_SIZE]
-            for i in range(0, len(studio_ids), CHUNK_SIZE)
-        ]
+        studio_ids_chunks = [studio_ids[i : i + CHUNK_SIZE] for i in range(0, len(studio_ids), CHUNK_SIZE)]
         for studio_ids_chunk in studio_ids_chunks:
             studio_ids_csv = ",".join(studio_ids_chunk)
             url = NODES_ENDPOINT + studio_ids_csv
@@ -149,9 +144,7 @@ class StudioApi(object):
         """
         CONTENTNODE_ENDPOINT = self.studio_url + "/api/contentnode"
         REQUIRED_FIELDS = ["id", "tags", "prerequisite", "parent"]
-        assert data_has_required_keys(
-            data, REQUIRED_FIELDS
-        ), "missing necessary attributes"
+        assert data_has_required_keys(data, REQUIRED_FIELDS), "missing necessary attributes"
         # studio_id = data['id']
         url = CONTENTNODE_ENDPOINT
         # print('  semantic PATCH using PUT ' + url)
@@ -170,9 +163,7 @@ class StudioApi(object):
         """
         MOVE_NODES_ENDPOINT = self.studio_url + "/api/move_nodes/"
         REQUIRED_FIELDS = ["id"]
-        assert data_has_required_keys(
-            data, REQUIRED_FIELDS
-        ), "missing necessary attributes"
+        assert data_has_required_keys(data, REQUIRED_FIELDS), "missing necessary attributes"
         if trash_studio_id is None:
             channel_data = self.get_channel(channel_id)
             trash_studio_id = channel_data["trash_tree"]["id"]

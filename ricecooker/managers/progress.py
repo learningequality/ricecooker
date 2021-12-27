@@ -73,10 +73,7 @@ class RestoreManager:
         Returns: boolean indicating if session exists
         """
         status = Status.LAST if status is None else status
-        return (
-            os.path.isfile(self.get_restore_path(status))
-            and os.path.getsize(self.get_restore_path(status)) > 0
-        )
+        return os.path.isfile(self.get_restore_path(status)) and os.path.getsize(self.get_restore_path(status)) > 0
 
     def get_restore_path(self, status=None):
         """get_restore_path: get path to restoration file
@@ -92,9 +89,7 @@ class RestoreManager:
         Args: None
         Returns: None
         """
-        with open(self.get_restore_path(Status.LAST), "wb") as handle, open(
-            self.get_restore_path(), "wb"
-        ) as step_handle:
+        with open(self.get_restore_path(Status.LAST), "wb") as handle, open(self.get_restore_path(), "wb") as step_handle:
             pickle.dump(self, handle)
             pickle.dump(self, step_handle)
 
@@ -108,11 +103,7 @@ class RestoreManager:
 
         # If progress is corrupted, revert to step before
         while not self.check_for_session(resume_step):
-            config.LOGGER.error(
-                "Ricecooker has not reached {0} status. Reverting to earlier step...".format(
-                    resume_step.name
-                )
-            )
+            config.LOGGER.error("Ricecooker has not reached {0} status. Reverting to earlier step...".format(resume_step.name))
             # All files are corrupted or absent, restart process
             if resume_step.value - 1 < 0:
                 self.init_session()
@@ -217,9 +208,7 @@ class RestoreManager:
         """
         self.channel_link = channel_link
         self.channel_id = channel_id
-        self.__record_progress(
-            Status.PUBLISH_CHANNEL if config.PUBLISH else Status.DONE
-        )
+        self.__record_progress(Status.PUBLISH_CHANNEL if config.PUBLISH else Status.DONE)
 
     def set_published(self):
         """set_published: records progress after channel has been published

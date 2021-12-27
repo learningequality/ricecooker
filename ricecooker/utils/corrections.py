@@ -89,9 +89,7 @@ def get_channel_tree(api, channel_id, suffix="", update=True):
         channel_tree = json.load(open(filename, "r"))
         return channel_tree
     else:
-        print(
-            "  Downloading tree for channel_id=", channel_id, " and saving to", filename
-        )
+        print("  Downloading tree for channel_id=", channel_id, " and saving to", filename)
         root_studio_id = api.get_channel_root_studio_id(channel_id)
         # next step takes long since recursively making O(n) API calls!
         channel_tree = api.get_tree_for_studio_id(root_studio_id)
@@ -143,9 +141,7 @@ def print_channel_tree(channel_tree):
 
 
 class CorretionsCsvFileExporter(object):
-    def __init__(
-        self, csvfilepath="corrections-export.csv", exportattrs=default_export
-    ):
+    def __init__(self, csvfilepath="corrections-export.csv", exportattrs=default_export):
         self.csvfilepath = csvfilepath
         self.exportattrs = exportattrs
 
@@ -178,9 +174,7 @@ class CorretionsCsvFileExporter(object):
             # TOPIC ############################################################
             if kind == "topic":
                 if is_root:
-                    self.write_topic_row_from_studio_dict(
-                        path_tuple, subtree, is_root=is_root
-                    )
+                    self.write_topic_row_from_studio_dict(path_tuple, subtree, is_root=is_root)
                     for child in subtree["children"]:
                         _write_subtree(path_tuple, child)
                 else:
@@ -363,9 +357,7 @@ def get_corrections_by_node_id(csvfilepath, modifyattrs):
     # TODO: Additions
     # TODO: Moves
     datetimesuffix = datetime.now().strftime("%Y-%m-%d__%H%M")
-    correctionspath = os.path.join(
-        CORRECTIONS_DIR, "imported-" + datetimesuffix + ".json"
-    )
+    correctionspath = os.path.join(CORRECTIONS_DIR, "imported-" + datetimesuffix + ".json")
     json.dump(
         corrections_by_node_id,
         open(correctionspath, "w"),
@@ -404,9 +396,7 @@ def find_nodes_by_node_id(subtree, node_id):
 
 
 def find_nodes_by_original_source_node_id(subtree, original_source_node_id):
-    return find_nodes_by_attr(
-        subtree, "original_source_node_id", original_source_node_id
-    )
+    return find_nodes_by_attr(subtree, "original_source_node_id", original_source_node_id)
 
 
 def unresolve_children(node):
@@ -426,9 +416,7 @@ def unresolve_children(node):
 ################################################################################
 
 
-def remap_original_source_node_id_to_node_id(
-    channel_tree, corrections_by_original_source_node_id
-):
+def remap_original_source_node_id_to_node_id(channel_tree, corrections_by_original_source_node_id):
     ALL_COORECTIONS_KINDS = [
         "nodes_modified",
         "nodes_added",
@@ -441,9 +429,7 @@ def remap_original_source_node_id_to_node_id(
             corrections_by_node_id[correction_kind] = {}
             corrections_dict = corrections_by_original_source_node_id[correction_kind]
             for original_source_node_id, correction in corrections_dict.items():
-                results = find_nodes_by_original_source_node_id(
-                    channel_tree, original_source_node_id
-                )
+                results = find_nodes_by_original_source_node_id(channel_tree, original_source_node_id)
                 assert results, "no match found based on original_source_node_id search"
                 assert len(results) == 1, "multiple matches found..."
                 tree_node = results[0]
@@ -582,9 +568,7 @@ def apply_corrections_by_node_id(api, channel_tree, channel_id, corrections_by_n
     #
     # Deletions
     for node_id, deletion_dict in corrections_by_node_id["nodes_deleted"].items():
-        apply_deletion_for_node_id(
-            api, channel_tree, channel_id, node_id, deletion_dict
-        )
+        apply_deletion_for_node_id(api, channel_tree, channel_id, node_id, deletion_dict)
     # TODO: Additions
     # TODO: Moves
 
@@ -613,9 +597,7 @@ def get_studio_api(studio_creds=None):
         token=studio_creds["token"],
         username=studio_creds["username"],
         password=studio_creds["password"],
-        studio_url=studio_creds.get(
-            "studio_url", "https://studio.learningequality.org"
-        ),
+        studio_url=studio_creds.get("studio_url", "https://studio.learningequality.org"),
     )
     return api
 
@@ -647,9 +629,7 @@ def apply_corrections(args):
     # of the nodes in the derivative channel so we must do a remapping:
     if args.primarykey == "original_source_node_id":
         corrections_by_original_source_node_id = json.load(open(correctionspath))
-        corrections_by_node_id = remap_original_source_node_id_to_node_id(
-            channel_tree, corrections_by_original_source_node_id
-        )
+        corrections_by_node_id = remap_original_source_node_id_to_node_id(channel_tree, corrections_by_original_source_node_id)
         json.dump(
             corrections_by_node_id,
             open(correctionspath, "w"),
@@ -670,9 +650,7 @@ def apply_corrections(args):
     corrections_by_node_id = json.load(open(correctionspath))
     #
     # 5. Apply the corrections
-    apply_corrections_by_node_id(
-        api, channel_tree, args.channel_id, corrections_by_node_id
-    )
+    apply_corrections_by_node_id(api, channel_tree, args.channel_id, corrections_by_node_id)
     #
     # 6. SAVE the Studio tree after corrections for review of what was changed
     channel_tree = get_channel_tree(api, args.channel_id, suffix="-after")
@@ -696,9 +674,7 @@ def correctionsmain():
         default="node_id",
     )
     parser.add_argument("--gsheet_id", help="Google spreadsheets sheet ID (public)")
-    parser.add_argument(
-        "--gid", help="The gid argument to indicate which sheet", default="0"
-    )
+    parser.add_argument("--gid", help="The gid argument to indicate which sheet", default="0")
     parser.add_argument(
         "--modifyattrs",
         help="Which attributes to modify",

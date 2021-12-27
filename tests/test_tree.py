@@ -83,12 +83,8 @@ def license_name():
 
 
 @pytest.fixture
-def document(
-    document_id, document_file, thumbnail_path, copyright_holder, license_name
-):
-    node = DocumentNode(
-        document_id, "Document", licenses.CC_BY, thumbnail=thumbnail_path
-    )
+def document(document_id, document_file, thumbnail_path, copyright_holder, license_name):
+    node = DocumentNode(document_id, "Document", licenses.CC_BY, thumbnail=thumbnail_path)
     node.add_file(document_file)
     node.set_license(license_name, copyright_holder=copyright_holder)
     return node
@@ -138,9 +134,7 @@ def test_nodes_initialized(channel, topic, document):
 
 def test_add_child(tree, topic, document):
     assert tree.children[0] == topic, "Channel should have topic child node"
-    assert (
-        tree.children[0].children[0] == document
-    ), "Topic should have a document child node"
+    assert tree.children[0].children[0] == document, "Topic should have a document child node"
 
 
 def test_ids(
@@ -156,24 +150,12 @@ def test_ids(
     topic = tree.children[0]
     document = topic.children[0]
 
-    assert (
-        channel.get_content_id() == channel_content_id
-    ), "Channel content id should be {}".format(channel_content_id)
-    assert (
-        channel.get_node_id() == channel_node_id
-    ), "Channel node id should be {}".format(channel_node_id)
-    assert (
-        topic.get_content_id() == topic_content_id
-    ), "Topic content id should be {}".format(topic_content_id)
-    assert topic.get_node_id() == topic_node_id, "Topic node id should be {}".format(
-        topic_node_id
-    )
-    assert (
-        document.get_content_id() == document_content_id
-    ), "Document content id should be {}".format(document_content_id)
-    assert (
-        document.get_node_id() == document_node_id
-    ), "Document node id should be {}".format(document_node_id)
+    assert channel.get_content_id() == channel_content_id, "Channel content id should be {}".format(channel_content_id)
+    assert channel.get_node_id() == channel_node_id, "Channel node id should be {}".format(channel_node_id)
+    assert topic.get_content_id() == topic_content_id, "Topic content id should be {}".format(topic_content_id)
+    assert topic.get_node_id() == topic_node_id, "Topic node id should be {}".format(topic_node_id)
+    assert document.get_content_id() == document_content_id, "Document content id should be {}".format(document_content_id)
+    assert document.get_node_id() == document_node_id, "Document node id should be {}".format(document_node_id)
 
 
 def test_add_file(document, document_file):
@@ -185,9 +167,7 @@ def test_add_file(document, document_file):
 def test_thumbnail(topic, document, thumbnail_path):
     assert document.has_thumbnail(), "Document must have a thumbnail"
     assert not topic.has_thumbnail(), "Topic must not have a thumbnail"
-    assert [
-        f for f in document.files if f.path == thumbnail_path
-    ], "Document is missing a thumbnail with path {}".format(thumbnail_path)
+    assert [f for f in document.files if f.path == thumbnail_path], "Document is missing a thumbnail with path {}".format(thumbnail_path)
 
 
 def test_count(tree):
@@ -195,23 +175,13 @@ def test_count(tree):
 
 
 def test_get_non_topic_descendants(tree, document):
-    assert tree.get_non_topic_descendants() == [
-        document
-    ], "Channel should only have 1 non-topic descendant"
+    assert tree.get_non_topic_descendants() == [document], "Channel should only have 1 non-topic descendant"
 
 
 def test_licenses(channel, topic, document, license_name, copyright_holder):
-    assert isinstance(
-        document.license, License
-    ), "Document should have a license object"
-    assert (
-        document.license.license_id == license_name
-    ), "Document license should have public domain license"
-    assert (
-        document.license.copyright_holder == copyright_holder
-    ), "Document license should have copyright holder set to {}".format(
-        copyright_holder
-    )
+    assert isinstance(document.license, License), "Document should have a license object"
+    assert document.license.license_id == license_name, "Document license should have public domain license"
+    assert document.license.copyright_holder == copyright_holder, "Document license should have copyright holder set to {}".format(copyright_holder)
     assert not channel.license, "Channel should not have a license"
     assert not topic.license, "Topic should not have a license"
 
@@ -341,9 +311,7 @@ def test_slideshow_node_via_files(channel):
                 caption="Unlock your potential with this demo.",
                 descriptive_text="Unlock your potential with this demo.",
             ),
-            ThumbnailFile(
-                path="tests/testcontent/samples/thumbnail.png", language="en"
-            ),
+            ThumbnailFile(path="tests/testcontent/samples/thumbnail.png", language="en"),
         ],
     )
     assert slideshow_node
@@ -381,9 +349,7 @@ def test_slideshow_node_via_add_file(channel):
         descriptive_text="Touch the demo to learn new things!",
     )
     slideshow_node.add_file(slideimg2)
-    thumbimg1 = ThumbnailFile(
-        path="tests/testcontent/samples/thumbnail.jpg", language="en"
-    )
+    thumbimg1 = ThumbnailFile(path="tests/testcontent/samples/thumbnail.jpg", language="en")
     slideshow_node.add_file(thumbimg1)
 
     # print(slideshow_node.__dict__)
@@ -415,9 +381,7 @@ def test_custom_navigation_node_via_files(channel):
                 path=zip_path,
                 language="en",
             ),
-            ThumbnailFile(
-                path="tests/testcontent/samples/thumbnail.png", language="en"
-            ),
+            ThumbnailFile(path="tests/testcontent/samples/thumbnail.png", language="en"),
         ],
     )
     assert custom_navigation_node
@@ -427,8 +391,7 @@ def test_custom_navigation_node_via_files(channel):
     assert (
         "options" in custom_navigation_node.extra_fields
         and "modality" in custom_navigation_node.extra_fields["options"]
-        and custom_navigation_node.extra_fields["options"]["modality"]
-        == "CUSTOM_NAVIGATION"
+        and custom_navigation_node.extra_fields["options"]["modality"] == "CUSTOM_NAVIGATION"
     ), "missing custom navigation modality"
     custom_navigation_node.process_files()
     channel.add_child(custom_navigation_node)
@@ -455,9 +418,7 @@ def test_custom_navigation_node_via_add_file(channel):
         language="en",
     )
     custom_navigation_node.add_file(zipfile)
-    thumbimg1 = ThumbnailFile(
-        path="tests/testcontent/samples/thumbnail.jpg", language="en"
-    )
+    thumbimg1 = ThumbnailFile(path="tests/testcontent/samples/thumbnail.jpg", language="en")
     custom_navigation_node.add_file(thumbimg1)
 
     assert custom_navigation_node
@@ -467,8 +428,7 @@ def test_custom_navigation_node_via_add_file(channel):
     assert (
         "options" in custom_navigation_node.extra_fields
         and "modality" in custom_navigation_node.extra_fields["options"]
-        and custom_navigation_node.extra_fields["options"]["modality"]
-        == "CUSTOM_NAVIGATION"
+        and custom_navigation_node.extra_fields["options"]["modality"] == "CUSTOM_NAVIGATION"
     ), "missing custom navigation modality"
     custom_navigation_node.process_files()
     channel.add_child(custom_navigation_node)
@@ -488,9 +448,7 @@ def test_custom_navigation_channel_node_via_files():
         path=zip_path,
         language="en",
     )
-    thumbimg1 = ThumbnailFile(
-        path="tests/testcontent/samples/thumbnail.png", language="en"
-    )
+    thumbimg1 = ThumbnailFile(path="tests/testcontent/samples/thumbnail.png", language="en")
     custom_navigation_channel_node = CustomNavigationChannelNode(
         title="The Nav App",
         description="Custom Navigation Content Demo",
@@ -509,8 +467,7 @@ def test_custom_navigation_channel_node_via_files():
     assert (
         "options" in custom_navigation_channel_node.extra_fields
         and "modality" in custom_navigation_channel_node.extra_fields["options"]
-        and custom_navigation_channel_node.extra_fields["options"]["modality"]
-        == "CUSTOM_NAVIGATION"
+        and custom_navigation_channel_node.extra_fields["options"]["modality"] == "CUSTOM_NAVIGATION"
     ), "missing custom navigation modality"
     custom_navigation_channel_node.set_thumbnail(thumbimg1)
     custom_navigation_channel_node.process_files()
@@ -518,10 +475,7 @@ def test_custom_navigation_channel_node_via_files():
     assert custom_navigation_channel_node.to_dict()
     assert custom_navigation_channel_node.to_dict()["thumbnail"] == thumbimg1.filename
     assert len(custom_navigation_channel_node.to_dict()["files"]) == 1
-    assert (
-        custom_navigation_channel_node.to_dict()["files"][0]["filename"]
-        == zipfile.filename
-    )
+    assert custom_navigation_channel_node.to_dict()["files"][0]["filename"] == zipfile.filename
 
 
 def test_custom_navigation_channel_node_via_add_file():
@@ -542,9 +496,7 @@ def test_custom_navigation_channel_node_via_add_file():
         language="en",
     )
     custom_navigation_channel_node.add_file(zipfile)
-    thumbimg1 = ThumbnailFile(
-        path="tests/testcontent/samples/thumbnail.jpg", language="en"
-    )
+    thumbimg1 = ThumbnailFile(path="tests/testcontent/samples/thumbnail.jpg", language="en")
     custom_navigation_channel_node.add_file(thumbimg1)
 
     assert custom_navigation_channel_node
@@ -554,8 +506,7 @@ def test_custom_navigation_channel_node_via_add_file():
     assert (
         "options" in custom_navigation_channel_node.extra_fields
         and "modality" in custom_navigation_channel_node.extra_fields["options"]
-        and custom_navigation_channel_node.extra_fields["options"]["modality"]
-        == "CUSTOM_NAVIGATION"
+        and custom_navigation_channel_node.extra_fields["options"]["modality"] == "CUSTOM_NAVIGATION"
     ), "missing custom navigation modality"
     custom_navigation_channel_node.set_thumbnail(thumbimg1)
     custom_navigation_channel_node.process_files()
@@ -563,7 +514,4 @@ def test_custom_navigation_channel_node_via_add_file():
     assert custom_navigation_channel_node.to_dict()
     assert custom_navigation_channel_node.to_dict()["thumbnail"] == thumbimg1.filename
     assert len(custom_navigation_channel_node.to_dict()["files"]) == 1
-    assert (
-        custom_navigation_channel_node.to_dict()["files"][0]["filename"]
-        == zipfile.filename
-    )
+    assert custom_navigation_channel_node.to_dict()["files"][0]["filename"] == zipfile.filename

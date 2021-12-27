@@ -28,9 +28,7 @@ sess.mount("http://", basic_adapter)
 sess.mount("https://", basic_adapter)
 
 if PHANTOMJS_PATH is None:
-    PHANTOMJS_PATH = os.path.join(
-        os.getcwd(), "node_modules", "phantomjs-prebuilt", "bin", "phantomjs"
-    )
+    PHANTOMJS_PATH = os.path.join(os.getcwd(), "node_modules", "phantomjs-prebuilt", "bin", "phantomjs")
 
 
 class WebDriver(object):
@@ -59,16 +57,10 @@ class WebDriver(object):
 
 
 def get_generated_html_from_driver(driver, tagname="html"):
-    driver.execute_script(
-        "return document.getElementsByTagName('{tagname}')[0].innerHTML".format(
-            tagname=tagname
-        )
-    )
+    driver.execute_script("return document.getElementsByTagName('{tagname}')[0].innerHTML".format(tagname=tagname))
 
 
-def replace_links(
-    content, urls_to_replace, download_root=None, content_dir=None, relative_links=False
-):
+def replace_links(content, urls_to_replace, download_root=None, content_dir=None, relative_links=False):
     for key in urls_to_replace:
         value = urls_to_replace[key]
         if key == value:
@@ -87,9 +79,7 @@ def replace_links(
             rel_path = pathname2url(rel_path)
 
         if relative_links:
-            value = pathname2url(
-                os.path.relpath(os.path.join(download_root, value), content_dir)
-            )
+            value = pathname2url(os.path.relpath(os.path.join(download_root, value), content_dir))
 
         # When we get an absolute URL, it may appear in one of three different ways in the page:
         key_variants = [
@@ -120,9 +110,7 @@ def replace_links(
             # we avoid using BeautifulSoup because Python HTML parsers can be destructive and
             # do things like strip out the doctype.
             content = content.replace('="{}"'.format(variant), '="{}"'.format(value))
-            content = content.replace(
-                "url({})".format(variant), "url({})".format(value)
-            )
+            content = content.replace("url({})".format(variant), "url({})".format(value))
 
             for match in srcset_links:
                 url = match[1]
@@ -160,12 +148,8 @@ def calculate_relative_url(url, filename=None, baseurl=None, subpath=None):
 
     # if a base path was supplied, calculate the file's subpath relative to it
     if baseurl:
-        baseurl = urllib.parse.urljoin(
-            baseurl, "."
-        )  # ensure baseurl is normalized (to remove '/./' and '/../')
-        assert url.startswith(baseurl), "URL {} must start with baseurl {}".format(
-            url, baseurl
-        )
+        baseurl = urllib.parse.urljoin(baseurl, ".")  # ensure baseurl is normalized (to remove '/./' and '/../')
+        assert url.startswith(baseurl), "URL {} must start with baseurl {}".format(url, baseurl)
         subpath = subpath + url[len(baseurl) :].strip("/").split("/")[:-1]
 
     # if we don't have a filename, extract it from the URL
@@ -198,9 +182,7 @@ def download_file(
         - If `middleware_kwargs` are also specified, they will also be passed in to each function in middleware_callbacks.
     """
 
-    relative_file_url, subpath, filename = calculate_relative_url(
-        url, filename=filename, baseurl=baseurl, subpath=subpath
-    )
+    relative_file_url, subpath, filename = calculate_relative_url(url, filename=filename, baseurl=baseurl, subpath=subpath)
 
     LOGGER.info("Download called for {}".format(url))
     # ensure that the destination directory exists
@@ -229,9 +211,7 @@ def download_file(
                     encoding = chardet.detect(response.content)
                     if encoding and "encoding" in encoding:
                         response.encoding = encoding["encoding"]
-                    LOGGER.warning(
-                        "encoding for {} = {}".format(url, response.encoding)
-                    )
+                    LOGGER.warning("encoding for {} = {}".format(url, response.encoding))
                 content = response.text
 
         if not isinstance(middleware_callbacks, list):

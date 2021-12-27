@@ -13,9 +13,7 @@ yt_resources = {}
 USE_PROXY_FOR_TESTS = False
 
 cc_playlist = "https://www.youtube.com/playlist?list=PL7m903CwFUgntbjkVMwts89fZq0INCtVS"
-non_cc_playlist = (
-    "https://www.youtube.com/playlist?list=PLBO8M-O_dTPE51ymDUgilf8DclGAEg9_A"
-)
+non_cc_playlist = "https://www.youtube.com/playlist?list=PLBO8M-O_dTPE51ymDUgilf8DclGAEg9_A"
 subtitles_video = "https://www.youtube.com/watch?v=6uXAbJQoZlE"
 subtitles_zu_video = "https://www.youtube.com/watch?v=FN12ty5ztAs"
 
@@ -76,9 +74,7 @@ def test_download_youtube_video():
         assert info
         if info:
             assert "filename" in info
-            assert os.path.exists(
-                info["filename"]
-            ), "Filename {} does not exist".format(info["filename"])
+            assert os.path.exists(info["filename"]), "Filename {} does not exist".format(info["filename"])
 
     finally:
         shutil.rmtree(download_dir)
@@ -97,9 +93,7 @@ def test_download_youtube_playlist():
             assert "children" in info
             for child in info["children"]:
                 assert "filename" in child
-                assert os.path.exists(
-                    child["filename"]
-                ), "Filename {} does not exist".format(child["filename"])
+                assert os.path.exists(child["filename"]), "Filename {} does not exist".format(child["filename"])
 
     finally:
         shutil.rmtree(download_dir)
@@ -143,13 +137,9 @@ def test_subtitles_lang_helpers_compatible():
 
         # 4. map youtube_language to le-utils language code (a.k.a. internal representation)
         language_obj = youtube.get_language_with_alpha2_fallback(youtube_language)
-        assert (
-            language_obj is not None
-        ), "Failed to find matchin language code in le-utils"
+        assert language_obj is not None, "Failed to find matchin language code in le-utils"
         if youtube_language == "zu":
-            assert (
-                language_obj.code == "zul"
-            ), "Matched to wrong language code in le-utils"
+            assert language_obj.code == "zul", "Matched to wrong language code in le-utils"
 
 
 def test_subtitles_lang_helpers_incompatible():
@@ -179,15 +169,9 @@ def test_download_from_web_video_file(tmp_path, useproxy, useproxy_for_download)
         # STEP 1: get_resource_info via proxy
         settings = {}
         maxheight = 480
-        settings[
-            "format"
-        ] = "bestvideo[height<={maxheight}][ext=mp4]+bestaudio[ext=m4a]/best[height<={maxheight}][ext=mp4]".format(
-            maxheight=maxheight
-        )
+        settings["format"] = "bestvideo[height<={maxheight}][ext=mp4]+bestaudio[ext=m4a]/best[height<={maxheight}][ext=mp4]".format(maxheight=maxheight)
         settings["outtmpl"] = destination_path
-        yt_resource = youtube.YouTubeResource(
-            youtube_url, useproxy=useproxy, options=settings
-        )
+        yt_resource = youtube.YouTubeResource(youtube_url, useproxy=useproxy, options=settings)
         video_node1 = yt_resource.get_resource_info()
         assert video_node1, "no data returned"
 
@@ -196,9 +180,7 @@ def test_download_from_web_video_file(tmp_path, useproxy, useproxy_for_download)
         download_settings = {}
         download_settings["writethumbnail"] = False
         download_settings["outtmpl"] = destination_path
-        video_node2 = yt_resource.download(
-            options=download_settings, useproxy=useproxy_for_download
-        )
+        video_node2 = yt_resource.download(options=download_settings, useproxy=useproxy_for_download)
         assert os.path.exists(destination_path), "Missing video file"
 
 
@@ -229,9 +211,7 @@ def test_download_from_web_subtitle_file(tmp_path, useproxy, useproxy_for_downlo
             "no_warnings": True,
         }
         web_url = youtube_url
-        yt_resource = youtube.YouTubeResource(
-            web_url, useproxy=useproxy, options=settings
-        )
+        yt_resource = youtube.YouTubeResource(web_url, useproxy=useproxy, options=settings)
         video_node = yt_resource.get_resource_info()
         # checks for STEP 1
         assert video_node["subtitles"], "missing subtitles key"

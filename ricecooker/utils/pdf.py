@@ -100,9 +100,7 @@ class PDFParser(object):
         for dest in self.pdf.getOutlines():
 
             # Process chapters
-            if isinstance(dest, CustomDestination) and not isinstance(
-                dest["/Page"], NullObject
-            ):
+            if isinstance(dest, CustomDestination) and not isinstance(dest["/Page"], NullObject):
                 page_num = self.pdf.getDestinationPageNumber(dest)
                 chapter_pagerange = {
                     "title": dest["/Title"].replace("\xa0", " "),
@@ -128,9 +126,7 @@ class PDFParser(object):
                 parent = chapters[index - 1]
                 subindex = 0
                 for subdest in dest:
-                    if isinstance(subdest, CustomDestination) and not isinstance(
-                        subdest["/Page"], NullObject
-                    ):
+                    if isinstance(subdest, CustomDestination) and not isinstance(subdest["/Page"], NullObject):
                         subpage_num = self.pdf.getDestinationPageNumber(subdest)
                         parent["children"].append(
                             {
@@ -151,12 +147,8 @@ class PDFParser(object):
         e.g. pagerange = {'title':'First chapter', 'page_start':0, 'page_end':5}
         """
         writer = PdfFileWriter()
-        slug = "".join(
-            [c for c in pagerange["title"].replace(" ", "-") if c.isalnum() or c == "-"]
-        )
-        write_to_path = os.path.sep.join(
-            [self.directory, "{}{}.pdf".format(prefix, slug)]
-        )
+        slug = "".join([c for c in pagerange["title"].replace(" ", "-") if c.isalnum() or c == "-"])
+        write_to_path = os.path.sep.join([self.directory, "{}{}.pdf".format(prefix, slug)])
         for page in range(pagerange["page_start"], pagerange["page_end"]):
             writer.addPage(self.pdf.getPage(page))
             writer.removeLinks()  # must be done every page
@@ -214,17 +206,11 @@ class PDFParser(object):
                         "page_start": chpagerange["page_start"],
                         "page_end": first_subchapter["page_start"],
                     }
-                    write_to_path = self.write_pagerange(
-                        chintro_pagerange, prefix=chprefix
-                    )
-                    chapter_topic["children"].append(
-                        {"title": chpagerange["title"], "path": write_to_path}
-                    )
+                    write_to_path = self.write_pagerange(chintro_pagerange, prefix=chprefix)
+                    chapter_topic["children"].append({"title": chpagerange["title"], "path": write_to_path})
 
                 # Handle all subchapters
-                subchapter_nodes = self.split_chapters(
-                    jsondata=subchpageranges, prefix=chprefix
-                )
+                subchapter_nodes = self.split_chapters(jsondata=subchpageranges, prefix=chprefix)
                 chapter_topic["children"].extend(subchapter_nodes)
                 chapters.append(chapter_topic)
 

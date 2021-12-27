@@ -40,11 +40,7 @@ def prompt_for_token(remote_name):
     global jiro_config
     print("remote_name = {}".format(remote_name))
     remote = jiro_config["remotes"][remote_name]
-    result = input(
-        "Please enter an authentication token for server {} ({}): ".format(
-            remote_name, remote["url"]
-        )
-    )
+    result = input("Please enter an authentication token for server {} ({}): ".format(remote_name, remote["url"]))
     remote["token"] = result
     save_config()
 
@@ -81,9 +77,7 @@ def run_ricecooker(cmd, remote_name=None, extra_args=None):
                 token = prompt_for_token(remote_name)
             cmd_args.extend(["--token", token])
         else:
-            print(
-                "ERROR: No remote with name {} found. To see available remotes, run: jiro remote list"
-            )
+            print("ERROR: No remote with name {} found. To see available remotes, run: jiro remote list")
             sys.exit(1)
 
     print("Running {}".format(cmd_args))
@@ -162,9 +156,7 @@ def new_chef(args, remainder):
     os.makedirs(assets_dir, exist_ok=True)
     chef_filename = os.path.join(repo_dir, "sushichef.py.template")
     if not os.path.exists(chef_filename):
-        template = Template(
-            open(os.path.join(TEMPLATE_DIR, "sushichef.py.template")).read()
-        )
+        template = Template(open(os.path.join(TEMPLATE_DIR, "sushichef.py.template")).read())
         output = template.render(**arg_dict)
         f = open(chef_filename, "w")
         f.write(output)
@@ -184,9 +176,7 @@ def setup_env(args, remainder):
         subprocess.call(["virtualenv", venv_dir])
 
     requirements = os.path.join(cwd, "requirements.txt")
-    assert os.path.exists(
-        requirements
-    ), "No requirements.txt file found, cannot set up Python environment."
+    assert os.path.exists(requirements), "No requirements.txt file found, cannot set up Python environment."
     subprocess.call(["pip", "install", "-r", "requirements.txt"])
 
 
@@ -208,28 +198,20 @@ def main():
 
     parser = argparse.ArgumentParser()
 
-    commands = parser.add_subparsers(
-        title="commands", help="Commands to operate on ricecooker projects"
-    )
+    commands = parser.add_subparsers(title="commands", help="Commands to operate on ricecooker projects")
 
     set_cmd = commands.add_parser("set")
-    set_cmd.add_argument(
-        "name", nargs="?", help="Property to set. Choices are: %r" % (props,)
-    )
+    set_cmd.add_argument("name", nargs="?", help="Property to set. Choices are: %r" % (props,))
     set_cmd.add_argument("value", nargs="?", help="Value as string to set property to.")
     set_cmd.set_defaults(func=set)
 
     remote_cmd = commands.add_parser("remote")
-    remote_cmds = remote_cmd.add_subparsers(
-        title="remotes", description="Commands related to remote server management."
-    )
+    remote_cmds = remote_cmd.add_subparsers(title="remotes", description="Commands related to remote server management.")
 
     add_cmd = remote_cmds.add_parser("add")
     add_cmd.add_argument("name", nargs="?", help="Name of upload server.")
     add_cmd.add_argument("url", nargs="?", help="URL of server to upload to.")
-    add_cmd.add_argument(
-        "token", nargs="?", help="User authentication token for server."
-    )
+    add_cmd.add_argument("token", nargs="?", help="User authentication token for server.")
     add_cmd.set_defaults(func=add_remote)
 
     list_cmd = remote_cmds.add_parser("list")

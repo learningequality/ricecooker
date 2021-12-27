@@ -78,27 +78,13 @@ def test_download_filenames(
     subtitle_file,
     subtitle_filename,
 ):
-    assert (
-        video_file.process_file() == video_filename
-    ), "Video file should have filename {}".format(video_filename)
-    assert (
-        html_file.process_file() == html_filename
-    ), "HTML file should have filename {}".format(html_filename)
-    assert (
-        audio_file.process_file() == audio_filename
-    ), "Audio file should have filename {}".format(audio_filename)
-    assert (
-        document_file.process_file() == document_filename
-    ), "PDF document file should have filename {}".format(document_filename)
-    assert (
-        epub_file.process_file() == epub_filename
-    ), "ePub document file should have filename {}".format(epub_filename)
-    assert (
-        thumbnail_file.process_file() == thumbnail_filename
-    ), "Thumbnail file should have filename {}".format(thumbnail_filename)
-    assert (
-        subtitle_file.process_file() == subtitle_filename
-    ), "Subtitle file should have filename {}".format(subtitle_filename)
+    assert video_file.process_file() == video_filename, "Video file should have filename {}".format(video_filename)
+    assert html_file.process_file() == html_filename, "HTML file should have filename {}".format(html_filename)
+    assert audio_file.process_file() == audio_filename, "Audio file should have filename {}".format(audio_filename)
+    assert document_file.process_file() == document_filename, "PDF document file should have filename {}".format(document_filename)
+    assert epub_file.process_file() == epub_filename, "ePub document file should have filename {}".format(epub_filename)
+    assert thumbnail_file.process_file() == thumbnail_filename, "Thumbnail file should have filename {}".format(thumbnail_filename)
+    assert subtitle_file.process_file() == subtitle_filename, "Subtitle file should have filename {}".format(subtitle_filename)
 
 
 def test_download_to_storage(
@@ -137,26 +123,16 @@ def test_download_to_storage(
     assert os.path.isfile(video_path), "Video should be stored at {}".format(video_path)
     assert os.path.isfile(html_path), "HTML should be stored at {}".format(html_path)
     assert os.path.isfile(audio_path), "Audio should be stored at {}".format(audio_path)
-    assert os.path.isfile(document_path), "PDF document should be stored at {}".format(
-        document_path
-    )
-    assert os.path.isfile(epub_path), "ePub document should be stored at {}".format(
-        epub_path
-    )
-    assert os.path.isfile(thumbnail_path), "Thumbnail should be stored at {}".format(
-        thumbnail_path
-    )
-    assert os.path.isfile(subtitle_path), "Subtitle should be stored at {}".format(
-        subtitle_path
-    )
+    assert os.path.isfile(document_path), "PDF document should be stored at {}".format(document_path)
+    assert os.path.isfile(epub_path), "ePub document should be stored at {}".format(epub_path)
+    assert os.path.isfile(thumbnail_path), "Thumbnail should be stored at {}".format(thumbnail_path)
+    assert os.path.isfile(subtitle_path), "Subtitle should be stored at {}".format(subtitle_path)
 
 
 def test_set_language():
     sub1 = SubtitleFile("path", language="en")
     sub2 = SubtitleFile("path", language=languages.getlang("es"))
-    assert isinstance(
-        sub1.language, str
-    ), "Subtitles must be converted to Language class"
+    assert isinstance(sub1.language, str), "Subtitles must be converted to Language class"
     assert isinstance(sub2.language, str), "Subtitles can be passed as Langauge models"
     assert sub1.language == "en", "Subtitles must have a language"
     assert sub2.language == "es", "Subtitles must have a language"
@@ -223,9 +199,7 @@ def test_htmlfile_to_dict():
     assert True
 
 
-@pytest.mark.skip(
-    "Skipping one-off create_predictable_zip stress test because long running..."
-)
+@pytest.mark.skip("Skipping one-off create_predictable_zip stress test because long running...")
 def test_create_many_predictable_zip_files(ndirs=8193):
     """
     Regression test for `OSError: [Errno 24] Too many open files` when using
@@ -352,9 +326,7 @@ def test_is_youtube_subtitle_file_supported_language(
 
 def test_is_youtube_subtitle_file_unsupported_language(subtitles_langs_ubsupported):
     for lang in subtitles_langs_ubsupported:
-        assert not is_youtube_subtitle_file_supported_language(
-            lang
-        ), "should not be supported"
+        assert not is_youtube_subtitle_file_supported_language(lang), "should not be supported"
         lang_obj = _get_language_with_alpha2_fallback(lang)
         assert lang_obj is None, "lookup should fail"
 
@@ -417,9 +389,7 @@ def test_bad_subtitles_raises(bad_subtitles_file):
 
 
 PRESSURECOOKER_REPO_URL = "https://raw.githubusercontent.com/bjester/pressurecooker/"
-PRESSURECOOKER_FILES_URL_BASE = (
-    PRESSURECOOKER_REPO_URL + "pycaption/tests/files/subtitles/"
-)
+PRESSURECOOKER_FILES_URL_BASE = PRESSURECOOKER_REPO_URL + "pycaption/tests/files/subtitles/"
 PRESSURECOOKER_SUBS_FIXTURES = [
     {
         "srcfilename": "basic.srt",
@@ -457,16 +427,10 @@ def download_fixture_files(fixtures_list):
         srcfilename = fixture["srcfilename"]
         localpath = os.path.join("tests", "testcontent", "downloaded", srcfilename)
         if not os.path.exists(localpath):
-            url = (
-                fixture["url"]
-                if "url" in fixture.keys()
-                else PRESSURECOOKER_FILES_URL_BASE + srcfilename
-            )
+            url = fixture["url"] if "url" in fixture.keys() else PRESSURECOOKER_FILES_URL_BASE + srcfilename
             print(url)
             _save_file_url_to_path(url, localpath)
-            assert os.path.exists(localpath), (
-                "Error mising local test file " + localpath
-            )
+            assert os.path.exists(localpath), "Error mising local test file " + localpath
         fixture["localpath"] = localpath
         fixtures.append(fixture)
     return fixtures
@@ -510,18 +474,14 @@ def test_convertible_substitles_from_pressurcooker(pressurcooker_test_files):
         storage_path = config.get_storage_path(filename)
         with open(storage_path, encoding="utf-8") as converted_vtt:
             filecontents = converted_vtt.read()
-            assert (
-                fixture["check_words"] in filecontents
-            ), "missing check_words in converted subs"
+            assert fixture["check_words"] in filecontents, "missing check_words in converted subs"
 
 
 def test_convertible_substitles_ar_ttml(youtube_test_file):
     """
     Regression test to make sure correct lang_code is detected from .ttml data.
     """
-    local_path = os.path.join(
-        "tests", "testcontent", "downloaded", "testsubtitles_ar.ttml"
-    )
+    local_path = os.path.join("tests", "testcontent", "downloaded", "testsubtitles_ar.ttml")
     assert os.path.exists(local_path)
     subtitle_file = SubtitleFile(local_path, language="ar")
     filename = subtitle_file.process_file()
@@ -533,9 +493,7 @@ def test_convertible_substitles_noext_subtitlesformat():
     """
     Check that we handle correctly cases when path doesn't contain extenstion.
     """
-    local_path = os.path.join(
-        "tests", "testcontent", "downloaded", "testsubtitles_ar.ttml"
-    )
+    local_path = os.path.join("tests", "testcontent", "downloaded", "testsubtitles_ar.ttml")
     assert os.path.exists(local_path)
     local_path_no_ext = local_path.replace(".ttml", "")
     copyfile(local_path, local_path_no_ext)
@@ -555,10 +513,7 @@ def test_convertible_substitles_weirdext_subtitlesformat():
     Check that we handle cases when ext cannot be guessed from URL or localpath.
     Passing `subtitlesformat` allows chef authors to manually specify subs format.
     """
-    subs_url = (
-        "https://commons.wikimedia.org/w/api.php?"
-        + "action=timedtext&title=File%3AA_Is_for_Atom_1953.webm&lang=es&trackformat=srt"
-    )
+    subs_url = "https://commons.wikimedia.org/w/api.php?" + "action=timedtext&title=File%3AA_Is_for_Atom_1953.webm&lang=es&trackformat=srt"
     subtitle_file = SubtitleFile(
         subs_url,
         language="es",
@@ -570,6 +525,4 @@ def test_convertible_substitles_weirdext_subtitlesformat():
     storage_path = config.get_storage_path(filename)
     with open(storage_path, encoding="utf-8") as converted_vtt:
         filecontents = converted_vtt.read()
-        assert (
-            "El total de los protones y neutrones de un átomo" in filecontents
-        ), "missing check words in converted subs"
+        assert "El total de los protones y neutrones de un átomo" in filecontents, "missing check words in converted subs"
