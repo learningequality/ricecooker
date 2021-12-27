@@ -59,7 +59,8 @@ def high_res_video():
 def low_res_video_webm():
     with TempFile(suffix=".webm") as f:
         resp = requests.get(
-            "https://mirrors.creativecommons.org/movingimages/" "webm/CreativeCommonsPlusCommercial_240p.webm",
+            "https://mirrors.creativecommons.org/movingimages/"
+            "webm/CreativeCommonsPlusCommercial_240p.webm",
             stream=True,
         )
         for chunk in resp.iter_content(chunk_size=1048576):
@@ -72,7 +73,8 @@ def low_res_video_webm():
 def high_res_video_webm():
     with TempFile(suffix=".webm") as f:
         resp = requests.get(
-            "https://mirrors.creativecommons.org/movingimages/" "webm/CreativeCommonsPlusCommercial_720p.webm",
+            "https://mirrors.creativecommons.org/movingimages/"
+            "webm/CreativeCommonsPlusCommercial_720p.webm",
             stream=True,
         )
         for chunk in resp.iter_content(chunk_size=1048576):
@@ -100,7 +102,9 @@ def low_res_ogv_video():
 def high_res_mov_video():
     with TempFile(suffix=".mov") as f:
         resp = requests.get(
-            "https://ia800201.us.archive.org/7/items/" "UnderConstructionFREEVideoBackgroundLoopHD1080p/" "cold%20night.mov",
+            "https://ia800201.us.archive.org/7/items/"
+            "UnderConstructionFREEVideoBackgroundLoopHD1080p/"
+            "cold%20night.mov",
             stream=True,
         )
         for chunk in resp.iter_content(chunk_size=1048576):
@@ -178,7 +182,9 @@ class Test_compress_video:
 
     def test_compression_max_width(self, high_res_video):
         with TempFile(suffix=".mp4") as vout:
-            videos.compress_video(high_res_video.name, vout.name, overwrite=True, max_width=120)
+            videos.compress_video(
+                high_res_video.name, vout.name, overwrite=True, max_width=120
+            )
             width, height = get_resolution(vout.name)
             assert width == 120, "should be 120 h resolution since max_width set"
 
@@ -187,13 +193,19 @@ class Test_compress_video:
         regression test for: https://github.com/learningequality/pressurecooker/issues/11
         """
         with TempFile(suffix=".mp4") as vout:
-            videos.compress_video(high_res_video.name, vout.name, overwrite=True, max_width=121)
+            videos.compress_video(
+                high_res_video.name, vout.name, overwrite=True, max_width=121
+            )
             width, height = get_resolution(vout.name)
-            assert width == 120, "should round down to 120 h resolution when max_width=121 set"
+            assert (
+                width == 120
+            ), "should round down to 120 h resolution when max_width=121 set"
 
     def test_compression_max_height(self, high_res_video):
         with TempFile(suffix=".mp4") as vout:
-            videos.compress_video(high_res_video.name, vout.name, overwrite=True, max_height=140)
+            videos.compress_video(
+                high_res_video.name, vout.name, overwrite=True, max_height=140
+            )
             width, height = get_resolution(vout.name)
             assert height == 140, "should be 140 v resolution since max_height set"
 
@@ -212,7 +224,9 @@ class Test_convert_video:
 
     def test_convert_and_resize_ogv_works(self, low_res_ogv_video):
         with TempFile(suffix=".mp4") as vout:
-            videos.compress_video(low_res_ogv_video.name, vout.name, overwrite=True, max_height=200)
+            videos.compress_video(
+                low_res_ogv_video.name, vout.name, overwrite=True, max_height=200
+            )
             width, height = get_resolution(vout.name)
             assert height == 200, "should convert .ogv to .mp4 and set 200 v res"
 

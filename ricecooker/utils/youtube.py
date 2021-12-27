@@ -100,7 +100,9 @@ class YouTubeResource(object):
 
                 LOGGER.debug("Calling extract_info for URL {}".format(self.url))
                 start_time = datetime.now()
-                self.info = self.client.extract_info(self.url, download=False, process=True)
+                self.info = self.client.extract_info(
+                    self.url, download=False, process=True
+                )
                 end_time = datetime.now()
 
                 # Mark slow proxies as broken
@@ -182,7 +184,11 @@ class YouTubeResource(object):
                 dl_proxy = proxy.choose_proxy()
                 self.client.params["proxy"] = dl_proxy
                 self.client._setup_opener()  # this will re-initialize downloader
-            elif not useproxy and "proxy" in self.client.params and self.client.params["proxy"]:
+            elif (
+                not useproxy
+                and "proxy" in self.client.params
+                and self.client.params["proxy"]
+            ):
                 # Disable proxy if it was used for the get_resource_info call
                 self.client.params["proxy"] = None
                 self.client._setup_opener()  # this will re-initialize downloader
@@ -427,9 +433,13 @@ class YouTubeUtils(object):
                             sort_keys=True,
                         )
                     else:
-                        LOGGER.error("==> [%s] Failed to extract YouTube info", self.__str__())
+                        LOGGER.error(
+                            "==> [%s] Failed to extract YouTube info", self.__str__()
+                        )
                 except Exception as e:
-                    LOGGER.error("==> [%s] Failed to get YouTube info: %s", self.__str__(), e)
+                    LOGGER.error(
+                        "==> [%s] Failed to get YouTube info: %s", self.__str__(), e
+                    )
                     return None
         return youtube_info
 
@@ -456,7 +466,9 @@ class YouTubeVideoUtils(YouTubeUtils):
             self.cache_dir = cache_dir
         self.cache_path = os.path.join(self.cache_dir, self.cachename + ".json")
 
-    def get_video_info(self, use_proxy=True, use_cache=True, get_subtitle_languages=False, options=None):
+    def get_video_info(
+        self, use_proxy=True, use_cache=True, get_subtitle_languages=False, options=None
+    ):
         """
         Get YouTube video info by either requesting URL or extracting local cache
         :param use_cache: Define if allowed to get video info from local JSON cache, default to True
@@ -475,7 +487,9 @@ class YouTubeVideoUtils(YouTubeUtils):
             extract_options.update(options_for_subtitles)
         if options:
             extract_options.update(options)
-        return self._get_youtube_info(use_proxy=use_proxy, use_cache=use_cache, options=extract_options)
+        return self._get_youtube_info(
+            use_proxy=use_proxy, use_cache=use_cache, options=extract_options
+        )
 
 
 class YouTubePlaylistUtils(YouTubeUtils):
@@ -497,7 +511,9 @@ class YouTubePlaylistUtils(YouTubeUtils):
             self.cache_dir = cache_dir
         self.cache_path = os.path.join(self.cache_dir, self.cachename + ".json")
 
-    def get_playlist_info(self, use_proxy=True, use_cache=True, youtube_skip_download=True, options=None):
+    def get_playlist_info(
+        self, use_proxy=True, use_cache=True, youtube_skip_download=True, options=None
+    ):
         """
         Get YouTube playlist info by either requesting URL or extracting local cache
         :param use_cache: Define if allowed to get playlist info from local JSON cache, default to True
@@ -506,7 +522,11 @@ class YouTubePlaylistUtils(YouTubeUtils):
                         For full list of available options: https://github.com/ytdl-org/youtube-dl/blob/master/youtube_dl/YoutubeDL.py
         :return: A ricecooker-like info dict info about the playlist or None if extraction fails
         """
-        youtube_extract_options = dict(skip_download=youtube_skip_download, extract_flat=True)
+        youtube_extract_options = dict(
+            skip_download=youtube_skip_download, extract_flat=True
+        )
         if options:
             youtube_extract_options.update(options)
-        return self._get_youtube_info(use_proxy=use_proxy, use_cache=use_cache, options=youtube_extract_options)
+        return self._get_youtube_info(
+            use_proxy=use_proxy, use_cache=use_cache, options=youtube_extract_options
+        )

@@ -41,7 +41,9 @@ def cli_args_and_expected():
         },
         {
             "cli_input": "./sushichef.py --token=letoken --resume --step=START_UPLOAD",
-            "expected_args": dict(defaults, token="letoken", resume=True, step="START_UPLOAD"),
+            "expected_args": dict(
+                defaults, token="letoken", resume=True, step="START_UPLOAD"
+            ),
             "expected_options": {},
         },
         {

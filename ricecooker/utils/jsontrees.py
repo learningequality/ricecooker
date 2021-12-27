@@ -179,7 +179,9 @@ def build_tree_from_json(parent_node, sourcetree):
                 role=source_node.get("role", roles.LEARNER),
                 language=source_node.get("language"),
                 thumbnail=source_node.get("thumbnail"),
-                derive_thumbnail=source_node.get("derive_thumbnail", False),  # not supported yet
+                derive_thumbnail=source_node.get(
+                    "derive_thumbnail", False
+                ),  # not supported yet
                 tags=source_node.get("tags"),
                 exercise_data=source_node.get("exercise_data"),
                 questions=[],
@@ -301,16 +303,32 @@ def add_files(node, file_list):
             node.add_file(video_file)
 
         elif file_type == AUDIO_FILE:
-            node.add_file(files.AudioFile(path=f["path"], language=f.get("language", None), preset=preset))
+            node.add_file(
+                files.AudioFile(
+                    path=f["path"], language=f.get("language", None), preset=preset
+                )
+            )
 
         elif file_type == DOCUMENT_FILE:
-            node.add_file(files.DocumentFile(path=path, language=f.get("language", None), preset=preset))
+            node.add_file(
+                files.DocumentFile(
+                    path=path, language=f.get("language", None), preset=preset
+                )
+            )
 
         elif file_type == EPUB_FILE:
-            node.add_file(files.EPubFile(path=path, language=f.get("language", None), preset=preset))
+            node.add_file(
+                files.EPubFile(
+                    path=path, language=f.get("language", None), preset=preset
+                )
+            )
 
         elif file_type == HTML5_FILE:
-            node.add_file(files.HTMLZipFile(path=path, language=f.get("language", None), preset=preset))
+            node.add_file(
+                files.HTMLZipFile(
+                    path=path, language=f.get("language", None), preset=preset
+                )
+            )
 
         elif file_type == THUMBNAIL_FILE:
             if "encoding" in f:
@@ -329,7 +347,11 @@ def add_files(node, file_list):
 
         elif file_type == SUBTITLES_FILE:
             if "youtube_id" in f:
-                node.add_file(files.YouTubeSubtitleFile(youtube_id=f["youtube_id"], language=f["language"]))
+                node.add_file(
+                    files.YouTubeSubtitleFile(
+                        youtube_id=f["youtube_id"], language=f["language"]
+                    )
+                )
             else:
                 keys = ["language", "subtitlesformat"]
                 params = {"path": path}
@@ -410,5 +432,7 @@ def add_questions(exercise_node, question_list):
 
         else:
             raise UnknownQuestionTypeError(
-                "Unrecognized question type {0}: accepted types are {1}".format(question_type, [key for key, value in exercises.question_choices])
+                "Unrecognized question type {0}: accepted types are {1}".format(
+                    question_type, [key for key, value in exercises.question_choices]
+                )
             )

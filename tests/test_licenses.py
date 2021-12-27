@@ -33,7 +33,9 @@ def license_objects():
     license_objects = []
     for regular_id in regular_ids:
         # with desciption and copyright_holder
-        licence_obj = get_license(regular_id, copyright_holder="Some name", description="Le description")
+        licence_obj = get_license(
+            regular_id, copyright_holder="Some name", description="Le description"
+        )
         assert licence_obj, "licence_obj should exist"
         license_objects.append(licence_obj)
 

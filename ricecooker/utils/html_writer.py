@@ -57,7 +57,11 @@ class HTMLWriter:
         index_present = self.contains("index.html")
         self.zf.close()  # Make sure zipfile closes no matter what
         if not index_present:
-            raise ReferenceError("Invalid Zip at {}: missing index.html file (use write_index_contents method)".format(self.write_to_path))
+            raise ReferenceError(
+                "Invalid Zip at {}: missing index.html file (use write_index_contents method)".format(
+                    self.write_to_path
+                )
+            )
 
     def contains(self, filename):
         """contains: Checks if filename is in the zipfile
@@ -74,7 +78,9 @@ class HTMLWriter:
             directory: (str) directory in zipfile to write file to (optional)
         Returns: path to file in zip
         """
-        filepath = "{}/{}".format(directory.rstrip("/"), filename) if directory else filename
+        filepath = (
+            "{}/{}".format(directory.rstrip("/"), filename) if directory else filename
+        )
         self._write_to_zipfile(filepath, contents)
         return filepath
 
@@ -103,7 +109,9 @@ class HTMLWriter:
             directory: (str) directory in zipfile to write file to (optional)
         Returns: path to file in zip
         """
-        filepath = "{}/{}".format(directory.rstrip("/"), filename) if directory else filename
+        filepath = (
+            "{}/{}".format(directory.rstrip("/"), filename) if directory else filename
+        )
         if not self.contains(filepath):
             self._write_to_zipfile(filepath, read(url))
         return filepath

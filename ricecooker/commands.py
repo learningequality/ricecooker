@@ -76,8 +76,12 @@ def uploadchannel(
     config.PUBLISH = publish
 
     # Set max retries for downloading
-    config.DOWNLOAD_SESSION.mount("http://", requests.adapters.HTTPAdapter(max_retries=int(download_attempts)))
-    config.DOWNLOAD_SESSION.mount("https://", requests.adapters.HTTPAdapter(max_retries=int(download_attempts)))
+    config.DOWNLOAD_SESSION.mount(
+        "http://", requests.adapters.HTTPAdapter(max_retries=int(download_attempts))
+    )
+    config.DOWNLOAD_SESSION.mount(
+        "https://", requests.adapters.HTTPAdapter(max_retries=int(download_attempts))
+    )
 
     # Get domain to upload to
     config.init_file_mapping_store()
@@ -95,13 +99,19 @@ def uploadchannel(
 
     # Set up progress tracker
     config.PROGRESS_MANAGER = RestoreManager()
-    if (not resume or not config.PROGRESS_MANAGER.check_for_session()) and step.upper() != Status.DONE.name:
+    if (
+        not resume or not config.PROGRESS_MANAGER.check_for_session()
+    ) and step.upper() != Status.DONE.name:
         config.PROGRESS_MANAGER.init_session()
     else:
-        if resume or prompt_yes_or_no("Previous session detected. Would you like to resume your last session?"):
+        if resume or prompt_yes_or_no(
+            "Previous session detected. Would you like to resume your last session?"
+        ):
             config.LOGGER.info("Resuming your last session...")
             step = Status.LAST.name if step is None else step
-            config.PROGRESS_MANAGER = config.PROGRESS_MANAGER.load_progress(step.upper())
+            config.PROGRESS_MANAGER = config.PROGRESS_MANAGER.load_progress(
+                step.upper()
+            )
         else:
             config.PROGRESS_MANAGER.init_session()
 
@@ -171,7 +181,10 @@ def uploadchannel(
     channel_id = config.PROGRESS_MANAGER.channel_id
 
     # Publish tree if flag is set to True
-    if config.PUBLISH and config.PROGRESS_MANAGER.get_status_val() <= Status.PUBLISH_CHANNEL.value:
+    if (
+        config.PUBLISH
+        and config.PROGRESS_MANAGER.get_status_val() <= Status.PUBLISH_CHANNEL.value
+    ):
         config.LOGGER.info("")
         config.LOGGER.info("Publishing channel...")
         publish_tree(tree, channel_id)
@@ -209,7 +222,9 @@ def authenticate_user(token):
 
 
 def check_version_number():
-    response = config.SESSION.post(config.check_version_url(), data=json.dumps({"version": __version__}))
+    response = config.SESSION.post(
+        config.check_version_url(), data=json.dumps({"version": __version__})
+    )
     response.raise_for_status()
     result = json.loads(response._content.decode("utf-8"))
 
@@ -291,7 +306,9 @@ def upload_files(tree, file_diff):
     Returns: None
     """
     # Upload new files to CC
-    config.LOGGER.info("  Uploading {0} new file(s) to Kolibri Studio...".format(len(file_diff)))
+    config.LOGGER.info(
+        "  Uploading {0} new file(s) to Kolibri Studio...".format(len(file_diff))
+    )
     tree.upload_files(file_diff)
     tree.reattempt_upload_fails()
     return file_diff

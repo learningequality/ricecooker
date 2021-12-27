@@ -74,7 +74,9 @@ class TutorialChef(SushiChef):
         # TODO: Create your pdf file here (use any url to a .pdf file)
 
         # We are also going to add a video file called 'Example Video'
-        video_file = VideoFile(path="https://ia600209.us.archive.org/27/items/RiceChef/Rice Chef.mp4")
+        video_file = VideoFile(
+            path="https://ia600209.us.archive.org/27/items/RiceChef/Rice Chef.mp4"
+        )
         fancy_license = get_license(
             licenses.SPECIAL_PERMISSIONS,
             description="Special license for ricecooker fans only.",
@@ -89,7 +91,9 @@ class TutorialChef(SushiChef):
         # TODO: Create your video file here (use any url to a .mp4 file)
 
         # Finally, we are creating an audio file called 'Example Audio'
-        audio_file = AudioFile(path="https://ia802508.us.archive.org/5/items/testmp3testfile/mpthreetest.mp3")
+        audio_file = AudioFile(
+            path="https://ia802508.us.archive.org/5/items/testmp3testfile/mpthreetest.mp3"
+        )
         exampleaudio = AudioNode(
             title="Example Audio",
             source_id="example-audio",
@@ -100,8 +104,12 @@ class TutorialChef(SushiChef):
 
         # Now that we have our files, let's add them to our channel
         channel.add_child(examplepdf)  # Adding 'Example PDF' to your channel
-        exampletopic.add_child(examplevideo)  # Adding 'Example Video' to 'Example Topic'
-        examplesubtopic.add_child(exampleaudio)  # Adding 'Example Audio' to 'Example Subtopic'
+        exampletopic.add_child(
+            examplevideo
+        )  # Adding 'Example Video' to 'Example Topic'
+        examplesubtopic.add_child(
+            exampleaudio
+        )  # Adding 'Example Audio' to 'Example Subtopic'
 
         # TODO: Add your pdf file to your channel
         # TODO: Add your video file to your topic

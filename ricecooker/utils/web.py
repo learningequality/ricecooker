@@ -43,7 +43,11 @@ class HTMLParser:
                 link = tag.get(self.link_tags[tag_name])
                 # don't include links to ourselves or # links
                 # TODO: Should this part be moved to get_local_files instead?
-                if link and (basename and not link.startswith(basename)) and not link.strip().startswith("#"):
+                if (
+                    link
+                    and (basename and not link.startswith(basename))
+                    and not link.strip().startswith("#")
+                ):
                     if "?" in link:
                         link, query = link.split("?")
                     if "#" in link:

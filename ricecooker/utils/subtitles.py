@@ -110,7 +110,9 @@ class SubtitleConverter:
                 break
         else:
             self.caption_set = None
-            raise InvalidSubtitleFormatError("Subtitle file is unsupported or unreadable")
+            raise InvalidSubtitleFormatError(
+                "Subtitle file is unsupported or unreadable"
+            )
 
         if self.caption_set.is_empty():
             raise InvalidSubtitleLanguageError("Captions set is invalid")
@@ -181,11 +183,15 @@ class SubtitleConverter:
         captions = caption_set.get_captions(lang_code)
 
         if not captions:
-            raise InvalidSubtitleLanguageError("Language '{}' is not present in caption set".format(lang_code))
+            raise InvalidSubtitleLanguageError(
+                "Language '{}' is not present in caption set".format(lang_code)
+            )
 
         styles = caption_set.get_styles()
         layout_info = caption_set.get_layout_info(lang_code)
-        lang_caption_set = CaptionSet({lang_code: captions}, styles=dict(styles), layout_info=layout_info)
+        lang_caption_set = CaptionSet(
+            {lang_code: captions}, styles=dict(styles), layout_info=layout_info
+        )
         return self.writer.write(lang_caption_set)
 
 

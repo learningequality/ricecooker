@@ -94,7 +94,9 @@ class SushiChef(object):
             action="store_true",
             help="Force file re-download (skip .ricecookerfilecache/).",
         )
-        parser.add_argument("--debug", action="store_true", help="Print extra debugging infomation.")
+        parser.add_argument(
+            "--debug", action="store_true", help="Print extra debugging infomation."
+        )
         parser.add_argument(
             "-v",
             "--verbose",
@@ -102,7 +104,9 @@ class SushiChef(object):
             default=True,
             help="Verbose mode (default).",
         )
-        parser.add_argument("--warn", action="store_true", help="Print errors and warnings.")
+        parser.add_argument(
+            "--warn", action="store_true", help="Print errors and warnings."
+        )
         parser.add_argument("--quiet", action="store_true", help="Print only errors.")
         parser.add_argument(
             "--compress",
@@ -234,10 +238,14 @@ class SushiChef(object):
                 "DEPRECATION WARNING: --reset is now the default bevavior. The --reset flag has been deprecated and will be removed in ricecooker 1.0."
             )
         if args["publish"] and args["stage"]:
-            raise InvalidUsageException("The --publish argument must be used together with --deploy argument.")
+            raise InvalidUsageException(
+                "The --publish argument must be used together with --deploy argument."
+            )
         logging_args = [key for key in ["quiet", "warn", "debug"] if args[key]]
         if len(logging_args) > 1:
-            raise InvalidUsageException("Agruments --quiet, --warn, and --debug cannot be used together.")
+            raise InvalidUsageException(
+                "Agruments --quiet, --warn, and --debug cannot be used together."
+            )
 
         if args["command"] == "uploadchannel":
             # Make sure token is provided. There are four ways to specify:
@@ -256,7 +264,9 @@ class SushiChef(object):
                 option_key, option_value = preoption.split("=")
                 options.update({option_key.strip(): option_value.strip()})
             except IndexError:
-                msg = "Invalid option '{0}': use [key]=[value] format (no whitespace)".format(preoption)
+                msg = "Invalid option '{0}': use [key]=[value] format (no whitespace)".format(
+                    preoption
+                )
                 raise InvalidUsageException(msg)
 
         self.args = args
@@ -307,14 +317,22 @@ class SushiChef(object):
         if hasattr(self, "channel_info"):
             # Make sure we're not using the template id values in `channel_info`
             template_domains = ["<yourdomain.org>"]
-            using_template_domain = self.channel_info["CHANNEL_SOURCE_DOMAIN"] in template_domains
+            using_template_domain = (
+                self.channel_info["CHANNEL_SOURCE_DOMAIN"] in template_domains
+            )
             if using_template_domain:
-                config.LOGGER.error("Template source domain detected. Please change CHANNEL_SOURCE_DOMAIN before running this chef.")
+                config.LOGGER.error(
+                    "Template source domain detected. Please change CHANNEL_SOURCE_DOMAIN before running this chef."
+                )
 
             template_ids = ["<unique id for the channel>", "<yourid>"]
-            using_template_source_id = self.channel_info["CHANNEL_SOURCE_ID"] in template_ids
+            using_template_source_id = (
+                self.channel_info["CHANNEL_SOURCE_ID"] in template_ids
+            )
             if using_template_source_id:
-                config.LOGGER.error("Template channel source ID detected. Please change CHANNEL_SOURCE_ID before running this chef.")
+                config.LOGGER.error(
+                    "Template channel source ID detected. Please change CHANNEL_SOURCE_ID before running this chef."
+                )
 
             if using_template_domain or using_template_source_id:
                 sys.exit(1)
@@ -333,7 +351,9 @@ class SushiChef(object):
             )
             return channel
         else:
-            raise NotImplementedError("Subclass must define get_channel method or have a channel_info (dict) attribute.")
+            raise NotImplementedError(
+                "Subclass must define get_channel method or have a channel_info (dict) attribute."
+            )
 
     def construct_channel(self, **kwargs):
         """
@@ -349,11 +369,17 @@ class SushiChef(object):
             self.CHEF_RUN_DATA = json.load(open(config.DATA_PATH))
 
     def save_channel_tree_as_json(self, channel):
-        filename = os.path.join(self.TREES_DATA_DIR, "{}.json".format(self.CHEF_RUN_DATA["current_run"]))
+        filename = os.path.join(
+            self.TREES_DATA_DIR, "{}.json".format(self.CHEF_RUN_DATA["current_run"])
+        )
         os.makedirs(self.TREES_DATA_DIR, exist_ok=True)
         json.dump(channel.get_json_tree(), open(filename, "w"), indent=2)
-        self.CHEF_RUN_DATA["tree_archives"]["previous"] = self.CHEF_RUN_DATA["tree_archives"]["current"]
-        self.CHEF_RUN_DATA["tree_archives"]["current"] = filename.replace(os.getcwd() + "/", "")
+        self.CHEF_RUN_DATA["tree_archives"]["previous"] = self.CHEF_RUN_DATA[
+            "tree_archives"
+        ]["current"]
+        self.CHEF_RUN_DATA["tree_archives"]["current"] = filename.replace(
+            os.getcwd() + "/", ""
+        )
         self.save_chef_data()
 
     def save_channel_metadata_as_csv(self, channel):
@@ -384,12 +410,18 @@ class SushiChef(object):
                 line_new_title = line["New Title"]
                 line_new_description = line["New Description"]
                 line_new_tags = line["New Tags"]
-                if line_new_title != "" or line_new_description != "" or line_new_tags != "":
+                if (
+                    line_new_title != ""
+                    or line_new_description != ""
+                    or line_new_tags != ""
+                ):
                     metadata_dict[line_source_id] = {}
                     if line_new_title != "":
                         metadata_dict[line_source_id]["New Title"] = line_new_title
                     if line_new_description != "":
-                        metadata_dict[line_source_id]["New Description"] = line_new_description
+                        metadata_dict[line_source_id][
+                            "New Description"
+                        ] = line_new_description
                     if line_new_tags != "":
                         tags_arr = re.split(",| ,", line_new_tags)
                         metadata_dict[line_source_id]["New Tags"] = tags_arr
@@ -432,7 +464,12 @@ class SushiChef(object):
         """
         args_copy = args.copy()
         args_copy["token"] = args_copy["token"][0:6] + "..."
-        config.LOGGER.info("In SushiChef.run method. args=" + str(args_copy) + " options=" + str(options))
+        config.LOGGER.info(
+            "In SushiChef.run method. args="
+            + str(args_copy)
+            + " options="
+            + str(options)
+        )
 
         run_id = datetime.now().strftime("%Y-%m-%d__%H%M")
         self.CHEF_RUN_DATA["current_run"] = run_id
@@ -502,7 +539,9 @@ class JsonTreeChef(SushiChef):
         """
         This function is called before `run` to create the json tree file.
         """
-        raise NotImplementedError("JsonTreeChef subclass must implement the `pre_run` method.")
+        raise NotImplementedError(
+            "JsonTreeChef subclass must implement the `pre_run` method."
+        )
 
     def get_json_tree_path(self, *args, **kwargs):
         """
@@ -646,7 +685,9 @@ class LineCook(JsonTreeChef):
         kwargs.update(args)
         kwargs.update(options)
         json_tree_path = self.get_json_tree_path(**kwargs)
-        build_ricecooker_json_tree(args, options, self.metadata_provider, json_tree_path)
+        build_ricecooker_json_tree(
+            args, options, self.metadata_provider, json_tree_path
+        )
 
 
 class YouTubeSushiChef(SushiChef):
@@ -661,7 +702,9 @@ class YouTubeSushiChef(SushiChef):
     DATA_DIR = os.path.abspath("chefdata")
     YOUTUBE_CACHE_DIR = os.path.join(DATA_DIR, "youtubecache")
     DOWNLOADS_DIR = os.path.join(DATA_DIR, "downloads")
-    ARCHIVE_DIR = os.path.join(DOWNLOADS_DIR, "archive_{}".format(CONTENT_ARCHIVE_VERSION))
+    ARCHIVE_DIR = os.path.join(
+        DOWNLOADS_DIR, "archive_{}".format(CONTENT_ARCHIVE_VERSION)
+    )
     USE_PROXY = False
 
     def get_playlist_ids(self):
@@ -727,7 +770,9 @@ class YouTubeSushiChef(SushiChef):
 
         for playlist_id in self.get_playlist_ids():
 
-            playlist = YouTubePlaylistUtils(id=playlist_id, cache_dir=self.YOUTUBE_CACHE_DIR)
+            playlist = YouTubePlaylistUtils(
+                id=playlist_id, cache_dir=self.YOUTUBE_CACHE_DIR
+            )
 
             playlist_info = playlist.get_playlist_info(use_proxy=self.USE_PROXY)
 
@@ -750,7 +795,9 @@ class YouTubeSushiChef(SushiChef):
             for child in playlist_info["children"]:
                 # check for duplicate videos
                 if child["id"] not in video_ids:
-                    video_node = self.create_video_node(child, parent_id=topic_source_id)
+                    video_node = self.create_video_node(
+                        child, parent_id=topic_source_id
+                    )
                     if video_node:
                         topic_node.add_child(video_node)
                     video_ids.append(child["id"])
@@ -771,7 +818,9 @@ class YouTubeSushiChef(SushiChef):
         # Check youtube thumbnail extension as some are not supported formats
         thumbnail_link = video_details["thumbnail"]
         config.LOGGER.info("thumbnail = {}".format(thumbnail_link))
-        archive_filename = get_archive_filename(thumbnail_link, download_root=self.ARCHIVE_DIR)
+        archive_filename = get_archive_filename(
+            thumbnail_link, download_root=self.ARCHIVE_DIR
+        )
 
         dest_file = os.path.join(self.ARCHIVE_DIR, archive_filename)
         os.makedirs(os.path.dirname(dest_file), exist_ok=True)
@@ -781,7 +830,10 @@ class YouTubeSushiChef(SushiChef):
         response = requests.get(thumbnail_link, stream=True)
         # Some images that YT returns are actually webp despite their extension,
         # so make sure we update our file extension to match.
-        if "Content-Type" in response.headers and response.headers["Content-Type"] == "image/webp":
+        if (
+            "Content-Type" in response.headers
+            and response.headers["Content-Type"] == "image/webp"
+        ):
             base_path, ext = os.path.splitext(dest_file)
             dest_file = base_path + ".webp"
 
@@ -799,14 +851,18 @@ class YouTubeSushiChef(SushiChef):
             description=video_details["description"],
             language=self.channel_info["CHANNEL_LANGUAGE"],
             author=self.get_metadata_for_video("author", video_id, playlist_id) or "",
-            provider=self.get_metadata_for_video("provider", video_id, playlist_id) or "",
+            provider=self.get_metadata_for_video("provider", video_id, playlist_id)
+            or "",
             thumbnail=dest_file,
             license=self.get_metadata_for_video("license", video_id, playlist_id),
             files=[
                 files.YouTubeVideoFile(
                     youtube_id=video_id,
                     language="en",
-                    high_resolution=self.get_metadata_for_video("high_resolution", video_id, playlist_id) or False,
+                    high_resolution=self.get_metadata_for_video(
+                        "high_resolution", video_id, playlist_id
+                    )
+                    or False,
                 )
             ],
         )
@@ -829,7 +885,9 @@ class YouTubeSushiChef(SushiChef):
         channel = self.get_channel(*args, **kwargs)
 
         if len(self.get_playlist_ids()) == 0 and len(self.get_video_ids()) == 0:
-            raise NotImplementedError("Either get_playlist_ids() or get_video_ids() must be implemented.")
+            raise NotImplementedError(
+                "Either get_playlist_ids() or get_video_ids() must be implemented."
+            )
 
         # TODO: Replace next line with chef code
         nodes = self.create_nodes_for_playlists()

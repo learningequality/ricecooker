@@ -80,7 +80,9 @@ def _compare_entropy(start_slice, end_slice, slice, difference):
         return slice, 0
 
 
-def scale_and_crop(im, size, crop=False, upscale=False, zoom=None, target=None, **kwargs):
+def scale_and_crop(
+    im, size, crop=False, upscale=False, zoom=None, target=None, **kwargs
+):
     """
     Handle scaling and cropping the source image.
     Images can be scaled / cropped against a single dimension by using zero
@@ -178,7 +180,9 @@ def scale_and_crop(im, size, crop=False, upscale=False, zoom=None, target=None, 
             box.append(int(min(source_x, box[0] + target_x)))
             box.append(int(min(source_y, box[1] + target_y)))
             # See if an edge cropping argument was provided.
-            edge_crop = isinstance(crop, string_types) and re.match(r"(?:(-?)(\d+))?,(?:(-?)(\d+))?$", crop)
+            edge_crop = isinstance(crop, string_types) and re.match(
+                r"(?:(-?)(\d+))?,(?:(-?)(\d+))?$", crop
+            )
             if edge_crop and filter(None, edge_crop.groups()):
                 x_right, x_crop, y_bottom, y_crop = edge_crop.groups()
                 if x_crop:

@@ -206,7 +206,11 @@ DOWNLOAD_SESSION.mount("file://", FileAdapter())
 
 # Environment variable indicating we should use a proxy for youtube_dl downloads
 USEPROXY = False
-USEPROXY = True if os.getenv("USEPROXY") is not None or os.getenv("PROXY_LIST") is not None else False
+USEPROXY = (
+    True
+    if os.getenv("USEPROXY") is not None or os.getenv("PROXY_LIST") is not None
+    else False
+)
 
 # CSV headers
 CSV_HEADERS = [
@@ -258,7 +262,9 @@ TREES_DATA_DIR = os.path.join(DATA_DIR, "trees")
 
 
 # Character limits based on Kolibri models
-TRUNCATE_MSG = "\t\t{kind} {id}: {field} {value} is too long - max {max} characters (truncating)"
+TRUNCATE_MSG = (
+    "\t\t{kind} {id}: {field} {value} is too long - max {max} characters (truncating)"
+)
 
 MAX_TITLE_LENGTH = 200
 MAX_SOURCE_ID_LENGTH = 200
@@ -409,7 +415,9 @@ def get_storage_url(filename):
     Args: filename (str): Name of file
     Returns: string URL for file
     """
-    return FILE_STORAGE_URL.format(domain=DOMAIN, f=filename[0], s=filename[1], filename=filename)
+    return FILE_STORAGE_URL.format(
+        domain=DOMAIN, f=filename[0], s=filename[1], filename=filename
+    )
 
 
 def create_channel_url():
@@ -450,7 +458,9 @@ def open_channel_url(channel, staging=False):
         channel (str): channel id of uploaded channel
     Returns: string url to open channel
     """
-    frontend_domain = DOMAIN.replace("api.", "")  # Don't send them to the API domain for preview / review.
+    frontend_domain = DOMAIN.replace(
+        "api.", ""
+    )  # Don't send them to the API domain for preview / review.
     return OPEN_CHANNEL_URL.format(
         domain=frontend_domain,
         channel_id=channel,

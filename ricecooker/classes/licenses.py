@@ -23,14 +23,22 @@ def get_license(license_id, copyright_holder=None, description=None):
     elif license_id == licenses.PUBLIC_DOMAIN:
         return PublicDomainLicense(copyright_holder=copyright_holder)
     elif license_id == licenses.SPECIAL_PERMISSIONS:
-        return SpecialPermissionsLicense(copyright_holder=copyright_holder, description=description)
+        return SpecialPermissionsLicense(
+            copyright_holder=copyright_holder, description=description
+        )
     else:
-        raise UnknownLicenseError("{} is not a valid license id. (Valid license are {})".format(license_id, [l[0] for l in licenses.choices]))
+        raise UnknownLicenseError(
+            "{} is not a valid license id. (Valid license are {})".format(
+                license_id, [l[0] for l in licenses.choices]
+            )
+        )
 
 
 class License(object):
     license_id = None  # (str): content's license based on le_utils.constants.licenses
-    copyright_holder = None  # (str): name of person or organization who owns license (optional)
+    copyright_holder = (
+        None  # (str): name of person or organization who owns license (optional)
+    )
     description = None  # (str): description of the license (optional)
     require_copyright_holder = True
 
@@ -42,19 +50,35 @@ class License(object):
         return self.license_id
 
     def validate(self):
-        assert not self.require_copyright_holder or self.copyright_holder != "", "Assertion Failed: {} License requires a copyright holder".format(
+        assert (
+            not self.require_copyright_holder or self.copyright_holder != ""
+        ), "Assertion Failed: {} License requires a copyright holder".format(
             self.license_id
         )
-        assert isinstance(self.copyright_holder, str), "Assertion Failed: Copyright holder must be a string"
+        assert isinstance(
+            self.copyright_holder, str
+        ), "Assertion Failed: Copyright holder must be a string"
 
     def truncate_fields(self):
-        if self.description and len(self.description) > config.MAX_LICENSE_DESCRIPTION_LENGTH:
-            config.print_truncate("license_description", self.license_id, self.description)
+        if (
+            self.description
+            and len(self.description) > config.MAX_LICENSE_DESCRIPTION_LENGTH
+        ):
+            config.print_truncate(
+                "license_description", self.license_id, self.description
+            )
             self.description = self.description[: config.MAX_LICENSE_DESCRIPTION_LENGTH]
 
-        if self.copyright_holder and len(self.copyright_holder) > config.MAX_COPYRIGHT_HOLDER_LENGTH:
-            config.print_truncate("copyright_holder", self.license_id, self.copyright_holder)
-            self.copyright_holder = self.copyright_holder[: config.MAX_COPYRIGHT_HOLDER_LENGTH]
+        if (
+            self.copyright_holder
+            and len(self.copyright_holder) > config.MAX_COPYRIGHT_HOLDER_LENGTH
+        ):
+            config.print_truncate(
+                "copyright_holder", self.license_id, self.copyright_holder
+            )
+            self.copyright_holder = self.copyright_holder[
+                : config.MAX_COPYRIGHT_HOLDER_LENGTH
+            ]
 
     def as_dict(self):
         return {
@@ -181,4 +205,6 @@ class SpecialPermissionsLicense(License):
 
     def __init__(self, copyright_holder=None, description=None):
         assert description, "Special Permissions licenses must have a description"
-        super(SpecialPermissionsLicense, self).__init__(copyright_holder=copyright_holder, description=description)
+        super(SpecialPermissionsLicense, self).__init__(
+            copyright_holder=copyright_holder, description=description
+        )

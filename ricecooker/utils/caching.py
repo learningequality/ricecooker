@@ -43,7 +43,9 @@ class InvalidatingCacheControlAdapter(CacheControlAdapter):
     def __init__(self, heuristic=None, *args, **kw):
         if not heuristic:
             heuristic = NeverCache()
-        super(InvalidatingCacheControlAdapter, self).__init__(*args, heuristic=heuristic, **kw)
+        super(InvalidatingCacheControlAdapter, self).__init__(
+            *args, heuristic=heuristic, **kw
+        )
 
     def send(self, request, **kw):
 

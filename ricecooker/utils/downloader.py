@@ -80,7 +80,9 @@ try:
                 # some sites have API calls running regularly, so the timeout may be that there's never any true
                 # network idle time. Try 'networkidle2' option instead before determining we can't scrape.
                 if not strict:
-                    LOGGER.info("Attempting to download URL with networkidle2 instead of networkidle0...")
+                    LOGGER.info(
+                        "Attempting to download URL with networkidle2 instead of networkidle0..."
+                    )
                     await page.goto(
                         path,
                         {
@@ -115,7 +117,9 @@ try:
                 await page.waitForSelector(element, {"timeout": 10000})
                 elements = await page.querySelectorAll(element)
                 if len(list(elements)) > 1:
-                    LOGGER.warning("Multiple elements matched screenshot element, using first...")
+                    LOGGER.warning(
+                        "Multiple elements matched screenshot element, using first..."
+                    )
                 screenshot_element = elements[0]
 
             LOGGER.info("Saving screenshot to {}".format(filename))
@@ -188,11 +192,15 @@ def read(
             return response.content
 
     except (requests.exceptions.MissingSchema, requests.exceptions.InvalidSchema):
-        with open(path, "rb") as fobj:  # If path is a local file path, try to open the file
+        with open(
+            path, "rb"
+        ) as fobj:  # If path is a local file path, try to open the file
             return fobj.read()
 
 
-def make_request(url, clear_cookies=False, headers=None, timeout=60, session=None, *args, **kwargs):
+def make_request(
+    url, clear_cookies=False, headers=None, timeout=60, session=None, *args, **kwargs
+):
     sess = session or DOWNLOAD_SESSION
 
     if clear_cookies:
@@ -207,9 +215,20 @@ def make_request(url, clear_cookies=False, headers=None, timeout=60, session=Non
 
     while retry_count <= max_retries:
         try:
-            response = sess.get(url, headers=request_headers, stream=True, timeout=timeout, *args, **kwargs)
+            response = sess.get(
+                url,
+                headers=request_headers,
+                stream=True,
+                timeout=timeout,
+                *args,
+                **kwargs
+            )
             if response.status_code != 200:
-                LOGGER.error("{} error while trying to download {}".format(response.status_code, url))
+                LOGGER.error(
+                    "{} error while trying to download {}".format(
+                        response.status_code, url
+                    )
+                )
                 if STRICT:
                     response.raise_for_status()
             return response
@@ -219,7 +238,9 @@ def make_request(url, clear_cookies=False, headers=None, timeout=60, session=Non
         ) as e:
             retry_count += 1
             LOGGER.warning(
-                "Error with connection ('{msg}'); about to perform retry {count} of {trymax}.".format(msg=str(e), count=retry_count, trymax=max_retries)
+                "Error with connection ('{msg}'); about to perform retry {count} of {trymax}.".format(
+                    msg=str(e), count=retry_count, trymax=max_retries
+                )
             )
             time.sleep(retry_count * 1)
             if retry_count > max_retries:
@@ -302,7 +323,9 @@ def download_static_assets(
                 new_url = filename
                 if relative_links and base_url:
                     base_filename = derive_filename(base_url)
-                    new_url = get_relative_url_for_archive_filename(filename, base_filename)
+                    new_url = get_relative_url_for_archive_filename(
+                        filename, base_filename
+                    )
 
                 fullpath = os.path.join(destination, filename)
                 if not os.path.exists(fullpath):
@@ -321,7 +344,9 @@ def download_static_assets(
             node[attr] = ", ".join(new_sources)
 
     # Helper function to download all assets for a given CSS selector.
-    def download_assets(selector, attr, url_middleware=None, content_middleware=None, node_filter=None):
+    def download_assets(
+        selector, attr, url_middleware=None, content_middleware=None, node_filter=None
+    ):
         nodes = doc.select(selector)
 
         for i, node in enumerate(nodes):
@@ -423,7 +448,9 @@ def download_static_assets(
             if parts.scheme and parts.netloc:
                 src_url = src
             elif parts.path.startswith("/") and url:
-                src_url = "{}://{}{}".format(root_parts.scheme, root_parts.netloc, parts.path)
+                src_url = "{}://{}{}".format(
+                    root_parts.scheme, root_parts.netloc, parts.path
+                )
             elif url and root_url:
                 src_url = urljoin(root_url, src)
             else:
@@ -438,7 +465,9 @@ def download_static_assets(
             new_url = src
             if url and parts.path.startswith("/") or relative_links:
                 page_filename = derive_filename(url)
-                new_url = get_relative_url_for_archive_filename(derived_filename, page_filename)
+                new_url = get_relative_url_for_archive_filename(
+                    derived_filename, page_filename
+                )
             elif derive_filename == _derive_filename:
                 # The _derive_filename function puts all files in the root, so all URLs need
                 # rewritten. When using get_archive_filename, relative URLs will still work.
@@ -453,7 +482,9 @@ def download_static_assets(
                     filename=derived_filename,
                 )
             else:
-                LOGGER.debug("Resource already downloaded, skipping: {}".format(src_url))
+                LOGGER.debug(
+                    "Resource already downloaded, skipping: {}".format(src_url)
+                )
             return 'url("%s")' % new_url
 
         return _CSS_URL_RE.sub(repl, content)
@@ -467,7 +498,9 @@ def download_static_assets(
         content_middleware=css_content_middleware,
         node_filter=css_node_filter,
     )  # CSS
-    download_assets("script[src]", "src", content_middleware=js_content_middleware)  # JS
+    download_assets(
+        "script[src]", "src", content_middleware=js_content_middleware
+    )  # JS
     download_assets("source[src]", "src")  # Potentially audio
     download_srcset("source[srcset]", "srcset")  # Potentially audio
 
@@ -489,7 +522,9 @@ def download_static_assets(
                 continue
             parts = urlparse(download_url)
             # if we're scraping links, always scrape relative links regardless of setting.
-            should_scrape = "all" in link_policy["scope"] or (not parts.scheme and not parts.netloc)
+            should_scrape = "all" in link_policy["scope"] or (
+                not parts.scheme and not parts.netloc
+            )
             if not parts.scheme or parts.scheme.startswith("http"):
                 LOGGER.debug("checking url: {}".format(url))
                 if not parts.netloc:
@@ -521,12 +556,18 @@ def download_static_assets(
                 new_url = derived_filename
                 if is_html:
                     if not download_url in downloaded_pages:
-                        LOGGER.info("Downloading linked HTML page {}".format(download_url))
+                        LOGGER.info(
+                            "Downloading linked HTML page {}".format(download_url)
+                        )
 
                         global archiver
                         if archiver:
-                            info = archiver.get_page(download_url, link_policy=policy, run_js=run_js)
-                            filename = info["index_path"].replace(archiver.root_dir + os.sep, "")
+                            info = archiver.get_page(
+                                download_url, link_policy=policy, run_js=run_js
+                            )
+                            filename = info["index_path"].replace(
+                                archiver.root_dir + os.sep, ""
+                            )
                         else:
                             info = archive_page(
                                 download_url,
@@ -535,7 +576,9 @@ def download_static_assets(
                                 run_js=run_js,
                                 relative_links=relative_links,
                             )
-                            filename = info["index_path"].replace(destination + os.sep, "")
+                            filename = info["index_path"].replace(
+                                destination + os.sep, ""
+                            )
 
                         new_url = filename
                         downloaded_pages[download_url] = new_url
@@ -548,7 +591,9 @@ def download_static_assets(
 
                     if relative_links and base_url:
                         page_filename = derive_filename(base_url)
-                        new_url = get_relative_url_for_archive_filename(new_url, page_filename)
+                        new_url = get_relative_url_for_archive_filename(
+                            new_url, page_filename
+                        )
                 else:
                     full_path = os.path.join(destination, derived_filename)
                     new_url = derived_filename
@@ -599,14 +644,18 @@ def get_archive_filename(url, page_url=None, download_root=None, resource_urls=N
 
     if file_url_parsed.query:
         # Append the query to the filename, so that the filename is unique for each set of params.
-        query_string = "_{}".format(file_url_parsed.query.replace("=", "_").replace("&", "_"))
+        query_string = "_{}".format(
+            file_url_parsed.query.replace("=", "_").replace("&", "_")
+        )
         local_path = _path + query_string + ext
         LOGGER.debug("local_path is now {}".format(local_path))
 
     local_dir_name = local_path
     if ext != "":
         local_dir_name = os.path.dirname(local_path)
-    LOGGER.debug("local_path = {}, local_dir_name = {}".format(local_path, local_dir_name))
+    LOGGER.debug(
+        "local_path = {}, local_dir_name = {}".format(local_path, local_dir_name)
+    )
 
     if local_dir_name != local_path and resource_urls is not None:
         full_dir = os.path.join(download_root, local_dir_name)
@@ -651,7 +700,9 @@ def archive_page(
 
     os.makedirs(download_root, exist_ok=True)
     if run_js:
-        content, props = asyncio.get_event_loop().run_until_complete(load_page(url, strict=strict))
+        content, props = asyncio.get_event_loop().run_until_complete(
+            load_page(url, strict=strict)
+        )
     else:
         response = make_request(url)
         props = {
@@ -698,7 +749,9 @@ def archive_page(
             relative_links=relative_links,
         )
 
-        download_path = os.path.join(download_root, get_archive_filename(url, page_url, download_root))
+        download_path = os.path.join(
+            download_root, get_archive_filename(url, page_url, download_root)
+        )
         _path, ext = os.path.splitext(download_path)
         index_path = download_path
         if ".htm" not in ext:
@@ -808,7 +861,9 @@ class ArchiveDownloader:
         self.cache_data = {}
         self.save_cache_data()
 
-    def get_page(self, url, refresh=False, link_policy=None, run_js=False, strict=False):
+    def get_page(
+        self, url, refresh=False, link_policy=None, run_js=False, strict=False
+    ):
         if refresh or not url in self.cache_data:
             self.cache_data[url] = archive_page(
                 url,
@@ -827,7 +882,9 @@ class ArchiveDownloader:
             if not self.relative_links:
                 # we copy the main page to index.html in the root of the page archive.
                 return "index.html"
-            return self.cache_data[url]["index_path"].replace(self.root_dir + os.sep, "")
+            return self.cache_data[url]["index_path"].replace(
+                self.root_dir + os.sep, ""
+            )
 
         return None
 
@@ -840,7 +897,9 @@ class ArchiveDownloader:
 
     def get_page_soup(self, url):
         if not url in self.cache_data:
-            raise KeyError("Unable to find page {} in archive. Did you call get_page?".format(url))
+            raise KeyError(
+                "Unable to find page {} in archive. Did you call get_page?".format(url)
+            )
 
         info = self.cache_data[url]
         # lxml enables some nice features like being able to search for individual
@@ -884,7 +943,9 @@ class ArchiveDownloader:
 
     def create_zip_dir_for_page(self, url):
         if not url in self.cache_data:
-            raise KeyError("Please ensure you call get_page before calling this function to download the content.")
+            raise KeyError(
+                "Please ensure you call get_page before calling this function to download the content."
+            )
         temp_dir = tempfile.mkdtemp()
         info = self.cache_data[url]
 

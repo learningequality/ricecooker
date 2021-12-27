@@ -39,7 +39,9 @@ def create_predictable_zip(path, entrypoint=None):
             f.close()
 
         for root, directories, filenames in os.walk(path):
-            paths += [os.path.join(root, filename)[len(path) + 1 :] for filename in filenames]
+            paths += [
+                os.path.join(root, filename)[len(path) + 1 :] for filename in filenames
+            ]
         reader = lambda x: _read_file(os.path.join(path, x))
     # otherwise, if it's a zip file, open it up and pull out the list of names
     elif os.path.isfile(path) and os.path.splitext(path)[1] == ".zip":
@@ -55,7 +57,9 @@ def create_predictable_zip(path, entrypoint=None):
     with zipfile.ZipFile(zippath, "w") as outputzip:
         # loop over the file paths in sorted order, to ensure a predictable zip
         for filepath in sorted(paths):
-            write_file_to_zip_with_neutral_metadata(outputzip, filepath, reader(filepath))
+            write_file_to_zip_with_neutral_metadata(
+                outputzip, filepath, reader(filepath)
+            )
         os.fdopen(zippathfd).close()
     return zippath
 
