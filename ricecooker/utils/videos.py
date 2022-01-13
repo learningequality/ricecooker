@@ -9,6 +9,7 @@ from .images import ThumbnailGenerationError
 LOGGER = logging.getLogger("VideoResource")
 LOGGER.setLevel(logging.DEBUG)
 
+
 def guess_video_preset_by_resolution(videopath):
     """
     Run `ffprobe` to find resolution classify as high resolution (video height >= 720),
@@ -48,11 +49,22 @@ def extract_thumbnail_from_video(fpath_in, fpath_out, overwrite=False):
         midpoint = float(re.search("\d+\.\d+", str(result)).group()) / 2
         # scale parameters are from https://trac.ffmpeg.org/wiki/Scaling
         scale = "scale=400:225:force_original_aspect_ratio=decrease,pad=400:225:(ow-iw)/2:(oh-ih)/2"
-        command = ['ffmpeg',"-y" if overwrite else "-n", '-i', str(fpath_in), "-vf", scale, "-vcodec", "png", "-nostats",
-                  '-ss', str(midpoint), '-vframes', '1', '-q:v', '2', "-loglevel", "panic", str(fpath_out)]
+        command = ['ffmpeg', "-y" if overwrite else "-n", '-i', str(fpath_in), "-vf", scale, "-vcodec", "png",
+                   "-nostats",
+                   '-ss', str(midpoint), '-vframes', '1', '-q:v', '2', "-loglevel", "panic", str(fpath_out)]
         subprocess.check_output(command, stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError as e:
         raise ThumbnailGenerationError("{}: {}".format(e, e.output))
+
+
+def extract_duration_of_video(fpath_in):
+    try:
+        result = subprocess.check_output(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of',
+                                          'default=noprint_wrappers=1:nokey=1', "-loglevel", "panic", str(fpath_in)])
+        return result.decode("utf-8")
+    except Exception as ex:
+        LOGGER.warning(ex)
+        raise ex
 
 
 class VideoCompressionError(Exception):
