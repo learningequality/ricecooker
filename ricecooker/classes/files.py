@@ -21,7 +21,7 @@ from ricecooker.utils.encodings import get_base64_encoding, write_base64_to_file
 from ricecooker.utils.images import create_image_from_pdf_page
 from ricecooker.utils.images import create_image_from_epub
 from ricecooker.utils.images import create_image_from_zip
-from ricecooker.utils.videos import extract_thumbnail_from_video
+from ricecooker.utils.videos import extract_thumbnail_from_video, extract_duration_of_video
 from ricecooker.utils.images import create_tiled_image
 from ricecooker.utils.images import ThumbnailGenerationError
 from ricecooker.utils.subtitles import build_subtitle_converter_from_file
@@ -379,15 +379,15 @@ class File(object):
 
     def get_filename(self):
         return self.filename or self.process_file()
-    
+
     @property
     def checksum(self):
         return self.get_filename().split(".")[0]
-    
+
     @property
     def extension(self):
         return self.get_filename().split(".")[1]
-    
+
     @property
     def size(self):
         return os.path.getsize(config.get_storage_path(self.get_filename()))
@@ -559,6 +559,7 @@ class VideoFile(DownloadFile):
     default_ext = file_formats.MP4
     allowed_formats = [file_formats.MP4, file_formats.WEBM]
     is_primary = True
+    duration = None
 
     def __init__(self, path, ffmpeg_settings=None, **kwargs):
         self.ffmpeg_settings = ffmpeg_settings
@@ -603,6 +604,8 @@ class VideoFile(DownloadFile):
                 if self.filename and (self.ffmpeg_settings or config.COMPRESS):
                     self.filename = compress_video_file(self.filename, self.ffmpeg_settings)
                     config.LOGGER.info("\t--- Compressed {}".format(self.filename))
+            self.duration = extract_duration_of_video(self.filename)
+
         except (BrokenPipeError, CalledProcessError, IOError, VideoCompressionError) as err:
             # Catch errors related to ffmpeg and handle silently
             self.filename = None
@@ -611,9 +614,13 @@ class VideoFile(DownloadFile):
 
         return self.filename
 
+    def get_duration(self):
+        return self.duration or extract_duration_of_video(self.filename)
+
 
 class WebVideoFile(File):
     is_primary = True
+    duration = None
     # In future, look into postprocessors and progress_hooks
 
     def __init__(self, web_url, download_settings=None, high_resolution=False, maxheight=None, **kwargs):
@@ -639,6 +646,7 @@ class WebVideoFile(File):
             if self.filename and config.COMPRESS:
                 self.filename = compress_video_file(self.filename, {})
                 config.LOGGER.info("\t--- Compressed {}".format(self.filename))
+            self.duration = extract_duration_of_video(self.filename)
 
         except youtube_dl.utils.DownloadError as err:
             self.filename = None
@@ -646,6 +654,10 @@ class WebVideoFile(File):
             config.FAILED_FILES.append(self)
 
         return self.filename
+
+    def get_duration(self):
+        return self.duration
+
 
 class YouTubeVideoFile(WebVideoFile):
     def __init__(self, youtube_id, **kwargs):
