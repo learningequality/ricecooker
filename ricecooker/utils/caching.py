@@ -1,32 +1,36 @@
-import requests
-import cachecontrol
-
-from datetime import datetime, timedelta
+from datetime import datetime
+from datetime import timedelta
 from email.utils import parsedate
 
+import cachecontrol
+import requests
 from cachecontrol import CacheControlAdapter
 from cachecontrol.caches.file_cache import FileCache
-from cachecontrol.heuristics import BaseHeuristic, expire_after, datetime_to_header
+from cachecontrol.heuristics import BaseHeuristic
+from cachecontrol.heuristics import datetime_to_header
+from cachecontrol.heuristics import expire_after
 
 
 class NeverCache(BaseHeuristic):
     """
     Don't cache the response at all.
     """
+
     def update_headers(self, response):
-        return {'cache-control': 'no-cache'}
+        return {"cache-control": "no-cache"}
 
 
 class CacheForeverHeuristic(BaseHeuristic):
     """
     Cache the response effectively forever.
     """
+
     def update_headers(self, response):
         headers = {}
-        expires = expire_after(timedelta(weeks=10*52), date=datetime.now())
-        headers['expires'] = datetime_to_header(expires)
-        headers['cache-control'] = 'public'
-        
+        expires = expire_after(timedelta(weeks=10 * 52), date=datetime.now())
+        headers["expires"] = datetime_to_header(expires)
+        headers["cache-control"] = "public"
+
         return headers
 
 
@@ -39,7 +43,9 @@ class InvalidatingCacheControlAdapter(CacheControlAdapter):
     def __init__(self, heuristic=None, *args, **kw):
         if not heuristic:
             heuristic = NeverCache()
-        super(InvalidatingCacheControlAdapter, self).__init__(*args, heuristic=heuristic, **kw)
+        super(InvalidatingCacheControlAdapter, self).__init__(
+            *args, heuristic=heuristic, **kw
+        )
 
     def send(self, request, **kw):
 

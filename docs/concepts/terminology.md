@@ -61,4 +61,3 @@ process to Kolibri Studio for review and publishing.
 Conceptually, `SushiChef` scripts are very similar to web scrapers,
 but with specialized functions for optimizing the content for Kolibri's
 data structures and capabilities.
-

@@ -1,6 +1,6 @@
 Studio bulk corrections
 =======================
-The command line script `corrections` allows to perform bulk corrections of 
+The command line script `corrections` allows to perform bulk corrections of
 titles, descriptions, and other attributes for the content nodes of a channel.
 
 
@@ -83,7 +83,7 @@ document that contains the corrections (usually `<gsheet_gid>=0`).
 
 The attributes that will be edited during the `modify` operation is specified
 using the `--modifyattrs` command line argument. For example to apply modifications
-only to the `title` and `description` attributes use the following command: 
+only to the `title` and `description` attributes use the following command:
 
     corrections apply <channel_id> --gsheet_id='<gsheet_id>' --gid=<gsheet_gid> --modifyattrs='title,description'
 

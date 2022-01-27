@@ -141,4 +141,3 @@ time to complete so it is best to run them on a dedicated server for this purpos
     e.g. `./sushichef.py --token=... --thumbnails lang=fr`.
   - By default `nohup` logs stderr and stdout output to a file called `nohup.out`
     in the current working directory. Use `tail -f nohup.out` to follow this log file.
-

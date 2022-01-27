@@ -20,4 +20,3 @@ WARNING  	Exercise 6cafe3: http://www.publicdomainpictures.net/pictures/110000/n
 WARNING  	Question ddddd: ka-perseus-graphie.s3.amazonaws.com/907dec1b45fb177f0937fa521b7af03fb837f0bd
      [Errno 2] No such file or directory: 'ka-perseus-graphie.s3.amazonaws.com/907dec1b45fb177f0937fa521b7af03fb837f0bd.svg'
 ```
-

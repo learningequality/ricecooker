@@ -56,4 +56,3 @@ You can. Whenever you need a distraction, take 20 minutes and place yourself in
 the learner's shoes and go explore the channel on the demo server link provided
 on the notion card.  If you notice any issues  while browsing, add them to the
 Issue tracker table. That's it. Learn something today.
-

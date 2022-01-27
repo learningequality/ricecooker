@@ -3,7 +3,6 @@ This module contains tools for parsing and handling HTML and other web content.
 Note that we could not use html for the module name as recent versions of Python
 include their own html module.
 """
-
 import os
 
 from bs4 import BeautifulSoup
@@ -13,15 +12,16 @@ class HTMLParser:
     """
     HTMLParser contains a set of functions for parsing, scraping, and updating an HTML page.
     """
+
     def __init__(self, filename=None, html=None):
         self.filename = filename
         self.html = html
         self.link_tags = {
-            'a': 'href',
-            'audio': 'src',
-            'img': 'src',
-            'link': 'href',
-            'script': 'src'
+            "a": "href",
+            "audio": "src",
+            "img": "src",
+            "link": "href",
+            "script": "src",
         }
 
     def get_links(self):
@@ -34,7 +34,7 @@ class HTMLParser:
         if self.html is None:
             basename = os.path.basename(self.filename)
             self.html = open(self.filename).read()
-        soup = BeautifulSoup(self.html, 'html.parser')
+        soup = BeautifulSoup(self.html, "html.parser")
 
         extracted_links = []
         for tag_name in self.link_tags:
@@ -43,11 +43,15 @@ class HTMLParser:
                 link = tag.get(self.link_tags[tag_name])
                 # don't include links to ourselves or # links
                 # TODO: Should this part be moved to get_local_files instead?
-                if link and (basename and not link.startswith(basename)) and not link.strip().startswith("#"):
-                    if '?' in link:
-                        link, query = link.split('?')
-                    if '#' in link:
-                        link, marker = link.split('#')
+                if (
+                    link
+                    and (basename and not link.startswith(basename))
+                    and not link.strip().startswith("#")
+                ):
+                    if "?" in link:
+                        link, query = link.split("?")
+                    if "#" in link:
+                        link, marker = link.split("#")
                     extracted_links.append(link)
 
         return extracted_links
@@ -63,7 +67,7 @@ class HTMLParser:
         for link in links:
             # NOTE: This technically fails to handle file:// URLs, but we're highly unlikely to see
             # file:// URLs in any distributed package, so this is simpler than parsing out the protocol.
-            if not '://' in link:
+            if not "://" in link:
                 local_links.append(link)
 
         return local_links
@@ -78,7 +82,7 @@ class HTMLParser:
         if self.html is None:
             basename = os.path.basename(self.filename)
             self.html = open(self.filename).read()
-        soup = BeautifulSoup(self.html, 'html.parser')
+        soup = BeautifulSoup(self.html, "html.parser")
 
         extracted_links = []
         for tag_name in self.link_tags:

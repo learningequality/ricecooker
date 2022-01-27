@@ -265,4 +265,3 @@ Here are the steps to preview different compression factors in Kolibri:
   - PUBLISH the channel and record the channel token
   - Import the channel into a Kolibri instance using the channel token
   - Test video playback on different devices (desktop and mobile browsers on all OSs)
-

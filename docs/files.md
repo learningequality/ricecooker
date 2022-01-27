@@ -248,4 +248,3 @@ recommend that long PDF documents be split into separate parts.
 Note: Kolibri Studio imposes a file storage quota on a per-user basis. By default
 the storage limit for new accounts is 500MB. Please get in touch with the content
 team by email (`content@le...`) if you need a quota increase.
-
