@@ -59,6 +59,10 @@ class ChannelManager:
 
         for node_file in node.files:
             self.file_map[node_file.get_filename()] = node_file
+        if hasattr(node, "questions"):
+            for question in node.questions:
+                for question_file in question.files:
+                    self.file_map[question_file.get_filename()] = question_file
 
     def check_for_files_failed(self):
         """check_for_files_failed: print any files that failed during download process
