@@ -1,21 +1,22 @@
 import math
 import re
-from PIL import Image
 import sys
 import types
+
+from PIL import Image
 
 # Useful for very coarse version differentiation.
 PY2 = sys.version_info[0] == 2
 PY3 = sys.version_info[0] == 3
 
 if PY3:
-    string_types = str,
-    integer_types = int,
-    class_types = type,
+    string_types = (str,)
+    integer_types = (int,)
+    class_types = (type,)
     text_type = str
     binary_type = bytes
 else:
-    string_types = basestring,
+    string_types = (basestring,)
     integer_types = (int, long)
     class_types = (type, types.ClassType)
     text_type = unicode
@@ -59,7 +60,6 @@ def image_entropy(im):
     return -sum([p * math.log(p, 2) for p in hist if p != 0])
 
 
-
 def _compare_entropy(start_slice, end_slice, slice, difference):
     """
     Calculate the entropy of two slices (from the start and end of an axis),
@@ -80,8 +80,9 @@ def _compare_entropy(start_slice, end_slice, slice, difference):
         return slice, 0
 
 
-
-def scale_and_crop(im, size, crop=False, upscale=False, zoom=None, target=None, **kwargs):
+def scale_and_crop(
+    im, size, crop=False, upscale=False, zoom=None, target=None, **kwargs
+):
     """
     Handle scaling and cropping the source image.
     Images can be scaled / cropped against a single dimension by using zero
@@ -148,9 +149,10 @@ def scale_and_crop(im, size, crop=False, upscale=False, zoom=None, target=None, 
     if scale < 1.0 or (scale > 1.0 and upscale):
         # Resize the image to the target size boundary. Round the scaled
         # boundary sizes to avoid floating point errors.
-        im = im.resize((int(round(source_x * scale)),
-                        int(round(source_y * scale))),
-                       resample=Image.ANTIALIAS)
+        im = im.resize(
+            (int(round(source_x * scale)), int(round(source_y * scale))),
+            resample=Image.ANTIALIAS,
+        )
 
     if crop:
         # Use integer values now.
@@ -158,9 +160,9 @@ def scale_and_crop(im, size, crop=False, upscale=False, zoom=None, target=None, 
         # Difference between new image size and requested size.
         diff_x = int(source_x - min(source_x, target_x))
         diff_y = int(source_y - min(source_y, target_y))
-        if crop != 'scale' and (diff_x or diff_y):
+        if crop != "scale" and (diff_x or diff_y):
             if isinstance(target, string_types):
-                target = re.match(r'(\d+)?,(\d+)?$', target)
+                target = re.match(r"(\d+)?,(\d+)?$", target)
                 if target:
                     target = target.groups()
             if target:
@@ -178,8 +180,9 @@ def scale_and_crop(im, size, crop=False, upscale=False, zoom=None, target=None, 
             box.append(int(min(source_x, box[0] + target_x)))
             box.append(int(min(source_y, box[1] + target_y)))
             # See if an edge cropping argument was provided.
-            edge_crop = (isinstance(crop, string_types) and
-                         re.match(r'(?:(-?)(\d+))?,(?:(-?)(\d+))?$', crop))
+            edge_crop = isinstance(crop, string_types) and re.match(
+                r"(?:(-?)(\d+))?,(?:(-?)(\d+))?$", crop
+            )
             if edge_crop and filter(None, edge_crop.groups()):
                 x_right, x_crop, y_bottom, y_crop = edge_crop.groups()
                 if x_crop:
@@ -199,7 +202,7 @@ def scale_and_crop(im, size, crop=False, upscale=False, zoom=None, target=None, 
                         box[1] = offset
                         box[3] = source_y - (diff_y - offset)
             # See if the image should be "smart cropped".
-            elif crop == 'smart':
+            elif crop == "smart":
                 left = top = 0
                 right, bottom = source_x, source_y
                 while diff_x:

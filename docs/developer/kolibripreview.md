@@ -41,7 +41,7 @@ Prerequisites
 4. Download the helper script `kolibripreview.py` and make it executable:
    ```bash
    wget https://raw.githubusercontent.com/learningequality/ricecooker/master/ricecooker/utils/kolibripreview.py
-   chmod +x kolibripreview.py   
+   chmod +x kolibripreview.py
    ```
 
 
@@ -105,7 +105,7 @@ python kolibri-0.13.2.pex manage importcontent network 0413dd5173014d33b5a98a8c0
 python kolibri-0.13.2.pex start --foreground
 ```
 
-After that you can use the script as usual: 
+After that you can use the script as usual:
 
 1. Replace placeholder .zip with contents of `webroot`:
    ```bash

@@ -26,15 +26,15 @@ Various media processing functions and utilities - vendored from the previously 
 ## Converting caption files
 This contains utilities for converting caption files from a few various
 formats into the preferred `VTT` format. The currently supported formats include:
-- [DFXP](https://en.wikipedia.org/wiki/Timed_Text_Markup_Language) 
+- [DFXP](https://en.wikipedia.org/wiki/Timed_Text_Markup_Language)
 - [SAMI](https://en.wikipedia.org/wiki/SAMI)
 - [SCC](http://www.theneitherworld.com/mcpoodle/SCC_TOOLS/DOCS/SCC_FORMAT.HTML)
-- [SRT](https://en.wikipedia.org/wiki/SubRip) 
+- [SRT](https://en.wikipedia.org/wiki/SubRip)
 - [TTML](https://en.wikipedia.org/wiki/Timed_Text_Markup_Language)
 - [WebVTT or just VTT](https://en.wikipedia.org/wiki/WebVTT)
 
-> Within `ricecooker`, the term "captions" and "subtitles" are used interchangeably. All of the 
-classes and functions handling conversion use the "subtitles" term.  
+> Within `ricecooker`, the term "captions" and "subtitles" are used interchangeably. All of the
+classes and functions handling conversion use the "subtitles" term.
 
 
 ### Language codes
@@ -98,7 +98,7 @@ converter = build_subtitle_converter_from_file('/path/to/file')
 # Replace unknown language code if present
 if converter.has_language(LANGUAGE_CODE_UNKNOWN):
     converter.replace_unknown_language('en')
-    
+
 assert converter.has_language('en'), 'Must have English after replace'
 
 output_str = converter.convert('en')
@@ -119,6 +119,3 @@ for lang_code in converter.get_language_codes():
     elif lang_code == LANGUAGE_CODE_UNKNOWN:
         raise InvalidSubtitleLanguageError('Unexpected unknown language')
 ```
-
-
-

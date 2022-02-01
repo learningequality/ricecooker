@@ -46,7 +46,7 @@ Content nodes within the Kolibri ecosystem have the following identifiers:
     and the content node's `source_id` used for tracking a user interactions with
     the content node (e.g. video watched, or exercise completed).
 
-When a particular piece of content appears in multiple channels, or in different 
+When a particular piece of content appears in multiple channels, or in different
 places within a tree, the `node_id` of each occurrence will be different, but the
 `content_id` of each item will be the same for all copies. In other words, the
 `content_id` keeps track of the "is identical to" information about content nodes.
@@ -115,4 +115,3 @@ has content overlap with items in another channel, you must look into how it com
 source_domain and source_id and use the same approach to get matching `content_id`s.
 This cheffing-time deduplication effort is worth investing in, because it makes
 possible all the applications described above.
-

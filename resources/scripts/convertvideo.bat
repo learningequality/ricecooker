@@ -3,7 +3,7 @@ TITLE Video conversion and compression script
 REM Video conversion and compression script               Learning Equality 2018
 REM Usage:
 REM    convertvideo.bat  inputfile.mpg  [outputfile.mp4]
-REM 
+REM
 REM This script will perform the following conversion steps:
 REM   - Apply CRF 32 compression (very aggressive; may need to adjust below)
 REM   - Limit the audio track to 32k/sec
@@ -23,7 +23,7 @@ IF %ERRORLEVEL% NEQ 0 (
 )
 
 
-REM 2. Parse input filename 
+REM 2. Parse input filename
 REM ############################################################################
 IF NOT "%~1" == "" (
     set "INFILE=%~1"
