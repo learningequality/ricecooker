@@ -390,6 +390,7 @@ class TreeNode(Node):
         self.tags = tags or []
         self.domain_ns = domain_ns
         self.questions = self.questions if hasattr(self, 'questions') else [] # Needed for to_dict method
+        self.duration = kwargs.get('duration') or None
 
         super(TreeNode, self).__init__(title, **kwargs)
 
@@ -596,6 +597,7 @@ class ContentNode(TreeNode):
             "questions": [question.to_dict() for question in self.questions],
             "extra_fields": json.dumps(self.extra_fields),
             "role": self.role,
+            "duration": self.duration
         }
 
 
@@ -648,6 +650,10 @@ class VideoNode(ContentNode):
             # Check if there are any .mp4 files if there are video files (other video types don't have paths)
             assert any(f for f in self.files if isinstance(f, VideoFile) or isinstance(f, WebVideoFile)), "Assumption Failed: Video node should have at least one video file"
 
+            video_files = [f for f in self.files if isinstance(f, VideoFile)]
+            # for video in video_files:
+            self.duration = video_files[0].duration
+
             # Ensure that there is only one subtitle file per language code
             new_files = []
             language_codes_seen = set()
@@ -663,7 +669,6 @@ class VideoNode(ContentNode):
                 else:
                     new_files.append(file)
             self.files = new_files
-
             return super(VideoNode, self).validate()
 
         except AssertionError as ae:
@@ -703,6 +708,9 @@ class AudioNode(ContentNode):
             assert self.questions == [], "Assumption Failed: Audio should not have questions"
             assert len(self.files) > 0, "Assumption Failed: Audio should have at least one file"
             assert [f for f in self.files if isinstance(f, AudioFile)], "Assumption Failed: Audio should have at least one audio file"
+            audio_files = [f for f in self.files if isinstance(f, AudioFile)]
+            self.duration = audio_files[0].get_duration()
+
             return super(AudioNode, self).validate()
         except AssertionError as ae:
             raise InvalidNodeException("Invalid node ({}): {} - {}".format(ae.args[0], self.title, self.__dict__))

@@ -500,9 +500,13 @@ class AudioFile(DownloadFile):
     default_ext = file_formats.MP3
     allowed_formats = [file_formats.MP3]
     is_primary = True
+    duration = None
 
     def get_preset(self):
         return self.preset or format_presets.AUDIO
+
+    def get_duration(self):
+        return self.duration or extract_duration_of_video(self.filename)
 
 
 class DocumentFile(DownloadFile):
