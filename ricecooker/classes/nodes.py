@@ -651,7 +651,6 @@ class VideoNode(ContentNode):
             assert any(f for f in self.files if isinstance(f, VideoFile) or isinstance(f, WebVideoFile)), "Assumption Failed: Video node should have at least one video file"
 
             video_files = [f for f in self.files if isinstance(f, VideoFile)]
-            # for video in video_files:
             self.duration = video_files[0].duration
 
             # Ensure that there is only one subtitle file per language code
