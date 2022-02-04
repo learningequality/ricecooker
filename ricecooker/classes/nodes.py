@@ -867,6 +867,7 @@ class AudioNode(ContentNode):
         from .files import AudioFile
 
         try:
+            audio_files = [f for f in self.files if isinstance(f, AudioFile)]
             self.duration = audio_files[0].get_duration()
             assert (
                 self.kind == content_kinds.AUDIO
