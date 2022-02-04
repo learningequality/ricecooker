@@ -98,7 +98,7 @@ def extract_thumbnail_from_video(fpath_in, fpath_out, overwrite=False):
         raise ThumbnailGenerationError("{}: {}".format(e, e.output))
 
 
-def extract_duration_of_video(fpath_in):
+def extract_duration_of_media(fpath_in):
     try:
         result = subprocess.check_output(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of',
                                           'default=noprint_wrappers=1:nokey=1', "-loglevel", "panic", str(fpath_in)])

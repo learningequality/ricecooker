@@ -29,7 +29,7 @@ from ricecooker.utils.encodings import write_base64_to_file
 from ricecooker.utils.images import create_image_from_epub
 from ricecooker.utils.images import create_image_from_pdf_page
 from ricecooker.utils.images import create_image_from_zip
-from ricecooker.utils.videos import extract_thumbnail_from_video, extract_duration_of_video
+from ricecooker.utils.videos import extract_thumbnail_from_video, extract_duration_of_media
 from ricecooker.utils.images import create_tiled_image
 from ricecooker.utils.images import ThumbnailGenerationError
 from ricecooker.utils.subtitles import build_subtitle_converter_from_file
@@ -558,7 +558,7 @@ class AudioFile(DownloadFile):
         return self.preset or format_presets.AUDIO
 
     def get_duration(self):
-        return self.duration or extract_duration_of_video(self.filename)
+        return self.duration or extract_duration_of_media(self.filename)
 
 
 class DocumentFile(DownloadFile):
@@ -678,7 +678,7 @@ class VideoFile(DownloadFile):
                         self.filename, self.ffmpeg_settings
                     )
                     config.LOGGER.info("\t--- Compressed {}".format(self.filename))
-            self.duration = extract_duration_of_video(self.filename)
+            self.duration = extract_duration_of_media(self.filename)
         except (
             BrokenPipeError,
             CalledProcessError,
@@ -693,7 +693,7 @@ class VideoFile(DownloadFile):
         return self.filename
 
     def get_duration(self):
-        return self.duration or extract_duration_of_video(self.filename)
+        return self.duration or extract_duration_of_media(self.filename)
 
 
 class WebVideoFile(File):
@@ -738,7 +738,7 @@ class WebVideoFile(File):
             if self.filename and config.COMPRESS:
                 self.filename = compress_video_file(self.filename, {})
                 config.LOGGER.info("\t--- Compressed {}".format(self.filename))
-            self.duration = extract_duration_of_video(self.filename)
+            self.duration = extract_duration_of_media(self.filename)
 
         except youtube_dl.utils.DownloadError as err:
             self.filename = None
