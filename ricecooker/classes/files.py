@@ -557,6 +557,10 @@ class AudioFile(DownloadFile):
     def get_preset(self):
         return self.preset or format_presets.AUDIO
 
+    def process_file(self):
+        self.filename = super(AudioFile, self).process_file()
+        self.duration = extract_duration_of_media(self.filename)
+
     def get_duration(self):
         return self.duration or extract_duration_of_media(self.filename)
 
