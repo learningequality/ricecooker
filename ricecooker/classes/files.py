@@ -561,9 +561,6 @@ class AudioFile(DownloadFile):
         self.filename = super(AudioFile, self).process_file()
         self.duration = extract_duration_of_media(self.filename)
 
-    def get_duration(self):
-        return self.duration or extract_duration_of_media(self.filename)
-
 
 class DocumentFile(DownloadFile):
     default_ext = file_formats.PDF
@@ -696,9 +693,6 @@ class VideoFile(DownloadFile):
 
         return self.filename
 
-    def get_duration(self):
-        return self.duration or extract_duration_of_media(self.filename)
-
 
 class WebVideoFile(File):
     is_primary = True
@@ -751,8 +745,6 @@ class WebVideoFile(File):
 
         return self.filename
 
-    def get_duration(self):
-        return self.duration
 
 class YouTubeVideoFile(WebVideoFile):
     def __init__(self, youtube_id, **kwargs):
