@@ -29,6 +29,7 @@ from ricecooker.utils.encodings import write_base64_to_file
 from ricecooker.utils.images import create_image_from_epub
 from ricecooker.utils.images import create_image_from_pdf_page
 from ricecooker.utils.images import create_image_from_zip
+from ricecooker.utils.videos import extract_thumbnail_from_video, extract_duration_of_media
 from ricecooker.utils.images import create_tiled_image
 from ricecooker.utils.images import ThumbnailGenerationError
 from ricecooker.utils.subtitles import build_subtitle_converter_from_file
@@ -551,9 +552,14 @@ class AudioFile(DownloadFile):
     default_ext = file_formats.MP3
     allowed_formats = [file_formats.MP3]
     is_primary = True
+    duration = None
 
     def get_preset(self):
         return self.preset or format_presets.AUDIO
+
+    def process_file(self):
+        self.filename = super(AudioFile, self).process_file()
+        self.duration = extract_duration_of_media(self.filename)
 
 
 class DocumentFile(DownloadFile):
@@ -610,6 +616,7 @@ class VideoFile(DownloadFile):
     default_ext = file_formats.MP4
     allowed_formats = [file_formats.MP4, file_formats.WEBM]
     is_primary = True
+    duration = None
 
     def __init__(self, path, ffmpeg_settings=None, **kwargs):
         self.ffmpeg_settings = ffmpeg_settings
@@ -672,6 +679,7 @@ class VideoFile(DownloadFile):
                         self.filename, self.ffmpeg_settings
                     )
                     config.LOGGER.info("\t--- Compressed {}".format(self.filename))
+            self.duration = extract_duration_of_media(self.filename)
         except (
             BrokenPipeError,
             CalledProcessError,
@@ -688,6 +696,7 @@ class VideoFile(DownloadFile):
 
 class WebVideoFile(File):
     is_primary = True
+    duration = None
     # In future, look into postprocessors and progress_hooks
 
     def __init__(
@@ -727,6 +736,7 @@ class WebVideoFile(File):
             if self.filename and config.COMPRESS:
                 self.filename = compress_video_file(self.filename, {})
                 config.LOGGER.info("\t--- Compressed {}".format(self.filename))
+            self.duration = extract_duration_of_media(self.filename)
 
         except youtube_dl.utils.DownloadError as err:
             self.filename = None
