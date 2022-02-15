@@ -1,2 +1,3 @@
 requests-cache==0.4.13
 pytest==6.2.2
+pycountry==17.5.14
