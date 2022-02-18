@@ -11,8 +11,6 @@ from .jsontrees import EPUB_FILE
 from .jsontrees import EXERCISE_NODE
 from .jsontrees import HTML5_FILE
 from .jsontrees import HTML5_NODE
-from .jsontrees import SUBTITLES_FILE
-from .jsontrees import THUMBNAIL_FILE
 from .jsontrees import TOPIC_NODE
 from .jsontrees import VIDEO_FILE
 from .jsontrees import VIDEO_NODE
@@ -292,7 +290,7 @@ def build_ricecooker_json_tree(args, options, metadata_provider, json_tree_path)
     LOGGER.info("Folder hierarchy walk result stored in " + json_tree_path)
 
 
-def make_content_node(channeldir, rel_path, filename, metadata):
+def make_content_node(channeldir, rel_path, filename, metadata):  # noqa: C901
     """
     Create ContentNode based on the file extention and metadata provided.
     """
@@ -437,7 +435,7 @@ class FolderExistsAction(argparse.Action):
         return folder_name
 
     def __call__(self, parser, namespace, values, option_string=None):
-        if type(values) == list:
+        if isinstance(values, list):
             folders = map(self.verify_folder_existence, values)
         else:
             folders = self.verify_folder_existence(values)

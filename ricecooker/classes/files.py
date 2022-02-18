@@ -595,7 +595,7 @@ class HTMLZipFile(DownloadFile):
                 # make sure index.html exists unless this is a dependency (i.e. shared resources) zip
                 if not self.get_preset() == format_presets.HTML5_DEPENDENCY_ZIP:
                     with zipfile.ZipFile(config.get_storage_path(self.filename)) as zf:
-                        _info = zf.getinfo("index.html")
+                        _ = zf.getinfo("index.html")
             except KeyError as err:
                 self.filename = None
                 self.error = err
@@ -714,7 +714,7 @@ class WebVideoFile(File):
             # Download the best mp4 format available, or best webm format available, or any other best mp4
             self.download_settings[
                 "format"
-            ] = "bestvideo[height<={maxheight}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<={maxheight}][ext=webm]+bestaudio[ext=webm]/best[height<={maxheight}][ext=mp4]".format(
+            ] = "bestvideo[height<={maxheight}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<={maxheight}][ext=webm]+bestaudio[ext=webm]/best[height<={maxheight}][ext=mp4]".format(  # noqa: E501
                 maxheight=maxheight
             )
             # self.download_settings['recodevideo'] = file_formats.MP4

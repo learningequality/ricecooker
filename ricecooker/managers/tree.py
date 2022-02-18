@@ -2,7 +2,6 @@ import codecs
 import json
 import sys
 
-import requests
 from requests.exceptions import RequestException
 
 from .. import config
@@ -102,7 +101,7 @@ class ChannelManager:
         """
         file_diff_result = []
         chunks = [
-            files_to_diff[x : x + 1000] for x in range(0, len(files_to_diff), 1000)
+            files_to_diff[x: x + 1000] for x in range(0, len(files_to_diff), 1000)
         ]
         file_count = 0
         total_count = len(files_to_diff)
@@ -289,7 +288,7 @@ class ChannelManager:
 
         return new_channel["root"], new_channel["channel_id"]
 
-    def add_nodes(self, root_id, current_node, indent=1):
+    def add_nodes(self, root_id, current_node, indent=1):  # noqa: C901
         """add_nodes: adds processed nodes to tree
         Args:
             root_id (str): id of parent node on Kolibri Studio
@@ -314,7 +313,7 @@ class ChannelManager:
         # Send children in chunks to avoid gateway errors
         try:
             chunks = [
-                current_node.children[x : x + 10]
+                current_node.children[x: x + 10]
                 for x in range(0, len(current_node.children), 10)
             ]
             for chunk in chunks:

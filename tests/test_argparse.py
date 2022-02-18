@@ -57,7 +57,8 @@ def cli_args_and_expected():
             "expected_options": dict(somethin="else", extrakey="extraval"),
         },
         {
-            "cli_input": "./sushichef.py -uv --warn --compress --download-attempts=4 --token=besttokenever --resume --step=PUBLISH_CHANNEL --prompt --deploy --publish",
+            "cli_input":
+                "./sushichef.py -uv --warn --compress --download-attempts=4 --token=besttokenever --resume --step=PUBLISH_CHANNEL --prompt --deploy --publish",
             "expected_args": dict(
                 defaults,
                 update=True,
@@ -116,5 +117,5 @@ def test_cannot_publish_without_deploy():
 
     good_cli_input = "./sushichef.py --token=letoken --deploy --publish"
     args, options = chef_arg_parser(good_cli_input)
-    assert args["stage"] == False
-    assert args["publish"] == True
+    assert not args["stage"]
+    assert args["publish"]

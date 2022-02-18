@@ -76,7 +76,7 @@ class PDFParser(object):
         if not self.path:
             raise ValueError("self.path not found; call `open` first")
 
-    def get_toc(self, subchapters=False):
+    def get_toc(self, subchapters=False):  # noqa: C901
         """
         Returns table-of-contents information extracted from the PDF doc.
         When `subchapters=False`, the output is a list of this form

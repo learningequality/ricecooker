@@ -3,20 +3,14 @@ import copy
 import html
 import json
 import re
-import sys
 import uuid
 from functools import partial
 
 from bs4 import BeautifulSoup
-from le_utils.constants import content_kinds
 from le_utils.constants import exercises
-from le_utils.constants import file_formats
-from le_utils.constants import format_presets
-from le_utils.constants import licenses
 
 from .. import config
 from ..exceptions import InvalidQuestionException
-from ..exceptions import UnknownQuestionTypeError
 from .files import _ExerciseBase64ImageFile
 from .files import _ExerciseGraphieFile
 from .files import _ExerciseImageFile
@@ -218,7 +212,7 @@ class BaseQuestion:
         # Setup link to assessment item
         exercise_image_file.assessment_item = self
         # Process file to make the replacement_str available
-        _filename = exercise_image_file.process_file()
+        exercise_image_file.process_file()
         # Get `new_text` = the replacement path for the image resource
         new_text = exercises.CONTENT_STORAGE_FORMAT.format(
             exercise_image_file.get_replacement_str()
@@ -299,7 +293,7 @@ class PerseusQuestion(BaseQuestion):
                 self.hints == []
             ), "Assumption Failed: Hints list should be empty for perseus question"
             return super(PerseusQuestion, self).validate()
-        except AssertionError as ae:
+        except AssertionError:
             raise InvalidQuestionException(
                 "Invalid question: {0}".format(self.__dict__)
             )
@@ -498,7 +492,7 @@ class MultipleSelectQuestion(BaseQuestion):
                     h, str
                 ), "Assumption Failed: Hint in hint list is not a string"
             return super(MultipleSelectQuestion, self).validate()
-        except AssertionError as ae:
+        except AssertionError:
             raise InvalidQuestionException(
                 "Invalid question: {0}".format(self.__dict__)
             )
@@ -567,7 +561,7 @@ class SingleSelectQuestion(BaseQuestion):
                     h, str
                 ), "Assumption Failed: Hint in hints list is not a string"
             return super(SingleSelectQuestion, self).validate()
-        except AssertionError as ae:
+        except AssertionError:
             raise InvalidQuestionException(
                 "Invalid question: {0}".format(self.__dict__)
             )
@@ -627,7 +621,7 @@ class InputQuestion(BaseQuestion):
                     h, str
                 ), "Assumption Failed: Hint in hints list is not a string"
             return super(InputQuestion, self).validate()
-        except AssertionError as ae:
+        except AssertionError:
             raise InvalidQuestionException(
                 "Invalid question: {0}".format(self.__dict__)
             )

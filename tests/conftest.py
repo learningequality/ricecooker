@@ -168,7 +168,7 @@ def get_topic_node_args(node_data):
     node_data = copy.deepcopy(node_data)
     source_id = node_data.pop("source_id")
     title = node_data.pop("title")
-    license = node_data.pop("license")
+    node_data.pop("license")
     return source_id, title
 
 

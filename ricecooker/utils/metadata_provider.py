@@ -142,7 +142,7 @@ def path_to_tuple(path):
     Split a current file system path into individual parts and form a tuple for key lookups.
     """
     allparts = []
-    while 1:
+    while True:
         parts = os.path.split(path)
         if parts[0] == path:  # sentinel for absolute paths
             allparts.insert(0, parts[0])
@@ -190,7 +190,6 @@ def get_metadata_file_path(channeldir, filename):
 class MetadataProvider(object):
     def validate(self):
         """Check if metadata provided is valid."""
-        pass
 
 
 class CsvMetadataProvider(MetadataProvider):
@@ -450,7 +449,7 @@ class CsvMetadataProvider(MetadataProvider):
         )
         return exercise_dict
 
-    def _map_exercise_question_row_to_dict(self, row):
+    def _map_exercise_question_row_to_dict(self, row):  # noqa: C901
         """
         Convert dictionary keys from raw CSV Exercise Question format to ricecooker keys.
         """
@@ -776,9 +775,9 @@ class CsvMetadataProvider(MetadataProvider):
         with open(file_path, "a") as csv_file:
             csvwriter = csv.DictWriter(csv_file, EXERCISE_QUESTIONS_INFO_HEADER)
 
-            def _safe_list_get(l, idx, default):
+            def _safe_list_get(_list, idx, default):
                 try:
-                    return l[idx]
+                    return _list[idx]
                 except IndexError:
                     return default
 
@@ -899,8 +898,6 @@ class CsvMetadataProvider(MetadataProvider):
         LOGGER.debug("IN process_folder " + str(rel_path) + "     " + str(filenames))
         from ricecooker.utils.linecook import (
             filter_filenames,
-            filter_thumbnail_files,
-            chan_path_from_rel_path,
         )
 
         # WRITE TOPIC ROW
@@ -908,7 +905,6 @@ class CsvMetadataProvider(MetadataProvider):
         csvwriter.writerow(topicrow)
 
         # WRITE CONTENT NODE ROWS
-        chan_path = chan_path_from_rel_path(rel_path, self.channeldir)
         filenames_cleaned = filter_filenames(filenames)
         # filenames_cleaned2 = filter_thumbnail_files(chan_path, filenames_cleaned, self)
         for filename in filenames_cleaned:
@@ -1009,4 +1005,3 @@ class ExcelMetadataProvider(MetadataProvider):
         """
         Checks if provided .xlsx/.xls is valid as a whole.
         """
-        pass

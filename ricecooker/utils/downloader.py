@@ -19,13 +19,12 @@ from bs4 import BeautifulSoup
 from requests_file import FileAdapter
 from selenium import webdriver
 
+from cachecontrol.caches.file_cache import FileCache
 from ricecooker.config import LOGGER
 from ricecooker.config import PHANTOMJS_PATH
 from ricecooker.config import STRICT
 from ricecooker.utils.caching import CacheControlAdapter
 from ricecooker.utils.caching import CacheForeverHeuristic
-from ricecooker.utils.caching import FileCache
-from ricecooker.utils.caching import InvalidatingCacheControlAdapter
 from ricecooker.utils.html import download_file
 from ricecooker.utils.html import replace_links
 from ricecooker.utils.zip import create_predictable_zip
@@ -57,7 +56,8 @@ USE_PYPPETEER = False
 # encapsulated into a class.
 archiver = None
 
-try:
+# Flake8 thinks this is too complex.
+try:  # noqa: C901
     import asyncio
     from pyppeteer import launch, errors
 
@@ -130,9 +130,8 @@ try:
             await browser.close()
 
     USE_PYPPETEER = True
-except:
+except BaseException:
     print("Unable to load pyppeteer, using phantomjs for JS loading.")
-    pass
 
 
 def read(
@@ -261,7 +260,7 @@ def _derive_filename(url):
 
 # TODO: The number of args and inner functions in this strongly suggest this needs
 # to be a class or have its functionality separated out.
-def download_static_assets(
+def download_static_assets(  # noqa: C901
     doc,
     destination,
     base_url,
@@ -555,7 +554,7 @@ def download_static_assets(
                 derived_filename = derive_filename(download_url)
                 new_url = derived_filename
                 if is_html:
-                    if not download_url in downloaded_pages:
+                    if download_url not in downloaded_pages:
                         LOGGER.info(
                             "Downloading linked HTML page {}".format(download_url)
                         )
@@ -709,7 +708,7 @@ def archive_page(
             "cookies": requests.utils.dict_from_cookiejar(response.cookies),
             "url": response.url,
         }
-        if not "charset" in response.headers["Content-Type"]:
+        if "charset" not in response.headers["Content-Type"]:
             # It seems requests defaults to ISO-8859-1 when the headers don't explicitly declare an
             # encoding. In this case, we're better off using chardet to guess instead.
             encoding = chardet.detect(response.content)
@@ -825,7 +824,7 @@ def download_in_parallel(urls, func=None, max_workers=5):
                 try:
                     result = future.result()
                     results[url] = result
-                except:
+                except BaseException:
                     raise
             start = start + batch_size
 
@@ -864,7 +863,7 @@ class ArchiveDownloader:
     def get_page(
         self, url, refresh=False, link_policy=None, run_js=False, strict=False
     ):
-        if refresh or not url in self.cache_data:
+        if refresh or url not in self.cache_data:
             self.cache_data[url] = archive_page(
                 url,
                 download_root=self.root_dir,
@@ -896,7 +895,7 @@ class ArchiveDownloader:
         return None
 
     def get_page_soup(self, url):
-        if not url in self.cache_data:
+        if url not in self.cache_data:
             raise KeyError(
                 "Unable to find page {} in archive. Did you call get_page?".format(url)
             )
@@ -913,7 +912,7 @@ class ArchiveDownloader:
             info = self.cache_data[url]
             resources = info["resources"]
             for resource in resources.values():
-                if not resource in resource_counts:
+                if resource not in resource_counts:
                     resource_counts[resource] = 0
                 resource_counts[resource] += 1
 
@@ -942,7 +941,7 @@ class ArchiveDownloader:
                 shutil.copy2(full_path, dest_path)
 
     def create_zip_dir_for_page(self, url):
-        if not url in self.cache_data:
+        if url not in self.cache_data:
             raise KeyError(
                 "Please ensure you call get_page before calling this function to download the content."
             )
@@ -964,7 +963,6 @@ class ArchiveDownloader:
 
     def export_page_as_zip(self, url):
         zip_dir = self.create_zip_dir_for_page(url)
-        info = self.cache_data[url]
 
         entrypoint = None
         if self.relative_links:

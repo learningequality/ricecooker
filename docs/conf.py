@@ -17,14 +17,13 @@
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
 # sys.path.insert(0, os.path.abspath('.'))
+from ricecooker import __version__ as current_ricecooker_version
 import os
 import sys
 from datetime import datetime
 
 sys.path.insert(0, os.path.abspath(".."))
 # from recommonmark.parser import CommonMarkParser
-
-from ricecooker import __version__ as current_ricecooker_version
 
 
 # -- General configuration ------------------------------------------------
@@ -261,7 +260,7 @@ latex_elements = {
     "pointsize": "11pt",
     "extraclassoptions": "oneside",
     # The font size ('10pt', '11pt' or '12pt').
-    #'pointsize': '10pt',
+    # 'pointsize': '10pt',
     # Additional stuff for the LaTeX preamble.
     "preamble": r"""
         %%% FRONTMATTER %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

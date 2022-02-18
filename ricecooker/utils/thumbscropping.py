@@ -16,10 +16,10 @@ if PY3:
     text_type = str
     binary_type = bytes
 else:
-    string_types = (basestring,)
-    integer_types = (int, long)
+    string_types = (basestring,)  # noqa: F821
+    integer_types = (int, long)  # noqa: F821
     class_types = (type, types.ClassType)
-    text_type = unicode
+    text_type = unicode  # noqa: F821
     binary_type = str
 
 # SmileyChris/easy-thumbnails is licensed under the BSD 3-Clause "New" or "Revised" License
@@ -80,7 +80,7 @@ def _compare_entropy(start_slice, end_slice, slice, difference):
         return slice, 0
 
 
-def scale_and_crop(
+def scale_and_crop(  # noqa: C901
     im, size, crop=False, upscale=False, zoom=None, target=None, **kwargs
 ):
     """

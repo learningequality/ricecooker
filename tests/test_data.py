@@ -1,13 +1,9 @@
 """ Tests for data validation and construction """
 import json
-import os
 import uuid
 
 import pytest
 from le_utils.constants import content_kinds
-from le_utils.constants import exercises
-from le_utils.constants import licenses
-from le_utils.constants import roles
 
 from ricecooker.classes.nodes import ChannelNode
 from ricecooker.classes.nodes import TopicNode

@@ -12,7 +12,6 @@ from le_utils.constants import languages
 
 from . import proxy
 from . import utils
-from ricecooker.config import LOGGER
 
 
 LOGGER = logging.getLogger("YouTubeResource")
@@ -52,7 +51,7 @@ class YouTubeResource(object):
 
         :param url: URL of a YouTube resource. URL may point to a video, playlist or channel.
         """
-        if not "youtube.com" in url and not "youtu.be" in url:
+        if "youtube.com" not in url and "youtu.be" not in url:
             raise utils.VideoURLFormatError(url, "YouTube")
         self.url = url
         self.subtitles = {}
@@ -65,7 +64,7 @@ class YouTubeResource(object):
         self.client = None  # this will become a YoutubeDL instance on first use
         self.info = None  # save detailed info_dict returned from extract_info
 
-    def get_resource_info(self, options=None):
+    def get_resource_info(self, options=None):  # noqa: C901
         """
         This method checks the YouTube URL, then returns a dictionary object with info about the video(s) in it.
 
@@ -149,7 +148,7 @@ class YouTubeResource(object):
         name = name.split("?")[0]
         return " ".join(name.split("_")).title()
 
-    def download(self, base_path=None, useproxy=False, options=None):
+    def download(self, base_path=None, useproxy=False, options=None):  # noqa: C901
         """
         Download the YouTube resource(s) specified in `self.info`. If `self.info`
         is None, it will be populated by calling `self.get_resource_info` which

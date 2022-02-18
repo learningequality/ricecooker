@@ -203,5 +203,3 @@ class ThumbnailGenerationError(Exception):
     """
     Custom error returned when thumbnail extraction process fails.
     """
-
-    pass
