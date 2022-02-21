@@ -679,7 +679,7 @@ class VideoFile(DownloadFile):
                         self.filename, self.ffmpeg_settings
                     )
                     config.LOGGER.info("\t--- Compressed {}".format(self.filename))
-            self.duration = extract_duration_of_media(self.filename)
+            self.duration = extract_duration_of_media(self.path)
         except (
             BrokenPipeError,
             CalledProcessError,

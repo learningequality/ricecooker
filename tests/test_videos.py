@@ -23,7 +23,8 @@ def low_res_video():
     source_url = (
         "https://archive.org/download/vd_is_for_everybody/vd_is_for_everybody_512kb.mp4"
     )
-    local_path = os.path.join("tests", "testcontent", "downloaded", "low_res_video.mp4")
+    # local_path = os.path.join("tests","testcontent", "downloaded", "low_res_video.mp4")
+    local_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "testcontent", "downloaded", "low_res_video.mp4"))
     download_fixture_file(source_url, local_path)
     assert os.path.exists(local_path)
     f = open(local_path, "rb")
