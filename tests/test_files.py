@@ -455,7 +455,9 @@ def download_fixture_files(fixtures_list):
     fixtures = []
     for fixture in fixtures_list:
         srcfilename = fixture["srcfilename"]
-        localpath = os.path.join("tests", "testcontent", "downloaded", srcfilename)
+        # localpath = os.path.join("tests", "testcontent", "downloaded", srcfilename)
+        local_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "testcontent", "downloaded", srcfilename))
+
         if not os.path.exists(localpath):
             url = (
                 fixture["url"]
@@ -533,9 +535,10 @@ def test_convertible_substitles_noext_subtitlesformat():
     """
     Check that we handle correctly cases when path doesn't contain extenstion.
     """
-    local_path = os.path.join(
-        "tests", "testcontent", "downloaded", "testsubtitles_ar.ttml"
-    )
+    # local_path = os.path.join(
+    #     "tests", "testcontent", "downloaded", "testsubtitles_ar.ttml"
+    # )
+    local_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "testcontent", "downloaded", "testsubtitles_ar.ttml"))
     assert os.path.exists(local_path)
     local_path_no_ext = local_path.replace(".ttml", "")
     copyfile(local_path, local_path_no_ext)
