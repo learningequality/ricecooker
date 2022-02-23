@@ -559,7 +559,6 @@ class AudioFile(DownloadFile):
 
     def process_file(self):
         self.filename = super(AudioFile, self).process_file()
-        print("self.path",self.path)
         self.duration = extract_duration_of_media(self.path)
         return self.filename
 
