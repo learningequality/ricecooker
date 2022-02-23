@@ -559,8 +559,9 @@ class AudioFile(DownloadFile):
 
     def process_file(self):
         self.filename = super(AudioFile, self).process_file()
-        self.duration = extract_duration_of_media(self.filename)
-
+        print("self.path",self.path)
+        self.duration = extract_duration_of_media(self.path)
+        return self.filename
 
 class DocumentFile(DownloadFile):
     default_ext = file_formats.PDF
@@ -736,7 +737,7 @@ class WebVideoFile(File):
             if self.filename and config.COMPRESS:
                 self.filename = compress_video_file(self.filename, {})
                 config.LOGGER.info("\t--- Compressed {}".format(self.filename))
-            self.duration = extract_duration_of_media(self.filename)
+            self.duration = extract_duration_of_media(self.path)
 
         except youtube_dl.utils.DownloadError as err:
             self.filename = None
