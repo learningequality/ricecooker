@@ -1030,7 +1030,7 @@ class _ExerciseGraphieFile(DownloadFile):
 
     def __init__(self, path, **kwargs):
         self.original_filename = (
-            path.split("/")[-1].split(os.path.sep)[-1].split(".")[0]
+            path.split(os.path.sep)[-1].split(".")[0]
         )
         super(_ExerciseGraphieFile, self).__init__(path, **kwargs)
 
