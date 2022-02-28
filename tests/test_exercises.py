@@ -501,7 +501,7 @@ def test_base_question_set_image(image_texts_fixtures):
             assert new_text.startswith("web+graphie:"), "web+graphie: was lost"
             assert filename.endswith(".graphie"), "wrong extension for web+graphie text"
         expected_storage_dir = os.path.join(STORAGE_DIRECTORY, filename[0], filename[1])
-        expected_storage_path = os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(__file__)),os.path.join(expected_storage_dir, filename)))
+        expected_storage_path = os.path.join(os.path.join(expected_storage_dir, filename))
         assert os.path.exists(
             expected_storage_path
         ), "Image file not saved to ricecooker storage dir"
