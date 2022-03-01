@@ -416,7 +416,6 @@ class File(object):
         )
 
     def get_filename(self):
-        print("SELF FILENMAE",self.filename)
         return self.filename or self.process_file()
 
     @property
