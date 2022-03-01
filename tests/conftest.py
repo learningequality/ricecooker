@@ -751,7 +751,7 @@ def exercise_base64_image_filename():
 
 @pytest.fixture
 def exercise_graphie_file():
-    file_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "testcontent", "exercises","eb3f3bf7c317408ee90995b5bcf4f3a59606aedd"))
+    file_path = os.path.join("tests", "testcontent", "exercises","eb3f3bf7c317408ee90995b5bcf4f3a59606aedd")
     return _ExerciseGraphieFile(file_path)
 
 
