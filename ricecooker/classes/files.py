@@ -416,6 +416,7 @@ class File(object):
         )
 
     def get_filename(self):
+        print("SELF FILENMAE",self.filename)
         return self.filename or self.process_file()
 
     @property
@@ -1038,8 +1039,10 @@ class _ExerciseGraphieFile(DownloadFile):
         return self.preset or format_presets.EXERCISE_GRAPHIE
 
     def get_replacement_str(self):
-        config.LOGGER.info("\t----SELF PATH {}".format(self.path))
-        return self.path.split('/')[-1].split(".")[0] or self.path
+        if "http" in self.path:
+            return self.path.split('/')[-1].split(".")[0] or self.path
+        else:
+            return self.path.split(os.path.sep)[-1].split(".")[0] or self.path
 
     def process_file(self):
         """download: download a web+graphie file
