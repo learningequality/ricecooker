@@ -762,7 +762,7 @@ def exercise_graphie_replacement_str():
 
 @pytest.fixture
 def exercise_graphie_filename():
-    return "7060edbbf6c5548fd7a5b69989c9e58a.graphie"
+    return "ee76848822bf710e037999e9148078b6.graphie"
 
 
 # SLIDESHOW IMAGES FIXTURES
