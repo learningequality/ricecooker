@@ -164,7 +164,7 @@ def calculate_relative_url(url, filename=None, baseurl=None, subpath=None):
         assert url.startswith(baseurl), "URL {} must start with baseurl {}".format(
             url, baseurl
         )
-        subpath = subpath + url[len(baseurl):].strip("/").split("/")[:-1]
+        subpath = subpath + url[len(baseurl) :].strip("/").split("/")[:-1]
 
     # if we don't have a filename, extract it from the URL
     if not filename:

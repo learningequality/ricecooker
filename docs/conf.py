@@ -17,10 +17,11 @@
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
 # sys.path.insert(0, os.path.abspath('.'))
-from ricecooker import __version__ as current_ricecooker_version
 import os
 import sys
 from datetime import datetime
+
+from ricecooker import __version__ as current_ricecooker_version
 
 sys.path.insert(0, os.path.abspath(".."))
 # from recommonmark.parser import CommonMarkParser

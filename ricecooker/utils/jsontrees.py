@@ -1,9 +1,9 @@
-from le_utils.constants import exercises
-from le_utils.constants import file_types
 import json
 import os
 
 from le_utils.constants import content_kinds
+from le_utils.constants import exercises
+from le_utils.constants import file_types
 from le_utils.constants import roles
 
 from ricecooker.classes import files

@@ -9,7 +9,8 @@ from le_utils.constants import exercises
 from le_utils.constants import licenses
 from test_videos import _clear_ricecookerfilecache
 
-from ricecooker.classes.nodes import ExerciseNode, InvalidNodeException
+from ricecooker.classes.nodes import ExerciseNode
+from ricecooker.classes.nodes import InvalidNodeException
 from ricecooker.classes.questions import BaseQuestion
 from ricecooker.classes.questions import PerseusQuestion
 from ricecooker.classes.questions import SingleSelectQuestion

@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-from ricecooker.utils.libstudio import StudioApi
 import argparse
 import copy
 import csv
@@ -11,6 +10,7 @@ import dictdiffer
 import requests
 
 from ricecooker.config import LOGGER
+from ricecooker.utils.libstudio import StudioApi
 
 
 # CONFIG CONSTANTS for data directories

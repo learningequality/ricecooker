@@ -515,6 +515,7 @@ class TreeNode(Node):
         """
         # default natural sorting
         if not key:
+
             def convert(text):
                 return int(text) if text.isdigit() else text.lower()
 
@@ -523,6 +524,7 @@ class TreeNode(Node):
                     convert(re.sub(r"[^A-Za-z0-9]+", "", c.replace("&", "and")))
                     for c in re.split("([0-9]+)", key.title)
                 ]
+
         self.children = sorted(self.children, key=key, reverse=reverse)
         return self.children
 

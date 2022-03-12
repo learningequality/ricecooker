@@ -40,7 +40,7 @@ def create_predictable_zip(path, entrypoint=None):
 
         for root, directories, filenames in os.walk(path):
             paths += [
-                os.path.join(root, filename)[len(path) + 1:] for filename in filenames
+                os.path.join(root, filename)[len(path) + 1 :] for filename in filenames
             ]
 
         def reader(x):
@@ -53,6 +53,7 @@ def create_predictable_zip(path, entrypoint=None):
 
         def reader(x):
             return inputzip.read(x)
+
     else:
         raise Exception("The `path` must either point to a directory or to a zip file.")
 

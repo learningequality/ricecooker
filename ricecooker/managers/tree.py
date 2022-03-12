@@ -101,7 +101,7 @@ class ChannelManager:
         """
         file_diff_result = []
         chunks = [
-            files_to_diff[x: x + 1000] for x in range(0, len(files_to_diff), 1000)
+            files_to_diff[x : x + 1000] for x in range(0, len(files_to_diff), 1000)
         ]
         file_count = 0
         total_count = len(files_to_diff)
@@ -313,7 +313,7 @@ class ChannelManager:
         # Send children in chunks to avoid gateway errors
         try:
             chunks = [
-                current_node.children[x: x + 10]
+                current_node.children[x : x + 10]
                 for x in range(0, len(current_node.children), 10)
             ]
             for chunk in chunks:

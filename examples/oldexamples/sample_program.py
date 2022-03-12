@@ -170,110 +170,143 @@ SAMPLE_PERSEUS_1_JSON = open(join(DATA_DIR, "sample_perseus01.json"), "r").read(
 # SAMPLE_PERSEUS_2_JSON = open(join(DATA_DIR,'sample_perseus02.json'),'r').read()
 
 # ADD EXERCISES
-EXERCISES_NODES = [{"title": "Rice Cookers",
-                    "id": "d98752",
-                    "description": "Start cooking rice today!",
-                    "children": [{"title": "Rice Chef",
-                                  "id": "6cafe2",
-                                  "author": "Revision 3",
-                                  "description": "Become a master rice cooker",
-                                  "file": "https://ia600209.us.archive.org/27/items/RiceChef/Rice Chef.mp4",
-                                  "license": licenses.CC_BY_NC_SA,
-                                  "copyright_holder": "Learning Equality",
-                                  "files": [{"path": "https://ia600209.us.archive.org/27/items/RiceChef/Rice Chef.mp4"},
-                                            {"encoding": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAABGdBTUEAALGPC/xhBQAAAAFzUkdCAK7OHOkAAAAgY0hSTQAAeiYAAICEAAD6AAAAgOgAAHUwAADqYAAAOpgAABdwnLpRPAAAAmFQTFRF////wN/2I0FiNFFuAAAAxdvsN1RxV3KMnrPFFi9PAB1CVG+KXHaQI0NjttLrEjVchIF4AyNGZXB5V087UUw/EzBMpqWeb2thbmpgpqOceXVsERgfTWeADg8QCAEApKGZBAYIop+XCQkIhZ+2T2mEg5mtnK/AobPDkKO2YXqTAAAAJkBetMraZH2VprjIz9zm4enw7/T47fP3wc7ae5GnAAAAN1BsSmSApLfI1ODq2OHp5Orv8PL09vb38fb5wM/bbISbrL/PfZSpxNPgzdnj2+Pr5evw6+/z6e3w3ePp2OPsma2/ABM5Q197ABk4jKG1yNfjytfh1uDo3eXs4unv1t/nztrjqbzMTmmEXneRES1Ji6CzxtXixdPfztrk1N/n1+Dp1d/oz9vlxdPeq73NVG+KYnyUAAAddIuhwtPhvMzaxtTgytfiy9jjwtHewtHenbDCHT1fS2eCRV52qr7PvM3cucrYv87cv8/cvMzavc3bucvacoyl////ByE8WnKKscXWv9Hguszbu8zbvc7dtcnaiJqrcHZ4f4SHEh0nEitFTWZ+hJqumrDDm7HDj6W5dI2lYGJfmZeQl5SNAAAADRciAAATHjdSOVNsPlhyLklmKCYjW1lUlpOLlZKLFSAqWXSOBQAADA0NAAAAHh0bWlhSk5CIk5CIBAYJDRQbERcdDBAUBgkMAAAEDg4NAAAAHBsZWFZQkY6GAAAAAAAABQUEHBsZAAAAGxoYVlROko+GBAQDZ2RdAAAAGhkYcW9oAgICAAAAExMSDQwLjouDjYuDioiAiIV9hoN7VlRO////Z2DcYwAAAMR0Uk5TAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACRKrJyrZlBQECaNXCsKaqypMGAUDcu7Gpn5mf03gDo8+4saiipKq3xRMBH83Eu7OsqbG61DkDMdbFvrizsbK3wNs9Ax/VysS/vLq/zNwfArDhxMfExMXE3pMCMe7byMjIzd33ZgYGQtnz6+zooeJXBQMFD1yHejZ1+l8FBgEELlOR+GgFCQ0SGxoBGFKg+m0BBwEMR6v+hAEDM6nRASWURVuYQQ4AAAABYktHRACIBR1IAAAACXBIWXMAAAjLAAAIywGEuOmJAAABCklEQVQY02NgUGZUUVVT19DUYtBmYmZhYdBh1dXTNzA0MjYxZTFjAwqwm1tYWlnb2NrZO3A4cgIFGJycXVzd3D08vbx9uHyBAn7+AYFBwSEhoWHhEdyRQIGo6JjYuPiExKTklFSeNKBAekZmVnZObk5efkEhbxFQgK+4pLSsvKKyqrqGoZZfgIVBsK6+obGpuaW1rV2oQ1hEgKFTtKu7p7evf8LEI5PEJotLMEyZyjJt+oyZsxhmzzk6V3KeFIO01vwFMrJyCxctXrL02DL55QwsClorVq5avWbtuvUbNh7fpMjAwsKyWWvLFJatStu279h5YhdIAAJ2s+zZu+/kfoQAy4HNLAcPHQYA5YtSi+k2/WkAAAAldEVYdGRhdGU6Y3JlYXRlADIwMTMtMTAtMDRUMTk6Mzk6MjEtMDQ6MDAwU1uYAAAAJXRFWHRkYXRlOm1vZGlmeQAyMDEzLTEwLTA0VDE5OjM5OjIxLTA0OjAwQQ7jJAAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAAAASUVORK5CYII="},
-                                            ],
-                                  },
-                                 {"title": "Rice Exercise",
-                                  "id": "6cafe3",
-                                  "description": "Test how well you know your rice",
-                                  "license": licenses.CC_BY_NC_SA,
-                                  "copyright_holder": "Learning Equality",
-                                  "mastery_model": exercises.DO_ALL,
-                                  "files": [{"path": "http://www.publicdomainpictures.net/pictures/110000/nahled/bowl-of-rice.jpg"}],
-                                  "questions": [{"id": "eeeee",
-                                                 "question": "Which rice is your favorite? \\_\\_\\_ ![](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAABGdBTUEAALGPC/xhBQAAAAFzUkdCAK7OHOkAAAAgY0hSTQAAeiYAAICEAAD6AAAAgOgAAHUwAADqYAAAOpgAABdwnLpRPAAAAmFQTFRF////wN/2I0FiNFFuAAAAxdvsN1RxV3KMnrPFFi9PAB1CVG+KXHaQI0NjttLrEjVchIF4AyNGZXB5V087UUw/EzBMpqWeb2thbmpgpqOceXVsERgfTWeADg8QCAEApKGZBAYIop+XCQkIhZ+2T2mEg5mtnK/AobPDkKO2YXqTAAAAJkBetMraZH2VprjIz9zm4enw7/T47fP3wc7ae5GnAAAAN1BsSmSApLfI1ODq2OHp5Orv8PL09vb38fb5wM/bbISbrL/PfZSpxNPgzdnj2+Pr5evw6+/z6e3w3ePp2OPsma2/ABM5Q197ABk4jKG1yNfjytfh1uDo3eXs4unv1t/nztrjqbzMTmmEXneRES1Ji6CzxtXixdPfztrk1N/n1+Dp1d/oz9vlxdPeq73NVG+KYnyUAAAddIuhwtPhvMzaxtTgytfiy9jjwtHewtHenbDCHT1fS2eCRV52qr7PvM3cucrYv87cv8/cvMzavc3bucvacoyl////ByE8WnKKscXWv9Hguszbu8zbvc7dtcnaiJqrcHZ4f4SHEh0nEitFTWZ+hJqumrDDm7HDj6W5dI2lYGJfmZeQl5SNAAAADRciAAATHjdSOVNsPlhyLklmKCYjW1lUlpOLlZKLFSAqWXSOBQAADA0NAAAAHh0bWlhSk5CIk5CIBAYJDRQbERcdDBAUBgkMAAAEDg4NAAAAHBsZWFZQkY6GAAAAAAAABQUEHBsZAAAAGxoYVlROko+GBAQDZ2RdAAAAGhkYcW9oAgICAAAAExMSDQwLjouDjYuDioiAiIV9hoN7VlRO////Z2DcYwAAAMR0Uk5TAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACRKrJyrZlBQECaNXCsKaqypMGAUDcu7Gpn5mf03gDo8+4saiipKq3xRMBH83Eu7OsqbG61DkDMdbFvrizsbK3wNs9Ax/VysS/vLq/zNwfArDhxMfExMXE3pMCMe7byMjIzd33ZgYGQtnz6+zooeJXBQMFD1yHejZ1+l8FBgEELlOR+GgFCQ0SGxoBGFKg+m0BBwEMR6v+hAEDM6nRASWURVuYQQ4AAAABYktHRACIBR1IAAAACXBIWXMAAAjLAAAIywGEuOmJAAABCklEQVQY02NgUGZUUVVT19DUYtBmYmZhYdBh1dXTNzA0MjYxZTFjAwqwm1tYWlnb2NrZO3A4cgIFGJycXVzd3D08vbx9uHyBAn7+AYFBwSEhoWHhEdyRQIGo6JjYuPiExKTklFSeNKBAekZmVnZObk5efkEhbxFQgK+4pLSsvKKyqrqGoZZfgIVBsK6+obGpuaW1rV2oQ1hEgKFTtKu7p7evf8LEI5PEJotLMEyZyjJt+oyZsxhmzzk6V3KeFIO01vwFMrJyCxctXrL02DL55QwsClorVq5avWbtuvUbNh7fpMjAwsKyWWvLFJatStu279h5YhdIAAJ2s+zZu+/kfoQAy4HNLAcPHQYA5YtSi+k2/WkAAAAldEVYdGRhdGU6Y3JlYXRlADIwMTMtMTAtMDRUMTk6Mzk6MjEtMDQ6MDAwU1uYAAAAJXRFWHRkYXRlOm1vZGlmeQAyMDEzLTEwLTA0VDE5OjM5OjIxLTA0OjAwQQ7jJAAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAAAASUVORK5CYII=)",
-                                                 "type": exercises.MULTIPLE_SELECTION,
-                                                 "correct_answers": ["White rice",
-                                                                     "Brown rice",
-                                                                     "Sushi rice <p>abc</p>",
-                                                                     ],
-                                                 "all_answers": ["White rice",
-                                                                 "Quinoa",
-                                                                 "Brown rice",
-                                                                 "<"],
-                                                 },
-                                                {"id": "bbbbb",
-                                                 "question": "Which rice is the crunchiest?",
-                                                 "type": exercises.SINGLE_SELECTION,
-                                                 "correct_answer": "Rice Krispies \n![](https://upload.wikimedia.org/wikipedia/commons/c/cd/RKTsquares.jpg)",
-                                                 "all_answers": ["White rice",
-                                                                 "Brown rice \n![](https://c2.staticflickr.com/4/3159/2889140143_b99fd8dd4c_z.jpg?zz=1)",
-                                                                 "Rice Krispies \n![](https://upload.wikimedia.org/wikipedia/commons/c/cd/RKTsquares.jpg)",
-                                                                 ],
-                                                 "hints": "It's delicious",
-                                                 },
-                                                {"id": "aaaaa",
-                                                 "question": "How many minutes does it take to cook rice? <img src='https://upload.wikimedia.org/wikipedia/commons/5/5e/Jeera-rice.JPG'>",
-                                                 "type": exercises.INPUT_QUESTION,
-                                                 "answers": ["20",
-                                                             "25",
-                                                             "15"],
-                                                 "hints": ["Takes roughly same amount of time to install kolibri on Windows machine",
-                                                           "Does this help?\n![](http://www.aroma-housewares.com/images/rice101/delay_timer_1.jpg)",
-                                                           ],
-                                                 },
-                                                {"id": "ddddd",
-                                                 "type": exercises.PERSEUS_QUESTION,
-                                                 "item_data": SAMPLE_PERSEUS_1_JSON,
-                                                 },
-                                                ],
-                                  },
-                                 {"title": "Rice Exercise 2",
-                                  "id": "6cafe4",
-                                  "description": "Test how well you know your rice",
-                                  "license": licenses.CC_BY_NC_SA,
-                                  "copyright_holder": "Learning Equality",
-                                  "mastery_model": exercises.M_OF_N,
-                                  "files": [{"path": "https://c1.staticflickr.com/5/4021/4302326650_b11f0f0aaf_b.jpg"}],
-                                  "questions": [{"id": "11111",
-                                                 "question": "<h3 id=\"rainbow\" style=\"font-weight:bold\">RICE COOKING!!!</h3><script type='text/javascript'><!-- setInterval(function() {$('#rainbow').css('color', '#'+((1<<24)*Math.random()|0).toString(16));}, 300); --></script>",
-                                                 "type": exercises.SINGLE_SELECTION,
-                                                 "all_answers": ["Answer"],
-                                                 "correct_answer": "Answer",
-                                                 },
-                                                {"id": "121212",
-                                                 "question": "<math> <mrow> <msup><mi> a </mi><mn>2</mn></msup> <mo> + </mo> <msup><mi> b </mi><mn>2</mn></msup> <mo> = </mo> <msup><mi> c </mi><mn>2</mn></msup> </mrow> </math>",
-                                                 "type": exercises.SINGLE_SELECTION,
-                                                 "all_answers": ["Answer"],
-                                                 "correct_answer": "Answer",
-                                                 },
-                                                ],
-                                  },
-                                 {"title": "HTML Sample",
-                                  "id": "abcdef",
-                                  "description": "An example of how html can be imported from the ricecooker",
-                                  "license": licenses.PUBLIC_DOMAIN,
-                                  "files": [{"path": "content://htmltest.zip"}],
-                                  },
-                                 {"title": "Rice Exercise 3",
-                                  "id": "6cafe5",
-                                  "description": "Test how well you know your rice",
-                                  "license": licenses.CC_BY_NC_SA,
-                                  "copyright_holder": "Learning Equality",
-                                  "mastery_model": exercises.M_OF_N,
-                                  "files": [{"path": "https://upload.wikimedia.org/wikipedia/commons/b/b7/Rice_p1160004.jpg"}],
-                                  "questions": [{"id": "123456",
-                                                 "question": "Solve: $$(111^{x+1}\\times111^\\frac14)\\div111^\\frac12=111^3$$",
-                                                 "type": exercises.SINGLE_SELECTION,
-                                                 "all_answers": ["Yes",
-                                                                 "No",
-                                                                 "Rice!"],
-                                                 "correct_answer": "Rice!",
-                                                 }],
-                                  },
-                                 ],
-                    }]
+EXERCISES_NODES = [
+    {
+        "title": "Rice Cookers",
+        "id": "d98752",
+        "description": "Start cooking rice today!",
+        "children": [
+            {
+                "title": "Rice Chef",
+                "id": "6cafe2",
+                "author": "Revision 3",
+                "description": "Become a master rice cooker",
+                "file": "https://ia600209.us.archive.org/27/items/RiceChef/Rice Chef.mp4",
+                "license": licenses.CC_BY_NC_SA,
+                "copyright_holder": "Learning Equality",
+                "files": [
+                    {
+                        "path": "https://ia600209.us.archive.org/27/items/RiceChef/Rice Chef.mp4"
+                    },
+                    {
+                        "encoding": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAABGdBTUEAALGPC/xhBQAAAAFzUkdCAK7OHOkAAAAgY0hSTQAAeiYAAICEAAD6AAAAgOgAAHUwAADqYAAAOpgAABdwnLpRPAAAAmFQTFRF////wN/2I0FiNFFuAAAAxdvsN1RxV3KMnrPFFi9PAB1CVG+KXHaQI0NjttLrEjVchIF4AyNGZXB5V087UUw/EzBMpqWeb2thbmpgpqOceXVsERgfTWeADg8QCAEApKGZBAYIop+XCQkIhZ+2T2mEg5mtnK/AobPDkKO2YXqTAAAAJkBetMraZH2VprjIz9zm4enw7/T47fP3wc7ae5GnAAAAN1BsSmSApLfI1ODq2OHp5Orv8PL09vb38fb5wM/bbISbrL/PfZSpxNPgzdnj2+Pr5evw6+/z6e3w3ePp2OPsma2/ABM5Q197ABk4jKG1yNfjytfh1uDo3eXs4unv1t/nztrjqbzMTmmEXneRES1Ji6CzxtXixdPfztrk1N/n1+Dp1d/oz9vlxdPeq73NVG+KYnyUAAAddIuhwtPhvMzaxtTgytfiy9jjwtHewtHenbDCHT1fS2eCRV52qr7PvM3cucrYv87cv8/cvMzavc3bucvacoyl////ByE8WnKKscXWv9Hguszbu8zbvc7dtcnaiJqrcHZ4f4SHEh0nEitFTWZ+hJqumrDDm7HDj6W5dI2lYGJfmZeQl5SNAAAADRciAAATHjdSOVNsPlhyLklmKCYjW1lUlpOLlZKLFSAqWXSOBQAADA0NAAAAHh0bWlhSk5CIk5CIBAYJDRQbERcdDBAUBgkMAAAEDg4NAAAAHBsZWFZQkY6GAAAAAAAABQUEHBsZAAAAGxoYVlROko+GBAQDZ2RdAAAAGhkYcW9oAgICAAAAExMSDQwLjouDjYuDioiAiIV9hoN7VlRO////Z2DcYwAAAMR0Uk5TAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACRKrJyrZlBQECaNXCsKaqypMGAUDcu7Gpn5mf03gDo8+4saiipKq3xRMBH83Eu7OsqbG61DkDMdbFvrizsbK3wNs9Ax/VysS/vLq/zNwfArDhxMfExMXE3pMCMe7byMjIzd33ZgYGQtnz6+zooeJXBQMFD1yHejZ1+l8FBgEELlOR+GgFCQ0SGxoBGFKg+m0BBwEMR6v+hAEDM6nRASWURVuYQQ4AAAABYktHRACIBR1IAAAACXBIWXMAAAjLAAAIywGEuOmJAAABCklEQVQY02NgUGZUUVVT19DUYtBmYmZhYdBh1dXTNzA0MjYxZTFjAwqwm1tYWlnb2NrZO3A4cgIFGJycXVzd3D08vbx9uHyBAn7+AYFBwSEhoWHhEdyRQIGo6JjYuPiExKTklFSeNKBAekZmVnZObk5efkEhbxFQgK+4pLSsvKKyqrqGoZZfgIVBsK6+obGpuaW1rV2oQ1hEgKFTtKu7p7evf8LEI5PEJotLMEyZyjJt+oyZsxhmzzk6V3KeFIO01vwFMrJyCxctXrL02DL55QwsClorVq5avWbtuvUbNh7fpMjAwsKyWWvLFJatStu279h5YhdIAAJ2s+zZu+/kfoQAy4HNLAcPHQYA5YtSi+k2/WkAAAAldEVYdGRhdGU6Y3JlYXRlADIwMTMtMTAtMDRUMTk6Mzk6MjEtMDQ6MDAwU1uYAAAAJXRFWHRkYXRlOm1vZGlmeQAyMDEzLTEwLTA0VDE5OjM5OjIxLTA0OjAwQQ7jJAAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAAAASUVORK5CYII="
+                    },
+                ],
+            },
+            {
+                "title": "Rice Exercise",
+                "id": "6cafe3",
+                "description": "Test how well you know your rice",
+                "license": licenses.CC_BY_NC_SA,
+                "copyright_holder": "Learning Equality",
+                "mastery_model": exercises.DO_ALL,
+                "files": [
+                    {
+                        "path": "http://www.publicdomainpictures.net/pictures/110000/nahled/bowl-of-rice.jpg"
+                    }
+                ],
+                "questions": [
+                    {
+                        "id": "eeeee",
+                        "question": "Which rice is your favorite? \\_\\_\\_ ![](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAABGdBTUEAALGPC/xhBQAAAAFzUkdCAK7OHOkAAAAgY0hSTQAAeiYAAICEAAD6AAAAgOgAAHUwAADqYAAAOpgAABdwnLpRPAAAAmFQTFRF////wN/2I0FiNFFuAAAAxdvsN1RxV3KMnrPFFi9PAB1CVG+KXHaQI0NjttLrEjVchIF4AyNGZXB5V087UUw/EzBMpqWeb2thbmpgpqOceXVsERgfTWeADg8QCAEApKGZBAYIop+XCQkIhZ+2T2mEg5mtnK/AobPDkKO2YXqTAAAAJkBetMraZH2VprjIz9zm4enw7/T47fP3wc7ae5GnAAAAN1BsSmSApLfI1ODq2OHp5Orv8PL09vb38fb5wM/bbISbrL/PfZSpxNPgzdnj2+Pr5evw6+/z6e3w3ePp2OPsma2/ABM5Q197ABk4jKG1yNfjytfh1uDo3eXs4unv1t/nztrjqbzMTmmEXneRES1Ji6CzxtXixdPfztrk1N/n1+Dp1d/oz9vlxdPeq73NVG+KYnyUAAAddIuhwtPhvMzaxtTgytfiy9jjwtHewtHenbDCHT1fS2eCRV52qr7PvM3cucrYv87cv8/cvMzavc3bucvacoyl////ByE8WnKKscXWv9Hguszbu8zbvc7dtcnaiJqrcHZ4f4SHEh0nEitFTWZ+hJqumrDDm7HDj6W5dI2lYGJfmZeQl5SNAAAADRciAAATHjdSOVNsPlhyLklmKCYjW1lUlpOLlZKLFSAqWXSOBQAADA0NAAAAHh0bWlhSk5CIk5CIBAYJDRQbERcdDBAUBgkMAAAEDg4NAAAAHBsZWFZQkY6GAAAAAAAABQUEHBsZAAAAGxoYVlROko+GBAQDZ2RdAAAAGhkYcW9oAgICAAAAExMSDQwLjouDjYuDioiAiIV9hoN7VlRO////Z2DcYwAAAMR0Uk5TAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACRKrJyrZlBQECaNXCsKaqypMGAUDcu7Gpn5mf03gDo8+4saiipKq3xRMBH83Eu7OsqbG61DkDMdbFvrizsbK3wNs9Ax/VysS/vLq/zNwfArDhxMfExMXE3pMCMe7byMjIzd33ZgYGQtnz6+zooeJXBQMFD1yHejZ1+l8FBgEELlOR+GgFCQ0SGxoBGFKg+m0BBwEMR6v+hAEDM6nRASWURVuYQQ4AAAABYktHRACIBR1IAAAACXBIWXMAAAjLAAAIywGEuOmJAAABCklEQVQY02NgUGZUUVVT19DUYtBmYmZhYdBh1dXTNzA0MjYxZTFjAwqwm1tYWlnb2NrZO3A4cgIFGJycXVzd3D08vbx9uHyBAn7+AYFBwSEhoWHhEdyRQIGo6JjYuPiExKTklFSeNKBAekZmVnZObk5efkEhbxFQgK+4pLSsvKKyqrqGoZZfgIVBsK6+obGpuaW1rV2oQ1hEgKFTtKu7p7evf8LEI5PEJotLMEyZyjJt+oyZsxhmzzk6V3KeFIO01vwFMrJyCxctXrL02DL55QwsClorVq5avWbtuvUbNh7fpMjAwsKyWWvLFJatStu279h5YhdIAAJ2s+zZu+/kfoQAy4HNLAcPHQYA5YtSi+k2/WkAAAAldEVYdGRhdGU6Y3JlYXRlADIwMTMtMTAtMDRUMTk6Mzk6MjEtMDQ6MDAwU1uYAAAAJXRFWHRkYXRlOm1vZGlmeQAyMDEzLTEwLTA0VDE5OjM5OjIxLTA0OjAwQQ7jJAAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAAAASUVORK5CYII=)",
+                        "type": exercises.MULTIPLE_SELECTION,
+                        "correct_answers": [
+                            "White rice",
+                            "Brown rice",
+                            "Sushi rice <p>abc</p>",
+                        ],
+                        "all_answers": ["White rice", "Quinoa", "Brown rice", "<"],
+                    },
+                    {
+                        "id": "bbbbb",
+                        "question": "Which rice is the crunchiest?",
+                        "type": exercises.SINGLE_SELECTION,
+                        "correct_answer": "Rice Krispies \n![](https://upload.wikimedia.org/wikipedia/commons/c/cd/RKTsquares.jpg)",
+                        "all_answers": [
+                            "White rice",
+                            "Brown rice \n![](https://c2.staticflickr.com/4/3159/2889140143_b99fd8dd4c_z.jpg?zz=1)",
+                            "Rice Krispies \n![](https://upload.wikimedia.org/wikipedia/commons/c/cd/RKTsquares.jpg)",
+                        ],
+                        "hints": "It's delicious",
+                    },
+                    {
+                        "id": "aaaaa",
+                        "question": "How many minutes does it take to cook rice? <img src='https://upload.wikimedia.org/wikipedia/commons/5/5e/Jeera-rice.JPG'>",
+                        "type": exercises.INPUT_QUESTION,
+                        "answers": ["20", "25", "15"],
+                        "hints": [
+                            "Takes roughly same amount of time to install kolibri on Windows machine",
+                            "Does this help?\n![](http://www.aroma-housewares.com/images/rice101/delay_timer_1.jpg)",
+                        ],
+                    },
+                    {
+                        "id": "ddddd",
+                        "type": exercises.PERSEUS_QUESTION,
+                        "item_data": SAMPLE_PERSEUS_1_JSON,
+                    },
+                ],
+            },
+            {
+                "title": "Rice Exercise 2",
+                "id": "6cafe4",
+                "description": "Test how well you know your rice",
+                "license": licenses.CC_BY_NC_SA,
+                "copyright_holder": "Learning Equality",
+                "mastery_model": exercises.M_OF_N,
+                "files": [
+                    {
+                        "path": "https://c1.staticflickr.com/5/4021/4302326650_b11f0f0aaf_b.jpg"
+                    }
+                ],
+                "questions": [
+                    {
+                        "id": "11111",
+                        "question": "<h3 id=\"rainbow\" style=\"font-weight:bold\">RICE COOKING!!!</h3><script type='text/javascript'><!-- setInterval(function() {$('#rainbow').css('color', '#'+((1<<24)*Math.random()|0).toString(16));}, 300); --></script>",
+                        "type": exercises.SINGLE_SELECTION,
+                        "all_answers": ["Answer"],
+                        "correct_answer": "Answer",
+                    },
+                    {
+                        "id": "121212",
+                        "question": "<math> <mrow> <msup><mi> a </mi><mn>2</mn></msup> <mo> + </mo> <msup><mi> b </mi><mn>2</mn></msup> <mo> = </mo> <msup><mi> c </mi><mn>2</mn></msup> </mrow> </math>",
+                        "type": exercises.SINGLE_SELECTION,
+                        "all_answers": ["Answer"],
+                        "correct_answer": "Answer",
+                    },
+                ],
+            },
+            {
+                "title": "HTML Sample",
+                "id": "abcdef",
+                "description": "An example of how html can be imported from the ricecooker",
+                "license": licenses.PUBLIC_DOMAIN,
+                "files": [{"path": "content://htmltest.zip"}],
+            },
+            {
+                "title": "Rice Exercise 3",
+                "id": "6cafe5",
+                "description": "Test how well you know your rice",
+                "license": licenses.CC_BY_NC_SA,
+                "copyright_holder": "Learning Equality",
+                "mastery_model": exercises.M_OF_N,
+                "files": [
+                    {
+                        "path": "https://upload.wikimedia.org/wikipedia/commons/b/b7/Rice_p1160004.jpg"
+                    }
+                ],
+                "questions": [
+                    {
+                        "id": "123456",
+                        "question": "Solve: $$(111^{x+1}\\times111^\\frac14)\\div111^\\frac12=111^3$$",
+                        "type": exercises.SINGLE_SELECTION,
+                        "all_answers": ["Yes", "No", "Rice!"],
+                        "correct_answer": "Rice!",
+                    }
+                ],
+            },
+        ],
+    }
+]
 SAMPLE_TREE.extend(EXERCISES_NODES)
 
 

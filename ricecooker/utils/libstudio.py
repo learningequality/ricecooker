@@ -110,7 +110,7 @@ class StudioApi(object):
         headers = {"Authorization": "Token {0}".format(self.token)}
         studio_nodes = []
         studio_ids_chunks = [
-            studio_ids[i: i + CHUNK_SIZE]
+            studio_ids[i : i + CHUNK_SIZE]
             for i in range(0, len(studio_ids), CHUNK_SIZE)
         ]
         for studio_ids_chunk in studio_ids_chunks:

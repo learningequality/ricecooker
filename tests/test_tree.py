@@ -5,15 +5,23 @@ import tempfile
 import uuid
 
 import pytest
-from le_utils.constants import file_types
-from le_utils.constants import licenses
-from le_utils.constants import format_presets
 from le_utils.constants import content_kinds
+from le_utils.constants import file_types
+from le_utils.constants import format_presets
+from le_utils.constants import licenses
 from le_utils.constants.languages import getlang
 
-from ricecooker.classes.files import DocumentFile, HTMLZipFile, SlideImageFile, ThumbnailFile
-from ricecooker.classes.licenses import License, get_license
-from ricecooker.classes.nodes import CustomNavigationChannelNode, CustomNavigationNode, DocumentNode, SlideshowNode, TopicNode
+from ricecooker.classes.files import DocumentFile
+from ricecooker.classes.files import HTMLZipFile
+from ricecooker.classes.files import SlideImageFile
+from ricecooker.classes.files import ThumbnailFile
+from ricecooker.classes.licenses import get_license
+from ricecooker.classes.licenses import License
+from ricecooker.classes.nodes import CustomNavigationChannelNode
+from ricecooker.classes.nodes import CustomNavigationNode
+from ricecooker.classes.nodes import DocumentNode
+from ricecooker.classes.nodes import SlideshowNode
+from ricecooker.classes.nodes import TopicNode
 from ricecooker.exceptions import InvalidNodeException
 from ricecooker.utils.jsontrees import build_tree_from_json
 from ricecooker.utils.zip import create_predictable_zip

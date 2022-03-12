@@ -1,13 +1,15 @@
-import yaml
-from jinja2 import Template
-import ricecooker.config as config
-import ricecooker
 import argparse
 import os
 import re
 import subprocess
 import sys
 import uuid
+
+import yaml
+from jinja2 import Template
+
+import ricecooker
+import ricecooker.config as config
 
 CONFIG_DIR = os.path.join(os.path.expanduser("~"), ".ricecooker")
 CONFIG_FILE = os.path.join(CONFIG_DIR, "config.yaml")

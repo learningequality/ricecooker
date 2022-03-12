@@ -168,7 +168,10 @@ class SushiChef(object):
             "--stage",
             dest="stage_deprecated",
             action="store_true",
-            help="(deprecated) Stage updated content for review. Uploading a staging tree is now the default behavior. Use --deploy to upload to the main tree."
+            help=(
+                "(deprecated) Stage updated content for review."
+                " Uploading a staging tree is now the default behavior. Use --deploy to upload to the main tree."
+            ),
         )
 
         # [OPTIONS] --- extra key=value options are supported, but do not appear in help

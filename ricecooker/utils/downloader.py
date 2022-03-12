@@ -16,10 +16,10 @@ import chardet
 import requests
 import selenium.webdriver.support.ui as selenium_ui
 from bs4 import BeautifulSoup
+from cachecontrol.caches.file_cache import FileCache
 from requests_file import FileAdapter
 from selenium import webdriver
 
-from cachecontrol.caches.file_cache import FileCache
 from ricecooker.config import LOGGER
 from ricecooker.config import PHANTOMJS_PATH
 from ricecooker.config import STRICT

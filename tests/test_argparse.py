@@ -57,8 +57,10 @@ def cli_args_and_expected():
             "expected_options": dict(somethin="else", extrakey="extraval"),
         },
         {
-            "cli_input":
-                "./sushichef.py -uv --warn --compress --download-attempts=4 --token=besttokenever --resume --step=PUBLISH_CHANNEL --prompt --deploy --publish",
+            "cli_input": (
+                "./sushichef.py -uv --warn --compress --download-attempts=4 "
+                "--token=besttokenever --resume --step=PUBLISH_CHANNEL --prompt --deploy --publish"
+            ),
             "expected_args": dict(
                 defaults,
                 update=True,

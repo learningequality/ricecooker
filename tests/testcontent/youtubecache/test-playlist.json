@@ -1,0 +1,44 @@
+{
+    "artist": "",
+    "children": [
+        {
+            "artist": "",
+            "description": null,
+            "ext": "mp4",
+            "id": "ncx0-hKeksk",
+            "kind": "url",
+            "license": "",
+            "requested_subtitles": "",
+            "source_url": "",
+            "subtitles": {},
+            "tags": [],
+            "thumbnail": "",
+            "title": "Managing Anxiety During COVID-19, Part 1 (Rohingya)"
+        },
+        {
+            "artist": "",
+            "description": null,
+            "ext": "mp4",
+            "id": "HtA_oaKGtsU",
+            "kind": "url",
+            "license": "",
+            "requested_subtitles": "",
+            "source_url": "",
+            "subtitles": {},
+            "tags": [],
+            "thumbnail": "",
+            "title": "Strategies to Cope With Stress During COVID 19, Part 3 (Rohingya)"
+        }
+    ],
+    "description": "",
+    "ext": "mp4",
+    "id": "PLOZioxrIwCv33zt5aFFjWqDoEMm55MVA9",
+    "kind": "playlist",
+    "license": "",
+    "requested_subtitles": "",
+    "source_url": "https://www.youtube.com/playlist?list=PLOZioxrIwCv33zt5aFFjWqDoEMm55MVA9",
+    "subtitles": {},
+    "tags": [],
+    "thumbnail": "",
+    "title": "Rohingya"
+}

@@ -3,7 +3,6 @@ import tempfile
 
 import requests
 from bs4 import BeautifulSoup
-
 from cachecontrol.caches.file_cache import FileCache
 
 from ricecooker.chefs import SushiChef
