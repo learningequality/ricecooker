@@ -7,7 +7,9 @@ import time
 from datetime import datetime
 from enum import Enum
 
-import youtube_dl
+# import yt_dlp
+import yt_dlp
+
 from le_utils.constants import languages
 
 from . import proxy
@@ -20,8 +22,8 @@ LOGGER.setLevel(logging.DEBUG)
 
 
 NON_NETWORK_ERRORS = [
-    youtube_dl.utils.ExtractorError,  # private and unlisted videos
-    youtube_dl.utils.PostProcessingError,  # custom postprocessors failures
+    yt_dlp.utils.ExtractorError,  # private and unlisted videos
+    yt_dlp.utils.PostProcessingError,  # custom postprocessors failures
 ]
 
 
@@ -95,7 +97,7 @@ class YouTubeResource(object):
 
             try:
                 LOGGER.debug("YoutubeDL options = {}".format(extract_info_options))
-                self.client = youtube_dl.YoutubeDL(extract_info_options)
+                self.client = yt_dlp.YoutubeDL(extract_info_options)
                 self.client.add_default_info_extractors()
 
                 LOGGER.debug("Calling extract_info for URL {}".format(self.url))
@@ -124,7 +126,7 @@ class YouTubeResource(object):
 
             except Exception as e:
                 network_related_error = True
-                if isinstance(e, youtube_dl.utils.DownloadError):
+                if isinstance(e, yt_dlp.utils.DownloadError):
                     (eclass, evalue, etraceback) = e.exc_info
                     if eclass in NON_NETWORK_ERRORS:
                         network_related_error = False
@@ -199,7 +201,7 @@ class YouTubeResource(object):
                 break
             except Exception as e:
                 network_related_error = True
-                if isinstance(e, youtube_dl.utils.DownloadError):
+                if isinstance(e, yt_dlp.utils.DownloadError):
                     (eclass, evalue, etraceback) = e.exc_info
                     if eclass in NON_NETWORK_ERRORS:
                         network_related_error = False
@@ -405,13 +407,13 @@ class YouTubeUtils(object):
         if os.path.exists(self.cache_path) and use_cache:
             LOGGER.info("==> [%s] Retrieving cached information...", self.__str__())
             youtube_info = json.load(open(self.cache_path))
-        # 2. Fetch info from youtube_dl
+        # 2. Fetch info from yt_dlp
         if not youtube_info:
             LOGGER.info("==> [%s] Requesting info from youtube...", self.__str__())
             os.makedirs(self.cache_dir, exist_ok=True)
             try:
                 youtube_resource = YouTubeResource(self.url, useproxy=use_proxy)
-            except youtube_dl.utils.ExtractorError as e:
+            except yt_dlp.utils.ExtractorError as e:
                 if "unavailable" in str(e):
                     LOGGER.error(
                         "==> [%s] Resource unavailable for URL: %s",
@@ -473,8 +475,8 @@ class YouTubeVideoUtils(YouTubeUtils):
         Get YouTube video info by either requesting URL or extracting local cache
         :param use_cache: Define if allowed to get video info from local JSON cache, default to True
         :param get_subtitle_languages: Define if need to get info as available subtitle languages, default to False
-        :param options: Additional options for youtube_dl.
-                        For full list of available options: https://github.com/ytdl-org/youtube-dl/blob/master/youtube_dl/YoutubeDL.py
+        :param options: Additional options for yt_dlp.
+                        For full list of available options: https://github.com/ytdl-org/youtube-dl/blob/master/yt_dlp/YoutubeDL.py
         :return: A ricecooker-like info dict info about the video or None if extraction fails
         """
         extract_options = dict()
@@ -518,8 +520,8 @@ class YouTubePlaylistUtils(YouTubeUtils):
         Get YouTube playlist info by either requesting URL or extracting local cache
         :param use_cache: Define if allowed to get playlist info from local JSON cache, default to True
         :param youtube_skip_download: Skip the actual download of the YouTube video files
-        :param options: Additional options for youtube_dl.
-                        For full list of available options: https://github.com/ytdl-org/youtube-dl/blob/master/youtube_dl/YoutubeDL.py
+        :param options: Additional options for yt_dlp.
+                        For full list of available options: https://github.com/ytdl-org/youtube-dl/blob/master/yt_dlp/YoutubeDL.py
         :return: A ricecooker-like info dict info about the playlist or None if extraction fails
         """
         youtube_extract_options = dict(
