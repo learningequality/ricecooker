@@ -1082,20 +1082,26 @@ class _ExerciseGraphieFile(DownloadFile):
         with tempfile.TemporaryFile() as tempf:
             # Initialize hash and files
             delimiter = bytes(exercises.GRAPHIE_DELIMITER, "UTF-8")
+            print("delimiter",delimiter)
             config.LOGGER.info(
                 "\tDownloading graphie {}".format(self.original_filename)
             )
 
             # Write to graphie file
+            print("Path for the file",self.path)
+            print("tempf",tempf)
             hash = write_and_get_hash(self.path + ".svg", tempf)
             tempf.write(delimiter)
             hash.update(delimiter)
             hash = write_and_get_hash(self.path + "-data.json", tempf, hash)
+            print("hash",hash)
             tempf.seek(0)
+            print("hash.hexdigest()")
             filename = "{}.{}".format(hash.hexdigest(), file_formats.GRAPHIE)
-
+            print("filename",filename)
             copy_file_to_storage(filename, tempf)
-
+            print("key",key)
+            print("bytes(filename,utf8)",bytes(filename, "utf-8"))
             FILECACHE.set(key, bytes(filename, "utf-8"))
             return filename
 
