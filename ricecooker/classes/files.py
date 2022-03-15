@@ -101,9 +101,12 @@ def generate_key(action, path_or_id, settings=None, default=" (default)"):
 
 def get_cache_filename(key):
     cache_file = FILECACHE.get(key)
+    print("cache_file FILECACHE",cache_file)
     if cache_file:
         cache_file = cache_file.decode("utf-8")
         # if the file was somehow deleted, make sure we don't return it.
+        print(os.path.exists(config.get_storage_path(cache_file)))
+        print("decode utf-8",cache_file)
         if not os.path.exists(config.get_storage_path(cache_file)):
             cache_file = None
     return cache_file
