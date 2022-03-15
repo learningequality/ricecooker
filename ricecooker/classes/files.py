@@ -29,7 +29,6 @@ from ricecooker.utils.encodings import write_base64_to_file
 from ricecooker.utils.images import create_image_from_epub
 from ricecooker.utils.images import create_image_from_pdf_page
 from ricecooker.utils.images import create_image_from_zip
-from ricecooker.utils.videos import extract_thumbnail_from_video, extract_duration_of_media
 from ricecooker.utils.images import create_tiled_image
 from ricecooker.utils.images import ThumbnailGenerationError
 from ricecooker.utils.subtitles import build_subtitle_converter_from_file
@@ -37,6 +36,7 @@ from ricecooker.utils.subtitles import InvalidSubtitleFormatError
 from ricecooker.utils.subtitles import InvalidSubtitleLanguageError
 from ricecooker.utils.subtitles import LANGUAGE_CODE_UNKNOWN
 from ricecooker.utils.videos import compress_video
+from ricecooker.utils.videos import extract_duration_of_media
 from ricecooker.utils.videos import extract_thumbnail_from_video
 from ricecooker.utils.videos import guess_video_preset_by_resolution
 from ricecooker.utils.videos import VideoCompressionError

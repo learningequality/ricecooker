@@ -459,7 +459,7 @@ class TreeNode(Node):
         self.provider = provider or ""
         self.tags = tags or []
         self.domain_ns = domain_ns
-        self.duration = kwargs.get('duration') or None
+        self.duration = kwargs.get("duration") or None
         self.questions = (
             self.questions if hasattr(self, "questions") else []
         )  # Needed for to_dict method
@@ -731,7 +731,7 @@ class ContentNode(TreeNode):
             "questions": [question.to_dict() for question in self.questions],
             "extra_fields": json.dumps(self.extra_fields),
             "role": self.role,
-            "duration": self.duration
+            "duration": self.duration,
         }
 
 
