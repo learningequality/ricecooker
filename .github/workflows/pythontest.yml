@@ -22,10 +22,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       max-parallel: 5
+      fail-fast: false
       matrix:
         os: [windows-latest, ubuntu-latest, macos-latest]
         python-version: [3.6, 3.7, 3.8, 3.9]
-        fail-fast: false
         include:
         - os: ubuntu-latest
           pippath: ~/.cache/pip
