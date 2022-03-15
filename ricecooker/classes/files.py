@@ -1050,6 +1050,7 @@ class _ExerciseGraphieFile(DownloadFile):
         """
         try:
             self.filename = self.generate_graphie_file()
+            print("self.generate_graphie_file()",self.generate_graphie_file())
             config.LOGGER.info("\t--- Generated graphie {}".format(self.filename))
             return self.filename
         # Catch errors related to reading file path and handle silently
@@ -1069,6 +1070,8 @@ class _ExerciseGraphieFile(DownloadFile):
         key = "GRAPHIE: {}".format(self.path)
 
         cache_file = get_cache_filename(key)
+        print("config.UPDATE",config.UPDATE)
+        print("cache_file",cache_file)
         if not config.UPDATE and cache_file:
             return cache_file
 
