@@ -1,7 +1,6 @@
 # Node models to represent channel's tree
-import csv
 import json
-import os
+import re
 import uuid
 
 from le_utils.constants import content_kinds
@@ -95,7 +94,6 @@ class Node(object):
         Args: None
         Returns: dict of channel data
         """
-        pass
 
     def add_child(self, node):
         """add_child: Adds child node to node
@@ -273,7 +271,6 @@ class Node(object):
             ]
             metadata_csv.writerow(record)
 
-            current_level = self.title
             # add current level to structure_string_list
             if structure_string == "":
                 structure_string = self.title
@@ -462,7 +459,7 @@ class TreeNode(Node):
         self.provider = provider or ""
         self.tags = tags or []
         self.domain_ns = domain_ns
-        self.duration = kwargs.get('duration') or None
+        self.duration = kwargs.get("duration") or None
         self.questions = (
             self.questions if hasattr(self, "questions") else []
         )  # Needed for to_dict method
@@ -518,11 +515,16 @@ class TreeNode(Node):
         """
         # default natural sorting
         if not key:
-            convert = lambda text: int(text) if text.isdigit() else text.lower()
-            key = lambda key: [
-                convert(re.sub(r"[^A-Za-z0-9]+", "", c.replace("&", "and")))
-                for c in re.split("([0-9]+)", key.title)
-            ]
+
+            def convert(text):
+                return int(text) if text.isdigit() else text.lower()
+
+            def key(key):
+                return [
+                    convert(re.sub(r"[^A-Za-z0-9]+", "", c.replace("&", "and")))
+                    for c in re.split("([0-9]+)", key.title)
+                ]
+
         self.children = sorted(self.children, key=key, reverse=reverse)
         return self.children
 
@@ -729,7 +731,7 @@ class ContentNode(TreeNode):
             "questions": [question.to_dict() for question in self.questions],
             "extra_fields": json.dumps(self.extra_fields),
             "role": self.role,
-            "duration": self.duration
+            "duration": self.duration,
         }
 
 

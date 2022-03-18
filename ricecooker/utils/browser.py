@@ -2,7 +2,6 @@ import os
 import posixpath
 import urllib
 import webbrowser
-from http.server import BaseHTTPRequestHandler
 from http.server import HTTPServer
 from http.server import SimpleHTTPRequestHandler
 

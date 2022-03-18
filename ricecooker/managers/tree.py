@@ -2,7 +2,6 @@ import codecs
 import json
 import sys
 
-import requests
 from requests.exceptions import RequestException
 
 from .. import config
@@ -289,7 +288,7 @@ class ChannelManager:
 
         return new_channel["root"], new_channel["channel_id"]
 
-    def add_nodes(self, root_id, current_node, indent=1):
+    def add_nodes(self, root_id, current_node, indent=1):  # noqa: C901
         """add_nodes: adds processed nodes to tree
         Args:
             root_id (str): id of parent node on Kolibri Studio

@@ -29,7 +29,7 @@ def get_license(license_id, copyright_holder=None, description=None):
     else:
         raise UnknownLicenseError(
             "{} is not a valid license id. (Valid license are {})".format(
-                license_id, [l[0] for l in licenses.choices]
+                license_id, [_list[0] for _list in licenses.choices]
             )
         )
 

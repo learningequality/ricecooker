@@ -1,4 +1,3 @@
-import logging
 import os
 import re
 import signal
@@ -10,7 +9,6 @@ from urllib.request import pathname2url
 
 import chardet
 import requests
-from bs4 import BeautifulSoup
 from selenium import webdriver
 
 from .caching import CacheControlAdapter
@@ -66,7 +64,7 @@ def get_generated_html_from_driver(driver, tagname="html"):
     )
 
 
-def replace_links(
+def replace_links(  # noqa: C901
     content, urls_to_replace, download_root=None, content_dir=None, relative_links=False
 ):
     for key in urls_to_replace:
@@ -178,7 +176,7 @@ def calculate_relative_url(url, filename=None, baseurl=None, subpath=None):
     return relative_file_url, subpath, filename
 
 
-def download_file(
+def download_file(  # noqa: C901
     url,
     destpath,
     filename=None,

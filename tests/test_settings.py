@@ -39,12 +39,12 @@ def test_cli_args_override_settings():
         chef.SETTINGS["generate-missing-thumbnails"] = False
         chef.SETTINGS["compress-videos"] = False
 
-        assert chef.get_setting("generate-missing-thumbnails") == False
-        assert chef.get_setting("compress-videos") == False
+        assert not chef.get_setting("generate-missing-thumbnails")
+        assert not chef.get_setting("compress-videos")
 
         chef.parse_args_and_options()
-        assert chef.get_setting("generate-missing-thumbnails") == True
-        assert chef.get_setting("compress-videos") == True
+        assert chef.get_setting("generate-missing-thumbnails")
+        assert chef.get_setting("compress-videos")
 
     test_argv = ["sushichef.py", "--compress", "--thumbnails", "--token", "12345"]
 
@@ -53,12 +53,12 @@ def test_cli_args_override_settings():
 
         assert len(chef.SETTINGS) == 0
 
-        assert chef.get_setting("generate-missing-thumbnails") == None
-        assert chef.get_setting("compress-videos") == None
+        assert chef.get_setting("generate-missing-thumbnails") is None
+        assert chef.get_setting("compress-videos") is None
 
         chef.parse_args_and_options()
-        assert chef.get_setting("generate-missing-thumbnails") == True
-        assert chef.get_setting("compress-videos") == True
+        assert chef.get_setting("generate-missing-thumbnails")
+        assert chef.get_setting("compress-videos")
 
     # now test without setting the flags
     test_argv = ["sushichef.py", "--token", "12345"]
@@ -68,9 +68,9 @@ def test_cli_args_override_settings():
         chef.SETTINGS["generate-missing-thumbnails"] = False
         chef.SETTINGS["compress-videos"] = False
 
-        assert chef.get_setting("generate-missing-thumbnails") == False
-        assert chef.get_setting("compress-videos") == False
+        assert not chef.get_setting("generate-missing-thumbnails")
+        assert not chef.get_setting("compress-videos")
 
         chef.parse_args_and_options()
-        assert chef.get_setting("generate-missing-thumbnails") == False
-        assert chef.get_setting("compress-videos") == False
+        assert not chef.get_setting("generate-missing-thumbnails")
+        assert not chef.get_setting("compress-videos")

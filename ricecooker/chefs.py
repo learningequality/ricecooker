@@ -168,7 +168,10 @@ class SushiChef(object):
             "--stage",
             dest="stage_deprecated",
             action="store_true",
-            help="(deprecated) Stage updated content for review. Uploading a staging tree is now the default behavior. Use --deploy to upload to the main tree.",
+            help=(
+                "(deprecated) Stage updated content for review."
+                " Uploading a staging tree is now the default behavior. Use --deploy to upload to the main tree."
+            ),
         )
 
         # [OPTIONS] --- extra key=value options are supported, but do not appear in help
@@ -435,7 +438,7 @@ class SushiChef(object):
         if metadata_dict == {}:
             return
 
-        is_channel = isinstance(contentNode, ChannelNode)
+        is_channel = isinstance(contentNode, nodes.ChannelNode)
 
         if not is_channel:
             # Add modifications to contentNode
@@ -453,7 +456,6 @@ class SushiChef(object):
             args (dict): chef command line arguments
             options (dict): extra key=value options given on command line
         """
-        pass
 
     def run(self, args, options):
         """

@@ -1,6 +1,4 @@
-import csv
 import json
-import os
 import random
 import sys
 import webbrowser
@@ -35,7 +33,7 @@ def uploadchannel_wrapper(chef, args, options):
     uploadchannel(chef, **args_and_options)
 
 
-def uploadchannel(
+def uploadchannel(  # noqa: C901
     chef,
     command="uploadchannel",
     update=False,
@@ -337,7 +335,7 @@ def publish_tree(tree, channel_id):
     tree.publish(channel_id)
 
 
-def select_sample_nodes(channel, size=10, seed=42):
+def select_sample_nodes(channel, size=10, seed=42):  # noqa: C901
     """
     Build a sample tree of `size` leaf nodes from the channel `channel` to use
     for debugging chef functionality without uploading the whole tree.

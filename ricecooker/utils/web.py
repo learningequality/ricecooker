@@ -67,7 +67,7 @@ class HTMLParser:
         for link in links:
             # NOTE: This technically fails to handle file:// URLs, but we're highly unlikely to see
             # file:// URLs in any distributed package, so this is simpler than parsing out the protocol.
-            if not "://" in link:
+            if "://" not in link:
                 local_links.append(link)
 
         return local_links
@@ -80,11 +80,9 @@ class HTMLParser:
         :return: An HTML string of the page with all links replaced.
         """
         if self.html is None:
-            basename = os.path.basename(self.filename)
             self.html = open(self.filename).read()
         soup = BeautifulSoup(self.html, "html.parser")
 
-        extracted_links = []
         for tag_name in self.link_tags:
             tags = soup.find_all(tag_name)
             for tag in tags:

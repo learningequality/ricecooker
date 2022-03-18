@@ -9,7 +9,12 @@ repos:
         rev: 4.0.1
         hooks:
             -   id: flake8
-                exclude: '^.+?\.template$'
+                exclude: |
+                    (?x)(
+                        ^.+?\.template$|
+                        .*examples.*
+                        )
+              #exclude: '^.+?\.template$'
     -   repo: https://github.com/pre-commit/pre-commit-hooks
         rev: v4.1.0
         hooks:

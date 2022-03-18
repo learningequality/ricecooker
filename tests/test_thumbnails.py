@@ -1,12 +1,8 @@
 import os
 
 import PIL
-import pytest
 from le_utils.constants import licenses
-from test_tree import thumbnail_path
-from test_tree import thumbnail_path_jpg
 from test_videos import _clear_ricecookerfilecache
-from test_videos import low_res_video
 
 from ricecooker import config
 from ricecooker.classes.files import AudioFile
@@ -56,7 +52,7 @@ class TestThumbnailSetting(object):
         thumbnail_files = [f for f in node.files if isinstance(f, ThumbnailFile)]
         assert len(thumbnail_files) == 1, "multiple thumbnails found"
         thumbnail_file = thumbnail_files[0]
-        assert thumbnail_file.filename == None, "filename should be None"
+        assert thumbnail_file.filename is None, "filename should be None"
         failed_files = config.FAILED_FILES
         # for ff in failed_files:
         #     print(ff, ff.path, ff.error)
@@ -177,7 +173,7 @@ class TestThumbnailGeneration(object):
         thumbnail_files = [f for f in node.files if isinstance(f, ThumbnailFile)]
         assert len(thumbnail_files) == 1, "multiple thumbnails found"
         thumbnail_file = thumbnail_files[0]
-        assert thumbnail_file.filename == None, "filename should be None"
+        assert thumbnail_file.filename is None, "filename should be None"
         failed_files = config.FAILED_FILES
         # for ff in failed_files:
         #     print(ff, ff.path, ff.error)
@@ -263,7 +259,7 @@ class TestThumbnailGeneration(object):
         )
         node.add_file(invalid_document_file)
         config.THUMBNAILS = True
-        filenames = node.process_files()
+        node.process_files()
         # assert filenames == [None], 'expected one None filename (the broken pdf)'
         assert len(config.FAILED_FILES) == 1, "expected one failed file"
 
@@ -285,7 +281,7 @@ class TestThumbnailGeneration(object):
         )
         node.add_file(invalid_epub_file)
         config.THUMBNAILS = True
-        filenames = node.process_files()
+        node.process_files()
         # assert filenames == [None], 'expected one None filename (the broken epub)'  # TODO: implement epub deep validation
         assert len(config.FAILED_FILES) == 1, "expected one failed file"
 
@@ -329,7 +325,7 @@ class TestThumbnailGeneration(object):
         )
         node.add_file(invalid_audio_file)
         config.THUMBNAILS = True
-        filenames = node.process_files()
+        node.process_files()
         # assert filenames == [None], 'expected one None filename (the broken mp3)'   # TODO: implement mp3 deep validation
         # assert len(config.FAILED_FILES) == 1, 'expected one failed file'
 
@@ -351,6 +347,6 @@ class TestThumbnailGeneration(object):
         )
         node.add_file(invalid_video_file)
         config.THUMBNAILS = True
-        filenames = node.process_files()
+        node.process_files()
         # assert filenames == [None], 'expected one None filename (the broken mp4)'   # TODO: implement deep video validation
         # assert len(config.FAILED_FILES) == 1, 'expected one failed file'

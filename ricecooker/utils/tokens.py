@@ -1,4 +1,3 @@
-import json
 import os
 import sys
 
@@ -7,7 +6,6 @@ try:  # to support Python 2.x.
 except NameError:
     pass
 
-from requests.exceptions import HTTPError
 
 from ricecooker import config
 

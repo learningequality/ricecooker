@@ -6,13 +6,11 @@ import shutil
 import subprocess
 
 import pytest
-from cachecontrol.caches.file_cache import FileCache
 from conftest import download_fixture_file
 from le_utils.constants import format_presets
 from le_utils.constants import licenses
 
 from ricecooker import config
-from ricecooker.classes.files import FILECACHE
 from ricecooker.classes.files import SubtitleFile
 from ricecooker.classes.files import VideoFile
 from ricecooker.classes.nodes import VideoNode
@@ -241,7 +239,7 @@ class Test_video_compression(object):
         video_file.ffmpeg_settings = {"crf": 33}
         video_filename = video_file.process_file()
         assert (
-            video_filename == None
+            video_filename is None
         ), "Should return None if trying to compress bad file"
         assert "Invalid data" in str(
             video_file.error

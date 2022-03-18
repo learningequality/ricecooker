@@ -123,11 +123,14 @@ node_modules/
 sushi_chefs/
 tests/testcontent/downloaded/
 tests/testcontent/generated/
+tests/testcontent/youtubecache/
+video_cache_py3.sqlite
 .webcache
 .ricecookerfilecache
 
 # IDE project dirs
 .idea/
 .vscode/
+.vim/
 
 cache.sqlite

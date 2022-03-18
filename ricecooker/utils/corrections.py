@@ -10,6 +10,7 @@ import dictdiffer
 import requests
 
 from ricecooker.config import LOGGER
+from ricecooker.utils.libstudio import StudioApi
 
 
 # CONFIG CONSTANTS for data directories
@@ -302,7 +303,7 @@ def get_csv_corrections(csvfilepath):
     deletions = []
     rows = load_corrections_from_csv(csvfilepath)
     for i, row in enumerate(rows):
-        if row[ACTION_KEY] == "" or row[ACTION_KEY] == None:
+        if row[ACTION_KEY] == "" or row[ACTION_KEY] is None:
             print("Skipping no-action row", i + 1)
         elif row[ACTION_KEY] == "modify":
             modifications.append(row)
@@ -582,9 +583,6 @@ def apply_corrections_by_node_id(api, channel_tree, channel_id, corrections_by_n
         )
     # TODO: Additions
     # TODO: Moves
-
-
-from ricecooker.utils.libstudio import StudioApi
 
 
 def get_studio_api(studio_creds=None):

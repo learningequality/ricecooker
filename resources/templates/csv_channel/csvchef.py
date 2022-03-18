@@ -8,7 +8,6 @@ class CsvChef(LineCook):
     provided in Channel.csv and Content.csv.
     """
 
-    pass
     # no custom methods needed: the `LineCook` base class will do the cheffing.
     # Run `python csvchef.py -h` to see all the supported command line options
 

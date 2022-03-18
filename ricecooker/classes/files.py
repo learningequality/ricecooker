@@ -29,7 +29,6 @@ from ricecooker.utils.encodings import write_base64_to_file
 from ricecooker.utils.images import create_image_from_epub
 from ricecooker.utils.images import create_image_from_pdf_page
 from ricecooker.utils.images import create_image_from_zip
-from ricecooker.utils.videos import extract_thumbnail_from_video, extract_duration_of_media
 from ricecooker.utils.images import create_tiled_image
 from ricecooker.utils.images import ThumbnailGenerationError
 from ricecooker.utils.subtitles import build_subtitle_converter_from_file
@@ -37,6 +36,7 @@ from ricecooker.utils.subtitles import InvalidSubtitleFormatError
 from ricecooker.utils.subtitles import InvalidSubtitleLanguageError
 from ricecooker.utils.subtitles import LANGUAGE_CODE_UNKNOWN
 from ricecooker.utils.videos import compress_video
+from ricecooker.utils.videos import extract_duration_of_media
 from ricecooker.utils.videos import extract_thumbnail_from_video
 from ricecooker.utils.videos import guess_video_preset_by_resolution
 from ricecooker.utils.videos import VideoCompressionError
@@ -595,7 +595,7 @@ class HTMLZipFile(DownloadFile):
                 # make sure index.html exists unless this is a dependency (i.e. shared resources) zip
                 if not self.get_preset() == format_presets.HTML5_DEPENDENCY_ZIP:
                     with zipfile.ZipFile(config.get_storage_path(self.filename)) as zf:
-                        _info = zf.getinfo("index.html")
+                        _ = zf.getinfo("index.html")
             except KeyError as err:
                 self.filename = None
                 self.error = err
@@ -714,7 +714,7 @@ class WebVideoFile(File):
             # Download the best mp4 format available, or best webm format available, or any other best mp4
             self.download_settings[
                 "format"
-            ] = "bestvideo[height<={maxheight}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<={maxheight}][ext=webm]+bestaudio[ext=webm]/best[height<={maxheight}][ext=mp4]".format(
+            ] = "bestvideo[height<={maxheight}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<={maxheight}][ext=webm]+bestaudio[ext=webm]/best[height<={maxheight}][ext=mp4]".format(  # noqa: E501
                 maxheight=maxheight
             )
             # self.download_settings['recodevideo'] = file_formats.MP4
