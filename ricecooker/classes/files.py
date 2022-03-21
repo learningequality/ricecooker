@@ -41,6 +41,7 @@ from ricecooker.utils.videos import extract_thumbnail_from_video
 from ricecooker.utils.videos import guess_video_preset_by_resolution
 from ricecooker.utils.videos import VideoCompressionError
 from ricecooker.utils.youtube import YouTubeResource
+from pytube import YouTube
 
 # Cache for filenames
 FILECACHE = FileCache(config.FILECACHE_DIRECTORY, use_dir_lock=True, forever=True)
@@ -295,6 +296,37 @@ def compress_video_file(filename, ffmpeg_settings):
     os.unlink(tempf.name)
     FILECACHE.set(key, bytes(compressedfilename, "utf-8"))
     return compressedfilename
+
+def download_yt_video(self, url, filename):
+    """
+    Download video from youtube with best quaility
+    Args:
+        url: youtube url from where to download the video
+        filename: what to be the filename
+
+    Returns: video caller and video path
+    video caller is object from pytube with all information inside
+
+    """
+    video_caller = YouTube(url)
+    if not os.path.exists(FOLDER_STORAGE):
+        os.mkdir(FOLDER_STORAGE)
+
+    if not filename:
+        filename = re.sub("[^0-9a-zA-Z]+", "_", filename)
+        video_path = os.path.join(FOLDER_STORAGE, filename)
+    else:
+        url_hash = hashlib.md5()
+        url_hash.update(url.encode("utf-8"))
+        tempfilename = "{}.mp4".format(url_hash.hexdigest())
+        outtmpl_path = os.path.join(tempfile.gettempdir(), tempfilename)
+        download_settings["outtmpl"] = outtmpl_path
+        destination_path = outtmpl_path + ".mp4"  # file dest. after download
+
+    if not os.path.exists(video_path):
+        video_path = video_caller.streams.filter(progressive=True, file_extension='mp4').order_by(
+            'resolution').desc().first().download(output_path=FOLDER_STORAGE, filename=filename)
+    return video_caller, video_path
 
 
 def download_from_web(
@@ -751,6 +783,45 @@ class YouTubeVideoFile(WebVideoFile):
         super(YouTubeVideoFile, self).__init__(
             "http://www.youtube.com/watch?v={}".format(youtube_id), **kwargs
         )
+
+class PyTubeVideoFile(File):
+    is_primary = True
+    duration = None
+    # In future, look into postprocessors and progress_hooks
+
+    def __init__(
+        self,
+        url,
+        filename=None,
+        **kwargs
+    ):
+        self.web_url = url
+        if filename:
+            self.filename = filename
+        super(WebVideoFile, self).__init__(**kwargs)
+
+    def get_preset(self):
+        return self.preset or guess_video_preset_by_resolution(
+            config.get_storage_path(self.filename)
+        )
+
+    def process_file(self):
+        try:
+            self.filename = download_yt_video(
+                self.web_url, self.filename
+            )
+            config.LOGGER.info("\t--- Downloaded (YouTube) {}".format(self.filename))
+
+            # Compress if compression flag is set
+            if self.filename:
+                self.duration = extract_duration_of_media(config.get_storage_path(self.filename))
+
+        except youtube_dl.utils.DownloadError as err:
+            self.filename = None
+            self.error = err
+            config.FAILED_FILES.append(self)
+
+        return self.filename
 
 
 def _get_language_with_alpha2_fallback(language_code):

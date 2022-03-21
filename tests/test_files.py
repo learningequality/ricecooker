@@ -14,7 +14,7 @@ from ricecooker.classes.files import SubtitleFile
 from ricecooker.classes.files import YouTubeSubtitleFile
 from ricecooker.classes.files import YouTubeVideoFile
 from ricecooker.utils.zip import create_predictable_zip
-
+from ricecooker.classes.files import PyTubeVideoFile
 
 # Process all of the files
 def process_files(
@@ -295,6 +295,14 @@ def test_webvideo_to_dict():
 @pytest.mark.skipif(True, reason="Requires connecting to youtube.")
 def test_youtubevideo_process_file(youtube_video_dict):
     video_file = YouTubeVideoFile(youtube_id=youtube_video_dict["youtube_id"])
+    filename = video_file.process_file()
+    assert filename is not None, "Processing YouTubeVideoFile file failed"
+    assert filename.endswith(".mp4"), "Wrong extenstion for video"
+
+
+@pytest.mark.skipif(True, reason="Requires connecting to youtube.")
+def test_pytube_process_file(youtube_video_dict):
+    video_file = PyTubeVideoFile(url="www.youtube.com/watch?v={}".format(youtube_video_dict["youtube_id"]))
     filename = video_file.process_file()
     assert filename is not None, "Processing YouTubeVideoFile file failed"
     assert filename.endswith(".mp4"), "Wrong extenstion for video"

@@ -13,6 +13,7 @@ with open("docs/history.rst") as history_file:
 
 requirements = [
     "pytest>=3.0.2",
+    "pytube>=12.0.0",
     "requests>=2.11.1",
     "le_utils>=0.1.26",
     "validators",  # TODO: check if this is necessary
