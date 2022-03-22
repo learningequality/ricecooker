@@ -21,15 +21,11 @@ class InvalidSubtitleFormatError(TypeError):
     Custom error indicating a format that is invalid
     """
 
-    pass
-
 
 class InvalidSubtitleLanguageError(ValueError):
     """
     Custom error indicating that the provided language isn't present in a captions file
     """
-
-    pass
 
 
 class SubtitleReader:

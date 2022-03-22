@@ -38,7 +38,7 @@ def guess_video_preset_by_resolution(videopath):
         match = pattern.search(str(result))
         if match is None:
             return format_presets.VIDEO_LOW_RES
-        width, height = int(match.group(1)), int(match.group(2))
+        _, height = int(match.group(1)), int(match.group(2))
         if height >= 720:
             LOGGER.info("Video preset from {} = high resolution".format(videopath))
             return format_presets.VIDEO_HIGH_RES
@@ -71,7 +71,7 @@ def extract_thumbnail_from_video(fpath_in, fpath_out, overwrite=False):
             ]
         )
 
-        midpoint = float(re.search("\d+\.\d+", str(result)).group()) / 2
+        midpoint = float(re.search("\\d+\\.\\d+", str(result)).group()) / 2
         # scale parameters are from https://trac.ffmpeg.org/wiki/Scaling
         scale = "scale=400:225:force_original_aspect_ratio=decrease,pad=400:225:(ow-iw)/2:(oh-ih)/2"
         command = [
@@ -126,8 +126,6 @@ class VideoCompressionError(Exception):
     """
     Custom error returned when `ffmpeg` compression exits with a non-zero status.
     """
-
-    pass
 
 
 def compress_video(source_file_path, target_file, overwrite=False, **kwargs):

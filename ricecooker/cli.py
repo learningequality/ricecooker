@@ -5,17 +5,18 @@ import subprocess
 import sys
 import uuid
 
+import yaml
+from jinja2 import Template
+
+import ricecooker
+import ricecooker.config as config
+
 CONFIG_DIR = os.path.join(os.path.expanduser("~"), ".ricecooker")
 CONFIG_FILE = os.path.join(CONFIG_DIR, "config.yaml")
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE_DIR = os.path.join(SCRIPT_DIR, "templates")
 
-import ricecooker
-import ricecooker.config as config
-
-from jinja2 import Template
-import yaml
 
 props = ["token", "tempdir"]
 jiro_config = {}
@@ -92,7 +93,7 @@ def run_ricecooker(cmd, remote_name=None, extra_args=None):
 
 def add_default_remote():
     global jiro_config
-    if not "remotes" in jiro_config:
+    if "remotes" not in jiro_config:
         jiro_config["remotes"] = {"default": {"url": config.DEFAULT_DOMAIN}}
 
     # Note: we won't prompt for token until trying to upload to remote.

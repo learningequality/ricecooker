@@ -123,7 +123,7 @@ def choose_proxy():
     attempts_made = 0
     while not chosen:
         proxy = random.choice(proxies)
-        if not proxy in RECENT_PROXIES:
+        if proxy not in RECENT_PROXIES:
             chosen = True
             RECENT_PROXIES.append(proxy)
             if len(RECENT_PROXIES) > RECENT_MAX:
@@ -173,7 +173,7 @@ def record_error_for_proxy(proxy, exception=None):
 def add_to_broken_proxy_list(proxy, reason=""):
     global BROKEN_PROXIES
 
-    if not proxy in BROKEN_PROXIES:
+    if proxy not in BROKEN_PROXIES:
         BROKEN_PROXIES.append(proxy)
         with open(BROKEN_PROXIES_CACHE_FILENAME, "a") as bpl_file:
             line = proxy

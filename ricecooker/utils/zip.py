@@ -42,12 +42,18 @@ def create_predictable_zip(path, entrypoint=None):
             paths += [
                 os.path.join(root, filename)[len(path) + 1 :] for filename in filenames
             ]
-        reader = lambda x: _read_file(os.path.join(path, x))
+
+        def reader(x):
+            return _read_file(os.path.join(path, x))
+
     # otherwise, if it's a zip file, open it up and pull out the list of names
     elif os.path.isfile(path) and os.path.splitext(path)[1] == ".zip":
         inputzip = zipfile.ZipFile(path)
         paths = inputzip.namelist()
-        reader = lambda x: inputzip.read(x)
+
+        def reader(x):
+            return inputzip.read(x)
+
     else:
         raise Exception("The `path` must either point to a directory or to a zip file.")
 

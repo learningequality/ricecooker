@@ -25,7 +25,6 @@ CONTENT_ARCHIVE_VERSION = 1                                 # Increment this whe
 ################################################################################
 
 
-
 # The chef subclass
 ################################################################################
 class {{chef_name}}Chef(SushiChef):
@@ -74,7 +73,6 @@ class {{chef_name}}Chef(SushiChef):
         raise NotImplementedError("constuct_channel method not implemented yet...")
 
         return channel
-
 
 
 # CLI

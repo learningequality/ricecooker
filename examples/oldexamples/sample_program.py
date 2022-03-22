@@ -8,8 +8,6 @@ from os.path import join
 from le_utils.constants import content_kinds
 from le_utils.constants import exercises
 from le_utils.constants import file_formats
-from le_utils.constants import format_presets
-from le_utils.constants import languages
 from le_utils.constants import licenses
 
 from ricecooker.chefs import SushiChef
@@ -22,7 +20,6 @@ from ricecooker.exceptions import raise_for_invalid_channel
 from ricecooker.exceptions import UnknownContentKindError
 from ricecooker.exceptions import UnknownFileTypeError
 from ricecooker.exceptions import UnknownQuestionTypeError
-from ricecooker.utils.encodings import get_base64_encoding
 
 
 # CHANNEL SETTINGS
@@ -39,6 +36,8 @@ CONTENT_DIR = os.path.join(EXAMPLES_DIR, "content")
 #
 # A utility function to manage absolute paths that allows us to refer to files
 # in the CONTENT_DIR (subdirectory `content/' in current directory) using content://
+
+
 def get_abspath(path, content_dir=CONTENT_DIR):
     """
     Replaces `content://` with absolute path of `content_dir`.
@@ -298,7 +297,7 @@ EXERCISES_NODES = [
                 "questions": [
                     {
                         "id": "123456",
-                        "question": "Solve: $$(111^{x+1}\\times111^\\frac14)\div111^\\frac12=111^3$$",
+                        "question": "Solve: $$(111^{x+1}\\times111^\\frac14)\\div111^\\frac12=111^3$$",
                         "type": exercises.SINGLE_SELECTION,
                         "all_answers": ["Yes", "No", "Rice!"],
                         "correct_answer": "Rice!",
@@ -323,7 +322,8 @@ class SampleChef(SushiChef):
         "CHANNEL_SOURCE_ID": SOURCE_ID,  # channel's unique id
         "CHANNEL_TITLE": CHANNEL_TITLE,
         "CHANNEL_LANGUAGE": CHANNEL_LANGUAGE,
-        "CHANNEL_THUMBNAIL": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/50/Banaue_Philippines_Banaue-Rice-Terraces-01.jpg/640px-Banaue_Philippines_Banaue-Rice-Terraces-01.jpg",  # (optional) local path or url to image file
+        # (optional) local path or url to image file
+        "CHANNEL_THUMBNAIL": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/50/Banaue_Philippines_Banaue-Rice-Terraces-01.jpg/640px-Banaue_Philippines_Banaue-Rice-Terraces-01.jpg",
         "CHANNEL_DESCRIPTION": "A sample sushi chef to demo content types.",  # (optional) description of the channel (optional)
     }
 

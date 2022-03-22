@@ -1,15 +1,11 @@
-import copy
 import os
 import re
-from pprint import pprint
 from tempfile import TemporaryDirectory
 
 import pytest
 import requests
 from PyPDF2 import PdfFileReader
 
-from ricecooker.classes import files
-from ricecooker.classes import nodes
 from ricecooker.utils.pdf import PDFParser  # SIT
 
 

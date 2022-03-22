@@ -7,7 +7,6 @@ import subprocess
 import sys
 import tempfile
 
-import PIL
 import pytest
 import requests
 import requests_cache

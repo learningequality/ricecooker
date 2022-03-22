@@ -13,13 +13,13 @@ YOUTUBE_TEST_PLAYLIST = "https://www.youtube.com/playlist?list=PL472BC6F4F2C3ABE
 # This test takes a few minutes, but is very useful for checking that the proxy is not being ignored,
 # so mark it to run when the PYTEST_RUN_SLOW env var is set.
 @pytest.mark.skipif(
-    not "PYTEST_RUN_SLOW" in os.environ,
+    "PYTEST_RUN_SLOW" not in os.environ,
     reason="This test takes several minutes to complete.",
 )
 def test_bad_proxies_get_banned(tmp_path):
     # create some fake proxies...
     FAKE_PROXIES = [
-        "123.123.123.123:1234",
+        "122.123.123.123:1234",
         "142.123.1.234:123345",
         "156.245.233.211:12323",
         "11.22.33.44:123",
@@ -35,7 +35,7 @@ def test_bad_proxies_get_banned(tmp_path):
 
 
 @pytest.mark.skipif(
-    not "PYTEST_RUN_SLOW" in os.environ,
+    "PYTEST_RUN_SLOW" not in os.environ,
     reason="This test can take several minutes to complete.",
 )
 def test_proxy_download(tmp_path):
@@ -55,7 +55,7 @@ def test_proxy_download(tmp_path):
 
 
 @pytest.mark.skipif(
-    not "PYTEST_RUN_SLOW" in os.environ,
+    "PYTEST_RUN_SLOW" not in os.environ,
     reason="This test can take several minutes to complete.",
 )
 def test_proxy_playlist_download(tmp_path):

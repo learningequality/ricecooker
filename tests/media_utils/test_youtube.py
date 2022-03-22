@@ -22,7 +22,7 @@ subtitles_zu_video = "https://www.youtube.com/watch?v=FN12ty5ztAs"
 
 def get_yt_resource(url, **kwargs):
     global yt_resources
-    if not url in yt_resources:
+    if url not in yt_resources:
         if "useproxy" not in kwargs:
             if USE_PROXY_FOR_TESTS:
                 kwargs["useproxy"] = True
@@ -93,7 +93,7 @@ def test_download_youtube_playlist():
         info = yt_resource.download(base_path=download_dir)
         assert info is not None
         if info:
-            assert not "filename" in info
+            assert "filename" not in info
             assert "children" in info
             for child in info["children"]:
                 assert "filename" in child
@@ -138,7 +138,7 @@ def test_subtitles_lang_helpers_compatible():
     for youtube_language, sub_dict in vtt_subtitles.items():
         # 2. check compatibility with le-utils language codes (a.k.a. internal representation)
         verdict = youtube.is_youtube_subtitle_file_supported_language(youtube_language)
-        assert verdict == True, "Wrongly marked youtube_language as incompatible"
+        assert verdict, "Wrongly marked youtube_language as incompatible"
         # 3. TODO: figure out what to do for incompatible langs
 
         # 4. map youtube_language to le-utils language code (a.k.a. internal representation)
@@ -157,13 +157,13 @@ def test_subtitles_lang_helpers_incompatible():
     Ensure `is_youtube_subtitle_file_supported_language` rejects unknown language codes.
     """
     verdict1 = youtube.is_youtube_subtitle_file_supported_language("patapata")
-    assert verdict1 == False, "Failed to reject incompatible youtube_language"
+    assert verdict1 is not False, "Failed to reject incompatible youtube_language"
     verdict2 = youtube.is_youtube_subtitle_file_supported_language("zzz")
-    assert verdict2 == False, "Failed to reject incompatible youtube_language"
+    assert verdict2 is not False, "Failed to reject incompatible youtube_language"
 
 
 @pytest.mark.skipif(
-    not "PYTEST_RUN_SLOW" in os.environ,
+    "PYTEST_RUN_SLOW" not in os.environ,
     reason="This test can take several minutes to complete.",
 )
 @pytest.mark.parametrize("useproxy", [True, False])
@@ -196,14 +196,14 @@ def test_download_from_web_video_file(tmp_path, useproxy, useproxy_for_download)
         download_settings = {}
         download_settings["writethumbnail"] = False
         download_settings["outtmpl"] = destination_path
-        video_node2 = yt_resource.download(
+        _ = yt_resource.download(
             options=download_settings, useproxy=useproxy_for_download
         )
         assert os.path.exists(destination_path), "Missing video file"
 
 
 @pytest.mark.skipif(
-    not "PYTEST_RUN_SLOW" in os.environ,
+    "PYTEST_RUN_SLOW" not in os.environ,
     reason="This test can take several minutes to complete.",
 )
 @pytest.mark.parametrize("useproxy", [True, False])

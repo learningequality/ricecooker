@@ -1,15 +1,16 @@
 """ Tests for exercise nodes, questions, and files """
+import json
 import os
 import re
 import uuid
 
 import pytest
-from le_utils.constants import content_kinds
 from le_utils.constants import exercises
 from le_utils.constants import licenses
 from test_videos import _clear_ricecookerfilecache
 
-from ricecooker.classes.nodes import *
+from ricecooker.classes.nodes import ExerciseNode
+from ricecooker.classes.nodes import InvalidNodeException
 from ricecooker.classes.questions import BaseQuestion
 from ricecooker.classes.questions import PerseusQuestion
 from ricecooker.classes.questions import SingleSelectQuestion
@@ -357,7 +358,7 @@ def test_inputquestion_validate():
 def graphie_strings_and_rawpath():
     """
     Return patterns that should match the
-    WEB_GRAPHIE_URL_REGEX = r'web\+graphie:(?P<rawpath>[^\)]+)'
+    WEB_GRAPHIE_URL_REGEX = r'web\\+graphie:(?P<rawpath>[^\\)]+)'
     """
     test_data = {
         "![](web+graphie:somechunk)": "somechunk",
@@ -385,7 +386,7 @@ def test_WEB_GRAPHIE_URL_REGEX_matches(graphie_strings_and_rawpath):
 def markdown_link_strings_and_match():
     """
     Return patterns that should match the RE for markdown file/image includes:
-    MARKDOWN_IMAGE_REGEX = r'!\[([^\]]+)?\]\(([^\)]+)\)'
+    MARKDOWN_IMAGE_REGEX = r'!\\[([^\\]]+)?\\]\\(([^\\)]+)\\)'
     """
     test_data = {
         "![smth](path)": ("smth", "path"),
@@ -419,7 +420,7 @@ def test_MARKDOWN_IMAGE_REGEX_matches(markdown_link_strings_and_match):
         )
 
 
-## Tests to make sure BaseQuestion.set_image works correctly
+# Tests to make sure BaseQuestion.set_image works correctly
 ################################################################################
 
 

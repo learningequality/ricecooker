@@ -2,6 +2,8 @@ import json
 import os
 
 from le_utils.constants import content_kinds
+from le_utils.constants import exercises
+from le_utils.constants import file_types
 from le_utils.constants import roles
 
 from ricecooker.classes import files
@@ -26,7 +28,6 @@ SLIDESHOW_NODE = content_kinds.SLIDESHOW
 
 
 # TODO(Ivan): add constants.file_types to le_utils and discuss with Jordan
-from le_utils.constants import file_types
 
 VIDEO_FILE = file_types.VIDEO
 AUDIO_FILE = file_types.AUDIO
@@ -37,7 +38,6 @@ THUMBNAIL_FILE = file_types.THUMBNAIL
 SUBTITLES_FILE = file_types.SUBTITLES
 SLIDESHOW_IMAGE_FILE = file_types.SLIDESHOW_IMAGE
 
-from le_utils.constants import exercises
 
 INPUT_QUESTION = exercises.INPUT_QUESTION
 MULTIPLE_SELECTION = exercises.MULTIPLE_SELECTION
@@ -252,7 +252,7 @@ def build_tree_from_json(parent_node, sourcetree):
     return parent_node
 
 
-def add_files(node, file_list):
+def add_files(node, file_list):  # noqa: C901
     EXPECTED_FILE_TYPES = [
         VIDEO_FILE,
         AUDIO_FILE,

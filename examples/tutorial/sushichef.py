@@ -7,9 +7,7 @@ from ricecooker.classes.files import DocumentFile
 from ricecooker.classes.files import VideoFile
 from ricecooker.classes.licenses import get_license
 from ricecooker.classes.nodes import AudioNode
-from ricecooker.classes.nodes import ChannelNode
 from ricecooker.classes.nodes import DocumentNode
-from ricecooker.classes.nodes import HTML5AppNode
 from ricecooker.classes.nodes import TopicNode
 from ricecooker.classes.nodes import VideoNode
 

@@ -303,7 +303,7 @@ def get_csv_corrections(csvfilepath):
     deletions = []
     rows = load_corrections_from_csv(csvfilepath)
     for i, row in enumerate(rows):
-        if row[ACTION_KEY] == "" or row[ACTION_KEY] == None:
+        if row[ACTION_KEY] == "" or row[ACTION_KEY] is None:
             print("Skipping no-action row", i + 1)
         elif row[ACTION_KEY] == "modify":
             modifications.append(row)

@@ -1,11 +1,7 @@
 from datetime import datetime
 from datetime import timedelta
-from email.utils import parsedate
 
-import cachecontrol
-import requests
 from cachecontrol import CacheControlAdapter
-from cachecontrol.caches.file_cache import FileCache
 from cachecontrol.heuristics import BaseHeuristic
 from cachecontrol.heuristics import datetime_to_header
 from cachecontrol.heuristics import expire_after
