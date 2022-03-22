@@ -340,8 +340,11 @@ def get_storage_path(filename):
     Args: filename (str): Name of file to store
     Returns: string path to file
     """
-    # directory = os.path.join(STORAGE_DIRECTORY, filename[0], filename[1])
-    directory = os.path.abspath(os.path.join(os.path.dirname(__file__), STORAGE_DIRECTORY, filename[0], filename[1]))
+    directory = os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__), STORAGE_DIRECTORY, filename[0], filename[1]
+        )
+    )
     # Make storage directory for downloaded files if it doesn't already exist
     if not os.path.exists(directory):
         os.makedirs(directory)

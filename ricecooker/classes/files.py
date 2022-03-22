@@ -29,7 +29,6 @@ from ricecooker.utils.encodings import write_base64_to_file
 from ricecooker.utils.images import create_image_from_epub
 from ricecooker.utils.images import create_image_from_pdf_page
 from ricecooker.utils.images import create_image_from_zip
-from ricecooker.utils.videos import extract_thumbnail_from_video, extract_duration_of_media
 from ricecooker.utils.images import create_tiled_image
 from ricecooker.utils.images import ThumbnailGenerationError
 from ricecooker.utils.subtitles import build_subtitle_converter_from_file
@@ -37,6 +36,7 @@ from ricecooker.utils.subtitles import InvalidSubtitleFormatError
 from ricecooker.utils.subtitles import InvalidSubtitleLanguageError
 from ricecooker.utils.subtitles import LANGUAGE_CODE_UNKNOWN
 from ricecooker.utils.videos import compress_video
+from ricecooker.utils.videos import extract_duration_of_media
 from ricecooker.utils.videos import extract_thumbnail_from_video
 from ricecooker.utils.videos import guess_video_preset_by_resolution
 from ricecooker.utils.videos import VideoCompressionError
@@ -101,12 +101,9 @@ def generate_key(action, path_or_id, settings=None, default=" (default)"):
 
 def get_cache_filename(key):
     cache_file = FILECACHE.get(key)
-    print("cache_file FILECACHE",cache_file)
     if cache_file:
         cache_file = cache_file.decode("utf-8")
         # if the file was somehow deleted, make sure we don't return it.
-        print(os.path.exists(config.get_storage_path(cache_file)))
-        print("decode utf-8",cache_file)
         if not os.path.exists(config.get_storage_path(cache_file)):
             cache_file = None
     return cache_file
@@ -564,6 +561,7 @@ class AudioFile(DownloadFile):
         self.filename = super(AudioFile, self).process_file()
         self.duration = extract_duration_of_media(self.path)
         return self.filename
+
 
 class DocumentFile(DownloadFile):
     default_ext = file_formats.PDF
@@ -1032,9 +1030,7 @@ class _ExerciseGraphieFile(DownloadFile):
     default_ext = file_formats.GRAPHIE
 
     def __init__(self, path, **kwargs):
-        self.original_filename = (
-            path.split(os.path.sep)[-1].split(".")[0]
-        )
+        self.original_filename = path.split(os.path.sep)[-1].split(".")[0]
         super(_ExerciseGraphieFile, self).__init__(path, **kwargs)
 
     def get_preset(self):
@@ -1042,7 +1038,7 @@ class _ExerciseGraphieFile(DownloadFile):
 
     def get_replacement_str(self):
         if "http" in self.path:
-            return self.path.split('/')[-1].split(".")[0] or self.path
+            return self.path.split("/")[-1].split(".")[0] or self.path
         else:
             return self.path.split(os.path.sep)[-1].split(".")[0] or self.path
 
@@ -1053,7 +1049,6 @@ class _ExerciseGraphieFile(DownloadFile):
         """
         try:
             self.filename = self.generate_graphie_file()
-            print("self.generate_graphie_file()",self.generate_graphie_file())
             config.LOGGER.info("\t--- Generated graphie {}".format(self.filename))
             return self.filename
         # Catch errors related to reading file path and handle silently
@@ -1073,8 +1068,6 @@ class _ExerciseGraphieFile(DownloadFile):
         key = "GRAPHIE: {}".format(self.path)
 
         cache_file = get_cache_filename(key)
-        print("config.UPDATE",config.UPDATE)
-        print("cache_file",cache_file)
         if not config.UPDATE and cache_file:
             return cache_file
 
@@ -1082,26 +1075,18 @@ class _ExerciseGraphieFile(DownloadFile):
         with tempfile.TemporaryFile() as tempf:
             # Initialize hash and files
             delimiter = bytes(exercises.GRAPHIE_DELIMITER, "UTF-8")
-            print("delimiter",delimiter)
             config.LOGGER.info(
                 "\tDownloading graphie {}".format(self.original_filename)
             )
 
             # Write to graphie file
-            print("Path for the file",self.path)
-            print("tempf",tempf)
             hash = write_and_get_hash(self.path + ".svg", tempf)
             tempf.write(delimiter)
             hash.update(delimiter)
             hash = write_and_get_hash(self.path + "-data.json", tempf, hash)
-            print("hash",hash)
             tempf.seek(0)
-            print("hash.hexdigest()")
             filename = "{}.{}".format(hash.hexdigest(), file_formats.GRAPHIE)
-            print("filename",filename)
             copy_file_to_storage(filename, tempf)
-            print("key",key)
-            print("bytes(filename,utf8)",bytes(filename, "utf-8"))
             FILECACHE.set(key, bytes(filename, "utf-8"))
             return filename
 

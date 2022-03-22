@@ -64,13 +64,21 @@ def document_node_id(topic_node_id, document_content_id):
 
 @pytest.fixture
 def thumbnail_path():
-    return os.path.abspath(os.path.join(os.path.dirname(__file__), "testcontent", "samples", "thumbnail.png"))
+    return os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__), "testcontent", "samples", "thumbnail.png"
+        )
+    )
     # return "testcontent/samples/thumbnail.png"
 
 
 @pytest.fixture
 def thumbnail_path_jpg():
-    return os.path.abspath(os.path.join(os.path.dirname(__file__), "testcontent", "samples", "thumbnail.jpg"))
+    return os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__), "testcontent", "samples", "thumbnail.jpg"
+        )
+    )
     # return "tests/testcontent/samples/thumbnail.jpg"
 
 
@@ -245,7 +253,14 @@ def test_add_files_with_preset(channel):
         language=getlang("ar").code,
         children=[],
     )
-    audio_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "media_utils", "audio", "file_example_MP3_700KB.mp3"))
+    audio_path = os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__),
+            "media_utils",
+            "audio",
+            "file_example_MP3_700KB.mp3",
+        )
+    )
     # audio_path = os.path.join("tests/media_utils/audio/file_example_MP3_700KB.mp3")
 
     audio_node = dict(

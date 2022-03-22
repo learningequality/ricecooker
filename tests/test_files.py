@@ -456,7 +456,11 @@ def download_fixture_files(fixtures_list):
     for fixture in fixtures_list:
         srcfilename = fixture["srcfilename"]
         # localpath = os.path.join("tests", "testcontent", "downloaded", srcfilename)
-        local_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "testcontent", "downloaded", srcfilename))
+        local_path = os.path.abspath(
+            os.path.join(
+                os.path.dirname(__file__), "testcontent", "downloaded", srcfilename
+            )
+        )
 
         if not os.path.exists(local_path):
             url = (
@@ -523,7 +527,14 @@ def test_convertible_substitles_ar_ttml(youtube_test_file):
     # local_path = os.path.join(
     #     "tests", "testcontent", "downloaded", "testsubtitles_ar.ttml"
     # )
-    local_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "testcontent", "downloaded", "testsubtitles_ar.ttml"))
+    local_path = os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__),
+            "testcontent",
+            "downloaded",
+            "testsubtitles_ar.ttml",
+        )
+    )
 
     assert os.path.exists(local_path)
     subtitle_file = SubtitleFile(local_path, language="ar")
@@ -539,7 +550,14 @@ def test_convertible_substitles_noext_subtitlesformat():
     # local_path = os.path.join(
     #     "tests", "testcontent", "downloaded", "testsubtitles_ar.ttml"
     # )
-    local_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "testcontent", "downloaded", "testsubtitles_ar.ttml"))
+    local_path = os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__),
+            "testcontent",
+            "downloaded",
+            "testsubtitles_ar.ttml",
+        )
+    )
     assert os.path.exists(local_path)
     local_path_no_ext = local_path.replace(".ttml", "")
     copyfile(local_path, local_path_no_ext)

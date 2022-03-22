@@ -10,6 +10,7 @@ import dictdiffer
 import requests
 
 from ricecooker.config import LOGGER
+from ricecooker.utils.libstudio import StudioApi
 
 
 # CONFIG CONSTANTS for data directories
@@ -582,9 +583,6 @@ def apply_corrections_by_node_id(api, channel_tree, channel_id, corrections_by_n
         )
     # TODO: Additions
     # TODO: Moves
-
-
-from ricecooker.utils.libstudio import StudioApi
 
 
 def get_studio_api(studio_creds=None):
