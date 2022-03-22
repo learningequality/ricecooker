@@ -1,11 +1,11 @@
 from datetime import datetime
 from datetime import timedelta
-from email.utils import parsedate
+from email.utils import parsedate # noqa: F401
 
-import cachecontrol
-import requests
+import cachecontrol # noqa: F401
+import requests # noqa: F401
 from cachecontrol import CacheControlAdapter
-from cachecontrol.caches.file_cache import FileCache
+from cachecontrol.caches.file_cache import FileCache # noqa: F401
 from cachecontrol.heuristics import BaseHeuristic
 from cachecontrol.heuristics import datetime_to_header
 from cachecontrol.heuristics import expire_after
