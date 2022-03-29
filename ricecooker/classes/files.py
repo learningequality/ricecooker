@@ -512,7 +512,54 @@ class DownloadFile(File):
         return self.path
 
 
-class SlideImageFile(DownloadFile):
+IMAGE_EXTENSIONS = {
+    file_formats.PNG,
+    file_formats.JPG,
+    file_formats.JPEG,
+}
+
+
+def process_image(filename):
+    tempf = None
+    extension = extract_path_ext(filename)
+    if extension not in IMAGE_EXTENSIONS:
+        im = Image.open(filename).convert("RGB")
+        tempf = tempfile.NamedTemporaryFile(
+            suffix=".{}".format(file_formats.PNG), delete=False
+        )
+        tempf.close()
+        filename = tempf.name
+        extension = file_formats.PNG
+        im.save(filename, extension)
+
+    hashedfilename = "{}.{}".format(get_hash(filename), extension)
+
+    copy_file_to_storage(hashedfilename, filename)
+    if tempf:
+        os.unlink(tempf.name)
+    return hashedfilename
+
+
+class ImageDownloadFile(DownloadFile):
+    def process_file(self):
+        """
+        Call DownloadFile's `process_file` and ensure the result is a valid img.
+        """
+        self.filename = super(ImageDownloadFile, self).process_file()
+        if self.filename:
+            try:
+                image_path = config.get_storage_path(self.filename)
+                img = Image.open(image_path)
+                img.verify()
+                self.filename = process_image(image_path)
+            except IOError as e:  # Catch invalid or broken image files
+                self.filename = None
+                self.error = e
+                config.FAILED_FILES.append(self)
+        return self.filename
+
+
+class SlideImageFile(ImageDownloadFile):
     default_ext = file_formats.PNG
     allowed_formats = [file_formats.JPG, file_formats.JPEG, file_formats.PNG]
     is_primary = True
@@ -527,25 +574,9 @@ class SlideImageFile(DownloadFile):
         return format_presets.SLIDESHOW_IMAGE
 
 
-class ThumbnailFile(ThumbnailPresetMixin, DownloadFile):
+class ThumbnailFile(ThumbnailPresetMixin, ImageDownloadFile):
     default_ext = file_formats.PNG
     allowed_formats = [file_formats.JPG, file_formats.JPEG, file_formats.PNG]
-
-    def process_file(self):
-        """
-        Call DownloadFile's `process_file` and ensure the result is a valid img.
-        """
-        self.filename = super(ThumbnailFile, self).process_file()
-        if self.filename:
-            try:
-                image_path = config.get_storage_path(self.filename)
-                img = Image.open(image_path)
-                img.verify()
-            except IOError as e:  # Catch invalid or broken thumbnail files
-                self.filename = None
-                self.error = e
-                config.FAILED_FILES.append(self)
-        return self.filename
 
 
 class AudioFile(DownloadFile):
@@ -994,20 +1025,15 @@ class Base64ImageFile(ThumbnailPresetMixin, File):
         config.LOGGER.info("\tConverting base64 to file")
 
         extension = get_base64_encoding(self.encoding).group(1)
-        assert extension in [
-            file_formats.PNG,
-            file_formats.JPG,
-            file_formats.JPEG,
-        ], "Base64 files must be images in jpg or png format"
 
         tempf = tempfile.NamedTemporaryFile(
             suffix=".{}".format(extension), delete=False
         )
         tempf.close()
         write_base64_to_file(self.encoding, tempf.name)
-        filename = "{}.{}".format(get_hash(tempf.name), file_formats.PNG)
 
-        copy_file_to_storage(filename, tempf.name)
+        filename = process_image(tempf.name)
+
         os.unlink(tempf.name)
         FILECACHE.set(key, bytes(filename, "utf-8"))
         return filename
@@ -1023,7 +1049,7 @@ class _ExerciseBase64ImageFile(Base64ImageFile):
         return self.get_filename() or self.encoding
 
 
-class _ExerciseImageFile(DownloadFile):
+class _ExerciseImageFile(ImageDownloadFile):
     default_ext = file_formats.PNG
 
     def get_replacement_str(self):
