@@ -1,8 +1,12 @@
 import os
 
 import PIL
+import pytest
 from le_utils.constants import licenses
+from test_tree import thumbnail_path
+from test_tree import thumbnail_path_jpg
 from test_videos import _clear_ricecookerfilecache
+from test_videos import low_res_video
 
 from ricecooker import config
 from ricecooker.classes.files import AudioFile

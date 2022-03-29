@@ -3,6 +3,9 @@ import os
 import PIL
 import pytest
 
+from .test_videos import bad_video
+from .test_videos import high_res_video
+from .test_videos import low_res_video
 from .test_videos import TempFile
 from ricecooker.utils import images
 from ricecooker.utils import videos

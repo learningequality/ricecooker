@@ -157,9 +157,9 @@ def test_subtitles_lang_helpers_incompatible():
     Ensure `is_youtube_subtitle_file_supported_language` rejects unknown language codes.
     """
     verdict1 = youtube.is_youtube_subtitle_file_supported_language("patapata")
-    assert verdict1 is not False, "Failed to reject incompatible youtube_language"
+    assert verdict1 is False, "Failed to reject incompatible youtube_language"
     verdict2 = youtube.is_youtube_subtitle_file_supported_language("zzz")
-    assert verdict2 is not False, "Failed to reject incompatible youtube_language"
+    assert verdict2 is False, "Failed to reject incompatible youtube_language"
 
 
 @pytest.mark.skipif(
