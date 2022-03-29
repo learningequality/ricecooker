@@ -716,7 +716,7 @@ class WebVideoFile(File):
         self.download_settings = download_settings or {}
         if "format" not in self.download_settings:
             maxheight = maxheight or (720 if high_resolution else 480)
-            # Download the best mp4 format available, or best webm format available, or any other best mp4
+            # Download the best mp4 format availabwle, or best webm format available, or any other best mp4
             self.download_settings[
                 "format"
             ] = "bestvideo[height<={maxheight}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<={maxheight}][ext=webm]+bestaudio[ext=webm]/best[height<={maxheight}][ext=mp4]".format(  # noqa: E501
