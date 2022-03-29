@@ -679,7 +679,8 @@ class VideoFile(DownloadFile):
                         self.filename, self.ffmpeg_settings
                     )
                     config.LOGGER.info("\t--- Compressed {}".format(self.filename))
-            self.duration = extract_duration_of_media(self.filename)
+            if config.get_storage_path(self.filename):
+                self.duration = extract_duration_of_media(config.get_storage_path(self.filename))
         except (
             BrokenPipeError,
             CalledProcessError,
@@ -736,7 +737,8 @@ class WebVideoFile(File):
             if self.filename and config.COMPRESS:
                 self.filename = compress_video_file(self.filename, {})
                 config.LOGGER.info("\t--- Compressed {}".format(self.filename))
-            self.duration = extract_duration_of_media(self.filename)
+            if config.get_storage_path(self.filename):
+                self.duration = extract_duration_of_media(config.get_storage_path(self.filename))
 
         except youtube_dl.utils.DownloadError as err:
             self.filename = None
