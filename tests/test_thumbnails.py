@@ -1,12 +1,12 @@
 import os
 
 import PIL
-import pytest #noqa F401
+import pytest  # noqa F401
 from le_utils.constants import licenses
-from test_tree import thumbnail_path #noqa F401
-from test_tree import thumbnail_path_jpg #noqa F401
+from test_tree import thumbnail_path  # noqa F401
+from test_tree import thumbnail_path_jpg  # noqa F401
 from test_videos import _clear_ricecookerfilecache
-from test_videos import low_res_video #noqa F401
+from test_videos import low_res_video  # noqa F401
 
 from ricecooker import config
 from ricecooker.classes.files import AudioFile
@@ -70,15 +70,19 @@ class TestThumbnailSetting(object):
     # HAPPY PATHS
     ############################################################################
 
-    def test_set_png_thumbnail_from_local_path(self, low_res_video, thumbnail_path): # noqa F811
-        video_node = self.get_video_node(
+    def test_set_png_thumbnail_from_local_path(
+        self, low_res_video, thumbnail_path  # noqa F811
+    ):
+        video_node = self.get_video_node(  # noqa F811
             path=low_res_video.name, thumbnail=thumbnail_path
         )
         video_node.validate()
         _ = video_node.process_files()
         self.check_correct_thumbnail(video_node)
 
-    def test_set_jpg_thumbnail_from_local_path(self, low_res_video, thumbnail_path_jpg): # noqa F811
+    def test_set_jpg_thumbnail_from_local_path(
+        self, low_res_video, thumbnail_path_jpg  # noqa F811
+    ):
         video_node = self.get_video_node(
             path=low_res_video.name, thumbnail=thumbnail_path_jpg
         )
@@ -91,7 +95,7 @@ class TestThumbnailSetting(object):
         thumbnail_filename = thumbnail_file.get_filename()
         assert thumbnail_filename == expected_thumbnail_filename, "Wrong thumbnail"
 
-    def test_set_thumbnail_from_url(self, low_res_video): # noqa F811
+    def test_set_thumbnail_from_url(self, low_res_video):  # noqa F811
         video_node = self.get_video_node(
             path=low_res_video.name, thumbnail=THUMBNAIL_URL
         )
@@ -99,14 +103,16 @@ class TestThumbnailSetting(object):
         _ = video_node.process_files()
         self.check_correct_thumbnail(video_node)
 
-    def test_set_thumbnail_from_url_with_querystring(self, low_res_video): # noqa F811
+    def test_set_thumbnail_from_url_with_querystring(self, low_res_video):  # noqa F811
         url = THUMBNAIL_URL + "?querystringkey=querystringvalue"
         video_node = self.get_video_node(path=low_res_video.name, thumbnail=url)
         video_node.validate()
         _ = video_node.process_files()
         self.check_correct_thumbnail(video_node)
 
-    def test_set_thumbnail_from_ThumbnailFile(self, low_res_video, thumbnail_path): # noqa F811
+    def test_set_thumbnail_from_ThumbnailFile(
+        self, low_res_video, thumbnail_path  # noqa F811
+    ):
         thumbnail_file = ThumbnailFile(thumbnail_path)
         video_node = self.get_video_node(
             path=low_res_video.name, thumbnail=thumbnail_file
@@ -115,7 +121,7 @@ class TestThumbnailSetting(object):
         _ = video_node.process_files()
         self.check_correct_thumbnail(video_node)
 
-    def test_add_ThumbnailFile(self, low_res_video, thumbnail_path): # noqa F811
+    def test_add_ThumbnailFile(self, low_res_video, thumbnail_path):  # noqa F811
         video_node = self.get_video_node(path=low_res_video.name, thumbnail=None)
         thumbnail_file = ThumbnailFile(thumbnail_path)
         video_node.add_file(thumbnail_file)
@@ -126,7 +132,7 @@ class TestThumbnailSetting(object):
     # ERROR PATHS
     ############################################################################
 
-    def test_set_thumbnail_from_non_existent_path(self, low_res_video): # noqa F811
+    def test_set_thumbnail_from_non_existent_path(self, low_res_video):  # noqa F811
         non_existent_path = "does/not/exist.png"
         video_node = self.get_video_node(
             path=low_res_video.name, thumbnail=non_existent_path
@@ -135,7 +141,9 @@ class TestThumbnailSetting(object):
         _ = video_node.process_files()
         self.assert_failed_thumbnail(video_node)
 
-    def test_set_thumbnail_from_bad_path(self, low_res_video, fake_thumbnail_file): # noqa F811
+    def test_set_thumbnail_from_bad_path(
+        self, low_res_video, fake_thumbnail_file  # noqa F811
+    ):
         """
         File path exists, but is not a valid PNG file.
         """
@@ -165,7 +173,7 @@ class TestThumbnailGeneration(object):
         assert len(thumbnail_files) == 1, "expected single thumbnail"
         thumbnail_file = thumbnail_files[0]
         thumbnail_filename = thumbnail_file.get_filename()
-        thumbnail_path = config.get_storage_path(thumbnail_filename) # noqa F811
+        thumbnail_path = config.get_storage_path(thumbnail_filename)  # noqa F811
         assert os.path.exists(thumbnail_path)
         img = PIL.Image.open(thumbnail_path)
         img.verify()
