@@ -3,10 +3,10 @@ import os
 import PIL
 import pytest
 
-from .test_videos import bad_video
-from .test_videos import high_res_video
-from .test_videos import low_res_video
-from .test_videos import TempFile
+from .test_videos import bad_video # noqa F401
+from .test_videos import high_res_video # noqa F401
+from .test_videos import low_res_video # noqa F401
+from .test_videos import TempFile # noqa F401
 from ricecooker.utils import images
 from ricecooker.utils import videos
 
@@ -201,14 +201,14 @@ class Test_epub_thumbnail_generation(BaseThumbnailGeneratorTestCase):
 
 
 class Test_video_thumbnail_generation(BaseThumbnailGeneratorTestCase):
-    def test_generates_16_9_thumbnail_from_low_res(self, tmpdir, low_res_video):
+    def test_generates_16_9_thumbnail_from_low_res(self, tmpdir, low_res_video): # noqa F811
         input_file = low_res_video.name
         output_file = tmpdir.join("low_res_video_thumbnail.png").strpath
         videos.extract_thumbnail_from_video(input_file, output_file, overwrite=True)
         self.check_16_9_format(output_file)
         self.check_is_png_file(output_file)
 
-    def test_generates_16_9_thumbnail_from_high_res(self, tmpdir, high_res_video):
+    def test_generates_16_9_thumbnail_from_high_res(self, tmpdir, high_res_video): # noqa F811
         input_file = high_res_video.name
         output_file = tmpdir.join("high_res_video_thumbnail.png").strpath
         videos.extract_thumbnail_from_video(input_file, output_file, overwrite=True)
@@ -222,7 +222,7 @@ class Test_video_thumbnail_generation(BaseThumbnailGeneratorTestCase):
         with pytest.raises(images.ThumbnailGenerationError):
             videos.extract_thumbnail_from_video(input_file, output_file, overwrite=True)
 
-    def test_bad_video_raises(self, tmpdir, bad_video):
+    def test_bad_video_raises(self, tmpdir, bad_video): # noqa F811
         input_file = bad_video.name
         output_file = tmpdir.join("bad_video_thumbnail.png").strpath
         with pytest.raises(images.ThumbnailGenerationError):

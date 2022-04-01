@@ -42,7 +42,7 @@ def test_youtube_video_cache(youtube_video_cache):
             os.path.dirname(__file__), "testcontent", "youtubecache", "test-video.json"
         )
     )
-    cache_dir = os.path.abspath(
+    cache_dir = os.path.abspath( # noqa F841
         os.path.join(os.path.dirname(__file__), "testcontent", "youtubecache")
     )
     assert video_info and os.path.exists(video_cache_filepath)
