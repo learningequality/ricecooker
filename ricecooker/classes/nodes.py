@@ -870,7 +870,8 @@ class AudioNode(ContentNode):
 
         try:
             audio_files = [f for f in self.files if isinstance(f, AudioFile)]
-            self.duration = audio_files[0].duration
+            if audio_files:
+                self.duration = audio_files[0].duration
             assert (
                 self.kind == content_kinds.AUDIO
             ), "Assumption Failed: Node should be audio"

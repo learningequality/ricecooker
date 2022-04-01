@@ -8,7 +8,6 @@ from datetime import datetime
 from enum import Enum
 
 import yt_dlp
-
 from le_utils.constants import languages
 
 from . import proxy

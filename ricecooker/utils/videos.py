@@ -1,4 +1,5 @@
 import logging
+import os
 import re
 import subprocess
 
@@ -100,21 +101,22 @@ def extract_thumbnail_from_video(fpath_in, fpath_out, overwrite=False):
 
 def extract_duration_of_media(fpath_in):
     try:
-        result = subprocess.check_output(
-            [
-                "ffprobe",
-                "-v",
-                "error",
-                "-show_entries",
-                "format=duration",
-                "-of",
-                "default=noprint_wrappers=1:nokey=1",
-                "-loglevel",
-                "panic",
-                str(fpath_in),
-            ]
-        )
-        return result.decode("utf-8")
+        if os.path.exists(fpath_in):
+            result = subprocess.check_output(
+                [
+                    "ffprobe",
+                    "-v",
+                    "error",
+                    "-show_entries",
+                    "format=duration",
+                    "-of",
+                    "default=noprint_wrappers=1:nokey=1",
+                    "-loglevel",
+                    "panic",
+                    str(fpath_in),
+                ]
+            )
+            return result.decode("utf-8")
     except Exception as ex:
         LOGGER.warning(ex)
         raise ex

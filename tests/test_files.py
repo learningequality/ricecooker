@@ -455,19 +455,24 @@ def download_fixture_files(fixtures_list):
     fixtures = []
     for fixture in fixtures_list:
         srcfilename = fixture["srcfilename"]
-        localpath = os.path.join("tests", "testcontent", "downloaded", srcfilename)
-        if not os.path.exists(localpath):
+        # localpath = os.path.join("tests", "testcontent", "downloaded", srcfilename)
+        local_path = os.path.abspath(
+            os.path.join(
+                os.path.dirname(__file__), "testcontent", "downloaded", srcfilename
+            )
+        )
+
+        if not os.path.exists(local_path):
             url = (
                 fixture["url"]
                 if "url" in fixture.keys()
                 else PRESSURECOOKER_FILES_URL_BASE + srcfilename
             )
-            print(url)
-            _save_file_url_to_path(url, localpath)
-            assert os.path.exists(localpath), (
-                "Error mising local test file " + localpath
+            _save_file_url_to_path(url, local_path)
+            assert os.path.exists(local_path), (
+                "Error mising local test file " + local_path
             )
-        fixture["localpath"] = localpath
+        fixture["localpath"] = local_path
         fixtures.append(fixture)
     return fixtures
 
@@ -519,9 +524,18 @@ def test_convertible_substitles_ar_ttml(youtube_test_file):
     """
     Regression test to make sure correct lang_code is detected from .ttml data.
     """
-    local_path = os.path.join(
-        "tests", "testcontent", "downloaded", "testsubtitles_ar.ttml"
+    # local_path = os.path.join(
+    #     "tests", "testcontent", "downloaded", "testsubtitles_ar.ttml"
+    # )
+    local_path = os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__),
+            "testcontent",
+            "downloaded",
+            "testsubtitles_ar.ttml",
+        )
     )
+
     assert os.path.exists(local_path)
     subtitle_file = SubtitleFile(local_path, language="ar")
     filename = subtitle_file.process_file()
@@ -533,8 +547,16 @@ def test_convertible_substitles_noext_subtitlesformat():
     """
     Check that we handle correctly cases when path doesn't contain extenstion.
     """
-    local_path = os.path.join(
-        "tests", "testcontent", "downloaded", "testsubtitles_ar.ttml"
+    # local_path = os.path.join(
+    #     "tests", "testcontent", "downloaded", "testsubtitles_ar.ttml"
+    # )
+    local_path = os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__),
+            "testcontent",
+            "downloaded",
+            "testsubtitles_ar.ttml",
+        )
     )
     assert os.path.exists(local_path)
     local_path_no_ext = local_path.replace(".ttml", "")

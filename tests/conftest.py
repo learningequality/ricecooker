@@ -43,7 +43,9 @@ def pytest_sessionfinish(session, exitstatus):
     """
     Cleanup testcontent/generated/ directory after each test run is finished.
     """
-    generated_path = os.path.join("tests", "testcontent", "generated")
+    generated_path = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "testcontent", "generated")
+    )
     for path in glob.glob(generated_path + os.path.sep + "*"):
         os.remove(path)
 
@@ -300,7 +302,11 @@ def video_file():  # uses same file as test_videos.low_res_video fixture
     source_url = (
         "https://archive.org/download/vd_is_for_everybody/vd_is_for_everybody_512kb.mp4"
     )
-    local_path = os.path.join("tests", "testcontent", "downloaded", "low_res_video.mp4")
+    local_path = os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__), "testcontent", "downloaded", "low_res_video.mp4"
+        )
+    )
     download_fixture_file(source_url, local_path)
     assert os.path.exists(local_path)
     return VideoFile(local_path)
@@ -313,7 +319,11 @@ def video_filename():
 
 @pytest.fixture
 def subtitle_file():
-    local_path = os.path.join("tests", "testcontent", "generated", "testsubtitles.vtt")
+    local_path = os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__), "testcontent", "generated", "testsubtitles.vtt"
+        )
+    )
     if not os.path.exists(local_path):
         with open(local_path, "wb") as subtitlefile:
             subtitlefile.write(b"WEBVTT\n")
@@ -360,7 +370,11 @@ def video_invalid_files(video_data, document_file):
 
 @pytest.fixture
 def invalid_video_file():
-    local_path = os.path.join("tests", "testcontent", "generated", "invalid_video.mp4")
+    local_path = os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__), "testcontent", "generated", "invalid_video.mp4"
+        )
+    )
     if not os.path.exists(local_path):
         with open(local_path, "wb") as f:
             f.write(b"this is an invalid video file")
@@ -407,7 +421,11 @@ def audio_file():
         "https://ia800103.us.archive.org/9/items/cd_prince_prince/"
         "disc1/02.%20Prince%20-%201999%20%28Edit%29_sample.mp3"
     )
-    local_path = os.path.join("tests", "testcontent", "downloaded", "testaudio.mp3")
+    local_path = os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__), "testcontent", "downloaded", "testaudio.mp3"
+        )
+    )
     download_fixture_file(source_url, local_path)
     assert os.path.exists(local_path)
     return AudioFile(local_path)
@@ -452,7 +470,12 @@ def audio_invalid_files(audio_data, document_file):
 
 @pytest.fixture
 def invalid_audio_file():
-    local_path = os.path.join("tests", "testcontent", "generated", "invalid_audio.mp3")
+    local_path = os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__), "testcontent", "generated", "invalid_audio.mp3"
+        )
+    )
+
     if not os.path.exists(local_path):
         with open(local_path, "wb") as f:
             f.write(b"invalid MP3")
@@ -466,7 +489,12 @@ def invalid_audio_file():
 @pytest.fixture
 def document_file():
     source_url = "https://ia802506.us.archive.org/8/items/generalmanual_000075878/generalmanual_000075878.pdf"
-    local_path = os.path.join("tests", "testcontent", "downloaded", "testdocument.pdf")
+    local_path = os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__), "testcontent", "downloaded", "testdocument.pdf"
+        )
+    )
+
     download_fixture_file(source_url, local_path)
     assert os.path.exists(local_path)
     return DocumentFile(local_path)
@@ -511,7 +539,11 @@ def document_invalid_files(document_data, audio_file):
 
 @pytest.fixture
 def epub_file():
-    path = os.path.join("tests", "testcontent", "samples", "testdocument.epub")
+    path = os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__), "testcontent", "samples", "testdocument.epub"
+        )
+    )
     assert os.path.exists(path)
     return EPubFile(path)
 
@@ -523,9 +555,15 @@ def epub_filename():
 
 @pytest.fixture
 def invalid_document_file():
-    local_path = os.path.join(
-        "tests", "testcontent", "generated", "invalid_document.pdf"
+    local_path = os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__),
+            "testcontent",
+            "generated",
+            "invalid_document.pdf",
+        )
     )
+
     if not os.path.exists(local_path):
         with open(local_path, "wb") as f:
             f.write(b"invalid PDF")
@@ -534,9 +572,15 @@ def invalid_document_file():
 
 @pytest.fixture
 def invalid_epub_file():
-    local_path = os.path.join(
-        "tests", "testcontent", "generated", "invalid_document.epub"
+    local_path = os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__),
+            "testcontent",
+            "generated",
+            "invalid_document.epub",
+        )
     )
+
     if not os.path.exists(local_path):
         with open(local_path, "wb") as f:
             f.write(b"invalid ePub")
@@ -553,7 +597,11 @@ def html_file():
         "https://studio.learningequality.org/content/storage/"
         "e/d/ed494d6547b603b8ff22095cf5f5b624.zip"
     )
-    local_path = os.path.join("tests", "testcontent", "downloaded", "testhtml.zip")
+    local_path = os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__), "testcontent", "downloaded", "testhtml.zip"
+        )
+    )
     download_fixture_file(source_url, local_path)
     assert os.path.exists(local_path)
     return HTMLZipFile(local_path)
@@ -601,9 +649,12 @@ def html_invalid_files(html_data, document_file):
 
 @pytest.fixture
 def html_invalid_file():
-    local_path = os.path.join(
-        "tests", "testcontent", "generated", "testinvalidhtml.zip"
+    local_path = os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__), "testcontent", "generated", "testinvalidhtml.zip"
+        )
     )
+
     if not os.path.exists(local_path):
         with zipfile.ZipFile(local_path, "w", zipfile.ZIP_DEFLATED) as archive:
             archive.writestr("notindex.html", "<div></div>")
@@ -683,7 +734,11 @@ def exercise_invalid_question(exercise):
 
 @pytest.fixture
 def thumbnail_file():
-    local_path = os.path.join("tests", "testcontent", "samples", "thumbnail.png")
+    local_path = os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__), "testcontent", "samples", "thumbnail.png"
+        )
+    )
     assert os.path.exists(local_path)
     return ThumbnailFile(local_path)
 
@@ -695,7 +750,11 @@ def thumbnail_filename():
 
 @pytest.fixture
 def fake_thumbnail_file():
-    local_path = os.path.join("tests", "testcontent", "generated", "invalidimage.png")
+    local_path = os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__), "testcontent", "generated", "invalidimage.png"
+        )
+    )
     if not os.path.exists(local_path):
         with open(local_path, "wb") as imgfile:
             imgfile.write(b"not_a_valid_PNG")
@@ -730,9 +789,15 @@ def exercise_base64_image_filename():
 
 @pytest.fixture
 def exercise_graphie_file():
-    return _ExerciseGraphieFile(
-        "tests/testcontent/exercises/eb3f3bf7c317408ee90995b5bcf4f3a59606aedd"
+    file_path = os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__),
+            "testcontent",
+            "exercises",
+            "eb3f3bf7c317408ee90995b5bcf4f3a59606aedd",
+        )
     )
+    return _ExerciseGraphieFile(file_path)
 
 
 @pytest.fixture
@@ -742,7 +807,7 @@ def exercise_graphie_replacement_str():
 
 @pytest.fixture
 def exercise_graphie_filename():
-    return "ea2269bb5cf487f8d883144b9c06fbc7.graphie"
+    return "ee76848822bf710e037999e9148078b6.graphie"
 
 
 # SLIDESHOW IMAGES FIXTURES

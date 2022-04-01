@@ -559,7 +559,8 @@ class AudioFile(DownloadFile):
 
     def process_file(self):
         self.filename = super(AudioFile, self).process_file()
-        self.duration = extract_duration_of_media(self.filename)
+        self.duration = extract_duration_of_media(self.path)
+        return self.filename
 
 
 class DocumentFile(DownloadFile):
@@ -679,8 +680,11 @@ class VideoFile(DownloadFile):
                         self.filename, self.ffmpeg_settings
                     )
                     config.LOGGER.info("\t--- Compressed {}".format(self.filename))
-            if config.get_storage_path(self.filename):
-                self.duration = extract_duration_of_media(config.get_storage_path(self.filename))
+            if self.filename:
+                if config.get_storage_path(self.filename):
+                    self.duration = extract_duration_of_media(
+                        config.get_storage_path(self.filename)
+                    )
         except (
             BrokenPipeError,
             CalledProcessError,
@@ -712,7 +716,7 @@ class WebVideoFile(File):
         self.download_settings = download_settings or {}
         if "format" not in self.download_settings:
             maxheight = maxheight or (720 if high_resolution else 480)
-            # Download the best mp4 format available, or best webm format available, or any other best mp4
+            # Download the best mp4 format availabwle, or best webm format available, or any other best mp4
             self.download_settings[
                 "format"
             ] = "bestvideo[height<={maxheight}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<={maxheight}][ext=webm]+bestaudio[ext=webm]/best[height<={maxheight}][ext=mp4]".format(  # noqa: E501
@@ -738,7 +742,9 @@ class WebVideoFile(File):
                 self.filename = compress_video_file(self.filename, {})
                 config.LOGGER.info("\t--- Compressed {}".format(self.filename))
             if config.get_storage_path(self.filename):
-                self.duration = extract_duration_of_media(config.get_storage_path(self.filename))
+                self.duration = extract_duration_of_media(
+                    config.get_storage_path(self.filename)
+                )
 
         except youtube_dl.utils.DownloadError as err:
             self.filename = None
@@ -1031,16 +1037,17 @@ class _ExerciseGraphieFile(DownloadFile):
     default_ext = file_formats.GRAPHIE
 
     def __init__(self, path, **kwargs):
-        self.original_filename = (
-            path.split("/")[-1].split(os.path.sep)[-1].split(".")[0]
-        )
+        self.original_filename = path.split(os.path.sep)[-1].split(".")[0]
         super(_ExerciseGraphieFile, self).__init__(path, **kwargs)
 
     def get_preset(self):
         return self.preset or format_presets.EXERCISE_GRAPHIE
 
     def get_replacement_str(self):
-        return self.path.split("/")[-1].split(".")[0] or self.path
+        if "http" in self.path:
+            return self.path.split("/")[-1].split(".")[0] or self.path
+        else:
+            return self.path.split(os.path.sep)[-1].split(".")[0] or self.path
 
     def process_file(self):
         """download: download a web+graphie file
@@ -1086,9 +1093,7 @@ class _ExerciseGraphieFile(DownloadFile):
             hash = write_and_get_hash(self.path + "-data.json", tempf, hash)
             tempf.seek(0)
             filename = "{}.{}".format(hash.hexdigest(), file_formats.GRAPHIE)
-
             copy_file_to_storage(filename, tempf)
-
             FILECACHE.set(key, bytes(filename, "utf-8"))
             return filename
 
