@@ -2,6 +2,7 @@
 import json
 import os
 import re
+import sys
 import uuid
 
 import pytest
@@ -767,6 +768,10 @@ def test_exercise_base64_image_file(
     ), "wrong filename for _ExerciseBase64ImageFile"
 
 
+@pytest.mark.xfail(
+    sys.platform == "win32",
+    reason="Passes on Windows 10, but fails on Github Action Windows runner",
+)
 def test_exercise_graphie_filename(
     exercise_graphie_file, exercise_graphie_replacement_str, exercise_graphie_filename
 ):
