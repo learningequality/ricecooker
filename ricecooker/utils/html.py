@@ -3,13 +3,13 @@ import re
 import signal
 import time
 import urllib
-from selenium import webdriver
 from urllib.parse import unquote
 from urllib.parse import urlparse
 from urllib.request import pathname2url
 
 import chardet
 import requests
+from selenium import webdriver
 
 from .caching import CacheControlAdapter
 from .caching import FileCache
