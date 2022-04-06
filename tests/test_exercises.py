@@ -496,19 +496,13 @@ def test_base_question_set_image(image_texts_fixtures):
         # check 3
         image_file = images[0]
         filename = image_file.get_filename()
-        assert datum["hash"] in filename, "wront content hash for file"
+        assert datum["hash"] in filename, "wrong content hash for file"
         # print('filename=', filename)
         if text.startswith("web+graphie:"):
             assert new_text.startswith("web+graphie:"), "web+graphie: was lost"
             assert filename.endswith(".graphie"), "wrong extension for web+graphie text"
         expected_storage_dir = os.path.join(STORAGE_DIRECTORY, filename[0], filename[1])
-        expected_storage_path = os.path.abspath(
-            os.path.join(
-                os.path.dirname(os.path.dirname(__file__)),
-                "ricecooker",
-                os.path.join(expected_storage_dir, filename),
-            )
-        )
+        expected_storage_path = os.path.join(expected_storage_dir, filename)
         assert os.path.exists(
             expected_storage_path
         ), "Image file not saved to ricecooker storage dir"

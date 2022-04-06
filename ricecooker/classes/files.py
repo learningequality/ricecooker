@@ -9,6 +9,7 @@ import tempfile
 import zipfile
 from subprocess import CalledProcessError
 from urllib.parse import urlparse
+from xml.etree import ElementTree
 
 import youtube_dl
 from cachecontrol.caches.file_cache import FileCache
@@ -17,6 +18,7 @@ from le_utils.constants import file_formats
 from le_utils.constants import format_presets
 from le_utils.constants import languages
 from PIL import Image
+from PIL import UnidentifiedImageError
 from requests.exceptions import ConnectionError
 from requests.exceptions import HTTPError
 from requests.exceptions import InvalidSchema
@@ -141,23 +143,21 @@ def download(path, default_ext=None):
         return cache_file
 
     config.LOGGER.info("\tDownloading {}".format(path))
+
     # Write file to temporary file
-    with tempfile.TemporaryFile() as tempf:
-        hash = write_and_get_hash(path, tempf)
-        tempf.seek(0)
+    with tempfile.NamedTemporaryFile() as tempf:
+        tempf.close()
+        write_path_to_filename(path, tempf.name)
         # Get extension of file or use `default_ext` if none found
         ext = extract_path_ext(path, default_ext=default_ext)
-        filename = "{0}.{ext}".format(hash.hexdigest(), ext=ext)
-        copy_file_to_storage(filename, tempf)
+        filename = copy_file_to_storage(tempf.name, ext=ext)
         FILECACHE.set(key, bytes(filename, "utf-8"))
         config.LOGGER.info("\t--- Downloaded {}".format(filename))
 
     return filename
 
 
-def download_and_convert_video(
-    path, default_ext=file_formats.MP4, ffmpeg_settings=None
-):
+def download_and_convert_video(path, ffmpeg_settings=None):
     """
     Auto-converting variant of download function that handles all video formats.
     """
@@ -172,25 +172,22 @@ def download_and_convert_video(
     # Get extension of convertible video file
     ext = extract_path_ext(path)
     converted_path = None
-
     # Convert video to temporary file
     with tempfile.NamedTemporaryFile(suffix=".{}".format(ext), delete=False) as tempf:
         # Write unsupported video to temporary file
-        write_and_get_hash(path, tempf)
-        tempf.seek(0)
+        tempf.close()
+        write_path_to_filename(path, tempf.name)
         # Compress video into mp4 file
         path, _ext = os.path.splitext(tempf.name)
         converted_path = "{}.{}".format(path, file_formats.MP4)
-        tempf.close()
         compress_video(tempf.name, converted_path, overwrite=True, **ffmpeg_settings)
         os.unlink(tempf.name)
 
     # Write converted file to another temporary file
-    with tempfile.TemporaryFile() as tempf2:
-        hash = write_and_get_hash(converted_path, tempf2)
-        tempf2.seek(0)
-        filename = "{0}.{ext}".format(hash.hexdigest(), ext=file_formats.MP4)
-        copy_file_to_storage(filename, tempf2)
+    with tempfile.NamedTemporaryFile(delete=False) as tempf2:
+        tempf2.close()
+        write_path_to_filename(converted_path, tempf2.name)
+        filename = copy_file_to_storage(tempf2.name, ext=file_formats.MP4)
         os.unlink(converted_path)
         FILECACHE.set(key, bytes(filename, "utf-8"))
         return filename
@@ -204,55 +201,30 @@ def is_valid_url(path):
     return parts.scheme != "" and parts.netloc != ""
 
 
-def write_and_get_hash(path, write_to_file, hash=None):
+def write_path_to_filename(path, write_to_file):
     """
-    Download file at `path` and write its contents to the file `write_to_file`.
+    Download file at `path` and write its contents to the file at path `write_to_file`.
     First check if `path` is a URL and if so perform a GET request for the path,
     otherwise try to access `path` on the local filesystem.
 
     :param path: An URL or a local filepath
     :type path: str
-    :param write_to_file: Desrination file to which we write the contents of path.
+    :param write_to_file: Destination filepath to which we write the contents of path.
     :type write_to_file: file
-    :param hash:  initial hasher state (used when writing multiple paths to the same file (.graphie)
-    :type hash: hashlib hasher (optional)
-    :return: updated hasher state
-    :rtype: hashlib hasher (updated)
     """
-    hash = hash or hashlib.md5()  # start hasher if an existing one not provided
-    if is_valid_url(path):
-        # CASE A: path is a URL (http://, https://, or file://, etc.)
-        r = config.DOWNLOAD_SESSION.get(path, stream=True)
-        r.raise_for_status()
-        for chunk in r:
-            write_to_file.write(chunk)
-            hash.update(chunk)
-    else:
-        # CASE B: path points to a local filesystem file
-        with open(path, "rb") as fobj:
-            for chunk in iter(lambda: fobj.read(2097152), b""):
-                write_to_file.write(chunk)
-                hash.update(chunk)
-    assert write_to_file.tell() > 0, "File failed to write (corrupted)."
-    return hash
-
-
-def copy_file_to_storage(filename, srcfile, delete_original=False):
-    """
-    Copy `srcfile` (file of path) to desrination storage path for `filename`,
-    of the form `storage/f/i/filename.ext` when filename is `filename.ext`.
-    :rtype: None
-    """
-    # Some files might have been closed, so only filepath will work
-    if isinstance(srcfile, str):
-        srcfile = open(srcfile, "rb")
-
-    # Write file to local storage
-    with open(config.get_storage_path(filename), "wb") as destf:
-        if delete_original:
-            shutil.move(srcfile.name, destf.name)
+    with open(write_to_file, "wb") as f:
+        if is_valid_url(path):
+            # CASE A: path is a URL (http://, https://, or file://, etc.)
+            r = config.DOWNLOAD_SESSION.get(path, stream=True)
+            r.raise_for_status()
+            for chunk in r:
+                f.write(chunk)
         else:
-            shutil.copyfileobj(srcfile, destf)
+            # CASE B: path points to a local filesystem file
+            with open(path, "rb") as fobj:
+                for chunk in iter(lambda: fobj.read(2097152), b""):
+                    f.write(chunk)
+        assert f.tell() > 0, "File failed to write (corrupted)."
 
 
 def get_hash(filepath):
@@ -261,6 +233,24 @@ def get_hash(filepath):
         for chunk in iter(lambda: fobj.read(2097152), b""):
             file_hash.update(chunk)
     return file_hash.hexdigest()
+
+
+def copy_file_to_storage(srcfilename, ext=None):
+    """
+    Copy `srcfilename` (filepath) to destination.
+    :rtype: None
+    """
+    if ext is None:
+        ext = extract_path_ext(srcfilename)
+
+    hash = get_hash(srcfilename)
+    filename = "{}.{}".format(hash, ext)
+    try:
+        shutil.copy(srcfilename, config.get_storage_path(filename))
+    except shutil.SameFileError:
+        pass
+
+    return filename
 
 
 def compress_video_file(filename, ffmpeg_settings):
@@ -289,9 +279,8 @@ def compress_video_file(filename, ffmpeg_settings):
     compress_video(
         config.get_storage_path(filename), tempf.name, overwrite=True, **ffmpeg_settings
     )
-    compressedfilename = "{}.{}".format(get_hash(tempf.name), file_formats.MP4)
 
-    copy_file_to_storage(compressedfilename, tempf.name)
+    compressedfilename = copy_file_to_storage(tempf.name, ext=file_formats.MP4)
     os.unlink(tempf.name)
     FILECACHE.set(key, bytes(compressedfilename, "utf-8"))
     return compressedfilename
@@ -360,11 +349,7 @@ def download_from_web(
             )
 
     # Write file to local storage
-    filename = "{}.{}".format(get_hash(destination_path), file_format)
-    with open(destination_path, "rb") as dlf, open(
-        config.get_storage_path(filename), "wb"
-    ) as destf:
-        shutil.copyfileobj(dlf, destf)
+    filename = copy_file_to_storage(destination_path, ext=file_format)
 
     FILECACHE.set(key, bytes(filename, "utf-8"))
     return filename
@@ -522,19 +507,18 @@ IMAGE_EXTENSIONS = {
 def process_image(filename):
     tempf = None
     extension = extract_path_ext(filename)
-    if extension not in IMAGE_EXTENSIONS:
-        im = Image.open(filename).convert("RGB")
-        tempf = tempfile.NamedTemporaryFile(
-            suffix=".{}".format(file_formats.PNG), delete=False
-        )
-        tempf.close()
-        filename = tempf.name
-        extension = file_formats.PNG
-        im.save(filename, extension)
+    with Image.open(filename) as im:
+        im.verify()
+        if extension not in IMAGE_EXTENSIONS:
+            tempf = tempfile.NamedTemporaryFile(
+                suffix=".{}".format(file_formats.PNG), delete=False
+            )
+            tempf.close()
+            filename = tempf.name
+            extension = file_formats.PNG
+            im.convert("RGB").save(filename, extension)
 
-    hashedfilename = "{}.{}".format(get_hash(filename), extension)
-
-    copy_file_to_storage(hashedfilename, filename)
+    hashedfilename = copy_file_to_storage(filename, ext=extension)
     if tempf:
         os.unlink(tempf.name)
     return hashedfilename
@@ -549,12 +533,20 @@ class ImageDownloadFile(DownloadFile):
         if self.filename:
             try:
                 image_path = config.get_storage_path(self.filename)
-                img = Image.open(image_path)
-                img.verify()
-                self.filename = process_image(image_path)
-            except IOError as e:  # Catch invalid or broken image files
+                ext = extract_path_ext(image_path)
+                if ext == "svg":
+                    ElementTree.parse(image_path)
+                else:
+                    self.filename = process_image(image_path)
+            except (
+                IOError,
+                OSError,
+                ElementTree.ParseError,
+                UnidentifiedImageError,
+            ) as e:  # Catch invalid or broken image files
                 self.filename = None
                 self.error = e
+                print(self.error)
                 config.FAILED_FILES.append(self)
         return self.filename
 
@@ -567,8 +559,7 @@ class SlideImageFile(ImageDownloadFile):
     def __init__(self, path, caption="", descriptive_text="", **kwargs):
         self.caption = caption
         self.descriptive_text = descriptive_text
-        self.path = path.strip()
-        super(DownloadFile, self).__init__(**kwargs)
+        super(ImageDownloadFile, self).__init__(path, **kwargs)
 
     def get_preset(self):
         return format_presets.SLIDESHOW_IMAGE
@@ -949,47 +940,37 @@ class SubtitleFile(DownloadFile):
         fdin, temp_in_file_name = tempfile.mkstemp()
         fdout, temp_out_file_name = tempfile.mkstemp()
 
-        with open(temp_in_file_name, mode="w+b") as temp_in_file, open(
-            temp_out_file_name, mode="w+b"
-        ) as temp_out_file:
-            write_and_get_hash(path, temp_in_file)
-            temp_in_file.seek(0)
+        write_path_to_filename(path, temp_in_file_name)
 
-            converter = build_subtitle_converter_from_file(
-                temp_in_file.name, self.subtitlesformat
-            )
+        converter = build_subtitle_converter_from_file(
+            temp_in_file_name, self.subtitlesformat
+        )
 
-            # We'll assume the provided file is in the passed language in this case
-            if len(converter.get_language_codes()) == 1 and converter.has_language(
-                LANGUAGE_CODE_UNKNOWN
-            ):
-                converter.replace_unknown_language(self.language)
+        # We'll assume the provided file is in the passed language in this case
+        if len(converter.get_language_codes()) == 1 and converter.has_language(
+            LANGUAGE_CODE_UNKNOWN
+        ):
+            converter.replace_unknown_language(self.language)
 
-            convert_lang_code = self.language
+        convert_lang_code = self.language
 
-            # Language is not present, let's try different codes
-            if not converter.has_language(self.language):
-                for lang_code in converter.get_language_codes():
-                    language = languages.getlang_by_alpha2(lang_code)
+        # Language is not present, let's try different codes
+        if not converter.has_language(self.language):
+            for lang_code in converter.get_language_codes():
+                language = languages.getlang_by_alpha2(lang_code)
 
-                    if language and language.code == self.language:
-                        convert_lang_code = lang_code
-                        break
-                else:
-                    raise InvalidSubtitleLanguageError(
-                        "Missing language '{}' in subtitle file".format(self.language)
-                    )
+                if language and language.code == self.language:
+                    convert_lang_code = lang_code
+                    break
+            else:
+                raise InvalidSubtitleLanguageError(
+                    "Missing language '{}' in subtitle file".format(self.language)
+                )
 
-            converter.write(temp_out_file.name, convert_lang_code)
+        converter.write(temp_out_file_name, convert_lang_code)
 
-            temp_out_file.seek(0)
-            file_hash = get_hash(temp_out_file.name)
-
-            filename = "{0}.{ext}".format(file_hash, ext=file_formats.VTT)
-
-            temp_out_file.seek(0)
-            copy_file_to_storage(filename, temp_out_file)
-            FILECACHE.set(key, bytes(filename, "utf-8"))
+        filename = copy_file_to_storage(temp_out_file_name, ext=file_formats.VTT)
+        FILECACHE.set(key, bytes(filename, "utf-8"))
 
         os.close(fdin)
         os.remove(temp_in_file_name)
@@ -1105,23 +1086,34 @@ class _ExerciseGraphieFile(DownloadFile):
             return cache_file
 
         # Create graphie file combining svg and json files
-        with tempfile.TemporaryFile() as tempf:
-            # Initialize hash and files
-            delimiter = bytes(exercises.GRAPHIE_DELIMITER, "UTF-8")
-            config.LOGGER.info(
-                "\tDownloading graphie {}".format(self.original_filename)
-            )
+        tempf_svg = tempfile.NamedTemporaryFile(suffix=".svg", delete=False)
+        tempf_svg.close()
+        tempf_json = tempfile.NamedTemporaryFile(suffix=".json", delete=False)
+        tempf_json.close()
 
-            # Write to graphie file
-            hash = write_and_get_hash(self.path + ".svg", tempf)
-            tempf.write(delimiter)
-            hash.update(delimiter)
-            hash = write_and_get_hash(self.path + "-data.json", tempf, hash)
-            tempf.seek(0)
-            filename = "{}.{}".format(hash.hexdigest(), file_formats.GRAPHIE)
-            copy_file_to_storage(filename, tempf)
-            FILECACHE.set(key, bytes(filename, "utf-8"))
-            return filename
+        tempf = tempfile.NamedTemporaryFile(
+            suffix=".{}".format(file_formats.GRAPHIE), delete=False
+        )
+        # Initialize hash and files
+        delimiter = bytes(exercises.GRAPHIE_DELIMITER, "UTF-8")
+        config.LOGGER.info("\tDownloading graphie {}".format(self.original_filename))
+        # Write to graphie file
+        write_path_to_filename(self.path + ".svg", tempf_svg.name)
+        with open(tempf_svg.name, "rb") as f:
+            for chunk in iter(lambda: f.read(2097152), b""):
+                tempf.write(chunk)
+        tempf.write(delimiter)
+        write_path_to_filename(self.path + "-data.json", tempf_json.name)
+        with open(tempf_json.name, "rb") as f:
+            for chunk in iter(lambda: f.read(2097152), b""):
+                tempf.write(chunk)
+        tempf.close()
+        filename = copy_file_to_storage(tempf.name, ext=file_formats.GRAPHIE)
+        os.unlink(tempf.name)
+        os.unlink(tempf_svg.name)
+        os.unlink(tempf_json.name)
+        FILECACHE.set(key, bytes(filename, "utf-8"))
+        return filename
 
 
 # EXTRACTED THUMBNAILS
@@ -1144,8 +1136,7 @@ class ExtractedThumbnailFile(ThumbnailFile):
         tempf.close()
         try:
             self.extractor_fun(self.path, tempf.name, **self.extractor_kwargs)
-            filename = "{}.{}".format(get_hash(tempf.name), file_formats.PNG)
-            copy_file_to_storage(filename, tempf.name)
+            filename = copy_file_to_storage(tempf.name, ext=file_formats.PNG)
             os.unlink(tempf.name)
             config.LOGGER.info("\t--- Extracted thumbnail {}".format(filename))
             self.filename = filename
@@ -1231,6 +1222,5 @@ class TiledThumbnailFile(ThumbnailPresetMixin, File):
         ) as tempf:
             tempf.close()
             create_tiled_image(images, tempf.name)
-            filename = "{}.{}".format(get_hash(tempf.name), file_formats.PNG)
-            copy_file_to_storage(filename, tempf.name)
+            filename = copy_file_to_storage(tempf.name, ext=file_formats.PNG)
             return filename

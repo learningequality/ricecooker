@@ -1,6 +1,7 @@
 import copy
 import glob
 import os
+import shutil
 import uuid
 import zipfile
 
@@ -48,6 +49,22 @@ def pytest_sessionfinish(session, exitstatus):
     )
     for path in glob.glob(generated_path + os.path.sep + "*"):
         os.remove(path)
+
+
+TEMP_RICECOOKER_STORAGE = "./.pytest_storage"
+
+
+@pytest.fixture(scope="session", autouse=True)
+def global_fixture():
+    if not os.path.exists(TEMP_RICECOOKER_STORAGE):
+        os.mkdir(TEMP_RICECOOKER_STORAGE)
+    yield  # wait until the test ended
+    if os.path.exists(TEMP_RICECOOKER_STORAGE):
+        try:
+            shutil.rmtree(TEMP_RICECOOKER_STORAGE)
+        except OSError:
+            # Don't fail a test just because we failed to cleanup
+            pass
 
 
 # CHANNEL FIXTURES
@@ -816,12 +833,19 @@ def exercise_graphie_filename():
 
 @pytest.fixture
 def slideshow_files():
+    src_file = os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__),
+            "testcontent",
+            "samples",
+            "thumbnail.jpg",
+        )
+    )
     fake_files = []
     for i in range(0, 10):
         filename = "tests/testcontent/generated/slide" + str(i) + ".jpg"
         if not os.path.exists(filename):
-            with open(filename, "w") as f:
-                f.write("jpgdatawouldgohere" + str(i))
+            shutil.copy(src_file, filename)
         fake_files.append(SlideImageFile(filename, caption="slide " + str(i)))
     return fake_files
 
