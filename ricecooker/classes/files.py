@@ -2,6 +2,7 @@
 from __future__ import unicode_literals
 
 import hashlib
+import imghdr
 import json
 import os
 import shutil
@@ -506,9 +507,17 @@ IMAGE_EXTENSIONS = {
 
 def process_image(filename):
     tempf = None
-    extension = extract_path_ext(filename)
-    with Image.open(filename) as im:
-        im.verify()
+    preferred_extension = extract_path_ext(filename)
+    extension = imghdr.what(filename)
+    if extension is None:
+        raise UnknownFileTypeError(
+            "Unable to determine file type of {}".format(filename)
+        )
+    if extension == file_formats.JPEG and preferred_extension == file_formats.JPG:
+        extension = preferred_extension
+    try:
+        with Image.open(filename) as im:
+            im.verify()
         if extension not in IMAGE_EXTENSIONS:
             tempf = tempfile.NamedTemporaryFile(
                 suffix=".{}".format(file_formats.PNG), delete=False
@@ -517,6 +526,14 @@ def process_image(filename):
             filename = tempf.name
             extension = file_formats.PNG
             im.convert("RGB").save(filename, extension)
+    except UnidentifiedImageError:
+        if extension not in IMAGE_EXTENSIONS:
+            raise
+        config.LOGGER.warning(
+            "Image file did not pass verification {} - please verify that this image is readable".format(
+                filename
+            )
+        )
 
     hashedfilename = copy_file_to_storage(filename, ext=extension)
     if tempf:
@@ -543,6 +560,7 @@ class ImageDownloadFile(DownloadFile):
                 OSError,
                 ElementTree.ParseError,
                 UnidentifiedImageError,
+                UnknownFileTypeError,
             ) as e:  # Catch invalid or broken image files
                 self.filename = None
                 self.error = e
