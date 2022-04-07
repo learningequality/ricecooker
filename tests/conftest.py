@@ -514,7 +514,7 @@ def invalid_audio_file():
 
 @pytest.fixture
 def document_file():
-    source_url = "https://ia802506.us.archive.org/8/items/generalmanual_000075878/generalmanual_000075878.pdf"
+    source_url = "https://archive.org/download/manualzz-id-707752/707752.pdf"
     local_path = os.path.abspath(
         os.path.join(
             os.path.dirname(__file__), "testcontent", "downloaded", "testdocument.pdf"
@@ -528,7 +528,7 @@ def document_file():
 
 @pytest.fixture
 def document_filename():
-    return "b976c31a7ab68a97f12541d661245238.pdf"
+    return "480fe2b9d6b10d8f4fc0ab4a68d787a0.pdf"
 
 
 @pytest.fixture

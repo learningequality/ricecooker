@@ -146,7 +146,7 @@ def download(path, default_ext=None):
     config.LOGGER.info("\tDownloading {}".format(path))
 
     # Write file to temporary file
-    with tempfile.NamedTemporaryFile() as tempf:
+    with tempfile.NamedTemporaryFile(delete=False) as tempf:
         tempf.close()
         write_path_to_filename(path, tempf.name)
         # Get extension of file or use `default_ext` if none found
@@ -154,6 +154,7 @@ def download(path, default_ext=None):
         filename = copy_file_to_storage(tempf.name, ext=ext)
         FILECACHE.set(key, bytes(filename, "utf-8"))
         config.LOGGER.info("\t--- Downloaded {}".format(filename))
+        os.unlink(tempf.name)
 
     return filename
 
