@@ -52,16 +52,25 @@ def pytest_sessionfinish(session, exitstatus):
 
 
 TEMP_RICECOOKER_STORAGE = "./.pytest_storage"
+TEMP_RICECOOKER_FILECACHE = "./.pytest_filecache"
 
 
 @pytest.fixture(scope="session", autouse=True)
 def global_fixture():
     if not os.path.exists(TEMP_RICECOOKER_STORAGE):
         os.mkdir(TEMP_RICECOOKER_STORAGE)
+    if not os.path.exists(TEMP_RICECOOKER_FILECACHE):
+        os.mkdir(TEMP_RICECOOKER_FILECACHE)
     yield  # wait until the test ended
     if os.path.exists(TEMP_RICECOOKER_STORAGE):
         try:
             shutil.rmtree(TEMP_RICECOOKER_STORAGE)
+        except OSError:
+            # Don't fail a test just because we failed to cleanup
+            pass
+    if os.path.exists(TEMP_RICECOOKER_FILECACHE):
+        try:
+            shutil.rmtree(TEMP_RICECOOKER_FILECACHE)
         except OSError:
             # Don't fail a test just because we failed to cleanup
             pass

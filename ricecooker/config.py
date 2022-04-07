@@ -200,7 +200,9 @@ RESTORE_DIRECTORY = "restore"
 SESSION = requests.Session()
 
 # Cache for filenames
-FILECACHE_DIRECTORY = ".ricecookerfilecache"
+FILECACHE_DIRECTORY = os.getenv(
+    "RICECOOKER_FILECACHE", os.path.join(CURRENT_CWD, ".ricecookerfilecache")
+)
 
 FAILED_FILES = []
 
