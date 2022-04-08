@@ -147,6 +147,8 @@ if DOMAIN.endswith("/"):
     DOMAIN = DOMAIN.rstrip("/")
 FILE_STORE_LOCATION = hashlib.md5(DOMAIN.encode("utf-8")).hexdigest()
 
+CURRENT_CWD = os.getcwd()
+
 # Allow users to choose which phantomjs they use
 PHANTOMJS_PATH = os.getenv("PHANTOMJS_PATH", None)
 
@@ -187,7 +189,9 @@ OPEN_CHANNEL_URL = "{domain}/channels/{channel_id}/{access}"
 PUBLISH_CHANNEL_URL = "{domain}/api/internal/publish_channel"
 
 # Folder to store downloaded files
-STORAGE_DIRECTORY = "storage"
+STORAGE_DIRECTORY = os.getenv(
+    "RICECOOKER_STORAGE", os.path.join(CURRENT_CWD, "storage")
+)
 
 # Folder to store progress tracking information
 RESTORE_DIRECTORY = "restore"
@@ -196,7 +200,9 @@ RESTORE_DIRECTORY = "restore"
 SESSION = requests.Session()
 
 # Cache for filenames
-FILECACHE_DIRECTORY = ".ricecookerfilecache"
+FILECACHE_DIRECTORY = os.getenv(
+    "RICECOOKER_FILECACHE", os.path.join(CURRENT_CWD, ".ricecookerfilecache")
+)
 
 FAILED_FILES = []
 
@@ -226,7 +232,7 @@ CSV_HEADERS = [
 ]
 
 # Automatic temporary direcotry cleanup
-chef_temp_dir = os.path.join(os.getcwd(), ".ricecooker-temp")
+chef_temp_dir = os.path.join(CURRENT_CWD, ".ricecooker-temp")
 
 
 @atexit.register
@@ -341,9 +347,7 @@ def get_storage_path(filename):
     Returns: string path to file
     """
     directory = os.path.abspath(
-        os.path.join(
-            os.path.dirname(__file__), STORAGE_DIRECTORY, filename[0], filename[1]
-        )
+        os.path.join(STORAGE_DIRECTORY, filename[0], filename[1])
     )
     # Make storage directory for downloaded files if it doesn't already exist
     if not os.path.exists(directory):

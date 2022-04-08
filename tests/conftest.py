@@ -1,6 +1,7 @@
 import copy
 import glob
 import os
+import shutil
 import uuid
 import zipfile
 
@@ -48,6 +49,31 @@ def pytest_sessionfinish(session, exitstatus):
     )
     for path in glob.glob(generated_path + os.path.sep + "*"):
         os.remove(path)
+
+
+TEMP_RICECOOKER_STORAGE = "./.pytest_storage"
+TEMP_RICECOOKER_FILECACHE = "./.pytest_filecache"
+
+
+@pytest.fixture(scope="session", autouse=True)
+def global_fixture():
+    if not os.path.exists(TEMP_RICECOOKER_STORAGE):
+        os.mkdir(TEMP_RICECOOKER_STORAGE)
+    if not os.path.exists(TEMP_RICECOOKER_FILECACHE):
+        os.mkdir(TEMP_RICECOOKER_FILECACHE)
+    yield  # wait until the test ended
+    if os.path.exists(TEMP_RICECOOKER_STORAGE):
+        try:
+            shutil.rmtree(TEMP_RICECOOKER_STORAGE)
+        except OSError:
+            # Don't fail a test just because we failed to cleanup
+            pass
+    if os.path.exists(TEMP_RICECOOKER_FILECACHE):
+        try:
+            shutil.rmtree(TEMP_RICECOOKER_FILECACHE)
+        except OSError:
+            # Don't fail a test just because we failed to cleanup
+            pass
 
 
 # CHANNEL FIXTURES
@@ -488,7 +514,7 @@ def invalid_audio_file():
 
 @pytest.fixture
 def document_file():
-    source_url = "https://ia802506.us.archive.org/8/items/generalmanual_000075878/generalmanual_000075878.pdf"
+    source_url = "https://archive.org/download/manualzz-id-707752/707752.pdf"
     local_path = os.path.abspath(
         os.path.join(
             os.path.dirname(__file__), "testcontent", "downloaded", "testdocument.pdf"
@@ -502,7 +528,7 @@ def document_file():
 
 @pytest.fixture
 def document_filename():
-    return "b976c31a7ab68a97f12541d661245238.pdf"
+    return "480fe2b9d6b10d8f4fc0ab4a68d787a0.pdf"
 
 
 @pytest.fixture
@@ -816,12 +842,19 @@ def exercise_graphie_filename():
 
 @pytest.fixture
 def slideshow_files():
+    src_file = os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__),
+            "testcontent",
+            "samples",
+            "thumbnail.jpg",
+        )
+    )
     fake_files = []
     for i in range(0, 10):
         filename = "tests/testcontent/generated/slide" + str(i) + ".jpg"
         if not os.path.exists(filename):
-            with open(filename, "w") as f:
-                f.write("jpgdatawouldgohere" + str(i))
+            shutil.copy(src_file, filename)
         fake_files.append(SlideImageFile(filename, caption="slide " + str(i)))
     return fake_files
 
