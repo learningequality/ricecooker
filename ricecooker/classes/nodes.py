@@ -9,7 +9,8 @@ from le_utils.constants import file_formats
 from le_utils.constants import format_presets
 from le_utils.constants import languages
 from le_utils.constants import roles
-
+from le_utils.constants.labels import levels, resource_type, accessibility_categories
+from le_utils.constants.labels import learning_activities, needs, subjects
 from .. import __version__
 from .. import config
 from ..exceptions import InvalidNodeException
@@ -17,6 +18,12 @@ from .licenses import License
 
 MASTERY_MODELS = [id for id, name in exercises.MASTERY_MODELS]
 ROLES = [id for id, name in roles.choices]
+GRADE_LEVELS = [id for id, name in levels.choices]
+RESOURCE_TYPES = [id for id, name in resource_type.choices]
+ACCESSIBILITY_CATEGORIES = [id for id, name in accessibility_categories.choices]
+LEARNING_ACTIVITIES = [id for id, name in learning_activities.choices]
+LEARNER_NEEDS = [id for id, name in needs.choices]
+SUBJECTS = [id for id, name in subjects.choices]
 
 
 class Node(object):
@@ -648,7 +655,6 @@ class ContentNode(TreeNode):
     """
 
     required_file_format = None
-
     def __init__(
         self,
         source_id,
@@ -657,9 +663,23 @@ class ContentNode(TreeNode):
         role=roles.LEARNER,
         license_description=None,
         copyright_holder=None,
+        grade_levels=None,
+        resource_types=None,
+        learning_activities=None,
+        accessibility_labels=None,
+        categories=None,
+        learner_needs=None,
         **kwargs
     ):
         self.role = role
+        self.grade_levels = grade_levels
+        self.resource_types = resource_types
+        self.learning_activities = learning_activities
+        self.accessibility_labels = accessibility_labels
+        self.categories = categories
+        self.learner_needs = learner_needs
+
+
         self.set_license(
             license, copyright_holder=copyright_holder, description=license_description
         )
@@ -691,6 +711,31 @@ class ContentNode(TreeNode):
         assert (
             self.role in ROLES
         ), "Assumption Failed: Role must be one of the following {}".format(ROLES)
+
+        assert (
+            self.grade_levels in GRADE_LEVELS
+        ), "Assumption Failed: Grade levels must be one of the following {}".format(GRADE_LEVELS)
+
+        assert (
+            self.resource_types in RESOURCE_TYPES
+        ), "Assumption Failed: Resource types must be one of the following {}".format(RESOURCE_TYPES)
+
+        assert (
+            self.learning_activities in LEARNING_ACTIVITIES
+        ), "Assumption Failed: Learning activities must be one of the following {}".format(LEARNING_ACTIVITIES)
+
+        assert (
+            self.accessibility_labels in ACCESSIBILITY_CATEGORIES
+        ), "Assumption Failed: Accessibility label must be one of the following {}".format(ACCESSIBILITY_CATEGORIES)
+
+        assert (
+            self.categories in SUBJECTS
+        ), "Assumption Failed: Categories must be one of the following {}".format(SUBJECTS)
+
+        assert (
+            self.learner_needs in LEARNER_NEEDS
+        ), "Assumption Failed: Learner must be one of the following {}".format(LEARNER_NEEDS)
+
         assert isinstance(self.license, str) or isinstance(
             self.license, License
         ), "Assumption Failed: License is not a string or license object"
