@@ -11,8 +11,8 @@ import zipfile
 from subprocess import CalledProcessError
 from urllib.parse import urlparse
 from xml.etree import ElementTree
-import requests
 
+import requests
 import youtube_dl
 from cachecontrol.caches.file_cache import FileCache
 from le_utils.constants import exercises
@@ -65,12 +65,13 @@ CONVERTIBLE_FORMATS = {p.id: p.convertible_formats for p in format_presets.PRESE
 
 
 def extract_ext_from_header(path):
-    res = requests.get(path)
-    if res:
-        content_dis = res.headers.get('content-disposition')
-        if content_dis:
-            ext = content_dis.split('.')
-            return ext[-1]
+    if str(path).startswith("http"):
+        res = requests.get(path)
+        if res:
+            content_dis = res.headers.get("content-disposition")
+            if content_dis:
+                ext = content_dis.split(".")
+                return ext[-1]
     return None
 
 
