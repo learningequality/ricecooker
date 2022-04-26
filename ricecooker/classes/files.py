@@ -11,6 +11,7 @@ import zipfile
 from subprocess import CalledProcessError
 from urllib.parse import urlparse
 from xml.etree import ElementTree
+import requests
 
 import youtube_dl
 from cachecontrol.caches.file_cache import FileCache
@@ -61,6 +62,16 @@ HTTP_CAUGHT_EXCEPTIONS = (
 # Lookup table for convertible file formats for a given preset
 # used for converting avi/flv/etc. videos and srt subtitles
 CONVERTIBLE_FORMATS = {p.id: p.convertible_formats for p in format_presets.PRESETLIST}
+
+
+def extract_ext_from_header(path):
+    res = requests.get(path)
+    if res:
+        content_dis = res.headers.get('content-disposition')
+        if content_dis:
+            ext = content_dis.split('.')
+            return ext[-1]
+    return None
 
 
 def extract_path_ext(path, default_ext=None):
@@ -150,7 +161,9 @@ def download(path, default_ext=None):
         tempf.close()
         write_path_to_filename(path, tempf.name)
         # Get extension of file or use `default_ext` if none found
-        ext = extract_path_ext(path, default_ext=default_ext)
+        ext = extract_ext_from_header(path)
+        if not ext:
+            ext = extract_path_ext(path, default_ext=default_ext)
         filename = copy_file_to_storage(tempf.name, ext=ext)
         FILECACHE.set(key, bytes(filename, "utf-8"))
         config.LOGGER.info("\t--- Downloaded {}".format(filename))
@@ -474,7 +487,9 @@ class DownloadFile(File):
         Ensure `self.path` has one of the extensions in `self.allowed_formats`.
         """
         assert self.path, "{} must have a path".format(self.__class__.__name__)
-        ext = extract_path_ext(self.path, default_ext=self.default_ext)
+        ext = extract_ext_from_header(self.path)
+        if not ext:
+            ext = extract_path_ext(self.path)
         # don't validate for single-digit extension, or no extension
         if len(ext) > 1:
             assert ext in self.allowed_formats, (
@@ -674,7 +689,9 @@ class VideoFile(DownloadFile):
         Ensure `self.path` has one of the extensions in `self.allowed_formats`.
         """
         assert self.path, "{} must have a path".format(self.__class__.__name__)
-        ext = extract_path_ext(self.path, default_ext=self.default_ext)
+        ext = extract_ext_from_header(self.path)
+        if not ext:
+            ext = extract_path_ext(self.path, default_ext=self.default_ext)
         if (
             ext not in self.allowed_formats
             and ext not in CONVERTIBLE_FORMATS[format_presets.VIDEO_HIGH_RES]
@@ -700,7 +717,9 @@ class VideoFile(DownloadFile):
             config.FAILED_FILES.append(self)
 
     def process_file(self):
-        ext = extract_path_ext(self.path, default_ext=self.default_ext)
+        ext = extract_ext_from_header(self.path)
+        if not ext:
+            ext = extract_path_ext(self.path, default_ext=self.default_ext)
         if (
             ext not in self.allowed_formats
             and ext not in CONVERTIBLE_FORMATS[format_presets.VIDEO_HIGH_RES]
@@ -914,7 +933,9 @@ class SubtitleFile(DownloadFile):
         info is specified in `self.subtitlesformat`.
         """
         assert self.path, "{} must have a path".format(self.__class__.__name__)
-        ext = extract_path_ext(self.path, default_ext=self.subtitlesformat)
+        ext = extract_ext_from_header(self.path)
+        if not ext:
+            ext = extract_path_ext(self.path, default_ext=self.subtitlesformat)
         convertible_exts = CONVERTIBLE_FORMATS[self.get_preset()]
         if (
             ext != self.default_ext
