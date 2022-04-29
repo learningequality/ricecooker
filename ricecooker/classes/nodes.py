@@ -285,7 +285,13 @@ class Node(object):
           Args: None
           Returns: boolean indicating if tree is valid
         """
-        self.validate()
+        try:
+            self.validate()
+        except InvalidNodeException as e:
+            if config.STRICT:
+                raise
+            else:
+                config.LOGGER.warning(str(e))
         for child in self.children:
             assert child.validate_tree()
         return True

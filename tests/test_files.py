@@ -1,4 +1,5 @@
 """ Tests for file downloading and processing """
+import hashlib
 import os.path
 import tempfile
 from shutil import copyfile
@@ -101,6 +102,20 @@ def test_download_filenames(
     ), "Subtitle file should have filename {}".format(subtitle_filename)
 
 
+def read_file_hash(filepath):
+    BUF_SIZE = 65536
+
+    md5 = hashlib.md5()
+
+    with open(filepath, "rb") as f:
+        while True:
+            data = f.read(BUF_SIZE)
+            if not data:
+                break
+            md5.update(data)
+    return md5.hexdigest()
+
+
 def test_download_to_storage(
     video_file,
     video_filename,
@@ -135,20 +150,41 @@ def test_download_to_storage(
     subtitle_path = config.get_storage_path(subtitle_filename)
 
     assert os.path.isfile(video_path), "Video should be stored at {}".format(video_path)
+    assert (
+        read_file_hash(video_path) == video_filename.split(".")[0]
+    ), "Video hash should match"
     assert os.path.isfile(html_path), "HTML should be stored at {}".format(html_path)
+    assert (
+        read_file_hash(html_path) == html_filename.split(".")[0]
+    ), "HTML hash should match"
     assert os.path.isfile(audio_path), "Audio should be stored at {}".format(audio_path)
+    assert (
+        read_file_hash(audio_path) == audio_filename.split(".")[0]
+    ), "Audio hash should match"
     assert os.path.isfile(document_path), "PDF document should be stored at {}".format(
         document_path
     )
+    assert (
+        read_file_hash(document_path) == document_filename.split(".")[0]
+    ), "PDF hash should match"
     assert os.path.isfile(epub_path), "ePub document should be stored at {}".format(
         epub_path
     )
+    assert (
+        read_file_hash(epub_path) == epub_filename.split(".")[0]
+    ), "ePub hash should match"
     assert os.path.isfile(thumbnail_path), "Thumbnail should be stored at {}".format(
         thumbnail_path
     )
+    assert (
+        read_file_hash(thumbnail_path) == thumbnail_filename.split(".")[0]
+    ), "Thumbnail hash should match"
     assert os.path.isfile(subtitle_path), "Subtitle should be stored at {}".format(
         subtitle_path
     )
+    assert (
+        read_file_hash(subtitle_path) == subtitle_filename.split(".")[0]
+    ), "Subtitle hash should match"
 
 
 def test_set_language():
