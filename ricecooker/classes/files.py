@@ -490,7 +490,7 @@ class DownloadFile(File):
             return self.filename
         # Catch errors related to reading file path and handle silently
         except HTTP_CAUGHT_EXCEPTIONS as err:
-            self.error = err
+            self.error = str(err)
             config.LOGGER.debug("Failed to download, error is: {}".format(err))
             config.FAILED_FILES.append(self)
             return None
@@ -564,8 +564,7 @@ class ImageDownloadFile(DownloadFile):
                 UnknownFileTypeError,
             ) as e:  # Catch invalid or broken image files
                 self.filename = None
-                self.error = e
-                print(self.error)
+                self.error = str(e)
                 config.FAILED_FILES.append(self)
         return self.filename
 
@@ -640,7 +639,7 @@ class HTMLZipFile(DownloadFile):
                         _ = zf.getinfo("index.html")
             except KeyError as err:
                 self.filename = None
-                self.error = err
+                self.error = str(err)
                 config.FAILED_FILES.append(self)
         return self.filename
 
@@ -696,7 +695,7 @@ class VideoFile(DownloadFile):
             )
             return self.filename
         except HTTP_CAUGHT_EXCEPTIONS as err:
-            self.error = err
+            self.error = str(err)
             config.FAILED_FILES.append(self)
 
     def process_file(self):
@@ -734,7 +733,7 @@ class VideoFile(DownloadFile):
         ) as err:
             # Catch errors related to ffmpeg and handle silently
             self.filename = None
-            self.error = err
+            self.error = str(err)
             config.FAILED_FILES.append(self)
 
         return self.filename
@@ -789,7 +788,7 @@ class WebVideoFile(File):
 
         except youtube_dl.utils.DownloadError as err:
             self.filename = None
-            self.error = err
+            self.error = str(err)
             config.FAILED_FILES.append(self)
 
         return self.filename
@@ -940,7 +939,7 @@ class SubtitleFile(DownloadFile):
             return self.filename
         # Catch errors related to reading file path and conversion, and handle silently
         except caught_errors as err:
-            self.error = err
+            self.error = str(err)
             config.FAILED_FILES.append(self)
 
     def download_and_transform_file(self, path):
@@ -1094,7 +1093,7 @@ class _ExerciseGraphieFile(DownloadFile):
             InvalidSchema,
             IOError,
         ) as err:
-            self.error = err
+            self.error = str(err)
             config.FAILED_FILES.append(self)
 
     def generate_graphie_file(self):
@@ -1162,7 +1161,7 @@ class ExtractedThumbnailFile(ThumbnailFile):
         except ThumbnailGenerationError as err:
             config.LOGGER.warning("\t    Failed to extract thumbnail {}".format(err))
             self.filename = None
-            self.error = err
+            self.error = str(err)
             config.FAILED_FILES.append(self)
         return self.filename
 
