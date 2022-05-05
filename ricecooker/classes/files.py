@@ -503,6 +503,7 @@ IMAGE_EXTENSIONS = {
     file_formats.PNG,
     file_formats.JPG,
     file_formats.JPEG,
+    file_formats.GIF,
 }
 
 
