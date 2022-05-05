@@ -526,7 +526,8 @@ def process_image(filename):
             tempf.close()
             filename = tempf.name
             extension = file_formats.PNG
-            im.convert("RGB").save(filename, extension)
+            with Image.open(filename) as im:
+                im.convert("RGB").save(filename, extension)
     except UnidentifiedImageError:
         if extension not in IMAGE_EXTENSIONS:
             raise
