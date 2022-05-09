@@ -521,7 +521,6 @@ class TreeNode(Node):
         """
         # default natural sorting
         if not key:
-
             def convert(text):
                 return int(text) if text.isdigit() else text.lower()
 
@@ -718,26 +717,25 @@ class ContentNode(TreeNode):
             self.role in ROLES
         ), "Assumption Failed: Role must be one of the following {}".format(ROLES)
         if self.grade_levels is not None:
-            assert isinstance(self.grade_levels, list), "Assumption Failed: Resource types must be list"
-            assert (
-                self.grade_levels in levels.LEVELSLIST
-            ), "Assumption Failed: Grade levels must be one of the following {}".format(
-                levels.LEVELSLIST
-            )
+            for grade in self.grade_levels:
+                assert (grade in levels.LEVELSLIST), "Assumption Failed: Grade levels must be one of the following {}".format(
+                    levels.LEVELSLIST)
+
         if self.resource_types is not None:
-            assert isinstance(self.resource_types, list), "Assumption Failed: Resource types must be list"
-            assert (
-                self.resource_types in resource_type.RESOURCETYPELIST
-            ), "Assumption Failed: Resource types must be one of the following {}".format(
-                resource_type.RESOURCETYPELIST
+            for res_type in self.resource_types:
+                assert (
+                    res_type in resource_type.RESOURCETYPELIST
+                ), "Assumption Failed: Resource types must be one of the following {}".format(
+                    resource_type.RESOURCETYPELIST
             )
+
         if self.learning_activities is not None:
             assert isinstance(self.learning_activities, list), "Assumption Failed: Learning activities must be list"
             assert (
-                    self.learning_activities in learning_activities.LEARNINGACTIVITIESLIST
-                ), "Assumption Failed: Learning activities must be one of the following {}".format(
-                    learning_activities.LEARNINGACTIVITIESLIST
-                )
+                self.learning_activities in learning_activities.LEARNINGACTIVITIESLIST
+            ), "Assumption Failed: Learning activities must be one of the following {}".format(
+                learning_activities.LEARNINGACTIVITIESLIST
+            )
         if self.accessibility_labels is not None:
             assert isinstance(self.accessibility_labels, list), "Assumption Failed: Accessibility label must be list"
             assert (
