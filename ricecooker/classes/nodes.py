@@ -731,33 +731,38 @@ class ContentNode(TreeNode):
 
         if self.learning_activities is not None:
             assert isinstance(self.learning_activities, list), "Assumption Failed: Learning activities must be list"
-            assert (
-                self.learning_activities in learning_activities.LEARNINGACTIVITIESLIST
-            ), "Assumption Failed: Learning activities must be one of the following {}".format(
-                learning_activities.LEARNINGACTIVITIESLIST
-            )
+            for learn_act in self.learning_activities:
+                assert (
+                    learn_act in learning_activities.LEARNINGACTIVITIESLIST
+                ), "Assumption Failed: Learning activities must be one of the following {}".format(
+                    learning_activities.LEARNINGACTIVITIESLIST
+                )
         if self.accessibility_labels is not None:
             assert isinstance(self.accessibility_labels, list), "Assumption Failed: Accessibility label must be list"
-            assert (
-                self.accessibility_labels
-                in accessibility_categories.ACCESSIBILITYCATEGORIESLIST
-            ), "Assumption Failed: Accessibility label must be one of the following {}".format(
-                accessibility_categories.ACCESSIBILITYCATEGORIESLIST
-            )
+            for access_label in self.accessibility_labels:
+                assert (
+                    access_label
+                    in accessibility_categories.ACCESSIBILITYCATEGORIESLIST
+                ), "Assumption Failed: Accessibility label must be one of the following {}".format(
+                    accessibility_categories.ACCESSIBILITYCATEGORIESLIST
+                )
         if self.categories is not None:
             assert isinstance(self.categories, list), "Assumption Failed: Categories must be list"
-            assert (
-                self.categories in subjects.SUBJECTSLIST
-            ), "Assumption Failed: Categories must be one of the following {}".format(
-                subjects.SUBJECTSLIST
-            )
+            for category in self.categories:
+                assert (
+                    category in subjects.SUBJECTSLIST
+                ), "Assumption Failed: Categories must be one of the following {}".format(
+                    subjects.SUBJECTSLIST
+                )
+
         if self.learner_needs is not None:
             assert isinstance(self.learner_needs, list), "Assumption Failed: Learner needs must be list"
-            assert (
-                self.learner_needs in needs.NEEDSLIST
-            ), "Assumption Failed: Learner needs must be one of the following {}".format(
-                needs.NEEDSLIST
-            )
+            for learner_need in self.learner_needs:
+                assert (
+                    learner_need in needs.NEEDSLIST
+                ), "Assumption Failed: Learner needs must be one of the following {}".format(
+                    needs.NEEDSLIST
+                )
 
         assert isinstance(self.license, str) or isinstance(
             self.license, License
