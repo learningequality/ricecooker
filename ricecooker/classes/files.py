@@ -151,7 +151,7 @@ def download(path, default_ext=None):
     cache_file = get_cache_filename(key)
     if not config.UPDATE and not cache_is_outdated(path, cache_file):
         config.LOGGER.info("\tUsing cached file for: {}".format(path))
-        return cache_file
+        return cache_file, None
 
     config.LOGGER.info("\tDownloading {}".format(path))
 
@@ -477,6 +477,7 @@ class File(object):
 
 class DownloadFile(File):
     allowed_formats = []
+    default_ext = None
 
     def __init__(self, path, **kwargs):
         self.path = path.strip()
@@ -490,17 +491,10 @@ class DownloadFile(File):
 
     def process_file(self):
         try:
-            self.filename, ext = download(self.path, default_ext=self.default_ext)
+            self.filename, self.default_ext = download(self.path, default_ext=self.default_ext)
             # don't validate for single-digit extension, or no extension
-            if not ext:
-                ext = extract_path_ext(self.path)
-            if len(ext) > 1:
-                assert ext in self.allowed_formats, (
-                    "{} must have one of the "
-                    "following extensions: {} (instead, got '{}' from '{}')".format(
-                        self.__class__.__name__, self.allowed_formats, ext, self.filename
-                    )
-                )
+            if not self.default_ext:
+                self.default_ext = extract_path_ext(self.path)
             return self.filename
         # Catch errors related to reading file path and handle silently
         except HTTP_CAUGHT_EXCEPTIONS as err:
