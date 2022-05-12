@@ -9,6 +9,12 @@ from le_utils.constants import file_formats
 from le_utils.constants import format_presets
 from le_utils.constants import languages
 from le_utils.constants import roles
+from le_utils.constants.labels import accessibility_categories
+from le_utils.constants.labels import learning_activities
+from le_utils.constants.labels import levels
+from le_utils.constants.labels import needs
+from le_utils.constants.labels import resource_type
+from le_utils.constants.labels import subjects
 
 from .. import __version__
 from .. import config
@@ -561,6 +567,12 @@ class TreeNode(Node):
             "copyright_holder": "",
             "questions": [],
             "extra_fields": json.dumps(self.extra_fields),
+            "grade_levels": None,
+            "resource_types": None,
+            "learning_activities": None,
+            "accessibility_categories": None,
+            "subjects": None,
+            "needs": None,
         }
 
     def validate(self):
@@ -663,9 +675,22 @@ class ContentNode(TreeNode):
         role=roles.LEARNER,
         license_description=None,
         copyright_holder=None,
+        grade_levels=None,
+        resource_types=None,
+        learning_activities=None,
+        accessibility_labels=None,
+        categories=None,
+        learner_needs=None,
         **kwargs
     ):
         self.role = role
+        self.grade_levels = grade_levels
+        self.resource_types = resource_types
+        self.learning_activities = learning_activities
+        self.accessibility_labels = accessibility_labels
+        self.categories = categories
+        self.learner_needs = learner_needs
+
         self.set_license(
             license, copyright_holder=copyright_holder, description=license_description
         )
@@ -689,7 +714,7 @@ class ContentNode(TreeNode):
             )
         self.license = license
 
-    def validate(self):
+    def validate(self):  # noqa F401
         """validate: Makes sure content node is valid
         Args: None
         Returns: boolean indicating if content node is valid
@@ -697,6 +722,64 @@ class ContentNode(TreeNode):
         assert (
             self.role in ROLES
         ), "Assumption Failed: Role must be one of the following {}".format(ROLES)
+        if self.grade_levels is not None:
+            for grade in self.grade_levels:
+                assert (
+                    grade in levels.LEVELSLIST
+                ), "Assumption Failed: Grade levels must be one of the following {}".format(
+                    levels.LEVELSLIST
+                )
+
+        if self.resource_types is not None:
+            for res_type in self.resource_types:
+                assert (
+                    res_type in resource_type.RESOURCETYPELIST
+                ), "Assumption Failed: Resource types must be one of the following {}".format(
+                    resource_type.RESOURCETYPELIST
+                )
+
+        if self.learning_activities is not None:
+            assert isinstance(
+                self.learning_activities, list
+            ), "Assumption Failed: Learning activities must be list"
+            for learn_act in self.learning_activities:
+                assert (
+                    learn_act in learning_activities.LEARNINGACTIVITIESLIST
+                ), "Assumption Failed: Learning activities must be one of the following {}".format(
+                    learning_activities.LEARNINGACTIVITIESLIST
+                )
+        if self.accessibility_labels is not None:
+            assert isinstance(
+                self.accessibility_labels, list
+            ), "Assumption Failed: Accessibility label must be list"
+            for access_label in self.accessibility_labels:
+                assert (
+                    access_label in accessibility_categories.ACCESSIBILITYCATEGORIESLIST
+                ), "Assumption Failed: Accessibility label must be one of the following {}".format(
+                    accessibility_categories.ACCESSIBILITYCATEGORIESLIST
+                )
+        if self.categories is not None:
+            assert isinstance(
+                self.categories, list
+            ), "Assumption Failed: Categories must be list"
+            for category in self.categories:
+                assert (
+                    category in subjects.SUBJECTSLIST
+                ), "Assumption Failed: Categories must be one of the following {}".format(
+                    subjects.SUBJECTSLIST
+                )
+
+        if self.learner_needs is not None:
+            assert isinstance(
+                self.learner_needs, list
+            ), "Assumption Failed: Learner needs must be list"
+            for learner_need in self.learner_needs:
+                assert (
+                    learner_need in needs.NEEDSLIST
+                ), "Assumption Failed: Learner needs must be one of the following {}".format(
+                    needs.NEEDSLIST
+                )
+
         assert isinstance(self.license, str) or isinstance(
             self.license, License
         ), "Assumption Failed: License is not a string or license object"
@@ -738,6 +821,12 @@ class ContentNode(TreeNode):
             "extra_fields": json.dumps(self.extra_fields),
             "role": self.role,
             "duration": self.duration,
+            "grade_levels": self.grade_levels,
+            "resource_types": self.resource_types,
+            "learning_activities": self.learning_activities,
+            "accessibility_categories": self.accessibility_labels,
+            "subjects": self.categories,
+            "needs": self.learner_needs,
         }
 
 
