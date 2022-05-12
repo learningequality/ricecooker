@@ -477,7 +477,7 @@ class File(object):
 
 class DownloadFile(File):
     allowed_formats = []
-    default_ext = None
+    ext = None
 
     def __init__(self, path, **kwargs):
         self.path = path.strip()
@@ -491,10 +491,10 @@ class DownloadFile(File):
 
     def process_file(self):
         try:
-            self.filename, self.default_ext = download(self.path, default_ext=self.default_ext)
+            self.filename, self.ext = download(self.path, default_ext=self.default_ext)
             # don't validate for single-digit extension, or no extension
-            if not self.default_ext:
-                self.default_ext = extract_path_ext(self.path)
+            if not self.ext:
+                self.ext = extract_path_ext(self.path)
             return self.filename
         # Catch errors related to reading file path and handle silently
         except HTTP_CAUGHT_EXCEPTIONS as err:
@@ -559,8 +559,10 @@ class ImageDownloadFile(DownloadFile):
         if self.filename:
             try:
                 image_path = config.get_storage_path(self.filename)
-                ext = extract_path_ext(image_path)
-                if ext == "svg":
+                extension = self.ext
+                if not extension:
+                    extension = extract_path_ext(image_path)
+                if extension == "svg":
                     ElementTree.parse(image_path)
                 else:
                     self.filename = process_image(image_path)
@@ -682,15 +684,15 @@ class VideoFile(DownloadFile):
         Ensure `self.path` has one of the extensions in `self.allowed_formats`.
         """
         assert self.path, "{} must have a path".format(self.__class__.__name__)
-        # ext = extract_ext_from_header(self.path)
-        # if not ext:
-        ext = extract_path_ext(self.path, default_ext=self.default_ext)
+        extension = self.ext
+        if not extension:
+            extension = extract_path_ext(self.path, default_ext=self.default_ext)
         if (
-            ext not in self.allowed_formats
-            and ext not in CONVERTIBLE_FORMATS[format_presets.VIDEO_HIGH_RES]
+            extension not in self.allowed_formats
+            and extension not in CONVERTIBLE_FORMATS[format_presets.VIDEO_HIGH_RES]
         ):
             raise ValueError(
-                "Incompatible extension {} for VideoFile at {}".format(ext, self.path)
+                "Incompatible extension {} for VideoFile at {}".format(self.ext, self.path)
             )
 
     def process_unsupported_video_file(self):
@@ -710,16 +712,18 @@ class VideoFile(DownloadFile):
             config.FAILED_FILES.append(self)
 
     def process_file(self):
-        ext = extract_path_ext(self.path, default_ext=self.default_ext)
+        extension = self.ext
+        if not extension:
+            extension = extract_path_ext(self.path, default_ext=self.default_ext)
         if (
-            ext not in self.allowed_formats
-            and ext not in CONVERTIBLE_FORMATS[format_presets.VIDEO_HIGH_RES]
+            extension not in self.allowed_formats
+            and extension not in CONVERTIBLE_FORMATS[format_presets.VIDEO_HIGH_RES]
         ):
             raise ValueError(
                 "Incompatible extension {} for VideoFile at {}".format(ext, self.path)
             )
         try:
-            if ext not in self.allowed_formats:
+            if extension not in self.allowed_formats:
                 # Handle videos that don't have an .mp4 or .webm extension
                 self.filename = self.process_unsupported_video_file()
             else:
@@ -924,7 +928,9 @@ class SubtitleFile(DownloadFile):
         info is specified in `self.subtitlesformat`.
         """
         assert self.path, "{} must have a path".format(self.__class__.__name__)
-        ext = extract_path_ext(self.path, default_ext=self.subtitlesformat)
+        ext = self.ext
+        if not ext:
+            ext = extract_path_ext(self.path, default_ext=self.subtitlesformat)
         convertible_exts = CONVERTIBLE_FORMATS[self.get_preset()]
         if (
             ext != self.default_ext
