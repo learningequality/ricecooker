@@ -12,7 +12,6 @@ from subprocess import CalledProcessError
 from urllib.parse import urlparse
 from xml.etree import ElementTree
 
-import requests
 import youtube_dl
 from cachecontrol.caches.file_cache import FileCache
 from le_utils.constants import exercises
@@ -722,7 +721,9 @@ class VideoFile(DownloadFile):
             and extension not in CONVERTIBLE_FORMATS[format_presets.VIDEO_HIGH_RES]
         ):
             raise ValueError(
-                "Incompatible extension {} for VideoFile at {}".format(ext, self.path)
+                "Incompatible extension {} for VideoFile at {}".format(
+                    extension, self.path
+                )
             )
         try:
             if extension not in self.allowed_formats:
