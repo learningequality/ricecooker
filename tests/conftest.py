@@ -793,7 +793,11 @@ def fake_thumbnail_file():
 
 @pytest.fixture
 def exercise_image_file():
-    path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'testcontent', 'exercises', 'no-wifi.png'))
+    path = os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__), "testcontent", "exercises", "no-wifi.png"
+        )
+    )
     return _ExerciseImageFile(path)
 
 

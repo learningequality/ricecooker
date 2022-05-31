@@ -692,7 +692,9 @@ class VideoFile(DownloadFile):
             and extension not in CONVERTIBLE_FORMATS[format_presets.VIDEO_HIGH_RES]
         ):
             raise ValueError(
-                "Incompatible extension {} for VideoFile at {}".format(self.ext, self.path)
+                "Incompatible extension {} for VideoFile at {}".format(
+                    self.ext, self.path
+                )
             )
 
     def process_unsupported_video_file(self):
