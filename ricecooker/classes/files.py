@@ -63,6 +63,15 @@ HTTP_CAUGHT_EXCEPTIONS = (
 CONVERTIBLE_FORMATS = {p.id: p.convertible_formats for p in format_presets.PRESETLIST}
 
 
+def extract_ext_from_header(res):
+    if res:
+        content_dis = res.headers.get("content-disposition")
+        if content_dis:
+            ext = content_dis.split(".")
+            return ext[-1]
+    return None
+
+
 def extract_path_ext(path, default_ext=None):
     """
     Extract file extension (without dot) from `path` or return `default_ext` if
@@ -141,22 +150,23 @@ def download(path, default_ext=None):
     cache_file = get_cache_filename(key)
     if not config.UPDATE and not cache_is_outdated(path, cache_file):
         config.LOGGER.info("\tUsing cached file for: {}".format(path))
-        return cache_file
+        return cache_file, None
 
     config.LOGGER.info("\tDownloading {}".format(path))
 
     # Write file to temporary file
     with tempfile.NamedTemporaryFile(delete=False) as tempf:
         tempf.close()
-        write_path_to_filename(path, tempf.name)
+        ext = write_path_to_filename(path, tempf.name)
         # Get extension of file or use `default_ext` if none found
-        ext = extract_path_ext(path, default_ext=default_ext)
+        if not ext:
+            ext = extract_path_ext(path, default_ext=default_ext)
         filename = copy_file_to_storage(tempf.name, ext=ext)
         FILECACHE.set(key, bytes(filename, "utf-8"))
         config.LOGGER.info("\t--- Downloaded {}".format(filename))
         os.unlink(tempf.name)
 
-    return filename
+    return filename, ext
 
 
 def download_and_convert_video(path, ffmpeg_settings=None):
@@ -218,9 +228,11 @@ def write_path_to_filename(path, write_to_file):
         if is_valid_url(path):
             # CASE A: path is a URL (http://, https://, or file://, etc.)
             r = config.DOWNLOAD_SESSION.get(path, stream=True)
+            default_ext = extract_ext_from_header(r)
             r.raise_for_status()
             for chunk in r:
                 f.write(chunk)
+            return default_ext
         else:
             # CASE B: path points to a local filesystem file
             with open(path, "rb") as fobj:
@@ -464,6 +476,7 @@ class File(object):
 
 class DownloadFile(File):
     allowed_formats = []
+    ext = None
 
     def __init__(self, path, **kwargs):
         self.path = path.strip()
@@ -474,19 +487,13 @@ class DownloadFile(File):
         Ensure `self.path` has one of the extensions in `self.allowed_formats`.
         """
         assert self.path, "{} must have a path".format(self.__class__.__name__)
-        ext = extract_path_ext(self.path, default_ext=self.default_ext)
-        # don't validate for single-digit extension, or no extension
-        if len(ext) > 1:
-            assert ext in self.allowed_formats, (
-                "{} must have one of the "
-                "following extensions: {} (instead, got '{}' from '{}')".format(
-                    self.__class__.__name__, self.allowed_formats, ext, self.path
-                )
-            )
 
     def process_file(self):
         try:
-            self.filename = download(self.path, default_ext=self.default_ext)
+            self.filename, self.ext = download(self.path, default_ext=self.default_ext)
+            # don't validate for single-digit extension, or no extension
+            if not self.ext:
+                self.ext = extract_path_ext(self.path)
             return self.filename
         # Catch errors related to reading file path and handle silently
         except HTTP_CAUGHT_EXCEPTIONS as err:
@@ -553,8 +560,10 @@ class ImageDownloadFile(DownloadFile):
         if self.filename:
             try:
                 image_path = config.get_storage_path(self.filename)
-                ext = extract_path_ext(image_path)
-                if ext == "svg":
+                extension = self.ext
+                if not extension:
+                    extension = extract_path_ext(image_path)
+                if extension == "svg":
                     ElementTree.parse(image_path)
                 else:
                     self.filename = process_image(image_path)
@@ -675,13 +684,17 @@ class VideoFile(DownloadFile):
         Ensure `self.path` has one of the extensions in `self.allowed_formats`.
         """
         assert self.path, "{} must have a path".format(self.__class__.__name__)
-        ext = extract_path_ext(self.path, default_ext=self.default_ext)
+        extension = self.ext
+        if not extension:
+            extension = extract_path_ext(self.path, default_ext=self.default_ext)
         if (
-            ext not in self.allowed_formats
-            and ext not in CONVERTIBLE_FORMATS[format_presets.VIDEO_HIGH_RES]
+            extension not in self.allowed_formats
+            and extension not in CONVERTIBLE_FORMATS[format_presets.VIDEO_HIGH_RES]
         ):
             raise ValueError(
-                "Incompatible extension {} for VideoFile at {}".format(ext, self.path)
+                "Incompatible extension {} for VideoFile at {}".format(
+                    self.ext, self.path
+                )
             )
 
     def process_unsupported_video_file(self):
@@ -701,16 +714,20 @@ class VideoFile(DownloadFile):
             config.FAILED_FILES.append(self)
 
     def process_file(self):
-        ext = extract_path_ext(self.path, default_ext=self.default_ext)
+        extension = self.ext
+        if not extension:
+            extension = extract_path_ext(self.path, default_ext=self.default_ext)
         if (
-            ext not in self.allowed_formats
-            and ext not in CONVERTIBLE_FORMATS[format_presets.VIDEO_HIGH_RES]
+            extension not in self.allowed_formats
+            and extension not in CONVERTIBLE_FORMATS[format_presets.VIDEO_HIGH_RES]
         ):
             raise ValueError(
-                "Incompatible extension {} for VideoFile at {}".format(ext, self.path)
+                "Incompatible extension {} for VideoFile at {}".format(
+                    extension, self.path
+                )
             )
         try:
-            if ext not in self.allowed_formats:
+            if extension not in self.allowed_formats:
                 # Handle videos that don't have an .mp4 or .webm extension
                 self.filename = self.process_unsupported_video_file()
             else:
@@ -915,7 +932,9 @@ class SubtitleFile(DownloadFile):
         info is specified in `self.subtitlesformat`.
         """
         assert self.path, "{} must have a path".format(self.__class__.__name__)
-        ext = extract_path_ext(self.path, default_ext=self.subtitlesformat)
+        ext = self.ext
+        if not ext:
+            ext = extract_path_ext(self.path, default_ext=self.subtitlesformat)
         convertible_exts = CONVERTIBLE_FORMATS[self.get_preset()]
         if (
             ext != self.default_ext
