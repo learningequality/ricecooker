@@ -171,6 +171,8 @@ class Node(object):
             return format_presets.EXERCISE_THUMBNAIL
         elif isinstance(self, HTML5AppNode):
             return format_presets.HTML5_THUMBNAIL
+        elif isinstance(self, H5PAppNode):
+            return format_presets.H5P_THUMBNAIL
         else:
             return None
 
