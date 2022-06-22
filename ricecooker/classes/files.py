@@ -387,6 +387,7 @@ class File(object):
     language = None
     assessment_item = None
     is_primary = False
+    duration = None
 
     def __init__(self, preset=None, language=None, default_ext=None, source_url=None):
         self.preset = preset
@@ -462,6 +463,7 @@ class File(object):
                     "original_filename": self.original_filename,
                     "language": self.language,
                     "source_url": self.source_url,
+                    "duration": self.duration,
                 }
             else:
                 config.LOGGER.warning(
@@ -604,7 +606,6 @@ class AudioFile(DownloadFile):
     default_ext = file_formats.MP3
     allowed_formats = [file_formats.MP3]
     is_primary = True
-    duration = None
 
     def get_preset(self):
         return self.preset or format_presets.AUDIO
@@ -669,7 +670,6 @@ class VideoFile(DownloadFile):
     default_ext = file_formats.MP4
     allowed_formats = [file_formats.MP4, file_formats.WEBM]
     is_primary = True
-    duration = None
 
     def __init__(self, path, ffmpeg_settings=None, **kwargs):
         self.ffmpeg_settings = ffmpeg_settings
@@ -761,7 +761,6 @@ class VideoFile(DownloadFile):
 
 class WebVideoFile(File):
     is_primary = True
-    duration = None
     # In future, look into postprocessors and progress_hooks
 
     def __init__(
