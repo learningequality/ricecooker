@@ -150,7 +150,8 @@ def download(path, default_ext=None):
     cache_file = get_cache_filename(key)
     if not config.UPDATE and not cache_is_outdated(path, cache_file):
         config.LOGGER.info("\tUsing cached file for: {}".format(path))
-        return cache_file, None
+        ext = extract_path_ext(cache_file, default_ext=default_ext)
+        return cache_file, ext
 
     config.LOGGER.info("\tDownloading {}".format(path))
 
