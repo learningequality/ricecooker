@@ -388,6 +388,7 @@ class File(object):
     assessment_item = None
     is_primary = False
     duration = None
+    skip_upload = False
 
     def __init__(self, preset=None, language=None, default_ext=None, source_url=None):
         self.preset = preset
@@ -473,8 +474,7 @@ class File(object):
         return None
 
     def process_file(self):
-        # Overwrite in subclasses
-        pass
+        return self.filename
 
 
 class DownloadFile(File):
@@ -1263,3 +1263,38 @@ class TiledThumbnailFile(ThumbnailPresetMixin, File):
             create_tiled_image(images, tempf.name)
             filename = copy_file_to_storage(tempf.name, ext=file_formats.PNG)
             return filename
+
+
+class RemoteFile(File):
+    """
+    Reuse a file that we already know to exist on the remote (normally Studio).
+    This allows for channels to be updated without having to redownload all files again.
+    """
+
+    skip_upload = True
+
+    def __init__(self, checksum, ext, preset, is_primary=False, **kwargs):
+        self.filename = "{}.{}".format(checksum, ext)
+        self.is_primary = is_primary
+        kwargs["preset"] = preset
+        self._validated = False
+        super(RemoteFile, self).__init__(**kwargs)
+
+    def validate(self):
+        if not self._validated:
+            file_url = config.get_storage_url(self.filename)
+            if config.DOMAIN == config.DEFAULT_DOMAIN:
+                file_url.replace("api.", "")
+            response = config.DOWNLOAD_SESSION.head(file_url)
+            try:
+                response.raise_for_status()
+            except Exception as e:
+                raise ValueError(
+                    "Could not find remote file {} for reason {}".format(
+                        self.filename, e
+                    )
+                )
+            self._validated = True
+
+    def __str__(self):
+        return self.filename

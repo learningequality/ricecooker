@@ -121,6 +121,8 @@ class ChannelManager:
         return file_diff_result
 
     def do_file_upload(self, f):
+        if f.skip_upload:
+            return
         with open(config.get_storage_path(f), "rb") as file_obj:
             file_data = self.file_map[f]
             data = {

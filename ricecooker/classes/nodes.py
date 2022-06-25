@@ -878,7 +878,13 @@ class VideoNode(ContentNode):
         Args: None
         Returns: boolean indicating if video is valid
         """
-        from .files import VideoFile, WebVideoFile, SubtitleFile, YouTubeSubtitleFile
+        from .files import (
+            RemoteFile,
+            VideoFile,
+            WebVideoFile,
+            SubtitleFile,
+            YouTubeSubtitleFile,
+        )
 
         try:
             assert (
@@ -887,15 +893,18 @@ class VideoNode(ContentNode):
             assert (
                 self.questions == []
             ), "Assumption Failed: Video should not have questions"
-            assert (
-                len(self.files) > 0
-            ), "Assumption Failed: Video must have at least one video file"
 
             # Check if there are any .mp4 files if there are video files (other video types don't have paths)
             assert any(
                 f
                 for f in self.files
-                if isinstance(f, VideoFile) or isinstance(f, WebVideoFile)
+                if isinstance(f, VideoFile)
+                or isinstance(f, WebVideoFile)
+                or (
+                    isinstance(f, RemoteFile)
+                    and f.preset
+                    in (format_presets.VIDEO_HIGH_RES, format_presets.VIDEO_LOW_RES)
+                )
             ), "Assumption Failed: Video node should have at least one video file"
 
             # Ensure that there is only one subtitle file per language code
@@ -926,9 +935,7 @@ class VideoNode(ContentNode):
 
         except AssertionError as ae:
             raise InvalidNodeException(
-                "Invalid node ({}): {} - {}".format(
-                    ae.args[0], self.title, self.__dict__
-                )
+                "Invalid node {} - {}: {}".format(self.title, self.__dict__, ae)
             )
 
 
@@ -960,7 +967,7 @@ class AudioNode(ContentNode):
         Args: None
         Returns: boolean indicating if audio is valid
         """
-        from .files import AudioFile
+        from .files import AudioFile, RemoteFile
 
         try:
             assert (
@@ -973,7 +980,10 @@ class AudioNode(ContentNode):
                 len(self.files) > 0
             ), "Assumption Failed: Audio should have at least one file"
             assert [
-                f for f in self.files if isinstance(f, AudioFile)
+                f
+                for f in self.files
+                if isinstance(f, AudioFile)
+                or (isinstance(f, RemoteFile) and f.preset == format_presets.AUDIO)
             ], "Assumption Failed: Audio should have at least one audio file"
             return super(AudioNode, self).validate()
         except AssertionError as ae:
@@ -1012,7 +1022,7 @@ class DocumentNode(ContentNode):
         Args: None
         Returns: boolean indicating if document is valid
         """
-        from .files import DocumentFile, EPubFile
+        from .files import DocumentFile, EPubFile, RemoteFile
 
         try:
             assert (
@@ -1027,7 +1037,12 @@ class DocumentNode(ContentNode):
             assert [
                 f
                 for f in self.files
-                if isinstance(f, DocumentFile) or isinstance(f, EPubFile)
+                if isinstance(f, DocumentFile)
+                or isinstance(f, EPubFile)
+                or (
+                    isinstance(f, RemoteFile)
+                    and f.preset in (format_presets.DOCUMENT, format_presets.EPUB)
+                )
             ], "Assumption Failed: Document should have at least one document file"
             return super(DocumentNode, self).validate()
         except AssertionError as ae:
@@ -1107,7 +1122,7 @@ class HTML5AppNode(ContentNode):
         Args: None
         Returns: boolean indicating if HTML5 app is valid
         """
-        from .files import HTMLZipFile
+        from .files import HTMLZipFile, RemoteFile
 
         try:
             assert (
@@ -1117,7 +1132,10 @@ class HTML5AppNode(ContentNode):
                 self.questions == []
             ), "Assumption Failed: HTML should not have questions"
             assert [
-                f for f in self.files if isinstance(f, HTMLZipFile)
+                f
+                for f in self.files
+                if isinstance(f, HTMLZipFile)
+                or (isinstance(f, RemoteFile) and f.preset == format_presets.HTML5_ZIP)
             ], "Assumption Failed: HTML should have at least one html file"
             return super(HTML5AppNode, self).validate()
         except AssertionError as ae:
@@ -1155,7 +1173,7 @@ class H5PAppNode(ContentNode):
         Args: None
         Returns: boolean indicating if H5P app is valid
         """
-        from .files import H5PFile
+        from .files import H5PFile, RemoteFile
 
         try:
             assert (
@@ -1165,7 +1183,10 @@ class H5PAppNode(ContentNode):
                 self.questions == []
             ), "Assumption Failed: HTML should not have questions"
             assert [
-                f for f in self.files if isinstance(f, H5PFile)
+                f
+                for f in self.files
+                if isinstance(f, H5PFile)
+                or (isinstance(f, RemoteFile) and f.preset == format_presets.H5P_ZIP)
             ], "Assumption Failed: H5PAppNode should have at least one h5p file"
             return super(H5PAppNode, self).validate()
         except AssertionError as ae:
