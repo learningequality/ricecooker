@@ -185,9 +185,17 @@ class ChannelManager:
                 )
                 if response.status_code == 200:
                     return
-                raise RequestException(response._content.decode("utf-8"))
+                raise RequestException(
+                    "Error uploading file {}, response code: {}".format(
+                        filename, response.status_code
+                    )
+                )
             else:
-                raise RequestException(url_response._content.decode("utf-8"))
+                raise RequestException(
+                    "Error retriving upload URL for file {}, response code: {}".format(
+                        filename, url_response.status_code
+                    )
+                )
 
     def _handle_upload(self, f):
         try:
@@ -196,6 +204,7 @@ class ChannelManager:
         except Exception as e:
             config.LOGGER.info(e)
             self.failed_uploads[f] = str(e)
+            return
         return str(f)
 
     def upload_files(self, file_list):
@@ -214,12 +223,13 @@ class ChannelManager:
             ) as executor:
                 # Start the upload operations
                 for filename in executor.map(self._handle_upload, files_to_upload):
-                    counter += 1
-                    config.LOGGER.info(
-                        "\tUploaded {0} ({count}/{total}) ".format(
-                            filename, count=counter, total=len(files_to_upload)
+                    if filename is not None:
+                        counter += 1
+                        config.LOGGER.info(
+                            "\tUploaded {0} ({count}/{total}) ".format(
+                                filename, count=counter, total=len(files_to_upload)
+                            )
                         )
-                    )
         finally:
             config.PROGRESS_MANAGER.set_uploading(self.uploaded_files)
 
