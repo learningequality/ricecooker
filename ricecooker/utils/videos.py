@@ -179,6 +179,35 @@ def compress_video(source_file_path, target_file, overwrite=False, **kwargs):
         "-strict",
         "-2",
         "-stats",
+        "-movflags",
+        "faststart",
+        target_file,
+    ]
+    try:
+        subprocess.check_output(command, stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError as e:
+        raise VideoCompressionError("{}: {}".format(e, e.output))
+
+
+def web_faststart_video(source_file_path, target_file, overwrite=False):
+    """
+    Add faststart flag to an mp4 file
+    """
+    # run command
+    command = [
+        "ffmpeg",
+        "-y" if overwrite else "-n",
+        "-i",
+        source_file_path,
+        "-c",
+        "copy",
+        "-v",
+        "error",
+        "-strict",
+        "-2",
+        "-stats",
+        "-movflags",
+        "faststart",
         target_file,
     ]
     try:

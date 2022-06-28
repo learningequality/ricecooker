@@ -43,6 +43,7 @@ from ricecooker.utils.videos import extract_duration_of_media
 from ricecooker.utils.videos import extract_thumbnail_from_video
 from ricecooker.utils.videos import guess_video_preset_by_resolution
 from ricecooker.utils.videos import VideoCompressionError
+from ricecooker.utils.videos import web_faststart_video
 from ricecooker.utils.youtube import YouTubeResource
 
 # Cache for filenames
@@ -170,15 +171,17 @@ def download(path, default_ext=None):
     return filename, ext
 
 
-def download_and_convert_video(path, ffmpeg_settings=None):
+def _download_and_compress_video(path, ffmpeg_settings=None):
     """
-    Auto-converting variant of download function that handles all video formats.
+    Function that downloads and compresses video with caching.
+    Separated from main download and convert video so that historic
+    caches can be used to then add web video optimizations.
     """
     ffmpeg_settings = ffmpeg_settings or {}
     key = "DOWNLOAD:{}".format(path)
     cache_file = get_cache_filename(key)
     if is_valid_url(path) and not config.UPDATE and cache_file:
-        return cache_file
+        return True, cache_file
 
     config.LOGGER.info("\tDownloading {}".format(path))
 
@@ -203,7 +206,33 @@ def download_and_convert_video(path, ffmpeg_settings=None):
         filename = copy_file_to_storage(tempf2.name, ext=file_formats.MP4)
         os.unlink(converted_path)
         FILECACHE.set(key, bytes(filename, "utf-8"))
-        return filename
+        return False, filename
+
+
+def download_and_convert_video(path, ffmpeg_settings=None):
+    """
+    Auto-converting variant of download function that handles all video formats.
+    """
+    key = "OPTIMIZE:{}".format(path)
+    cache_file = get_cache_filename(key)
+    if is_valid_url(path) and not config.UPDATE and cache_file:
+        return cache_file
+    cached, filename = _download_and_compress_video(
+        path, ffmpeg_settings=ffmpeg_settings
+    )
+    if cached:
+        # If this file was cached by _download_and_compress_video it has been downloaded
+        # and compressed previously, but not had the faststart flag applied to it.
+        # we do a smaller conversion here to add the faststart flag. Otherwise if the file
+        # had not been cached then the compress_video function has been updated to add the faststart
+        # flag, so we do not need to reapply them.
+        with tempfile.NamedTemporaryFile(delete=False) as tempf:
+            tempf.close()
+            web_faststart_video(config.get_storage_path(filename), tempf.name)
+            filename = copy_file_to_storage(tempf.name, ext=file_formats.MP4)
+            os.unlink(tempf.name)
+    FILECACHE.set(key, bytes(filename, "utf-8"))
+    return filename
 
 
 def is_valid_url(path):
