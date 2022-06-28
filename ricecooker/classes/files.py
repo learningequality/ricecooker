@@ -1283,8 +1283,6 @@ class RemoteFile(File):
     def validate(self):
         if not self._validated:
             file_url = config.get_storage_url(self.filename)
-            if config.DOMAIN == config.DEFAULT_DOMAIN:
-                file_url.replace("api.", "")
             response = config.DOWNLOAD_SESSION.head(file_url)
             try:
                 response.raise_for_status()
