@@ -149,11 +149,11 @@ class ChannelManager:
 
         return file_diff_result
 
-    def do_file_upload(self, f):
-        if f.skip_upload:
+    def do_file_upload(self, filename):
+        file_data = self.file_map[filename]
+        if file_data.skip_upload:
             return
-        with open(config.get_storage_path(f), "rb") as file_obj:
-            file_data = self.file_map[f]
+        with open(config.get_storage_path(filename), "rb") as file_obj:
             data = {
                 "size": file_data.size,
                 "checksum": file_data.checksum,
@@ -169,7 +169,9 @@ class ChannelManager:
                 content_type = response_data["mimetype"]
                 might_skip = response_data["might_skip"]
                 if might_skip:
-                    head_response = config.SESSION.head(config.get_storage_url(f))
+                    head_response = config.SESSION.head(
+                        config.get_storage_url(filename)
+                    )
                     if head_response.status_code == 200:
                         return
                 b64checksum = (
