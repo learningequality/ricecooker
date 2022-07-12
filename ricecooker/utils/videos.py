@@ -99,7 +99,41 @@ def extract_thumbnail_from_video(fpath_in, fpath_out, overwrite=False):
         raise ThumbnailGenerationError("{}: {}".format(e, e.output))
 
 
-def extract_duration_of_media(fpath_in):
+def _get_stream_duration(fpath_in, extension):
+    result = subprocess.run(
+        [
+            "ffmpeg",
+            "-i",
+            "pipe:",
+            "-f",
+            "null",
+            str(fpath_in),
+        ],
+        stderr=subprocess.PIPE,
+    )
+    second_last_line = result.stderr.decode("utf-8").strip().splitlines()[-2]
+    time_code = second_last_line.split(" time=")[1].split(" ")[0]
+    hours, minutes, seconds = time_code.split(":")
+    try:
+        hours = int(hours)
+    except ValueError:
+        hours = 0
+    try:
+        minutes = int(minutes)
+    except ValueError:
+        minutes = 0
+    try:
+        seconds = int(float(seconds))
+    except ValueError:
+        seconds = 0
+    return (hours * 60 + minutes) * 60 + seconds
+
+
+def extract_duration_of_media(fpath_in, extension):
+    """
+    For more details on these commands, refer to the ffmpeg Wiki:
+    https://trac.ffmpeg.org/wiki/FFprobeTips#Formatcontainerduration
+    """
     try:
         if os.path.exists(fpath_in):
             result = subprocess.check_output(
@@ -113,10 +147,18 @@ def extract_duration_of_media(fpath_in):
                     "default=noprint_wrappers=1:nokey=1",
                     "-loglevel",
                     "panic",
+                    "-f",
+                    extension,
                     str(fpath_in),
-                ]
+                ],
             )
-            return result.decode("utf-8")
+            result = result.decode("utf-8").strip()
+            try:
+                return int(float(result))
+            except ValueError:
+                # This can happen if ffprobe returns N/A for the duration
+                # So instead we try to stream the entire file to get the value
+                return _get_stream_duration(fpath_in, extension)
     except Exception as ex:
         LOGGER.warning(ex)
         raise ex
@@ -179,6 +221,35 @@ def compress_video(source_file_path, target_file, overwrite=False, **kwargs):
         "-strict",
         "-2",
         "-stats",
+        "-movflags",
+        "faststart",
+        target_file,
+    ]
+    try:
+        subprocess.check_output(command, stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError as e:
+        raise VideoCompressionError("{}: {}".format(e, e.output))
+
+
+def web_faststart_video(source_file_path, target_file, overwrite=False):
+    """
+    Add faststart flag to an mp4 file
+    """
+    # run command
+    command = [
+        "ffmpeg",
+        "-y" if overwrite else "-n",
+        "-i",
+        source_file_path,
+        "-c",
+        "copy",
+        "-v",
+        "error",
+        "-strict",
+        "-2",
+        "-stats",
+        "-movflags",
+        "faststart",
         target_file,
     ]
     try:

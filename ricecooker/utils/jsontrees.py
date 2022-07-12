@@ -37,6 +37,7 @@ HTML5_FILE = file_types.HTML5
 THUMBNAIL_FILE = file_types.THUMBNAIL
 SUBTITLES_FILE = file_types.SUBTITLES
 SLIDESHOW_IMAGE_FILE = file_types.SLIDESHOW_IMAGE
+REMOTE_FILE = "remote_file"
 
 
 INPUT_QUESTION = exercises.INPUT_QUESTION
@@ -262,6 +263,7 @@ def add_files(node, file_list):  # noqa: C901
         THUMBNAIL_FILE,
         SUBTITLES_FILE,
         SLIDESHOW_IMAGE_FILE,
+        REMOTE_FILE,
     ]
 
     for f in file_list:
@@ -360,6 +362,18 @@ def add_files(node, file_list):  # noqa: C901
                     language=f.get("language", None),
                     caption=f.get("caption", ""),
                     descriptive_text=f.get("descriptive_text", ""),
+                )
+            )
+
+        elif file_type == REMOTE_FILE:
+            node.add_file(
+                files.RemoteFile(
+                    f["checksum"],
+                    f["ext"],
+                    preset,
+                    is_primary=f.get("is_primary", False),
+                    language=f.get("language"),
+                    source_url=f.get("source_url"),
                 )
             )
 

@@ -1,4 +1,5 @@
 import codecs
+import concurrent.futures
 import json
 import sys
 
@@ -20,13 +21,32 @@ class ChannelManager:
         self.failed_node_builds = {}
         self.failed_uploads = {}
         self.file_map = {}
+        self.all_nodes = []
 
     def validate(self):
         """validate: checks if tree structure is valid
         Args: None
         Returns: boolean indicating if tree is valid
         """
-        return self.channel.validate_tree()
+        if not self.all_nodes:
+            self.all_nodes = self.gather_tree_recur([], self.channel)
+        valid = True
+        with concurrent.futures.ThreadPoolExecutor(
+            max_workers=config.TASK_THREADS
+        ) as executor:
+            for result in executor.map(self.validate_node, self.all_nodes):
+                valid = valid and result
+        return valid
+
+    def validate_node(self, node):
+        try:
+            return node.validate()
+        except Exception as e:
+            if config.STRICT:
+                raise
+            else:
+                config.LOGGER.warning(str(e))
+        return True
 
     def process_tree(self, channel_node):
         """
@@ -35,33 +55,42 @@ class ChannelManager:
         :param channel_node: Root node of the channel being processed
         :return: The list of unique file names in `channel_node`.
         """
-        file_names = []
-        self.process_tree_recur(file_names, channel_node)
-        return [
-            x for x in set(file_names) if x
-        ]  # Remove any duplicate or None filenames
+        if not self.all_nodes:
+            self.all_nodes = self.gather_tree_recur([], self.channel)
+        with concurrent.futures.ThreadPoolExecutor(
+            max_workers=config.TASK_THREADS
+        ) as executor:
+            for data in executor.map(self.process_node, self.all_nodes):
+                self.file_map.update(data)
+        return list(self.file_map.keys())
 
-    def process_tree_recur(self, file_names, node):
+    def gather_tree_recur(self, nodes, node):
+        # Process node's children
+        for child_node in node.children:
+            self.gather_tree_recur(
+                nodes, child_node
+            )  # Defer insert until after all descendants in case a tiled thumbnail is needed
+        nodes.append(node)
+        return nodes
+
+    def process_node(self, node):
         """
-        Adds the names of all the files associated with the sub-tree rooted by `node` to `file_names` in post-order.
-        :param file_names: A global list containing all file names associated with a tree
         :param node: The root of the current sub-tree being processed
         :return: None.
         """
-        # Process node's children
-        for child_node in node.children:
-            self.process_tree_recur(
-                file_names, child_node
-            )  # Call children first in case a tiled thumbnail is needed
+        node.process_files()
 
-        file_names.extend(node.process_files())
+        output = {}
 
         for node_file in node.files:
-            self.file_map[node_file.get_filename()] = node_file
+            if node_file.get_filename():
+                output[node_file.get_filename()] = node_file
         if hasattr(node, "questions"):
             for question in node.questions:
                 for question_file in question.files:
-                    self.file_map[question_file.get_filename()] = question_file
+                    if question_file.get_filename():
+                        output[question_file.get_filename()] = question_file
+        return output
 
     def check_for_files_failed(self):
         """check_for_files_failed: print any files that failed during download process
@@ -120,9 +149,11 @@ class ChannelManager:
 
         return file_diff_result
 
-    def do_file_upload(self, f):
-        with open(config.get_storage_path(f), "rb") as file_obj:
-            file_data = self.file_map[f]
+    def do_file_upload(self, filename):
+        file_data = self.file_map[filename]
+        if file_data.skip_upload:
+            return
+        with open(config.get_storage_path(filename), "rb") as file_obj:
             data = {
                 "size": file_data.size,
                 "checksum": file_data.checksum,
@@ -138,7 +169,9 @@ class ChannelManager:
                 content_type = response_data["mimetype"]
                 might_skip = response_data["might_skip"]
                 if might_skip:
-                    head_response = config.SESSION.head(config.get_storage_url(f))
+                    head_response = config.SESSION.head(
+                        config.get_storage_url(filename)
+                    )
                     if head_response.status_code == 200:
                         return
                 b64checksum = (
@@ -152,9 +185,27 @@ class ChannelManager:
                 )
                 if response.status_code == 200:
                     return
-                raise RequestException(response._content.decode("utf-8"))
+                raise RequestException(
+                    "Error uploading file {}, response code: {}".format(
+                        filename, response.status_code
+                    )
+                )
             else:
-                raise RequestException(url_response._content.decode("utf-8"))
+                raise RequestException(
+                    "Error retriving upload URL for file {}, response code: {}".format(
+                        filename, url_response.status_code
+                    )
+                )
+
+    def _handle_upload(self, f):
+        try:
+            self.do_file_upload(f)
+            self.uploaded_files.append(f)
+        except Exception as e:
+            config.LOGGER.info(e)
+            self.failed_uploads[f] = str(e)
+            return
+        return str(f)
 
     def upload_files(self, file_list):
         """upload_files: uploads files to server
@@ -167,19 +218,18 @@ class ChannelManager:
             set(file_list) - set(self.uploaded_files)
         )  # In case restoring from previous session
         try:
-            for f in files_to_upload:
-                try:
-                    self.do_file_upload(f)
-                    self.uploaded_files.append(f)
-                    counter += 1
-                    config.LOGGER.info(
-                        "\tUploaded {0} ({count}/{total}) ".format(
-                            f, count=counter, total=len(files_to_upload)
+            with concurrent.futures.ThreadPoolExecutor(
+                max_workers=config.TASK_THREADS
+            ) as executor:
+                # Start the upload operations
+                for filename in executor.map(self._handle_upload, files_to_upload):
+                    if filename is not None:
+                        counter += 1
+                        config.LOGGER.info(
+                            "\tUploaded {0} ({count}/{total}) ".format(
+                                filename, count=counter, total=len(files_to_upload)
+                            )
                         )
-                    )
-                except Exception as e:
-                    config.LOGGER.info(e)
-                    self.failed_uploads[f] = str(e)
         finally:
             config.PROGRESS_MANAGER.set_uploading(self.uploaded_files)
 

@@ -147,6 +147,11 @@ if DOMAIN.endswith("/"):
     DOMAIN = DOMAIN.rstrip("/")
 FILE_STORE_LOCATION = hashlib.md5(DOMAIN.encode("utf-8")).hexdigest()
 
+try:
+    TASK_THREADS = int(os.environ.get("TASK_THREADS"))
+except (ValueError, TypeError):
+    TASK_THREADS = 5
+
 CURRENT_CWD = os.getcwd()
 
 # Allow users to choose which phantomjs they use
@@ -412,9 +417,14 @@ def get_storage_url(filename):
     Args: filename (str): Name of file
     Returns: string URL for file
     """
-    return FILE_STORAGE_URL.format(
+    file_url = FILE_STORAGE_URL.format(
         domain=DOMAIN, f=filename[0], s=filename[1], filename=filename
     )
+    if DOMAIN == DEFAULT_DOMAIN:
+        # If we are targeting the default domain, don't make content storage requests
+        # to api.studio because it will skip cloudflare.
+        file_url.replace("api.", "")
+    return file_url
 
 
 def create_channel_url():

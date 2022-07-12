@@ -43,6 +43,7 @@ from ricecooker.utils.videos import extract_duration_of_media
 from ricecooker.utils.videos import extract_thumbnail_from_video
 from ricecooker.utils.videos import guess_video_preset_by_resolution
 from ricecooker.utils.videos import VideoCompressionError
+from ricecooker.utils.videos import web_faststart_video
 from ricecooker.utils.youtube import YouTubeResource
 
 # Cache for filenames
@@ -170,15 +171,17 @@ def download(path, default_ext=None):
     return filename, ext
 
 
-def download_and_convert_video(path, ffmpeg_settings=None):
+def _download_and_compress_video(path, ffmpeg_settings=None):
     """
-    Auto-converting variant of download function that handles all video formats.
+    Function that downloads and compresses video with caching.
+    Separated from main download and convert video so that historic
+    caches can be used to then add web video optimizations.
     """
     ffmpeg_settings = ffmpeg_settings or {}
     key = "DOWNLOAD:{}".format(path)
     cache_file = get_cache_filename(key)
     if is_valid_url(path) and not config.UPDATE and cache_file:
-        return cache_file
+        return True, cache_file
 
     config.LOGGER.info("\tDownloading {}".format(path))
 
@@ -203,7 +206,33 @@ def download_and_convert_video(path, ffmpeg_settings=None):
         filename = copy_file_to_storage(tempf2.name, ext=file_formats.MP4)
         os.unlink(converted_path)
         FILECACHE.set(key, bytes(filename, "utf-8"))
-        return filename
+        return False, filename
+
+
+def download_and_convert_video(path, ffmpeg_settings=None):
+    """
+    Auto-converting variant of download function that handles all video formats.
+    """
+    key = "OPTIMIZE:{}".format(path)
+    cache_file = get_cache_filename(key)
+    if is_valid_url(path) and not config.UPDATE and cache_file:
+        return cache_file
+    cached, filename = _download_and_compress_video(
+        path, ffmpeg_settings=ffmpeg_settings
+    )
+    if cached:
+        # If this file was cached by _download_and_compress_video it has been downloaded
+        # and compressed previously, but not had the faststart flag applied to it.
+        # we do a smaller conversion here to add the faststart flag. Otherwise if the file
+        # had not been cached then the compress_video function has been updated to add the faststart
+        # flag, so we do not need to reapply them.
+        with tempfile.NamedTemporaryFile(delete=False) as tempf:
+            tempf.close()
+            web_faststart_video(config.get_storage_path(filename), tempf.name)
+            filename = copy_file_to_storage(tempf.name, ext=file_formats.MP4)
+            os.unlink(tempf.name)
+    FILECACHE.set(key, bytes(filename, "utf-8"))
+    return filename
 
 
 def is_valid_url(path):
@@ -388,6 +417,7 @@ class File(object):
     assessment_item = None
     is_primary = False
     duration = None
+    skip_upload = False
 
     def __init__(self, preset=None, language=None, default_ext=None, source_url=None):
         self.preset = preset
@@ -473,8 +503,7 @@ class File(object):
         return None
 
     def process_file(self):
-        # Overwrite in subclasses
-        pass
+        return self.filename
 
 
 class DownloadFile(File):
@@ -612,7 +641,10 @@ class AudioFile(DownloadFile):
 
     def process_file(self):
         self.filename = super(AudioFile, self).process_file()
-        self.duration = extract_duration_of_media(self.path)
+        if self.filename and config.get_storage_path(self.filename):
+            self.duration = extract_duration_of_media(
+                self.path, extract_path_ext(self.filename)
+            )
         return self.filename
 
 
@@ -743,7 +775,8 @@ class VideoFile(DownloadFile):
             if self.filename:
                 if config.get_storage_path(self.filename):
                     self.duration = extract_duration_of_media(
-                        config.get_storage_path(self.filename)
+                        config.get_storage_path(self.filename),
+                        extract_path_ext(self.filename),
                     )
         except (
             BrokenPipeError,
@@ -800,9 +833,10 @@ class WebVideoFile(File):
             if self.filename and config.COMPRESS:
                 self.filename = compress_video_file(self.filename, {})
                 config.LOGGER.info("\t--- Compressed {}".format(self.filename))
-            if config.get_storage_path(self.filename):
+            if self.filename and config.get_storage_path(self.filename):
                 self.duration = extract_duration_of_media(
-                    config.get_storage_path(self.filename)
+                    config.get_storage_path(self.filename),
+                    extract_path_ext(self.filename),
                 )
 
         except youtube_dl.utils.DownloadError as err:
@@ -1263,3 +1297,36 @@ class TiledThumbnailFile(ThumbnailPresetMixin, File):
             create_tiled_image(images, tempf.name)
             filename = copy_file_to_storage(tempf.name, ext=file_formats.PNG)
             return filename
+
+
+class RemoteFile(File):
+    """
+    Reuse a file that we already know to exist on the remote (normally Studio).
+    This allows for channels to be updated without having to redownload all files again.
+    """
+
+    skip_upload = True
+
+    def __init__(self, checksum, ext, preset, is_primary=False, **kwargs):
+        self.filename = "{}.{}".format(checksum, ext)
+        self.is_primary = is_primary
+        kwargs["preset"] = preset
+        self._validated = False
+        super(RemoteFile, self).__init__(**kwargs)
+
+    def validate(self):
+        if not self._validated:
+            file_url = config.get_storage_url(self.filename)
+            response = config.DOWNLOAD_SESSION.head(file_url)
+            try:
+                response.raise_for_status()
+            except Exception as e:
+                raise ValueError(
+                    "Could not find remote file {} for reason {}".format(
+                        self.filename, e
+                    )
+                )
+            self._validated = True
+
+    def __str__(self):
+        return self.filename
