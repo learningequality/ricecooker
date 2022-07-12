@@ -641,7 +641,10 @@ class AudioFile(DownloadFile):
 
     def process_file(self):
         self.filename = super(AudioFile, self).process_file()
-        self.duration = extract_duration_of_media(self.path)
+        if self.filename and config.get_storage_path(self.filename):
+            self.duration = extract_duration_of_media(
+                self.path, extract_path_ext(self.filename)
+            )
         return self.filename
 
 
@@ -772,7 +775,8 @@ class VideoFile(DownloadFile):
             if self.filename:
                 if config.get_storage_path(self.filename):
                     self.duration = extract_duration_of_media(
-                        config.get_storage_path(self.filename)
+                        config.get_storage_path(self.filename),
+                        extract_path_ext(self.filename),
                     )
         except (
             BrokenPipeError,
@@ -829,9 +833,10 @@ class WebVideoFile(File):
             if self.filename and config.COMPRESS:
                 self.filename = compress_video_file(self.filename, {})
                 config.LOGGER.info("\t--- Compressed {}".format(self.filename))
-            if config.get_storage_path(self.filename):
+            if self.filename and config.get_storage_path(self.filename):
                 self.duration = extract_duration_of_media(
-                    config.get_storage_path(self.filename)
+                    config.get_storage_path(self.filename),
+                    extract_path_ext(self.filename),
                 )
 
         except youtube_dl.utils.DownloadError as err:
