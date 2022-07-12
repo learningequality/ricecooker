@@ -129,6 +129,7 @@ class ChannelManager:
                 "name": file_data.original_filename or file_data.get_filename(),
                 "file_format": file_data.extension,
                 "preset": file_data.get_preset(),
+                "duration": file_data.duration,
             }
             url_response = config.SESSION.post(config.get_upload_url(), data=data)
             if url_response.status_code == 200:
@@ -235,12 +236,7 @@ class ChannelManager:
                 # Attempt to upload file
                 try:
                     assert f.filename, "File failed to download (cannot be uploaded)"
-                    with open(config.get_storage_path(f.filename), "rb") as file_obj:
-                        response = config.SESSION.post(
-                            config.file_upload_url(), files={"file": file_obj}
-                        )
-                        response.raise_for_status()
-                        self.uploaded_files.append(f.filename)
+                    self.do_file_upload(f)
                 except AssertionError as ae:
                     config.LOGGER.warning(ae)
             # Attempt to create node

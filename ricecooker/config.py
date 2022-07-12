@@ -161,9 +161,6 @@ VERSION_CHECK_URL = "{domain}/api/internal/check_version"
 # URL for getting file diff
 FILE_DIFF_URL = "{domain}/api/internal/file_diff"
 
-# URL for uploading files to server
-FILE_UPLOAD_URL = "{domain}/api/internal/file_upload"
-
 # URL for getting an upload URL from the server
 GET_UPLOAD_URL = "{domain}/api/file/upload_url"
 
@@ -400,14 +397,6 @@ def file_diff_url():
     Returns: string url to file_diff endpoint
     """
     return FILE_DIFF_URL.format(domain=DOMAIN)
-
-
-def file_upload_url():
-    """file_upload_url: returns url to upload files
-    Args: None
-    Returns: string url to file_upload endpoint
-    """
-    return FILE_UPLOAD_URL.format(domain=DOMAIN)
 
 
 def get_upload_url():

@@ -473,7 +473,7 @@ class TreeNode(Node):
         self.provider = provider or ""
         self.tags = tags or []
         self.domain_ns = domain_ns
-        self.duration = kwargs.get("duration") or None
+        self.suggested_duration = kwargs.get("suggested_duration") or None
         self.questions = (
             self.questions if hasattr(self, "questions") else []
         )  # Needed for to_dict method
@@ -822,7 +822,7 @@ class ContentNode(TreeNode):
             "questions": [question.to_dict() for question in self.questions],
             "extra_fields": json.dumps(self.extra_fields),
             "role": self.role,
-            "duration": self.duration,
+            "suggested_duration": self.suggested_duration,
             "grade_levels": self.grade_levels,
             "resource_types": self.resource_types,
             "learning_activities": self.learning_activities,
@@ -898,10 +898,6 @@ class VideoNode(ContentNode):
                 if isinstance(f, VideoFile) or isinstance(f, WebVideoFile)
             ), "Assumption Failed: Video node should have at least one video file"
 
-            video_files = [f for f in self.files if isinstance(f, VideoFile)]
-            if video_files:
-                self.duration = video_files[0].duration
-
             # Ensure that there is only one subtitle file per language code
             new_files = []
             language_codes_seen = set()
@@ -967,9 +963,6 @@ class AudioNode(ContentNode):
         from .files import AudioFile
 
         try:
-            audio_files = [f for f in self.files if isinstance(f, AudioFile)]
-            if audio_files:
-                self.duration = audio_files[0].duration
             assert (
                 self.kind == content_kinds.AUDIO
             ), "Assumption Failed: Node should be audio"
