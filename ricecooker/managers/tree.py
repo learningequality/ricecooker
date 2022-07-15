@@ -303,6 +303,8 @@ class ChannelManager:
                     config.LOGGER.warning(
                         "\t{} ({})".format(str(node["node"]), node["error"])
                     )
+                    if "content" in node:
+                        config.LOGGER.warning(node["content"][:80])
             else:
                 config.LOGGER.error(
                     "Failed to create descendants for {} node(s).".format(
@@ -392,9 +394,6 @@ class ChannelManager:
                         payload_children.append(child.to_dict())
                 payload = {"root_id": root_id, "content_data": payload_children}
 
-                # When iceqube is integrated, use this method to utilize upload file optimizations
-                # response = config.SESSION.post(config.add_nodes_from_file_url(), files={'file': json.dumps(payload)})
-
                 response = config.SESSION.post(
                     config.add_nodes_url(), data=json.dumps(payload)
                 )
@@ -402,6 +401,7 @@ class ChannelManager:
                     self.failed_node_builds[root_id] = {
                         "node": current_node,
                         "error": response.reason,
+                        "content": response.content,
                     }
                 else:
                     response_json = json.loads(response._content.decode("utf-8"))
