@@ -123,31 +123,25 @@ class ChannelManager:
         else:
             config.LOGGER.info("   All files were successfully downloaded")
 
+    def check_file_exists(self, filename):
+        head_response = config.SESSION.head(config.get_storage_url(filename))
+        return head_response.status_code == 200
+
     def get_file_diff(self, files_to_diff):
         """get_file_diff: retrieves list of files that do not exist on content curation server
         Args: None
         Returns: list of files that are not on server
         """
-        file_diff_result = []
-        chunks = [
-            files_to_diff[x : x + 1000] for x in range(0, len(files_to_diff), 1000)
-        ]
-        file_count = 0
-        total_count = len(files_to_diff)
-        for chunk in chunks:
-            response = config.SESSION.post(
-                config.file_diff_url(), data=json.dumps(chunk)
-            )
-            response.raise_for_status()
-            file_diff_result += json.loads(response._content.decode("utf-8"))
-            file_count += len(chunk)
-            config.LOGGER.info(
-                "\tGot file diff for {0} out of {1} files".format(
-                    file_count, total_count
+        with concurrent.futures.ThreadPoolExecutor(
+            max_workers=config.TASK_THREADS
+        ) as executor:
+            return [
+                filename
+                for filename, exists in zip(
+                    files_to_diff, executor.map(self.check_file_exists, files_to_diff)
                 )
-            )
-
-        return file_diff_result
+                if not exists
+            ]
 
     def do_file_upload(self, filename):
         file_data = self.file_map[filename]
@@ -168,12 +162,8 @@ class ChannelManager:
                 upload_url = response_data["uploadURL"]
                 content_type = response_data["mimetype"]
                 might_skip = response_data["might_skip"]
-                if might_skip:
-                    head_response = config.SESSION.head(
-                        config.get_storage_url(filename)
-                    )
-                    if head_response.status_code == 200:
-                        return
+                if might_skip and self.check_file_exists(filename):
+                    return
                 b64checksum = (
                     codecs.encode(codecs.decode(file_data.checksum, "hex"), "base64")
                     .decode()

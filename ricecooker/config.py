@@ -163,9 +163,6 @@ AUTHENTICATION_URL = "{domain}/api/internal/authenticate_user_internal"
 # URL for checking compatible version on Kolibri Studio
 VERSION_CHECK_URL = "{domain}/api/internal/check_version"
 
-# URL for getting file diff
-FILE_DIFF_URL = "{domain}/api/internal/file_diff"
-
 # URL for getting an upload URL from the server
 GET_UPLOAD_URL = "{domain}/api/file/upload_url"
 
@@ -391,14 +388,6 @@ def check_version_url():
     Returns: string url to check version endpoint
     """
     return VERSION_CHECK_URL.format(domain=DOMAIN)
-
-
-def file_diff_url():
-    """file_diff_url: returns url to get file diff
-    Args: None
-    Returns: string url to file_diff endpoint
-    """
-    return FILE_DIFF_URL.format(domain=DOMAIN)
 
 
 def get_upload_url():
