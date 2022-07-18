@@ -37,6 +37,7 @@ requirements = [
     "pdf2image==1.11.0",
     "le-pycaption>=2.2.0a1",
     "EbookLib>=0.17.1",
+    "filetype>=1.1.0",
 ]
 
 

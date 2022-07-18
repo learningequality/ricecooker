@@ -2,7 +2,6 @@
 from __future__ import unicode_literals
 
 import hashlib
-import imghdr
 import json
 import os
 import shutil
@@ -12,6 +11,7 @@ from subprocess import CalledProcessError
 from urllib.parse import urlparse
 from xml.etree import ElementTree
 
+import filetype
 import youtube_dl
 from cachecontrol.caches.file_cache import FileCache
 from le_utils.constants import exercises
@@ -549,8 +549,9 @@ IMAGE_EXTENSIONS = {
 def process_image(filename):
     tempf = None
     preferred_extension = extract_path_ext(filename)
-    extension = imghdr.what(filename)
-    if extension is None:
+    file_type_guess = filetype.guess(filename)
+    extension = file_type_guess.extension if file_type_guess else None
+    if extension is None and not preferred_extension:
         raise UnknownFileTypeError(
             "Unable to determine file type of {}".format(filename)
         )
