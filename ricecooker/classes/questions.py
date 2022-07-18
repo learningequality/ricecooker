@@ -201,7 +201,9 @@ class BaseQuestion:
         if graphie_match:
             is_web_plus_graphie = True
             graphie_rawpath = graphie_match.groupdict()["rawpath"]
-            graphie_path = graphie_rawpath.replace("//", "https://")
+            # Set the proper protocol and replace any escaped line breaks
+            # These have occasionally been observed in KA graphie URLs.
+            graphie_path = graphie_rawpath.replace("//", "https://").replace("\\n", "")
             exercise_image_file = _ExerciseGraphieFile(graphie_path)
         elif get_base64_encoding(stripped_text):
             is_web_plus_graphie = False
