@@ -195,15 +195,18 @@ class BaseQuestion:
             return text, []
         # Strip `text` of whitespace
         stripped_text = re.sub(r"\s", "", text)
+        if stripped_text.endswith("\\n"):
+            # Remove any escaped line break at the end of the URL.
+            # These have occasionally been observed in KA graphie URLs.
+            stripped_text = stripped_text[:-2]
         # If `stripped_text` is a web+graphie: path, we need special processing
         graphie_regex = re.compile(WEB_GRAPHIE_URL_REGEX, flags=re.IGNORECASE)
         graphie_match = graphie_regex.match(stripped_text)
         if graphie_match:
             is_web_plus_graphie = True
             graphie_rawpath = graphie_match.groupdict()["rawpath"]
-            # Set the proper protocol and replace any escaped line breaks
-            # These have occasionally been observed in KA graphie URLs.
-            graphie_path = graphie_rawpath.replace("//", "https://").replace("\\n", "")
+            # Set the proper protocol
+            graphie_path = graphie_rawpath.replace("//", "https://")
             exercise_image_file = _ExerciseGraphieFile(graphie_path)
         elif get_base64_encoding(stripped_text):
             is_web_plus_graphie = False
