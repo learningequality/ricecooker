@@ -199,6 +199,10 @@ class BaseQuestion:
             # Remove any escaped line break at the end of the URL.
             # These have occasionally been observed in KA graphie URLs.
             stripped_text = stripped_text[:-2]
+        if stripped_text.startswith("\\n"):
+            # Remove any escaped line break at the start of the URL.
+            # These have occasionally been observed in KA graphie URLs.
+            stripped_text = stripped_text[2:]
         # If `stripped_text` is a web+graphie: path, we need special processing
         graphie_regex = re.compile(WEB_GRAPHIE_URL_REGEX, flags=re.IGNORECASE)
         graphie_match = graphie_regex.match(stripped_text)
