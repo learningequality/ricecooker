@@ -182,7 +182,7 @@ class ChannelManager:
                 )
             else:
                 raise RequestException(
-                    "Error retriving upload URL for file {}, response code: {}".format(
+                    "Error retrieving upload URL for file {}, response code: {}".format(
                         filename, url_response.status_code
                     )
                 )
@@ -192,7 +192,7 @@ class ChannelManager:
             self.do_file_upload(f)
             self.uploaded_files.append(f)
         except Exception as e:
-            config.LOGGER.info(e)
+            config.LOGGER.error(e)
             self.failed_uploads[f] = str(e)
             return
         return str(f)
