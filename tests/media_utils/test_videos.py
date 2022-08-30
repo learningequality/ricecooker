@@ -8,8 +8,8 @@ import sys
 import tempfile
 
 import pytest
-import requests
 import requests_cache
+from conftest import download_fixture_file
 from le_utils.constants import format_presets
 
 from ricecooker.utils import videos
@@ -28,88 +28,126 @@ else:
 
 @pytest.fixture
 def low_res_video():
-    with TempFile(suffix=".mp4") as f:
-        resp = requests.get(
-            "https://archive.org/download/vd_is_for_everybody/vd_is_for_everybody_512kb.mp4",
-            stream=True,
+    source_url = (
+        "https://archive.org/download/vd_is_for_everybody/vd_is_for_everybody_512kb.mp4"
+    )
+    local_path = os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__),
+            "..",
+            "testcontent",
+            "downloaded",
+            "low_res_video_media_test.mp4",
         )
-        for chunk in resp.iter_content(chunk_size=1048576):
-            f.write(chunk)
-        f.flush()
-    return f  # returns a temporary file with a closed file descriptor
+    )
+    download_fixture_file(source_url, local_path)
+    assert os.path.exists(local_path)
+    f = open(local_path, "rb")
+    f.close()
+    return f  # returns a closed file descriptor which we use for name attribute
 
 
 @pytest.fixture
 def high_res_video():
-    with TempFile(suffix=".mp4") as f:
-        resp = requests.get(
-            "https://ia800201.us.archive.org/7/items/"
-            "UnderConstructionFREEVideoBackgroundLoopHD1080p/"
-            "UnderConstruction%20-%20FREE%20Video%20Background%20Loop%20HD%201080p.mp4",
-            stream=True,
+    source_url = (
+        "https://ia800201.us.archive.org/7/items/"
+        "UnderConstructionFREEVideoBackgroundLoopHD1080p/"
+        "UnderConstruction%20-%20FREE%20Video%20Background%20Loop%20HD%201080p.mp4"
+    )
+    local_path = os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__),
+            "..",
+            "testcontent",
+            "downloaded",
+            "high_res_video_media_test.mp4",
         )
-        for chunk in resp.iter_content(chunk_size=1048576):
-            f.write(chunk)
-        f.flush()
-    return f  # returns a temporary file with a closed file descriptor
+    )
+    download_fixture_file(source_url, local_path)
+    assert os.path.exists(local_path)
+    f = open(local_path, "rb")
+    f.close()
+    return f  # returns a closed file descriptor which we use for name attribute
 
 
 @pytest.fixture
 def low_res_video_webm():
-    with TempFile(suffix=".webm") as f:
-        resp = requests.get(
-            "https://mirrors.creativecommons.org/movingimages/"
-            "webm/CreativeCommonsPlusCommercial_240p.webm",
-            stream=True,
+    source_url = "https://mirrors.creativecommons.org/movingimages/webm/CreativeCommonsPlusCommercial_240p.webm"
+    local_path = os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__),
+            "..",
+            "testcontent",
+            "downloaded",
+            "low_res_video_webm_media_test.mp4",
         )
-        for chunk in resp.iter_content(chunk_size=1048576):
-            f.write(chunk)
-        f.flush()
-    return f  # returns a temporary file with a closed file descriptor
+    )
+    download_fixture_file(source_url, local_path)
+    assert os.path.exists(local_path)
+    f = open(local_path, "rb")
+    f.close()
+    return f  # returns a closed file descriptor which we use for name attribute
 
 
 @pytest.fixture
 def high_res_video_webm():
-    with TempFile(suffix=".webm") as f:
-        resp = requests.get(
-            "https://mirrors.creativecommons.org/movingimages/"
-            "webm/CreativeCommonsPlusCommercial_720p.webm",
-            stream=True,
+    source_url = "https://mirrors.creativecommons.org/movingimages/webm/CreativeCommonsPlusCommercial_720p.webm"
+    local_path = os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__),
+            "..",
+            "testcontent",
+            "downloaded",
+            "high_res_video_webm_media_test.mp4",
         )
-        for chunk in resp.iter_content(chunk_size=1048576):
-            f.write(chunk)
-        f.flush()
-    return f  # returns a temporary file with a closed file descriptor
+    )
+    download_fixture_file(source_url, local_path)
+    assert os.path.exists(local_path)
+    f = open(local_path, "rb")
+    f.close()
+    return f  # returns a closed file descriptor which we use for name attribute
 
 
 @pytest.fixture
 def low_res_ogv_video():
-    with TempFile(suffix=".ogv") as f:
-        resp = requests.get(
-            "https://archive.org/download/"
-            "UnderConstructionFREEVideoBackgroundLoopHD1080p/"
-            "UnderConstruction%20-%20FREE%20Video%20Background%20Loop%20HD%201080p.ogv",
-            stream=True,
+    source_url = (
+        "https://archive.org/download/"
+        "UnderConstructionFREEVideoBackgroundLoopHD1080p/"
+        "UnderConstruction%20-%20FREE%20Video%20Background%20Loop%20HD%201080p.ogv"
+    )
+    local_path = os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__),
+            "..",
+            "testcontent",
+            "downloaded",
+            "high_res_video_ogv_media_test.mp4",
         )
-        for chunk in resp.iter_content(chunk_size=1048576):
-            f.write(chunk)
-        f.flush()
-    return f  # returns a temporary file with a closed file descriptor
+    )
+    download_fixture_file(source_url, local_path)
+    assert os.path.exists(local_path)
+    f = open(local_path, "rb")
+    f.close()
+    return f  # returns a closed file descriptor which we use for name attribute
 
 
 @pytest.fixture
 def high_res_mov_video():
-    with TempFile(suffix=".mov") as f:
-        resp = requests.get(
-            "https://ia800201.us.archive.org/7/items/"
-            "UnderConstructionFREEVideoBackgroundLoopHD1080p/"
-            "cold%20night.mov",
-            stream=True,
+    source_url = "https://ia800201.us.archive.org/7/items/UnderConstructionFREEVideoBackgroundLoopHD1080p/cold%20night.mov"
+    local_path = os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__),
+            "..",
+            "testcontent",
+            "downloaded",
+            "high_res_video_mov_media_test.mp4",
         )
-        for chunk in resp.iter_content(chunk_size=1048576):
-            f.write(chunk)
-        f.flush()
-    return f  # returns a temporary file with a closed file descriptor
+    )
+    download_fixture_file(source_url, local_path)
+    assert os.path.exists(local_path)
+    f = open(local_path, "rb")
+    f.close()
+    return f  # returns a closed file descriptor which we use for name attribute
 
 
 @pytest.fixture
