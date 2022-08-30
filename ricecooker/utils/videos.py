@@ -97,6 +97,10 @@ def extract_thumbnail_from_video(fpath_in, fpath_out, overwrite=False):
         subprocess.check_output(command, stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError as e:
         raise ThumbnailGenerationError("{}: {}".format(e, e.output))
+    except AttributeError:
+        raise ThumbnailGenerationError(
+            "No suitable frame for thumbnail generation was found"
+        )
 
 
 def _get_stream_duration(fpath_in, extension):
