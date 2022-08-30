@@ -60,6 +60,7 @@ setup(
     },
     include_package_data=True,
     install_requires=requirements,
+    python_requires=">=3.6, <3.11",
     license="MIT license",
     zip_safe=False,
     keywords="ricecooker",
