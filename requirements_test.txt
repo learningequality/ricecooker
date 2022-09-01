@@ -1,4 +1,4 @@
 requests-cache==0.4.13
-pytest==6.2.2
+pytest==7.0.1
 pycountry==17.5.14
 pytest-env==0.6.2
