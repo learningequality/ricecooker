@@ -124,7 +124,7 @@ class ChannelManager:
             config.LOGGER.info("   All files were successfully downloaded")
 
     def check_file_exists(self, filename):
-        head_response = config.SESSION.head(config.get_storage_url(filename))
+        head_response = config.DOWNLOAD_SESSION.head(config.get_storage_url(filename))
         return head_response.status_code == 200
 
     def get_file_diff(self, files_to_diff):

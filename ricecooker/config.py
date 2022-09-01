@@ -409,7 +409,7 @@ def get_storage_url(filename):
     if DOMAIN == DEFAULT_DOMAIN:
         # If we are targeting the default domain, don't make content storage requests
         # to api.studio because it will skip cloudflare.
-        file_url.replace("api.", "")
+        file_url = file_url.replace("api.", "")
     return file_url
 
 
