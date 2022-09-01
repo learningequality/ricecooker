@@ -1,6 +1,14 @@
 name: Python tests
 
-on: [push, pull_request]
+on:
+  push:
+    branches:
+    - develop
+    - main
+  pull_request:
+    branches:
+    - develop
+    - main
 
 jobs:
   pre_job:
@@ -14,7 +22,7 @@ jobs:
         uses: fkirc/skip-duplicate-actions@master
         with:
           github_token: ${{ github.token }}
-          paths: '["**.py", ".github/workflows/pythontest.yml"]'
+          paths: '["**.py", "requirements_test.txt", ".github/workflows/pythontest.yml"]'
   unit_test:
     name: Python unit tests
     needs: pre_job
