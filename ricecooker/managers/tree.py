@@ -1,6 +1,7 @@
 import codecs
 import concurrent.futures
 import json
+import os
 import sys
 
 from requests.exceptions import RequestException
@@ -156,6 +157,12 @@ class ChannelManager:
                 "preset": file_data.get_preset(),
                 "duration": file_data.duration,
             }
+            # Workaround for a bug in the Studio upload URL endpoint, whereby
+            # it does not currently use the passed in file_format as the default
+            # extension.
+            name, ext = os.path.splitext(data["name"])
+            if not ext:
+                data["name"] = "{}.{}".format(name, data["file_format"])
             url_response = config.SESSION.post(config.get_upload_url(), data=data)
             if url_response.status_code == 200:
                 response_data = url_response.json()
