@@ -677,12 +677,12 @@ class ContentNode(TreeNode):
         role=roles.LEARNER,
         license_description=None,
         copyright_holder=None,
-        grade_levels=None,
-        resource_types=None,
-        learning_activities=None,
-        accessibility_labels=None,
-        categories=None,
-        learner_needs=None,
+        grade_levels=[],
+        resource_types=[],
+        learning_activities=[],
+        accessibility_labels=[],
+        categories=[],
+        learner_needs=[],
         **kwargs
     ):
         self.role = role
@@ -826,9 +826,9 @@ class ContentNode(TreeNode):
             "grade_levels": self.grade_levels,
             "resource_types": self.resource_types,
             "learning_activities": self.learning_activities,
-            "accessibility_categories": self.accessibility_labels,
-            "subjects": self.categories,
-            "needs": self.learner_needs,
+            "accessibility_labels": self.accessibility_labels,
+            "categories": self.categories,
+            "learner_needs": self.learner_needs,
         }
 
 

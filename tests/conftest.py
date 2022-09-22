@@ -259,6 +259,12 @@ def contentnode_base_data(base_data):
             "copyright_holder": "Copyright Holder",
             "license_description": None,
             "role": roles.LEARNER,
+            "grade_levels": [],
+            "resource_types": [],
+            "learning_activities": [],
+            "accessibility_labels": [],
+            "categories": [],
+            "learner_needs": [],
         }
     )
     return data
