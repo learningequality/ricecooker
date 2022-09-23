@@ -59,6 +59,9 @@ test: clean-test ## run tests quickly with the default Python
 test-all: clean-test ## run tests on every Python version with tox
 	tox
 
+integration-test:
+	python tests/test_chef_integration.py
+
 coverage: ## check code coverage quickly with the default Python
 	pip install coverage pytest
 	coverage run --source ricecooker -m pytest
