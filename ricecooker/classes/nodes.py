@@ -463,6 +463,12 @@ class TreeNode(Node):
         provider="",
         tags=None,
         domain_ns=None,
+        grade_levels=None,
+        resource_types=None,
+        learning_activities=None,
+        accessibility_labels=None,
+        categories=None,
+        learner_needs=None,
         **kwargs
     ):
         # Map parameters to model variables
@@ -477,6 +483,13 @@ class TreeNode(Node):
         self.questions = (
             self.questions if hasattr(self, "questions") else []
         )  # Needed for to_dict method
+
+        self.grade_levels = grade_levels or []
+        self.resource_types = resource_types or []
+        self.learning_activities = learning_activities or []
+        self.accessibility_labels = accessibility_labels or []
+        self.categories = categories or []
+        self.learner_needs = learner_needs or []
 
         super(TreeNode, self).__init__(title, **kwargs)
 
@@ -569,12 +582,12 @@ class TreeNode(Node):
             "copyright_holder": "",
             "questions": [],
             "extra_fields": json.dumps(self.extra_fields),
-            "grade_levels": None,
-            "resource_types": None,
-            "learning_activities": None,
-            "accessibility_categories": None,
-            "subjects": None,
-            "needs": None,
+            "grade_levels": self.grade_levels,
+            "resource_types": self.resource_types,
+            "learning_activities": self.learning_activities,
+            "accessibility_labels": self.accessibility_labels,
+            "categories": self.categories,
+            "learner_needs": self.learner_needs,
         }
 
     def validate(self):
@@ -677,21 +690,15 @@ class ContentNode(TreeNode):
         role=roles.LEARNER,
         license_description=None,
         copyright_holder=None,
-        grade_levels=[],
-        resource_types=[],
-        learning_activities=[],
-        accessibility_labels=[],
-        categories=[],
-        learner_needs=[],
+        grade_levels=None,
+        resource_types=None,
+        learning_activities=None,
+        accessibility_labels=None,
+        categories=None,
+        learner_needs=None,
         **kwargs
     ):
         self.role = role
-        self.grade_levels = grade_levels
-        self.resource_types = resource_types
-        self.learning_activities = learning_activities
-        self.accessibility_labels = accessibility_labels
-        self.categories = categories
-        self.learner_needs = learner_needs
 
         self.set_license(
             license, copyright_holder=copyright_holder, description=license_description
@@ -823,12 +830,6 @@ class ContentNode(TreeNode):
             "extra_fields": json.dumps(self.extra_fields),
             "role": self.role,
             "suggested_duration": self.suggested_duration,
-            "grade_levels": self.grade_levels,
-            "resource_types": self.resource_types,
-            "learning_activities": self.learning_activities,
-            "accessibility_labels": self.accessibility_labels,
-            "categories": self.categories,
-            "learner_needs": self.learner_needs,
         }
 
 
