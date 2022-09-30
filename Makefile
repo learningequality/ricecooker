@@ -60,7 +60,7 @@ test-all: clean-test ## run tests on every Python version with tox
 	tox
 
 integration-test:
-	python tests/test_chef_integration.py
+	CONTENTWORKSHOP_URL=https://hotfixes.studio.learningequality.org python tests/test_chef_integration.py
 
 coverage: ## check code coverage quickly with the default Python
 	pip install coverage pytest

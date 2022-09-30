@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+import random
+import string
+
 from le_utils.constants import licenses
 
 from ricecooker.chefs import SushiChef
@@ -21,9 +24,22 @@ class TestChef(SushiChef):
     Copied from examples/tutorial/sushichef.py
     """
 
+    # Be sure we don't conflict with a channel someone else pushed before us when running this test
+    # as the channel source domain and ID determine which Channel is updated on Studio and since
+    # you'll run this with your own API key we can use this random (enough) string generator (thanks SO)
+    # to append a random set of characters to the two values.
+    def randomstring():
+        return "".join(
+            random.choice(string.ascii_uppercase + string.digits) for _ in range(8)
+        )
+
     channel_info = {
-        "CHANNEL_SOURCE_DOMAIN": "Testing",  # who is providing the content (e.g. learningequality.org)
-        "CHANNEL_SOURCE_ID": "Test-ID",  # channel's unique id
+        "CHANNEL_SOURCE_DOMAIN": "RicecookerIntegrationTest.{}".format(
+            randomstring()
+        ),  # who is providing the content (e.g. learningequality.org)
+        "CHANNEL_SOURCE_ID": "RicecookerTests.{}".format(
+            randomstring()
+        ),  # channel's unique id
         "CHANNEL_TITLE": "Ricecooker Testing!",
         "CHANNEL_LANGUAGE": "en",
     }
