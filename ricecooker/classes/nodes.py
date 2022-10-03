@@ -830,6 +830,12 @@ class ContentNode(TreeNode):
             "extra_fields": json.dumps(self.extra_fields),
             "role": self.role,
             "suggested_duration": self.suggested_duration,
+            "grade_levels": self.grade_levels,
+            "resource_types": self.resource_types,
+            "learning_activities": self.learning_activities,
+            "accessibility_labels": self.accessibility_labels,
+            "categories": self.categories,
+            "learner_needs": self.learner_needs,
         }
 
 
