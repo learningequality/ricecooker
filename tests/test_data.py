@@ -145,10 +145,26 @@ def test_video_to_dict(video, video_data):
     video_dict.pop("files")
     expected_files = video_data.pop("files")
     video_data["extra_fields"] = json.dumps(video_data["extra_fields"])
+
     assert video.files == expected_files, "Video files do not match"
+
     for key, _ in video_data.items():
         assert key in video_dict, "Key {} is not found in to_dict method".format(key)
+
+    list_type_keys = [
+        "grade_levels",
+        "learner_needs",
+        "accessibility_labels",
+        "categories",
+        "learning_activities",
+        "resource_types",
+    ]
     for key, value in video_dict.items():
+        if key in list_type_keys:
+            assert isinstance(value, list), "{} should be a list, but it's {}".format(
+                key, value
+            )
+
         assert value == video_data.get(key), "Mismatched {}: {} != {}".format(
             key, value, video_data[key]
         )

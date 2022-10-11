@@ -171,6 +171,12 @@ def base_data(channel_domain_namespace, title):
         "license_description": None,
         "aggregator": "",  # New in ricecooker 0.6.20
         "provider": "",  # New in ricecooker 0.6.20
+        "grade_levels": [],
+        "resource_types": [],
+        "learning_activities": [],
+        "accessibility_labels": [],
+        "categories": [],
+        "learner_needs": [],
     }
 
 
@@ -259,6 +265,12 @@ def contentnode_base_data(base_data):
             "copyright_holder": "Copyright Holder",
             "license_description": None,
             "role": roles.LEARNER,
+            "grade_levels": [],
+            "resource_types": [],
+            "learning_activities": [],
+            "accessibility_labels": [],
+            "categories": [],
+            "learner_needs": [],
         }
     )
     return data
