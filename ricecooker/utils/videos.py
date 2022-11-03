@@ -233,6 +233,8 @@ def compress_video(source_file_path, target_file, overwrite=False, **kwargs):
         subprocess.check_output(command, stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError as e:
         raise VideoCompressionError("{}: {}".format(e, e.output))
+    except (BrokenPipeError, IOError) as e:
+        raise VideoCompressionError("{}".format(e))
 
 
 def web_faststart_video(source_file_path, target_file, overwrite=False):
@@ -260,3 +262,5 @@ def web_faststart_video(source_file_path, target_file, overwrite=False):
         subprocess.check_output(command, stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError as e:
         raise VideoCompressionError("{}: {}".format(e, e.output))
+    except (BrokenPipeError, IOError) as e:
+        raise VideoCompressionError("{}".format(e))
