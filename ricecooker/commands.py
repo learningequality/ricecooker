@@ -68,8 +68,8 @@ def uploadchannel(  # noqa: C901
 
     # Set configuration settings
     config.UPDATE = update
-    config.COMPRESS = chef.get_setting("compress-videos", False)
-    config.THUMBNAILS = chef.get_setting("generate-missing-thumbnails", False)
+    config.COMPRESS = chef.get_setting("compress", False)
+    config.THUMBNAILS = chef.get_setting("thumbnails", False)
     config.STAGE = stage
     config.PUBLISH = publish
 
