@@ -283,7 +283,7 @@ class ChannelManager:
                 # Attempt to upload file
                 try:
                     assert f.filename, "File failed to download (cannot be uploaded)"
-                    self.do_file_upload(f)
+                    self.do_file_upload(f.filename)
                 except AssertionError as ae:
                     config.LOGGER.warning(ae)
             # Attempt to create node
