@@ -183,14 +183,14 @@ class ChannelManager:
                 if response.status_code == 200:
                     return
                 raise RequestException(
-                    "Error uploading file {}, response code: {}".format(
-                        filename, response.status_code
+                    "Error uploading file {}, response code: {} - {}".format(
+                        filename, response.status_code, response.text
                     )
                 )
             else:
                 raise RequestException(
-                    "Error retrieving upload URL for file {}, response code: {}".format(
-                        filename, url_response.status_code
+                    "Error retrieving upload URL for file {}, response code: {} - {}".format(
+                        filename, url_response.status_code, response.text
                     )
                 )
 
