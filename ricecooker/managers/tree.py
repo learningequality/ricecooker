@@ -163,7 +163,7 @@ class ChannelManager:
             name, ext = os.path.splitext(data["name"])
             if not ext:
                 data["name"] = "{}.{}".format(name, data["file_format"])
-            url_response = config.SESSION.post(config.get_upload_url(), data=data)
+            url_response = config.SESSION.post(config.get_upload_url(), json=data)
             if url_response.status_code == 200:
                 response_data = url_response.json()
                 upload_url = response_data["uploadURL"]
