@@ -34,8 +34,14 @@ jobs:
       matrix:
         os: [windows-latest, ubuntu-latest, macos-latest]
         python-version: [3.6, 3.7, 3.8, 3.9, '3.10']
+        exclude:
+          - os: ubuntu-latest
+            python-version: 3.6
         include:
         - os: ubuntu-latest
+          pippath: ~/.cache/pip
+        - os: ubuntu-20.04
+          python-version: 3.6
           pippath: ~/.cache/pip
         - os: macos-latest
           pippath: ~/Library/Caches/pip
@@ -52,7 +58,7 @@ jobs:
         sudo apt-get -y -qq update
         sudo apt-get install -y ffmpeg
         sudo apt-get install -y poppler-utils
-      if: matrix.os == 'ubuntu-latest'
+      if: ${{ startsWith(matrix.os, 'ubuntu') }}
     - name: Cache Mac dependencies
       uses: actions/cache@v2
       if: matrix.os == 'macos-latest'
