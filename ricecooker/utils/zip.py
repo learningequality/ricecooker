@@ -20,7 +20,7 @@ def _read_file(path):
         return f.read()
 
 
-def create_predictable_zip(path, entrypoint=None):
+def create_predictable_zip(path, entrypoint=None, file_converter=None):
     """
     Create a zip file with predictable sort order and metadata so that MD5 will
     stay consistent if zipping the same content twice.
@@ -29,6 +29,7 @@ def create_predictable_zip(path, entrypoint=None):
         entrypoint (str or None): if specified, a relative file path in the zip to serve as the first page to load
     Returns: path (str) to the output zip file
     """
+    extension = "zip"
     # if path is a directory, recursively enumerate all the files under the directory
     if os.path.isdir(path):
         paths = []
@@ -47,24 +48,32 @@ def create_predictable_zip(path, entrypoint=None):
             return _read_file(os.path.join(path, x))
 
     # otherwise, if it's a zip file, open it up and pull out the list of names
-    elif os.path.isfile(path) and os.path.splitext(path)[1] == ".zip":
-        inputzip = zipfile.ZipFile(path)
-        paths = inputzip.namelist()
+    elif os.path.isfile(path):
+        extension = os.path.splitext(path)[1]
+        try:
+            inputzip = zipfile.ZipFile(path)
+            paths = inputzip.namelist()
 
-        def reader(x):
-            return inputzip.read(x)
+            def reader(x):
+                return inputzip.read(x)
 
-    else:
-        raise Exception("The `path` must either point to a directory or to a zip file.")
+        except Exception:
+            raise Exception(
+                "The `path` must either point to a directory or to a zip archive."
+            )
 
     # create a temporary zip file path to write the output into
-    zippathfd, zippath = tempfile.mkstemp(suffix=".zip")
+    zippathfd, zippath = tempfile.mkstemp(suffix=".{}".format(extension))
 
     with zipfile.ZipFile(zippath, "w") as outputzip:
         # loop over the file paths in sorted order, to ensure a predictable zip
         for filepath in sorted(paths):
             write_file_to_zip_with_neutral_metadata(
-                outputzip, filepath, reader(filepath)
+                outputzip,
+                filepath,
+                file_converter(filepath, reader)
+                if file_converter
+                else reader(filepath),
             )
         os.fdopen(zippathfd).close()
     return zippath

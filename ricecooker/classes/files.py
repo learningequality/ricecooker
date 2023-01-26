@@ -7,6 +7,8 @@ import os
 import shutil
 import tempfile
 import zipfile
+from contextlib import contextmanager
+from functools import partial
 from urllib.parse import urlparse
 from xml.etree import ElementTree
 
@@ -46,6 +48,7 @@ from ricecooker.utils.videos import guess_video_preset_by_resolution
 from ricecooker.utils.videos import VideoCompressionError
 from ricecooker.utils.videos import web_faststart_video
 from ricecooker.utils.youtube import YouTubeResource
+from ricecooker.utils.zip import create_predictable_zip
 
 # Cache for filenames
 FILECACHE = FileCache(config.FILECACHE_DIRECTORY, use_dir_lock=True, forever=True)
@@ -298,6 +301,21 @@ def copy_file_to_storage(srcfilename, ext=None):
     return filename
 
 
+@contextmanager
+def _compress_media(filepath, extension, ffmpeg_settings):
+    tempf = tempfile.NamedTemporaryFile(suffix=".{}".format(extension), delete=False)
+    tempf.close()  # Need to close so can write to file
+
+    compression_function = (
+        compress_audio if extension == file_formats.MP3 else compress_video
+    )
+
+    compression_function(filepath, tempf.name, overwrite=True, **ffmpeg_settings)
+
+    yield tempf.name
+    os.unlink(tempf.name)
+
+
 def compress_media_file(filename, extension, ffmpeg_settings):
     """
     Calls the function `compress_video` or `compress_audio` to compress filename (source)
@@ -317,19 +335,60 @@ def compress_media_file(filename, extension, ffmpeg_settings):
 
     config.LOGGER.info("\t--- Compressing {}".format(filename))
 
-    tempf = tempfile.NamedTemporaryFile(suffix=".{}".format(extension), delete=False)
-    tempf.close()  # Need to close so can write to file
+    with _compress_media(
+        config.get_storage_path(filename), extension, ffmpeg_settings
+    ) as new_name:
+        compressedfilename = copy_file_to_storage(new_name, ext=extension)
+    FILECACHE.set(key, bytes(compressedfilename, "utf-8"))
+    return compressedfilename
 
-    compression_function = (
-        compress_audio if extension == file_formats.MP3 else compress_video
+
+def _read_and_compress_archive_file(filepath, reader, ffmpeg_settings=None):
+    try:
+        extension = extract_path_ext(filepath)
+        if extension in {file_formats.MP4, file_formats.WEBM, file_formats.MP3}:
+            with tempfile.NamedTemporaryFile(delete=False) as tempf:
+                tempf.write(reader(filepath))
+                tempf.close()
+                with _compress_media(
+                    tempf.name, extension, ffmpeg_settings
+                ) as new_name:
+                    os.unlink(tempf.name)
+                    with open(new_name, "rb") as f:
+                        return f.read()
+    except IndexError:
+        pass
+    return reader(filepath)
+
+
+def compress_files_in_archive(filename, extension, ffmpeg_settings):
+    """
+    Calls the function `compress_video` or `compress_audio` to compress filename (source)
+    stored in storage. Returns the filename of the compressed file.
+    """
+    ffmpeg_settings = ffmpeg_settings or {}
+    key = generate_key(
+        "COMPRESSED",
+        filename,
+        settings=ffmpeg_settings,
+        default=" (default compression)",
     )
 
-    compression_function(
-        config.get_storage_path(filename), tempf.name, overwrite=True, **ffmpeg_settings
+    cache_file = get_cache_filename(key)
+    if not config.UPDATE and cache_file:
+        return cache_file
+
+    config.LOGGER.info("\t--- Compressing {}".format(filename))
+
+    file_converter = partial(
+        _read_and_compress_archive_file, ffmpeg_settings=ffmpeg_settings
     )
 
-    compressedfilename = copy_file_to_storage(tempf.name, ext=extension)
-    os.unlink(tempf.name)
+    processed_file_path = create_predictable_zip(
+        filename, file_converter=file_converter
+    )
+
+    compressedfilename = copy_file_to_storage(processed_file_path, ext=extension)
     FILECACHE.set(key, bytes(compressedfilename, "utf-8"))
     return compressedfilename
 
@@ -718,6 +777,24 @@ class H5PFile(DownloadFile):
 
     def get_preset(self):
         return self.preset or format_presets.H5P_ZIP
+
+    def process_file(self):
+        self.filename = super(H5PFile, self).process_file()
+        if self.filename:
+            try:
+                # make sure h5p.json exists
+                with zipfile.ZipFile(config.get_storage_path(self.filename)) as zf:
+                    _ = zf.getinfo("h5p.json")
+                    _ = zf.getinfo("content/content.json")
+                if config.COMPRESS:
+                    self.filename = compress_files_in_archive(
+                        config.get_storage_path(self.filename), self.extension, {}
+                    )
+            except KeyError as err:
+                self.filename = None
+                self.error = str(err)
+                config.FAILED_FILES.append(self)
+        return self.filename
 
 
 class VideoFile(DownloadFile):
