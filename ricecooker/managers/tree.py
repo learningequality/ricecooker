@@ -163,7 +163,7 @@ class ChannelManager:
             name, ext = os.path.splitext(data["name"])
             if not ext:
                 data["name"] = "{}.{}".format(name, data["file_format"])
-            url_response = config.SESSION.post(config.get_upload_url(), data=data)
+            url_response = config.SESSION.post(config.get_upload_url(), json=data)
             if url_response.status_code == 200:
                 response_data = url_response.json()
                 upload_url = response_data["uploadURL"]
@@ -183,14 +183,14 @@ class ChannelManager:
                 if response.status_code == 200:
                     return
                 raise RequestException(
-                    "Error uploading file {}, response code: {}".format(
-                        filename, response.status_code
+                    "Error uploading file {}, response code: {} - {}".format(
+                        filename, response.status_code, response.text
                     )
                 )
             else:
                 raise RequestException(
-                    "Error retrieving upload URL for file {}, response code: {}".format(
-                        filename, url_response.status_code
+                    "Error retrieving upload URL for file {}, response code: {} - {}".format(
+                        filename, url_response.status_code, response.text
                     )
                 )
 
@@ -283,7 +283,7 @@ class ChannelManager:
                 # Attempt to upload file
                 try:
                     assert f.filename, "File failed to download (cannot be uploaded)"
-                    self.do_file_upload(f)
+                    self.do_file_upload(f.filename)
                 except AssertionError as ae:
                     config.LOGGER.warning(ae)
             # Attempt to create node
