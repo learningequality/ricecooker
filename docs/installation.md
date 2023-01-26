@@ -52,8 +52,7 @@ several programs and make sure their `bin`-directories are added to the `Path` v
    During the installation, make sure to check the box **"Add Python 3.7 to path"**.
      - *Checklist*: after installation, open a new command prompt (`cmd.exe`) and
        type in `python --version` and `pip --version` to make sure the commands are available.
-2. Download `ffmpeg` from [https://web.archive.org/web/20200918193047/https://ffmpeg.zeranoe.com/builds/](https://web.archive.org/web/20200918193047/https://ffmpeg.zeranoe.com/builds/).
-   Choose the static option then click `Download Build` to download the zip archive.
+2. Download `ffmpeg` from [https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip](https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip).
    Extract the zip file to a permanent location where you store your code,
    like `C:\Users\User\Tools` for example. Next, you must add the `bin` folder
    that contains `ffmpeg` (e.g. `C:\Users\User\Tools\ffmpeg-4.1.4-win64-static\bin`)
