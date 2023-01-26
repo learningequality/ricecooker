@@ -6,6 +6,7 @@ import subprocess
 from le_utils.constants import format_presets
 
 from .images import ThumbnailGenerationError
+from ricecooker import config
 
 LOGGER = logging.getLogger("VideoResource")
 LOGGER.setLevel(logging.DEBUG)
@@ -190,12 +191,10 @@ def compress_video(source_file_path, target_file, overwrite=False, **kwargs):
         scale = "'w=trunc(min(iw,{max_width})/2)*2:h=-2'".format(
             max_width=kwargs["max_width"]
         )
-    elif "max_height" in kwargs:
-        scale = "'w=-2:h=trunc(min(ih,{max_height})/2)*2'".format(
-            max_height=kwargs["max_height"]
-        )
     else:
-        scale = "'w=-2:h=trunc(min(ih,480)/2)*2'"  # default to max-height 480px
+        scale = "'w=-2:h=trunc(min(ih,{max_height})/2)*2'".format(
+            max_height=kwargs.get("max_height", config.VIDEO_HEIGHT or "480")
+        )
 
     # set constant rate factor, see https://trac.ffmpeg.org/wiki/Encode/H.264#crf
     crf = kwargs["crf"] if "crf" in kwargs else 32
