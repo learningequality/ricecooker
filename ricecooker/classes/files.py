@@ -7,7 +7,8 @@ import os
 import shutil
 import tempfile
 import zipfile
-from subprocess import CalledProcessError
+from contextlib import contextmanager
+from functools import partial
 from urllib.parse import urlparse
 from xml.etree import ElementTree
 
@@ -27,6 +28,8 @@ from requests.exceptions import InvalidURL
 
 from .. import config
 from ..exceptions import UnknownFileTypeError
+from ricecooker.utils.audio import AudioCompressionError
+from ricecooker.utils.audio import compress_audio
 from ricecooker.utils.encodings import get_base64_encoding
 from ricecooker.utils.encodings import write_base64_to_file
 from ricecooker.utils.images import create_image_from_epub
@@ -45,6 +48,7 @@ from ricecooker.utils.videos import guess_video_preset_by_resolution
 from ricecooker.utils.videos import VideoCompressionError
 from ricecooker.utils.videos import web_faststart_video
 from ricecooker.utils.youtube import YouTubeResource
+from ricecooker.utils.zip import create_predictable_zip
 
 # Cache for filenames
 FILECACHE = FileCache(config.FILECACHE_DIRECTORY, use_dir_lock=True, forever=True)
@@ -297,9 +301,24 @@ def copy_file_to_storage(srcfilename, ext=None):
     return filename
 
 
-def compress_video_file(filename, ffmpeg_settings):
+@contextmanager
+def _compress_media(filepath, extension, ffmpeg_settings):
+    tempf = tempfile.NamedTemporaryFile(suffix=".{}".format(extension), delete=False)
+    tempf.close()  # Need to close so can write to file
+
+    compression_function = (
+        compress_audio if extension == file_formats.MP3 else compress_video
+    )
+
+    compression_function(filepath, tempf.name, overwrite=True, **ffmpeg_settings)
+
+    yield tempf.name
+    os.unlink(tempf.name)
+
+
+def compress_media_file(filename, extension, ffmpeg_settings):
     """
-    Calls the pressurecooker function `compress_video` to compress filename (source)
+    Calls the function `compress_video` or `compress_audio` to compress filename (source)
     stored in storage. Returns the filename of the compressed file.
     """
     ffmpeg_settings = ffmpeg_settings or {}
@@ -316,16 +335,60 @@ def compress_video_file(filename, ffmpeg_settings):
 
     config.LOGGER.info("\t--- Compressing {}".format(filename))
 
-    tempf = tempfile.NamedTemporaryFile(
-        suffix=".{}".format(file_formats.MP4), delete=False
-    )
-    tempf.close()  # Need to close so pressure cooker can write to file
-    compress_video(
-        config.get_storage_path(filename), tempf.name, overwrite=True, **ffmpeg_settings
+    with _compress_media(
+        config.get_storage_path(filename), extension, ffmpeg_settings
+    ) as new_name:
+        compressedfilename = copy_file_to_storage(new_name, ext=extension)
+    FILECACHE.set(key, bytes(compressedfilename, "utf-8"))
+    return compressedfilename
+
+
+def _read_and_compress_archive_file(filepath, reader, ffmpeg_settings=None):
+    try:
+        extension = extract_path_ext(filepath)
+        if extension in {file_formats.MP4, file_formats.WEBM, file_formats.MP3}:
+            with tempfile.NamedTemporaryFile(delete=False) as tempf:
+                tempf.write(reader(filepath))
+                tempf.close()
+                with _compress_media(
+                    tempf.name, extension, ffmpeg_settings
+                ) as new_name:
+                    os.unlink(tempf.name)
+                    with open(new_name, "rb") as f:
+                        return f.read()
+    except IndexError:
+        pass
+    return reader(filepath)
+
+
+def compress_files_in_archive(filename, extension, ffmpeg_settings):
+    """
+    Calls the function `compress_video` or `compress_audio` to compress filename (source)
+    stored in storage. Returns the filename of the compressed file.
+    """
+    ffmpeg_settings = ffmpeg_settings or {}
+    key = generate_key(
+        "COMPRESSED",
+        filename,
+        settings=ffmpeg_settings,
+        default=" (default compression)",
     )
 
-    compressedfilename = copy_file_to_storage(tempf.name, ext=file_formats.MP4)
-    os.unlink(tempf.name)
+    cache_file = get_cache_filename(key)
+    if not config.UPDATE and cache_file:
+        return cache_file
+
+    config.LOGGER.info("\t--- Compressing {}".format(filename))
+
+    file_converter = partial(
+        _read_and_compress_archive_file, ffmpeg_settings=ffmpeg_settings
+    )
+
+    processed_file_path = create_predictable_zip(
+        filename, file_converter=file_converter
+    )
+
+    compressedfilename = copy_file_to_storage(processed_file_path, ext=extension)
     FILECACHE.set(key, bytes(compressedfilename, "utf-8"))
     return compressedfilename
 
@@ -637,6 +700,10 @@ class AudioFile(DownloadFile):
     allowed_formats = [file_formats.MP3]
     is_primary = True
 
+    def __init__(self, path, ffmpeg_settings=None, **kwargs):
+        self.ffmpeg_settings = ffmpeg_settings or {}
+        super(AudioFile, self).__init__(path, **kwargs)
+
     def get_preset(self):
         return self.preset or format_presets.AUDIO
 
@@ -646,6 +713,19 @@ class AudioFile(DownloadFile):
             self.duration = extract_duration_of_media(
                 self.path, extract_path_ext(self.filename)
             )
+            # Compress the video if compress flag is set or ffmpeg settings were given
+            if self.ffmpeg_settings or config.COMPRESS:
+                try:
+                    self.filename = compress_media_file(
+                        self.filename, self.extension, self.ffmpeg_settings
+                    )
+                    config.LOGGER.info("\t--- Compressed {}".format(self.filename))
+                except AudioCompressionError as err:
+                    # Catch errors related to ffmpeg and handle silently
+                    self.filename = None
+                    self.error = str(err)
+                    config.FAILED_FILES.append(self)
+
         return self.filename
 
 
@@ -697,6 +777,24 @@ class H5PFile(DownloadFile):
 
     def get_preset(self):
         return self.preset or format_presets.H5P_ZIP
+
+    def process_file(self):
+        self.filename = super(H5PFile, self).process_file()
+        if self.filename:
+            try:
+                # make sure h5p.json exists
+                with zipfile.ZipFile(config.get_storage_path(self.filename)) as zf:
+                    _ = zf.getinfo("h5p.json")
+                    _ = zf.getinfo("content/content.json")
+                if config.COMPRESS:
+                    self.filename = compress_files_in_archive(
+                        config.get_storage_path(self.filename), self.extension, {}
+                    )
+            except KeyError as err:
+                self.filename = None
+                self.error = str(err)
+                config.FAILED_FILES.append(self)
+        return self.filename
 
 
 class VideoFile(DownloadFile):
@@ -769,8 +867,8 @@ class VideoFile(DownloadFile):
                 self.filename = super(VideoFile, self).process_file()
                 # Compress the video if compress flag is set or ffmpeg settings were given
                 if self.filename and (self.ffmpeg_settings or config.COMPRESS):
-                    self.filename = compress_video_file(
-                        self.filename, self.ffmpeg_settings
+                    self.filename = compress_media_file(
+                        self.filename, self.extension, self.ffmpeg_settings
                     )
                     config.LOGGER.info("\t--- Compressed {}".format(self.filename))
             if self.filename:
@@ -779,12 +877,7 @@ class VideoFile(DownloadFile):
                         config.get_storage_path(self.filename),
                         extract_path_ext(self.filename),
                     )
-        except (
-            BrokenPipeError,
-            CalledProcessError,
-            IOError,
-            VideoCompressionError,
-        ) as err:
+        except VideoCompressionError as err:
             # Catch errors related to ffmpeg and handle silently
             self.filename = None
             self.error = str(err)
@@ -832,7 +925,7 @@ class WebVideoFile(File):
 
             # Compress if compression flag is set
             if self.filename and config.COMPRESS:
-                self.filename = compress_video_file(self.filename, {})
+                self.filename = compress_media_file(self.filename, self.extension, {})
                 config.LOGGER.info("\t--- Compressed {}".format(self.filename))
             if self.filename and config.get_storage_path(self.filename):
                 self.duration = extract_duration_of_media(
@@ -840,7 +933,7 @@ class WebVideoFile(File):
                     extract_path_ext(self.filename),
                 )
 
-        except youtube_dl.utils.DownloadError as err:
+        except (youtube_dl.utils.DownloadError, VideoCompressionError) as err:
             self.filename = None
             self.error = str(err)
             config.FAILED_FILES.append(self)

@@ -6,6 +6,7 @@ import os
 import re
 import sys
 from datetime import datetime
+from warnings import warn
 
 import requests
 
@@ -59,6 +60,20 @@ class SushiChef(object):
         # support assignment as a class-level variable.
         if not hasattr(self, "SETTINGS"):
             self.SETTINGS = {}
+        else:
+            if "generate-missing-thumbnails" in self.SETTINGS:
+                warning_text = "thumbnails setting is deprecated and will be replaced by thumbnails in version 0.8 please update"
+                config.LOGGER.warn(warning_text)
+                warn(warning_text, DeprecationWarning)
+                self.SETTINGS["thumbnails"] == self.SETTINGS[
+                    "generate-missing-thumbnails"
+                ]
+
+            if "compress-videos" in self.SETTINGS:
+                warning_text = "compress-videos setting is deprecated and will be replaced by compress in version 0.8 please update"
+                config.LOGGER.warn(warning_text)
+                warn(warning_text, DeprecationWarning)
+                self.SETTINGS["compress"] == self.SETTINGS["compress-videos"]
 
         # these will be assigned to later by the argparse handling.
         self.args = None
@@ -194,10 +209,10 @@ class SushiChef(object):
         override = None
         # If there is a command line flag for this setting, allow for it to override the chef
         # default. Note that these are all boolean flags, so they are true if set, false if not.
-        if setting == "generate-missing-thumbnails":
+        if setting == "thumbnails":
             override = self.args and self.args["thumbnails"]
 
-        if setting == "compress-videos":
+        if setting == "compress":
             override = self.args and self.args["compress"]
 
         if setting in self.SETTINGS:
