@@ -1,4 +1,15 @@
 import os
+import re
+
+
+VALID_UUID_REGEX = re.compile("^([a-f0-9]{32})$")
+
+
+def is_valid_uuid_string(uuid_str):
+    """
+    Check if a string is a valid UUID.
+    """
+    return isinstance(uuid_str, str) and VALID_UUID_REGEX.match(uuid_str)
 
 
 def make_dir_if_needed(path):

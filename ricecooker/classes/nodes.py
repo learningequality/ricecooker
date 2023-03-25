@@ -19,6 +19,7 @@ from le_utils.constants.labels import subjects
 from .. import __version__
 from .. import config
 from ..exceptions import InvalidNodeException
+from ..utils.utils import is_valid_uuid_string
 from .licenses import License
 
 MASTERY_MODELS = [id for id, name in exercises.MASTERY_MODELS]
@@ -469,6 +470,7 @@ class TreeNode(Node):
         accessibility_labels=None,
         categories=None,
         learner_needs=None,
+        role=roles.LEARNER,
         **kwargs
     ):
         # Map parameters to model variables
@@ -490,6 +492,7 @@ class TreeNode(Node):
         self.accessibility_labels = accessibility_labels or []
         self.categories = categories or []
         self.learner_needs = learner_needs or []
+        self.role = role
 
         super(TreeNode, self).__init__(title, **kwargs)
 
@@ -588,9 +591,10 @@ class TreeNode(Node):
             "accessibility_labels": self.accessibility_labels,
             "categories": self.categories,
             "learner_needs": self.learner_needs,
+            "role": self.role,
         }
 
-    def validate(self):
+    def validate(self):  # noqa: C901
         """validate: Makes sure content node is valid
         Args: None
         Returns: boolean indicating if content node is valid
@@ -615,6 +619,68 @@ class TreeNode(Node):
             assert len(tag) <= 30, (
                 "ERROR: tag " + tag + " is too long. Tags should be 30 chars or less."
             )
+
+        assert (
+            self.role in ROLES
+        ), "Assumption Failed: Role must be one of the following {}".format(ROLES)
+        if self.grade_levels is not None:
+            for grade in self.grade_levels:
+                assert (
+                    grade in levels.LEVELSLIST
+                ), "Assumption Failed: Grade levels must be one of the following {}".format(
+                    levels.LEVELSLIST
+                )
+
+        if self.resource_types is not None:
+            for res_type in self.resource_types:
+                assert (
+                    res_type in resource_type.RESOURCETYPELIST
+                ), "Assumption Failed: Resource types must be one of the following {}".format(
+                    resource_type.RESOURCETYPELIST
+                )
+
+        if self.learning_activities is not None:
+            assert isinstance(
+                self.learning_activities, list
+            ), "Assumption Failed: Learning activities must be list"
+            for learn_act in self.learning_activities:
+                assert (
+                    learn_act in learning_activities.LEARNINGACTIVITIESLIST
+                ), "Assumption Failed: Learning activities must be one of the following {}".format(
+                    learning_activities.LEARNINGACTIVITIESLIST
+                )
+        if self.accessibility_labels is not None:
+            assert isinstance(
+                self.accessibility_labels, list
+            ), "Assumption Failed: Accessibility label must be list"
+            for access_label in self.accessibility_labels:
+                assert (
+                    access_label in accessibility_categories.ACCESSIBILITYCATEGORIESLIST
+                ), "Assumption Failed: Accessibility label must be one of the following {}".format(
+                    accessibility_categories.ACCESSIBILITYCATEGORIESLIST
+                )
+        if self.categories is not None:
+            assert isinstance(
+                self.categories, list
+            ), "Assumption Failed: Categories must be list"
+            for category in self.categories:
+                assert (
+                    category in subjects.SUBJECTSLIST
+                ), "Assumption Failed: Categories must be one of the following {}".format(
+                    subjects.SUBJECTSLIST
+                )
+
+        if self.learner_needs is not None:
+            assert isinstance(
+                self.learner_needs, list
+            ), "Assumption Failed: Learner needs must be list"
+            for learner_need in self.learner_needs:
+                assert (
+                    learner_need in needs.NEEDSLIST
+                ), "Assumption Failed: Learner needs must be one of the following {}".format(
+                    needs.NEEDSLIST
+                )
+
         return super(TreeNode, self).validate()
 
 
@@ -687,19 +753,10 @@ class ContentNode(TreeNode):
         source_id,
         title,
         license,
-        role=roles.LEARNER,
         license_description=None,
         copyright_holder=None,
-        grade_levels=None,
-        resource_types=None,
-        learning_activities=None,
-        accessibility_labels=None,
-        categories=None,
-        learner_needs=None,
         **kwargs
     ):
-        self.role = role
-
         self.set_license(
             license, copyright_holder=copyright_holder, description=license_description
         )
@@ -728,67 +785,6 @@ class ContentNode(TreeNode):
         Args: None
         Returns: boolean indicating if content node is valid
         """
-        assert (
-            self.role in ROLES
-        ), "Assumption Failed: Role must be one of the following {}".format(ROLES)
-        if self.grade_levels is not None:
-            for grade in self.grade_levels:
-                assert (
-                    grade in levels.LEVELSLIST
-                ), "Assumption Failed: Grade levels must be one of the following {}".format(
-                    levels.LEVELSLIST
-                )
-
-        if self.resource_types is not None:
-            for res_type in self.resource_types:
-                assert (
-                    res_type in resource_type.RESOURCETYPELIST
-                ), "Assumption Failed: Resource types must be one of the following {}".format(
-                    resource_type.RESOURCETYPELIST
-                )
-
-        if self.learning_activities is not None:
-            assert isinstance(
-                self.learning_activities, list
-            ), "Assumption Failed: Learning activities must be list"
-            for learn_act in self.learning_activities:
-                assert (
-                    learn_act in learning_activities.LEARNINGACTIVITIESLIST
-                ), "Assumption Failed: Learning activities must be one of the following {}".format(
-                    learning_activities.LEARNINGACTIVITIESLIST
-                )
-        if self.accessibility_labels is not None:
-            assert isinstance(
-                self.accessibility_labels, list
-            ), "Assumption Failed: Accessibility label must be list"
-            for access_label in self.accessibility_labels:
-                assert (
-                    access_label in accessibility_categories.ACCESSIBILITYCATEGORIESLIST
-                ), "Assumption Failed: Accessibility label must be one of the following {}".format(
-                    accessibility_categories.ACCESSIBILITYCATEGORIESLIST
-                )
-        if self.categories is not None:
-            assert isinstance(
-                self.categories, list
-            ), "Assumption Failed: Categories must be list"
-            for category in self.categories:
-                assert (
-                    category in subjects.SUBJECTSLIST
-                ), "Assumption Failed: Categories must be one of the following {}".format(
-                    subjects.SUBJECTSLIST
-                )
-
-        if self.learner_needs is not None:
-            assert isinstance(
-                self.learner_needs, list
-            ), "Assumption Failed: Learner needs must be list"
-            for learner_need in self.learner_needs:
-                assert (
-                    learner_need in needs.NEEDSLIST
-                ), "Assumption Failed: Learner needs must be one of the following {}".format(
-                    needs.NEEDSLIST
-                )
-
         assert isinstance(self.license, str) or isinstance(
             self.license, License
         ), "Assumption Failed: License is not a string or license object"
@@ -1563,3 +1559,87 @@ class PracticeQuizNode(ExerciseNode):
         # TODO: update le-utils version and use a constant value here
         kwargs["exercise_data"]["options"].update({"modality": "QUIZ"})
         super(PracticeQuizNode, self).__init__(*args, **kwargs)
+
+
+class RemoteContentNode(TreeNode):
+    """
+    Node class for creating content nodes in the channel that are imported from
+    existing nodes in another channel on Studio.
+
+    Notes:
+    - Your account must have read permissions for the target node.
+    - You must specify the source_channel_id, and at least one of source_node_id or source_content_id.
+    - If you specify both source_node_id and source_content_id, the source_node_id will be used,
+      and it will fallback to looking up by source_content_id if source_node_id is not found.
+    """
+
+    kind = "remotecontent"
+
+    ALLOWED_OVERRIDES = [
+        "title",
+        "description",
+        "aggregator",
+        "provider",
+        "tags",
+        "grade_levels",
+        "resource_types",
+        "learning_activities",
+        "accessibility_labels",
+        "categories",
+        "learner_needs",
+        "role",
+        "thumbnail",
+        "extra_fields",
+        "suggested_duration",
+    ]
+
+    def __init__(
+        self, source_channel_id, source_node_id=None, source_content_id=None, **kwargs
+    ):
+        self.source_channel_id = (
+            source_channel_id if is_valid_uuid_string(source_channel_id) else None
+        )
+        self.source_node_id = (
+            source_node_id if is_valid_uuid_string(source_node_id) else None
+        )
+        self.source_content_id = (
+            source_content_id if is_valid_uuid_string(source_content_id) else None
+        )
+        self.overrides = kwargs.copy()
+        overriden_title = kwargs.pop("title", "<title from remote>")
+        super(RemoteContentNode, self).__init__(
+            source_node_id or source_content_id, overriden_title, **kwargs
+        )
+
+    def validate(self):
+        if not self.source_channel_id:
+            raise InvalidNodeException(
+                "Invalid node: source_channel_id must be specified, and be a valid UUID string."
+            )
+        if not self.source_node_id and not self.source_content_id:
+            raise InvalidNodeException(
+                "Invalid node: at least one of source_node_id or source_content_id must be specified, and be a valid UUID string."
+            )
+        for key in self.overrides:
+            if key not in self.ALLOWED_OVERRIDES:
+                raise InvalidNodeException(
+                    "Invalid node: '{}' cannot be overriden on a RemoteContentNode.".format(
+                        key
+                    )
+                )
+        super(RemoteContentNode, self).validate()
+
+    def to_dict(self):
+        data = {
+            "node_id": self.get_node_id().hex if self.parent else "",
+            "source_channel_id": self.source_channel_id,
+            "source_node_id": self.source_node_id,
+            "source_content_id": self.source_content_id,
+        }
+        if "thumbnail" in self.overrides:
+            self.overrides["files"] = [
+                f.to_dict() for f in self.files if f and f.filename
+            ]
+            del self.overrides["thumbnail"]
+        data.update(self.overrides)
+        return data
