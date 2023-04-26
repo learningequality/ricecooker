@@ -55,7 +55,7 @@ def read_tree_from_json(srcpath):
     """
     Load ricecooker json tree data from json file at `srcpath`.
     """
-    with open(srcpath) as infile:
+    with open(srcpath, encoding="utf-8") as infile:
         json_tree = json.load(infile)
         if json_tree is None:
             raise ValueError("Could not find ricecooker json tree")
@@ -69,7 +69,7 @@ def write_tree_to_json_tree(destpath, json_tree):
     parent_dir, _ = os.path.split(destpath)
     if not os.path.exists(parent_dir):
         os.makedirs(parent_dir, exist_ok=True)
-    with open(destpath, "w", encoding="utf8") as json_file:
+    with open(destpath, "w", encoding="utf-8") as json_file:
         json.dump(json_tree, json_file, indent=2, ensure_ascii=False)
 
 
