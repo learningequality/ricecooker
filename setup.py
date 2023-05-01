@@ -19,7 +19,6 @@ requirements = [
     "requests_file",
     "beautifulsoup4>=4.6.3,<4.9.0",  # pinned to match versions in le-pycaption
     "selenium==3.0.1",
-    "youtube-dl>=2020.6.16.1",
     "yt-dlp==2022.03.08.1",
     "html5lib",
     "cachecontrol==0.12.0",
