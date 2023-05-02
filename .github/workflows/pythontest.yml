@@ -33,15 +33,9 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-latest, ubuntu-latest, macos-latest]
-        python-version: [3.6, 3.7, 3.8, 3.9, '3.10']
-        exclude:
-          - os: ubuntu-latest
-            python-version: 3.6
+        python-version: [3.7, 3.8, 3.9, '3.10']
         include:
         - os: ubuntu-latest
-          pippath: ~/.cache/pip
-        - os: ubuntu-20.04
-          python-version: 3.6
           pippath: ~/.cache/pip
         - os: macos-latest
           pippath: ~/Library/Caches/pip

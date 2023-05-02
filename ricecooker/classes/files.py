@@ -13,7 +13,7 @@ from urllib.parse import urlparse
 from xml.etree import ElementTree
 
 import filetype
-import youtube_dl
+import yt_dlp
 from cachecontrol.caches.file_cache import FileCache
 from le_utils.constants import exercises
 from le_utils.constants import file_formats
@@ -433,16 +433,16 @@ def download_from_web(
     # Download the web_url which can be either a video or subtitles
     if not config.USEPROXY:
         # Connect to YouTube directly
-        with youtube_dl.YoutubeDL(download_settings) as ydl:
+        with yt_dlp.YoutubeDL(download_settings) as ydl:
             ydl.download([web_url])
             if not os.path.exists(destination_path):
-                raise youtube_dl.utils.DownloadError("Failed to download " + web_url)
+                raise yt_dlp.utils.DownloadError("Failed to download " + web_url)
     else:
         # Connect to YouTube via an HTTP proxy
         yt_resource = YouTubeResource(web_url, useproxy=True, options=download_settings)
         result1 = yt_resource.get_resource_info()
         if result1 is None:
-            raise youtube_dl.utils.DownloadError("Failed to get resource info")
+            raise yt_dlp.utils.DownloadError("Failed to get resource info")
         download_settings["writethumbnail"] = False  # overwrite default behaviour
         if file_format == file_formats.VTT:
             # We need to use the proxy when downloading subtitles
@@ -451,9 +451,7 @@ def download_from_web(
             # For video files we can skip the proxy for faster download speed
             result2 = yt_resource.download(options=download_settings)
         if result2 is None or not os.path.exists(destination_path):
-            raise youtube_dl.utils.DownloadError(
-                "Failed to download resource " + web_url
-            )
+            raise yt_dlp.utils.DownloadError("Failed to download resource " + web_url)
 
     # Write file to local storage
     filename = copy_file_to_storage(destination_path, ext=file_format)
@@ -933,7 +931,7 @@ class WebVideoFile(File):
                     extract_path_ext(self.filename),
                 )
 
-        except (youtube_dl.utils.DownloadError, VideoCompressionError) as err:
+        except (yt_dlp.utils.DownloadError, VideoCompressionError) as err:
             self.filename = None
             self.error = str(err)
             config.FAILED_FILES.append(self)
@@ -1009,7 +1007,7 @@ class YouTubeSubtitleFile(File):
             self.filename = self.download_subtitle()
             config.LOGGER.info("\t--- Downloaded subtitle {}".format(self.filename))
             return self.filename
-        except (FileNotFoundError, youtube_dl.utils.DownloadError):
+        except (FileNotFoundError, yt_dlp.utils.DownloadError):
             self.error = str(
                 "Subtitle with langauge {} is not available for {}".format(
                     self.language, self.youtube_url

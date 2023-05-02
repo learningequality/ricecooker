@@ -207,7 +207,7 @@ FAILED_FILES = []
 DOWNLOAD_SESSION = requests.Session()
 DOWNLOAD_SESSION.mount("file://", FileAdapter())
 
-# Environment variable indicating we should use a proxy for youtube_dl downloads
+# Environment variable indicating we should use a proxy for yt_dlp downloads
 USEPROXY = False
 USEPROXY = (
     True
