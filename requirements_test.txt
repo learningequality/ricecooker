@@ -2,3 +2,4 @@ requests-cache==1.0.1
 pytest==7.3.1
 pycountry==22.3.5
 pytest-env==0.6.2
+mock==2.0.0
