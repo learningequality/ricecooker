@@ -48,7 +48,7 @@ setup(
         "Jinja2>=2.10",
         "chardet==4.0.0",
         "ffmpy>=0.2.2",
-        "pdf2image==1.11.0",
+        "pdf2image==1.16.3",
         "le-pycaption>=2.2.0a1",
         "EbookLib>=0.17.1",
         "filetype>=1.1.0",
