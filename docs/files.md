@@ -74,7 +74,7 @@ Document files
 Use the `DocumentFile` class to add PDF documents:
 
     document_file = DocumentFile(
-        path='dir/subdir/lecture_slides.mp4',
+        path='dir/subdir/lecture_slides.pdf',
         language=getlang('en').code
     )
 
