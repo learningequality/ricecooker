@@ -15,6 +15,7 @@ curates content from another channel already on Studio into a new channel.
 
 SOURCE_DOMAIN = "testdomain.org"  ## change me!
 
+# global dict to retain state between the two chef runs
 original_channel_data = {
     "channel_id": None,
     "doc_node_id": None,
