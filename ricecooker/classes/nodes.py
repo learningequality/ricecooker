@@ -882,7 +882,7 @@ class VideoNode(ContentNode):
         Returns: boolean indicating if video is valid
         """
         from .files import (
-            RemoteFile,
+            StudioFile,
             VideoFile,
             WebVideoFile,
             SubtitleFile,
@@ -904,7 +904,7 @@ class VideoNode(ContentNode):
                 if isinstance(f, VideoFile)
                 or isinstance(f, WebVideoFile)
                 or (
-                    isinstance(f, RemoteFile)
+                    isinstance(f, StudioFile)
                     and f.preset
                     in (format_presets.VIDEO_HIGH_RES, format_presets.VIDEO_LOW_RES)
                 )
@@ -970,7 +970,7 @@ class AudioNode(ContentNode):
         Args: None
         Returns: boolean indicating if audio is valid
         """
-        from .files import AudioFile, RemoteFile
+        from .files import AudioFile, StudioFile
 
         try:
             assert (
@@ -986,7 +986,7 @@ class AudioNode(ContentNode):
                 f
                 for f in self.files
                 if isinstance(f, AudioFile)
-                or (isinstance(f, RemoteFile) and f.preset == format_presets.AUDIO)
+                or (isinstance(f, StudioFile) and f.preset == format_presets.AUDIO)
             ], "Assumption Failed: Audio should have at least one audio file"
             return super(AudioNode, self).validate()
         except AssertionError as ae:
@@ -1025,7 +1025,7 @@ class DocumentNode(ContentNode):
         Args: None
         Returns: boolean indicating if document is valid
         """
-        from .files import DocumentFile, EPubFile, RemoteFile
+        from .files import DocumentFile, EPubFile, StudioFile
 
         try:
             assert (
@@ -1043,7 +1043,7 @@ class DocumentNode(ContentNode):
                 if isinstance(f, DocumentFile)
                 or isinstance(f, EPubFile)
                 or (
-                    isinstance(f, RemoteFile)
+                    isinstance(f, StudioFile)
                     and f.preset in (format_presets.DOCUMENT, format_presets.EPUB)
                 )
             ], "Assumption Failed: Document should have at least one document file"
@@ -1125,7 +1125,7 @@ class HTML5AppNode(ContentNode):
         Args: None
         Returns: boolean indicating if HTML5 app is valid
         """
-        from .files import HTMLZipFile, RemoteFile
+        from .files import HTMLZipFile, StudioFile
 
         try:
             assert (
@@ -1138,7 +1138,7 @@ class HTML5AppNode(ContentNode):
                 f
                 for f in self.files
                 if isinstance(f, HTMLZipFile)
-                or (isinstance(f, RemoteFile) and f.preset == format_presets.HTML5_ZIP)
+                or (isinstance(f, StudioFile) and f.preset == format_presets.HTML5_ZIP)
             ], "Assumption Failed: HTML should have at least one html file"
             return super(HTML5AppNode, self).validate()
         except AssertionError as ae:
@@ -1176,7 +1176,7 @@ class H5PAppNode(ContentNode):
         Args: None
         Returns: boolean indicating if H5P app is valid
         """
-        from .files import H5PFile, RemoteFile
+        from .files import H5PFile, StudioFile
 
         try:
             assert (
@@ -1189,7 +1189,7 @@ class H5PAppNode(ContentNode):
                 f
                 for f in self.files
                 if isinstance(f, H5PFile)
-                or (isinstance(f, RemoteFile) and f.preset == format_presets.H5P_ZIP)
+                or (isinstance(f, StudioFile) and f.preset == format_presets.H5P_ZIP)
             ], "Assumption Failed: H5PAppNode should have at least one h5p file"
             return super(H5PAppNode, self).validate()
         except AssertionError as ae:
@@ -1561,7 +1561,7 @@ class PracticeQuizNode(ExerciseNode):
         super(PracticeQuizNode, self).__init__(*args, **kwargs)
 
 
-class RemoteContentNode(TreeNode):
+class StudioContentNode(TreeNode):
     """
     Node class for creating content nodes in the channel that are imported from
     existing nodes in another channel on Studio.
@@ -1607,7 +1607,7 @@ class RemoteContentNode(TreeNode):
         )
         self.overrides = kwargs.copy()
         overriden_title = kwargs.pop("title", "<title from remote>")
-        super(RemoteContentNode, self).__init__(
+        super(StudioContentNode, self).__init__(
             source_node_id or source_content_id, overriden_title, **kwargs
         )
 
@@ -1623,11 +1623,11 @@ class RemoteContentNode(TreeNode):
         for key in self.overrides:
             if key not in self.ALLOWED_OVERRIDES:
                 raise InvalidNodeException(
-                    "Invalid node: '{}' cannot be overriden on a RemoteContentNode.".format(
+                    "Invalid node: '{}' cannot be overriden on a StudioContentNode.".format(
                         key
                     )
                 )
-        super(RemoteContentNode, self).validate()
+        super(StudioContentNode, self).validate()
 
     def to_dict(self):
         data = {
@@ -1643,3 +1643,7 @@ class RemoteContentNode(TreeNode):
             del self.overrides["thumbnail"]
         data.update(self.overrides)
         return data
+
+
+# add alias for back-compatibility
+RemoteContentNode = StudioContentNode

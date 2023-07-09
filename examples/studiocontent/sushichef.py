@@ -5,11 +5,11 @@ from ricecooker.classes.files import DocumentFile
 from ricecooker.classes.licenses import get_license
 from ricecooker.classes.nodes import AudioNode
 from ricecooker.classes.nodes import DocumentNode
-from ricecooker.classes.nodes import RemoteContentNode
+from ricecooker.classes.nodes import StudioContentNode
 from ricecooker.classes.nodes import TopicNode
 
 """
-This example shows how to use the RemoteContentNode to create a channel that
+This example shows how to use the StudioContentNode to create a channel that
 curates content from another channel already on Studio into a new channel.
 """
 
@@ -81,7 +81,7 @@ class CuratedChannelChef(SushiChef):
             source_id="documents",
         )
         channel.add_child(document_topic)
-        remote_document = RemoteContentNode(
+        remote_document = StudioContentNode(
             title="Glorious new title for the potato doc",
             source_channel_id=original_channel_data["channel_id"],
             source_node_id=original_channel_data["doc_node_id"],
@@ -93,7 +93,7 @@ class CuratedChannelChef(SushiChef):
             source_id="audio",
         )
         channel.add_child(audio_topic)
-        remote_audio = RemoteContentNode(
+        remote_audio = StudioContentNode(
             source_channel_id=original_channel_data["channel_id"],
             source_node_id=original_channel_data["audio_node_id"],
         )
