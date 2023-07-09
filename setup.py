@@ -52,6 +52,7 @@ setup(
         "le-pycaption>=2.2.0a1",
         "EbookLib>=0.17.1",
         "filetype>=1.1.0",
+        "urllib3==1.26.15",
     ],
     python_requires=">=3.7, <3.11",
     license="MIT license",
