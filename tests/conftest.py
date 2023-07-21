@@ -236,7 +236,7 @@ def topic_data(base_data, channel_domain_namespace, channel_node_id):
     topic_data = copy.deepcopy(base_data)
     ids_dict = genrate_random_ids(channel_domain_namespace, channel_node_id)
     topic_data.update(ids_dict)
-    topic_data.update({"kind": content_kinds.TOPIC})
+    topic_data.update({"kind": content_kinds.TOPIC, "role": roles.LEARNER})
     return topic_data
 
 

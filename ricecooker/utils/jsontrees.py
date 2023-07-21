@@ -367,7 +367,7 @@ def add_files(node, file_list):  # noqa: C901
 
         elif file_type == REMOTE_FILE:
             node.add_file(
-                files.RemoteFile(
+                files.StudioFile(
                     f["checksum"],
                     f["ext"],
                     preset,

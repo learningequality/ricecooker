@@ -546,8 +546,8 @@ def test_convertible_substitles_from_pressurcooker(pressurcooker_test_files):
         assert os.path.exists(localpath), "Error mising local test file " + localpath
         subtitle_file = SubtitleFile(localpath, language=fixture["language"])
         filename = subtitle_file.process_file()
-        assert filename, "conferted filename must exit"
-        assert filename.endswith(".vtt"), "conferted filename must have .vtt extension"
+        assert filename, "converted filename must exist"
+        assert filename.endswith(".vtt"), "converted filename must have .vtt extension"
         storage_path = config.get_storage_path(filename)
         with open(storage_path, encoding="utf-8") as converted_vtt:
             filecontents = converted_vtt.read()
@@ -575,8 +575,8 @@ def test_convertible_substitles_ar_ttml(youtube_test_file):
     assert os.path.exists(local_path)
     subtitle_file = SubtitleFile(local_path, language="ar")
     filename = subtitle_file.process_file()
-    assert filename, "conferted filename must exit"
-    assert filename.endswith(".vtt"), "conferted filename must have .vtt extension"
+    assert filename, "converted filename must exist"
+    assert filename.endswith(".vtt"), "converted filename must have .vtt extension"
 
 
 def test_convertible_substitles_noext_subtitlesformat():
@@ -604,8 +604,8 @@ def test_convertible_substitles_noext_subtitlesformat():
         subtitlesformat="ttml",  # settting subtitlesformat becaue no ext
     )
     filename = subtitle_file.process_file()
-    assert filename, "conferted filename must exit"
-    assert filename.endswith(".vtt"), "conferted filename must have .vtt extension"
+    assert filename, "converted filename must exist"
+    assert filename.endswith(".vtt"), "converted filename must have .vtt extension"
 
 
 def test_convertible_substitles_weirdext_subtitlesformat():
@@ -623,8 +623,8 @@ def test_convertible_substitles_weirdext_subtitlesformat():
         subtitlesformat="srt",  # set subtitlesformat when can't inferr ext form url
     )
     filename = subtitle_file.process_file()
-    assert filename, "conferted filename must exit"
-    assert filename.endswith(".vtt"), "conferted filename must have .vtt extension"
+    assert filename, "converted filename must exist"
+    assert filename.endswith(".vtt"), "converted filename must have .vtt extension"
     storage_path = config.get_storage_path(filename)
     with open(storage_path, encoding="utf-8") as converted_vtt:
         filecontents = converted_vtt.read()

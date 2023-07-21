@@ -35,7 +35,7 @@ setup(
         "requests_file",
         "beautifulsoup4>=4.6.3,<4.9.0",  # pinned to match versions in le-pycaption
         "selenium==3.0.1",
-        "yt-dlp>=2023.3.4",
+        "yt-dlp==2023.7.6",
         "html5lib",
         "cachecontrol==0.12.11",
         "lockfile==0.12.2",  # This is needed, but not specified as a dependency by cachecontrol
@@ -52,6 +52,7 @@ setup(
         "le-pycaption>=2.2.0a1",
         "EbookLib>=0.17.1",
         "filetype>=1.1.0",
+        "urllib3==1.26.15",
     ],
     python_requires=">=3.7, <3.11",
     license="MIT license",

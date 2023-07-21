@@ -1391,9 +1391,9 @@ class TiledThumbnailFile(ThumbnailPresetMixin, File):
             return filename
 
 
-class RemoteFile(File):
+class StudioFile(File):
     """
-    Reuse a file that we already know to exist on the remote (normally Studio).
+    Reuse a file that we already know to exist on the remote (Studio).
     This allows for channels to be updated without having to redownload all files again.
     """
 
@@ -1404,7 +1404,7 @@ class RemoteFile(File):
         self.is_primary = is_primary
         kwargs["preset"] = preset
         self._validated = False
-        super(RemoteFile, self).__init__(**kwargs)
+        super(StudioFile, self).__init__(**kwargs)
 
     def validate(self):
         if not self._validated:
@@ -1422,3 +1422,7 @@ class RemoteFile(File):
 
     def __str__(self):
         return self.filename
+
+
+# add alias for back-compatibility
+RemoteFile = StudioFile

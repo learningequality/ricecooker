@@ -9,6 +9,7 @@ from le_utils.constants import content_kinds
 from le_utils.constants import file_types
 from le_utils.constants import format_presets
 from le_utils.constants import licenses
+from le_utils.constants.labels import levels
 from le_utils.constants.languages import getlang
 
 from ricecooker.classes.files import DocumentFile
@@ -20,6 +21,7 @@ from ricecooker.classes.licenses import License
 from ricecooker.classes.nodes import CustomNavigationChannelNode
 from ricecooker.classes.nodes import CustomNavigationNode
 from ricecooker.classes.nodes import DocumentNode
+from ricecooker.classes.nodes import RemoteContentNode
 from ricecooker.classes.nodes import SlideshowNode
 from ricecooker.classes.nodes import TopicNode
 from ricecooker.exceptions import InvalidNodeException
@@ -582,3 +584,107 @@ def test_custom_navigation_channel_node_via_add_file():
         custom_navigation_channel_node.to_dict()["files"][0]["filename"]
         == zipfile.filename
     )
+
+
+def test_remote_content_node_with_no_overrides():
+    remote_content_node = RemoteContentNode(
+        "a" * 32,
+        source_node_id="b" * 32,
+        source_content_id="c" * 32,
+    )
+    assert remote_content_node
+    assert remote_content_node.kind == "remotecontent"
+    assert len(remote_content_node.files) == 0
+    assert remote_content_node.validate_tree()
+    output = remote_content_node.to_dict()
+    assert output.get("title") is None
+    assert output.get("description") is None
+
+
+def test_remote_content_node_with_basic_overrides():
+    remote_content_node = RemoteContentNode(
+        "a" * 32,
+        source_content_id="c" * 32,
+        title="My Title",
+        description="My Description",
+    )
+    assert remote_content_node
+    assert remote_content_node.kind == "remotecontent"
+    assert len(remote_content_node.files) == 0
+    assert remote_content_node.validate_tree()
+    output = remote_content_node.to_dict()
+    assert output.get("title") == "My Title"
+    assert output.get("description") == "My Description"
+
+
+def test_remote_content_node_with_provider_override():
+    remote_content_node = RemoteContentNode(
+        "a" * 32,
+        source_node_id="b" * 32,
+        provider="Doctor Tibbles",
+    )
+    assert remote_content_node
+    assert remote_content_node.kind == "remotecontent"
+    assert len(remote_content_node.files) == 0
+    assert remote_content_node.validate_tree()
+    output = remote_content_node.to_dict()
+    assert output.get("provider") == "Doctor Tibbles"
+
+
+def test_remote_content_node_with_bad_channel_id():
+    with pytest.raises(InvalidNodeException):
+        node = RemoteContentNode(
+            "a" * 4,
+            source_node_id="b" * 32,
+        )
+        node.validate_tree()
+
+
+def test_remote_content_node_with_bad_source_content_node_ids():
+    with pytest.raises(InvalidNodeException):
+        node = RemoteContentNode(
+            "a" * 32,
+            source_node_id="b" * 4,
+            source_content_id="c" * 4,
+        )
+        node.validate_tree()
+
+
+def test_remote_content_node_with_overridden_thumbnail():
+    thumbimg1 = ThumbnailFile(
+        path="tests/testcontent/samples/thumbnail.jpg", language="en"
+    )
+    remote_content_node = RemoteContentNode(
+        "a" * 32,
+        source_content_id="c" * 32,
+        thumbnail=thumbimg1,
+    )
+    assert len(remote_content_node.files) == 1
+    assert remote_content_node.validate_tree()
+    remote_content_node.process_files()
+    output = remote_content_node.to_dict()
+    assert output.get("files")[0]["filename"] == "d7ab03e4263fc374737d96ac2da156c1.jpg"
+
+
+def test_remote_content_node_with_overridden_grade_levels():
+    grades = [levels.LEVELSLIST[0], levels.LEVELSLIST[1], levels.LEVELSLIST[2]]
+    remote_content_node = RemoteContentNode(
+        "a" * 32,
+        source_content_id="c" * 32,
+        grade_levels=grades,
+    )
+    assert remote_content_node
+    assert remote_content_node.kind == "remotecontent"
+    assert remote_content_node.validate_tree()
+    output = remote_content_node.to_dict()
+    assert output.get("grade_levels") == grades
+
+
+def test_remote_content_node_with_invalid_overridden_field():
+    with pytest.raises(InvalidNodeException):
+        node = RemoteContentNode(
+            "a" * 32,
+            source_content_id="c" * 32,
+            author="Such disallowed. Computer says no.",
+        )
+        node.validate_tree()
