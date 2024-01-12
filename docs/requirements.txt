@@ -1,4 +1,4 @@
-sphinx==2.4.4
+sphinx==7.2.6
 sphinx_rtd_theme
 recommonmark
 nbsphinx
