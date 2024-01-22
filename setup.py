@@ -46,7 +46,7 @@ setup(
         "colorlog>=4.1.0,<4.2",
         "PyYAML>=5.3.1",
         "Jinja2>=2.10",
-        "chardet==4.0.0",
+        "chardet==5.2.0",
         "ffmpy>=0.2.2",
         "pdf2image==1.16.3",
         "le-pycaption>=2.2.0a1",
