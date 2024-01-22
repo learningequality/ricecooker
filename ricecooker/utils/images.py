@@ -189,7 +189,7 @@ def convert_image(filename, dest_dir=None, size=None, format="PNG"):
 
     # resive image to thumbnail dimensions
     if size:
-        dest_img = dest_img.resize(size, Image.ANTIALIAS)
+        dest_img = dest_img.resize(size, Image.LANCZOS)
     dest_img.save(dest_filename)
 
     return dest_filename
