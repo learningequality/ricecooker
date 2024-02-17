@@ -34,7 +34,7 @@ setup(
         "le_utils>=0.1.26",
         "requests_file",
         "beautifulsoup4>=4.6.3,<4.9.0",  # pinned to match versions in le-pycaption
-        "selenium==3.0.1",
+        "selenium==4.17.2",
         "yt-dlp==2023.12.30",
         "html5lib",
         "cachecontrol==0.12.11",
