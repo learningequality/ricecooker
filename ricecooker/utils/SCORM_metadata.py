@@ -39,7 +39,7 @@ SCORM_to_learning_activities_mappings = {
 }
 
 
-def map_scorm_to_le_utils_activities(scorm_dict):
+def map_scorm_to_le_utils_activities(metadata_dict):
     le_utils_activities = []
 
     # Adjustments based on interactivity
@@ -51,8 +51,8 @@ def map_scorm_to_le_utils_activities(scorm_dict):
     }
 
     # Determine the interactivity level and type
-    interactivity_type = scorm_dict.get("educational", {}).get("interactivityType")
-    interactivity_level = scorm_dict.get("educational", {}).get("interactivityLevel")
+    interactivity_type = metadata_dict.get("interactivityType")
+    interactivity_level = metadata_dict.get("interactivityLevel")
 
     is_interactive = (
         interactivity_type
@@ -64,9 +64,7 @@ def map_scorm_to_le_utils_activities(scorm_dict):
     )
 
     # Extract the learning resource types from the SCORM data
-    learning_resource_types = scorm_dict.get("educational", {}).get(
-        "learningResourceType", []
-    )
+    learning_resource_types = metadata_dict.get("learningResourceType", [])
 
     # Map each SCORM type to an LE Utils activity type
     for learning_resource_type in learning_resource_types:
@@ -115,14 +113,12 @@ SCORM_intended_role_to_resource_type_mapping = {
 }
 
 
-def map_scorm_to_educator_resource_types(scorm_dict):
+def map_scorm_to_educator_resource_types(metadata_dict):
     educator_resource_types = []
 
     # Extract the learning resource types and intended end user role from the SCORM data
-    learning_resource_types = scorm_dict.get("educational", {}).get(
-        "learningResourceType", []
-    )
-    intended_roles = scorm_dict.get("educational", {}).get("intendedEndUserRole", [])
+    learning_resource_types = metadata_dict.get("learningResourceType", [])
+    intended_roles = metadata_dict.get("intendedEndUserRole", [])
 
     # Map each SCORM type to an educator-focused resource type
     for learning_resource_type in learning_resource_types:
@@ -144,15 +140,34 @@ def map_scorm_to_educator_resource_types(scorm_dict):
     return educator_resource_types
 
 
-def infer_beginner_level_from_difficulty(scorm_dict):
+def infer_beginner_level_from_difficulty(metadata_dict):
     # Beginner difficulty levels
     beginner_difficulties = {"very easy", "easy"}
 
-    educational_metadata = scorm_dict.get("educational", {})
-
     # Check if the difficulty level indicates beginner content
-    difficulty = educational_metadata.get("difficulty")
+    difficulty = metadata_dict.get("difficulty")
     if difficulty in beginner_difficulties:
         return [needs.FOR_BEGINNERS]
 
     return []
+
+
+def update_node_from_metadata(node, metadata_dict):
+    # Update the node with the general metadata
+    node.description = metadata_dict.get("description") or node.description
+    if metadata_dict.get("language"):
+        node.set_language(metadata_dict.get("language"))
+    node.tags = node.tags + metadata_dict.get("keyword", [])
+
+    # Update the node with the educational metadata
+    node.learning_activities = (
+        node.learning_activities + map_scorm_to_le_utils_activities(metadata_dict)
+    )
+    node.resource_types = node.resource_types + map_scorm_to_educator_resource_types(
+        metadata_dict
+    )
+    node.learner_needs = node.learner_needs + infer_beginner_level_from_difficulty(
+        metadata_dict
+    )
+
+    return node
