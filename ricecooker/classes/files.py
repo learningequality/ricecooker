@@ -42,6 +42,7 @@ from ricecooker.utils.images import create_image_from_pdf_page
 from ricecooker.utils.images import create_image_from_zip
 from ricecooker.utils.images import create_tiled_image
 from ricecooker.utils.images import ThumbnailGenerationError
+from ricecooker.utils.SCORM_metadata import imscp_metadata_keys
 from ricecooker.utils.subtitles import build_subtitle_converter_from_file
 from ricecooker.utils.subtitles import InvalidSubtitleFormatError
 from ricecooker.utils.subtitles import InvalidSubtitleLanguageError
@@ -750,9 +751,6 @@ class EPubFile(DownloadFile):
         return self.preset or format_presets.EPUB
 
 
-no_index_zips = set([format_presets.HTML5_DEPENDENCY_ZIP, format_presets.QTI_ZIP])
-
-
 class HTMLZipFile(DownloadFile):
     default_ext = file_formats.HTML5
     allowed_formats = [file_formats.HTML5]
@@ -765,8 +763,8 @@ class HTMLZipFile(DownloadFile):
         self.filename = super(HTMLZipFile, self).process_file()
         if self.filename:
             try:
-                # make sure index.html exists unless this is a dependency file or IMS content package
-                if self.get_preset() not in no_index_zips:
+                # make sure index.html exists unless this is a dependency file
+                if self.get_preset() != format_presets.HTML5_DEPENDENCY_ZIP:
                     with zipfile.ZipFile(config.get_storage_path(self.filename)) as zf:
                         _ = zf.getinfo("index.html")
             except KeyError as err:
@@ -776,7 +774,38 @@ class HTMLZipFile(DownloadFile):
         return self.filename
 
 
-class IMSCPZipFile(HTMLZipFile):
+def denest_xml_value(value, preferred_language):
+    if isinstance(value, dict):
+        # Handle the 'string' -> '#text' nested structure
+        if "string" in value:
+            return denest_xml_value(value["string"], preferred_language)
+        elif "langstring" in value:
+            return denest_xml_value(value["langstring"], preferred_language)
+        # Handle other simple text and key-value pairs
+        elif "#text" in value:
+            return value["#text"]
+        elif "value" in value:
+            return value["value"]
+    elif isinstance(value, list):
+        try:
+            return next(
+                denest_xml_value(item, preferred_language)
+                for item in value
+                if item.get("@language", "").startswith(preferred_language)
+            )
+        except StopIteration:
+            return [denest_xml_value(item, preferred_language) for item in value]
+    return value
+
+
+class IMSCPZipFile(DownloadFile):
+    default_ext = file_formats.HTML5
+    allowed_formats = [file_formats.HTML5]
+    is_primary = True
+
+    def get_preset(self):
+        return self.preset or format_presets.IMSCP_ZIP
+
     def strip_ns_prefix(self, tree):
         """Strip namespace prefixes from an LXML tree.
         From https://stackoverflow.com/a/30233635
@@ -784,33 +813,70 @@ class IMSCPZipFile(HTMLZipFile):
         for element in tree.xpath("descendant-or-self::*[namespace-uri()!='']"):
             element.tag = etree.QName(element).localname
 
-    def strip_langstring(self, tree):
-        """Replace all langstring elements with their text value."""
-        for ls in tree.xpath(".//langstring"):
-            ls.tail = ls.text + ls.tail if ls.tail else ls.text
-        etree.strip_elements(tree, "langstring", with_tail=False)
+    def _get_elem_for_tag(self, root, tag):
+        elem = root.find("lom/%s" % tag)
+        if elem is not None:
+            return elem
+        return root.find(tag)
 
-    def collect_metadata(self, metadata_elem):
-        self.strip_ns_prefix(metadata_elem)
-        self.strip_langstring(metadata_elem)
+    def collect_metadata(self, root):
         metadata_dict = {}
 
-        for tag in ("general", "rights", "educational", "lifecycle"):
-            elem = metadata_elem.find("lom/%s" % tag)
-            if elem:
-                metadata_dict.update(xmltodict.parse(etree.tostring(elem)))
+        metadata_elem = root.find("metadata", root.nsmap)
+
+        if metadata_elem is None:
+            return metadata_dict
+
+        # Check for external metadata reference
+        external_metadata_ref = metadata_elem.find(
+            "adlcp:location",
+            namespaces={"adlcp": "http://www.adlnet.org/xsd/adlcp_v1p3"},
+        )
+        if external_metadata_ref is not None:
+            # External metadata file path
+            external_file_path = external_metadata_ref.text
+            with self.open_zip() as zip_file:
+                with zip_file.open(external_file_path) as external_file:
+                    metadata_elem = etree.parse(external_file).getroot()
+
+        self.strip_ns_prefix(metadata_elem)
+        preferred_language = self.language
+
+        if preferred_language is None:
+            elem = self._get_elem_for_tag(metadata_elem, "general")
+            if elem is not None:
+                values = xmltodict.parse(etree.tostring(elem))
+                if "language" in values["general"]:
+                    preferred_language = denest_xml_value(
+                        values["general"]["language"], None
+                    )
+
+        for tag, fields in imscp_metadata_keys.items():
+            elem = self._get_elem_for_tag(metadata_elem, tag)
+            if elem is not None:
+                values = xmltodict.parse(etree.tostring(elem))
+                for field in fields:
+                    if field in values[tag]:
+                        metadata_dict[field] = denest_xml_value(
+                            values[tag][field], preferred_language
+                        )
 
         return metadata_dict
 
+    @contextmanager
+    def open_zip(self):
+        with zipfile.ZipFile(config.get_storage_path(self.get_filename())) as zf:
+            yield zf
+
     def get_manifest(self):
-        with zipfile.ZipFile(config.get_storage_path(self.filename)) as zf:
-            manifest_file = zf.open("imsmanifest.xml")
+        with self.open_zip() as zf:
             try:
-                return etree.parse(manifest_file).getroot()
+                with zf.open("imsmanifest.xml") as manifest_file:
+                    return etree.parse(manifest_file).getroot()
             except etree.XMLSyntaxError:
                 # we've run across XML files that are marked as UTF-8 encoded but which have non-UTF-8 characters in them
                 # for this case, detect the 'real' encoding and decode it as unicode, then make it actual UTF-8 and parse.
-                f = zf.open("imsmanifest.xml", "rb")
+                f = zf.open("imsmanifest.xml", "r")
                 data = f.read()
                 f.close()
 
@@ -836,9 +902,7 @@ class IMSCPZipFile(HTMLZipFile):
             )
             root_dict["title"] = text.strip()
 
-        metadata_elem = root.find("metadata", root.nsmap)
-        if metadata_elem is not None:
-            root_dict["metadata"] = self.collect_metadata(metadata_elem)
+        root_dict["metadata"] = self.collect_metadata(root)
 
         children = []
         for item in root.findall("item", root.nsmap):
@@ -852,9 +916,7 @@ class IMSCPZipFile(HTMLZipFile):
     def derive_content_files_dict(self, resource_elem, resources_dict):
         nsmap = resource_elem.nsmap
         file_elements = resource_elem.findall("file", nsmap)
-        base = "./" + (
-            resource_elem.get("{http://www.w3.org/XML/1998/namespace}base") or ""
-        )
+        base = resource_elem.get("{http://www.w3.org/XML/1998/namespace}base") or ""
         file_paths = [base + fe.get("href") for fe in file_elements]
         dep_elements = resource_elem.findall("dependency", nsmap)
         dep_paths = []
@@ -873,10 +935,11 @@ class IMSCPZipFile(HTMLZipFile):
             # Add all resource attrs to item dict
             for key, value in resource_elem.items():
                 key_stripped = re.sub("^{.*}", "", key)  # Strip any namespace prefix
-                item[key_stripped] = value
+                # Don't overwrite existing keys
+                if key_stripped not in item:
+                    item[key_stripped] = value
 
             if resource_elem.get("type") == "webcontent":
-                item["index_file"] = resource_elem.get("href")
                 item["files"] = self.derive_content_files_dict(
                     resource_elem, resources_dict
                 )
@@ -889,10 +952,10 @@ class IMSCPZipFile(HTMLZipFile):
 
         nsmap = manifest.nsmap
 
-        metadata_elem = manifest.find("metadata", nsmap)
-        metadata = {}
-        if metadata_elem is not None:
-            metadata = self.collect_metadata(metadata_elem)
+        metadata = self.collect_metadata(manifest)
+
+        if self.language is None and metadata.get("language"):
+            self.set_language(metadata.get("language"))
 
         resources_elem = manifest.find("resources", nsmap)
         resources_dict = dict((r.get("identifier"), r) for r in resources_elem)
@@ -900,7 +963,7 @@ class IMSCPZipFile(HTMLZipFile):
         organizations = []
         for org_elem in manifest.findall("organizations/organization", nsmap):
             item_tree = self.walk_items(org_elem)
-            self.collect_resources(license, item_tree, resources_dict)
+            self.collect_resources(item_tree, resources_dict)
             organizations.append(item_tree)
 
         return {
@@ -912,7 +975,7 @@ class IMSCPZipFile(HTMLZipFile):
 
 class QTIZipFile(IMSCPZipFile):
     def get_preset(self):
-        return format_presets.QTI_ZIP
+        return self.preset or format_presets.QTI_ZIP
 
 
 class H5PFile(DownloadFile):

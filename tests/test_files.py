@@ -2,6 +2,8 @@
 import hashlib
 import os.path
 import tempfile
+import zipfile
+from contextlib import contextmanager
 from shutil import copyfile
 
 import pytest
@@ -10,6 +12,7 @@ from test_pdfutils import _save_file_url_to_path
 
 from ricecooker import config
 from ricecooker.classes.files import _get_language_with_alpha2_fallback
+from ricecooker.classes.files import IMSCPZipFile
 from ricecooker.classes.files import is_youtube_subtitle_file_supported_language
 from ricecooker.classes.files import SubtitleFile
 from ricecooker.classes.files import YouTubeSubtitleFile
@@ -631,3 +634,206 @@ def test_convertible_substitles_weirdext_subtitlesformat():
         assert (
             "El total de los protones y neutrones de un átomo" in filecontents
         ), "missing check words in converted subs"
+
+
+@contextmanager
+def create_zip_with_manifest(manifest_filename, *additional_files):
+    # Create a temporary file for the zipfile
+    with tempfile.NamedTemporaryFile(suffix=".zip", delete=True) as temp_zip:
+        # Define the paths
+        base_path = os.path.dirname(os.path.abspath(__file__))
+        source_folder = os.path.join(base_path, "testcontent", "samples", "ims_xml")
+        manifest_file = os.path.join(source_folder, manifest_filename)
+
+        # Create the zipfile and add the manifest file
+        with zipfile.ZipFile(temp_zip.name, "w") as zf:
+            zf.write(manifest_file, "imsmanifest.xml")
+            for additional_file in additional_files:
+                zf.write(os.path.join(source_folder, additional_file), additional_file)
+
+        yield temp_zip.name
+
+    # Clean up the zipfile
+    try:
+        os.remove(temp_zip.name)
+    except FileNotFoundError:
+        pass
+
+
+def test_extract_metadata_from_simple_manifest():
+    with create_zip_with_manifest("simple_manifest.xml") as zip_path:
+        imscp_file = IMSCPZipFile(zip_path)
+        assert imscp_file.extract_metadata() == {
+            "identifier": None,
+            "metadata": {
+                "description": "Example of test file",
+                "language": "en",
+                "title": "Test File",
+            },
+            "organizations": [
+                {
+                    "children": [
+                        {
+                            "files": [],
+                            "href": "file1.html",
+                            "identifier": "file1Ref",
+                            "identifierref": "file1Ref",
+                            "title": "Test File1",
+                            "type": "webcontent",
+                            "metadata": {},
+                        },
+                        {
+                            "files": [],
+                            "href": "file2.html",
+                            "identifier": "file2Ref",
+                            "identifierref": "file2Ref",
+                            "title": "Test File2",
+                            "type": "webcontent",
+                            "metadata": {},
+                        },
+                        {
+                            "children": [
+                                {
+                                    "files": [],
+                                    "href": "file1.html",
+                                    "identifier": "file1Ref",
+                                    "identifierref": "file1Ref",
+                                    "metadata": {},
+                                    "title": "Test File1 Nested",
+                                    "type": "webcontent",
+                                },
+                                {
+                                    "files": [],
+                                    "href": "file2.html",
+                                    "identifier": "file2Ref",
+                                    "identifierref": "file2Ref",
+                                    "metadata": {},
+                                    "title": "Test File2 Nested",
+                                    "type": "webcontent",
+                                },
+                            ],
+                            "identifier": "folder2",
+                            "metadata": {},
+                            "title": "Folder 2",
+                        },
+                        {
+                            "children": [
+                                {
+                                    "files": [],
+                                    "href": "file3.html",
+                                    "identifier": "file3Ref",
+                                    "identifierref": "file3Ref",
+                                    "metadata": {},
+                                    "title": "Test File3 Nested",
+                                    "type": "webcontent",
+                                },
+                                {
+                                    "files": [],
+                                    "href": "file4.html",
+                                    "identifier": "file4Ref",
+                                    "identifierref": "file4Ref",
+                                    "metadata": {},
+                                    "title": "Test File4 Nested",
+                                    "type": "webcontent",
+                                },
+                            ],
+                            "identifier": "folder3",
+                            "metadata": {},
+                            "title": "Folder 3",
+                        },
+                    ],
+                    "title": "Folder 1",
+                    "metadata": {},
+                },
+                {
+                    "children": [
+                        {
+                            "files": [],
+                            "href": "file3.html",
+                            "identifier": "file3Ref",
+                            "identifierref": "file3Ref",
+                            "title": "Test File3",
+                            "type": "webcontent",
+                            "metadata": {},
+                        },
+                        {
+                            "files": [],
+                            "href": "file4.html",
+                            "identifier": "file4Ref",
+                            "identifierref": "file4Ref",
+                            "title": "Test File4",
+                            "type": "webcontent",
+                            "metadata": {},
+                        },
+                    ],
+                    "title": "Folder 4",
+                    "metadata": {},
+                },
+            ],
+        }
+
+
+def test_extract_metadata_from_complex_manifest():
+    # Additional metadata files are passed as arguments to the context manager
+    with create_zip_with_manifest(
+        "complete_manifest_with_external_metadata.xml",
+        "metadata_hummingbirds_course.xml",
+        "metadata_hummingbirds_organization.xml",
+    ) as zip_path:
+        imscp_file = IMSCPZipFile(zip_path)
+        assert imscp_file.extract_metadata() == {
+            "identifier": "com.example.hummingbirds.contentpackaging.metadata.2024",
+            "metadata": {
+                "description": "An engaging overview of hummingbirds, covering their biology, behavior, and habitats. This course is designed for enthusiasts and bird watchers of all levels.",  # noqa E501
+                "language": "en",
+                "title": "Discovering Hummingbirds",
+                "keyword": ["hummingbirds", "bird watching", "ornithology"],
+                "intendedEndUserRole": "learner",
+                "interactivityLevel": "medium",
+                "learningResourceType": ["documentary", "interactive lesson"],
+            },
+            "organizations": [
+                {
+                    "title": "Discovering Hummingbirds",
+                    "identifier": "hummingbirds_default_org",
+                    "metadata": {
+                        "description": "This metadata provides information about the structure and organization of the Discovering Hummingbirds course. The course is organized in a hierarchical manner, guiding learners from basic concepts to more detailed aspects of hummingbird biology and behavior.",  # noqa E501
+                    },
+                    "children": [
+                        {
+                            "title": "Introduction to Hummingbirds",
+                            "metadata": {
+                                "description": "Explore the fascinating world of hummingbirds, their unique characteristics and behaviors.",
+                            },
+                            "identifier": "item1",
+                            "identifierref": "resource1",
+                            "href": "intro.html",
+                            "type": "webcontent",
+                            "files": ["intro.html", "shared/style.css"],
+                        },
+                        {
+                            "title": "Hummingbird Habitats",
+                            "metadata": {
+                                "description": "Learn about various habitats of hummingbirds, from tropical jungles to backyard gardens.",
+                            },
+                            "identifier": "item2",
+                            "identifierref": "resource2",
+                            "href": "habitats.html",
+                            "type": "webcontent",
+                            "files": ["habitats.html", "shared/image1.jpg"],
+                        },
+                        {
+                            "title": "Hummingbird Species",
+                            "metadata": {
+                                "description": "Discover the diversity of hummingbird species and their unique adaptations.",
+                            },
+                            "identifier": "item3",
+                            "identifierref": "resource3",
+                            "href": "species.html",
+                            "type": "webcontent",
+                            "files": ["species.html", "shared/image2.jpg"],
+                        },
+                    ],
+                },
+            ],
+        }
