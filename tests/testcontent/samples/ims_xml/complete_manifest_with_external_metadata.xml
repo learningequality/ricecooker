@@ -45,6 +45,7 @@ example of proper metadata element usage.
                             <description>
                                 <string language="en-US">Explore the fascinating world of hummingbirds, their unique characteristics and behaviors.</string>
                             </description>
+                            <language>en-US</language>
                         </general>
                     </lom>
                 </metadata>

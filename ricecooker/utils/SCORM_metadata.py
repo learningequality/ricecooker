@@ -4,6 +4,7 @@ Utilities for mapping from SCORM metadata to LE Utils metadata.
 from le_utils.constants.labels import learning_activities
 from le_utils.constants.labels import needs
 from le_utils.constants.labels import resource_type
+from le_utils.constants.languages import getlang
 
 
 imscp_metadata_keys = {
@@ -155,9 +156,16 @@ def infer_beginner_level_from_difficulty(metadata_dict):
 def update_node_from_metadata(node, metadata_dict):
     # Update the node with the general metadata
     node.description = metadata_dict.get("description") or node.description
-    if metadata_dict.get("language"):
-        node.set_language(metadata_dict.get("language"))
-    node.tags = node.tags + metadata_dict.get("keyword", [])
+    lang_code = metadata_dict.get("language", "")
+    lang_code = (
+        lang_code.split("-")[0].lower() if getlang(lang_code) is None else lang_code
+    )
+    if getlang(lang_code):
+        node.set_language(lang_code)
+    keyword = metadata_dict.get("keyword", [])
+    if keyword and isinstance(keyword, str):
+        keyword = [keyword]
+    node.tags = node.tags + keyword
 
     # Update the node with the educational metadata
     node.learning_activities = (
