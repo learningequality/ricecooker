@@ -190,7 +190,7 @@ class ChannelManager:
             else:
                 raise RequestException(
                     "Error retrieving upload URL for file {}, response code: {} - {}".format(
-                        filename, url_response.status_code, response.text
+                        filename, url_response.status_code, url_response.text
                     )
                 )
 
