@@ -488,6 +488,9 @@ def download_static_assets(  # noqa: C901
 
         return _CSS_URL_RE.sub(repl, content)
 
+    if link_policy is not None and "blacklist" in link_policy:
+        url_blacklist += link_policy["blacklist"]
+
     # Download all linked static assets.
     download_assets("img[src]", "src")  # Images
     download_srcset("img[srcset]", "srcset")  # Images
