@@ -361,7 +361,8 @@ def download_static_assets(  # noqa: C901
                 continue
 
             if "background-image" in selector:
-                url_match = re.search(r'url\("([^"]+)"\)', node["style"])
+                css_path_regex = r"url\(['\"]?([^?'\"]+)?(\?[^'\"]+)?(['\"]?\))"
+                url_match = re.search(css_path_regex, node["style"])
                 if url_match:
                     background_image_url = url_match.group(1)
                     url = urljoin(base_url, background_image_url)
