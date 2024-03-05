@@ -360,7 +360,16 @@ def download_static_assets(  # noqa: C901
             if node[attr].startswith("data:"):
                 continue
 
-            url = urljoin(base_url, node[attr])
+            if "background-image" in selector:
+                css_path_regex = r"url\(['\"]?([^?'\"]+)?(\?[^'\"]+)?(['\"]?\))"
+                url_match = re.search(css_path_regex, node["style"])
+                if url_match:
+                    background_image_url = url_match.group(1)
+                    url = urljoin(base_url, background_image_url)
+                else:
+                    continue
+            else:
+                url = urljoin(base_url, node[attr])
 
             if _is_blacklisted(url, url_blacklist):
                 LOGGER.info("        Skipping downloading blacklisted url", url)
@@ -493,6 +502,10 @@ def download_static_assets(  # noqa: C901
 
     # Download all linked static assets.
     download_assets("img[src]", "src")  # Images
+    download_assets(
+        '[style*="background-image"]',
+        "style",
+    )
     download_srcset("img[srcset]", "srcset")  # Images
     download_assets(
         "link[href]",
