@@ -2,8 +2,10 @@
 from __future__ import unicode_literals
 
 import hashlib
+import io
 import json
 import os
+import re
 import shutil
 import tempfile
 import zipfile
@@ -12,13 +14,16 @@ from functools import partial
 from urllib.parse import urlparse
 from xml.etree import ElementTree
 
+import chardet
 import filetype
+import xmltodict
 import yt_dlp
 from cachecontrol.caches.file_cache import FileCache
 from le_utils.constants import exercises
 from le_utils.constants import file_formats
 from le_utils.constants import format_presets
 from le_utils.constants import languages
+from lxml import etree
 from PIL import Image
 from PIL import UnidentifiedImageError
 from requests.exceptions import ConnectionError
@@ -745,6 +750,9 @@ class EPubFile(DownloadFile):
         return self.preset or format_presets.EPUB
 
 
+no_index_zips = set([format_presets.HTML5_DEPENDENCY_ZIP, format_presets.QTI_ZIP])
+
+
 class HTMLZipFile(DownloadFile):
     default_ext = file_formats.HTML5
     allowed_formats = [file_formats.HTML5]
@@ -757,8 +765,8 @@ class HTMLZipFile(DownloadFile):
         self.filename = super(HTMLZipFile, self).process_file()
         if self.filename:
             try:
-                # make sure index.html exists unless this is a dependency (i.e. shared resources) zip
-                if not self.get_preset() == format_presets.HTML5_DEPENDENCY_ZIP:
+                # make sure index.html exists unless this is a dependency file or IMS content package
+                if self.get_preset() not in no_index_zips:
                     with zipfile.ZipFile(config.get_storage_path(self.filename)) as zf:
                         _ = zf.getinfo("index.html")
             except KeyError as err:
@@ -766,6 +774,145 @@ class HTMLZipFile(DownloadFile):
                 self.error = str(err)
                 config.FAILED_FILES.append(self)
         return self.filename
+
+
+class IMSCPZipFile(HTMLZipFile):
+    def strip_ns_prefix(self, tree):
+        """Strip namespace prefixes from an LXML tree.
+        From https://stackoverflow.com/a/30233635
+        """
+        for element in tree.xpath("descendant-or-self::*[namespace-uri()!='']"):
+            element.tag = etree.QName(element).localname
+
+    def strip_langstring(self, tree):
+        """Replace all langstring elements with their text value."""
+        for ls in tree.xpath(".//langstring"):
+            ls.tail = ls.text + ls.tail if ls.tail else ls.text
+        etree.strip_elements(tree, "langstring", with_tail=False)
+
+    def collect_metadata(self, metadata_elem):
+        self.strip_ns_prefix(metadata_elem)
+        self.strip_langstring(metadata_elem)
+        metadata_dict = {}
+
+        for tag in ("general", "rights", "educational", "lifecycle"):
+            elem = metadata_elem.find("lom/%s" % tag)
+            if elem:
+                metadata_dict.update(xmltodict.parse(etree.tostring(elem)))
+
+        return metadata_dict
+
+    def get_manifest(self):
+        with zipfile.ZipFile(config.get_storage_path(self.filename)) as zf:
+            manifest_file = zf.open("imsmanifest.xml")
+            try:
+                return etree.parse(manifest_file).getroot()
+            except etree.XMLSyntaxError:
+                # we've run across XML files that are marked as UTF-8 encoded but which have non-UTF-8 characters in them
+                # for this case, detect the 'real' encoding and decode it as unicode, then make it actual UTF-8 and parse.
+                f = zf.open("imsmanifest.xml", "rb")
+                data = f.read()
+                f.close()
+
+                info = chardet.detect(data)
+                data = data.decode(info["encoding"])
+                return etree.parse(io.BytesIO(data.encode("utf-8"))).getroot()
+
+    def walk_items(self, root):
+        root_dict = dict(root.items())
+
+        title_elem = root.find("title", root.nsmap)
+        if title_elem is not None:
+            # title_elem.text has issues when there are BR tags. Instead get ALL text, ignoring BR tags.
+            # As BR tags do not make sense in metadata, we can assume it's an editor glitch causing it.
+            text = ""
+            for child in title_elem.iter():
+                if child.text:
+                    text += child.text
+                if child.tail:
+                    text += child.tail
+            assert text.strip(), "Title element has no title: {}".format(
+                etree.tostring(title_elem, pretty_print=True)
+            )
+            root_dict["title"] = text.strip()
+
+        metadata_elem = root.find("metadata", root.nsmap)
+        if metadata_elem is not None:
+            root_dict["metadata"] = self.collect_metadata(metadata_elem)
+
+        children = []
+        for item in root.findall("item", root.nsmap):
+            children.append(self.walk_items(item))
+
+        if children:
+            root_dict["children"] = children
+
+        return root_dict
+
+    def derive_content_files_dict(self, resource_elem, resources_dict):
+        nsmap = resource_elem.nsmap
+        file_elements = resource_elem.findall("file", nsmap)
+        base = "./" + (
+            resource_elem.get("{http://www.w3.org/XML/1998/namespace}base") or ""
+        )
+        file_paths = [base + fe.get("href") for fe in file_elements]
+        dep_elements = resource_elem.findall("dependency", nsmap)
+        dep_paths = []
+        for de in dep_elements:
+            dre = resources_dict[de.get("identifierref")]
+            dep_paths.extend(self.derive_content_files_dict(dre, resources_dict))
+        return file_paths + dep_paths
+
+    def collect_resources(self, item, resources_dict):
+        if item.get("children"):
+            for child in item["children"]:
+                self.collect_resources(child, resources_dict)
+        elif item.get("identifierref"):
+            resource_elem = resources_dict[item["identifierref"]]
+
+            # Add all resource attrs to item dict
+            for key, value in resource_elem.items():
+                key_stripped = re.sub("^{.*}", "", key)  # Strip any namespace prefix
+                item[key_stripped] = value
+
+            if resource_elem.get("type") == "webcontent":
+                item["index_file"] = resource_elem.get("href")
+                item["files"] = self.derive_content_files_dict(
+                    resource_elem, resources_dict
+                )
+
+    def extract_metadata(self):
+        """Extract metadata and topic tree info from an IMSCP file.
+        Return a dict {'metadata': {...}, 'organizations': [list of topic dicts]}
+        """
+        manifest = self.get_manifest()
+
+        nsmap = manifest.nsmap
+
+        metadata_elem = manifest.find("metadata", nsmap)
+        metadata = {}
+        if metadata_elem is not None:
+            metadata = self.collect_metadata(metadata_elem)
+
+        resources_elem = manifest.find("resources", nsmap)
+        resources_dict = dict((r.get("identifier"), r) for r in resources_elem)
+
+        organizations = []
+        for org_elem in manifest.findall("organizations/organization", nsmap):
+            item_tree = self.walk_items(org_elem)
+            self.collect_resources(license, item_tree, resources_dict)
+            organizations.append(item_tree)
+
+        return {
+            "identifier": manifest.get("identifier"),
+            "metadata": metadata,
+            "organizations": organizations,
+        }
+
+
+class QTIZipFile(IMSCPZipFile):
+    def get_preset(self):
+        return format_presets.QTI_ZIP
 
 
 class H5PFile(DownloadFile):

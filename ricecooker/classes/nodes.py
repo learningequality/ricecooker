@@ -1647,3 +1647,78 @@ class StudioContentNode(TreeNode):
 
 # add alias for back-compatibility
 RemoteContentNode = StudioContentNode
+
+
+def get_by_path(obj, *args):
+    for arg in args:
+        obj = obj.get(arg, {})
+    if obj == {}:
+        return None
+    return obj
+
+
+QTI_PLACEHOLDER_SOURCE_ID = "A SOURCE ID THAT WILL BE REMOVED BEFORE UPLOAD"
+
+
+class QTINode(ContentNode):
+    """
+    Node representing QTI exercise
+    """
+
+    kind = content_kinds.EXERCISE
+
+    def __init__(
+        self, source_id=QTI_PLACEHOLDER_SOURCE_ID, title=None, license=None, **kwargs
+    ):
+        super(QTINode, self).__init__(source_id, title, license, **kwargs)
+        from .files import QTIZipFile
+
+        qti_files = [f for f in self.files if isinstance(f, QTIZipFile)]
+        qti_file = qti_files[0]
+        qti_file.process_file()
+        metadata = qti_file.extract_metadata()
+        self.source_id = (
+            metadata.get("identifer")
+            if self.source_id == QTI_PLACEHOLDER_SOURCE_ID
+            else self.source_id
+        )
+        if self.source_id is None:
+            raise InvalidNodeException(
+                "No source_id was provided and the QTI file {} does not have an identifier".format(
+                    qti_file.path
+                )
+            )
+        self.title = self.title or get_by_path(
+            metadata, "metadata", "general", "title", "string"
+        )
+        if self.title is None:
+            raise InvalidNodeException(
+                "No title was provided and the QTI file {} does not have a title".format(
+                    qti_file.path
+                )
+            )
+
+    def validate(self):
+        """validate: Makes sure QTI is valid
+        Args: None
+        Returns: boolean indicating if QTI is valid
+        """
+        from .files import QTIZipFile
+
+        try:
+            assert (
+                self.kind == content_kinds.EXERCISE
+            ), "Assumption Failed: Node should be an Exercise"
+            assert (
+                self.questions == []
+            ), "Assumption Failed: QTI should not have questions"
+            assert [
+                f for f in self.files if isinstance(f, QTIZipFile)
+            ], "Assumption Failed: QTI should have at least one QTI file"
+            return super(QTINode, self).validate()
+        except AssertionError as ae:
+            raise InvalidNodeException(
+                "Invalid node ({}): {} - {}".format(
+                    ae.args[0], self.title, self.__dict__
+                )
+            )
