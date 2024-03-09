@@ -638,26 +638,29 @@ def test_convertible_substitles_weirdext_subtitlesformat():
 
 @contextmanager
 def create_zip_with_manifest(manifest_filename, *additional_files):
-    # Create a temporary file for the zipfile
-    with tempfile.NamedTemporaryFile(suffix=".zip", delete=True) as temp_zip:
+    # Create a temporary file for the zipfile but close it immediately for Windows compatibility
+    temp_zip = tempfile.NamedTemporaryFile(suffix=".zip", delete=False)
+    temp_zip_path = temp_zip.name
+    temp_zip.close()  # Close the file, so it's not locked
+    try:
         # Define the paths
         base_path = os.path.dirname(os.path.abspath(__file__))
         source_folder = os.path.join(base_path, "testcontent", "samples", "ims_xml")
         manifest_file = os.path.join(source_folder, manifest_filename)
 
         # Create the zipfile and add the manifest file
-        with zipfile.ZipFile(temp_zip.name, "w") as zf:
+        with zipfile.ZipFile(temp_zip_path, "w") as zf:
             zf.write(manifest_file, "imsmanifest.xml")
             for additional_file in additional_files:
                 zf.write(os.path.join(source_folder, additional_file), additional_file)
 
         yield temp_zip.name
-
-    # Clean up the zipfile
-    try:
-        os.remove(temp_zip.name)
-    except FileNotFoundError:
-        pass
+    finally:
+        # Clean up the zipfile
+        try:
+            os.remove(temp_zip.name)
+        except (FileNotFoundError, OSError):
+            pass
 
 
 expected_simple_metadata = {
@@ -799,6 +802,7 @@ expected_complex_metadata = {
                     "title": "Introduction to Hummingbirds",
                     "metadata": {
                         "description": "Explore the fascinating world of hummingbirds, their unique characteristics and behaviors.",
+                        "language": "en-US",
                     },
                     "identifier": "item1",
                     "identifierref": "resource1",
