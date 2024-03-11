@@ -25,7 +25,7 @@ You'll need a Kolibri Studio Access Token to create channels using ricecooker sc
 To obtain this token:
 
 1. Create an account on `Kolibri Studio <https://studio.learningequality.org/>`__
-2. Navigate to the **Settings** > `Tokens <https://studio.learningequality.org/settings/tokens>`__ page on Kolibri Studio.
+2. Navigate to the `Settings <https://studio.learningequality.org/en/settings>`__ page on Kolibri Studio.
 3. Copy the given access token to a safe place on your computer.
 
 
