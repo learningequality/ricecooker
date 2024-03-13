@@ -4,11 +4,13 @@ from __future__ import unicode_literals
 import hashlib
 import json
 import os
+import re
 import shutil
 import tempfile
 import zipfile
 from contextlib import contextmanager
 from functools import partial
+from urllib.parse import unquote
 from urllib.parse import urlparse
 from xml.etree import ElementTree
 
@@ -67,13 +69,35 @@ HTTP_CAUGHT_EXCEPTIONS = (
 # used for converting avi/flv/etc. videos and srt subtitles
 CONVERTIBLE_FORMATS = {p.id: p.convertible_formats for p in format_presets.PRESETLIST}
 
+CONTENT_DISPOSITION_FILENAME_STAR_RE = re.compile(
+    r"filename\*=(?:([^\'\"]*)\'\')?([^;]+)"
+)
+
+CONTENT_DISPOSITION_FILENAME_RE = re.compile(r'filename=["\']?([^"\';]+)["\']?')
+
+
+def get_filename_from_content_disposition_header(content_disposition):
+    match = CONTENT_DISPOSITION_FILENAME_STAR_RE.search(content_disposition)
+    if match:
+        charset, encoded_filename = match.groups()
+        filename = unquote(encoded_filename)
+        return filename
+
+    # Fallback to 'filename' parameter if 'filename*' is not present
+    match = CONTENT_DISPOSITION_FILENAME_RE.search(content_disposition)
+    if match:
+        return match.group(1)
+    return None
+
 
 def extract_ext_from_header(res):
     if res:
         content_dis = res.headers.get("content-disposition")
         if content_dis:
-            ext = content_dis.split(".")
-            return ext[-1]
+            filename = get_filename_from_content_disposition_header(content_dis)
+            ext = filename.split(".")
+            if len(ext) > 1:
+                return ext[-1]
     return None
 
 
