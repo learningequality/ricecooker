@@ -37,7 +37,7 @@ setup(
         "selenium==4.18.1",
         "yt-dlp==2024.3.10",
         "html5lib",
-        "cachecontrol==0.12.11",
+        "cachecontrol==0.14.0",
         "lockfile==0.12.2",  # This is needed, but not specified as a dependency by cachecontrol
         "css-html-js-minify==2.5.5",
         "pypdf2==1.26.0",
