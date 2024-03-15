@@ -21,6 +21,7 @@ from .. import config
 from ..exceptions import InvalidNodeException
 from ..utils.utils import is_valid_uuid_string
 from .licenses import License
+from ricecooker.utils.SCORM_metadata import update_node_from_metadata
 
 MASTERY_MODELS = [id for id, name in exercises.MASTERY_MODELS]
 ROLES = [id for id, name in roles.choices]
@@ -31,6 +32,7 @@ class Node(object):
 
     license = None
     language = None
+    kind = None
 
     def __init__(
         self,
@@ -40,7 +42,7 @@ class Node(object):
         thumbnail=None,
         files=None,
         derive_thumbnail=False,
-        node_modifications={},
+        node_modifications=None,
         extra_fields=None,
     ):
         self.files = []
@@ -60,7 +62,7 @@ class Node(object):
 
         self.set_thumbnail(thumbnail)
         # save modifications passed in by csv
-        self.node_modifications = node_modifications
+        self.node_modifications = node_modifications or {}
 
     def set_language(self, language):
         """Set self.language to internal lang. repr. code from str or Language object."""
@@ -1647,3 +1649,111 @@ class StudioContentNode(TreeNode):
 
 # add alias for back-compatibility
 RemoteContentNode = StudioContentNode
+
+
+class IMSCPNode(TreeNode):
+
+    kind = content_kinds.HTML5
+
+    @classmethod
+    def _recurse_and_add_children(cls, parent, item_data, license):
+        source_id = item_data.get("identifier", item_data["title"])
+        if item_data.get("children") is not None:
+            node = TopicNode(
+                source_id,
+                item_data["title"],
+                files=parent.files,
+            )
+            for child in item_data["children"]:
+                cls._recurse_and_add_children(node, child, license)
+        else:
+            node = ContentNode(
+                source_id,
+                item_data["title"],
+                license,
+                files=parent.files,
+                extra_fields={
+                    "options": {
+                        "entry": item_data["href"] + item_data.get("parameters", "")
+                    }
+                },
+            )
+            node.kind = cls.kind
+        update_node_from_metadata(node, item_data["metadata"])
+        parent.add_child(node)
+
+    def __new__(cls, *args, **kwargs):
+        from .files import IMSCPZipFile
+
+        imscp_files = [f for f in kwargs["files"] if isinstance(f, IMSCPZipFile)]
+        if not imscp_files or len(imscp_files) > 1:
+            raise InvalidNodeException(
+                "IMSCPNode must be instantiated with exactly one IMSCPZipFile"
+            )
+        imscp_file = imscp_files[0]
+        metadata = imscp_file.extract_metadata()
+        if "title" in metadata["metadata"] and kwargs.get("title") is None:
+            kwargs["title"] = metadata["metadata"]["title"]
+        if kwargs.get("title") is None:
+            raise InvalidNodeException(
+                "No title was provided and the IMSCP file {} does not have a title".format(
+                    imscp_file.path
+                )
+            )
+
+        if "identifier" in metadata and kwargs.get("source_id") is None:
+            kwargs["source_id"] = metadata["identifier"]
+        if kwargs.get("source_id") is None:
+            raise InvalidNodeException(
+                "No source_id was provided and the IMSCP file {} does not have an identifier".format(
+                    imscp_file.path
+                )
+            )
+        license = kwargs.pop("license")
+        if license is None:
+            raise InvalidNodeException(
+                "No license was provided and we cannot infer license from an IMSCP file"
+            )
+        if metadata.get("organizations"):
+            node = TopicNode(*args, **kwargs)
+
+            for child in metadata["organizations"]:
+                cls._recurse_and_add_children(node, child, license)
+        else:
+            node = ContentNode(*args, **kwargs)
+            node.kind = cls.kind
+        update_node_from_metadata(node, metadata["metadata"])
+        return node
+
+
+class QTINode(IMSCPNode):
+    """
+    Node representing QTI exercise
+    """
+
+    kind = content_kinds.EXERCISE
+
+    def validate(self):
+        """validate: Makes sure QTI is valid
+        Args: None
+        Returns: boolean indicating if QTI is valid
+        """
+        from .files import QTIZipFile
+
+        try:
+            assert (
+                self.kind == content_kinds.EXERCISE
+            ), "Assumption Failed: Node should be an Exercise"
+            assert (
+                self.questions == []
+            ), "Assumption Failed: QTI should not have questions"
+            assert [
+                f for f in self.files if isinstance(f, QTIZipFile)
+            ], "Assumption Failed: QTI should have at least one QTI file"
+            return super(QTINode, self).validate()
+        except AssertionError as ae:
+            raise InvalidNodeException(
+                "Invalid node ({}): {} - {}".format(
+                    ae.args[0], self.title, self.__dict__
+                )
+            )

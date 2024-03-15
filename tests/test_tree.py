@@ -11,16 +11,22 @@ from le_utils.constants import format_presets
 from le_utils.constants import licenses
 from le_utils.constants.labels import levels
 from le_utils.constants.languages import getlang
+from test_files import create_zip_with_manifest
+from test_files import expected_complex_metadata
+from test_files import expected_simple_metadata
 
 from ricecooker.classes.files import DocumentFile
 from ricecooker.classes.files import HTMLZipFile
+from ricecooker.classes.files import IMSCPZipFile
 from ricecooker.classes.files import SlideImageFile
 from ricecooker.classes.files import ThumbnailFile
 from ricecooker.classes.licenses import get_license
 from ricecooker.classes.licenses import License
+from ricecooker.classes.nodes import ContentNode
 from ricecooker.classes.nodes import CustomNavigationChannelNode
 from ricecooker.classes.nodes import CustomNavigationNode
 from ricecooker.classes.nodes import DocumentNode
+from ricecooker.classes.nodes import IMSCPNode
 from ricecooker.classes.nodes import RemoteContentNode
 from ricecooker.classes.nodes import SlideshowNode
 from ricecooker.classes.nodes import TopicNode
@@ -688,3 +694,40 @@ def test_remote_content_node_with_invalid_overridden_field():
             author="Such disallowed. Computer says no.",
         )
         node.validate_tree()
+
+
+def assert_node_matches_metadata(node, metadata, files):
+
+    extra_metadata = metadata["metadata"]
+
+    assert node.title == extra_metadata["title"]
+    if metadata.get("identifier"):
+        assert node.source_id == metadata.get("identifier")
+
+    # Check for ContentNode or TopicNode
+    if isinstance(node, ContentNode):
+        assert node.files == files
+        assert node.extra_fields.get("options", {}).get("entry") == metadata.get("href")
+    elif isinstance(node, TopicNode):
+        for child_node, child_metadata in zip(
+            node.children, metadata.get("children", [])
+        ):
+            assert_node_matches_metadata(child_node, child_metadata, files)
+
+
+def test_imscp_node_simple_manifest():
+    with create_zip_with_manifest("simple_manifest.xml") as zip_path:
+        imscp_file = IMSCPZipFile(zip_path)
+        node = IMSCPNode(source_id="test", license="CC BY", files=[imscp_file])
+        assert_node_matches_metadata(node, expected_simple_metadata, [imscp_file])
+
+
+def test_imscp_node_complex_manifest():
+    with create_zip_with_manifest(
+        "complete_manifest_with_external_metadata.xml",
+        "metadata_hummingbirds_course.xml",
+        "metadata_hummingbirds_organization.xml",
+    ) as zip_path:
+        imscp_file = IMSCPZipFile(zip_path)
+        node = IMSCPNode(license="CC BY", files=[imscp_file])
+        assert_node_matches_metadata(node, expected_complex_metadata, [imscp_file])

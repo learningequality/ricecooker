@@ -53,6 +53,7 @@ setup(
         "EbookLib>=0.17.1",
         "filetype>=1.1.0",
         "urllib3==2.2.1",
+        "xmltodict==0.13.0",
     ],
     python_requires=">=3.8, <3.11",
     license="MIT license",

@@ -2,8 +2,10 @@
 from __future__ import unicode_literals
 
 import hashlib
+import io
 import json
 import os
+import re
 import shutil
 import tempfile
 import zipfile
@@ -12,13 +14,16 @@ from functools import partial
 from urllib.parse import urlparse
 from xml.etree import ElementTree
 
+import chardet
 import filetype
+import xmltodict
 import yt_dlp
 from cachecontrol.caches.file_cache import FileCache
 from le_utils.constants import exercises
 from le_utils.constants import file_formats
 from le_utils.constants import format_presets
 from le_utils.constants import languages
+from lxml import etree
 from PIL import Image
 from PIL import UnidentifiedImageError
 from requests.exceptions import ConnectionError
@@ -37,6 +42,7 @@ from ricecooker.utils.images import create_image_from_pdf_page
 from ricecooker.utils.images import create_image_from_zip
 from ricecooker.utils.images import create_tiled_image
 from ricecooker.utils.images import ThumbnailGenerationError
+from ricecooker.utils.SCORM_metadata import imscp_metadata_keys
 from ricecooker.utils.subtitles import build_subtitle_converter_from_file
 from ricecooker.utils.subtitles import InvalidSubtitleFormatError
 from ricecooker.utils.subtitles import InvalidSubtitleLanguageError
@@ -757,8 +763,8 @@ class HTMLZipFile(DownloadFile):
         self.filename = super(HTMLZipFile, self).process_file()
         if self.filename:
             try:
-                # make sure index.html exists unless this is a dependency (i.e. shared resources) zip
-                if not self.get_preset() == format_presets.HTML5_DEPENDENCY_ZIP:
+                # make sure index.html exists unless this is a dependency file
+                if self.get_preset() != format_presets.HTML5_DEPENDENCY_ZIP:
                     with zipfile.ZipFile(config.get_storage_path(self.filename)) as zf:
                         _ = zf.getinfo("index.html")
             except KeyError as err:
@@ -766,6 +772,210 @@ class HTMLZipFile(DownloadFile):
                 self.error = str(err)
                 config.FAILED_FILES.append(self)
         return self.filename
+
+
+def denest_xml_value(value, preferred_language):
+    if isinstance(value, dict):
+        # Handle the 'string' -> '#text' nested structure
+        if "string" in value:
+            return denest_xml_value(value["string"], preferred_language)
+        elif "langstring" in value:
+            return denest_xml_value(value["langstring"], preferred_language)
+        # Handle other simple text and key-value pairs
+        elif "#text" in value:
+            return value["#text"]
+        elif "value" in value:
+            return value["value"]
+    elif isinstance(value, list):
+        try:
+            return next(
+                denest_xml_value(item, preferred_language)
+                for item in value
+                if item.get("@language", "").startswith(preferred_language)
+            )
+        except StopIteration:
+            return [denest_xml_value(item, preferred_language) for item in value]
+    return value
+
+
+class IMSCPZipFile(DownloadFile):
+    default_ext = file_formats.HTML5
+    allowed_formats = [file_formats.HTML5]
+    is_primary = True
+
+    def get_preset(self):
+        return self.preset or format_presets.IMSCP_ZIP
+
+    def strip_ns_prefix(self, tree):
+        """Strip namespace prefixes from an LXML tree.
+        From https://stackoverflow.com/a/30233635
+        """
+        for element in tree.xpath("descendant-or-self::*[namespace-uri()!='']"):
+            element.tag = etree.QName(element).localname
+
+    def _get_elem_for_tag(self, root, tag):
+        elem = root.find("lom/%s" % tag)
+        if elem is not None:
+            return elem
+        return root.find(tag)
+
+    def collect_metadata(self, root):
+        metadata_dict = {}
+
+        metadata_elem = root.find("metadata", root.nsmap)
+
+        if metadata_elem is None:
+            return metadata_dict
+
+        # Check for external metadata reference
+        external_metadata_ref = metadata_elem.find(
+            "adlcp:location",
+            namespaces={"adlcp": "http://www.adlnet.org/xsd/adlcp_v1p3"},
+        )
+        if external_metadata_ref is not None:
+            # External metadata file path
+            external_file_path = external_metadata_ref.text
+            with self.open_zip() as zip_file:
+                with zip_file.open(external_file_path) as external_file:
+                    metadata_elem = etree.parse(external_file).getroot()
+
+        self.strip_ns_prefix(metadata_elem)
+        preferred_language = self.language
+
+        if preferred_language is None:
+            elem = self._get_elem_for_tag(metadata_elem, "general")
+            if elem is not None:
+                values = xmltodict.parse(etree.tostring(elem))
+                if "language" in values["general"]:
+                    preferred_language = denest_xml_value(
+                        values["general"]["language"], None
+                    )
+
+        for tag, fields in imscp_metadata_keys.items():
+            elem = self._get_elem_for_tag(metadata_elem, tag)
+            if elem is not None:
+                values = xmltodict.parse(etree.tostring(elem))
+                for field in fields:
+                    if field in values[tag]:
+                        metadata_dict[field] = denest_xml_value(
+                            values[tag][field], preferred_language
+                        )
+
+        return metadata_dict
+
+    @contextmanager
+    def open_zip(self):
+        with zipfile.ZipFile(config.get_storage_path(self.get_filename())) as zf:
+            yield zf
+
+    def get_manifest(self):
+        with self.open_zip() as zf:
+            try:
+                with zf.open("imsmanifest.xml") as manifest_file:
+                    return etree.parse(manifest_file).getroot()
+            except etree.XMLSyntaxError:
+                # we've run across XML files that are marked as UTF-8 encoded but which have non-UTF-8 characters in them
+                # for this case, detect the 'real' encoding and decode it as unicode, then make it actual UTF-8 and parse.
+                f = zf.open("imsmanifest.xml", "r")
+                data = f.read()
+                f.close()
+
+                info = chardet.detect(data)
+                data = data.decode(info["encoding"])
+                return etree.parse(io.BytesIO(data.encode("utf-8"))).getroot()
+
+    def walk_items(self, root):
+        root_dict = dict(root.items())
+
+        title_elem = root.find("title", root.nsmap)
+        if title_elem is not None:
+            # title_elem.text has issues when there are BR tags. Instead get ALL text, ignoring BR tags.
+            # As BR tags do not make sense in metadata, we can assume it's an editor glitch causing it.
+            text = ""
+            for child in title_elem.iter():
+                if child.text:
+                    text += child.text
+                if child.tail:
+                    text += child.tail
+            assert text.strip(), "Title element has no title: {}".format(
+                etree.tostring(title_elem, pretty_print=True)
+            )
+            root_dict["title"] = text.strip()
+
+        root_dict["metadata"] = self.collect_metadata(root)
+
+        children = []
+        for item in root.findall("item", root.nsmap):
+            children.append(self.walk_items(item))
+
+        if children:
+            root_dict["children"] = children
+
+        return root_dict
+
+    def derive_content_files_dict(self, resource_elem, resources_dict):
+        nsmap = resource_elem.nsmap
+        file_elements = resource_elem.findall("file", nsmap)
+        base = resource_elem.get("{http://www.w3.org/XML/1998/namespace}base") or ""
+        file_paths = [base + fe.get("href") for fe in file_elements]
+        dep_elements = resource_elem.findall("dependency", nsmap)
+        dep_paths = []
+        for de in dep_elements:
+            dre = resources_dict[de.get("identifierref")]
+            dep_paths.extend(self.derive_content_files_dict(dre, resources_dict))
+        return file_paths + dep_paths
+
+    def collect_resources(self, item, resources_dict):
+        if item.get("children"):
+            for child in item["children"]:
+                self.collect_resources(child, resources_dict)
+        elif item.get("identifierref"):
+            resource_elem = resources_dict[item["identifierref"]]
+
+            # Add all resource attrs to item dict
+            for key, value in resource_elem.items():
+                key_stripped = re.sub("^{.*}", "", key)  # Strip any namespace prefix
+                # Don't overwrite existing keys
+                if key_stripped not in item:
+                    item[key_stripped] = value
+
+            if resource_elem.get("type") == "webcontent":
+                item["files"] = self.derive_content_files_dict(
+                    resource_elem, resources_dict
+                )
+
+    def extract_metadata(self):
+        """Extract metadata and topic tree info from an IMSCP file.
+        Return a dict {'metadata': {...}, 'organizations': [list of topic dicts]}
+        """
+        manifest = self.get_manifest()
+
+        nsmap = manifest.nsmap
+
+        metadata = self.collect_metadata(manifest)
+
+        if self.language is None and metadata.get("language"):
+            self.set_language(metadata.get("language"))
+
+        resources_elem = manifest.find("resources", nsmap)
+        resources_dict = dict((r.get("identifier"), r) for r in resources_elem)
+
+        organizations = []
+        for org_elem in manifest.findall("organizations/organization", nsmap):
+            item_tree = self.walk_items(org_elem)
+            self.collect_resources(item_tree, resources_dict)
+            organizations.append(item_tree)
+
+        return {
+            "identifier": manifest.get("identifier"),
+            "metadata": metadata,
+            "organizations": organizations,
+        }
+
+
+class QTIZipFile(IMSCPZipFile):
+    def get_preset(self):
+        return self.preset or format_presets.QTI_ZIP
 
 
 class H5PFile(DownloadFile):
