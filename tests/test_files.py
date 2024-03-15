@@ -10,6 +10,7 @@ from test_pdfutils import _save_file_url_to_path
 
 from ricecooker import config
 from ricecooker.classes.files import _get_language_with_alpha2_fallback
+from ricecooker.classes.files import get_filename_from_content_disposition_header
 from ricecooker.classes.files import is_youtube_subtitle_file_supported_language
 from ricecooker.classes.files import SubtitleFile
 from ricecooker.classes.files import YouTubeSubtitleFile
@@ -631,3 +632,37 @@ def test_convertible_substitles_weirdext_subtitlesformat():
         assert (
             "El total de los protones y neutrones de un átomo" in filecontents
         ), "missing check words in converted subs"
+
+
+content_disposition_filename_cases = [
+    ('Content-Disposition: attachment; filename="example.jpg"', "example.jpg"),
+    (
+        "Content-Disposition: attachment; filename*=UTF-8''%E4%BE%8B%E5%AD%90.jpg",
+        "例子.jpg",
+    ),
+    ('Content-Disposition: inline; filename="document.pdf"', "document.pdf"),
+    ("Content-Disposition: attachment; filename=plainfile.txt", "plainfile.txt"),
+    (
+        "Content-Disposition: attachment; filename*=UTF-8''%C3%A9l%C3%A9phant.jpg",
+        "éléphant.jpg",
+    ),
+    ("Content-Disposition: attachment", None),
+    (
+        "Content-Disposition: attachment; filename=\"\"; filename*=UTF-8''%F0%9F%98%82.jpg",
+        "😂.jpg",
+    ),
+    (
+        "Content-Disposition: attachment; filename=\"EURO rates\"; filename*=utf-8''%E2%82%AC%20rates.txt",
+        "€ rates.txt",
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    "content_disposition, expected", content_disposition_filename_cases
+)
+def test_get_filename_from_content_disposition_header(content_disposition, expected):
+    result = get_filename_from_content_disposition_header(content_disposition)
+    assert (
+        result == expected
+    ), f"Failed on {content_disposition}: expected {expected}, got {result}"
