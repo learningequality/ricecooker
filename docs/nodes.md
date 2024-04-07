@@ -160,7 +160,7 @@ Topic nodes are folder-like containers that are used to organize the channel's c
 
 It is highly recommended to find suitable thumbnail images for topic nodes. The
 presence of thumbnails will make the content more appealing and easier to browse.
-Set `derive_thumbnails=True` on a topic node or use the `--thumbnails` command
+Set `derive_thumbnail=True` on a topic node or use the `--thumbnails` command
 line argument and Ricecooker will generate thumbnails for topic nodes based on
 the thumbnails of the content nodes they contain.
 
