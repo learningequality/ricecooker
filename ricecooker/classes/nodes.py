@@ -36,6 +36,7 @@ kind_activity_map = {
     content_kinds.H5P: learning_activities.EXPLORE,
 }
 
+
 class Node(object):
     """Node: model to represent all nodes in the tree"""
 
@@ -503,7 +504,7 @@ class TreeNode(Node):
         if self.kind in kind_activity_map and not learning_activities:
             self.learning_activities = [kind_activity_map[self.kind]]
         else:
-            self.learning_activities = learning_activities
+            self.learning_activities = learning_activities or []
 
         self.accessibility_labels = accessibility_labels or []
         self.categories = categories or []

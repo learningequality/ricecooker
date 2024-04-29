@@ -9,9 +9,9 @@ from le_utils.constants import content_kinds
 from le_utils.constants import file_types
 from le_utils.constants import format_presets
 from le_utils.constants import licenses
+from le_utils.constants.labels import learning_activities
 from le_utils.constants.labels import levels
 from le_utils.constants.languages import getlang
-from le_utils.constants.labels import learning_activities
 
 from ricecooker.classes.files import DocumentFile
 from ricecooker.classes.files import HTMLZipFile
@@ -702,6 +702,6 @@ def test_no_default_learning_activities_in_tree_node_if_given():
         title="test",
         source_id="test",
         license=licenses.CC_BY,
-        learning_activities=[learning_activities.WATCH]
+        learning_activities=[learning_activities.WATCH],
     )
     assert node.learning_activities != [learning_activities.READ]
