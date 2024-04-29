@@ -24,6 +24,7 @@ from ricecooker.classes.nodes import DocumentNode
 from ricecooker.classes.nodes import RemoteContentNode
 from ricecooker.classes.nodes import SlideshowNode
 from ricecooker.classes.nodes import TopicNode
+from ricecooker.classes.nodes import TreeNode
 from ricecooker.exceptions import InvalidNodeException
 from ricecooker.utils.jsontrees import build_tree_from_json
 from ricecooker.utils.zip import create_predictable_zip
@@ -688,3 +689,11 @@ def test_remote_content_node_with_invalid_overridden_field():
             author="Such disallowed. Computer says no.",
         )
         node.validate_tree()
+
+
+def test_default_learning_activities_in_tree_node():
+    from le_utils.constants import content_kinds
+    from le_utils.constants.labels import learning_activities
+    node = DocumentNode(title="test", source_id="test", license=licenses.CC_BY)
+    assert node.learning_activities == [learning_activities.READ]
+
