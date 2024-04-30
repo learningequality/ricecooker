@@ -32,12 +32,12 @@ jobs:
       max-parallel: 5
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest, macos-latest]
+        os: [windows-latest, ubuntu-latest, macos-13]
         python-version: [3.8, 3.9, '3.10']
         include:
         - os: ubuntu-latest
           pippath: ~/.cache/pip
-        - os: macos-latest
+        - os: macos-13
           pippath: ~/Library/Caches/pip
         - os: windows-latest
           pippath: ~\AppData\Local\pip\Cache
@@ -55,13 +55,13 @@ jobs:
       if: ${{ startsWith(matrix.os, 'ubuntu') }}
     - name: Cache Mac dependencies
       uses: actions/cache@v4
-      if: matrix.os == 'macos-latest'
+      if: matrix.os == 'macos-13'
       with:
         path: ~/Library/Caches/Homebrew
         key: ${{ runner.os }}-brew-${{ hashFiles('.github/workflows/pythontest.yml') }}
     - name: Install Mac dependencies
       run: brew install ffmpeg poppler
-      if: matrix.os == 'macos-latest'
+      if: matrix.os == 'macos-13'
     - name: Windows dependencies cache
       id: windowscache
       if: matrix.os == 'windows-latest'
