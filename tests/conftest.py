@@ -29,6 +29,7 @@ from ricecooker.classes.nodes import ChannelNode
 from ricecooker.classes.nodes import DocumentNode
 from ricecooker.classes.nodes import ExerciseNode
 from ricecooker.classes.nodes import HTML5AppNode
+from ricecooker.classes.nodes import kind_activity_map
 from ricecooker.classes.nodes import SlideshowNode
 from ricecooker.classes.nodes import TopicNode
 from ricecooker.classes.nodes import VideoNode
@@ -381,7 +382,12 @@ def video_data(contentnode_base_data, channel_domain_namespace, channel_node_id)
     video_data = copy.deepcopy(contentnode_base_data)
     ids_dict = genrate_random_ids(channel_domain_namespace, channel_node_id)
     video_data.update(ids_dict)
-    video_data.update({"kind": content_kinds.VIDEO})
+    video_data.update(
+        {
+            "kind": content_kinds.VIDEO,
+            "learning_activities": [kind_activity_map.get(content_kinds.VIDEO)],
+        }
+    )
     return video_data
 
 
@@ -481,7 +487,12 @@ def audio_data(
     audio_data = copy.deepcopy(contentnode_base_data)
     ids_dict = genrate_random_ids(channel_domain_namespace, channel_node_id)
     audio_data.update(ids_dict)
-    audio_data.update({"kind": content_kinds.AUDIO})
+    audio_data.update(
+        {
+            "kind": content_kinds.AUDIO,
+            "learning_activities": [kind_activity_map.get(content_kinds.AUDIO)],
+        }
+    )
     return audio_data
 
 
@@ -550,7 +561,12 @@ def document_data(
     document_data = copy.deepcopy(contentnode_base_data)
     ids_dict = genrate_random_ids(channel_domain_namespace, channel_node_id)
     document_data.update(ids_dict)
-    document_data.update({"kind": content_kinds.DOCUMENT})
+    document_data.update(
+        {
+            "kind": content_kinds.DOCUMENT,
+            "learning_activities": [kind_activity_map.get(content_kinds.DOCUMENT)],
+        }
+    )
     return document_data
 
 
@@ -657,7 +673,12 @@ def html_data(
     html_data = copy.deepcopy(contentnode_base_data)
     ids_dict = genrate_random_ids(channel_domain_namespace, channel_node_id)
     html_data.update(ids_dict)
-    html_data.update({"kind": content_kinds.HTML5})
+    html_data.update(
+        {
+            "kind": content_kinds.HTML5,
+            "learning_activities": [kind_activity_map.get(content_kinds.HTML5)],
+        }
+    )
     return html_data
 
 
@@ -739,6 +760,7 @@ def exercise_data(
             "kind": content_kinds.EXERCISE,
             "questions": [],
             "exercise_data": mastery_model,
+            "learning_activities": [kind_activity_map.get(content_kinds.EXERCISE)],
         }
     )
     return exercise_data
@@ -883,7 +905,12 @@ def slideshow_data(
     slideshow_data = copy.deepcopy(contentnode_base_data)
     ids_dict = genrate_random_ids(channel_domain_namespace, channel_node_id)
     slideshow_data.update(ids_dict)
-    slideshow_data.update({"kind": content_kinds.SLIDESHOW})
+    slideshow_data.update(
+        {
+            "kind": content_kinds.SLIDESHOW,
+            "learning_activities": [kind_activity_map.get(content_kinds.SLIDESHOW)],
+        }
+    )
     # TODO setup expected extra_fields['slideshow_data']
     return slideshow_data
 

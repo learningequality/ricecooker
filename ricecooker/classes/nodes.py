@@ -26,6 +26,17 @@ MASTERY_MODELS = [id for id, name in exercises.MASTERY_MODELS]
 ROLES = [id for id, name in roles.choices]
 
 
+# Used to map content kind to learning activity when a list of learning_activiies is not provided
+kind_activity_map = {
+    content_kinds.EXERCISE: learning_activities.PRACTICE,
+    content_kinds.VIDEO: learning_activities.WATCH,
+    content_kinds.AUDIO: learning_activities.LISTEN,
+    content_kinds.DOCUMENT: learning_activities.READ,
+    content_kinds.HTML5: learning_activities.EXPLORE,
+    content_kinds.H5P: learning_activities.EXPLORE,
+}
+
+
 class Node(object):
     """Node: model to represent all nodes in the tree"""
 
@@ -488,7 +499,13 @@ class TreeNode(Node):
 
         self.grade_levels = grade_levels or []
         self.resource_types = resource_types or []
-        self.learning_activities = learning_activities or []
+
+        # learning_activities can be set to a default based on the kind if not provided directly
+        if self.kind in kind_activity_map and not learning_activities:
+            self.learning_activities = [kind_activity_map[self.kind]]
+        else:
+            self.learning_activities = learning_activities or []
+
         self.accessibility_labels = accessibility_labels or []
         self.categories = categories or []
         self.learner_needs = learner_needs or []
