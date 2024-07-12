@@ -33,7 +33,7 @@ setup(
         "requests>=2.11.1",
         "le_utils>=0.1.26",
         "requests_file",
-        "beautifulsoup4>=4.6.3,<4.9.0",  # pinned to match versions in le-pycaption
+        "beautifulsoup4>=4.6.3,<4.13.0",  # pinned to match versions in le-pycaption
         "selenium==4.21.0",
         "yt-dlp==2024.7.9",
         "html5lib",
