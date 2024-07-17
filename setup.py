@@ -54,7 +54,7 @@ setup(
         "filetype>=1.1.0",
         "urllib3==2.2.2",
     ],
-    python_requires=">=3.8, <3.11",
+    python_requires=">=3.8, <3.13",
     license="MIT license",
     zip_safe=False,
     keywords="ricecooker",
