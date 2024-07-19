@@ -42,7 +42,7 @@ setup(
         "css-html-js-minify==2.5.5",
         "pypdf2==1.26.0",
         "dictdiffer>=0.8.0",
-        "Pillow==10.3.0",
+        "Pillow==10.4.0",
         "colorlog>=4.1.0,<6.9",
         "PyYAML>=5.3.1",
         "Jinja2>=2.10",
