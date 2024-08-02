@@ -20,7 +20,7 @@ from ricecooker.config import STORAGE_DIRECTORY
 TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
 TESTCONTENT_DIR = os.path.join(TESTS_DIR, "testcontent")
 
-
+WAYBACK_PREFIX = "https://web.archive.org/web/20240621071535/"
 """ *********** EXERCISE FIXTURES *********** """
 
 
@@ -447,12 +447,12 @@ def image_texts_fixtures():
             "hash": "db98ca9d35b2fb97cde378a1fabddd26",
         },
         {
-            "text": "https://learningequality.org/static/img/le-logo.svg",
+            "text": "{}https://learningequality.org/static/img/le-logo.svg".format(WAYBACK_PREFIX),
             "replacement_str": WEB_PREFIX + "52b097901664f83e6b7c92ae1af1721b.svg",
             "hash": "52b097901664f83e6b7c92ae1af1721b",
         },
         {
-            "text": "https://learningequality.org/static/img/no-wifi.png",
+            "text": "{}https://learningequality.org/static/img/no-wifi.png".format(WAYBACK_PREFIX),
             "replacement_str": WEB_PREFIX + "599aa896313be22dea6c0257772a464e.png",
             "hash": "599aa896313be22dea6c0257772a464e",
         },
@@ -530,7 +530,7 @@ def test_perseus__recursive_url_find(persues_question_json_fixtures):
                     "options": {
                         "step": [1, 1],
                         "backgroundImage": {
-                            "url": "https://learningequality.org/static/img/no-wifi.png",
+                            "url": "{}https://learningequality.org/static/img/no-wifi.png".format(WAYBACK_PREFIX),
                             "width": 184,
                             "height": 184,
                         },
