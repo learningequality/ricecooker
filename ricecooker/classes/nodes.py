@@ -1042,7 +1042,7 @@ class DocumentNode(ContentNode):
         Args: None
         Returns: boolean indicating if document is valid
         """
-        from .files import DocumentFile, EPubFile, StudioFile
+        from .files import DocumentFile, EPubFile, StudioFile, BloomPubFile
 
         try:
             assert (
@@ -1063,6 +1063,7 @@ class DocumentNode(ContentNode):
                     isinstance(f, StudioFile)
                     and f.preset in (format_presets.DOCUMENT, format_presets.EPUB)
                 )
+                or isinstance(f, BloomPubFile)
             ], "Assumption Failed: Document should have at least one document file"
             return super(DocumentNode, self).validate()
         except AssertionError as ae:
