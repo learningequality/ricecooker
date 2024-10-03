@@ -462,8 +462,8 @@ def youtube_video_with_subs_dict():
 @pytest.fixture
 def audio_file():
     source_url = (
-        "https://ia800103.us.archive.org/9/items/cd_prince_prince/"
-        "disc1/02.%20Prince%20-%201999%20%28Edit%29_sample.mp3"
+        "https://ia800203.us.archive.org/26/items/Bach_Original_works_and_transcriptions-6556"
+        "/Felipe_Sarro_-_08_-_Bach_Sinfonia_11_BWV_797.mp3"
     )
     local_path = os.path.abspath(
         os.path.join(
@@ -477,7 +477,7 @@ def audio_file():
 
 @pytest.fixture
 def audio_filename():
-    return "c335e8044ecf583c690d5d8c65d68627.mp3"
+    return "7f78f74d9428d6394fb8a2fbd095965a.mp3"
 
 
 @pytest.fixture
