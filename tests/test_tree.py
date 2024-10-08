@@ -9,6 +9,7 @@ from le_utils.constants import content_kinds
 from le_utils.constants import file_types
 from le_utils.constants import format_presets
 from le_utils.constants import licenses
+from le_utils.constants.labels import learning_activities
 from le_utils.constants.labels import levels
 from le_utils.constants.languages import getlang
 
@@ -27,6 +28,7 @@ from ricecooker.classes.nodes import TopicNode
 from ricecooker.exceptions import InvalidNodeException
 from ricecooker.utils.jsontrees import build_tree_from_json
 from ricecooker.utils.zip import create_predictable_zip
+
 
 """ *********** TOPIC FIXTURES *********** """
 
@@ -688,3 +690,18 @@ def test_remote_content_node_with_invalid_overridden_field():
             author="Such disallowed. Computer says no.",
         )
         node.validate_tree()
+
+
+def test_default_learning_activities_in_tree_node():
+    node = DocumentNode(title="test", source_id="test", license=licenses.CC_BY)
+    assert node.learning_activities == [learning_activities.READ]
+
+
+def test_no_default_learning_activities_in_tree_node_if_given():
+    node = DocumentNode(
+        title="test",
+        source_id="test",
+        license=licenses.CC_BY,
+        learning_activities=[learning_activities.WATCH],
+    )
+    assert node.learning_activities != [learning_activities.READ]
