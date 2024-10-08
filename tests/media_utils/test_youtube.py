@@ -1,6 +1,8 @@
 import os
 import shutil
 import tempfile
+from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import pytest
 from le_utils.constants import file_formats
@@ -19,6 +21,128 @@ non_cc_playlist = (
 subtitles_video = "https://www.youtube.com/watch?v=6uXAbJQoZlE"
 subtitles_zu_video = "https://www.youtube.com/watch?v=FN12ty5ztAs"
 
+mock_extract_info_non_cc_return_value = {
+    "id": "test_playlist_id",
+    "kind": "playlist",
+    "title": "Test Playlist",
+    "entries": [
+        {"id": "video1", "kind": "video", "title": "Test Video 1"},
+        {"id": "video2", "kind": "video", "title": "Test Video 2"},
+        {"id": "video3", "kind": "video", "title": "Test Video 3"},
+        {"id": "video4", "kind": "video", "title": "Test Video 4"},
+    ],
+}
+
+mock_extract_info_cc_return_value = {
+    "id": "test_playlist_id",
+    "kind": "playlist",
+    "title": "Test Playlist",
+    "entries": [
+        {
+            "id": "video1",
+            "kind": "video",
+            "title": "Test Video 1",
+            "license": "Creative Commons Attribution license (reuse allowed)",
+        },
+        {
+            "id": "video2",
+            "kind": "video",
+            "title": "Test Video 2",
+            "license": "Creative Commons Attribution license (reuse allowed)",
+        },
+        {
+            "id": "video3",
+            "kind": "video",
+            "title": "Test Video 3",
+            "license": "Creative Commons Attribution license (reuse allowed)",
+        },
+        {"id": "video4", "kind": "video", "title": "Test Video 4", "license": ""},
+    ],
+}
+
+mock_extract_info_subtitles_return_value = {
+    "id": "6uXAbJQoZlE",
+    "title": "Investing in Education Instead of Speculation",
+    "description": "Unlike speculation in crypto-currencies....",
+    "ext": "mp4",
+    "source_url": "https://www.youtube.com/watch?v=6uXAbJQoZlE",
+    "subtitles": {
+        "zh-CN": [
+            {
+                "ext": "vtt",
+                "url": "https://www.youtube.com/api/whatever&key=yt8&lang=zh-CN&fmt=vtt",
+                "name": "Chinese (China)",
+            },
+        ],
+        "en": [
+            {
+                "ext": "vtt",
+                "url": "https://www.youtube.com/api/whatever&key=yt8&lang=en&fmt=vtt",
+                "name": "English",
+            },
+        ],
+        "ru": [
+            {
+                "ext": "vtt",
+                "url": "https://www.youtube.com/api/whatever&key=yt8&lang=ru&fmt=vtt",
+                "name": "Russian",
+            },
+        ],
+        "es": [
+            {
+                "ext": "vtt",
+                "url": "https://www.youtube.com/api/whatever&key=yt8&lang=es&fmt=vtt",
+                "name": "Spanish",
+            },
+        ],
+    },
+    "artist": "",
+    "license": "Creative Commons Attribution license (reuse allowed)",
+    "kind": "video",
+}
+
+mock_extract_info_subtitles_zu_return_value = {
+    "id": "FN12ty5ztAs",
+    "title": "Amanda and friends play cans game in South Africa",
+    "description": "Bla bla bla.",
+    "ext": "mp4",
+    "source_url": "https://www.youtube.com/watch?v=FN12ty5ztAs",
+    "tags": ["yt:cc=on"],
+    "subtitles": {
+        "en-5IebwaT_cAk": [
+            {
+                "ext": "vtt",
+                "url": "https://www.youtube.com/api/whatever&key=yt8&lang=en&name=+via+Dotsub&fmt=vtt",
+                "name": "English -  via Dotsub",
+            },
+        ],
+        "fr-5IebwaT_cAk": [
+            {
+                "ext": "vtt",
+                "url": "https://www.youtube.com/api/whatever&key=yt8&lang=fr&name=+via+Dotsub&fmt=vtt",
+                "name": "French -  via Dotsub",
+            },
+        ],
+        "zu-5IebwaT_cAk": [
+            {
+                "ext": "vtt",
+                "url": "https://www.youtube.com/api/whatever&key=yt8&lang=zu&name=+via+Dotsub&fmt=vtt",
+                "name": "Zulu -  via Dotsub",
+            },
+        ],
+    },
+    "requested_subtitles": {
+        "zu-5IebwaT_cAk": {
+            "ext": "vtt",
+            "url": "https://www.youtube.com/api/whatever&key=yt8&lang=zu&name=+via+Dotsub&fmt=vtt",
+            "name": "Zulu -  via Dotsub",
+        },
+    },
+    "artist": "",
+    "license": "",
+    "kind": "video",
+}
+
 
 def get_yt_resource(url, **kwargs):
     global yt_resources
@@ -34,8 +158,15 @@ def get_yt_resource(url, **kwargs):
 
 
 def test_get_youtube_info():
-    yt_resource = get_yt_resource(non_cc_playlist)
-    tree = yt_resource.get_resource_info()
+    with patch("ricecooker.utils.youtube.yt_dlp.YoutubeDL") as mock_youtube_dl_class:
+        mock_youtube_dl_instance = MagicMock()
+        mock_youtube_dl_class.return_value = mock_youtube_dl_instance
+        mock_youtube_dl_instance.extract_info.return_value = (
+            mock_extract_info_non_cc_return_value
+        )
+
+        yt_resource = get_yt_resource(non_cc_playlist)
+        tree = yt_resource.get_resource_info()
     assert tree["id"]
     assert tree["kind"]
     assert tree["title"]
@@ -48,8 +179,15 @@ def test_get_youtube_info():
 
 
 def test_warnings_no_license():
-    yt_resource = get_yt_resource(non_cc_playlist)
-    issues, output_info = yt_resource.check_for_content_issues()
+    with patch("ricecooker.utils.youtube.yt_dlp.YoutubeDL") as mock_youtube_dl_class:
+        mock_youtube_dl_instance = MagicMock()
+        mock_youtube_dl_class.return_value = mock_youtube_dl_instance
+        mock_youtube_dl_instance.extract_info.return_value = (
+            mock_extract_info_non_cc_return_value
+        )
+
+        yt_resource = get_yt_resource(non_cc_playlist)
+        issues, output_info = yt_resource.check_for_content_issues()
 
     assert len(issues) == 4
     for issue in issues:
@@ -57,8 +195,15 @@ def test_warnings_no_license():
 
 
 def test_cc_no_warnings():
-    yt_resource = get_yt_resource(cc_playlist)
-    issues, output_info = yt_resource.check_for_content_issues()
+    with patch("ricecooker.utils.youtube.yt_dlp.YoutubeDL") as mock_youtube_dl_class:
+        mock_youtube_dl_instance = MagicMock()
+        mock_youtube_dl_class.return_value = mock_youtube_dl_instance
+        mock_youtube_dl_instance.extract_info.return_value = (
+            mock_extract_info_cc_return_value
+        )
+
+        yt_resource = get_yt_resource(cc_playlist)
+        issues, output_info = yt_resource.check_for_content_issues()
 
     # there is one video in this playlist that is not cc-licensed
     assert len(issues) == 1
@@ -106,8 +251,15 @@ def test_download_youtube_playlist():
 
 
 def test_get_subtitles():
-    yt_resource = get_yt_resource(subtitles_video)
-    info = yt_resource.get_resource_subtitles()
+    with patch("ricecooker.utils.youtube.yt_dlp.YoutubeDL") as mock_youtube_dl_class:
+        mock_youtube_dl_instance = MagicMock()
+        mock_youtube_dl_class.return_value = mock_youtube_dl_instance
+        mock_youtube_dl_instance.extract_info.return_value = (
+            mock_extract_info_subtitles_return_value
+        )
+
+        yt_resource = get_yt_resource(subtitles_video)
+        info = yt_resource.get_resource_subtitles()
     assert len(info["subtitles"]) == 4  # brittle; can change if subs get added
     assert "ru" in info["subtitles"]
     assert "en" in info["subtitles"]
@@ -126,8 +278,14 @@ def test_subtitles_lang_helpers_compatible():
     Usage examples functions `is_youtube_subtitle_file_supported_language` and
     `_get_language_with_alpha2_fallback` that deal with language codes.
     """
-    yt_resource = get_yt_resource(subtitles_zu_video)
-    info = yt_resource.get_resource_subtitles()
+    with patch("ricecooker.utils.youtube.yt_dlp.YoutubeDL") as mock_youtube_dl_class:
+        mock_youtube_dl_instance = MagicMock()
+        mock_youtube_dl_class.return_value = mock_youtube_dl_instance
+        mock_youtube_dl_instance.extract_info.return_value = (
+            mock_extract_info_subtitles_zu_return_value
+        )
+        yt_resource = get_yt_resource(subtitles_zu_video)
+        info = yt_resource.get_resource_subtitles()
     all_subtitles = info["subtitles"]
 
     # 1. filter out non-vtt subs

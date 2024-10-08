@@ -1,4 +1,6 @@
 import os
+from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import pytest
 
@@ -34,9 +36,29 @@ def youtube_playlist_cache():
 
 
 def test_youtube_video_cache(youtube_video_cache):
-    video_info = youtube_video_cache.get_video_info(
-        use_proxy=False, get_subtitle_languages=True
-    )
+    mock_video_info = {
+        "artist": "JLRR",
+        "description": "Jamie Alexandre, Learning Equality's co-founder shares ....",
+        "ext": "mp4",
+        "id": "zzJLYK893gQ",
+        "kind": "video",
+        "license": "Creative Commons Attribution license (reuse allowed)",
+        "requested_subtitles": None,
+        "source_url": "https://www.youtube.com/watch?v=zzJLYK893gQ",
+        "subtitles": {},
+        "tags": [],
+        "thumbnail": "https://i.ytimg.com/vi/zzJLYK893gQ/maxresdefault.jpg",
+        "title": "Learning Equality's Pledge to UNESCO's Global Education Coalition",
+    }
+
+    with patch("ricecooker.utils.youtube.yt_dlp.YoutubeDL") as mock_youtube_dl_class:
+        mock_youtube_dl_instance = MagicMock()
+        mock_youtube_dl_class.return_value = mock_youtube_dl_instance
+        mock_youtube_dl_instance.extract_info.return_value = mock_video_info
+
+        video_info = youtube_video_cache.get_video_info(
+            use_proxy=False, get_subtitle_languages=True
+        )
     video_cache_filepath = os.path.abspath(
         os.path.join(
             os.path.dirname(__file__), "testcontent", "youtubecache", "test-video.json"
