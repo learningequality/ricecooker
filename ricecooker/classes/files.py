@@ -95,9 +95,10 @@ def extract_ext_from_header(res):
         content_dis = res.headers.get("content-disposition")
         if content_dis:
             filename = get_filename_from_content_disposition_header(content_dis)
-            ext = filename.split(".")
-            if len(ext) > 1:
-                return ext[-1]
+            if filename:
+                ext = filename.split(".")
+                if len(ext) > 1:
+                    return ext[-1]
     return None
 
 
@@ -767,6 +768,15 @@ class EPubFile(DownloadFile):
 
     def get_preset(self):
         return self.preset or format_presets.EPUB
+
+
+class BloomPubFile(DownloadFile):
+    default_ext = file_formats.BLOOMPUB
+    allowed_formats = [file_formats.BLOOMPUB, file_formats.BLOOMD]
+    is_primary = True
+
+    def get_preset(self):
+        return self.preset or format_presets.BLOOMPUB
 
 
 class HTMLZipFile(DownloadFile):
