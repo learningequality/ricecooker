@@ -195,9 +195,15 @@ class Node(object):
         - (optionally) generate thumbnail file from the node's content
         Returns: content-hash based filenames of all the files for this node
         """
-        filenames = []
-        for file in self.files:
-            filenames.append(file.process_file())
+
+        # Items may be added to self.files during file.process_file(), so
+        # we will work with a copy and generate our list of filenames
+        # separately.
+
+        for file in list(self.files):
+            file.process_file()
+
+        filenames = [file.filename for file in self.files]
 
         # Auto-generation of thumbnails happens here if derive_thumbnail or config.THUMBNAILS is set
         if not self.has_thumbnail() and (config.THUMBNAILS or self.derive_thumbnail):
