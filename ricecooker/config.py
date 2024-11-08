@@ -11,6 +11,8 @@ import tempfile
 
 import requests
 from requests_file import FileAdapter
+from . import ricecooker  # Import to access the version
+from .auth import get_user_email  # Assuming you have a function to get the user's email
 
 
 UPDATE = False
@@ -206,6 +208,12 @@ FAILED_FILES = []
 # Session for downloading files
 DOWNLOAD_SESSION = requests.Session()
 DOWNLOAD_SESSION.mount("file://", FileAdapter())
+
+# Set User-Agent header for DOWNLOAD_SESSION
+user_email = get_user_email()  # Retrieve the user's email from the API token
+DOWNLOAD_SESSION.headers.update({
+    "User-Agent": f"Ricecooker/{ricecooker.__version__} bot ({user_email})"
+})
 
 # Environment variable indicating we should use a proxy for yt_dlp downloads
 USEPROXY = False
