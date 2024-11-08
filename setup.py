@@ -40,7 +40,7 @@ setup(
         "cachecontrol==0.12.11",
         "lockfile==0.12.2",  # This is needed, but not specified as a dependency by cachecontrol
         "css-html-js-minify==2.5.5",
-        "pypdf2==1.26.0",
+        "pypdf2==3.0.1",
         "dictdiffer>=0.8.0",
         "Pillow==10.4.0",
         "colorlog>=4.1.0,<6.9",
