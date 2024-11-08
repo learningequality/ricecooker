@@ -28,10 +28,21 @@ from ricecooker.utils.caching import CacheForeverHeuristic
 from ricecooker.utils.html import download_file
 from ricecooker.utils.html import replace_links
 from ricecooker.utils.zip import create_predictable_zip
+from . import ricecooker  # Import to access the version
 
-DOWNLOAD_SESSION = requests.Session()  # Session for downloading content from urls
+# Assuming you have a way to retrieve the user's email
+user_email = "user@example.com"  # Replace this with the actual method to get the user's email
+
+# Session for downloading content from urls
+DOWNLOAD_SESSION = requests.Session()  
 DOWNLOAD_SESSION.mount("https://", requests.adapters.HTTPAdapter(max_retries=3))
 DOWNLOAD_SESSION.mount("file://", FileAdapter())
+
+# Set User-Agent header for DOWNLOAD_SESSION
+DOWNLOAD_SESSION.headers.update({
+    "User-Agent": f"Ricecooker/{ricecooker.__version__} bot ({user_email})"
+})
+
 # use_dir_lock works with all filesystems and OSes
 cache = FileCache(".webcache", use_dir_lock=True)
 forever_adapter = CacheControlAdapter(heuristic=CacheForeverHeuristic(), cache=cache)

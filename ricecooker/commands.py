@@ -12,6 +12,8 @@ from .classes.nodes import ChannelNode
 from .managers.progress import RestoreManager
 from .managers.progress import Status
 from .managers.tree import ChannelManager
+from . import ricecooker  # Import to access the version
+
 
 # Fix to support Python 2.x.
 # http://stackoverflow.com/questions/954834/how-do-i-use-raw-input-in-python-3
@@ -93,6 +95,12 @@ def uploadchannel(  # noqa: C901
     else:
         username = ""
         token = ""
+
+    # Set User-Agent header for DOWNLOAD_SESSION
+    user_email = authenticate_user(token)[0]  # Get the user's email
+    config.DOWNLOAD_SESSION.headers.update({
+        "User-Agent": f"Ricecooker/{ricecooker.__version__} bot ({user_email})"
+    })
 
     config.LOGGER.info("\n\n***** Starting channel build process *****\n\n")
 
