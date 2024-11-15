@@ -39,7 +39,7 @@ the command line will use the following default settings:
       -b:a 32k -ac 1 \
       -vf scale="'w=-2:h=trunc(min(ih,480)/2)*2'" \
       -crf 32 \
-      -profile:v baseline -level 3.0 -preset slow -v error -strict -2 -stats \
+      -profile:v baseline -level 3.0 -preset slow -v error -strict -2 -stats -movflags faststart \
       -y outputfile.mp4
 
 This command takes the `inputfile.mp4` and outputs the file `outputfile.mp4` that
