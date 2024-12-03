@@ -32,8 +32,7 @@ from ricecooker.utils.zip import create_predictable_zip
 DOWNLOAD_SESSION = requests.Session()  # Session for downloading content from urls
 DOWNLOAD_SESSION.mount("https://", requests.adapters.HTTPAdapter(max_retries=3))
 DOWNLOAD_SESSION.mount("file://", FileAdapter())
-# use_dir_lock works with all filesystems and OSes
-cache = FileCache(".webcache", use_dir_lock=True)
+cache = FileCache(".webcache")
 forever_adapter = CacheControlAdapter(heuristic=CacheForeverHeuristic(), cache=cache)
 
 # we can't use requests caching for pyppeteer / phantomjs, so track those separately.
