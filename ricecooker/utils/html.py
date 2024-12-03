@@ -20,7 +20,7 @@ from ricecooker.config import STRICT
 
 # create a default session with basic caching mechanisms (similar to what a browser would do)
 sess = requests.Session()
-cache = FileCache(".webcache", use_dir_lock=True)
+cache = FileCache(".webcache")
 basic_adapter = CacheControlAdapter(cache=cache)
 sess.mount("http://", basic_adapter)
 sess.mount("https://", basic_adapter)
