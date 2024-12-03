@@ -53,7 +53,7 @@ from ricecooker.utils.youtube import YouTubeResource
 from ricecooker.utils.zip import create_predictable_zip
 
 # Cache for filenames
-FILECACHE = FileCache(config.FILECACHE_DIRECTORY, use_dir_lock=True, forever=True)
+FILECACHE = FileCache(config.FILECACHE_DIRECTORY, forever=True)
 HTTP_CAUGHT_EXCEPTIONS = (
     HTTPError,
     ConnectionError,
