@@ -79,16 +79,19 @@ def create_predictable_zip(path, entrypoint=None, file_converter=None):
     return zippath
 
 
-def write_file_to_zip_with_neutral_metadata(zfile, filename, content):
+def write_file_to_zip_with_neutral_metadata(zfile, filepath, content):
     """
-    Write the string `content` to `filename` in the open ZipFile `zfile`.
+    Write the string `content` to `filepath` in the open ZipFile `zfile`.
     Args:
         zfile (ZipFile): open ZipFile to write the content into
-        filename (str): the file path within the zip file to write into
+        filepath (str): the file path within the zip file to write into
         content (str): the content to write into the zip
     Returns: None
     """
-    info = zipfile.ZipInfo(filename, date_time=(2015, 10, 21, 7, 28, 0))
+    # Convert any windows file separators to unix style for consistent
+    # file paths in the zip file
+    filepath = filepath.replace("\\", "/")
+    info = zipfile.ZipInfo(filepath, date_time=(2015, 10, 21, 7, 28, 0))
     info.compress_type = zipfile.ZIP_DEFLATED
     info.comment = "".encode()
     info.create_system = 0
