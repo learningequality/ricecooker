@@ -35,7 +35,7 @@ setup(
         "requests_file",
         "beautifulsoup4>=4.6.3,<4.9.0",  # pinned to match versions in le-pycaption
         "selenium==4.25.0",
-        "yt-dlp==2024.11.18",
+        "yt-dlp==2024.12.3",
         "html5lib",
         "cachecontrol==0.14.1",
         "filelock==3.16.1",  # This is needed, but not specified as a dependency by cachecontrol
