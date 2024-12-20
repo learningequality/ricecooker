@@ -35,7 +35,7 @@ def create_predictable_zip(path, entrypoint=None, file_converter=None):
         paths = []
         if entrypoint:
             index = os.path.join(path, "index.html")
-            f = open(index, "w", encoding="utf-8")
+            f = open(index, "w", encoding="utf-8", newline="\n")
             f.write(ENTRYPOINT_TEMPLATE.format(entrypoint.replace("\\", "/")))
             f.close()
 
@@ -65,7 +65,7 @@ def create_predictable_zip(path, entrypoint=None, file_converter=None):
     # create a temporary zip file path to write the output into
     zippathfd, zippath = tempfile.mkstemp(suffix=".{}".format(extension))
 
-    with zipfile.ZipFile(zippath, "w") as outputzip:
+    with zipfile.ZipFile(zippath, "w", compression=zipfile.ZIP_DEFLATED) as outputzip:
         # loop over the file paths in sorted order, to ensure a predictable zip
         for filepath in sorted(paths):
             write_file_to_zip_with_neutral_metadata(
