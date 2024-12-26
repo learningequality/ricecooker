@@ -2,18 +2,6 @@ import os
 import tempfile
 import zipfile
 
-ENTRYPOINT_TEMPLATE = """
-<!DOCTYPE html>
-<html>
-   <head>
-      <title>HTML Meta Tag</title>
-      <meta http-equiv = "refresh" content = "0; url = {}" />
-   </head>
-   <body>
-   </body>
-</html>
-"""
-
 
 def _read_file(path):
     with open(path, "rb") as f:
@@ -33,11 +21,6 @@ def create_predictable_zip(path, entrypoint=None, file_converter=None):
     # if path is a directory, recursively enumerate all the files under the directory
     if os.path.isdir(path):
         paths = []
-        if entrypoint:
-            index = os.path.join(path, "index.html")
-            f = open(index, "w", encoding="utf-8", newline="\n")
-            f.write(ENTRYPOINT_TEMPLATE.format(entrypoint.replace("\\", "/")))
-            f.close()
 
         for root, directories, filenames in os.walk(path):
             paths += [
