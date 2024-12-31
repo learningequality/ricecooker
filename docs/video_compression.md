@@ -88,12 +88,10 @@ operable program or batch file,"  you will have to change directory to the folde
 saved the program files `ffmpeg.exe` and `ffprobe.exe`  (e.g. use `cd Desktop` if saved
 on the desktop or `cd %HOMEPATH%\Documents` to go to your Documents folder).
 
-
---------
+--------------
 
 ### WebM compression Guidelines 
   - For users working with WebM videos, you can follow similar compression steps using `ffmpeg`. Here's how to compress WebM videos effectively:
-
   - Use the `.webm file format`
   - Use the `VP8` video codec for WebM format, ensuring compatability with web browsers 
   - Use the `vorbis` audio codec
@@ -101,7 +99,6 @@ on the desktop or `cd %HOMEPATH%\Documents` to go to your Documents folder).
     - Short videos (5-10 mins long) should be roughly less than 15MB
     - Longer video lectures (1 hour long) should not be larger than 200MB
     - High-resolution videos should be converted to lower resolution formats as per the guidelines for MP4 above.
-
 Here's ana exapmle ffmpeg commande for compressing WebM:
     ffmpeg -i inputfile.webm \
       -b:a 32k -ac 1 \
@@ -235,12 +232,10 @@ so you can edit them with notepad.
 
 Note video conversion takes a long time, so be prepared to get a coffee or two.
 
-
 ### Using the ffmpeg helper scripts for WebM
-
 The same helper scripts provided for MP4 can be adopted for WebM files. If you're using the convertvideo script, jast make sure the file extension is `.webm` instead of `.mp4` when calling the script.
 
-----------
+--------------
 
 ### HandBrake for MP4
 If you don't have many videos to convert, you can use [HandBrake](https://handbrake.fr/),
@@ -303,5 +298,4 @@ Here are the steps to preview different compression factors in Kolibri:
 
 
 ### Experimenting with WebM compression
-Experimenting with WebM compression, like MP4, is key to achieving the right balance of quality and file size. Adjust the **CRF** parameter for different compression levels based on the desired video quality.
-
+Experimenting with WebM compression, like MP4, is key to achieving the right balance of quality and file size. Adjust the `crf` parameter for different compression levels based on the desired video quality.
