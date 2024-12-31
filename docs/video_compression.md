@@ -88,30 +88,6 @@ operable program or batch file,"  you will have to change directory to the folde
 saved the program files `ffmpeg.exe` and `ffprobe.exe`  (e.g. use `cd Desktop` if saved
 on the desktop or `cd %HOMEPATH%\Documents` to go to your Documents folder).
 
---------------
-
-### WebM compression Guidelines 
-  - For users working with WebM videos, you can follow similar compression steps using `ffmpeg`. Here's how to compress WebM videos effectively:
-  - Use the `.webm file format`
-  - Use the `VP8` video codec for WebM format, ensuring compatability with web browsers 
-  - Use the `vorbis` audio codec
-  - Use comprssion
-    - Short videos (5-10 mins long) should be roughly less than 15MB
-    - Longer video lectures (1 hour long) should not be larger than 200MB
-    - High-resolution videos should be converted to lower resolution formats as per the guidelines for MP4 above.
-Here's ana exapmle ffmpeg commande for compressing WebM:
-    ffmpeg -i inputfile.webm \
-      -b:a 32k -ac 1 \
-      -vf scale="'w=-2:h=trunc(min(ih,480)/2)*2'" \
-      -crf 32 \
-      -profile:v baseline -level 3.0 -preset slow -v error -strict -2 -stats -movflags faststart \
-      -y outputfile.webm
-This command takes the `inputfile.mp4` and outputs the file `outputfile.mp4` that
-has the following transformations applied to it:
-  - Limits the audio codec to 32k/sec
-  - Scale the video to max-height of 480 pixels
-  - Compress the video with CRF of 32 (constant rate factor)
-
 
 ### Looking around with ffprobe
 Equally useful is the command `ffprobe` which prints detailed information for
@@ -196,7 +172,7 @@ Clearly the compression option `-crf 32` had an effect.
 The video `compressed.mp4` is now ready for upload to Studio!
 
 
-### Using the ffmpeg helper scripts for MP4
+### Using the ffmpeg helper scripts
 
 We provide a helper script to help run the ffmpeg command. The instructions are different
 depending if your operating systems is Windows or Mac/Linux:
@@ -232,12 +208,8 @@ so you can edit them with notepad.
 
 Note video conversion takes a long time, so be prepared to get a coffee or two.
 
-### Using the ffmpeg helper scripts for WebM
-The same helper scripts provided for MP4 can be adopted for WebM files. If you're using the convertvideo script, jast make sure the file extension is `.webm` instead of `.mp4` when calling the script.
 
---------------
-
-### HandBrake for MP4
+### HandBrake
 If you don't have many videos to convert, you can use [HandBrake](https://handbrake.fr/),
 which is a video conversion tool with a graphical user interface. Handbrake uses
 `ffmpeg` under the hood, so the same compression results can be achieved as with
@@ -272,11 +244,8 @@ increasing the "Constant Rate Factor" compression parameter in the Video setting
 Using the value [RF=32](https://github.com/learningequality/ricecooker/blob/master/docs/figures/HandBrake/handbreake_screenshot_video_settings.png)
 will result in highly compressed videos, with very small file sizes.
 
-### HandBrake for WebM
-If you prefer using a GUI tool, HandBrake can also help compress WebM videos, although it doesn't natively support WebM output. In such cases you would convert the to MP4 first using HandBrake, and then re-encode it to WebM using the command above.
 
-
-### Experimenting with MP4 compression.
+### Experimenting
 Since every content source is unique, we recommend that you experiment with
 different compression options. The command line tool `ffmpeg` offers a very
 useful option called `crf` which stands for Constant Rate Factor.
@@ -295,7 +264,3 @@ Here are the steps to preview different compression factors in Kolibri:
   - PUBLISH the channel and record the channel token
   - Import the channel into a Kolibri instance using the channel token
   - Test video playback on different devices (desktop and mobile browsers on all OSs)
-
-
-### Experimenting with WebM compression
-Experimenting with WebM compression, like MP4, is key to achieving the right balance of quality and file size. Adjust the `crf` parameter for different compression levels based on the desired video quality.
