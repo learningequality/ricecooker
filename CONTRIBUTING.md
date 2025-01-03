@@ -27,6 +27,19 @@ If you are reporting a bug, please include:
 * Any details about your local setup that might be helpful in troubleshooting.
 * Detailed steps to reproduce the bug.
 
+### HTML5 Supplemental Library Creation
+
+If you're looking to contribute by creating an HTML5 supplemental library, follow these steps:
+
+1. **Prepare Your Content**:
+   - Ensure that your content is in valid HTML5 format and is organized as per the required structure.
+   
+2. **Install Required Dependencies**:
+   - You may need to install any dependencies or tools to create the supplemental library. These dependencies can be installed via `pip`:
+
+   ```bash
+   pip install <required-tool>
+
 
 ### Fix Bugs
 
