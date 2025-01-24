@@ -25,7 +25,6 @@ setup(
     entry_points={
         "console_scripts": [
             "corrections = ricecooker.utils.corrections:correctionsmain",
-            "jiro = ricecooker.cli:main",
         ]
     },
     include_package_data=True,
@@ -44,8 +43,6 @@ setup(
         "dictdiffer>=0.8.0",
         "Pillow==11.1.0",
         "colorlog>=4.1.0,<6.9",
-        "PyYAML>=5.3.1",
-        "Jinja2>=2.10",
         "chardet==5.2.0",
         "ffmpy>=0.2.2",
         "pdf2image==1.17.0",
