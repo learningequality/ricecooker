@@ -2,6 +2,7 @@ import logging
 import os
 import re
 import subprocess
+from typing import Tuple
 
 from le_utils.constants import format_presets
 
@@ -305,3 +306,32 @@ def web_faststart_video(source_file_path, target_file, overwrite=False):
         raise VideoCompressionError("{}: {}".format(e, e.output))
     except (BrokenPipeError, IOError) as e:
         raise VideoCompressionError("{}".format(e))
+
+
+def validate_media_file(file_path: str) -> Tuple[bool, str]:
+    """
+    Validate media file integrity by attempting to decode the entire file.
+
+    Args:
+        file_path (str): Path to the media file to validate
+
+    Returns:
+        Tuple[bool, str]: (is_valid, error_message)
+    """
+
+    cmd = [
+        "ffmpeg",
+        "-v",
+        "error",  # Only show errors
+        "-i",
+        file_path,
+        "-f",
+        "null",  # Output format null (discards output)
+        "-",  # Output to pipe
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+
+    if result.returncode != 0:
+        return False, f"Failed to decode {file_path}: {result.stderr}"
+
+    return True, ""
