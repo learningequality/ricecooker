@@ -47,10 +47,11 @@ DEFAULT_HEADERS = {
     "Connection": "keep-alive",
 }
 
+
 def configure_download_session(session, user_email=None):
     """
     Configure the download session with a custom User-Agent header.
-    
+
     Args:
         session: The requests session to configure
         user_email: Optional user email for User-Agent generation
@@ -59,8 +60,8 @@ def configure_download_session(session, user_email=None):
 
     base_agent = f"Ricecooker/{ricecooker.__version__}"
     user_agent = f"{base_agent} bot ({user_email or 'no-reply@ricecooker.org'})"
-    
-    DEFAULT_HEADERS['User-Agent'] = user_agent
+
+    session.headers.update({'User-Agent': user_agent})
 
 
 USE_PYPPETEER = False
@@ -222,9 +223,9 @@ def make_request(
     retry_count = 0
     max_retries = 5
     request_headers = DEFAULT_HEADERS
-    
+
     configure_download_session(sess, user_email)
-    
+
     if headers:
         request_headers = copy.copy(DEFAULT_HEADERS)
         request_headers.update(headers)

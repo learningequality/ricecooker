@@ -144,6 +144,7 @@ class ChannelManager:
                 if not exists
             ]
 
+
 class InsufficientStorageException(Exception):
     """Raised when there is not enough storage space."""
     pass
@@ -167,38 +168,38 @@ class InsufficientStorageException(Exception):
             name, ext = os.path.splitext(data["name"])
             if not ext:
                 data["name"] = "{}.{}".format(name, data["file_format"])
-            url_response = config.SESSION.post(config.get_upload_url(), json=data)
-            if url_response.status_code == 412:
-                 raise InsufficientStorageException("You have run out of storage space.")
-            if url_response.status_code == 200:
-                response_data = url_response.json()
-                upload_url = response_data["uploadURL"]
-                content_type = response_data["mimetype"]
-                might_skip = response_data["might_skip"]
-                if might_skip and self.check_file_exists(filename):
-                    return
-                b64checksum = (
-                    codecs.encode(codecs.decode(file_data.checksum, "hex"), "base64")
-                    .decode()
-                    .strip()
-                )
-                headers = {"Content-Type": content_type, "Content-MD5": b64checksum}
-                response = config.SESSION.put(
-                    upload_url, headers=headers, data=file_obj
-                )
-                if response.status_code == 200:
-                    return
+        url_response = config.SESSION.post(config.get_upload_url(), json=data)
+        if url_response.status_code == 412:
+            raise InsufficientStorageException("You have run out of storage space.")
+        if url_response.status_code == 200:
+            response_data = url_response.json()
+            upload_url = response_data["uploadURL"]
+            content_type = response_data["mimetype"]
+            might_skip = response_data["might_skip"]
+            if might_skip and self.check_file_exists(filename):
+                return
+            b64checksum = (
+                codecs.encode(codecs.decode(file_data.checksum, "hex"), "base64")
+                .decode()
+                .strip()
+            )
+            headers = {"Content-Type": content_type, "Content-MD5": b64checksum}
+            response = config.SESSION.put(
+                upload_url, headers=headers, data=file_obj
+            )
+            if response.status_code == 200:
+                return
                 raise RequestException(
                     "Error uploading file {}, response code: {} - {}".format(
                         filename, response.status_code, response.text
                     )
                 )
-            else:
-                raise RequestException(
-                    "Error retrieving upload URL for file {}, response code: {} - {}".format(
-                        filename, url_response.status_code, url_response.text
-                    )
+        else:
+            raise RequestException(
+                "Error retrieving upload URL for file {}, response code: {} - {}".format(
+                    filename, url_response.status_code, url_response.text
                 )
+            )
 
     def _handle_upload(self, f):
         try:
