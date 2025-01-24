@@ -847,15 +847,10 @@ def download_in_parallel(urls, func=None, max_workers=5):
 
 
 class ArchiveDownloader:
-    def __init__(self, root_dir, relative_links=True):
+    def __init__(self, root_dir):
         self.root_dir = root_dir
         self.cache_file = os.path.join(self.root_dir, "archive_files.json")
         self.cache_data = {}
-
-        # This is temporarily configurable for ArchiveDownloader-based chefs that
-        # rely on the old, non-relative behavior of using full archive paths.
-        # This can be hardcoded to True once existing chefs have been updated.
-        self.relative_links = relative_links
 
         if os.path.exists(self.cache_file):
             self.cache_data = json.load(open(self.cache_file))
@@ -885,7 +880,7 @@ class ArchiveDownloader:
                 link_policy=link_policy,
                 run_js=run_js,
                 strict=strict,
-                relative_links=self.relative_links,
+                relative_links=True,
             )
             self.save_cache_data()
 
@@ -893,9 +888,6 @@ class ArchiveDownloader:
 
     def get_relative_index_path(self, url):
         if url in self.cache_data and "index_path" in self.cache_data[url]:
-            if not self.relative_links:
-                # we copy the main page to index.html in the root of the page archive.
-                return "index.html"
             return self.cache_data[url]["index_path"].replace(
                 self.root_dir + os.sep, ""
             )
@@ -979,8 +971,6 @@ class ArchiveDownloader:
     def export_page_as_zip(self, url):
         zip_dir = self.create_zip_dir_for_page(url)
 
-        entrypoint = None
-        if self.relative_links:
-            entrypoint = self.get_relative_index_path(url)
+        entrypoint = self.get_relative_index_path(url)
 
-        return create_predictable_zip(zip_dir, entrypoint=entrypoint)
+        return create_predictable_zip(zip_dir), entrypoint

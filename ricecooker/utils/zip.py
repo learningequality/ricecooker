@@ -2,18 +2,6 @@ import os
 import tempfile
 import zipfile
 
-ENTRYPOINT_TEMPLATE = """
-<!DOCTYPE html>
-<html>
-   <head>
-      <title>HTML Meta Tag</title>
-      <meta http-equiv = "refresh" content = "0; url = {}" />
-   </head>
-   <body>
-   </body>
-</html>
-"""
-
 
 def _read_file(path):
     with open(path, "rb") as f:
@@ -33,11 +21,6 @@ def create_predictable_zip(path, entrypoint=None, file_converter=None):
     # if path is a directory, recursively enumerate all the files under the directory
     if os.path.isdir(path):
         paths = []
-        if entrypoint:
-            index = os.path.join(path, "index.html")
-            f = open(index, "w", encoding="utf-8")
-            f.write(ENTRYPOINT_TEMPLATE.format(entrypoint.replace("\\", "/")))
-            f.close()
 
         for root, directories, filenames in os.walk(path):
             paths += [
@@ -65,7 +48,7 @@ def create_predictable_zip(path, entrypoint=None, file_converter=None):
     # create a temporary zip file path to write the output into
     zippathfd, zippath = tempfile.mkstemp(suffix=".{}".format(extension))
 
-    with zipfile.ZipFile(zippath, "w") as outputzip:
+    with zipfile.ZipFile(zippath, "w", compression=zipfile.ZIP_DEFLATED) as outputzip:
         # loop over the file paths in sorted order, to ensure a predictable zip
         for filepath in sorted(paths):
             write_file_to_zip_with_neutral_metadata(
@@ -79,16 +62,19 @@ def create_predictable_zip(path, entrypoint=None, file_converter=None):
     return zippath
 
 
-def write_file_to_zip_with_neutral_metadata(zfile, filename, content):
+def write_file_to_zip_with_neutral_metadata(zfile, filepath, content):
     """
-    Write the string `content` to `filename` in the open ZipFile `zfile`.
+    Write the string `content` to `filepath` in the open ZipFile `zfile`.
     Args:
         zfile (ZipFile): open ZipFile to write the content into
-        filename (str): the file path within the zip file to write into
+        filepath (str): the file path within the zip file to write into
         content (str): the content to write into the zip
     Returns: None
     """
-    info = zipfile.ZipInfo(filename, date_time=(2015, 10, 21, 7, 28, 0))
+    # Convert any windows file separators to unix style for consistent
+    # file paths in the zip file
+    filepath = filepath.replace("\\", "/")
+    info = zipfile.ZipInfo(filepath, date_time=(2015, 10, 21, 7, 28, 0))
     info.compress_type = zipfile.ZIP_DEFLATED
     info.comment = "".encode()
     info.create_system = 0
