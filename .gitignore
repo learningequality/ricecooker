@@ -136,3 +136,4 @@ video_cache_py3.sqlite
 cache.sqlite
 
 chefdata/
+audio_cache.sqlite
