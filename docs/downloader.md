@@ -27,7 +27,8 @@ pages that correctly include all necessary resources without extra code.
 - Call `get_page` on that instance passing in full URLs to pages you wish to download.
 - Once content has been downloaded, you need to create an HTML5 zip of the content.
   * If the content does not need to be modified, call `export_page_as_zip` and use the
-    zip created as a file for an HTML5 app node.
+    zip created as a file for an HTML5 app node, and the entrypoint value for the
+    entrypoint kwarg of the HTML5AppNode.
   * If you need to make modifications, call `create_zip_dir_for_page`, then modify
     the files in the directory it returns as needed. (Not modifying the original
      sources allows you to keep a clean copy at all times.) Finally, create a ZIP by
@@ -45,7 +46,7 @@ Usage example:
     # Download and store page in the archive
     archive.get_page(sushi_url)
     # Convert page into a Kolibri-friendly HTML5 zip file
-    zip_file = archive.export_page_as_zip(sushi_url)
+    zip_file, entrypoint = archive.export_page_as_zip(sushi_url)
     # ... code to add zip_file to an HTML5AppNode ...
 ```
 

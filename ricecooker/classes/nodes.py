@@ -1102,10 +1102,19 @@ class DocumentNode(ContentNode):
         return None
 
 
+def _set_entrypoint(entrypoint, kwargs):
+    if entrypoint:
+        kwargs["extra_fields"] = kwargs.get("extra_fields", {})
+        kwargs["extra_fields"]["options"] = kwargs["extra_fields"].get("options", {})
+        kwargs["extra_fields"]["options"].update({"entry": entrypoint})
+    return kwargs
+
+
 class HTML5AppNode(ContentNode):
     """Model representing a zipped HTML5 application
 
-    The zip file must contain a file called index.html, which will be the first page loaded.
+    The zip file must either contain a file called index.html, which will be the first page loaded,
+    or pass an entrypoint kwarg.
     All links (e.g. href and src) must be relative URLs, pointing to other files in the zip.
 
     Attributes:
@@ -1125,6 +1134,10 @@ class HTML5AppNode(ContentNode):
 
     kind = content_kinds.HTML5
     required_file_format = file_formats.HTML5
+
+    def __init__(self, *args, entrypoint=None, **kwargs):
+        kwargs = _set_entrypoint(entrypoint, kwargs)
+        super().__init__(*args, **kwargs)
 
     def generate_thumbnail(self):
         from .files import HTMLZipFile, ExtractedHTMLZipThumbnailFile
@@ -1487,7 +1500,8 @@ class CustomNavigationNode(ContentNode):
     kind = content_kinds.TOPIC
     required_file_format = file_formats.HTML5
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, entrypoint=None, **kwargs):
+        kwargs = _set_entrypoint(entrypoint, kwargs)
         kwargs["extra_fields"] = kwargs.get("extra_fields", {})
         kwargs["extra_fields"]["options"] = kwargs["extra_fields"].get("options", {})
         # TODO: update le-utils version and use a constant value here
@@ -1535,7 +1549,8 @@ class CustomNavigationNode(ContentNode):
 class CustomNavigationChannelNode(ChannelNode):
     required_file_format = file_formats.HTML5
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, entrypoint=None, **kwargs):
+        kwargs = _set_entrypoint(entrypoint, kwargs)
         kwargs["extra_fields"] = kwargs.get("extra_fields", {})
         kwargs["extra_fields"]["options"] = kwargs["extra_fields"].get("options", {})
         # TODO: update le-utils version and use a constant value here
