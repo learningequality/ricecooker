@@ -144,6 +144,10 @@ class ChannelManager:
                 if not exists
             ]
 
+class InsufficientStorageException(Exception):
+    """Raised when there is not enough storage space."""
+    pass
+   
     def do_file_upload(self, filename):
         file_data = self.file_map[filename]
         if file_data.skip_upload:
@@ -164,6 +168,8 @@ class ChannelManager:
             if not ext:
                 data["name"] = "{}.{}".format(name, data["file_format"])
             url_response = config.SESSION.post(config.get_upload_url(), json=data)
+            if url_response.status_code == 412:
+                 raise InsufficientStorageException("You have run out of storage space.")
             if url_response.status_code == 200:
                 response_data = url_response.json()
                 upload_url = response_data["uploadURL"]
@@ -198,6 +204,8 @@ class ChannelManager:
         try:
             self.do_file_upload(f)
             self.uploaded_files.append(f)
+        except InsufficientStorageException as e:
+            raise e
         except Exception as e:
             config.LOGGER.error(e)
             self.failed_uploads[f] = str(e)
