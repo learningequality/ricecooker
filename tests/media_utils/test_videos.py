@@ -251,6 +251,44 @@ class Test_compress_video:
             with pytest.raises(videos.VideoCompressionError):
                 videos.compress_video(bad_video.name, vout.name, overwrite=True)
 
+    def test_default_compression_works_webm(self, high_res_video_webm):
+        with TempFile(suffix=".webm") as vout:
+            videos.compress_video(high_res_video_webm.name, vout.name, overwrite=True)
+            width, height = get_resolution(vout.name)
+            assert height == 480, "should compress to 480 v resolution by default"
+
+    def test_compression_works_webm(self, high_res_video_webm):
+        with TempFile(suffix=".webm") as vout:
+            videos.compress_video(
+                high_res_video_webm.name, vout.name, overwrite=True, max_height=300
+            )
+            width, height = get_resolution(vout.name)
+            assert height == 300, "should be compress to 300 v resolution"
+
+    def test_compression_max_width_works_webm(self, high_res_video_webm):
+        with TempFile(suffix=".webm") as vout:
+            videos.compress_video(
+                high_res_video_webm.name, vout.name, overwrite=True, max_width=200
+            )
+            width, height = get_resolution(vout.name)
+            assert width == 200, "should be compress to 200 hz resolution"
+
+    def test_compression_format_conversion_to_webm(self, high_res_video):
+        with TempFile(suffix=".webm") as vout:
+            videos.compress_video(
+                high_res_video.name, vout.name, overwrite=True, max_height=300
+            )
+            width, height = get_resolution(vout.name)
+            assert height == 300, "should be compress to 300 v resolution"
+
+    def test_compression_webm_to_mp4_conversion(self, high_res_video_webm):
+        with TempFile(suffix=".mp4") as vout:
+            videos.compress_video(
+                high_res_video_webm.name, vout.name, overwrite=True, max_height=300
+            )
+            width, height = get_resolution(vout.name)
+            assert height == 300, "should be compress to 300 v resolution"
+
 
 class Test_convert_video:
     def test_convert_mov_works(self, high_res_mov_video):

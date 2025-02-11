@@ -177,12 +177,27 @@ class VideoCompressionError(Exception):
 
 def compress_video(source_file_path, target_file, overwrite=False, **kwargs):
     """
-    Compress and scale video at `source_file_path` using setting provided in `kwargs`:
-      - max_height (int): set a limit for maximum vertical resolution (default: 480)
-      - max_width (int): set a limit for maximum horizontal resolution for video
-      - crf (int): set compression constant rate factor (default 32 = compress a lot)
-    Save compressed output video to `target_file`.
+    Compress and scale video at `source_file_path` using settings provided in `kwargs`.
+    Can convert between formats - output format is determined by the extension of target_file.
+    For MP4 output, uses H.264 codec with faststart flag.
+    For WebM output, uses VP9 codec which is optimized for web streaming.
+
+    Args:
+        source_file_path (str): Path to source video file
+        target_file (str): Path where compressed video will be saved
+        overwrite (bool): Whether to overwrite existing target_file
+        **kwargs:
+            max_height (int): Maximum vertical resolution (default: 480)
+            max_width (int): Maximum horizontal resolution
+            crf (int): Compression constant rate factor (default: 32 for mp4, 35 for webm)
+
+    Raises:
+        VideoCompressionError: If compression fails
     """
+    # Get input format
+    ext = os.path.splitext(target_file)[1].lower()
+    is_webm = ext == ".webm"
+
     # scaling
     # The output width and height for ffmpeg scale param must be divisible by 2
     # using value -2 to get robust behaviour: maintains the aspect ratio and also
@@ -196,38 +211,60 @@ def compress_video(source_file_path, target_file, overwrite=False, **kwargs):
             max_height=kwargs.get("max_height", config.VIDEO_HEIGHT or "480")
         )
 
-    # set constant rate factor, see https://trac.ffmpeg.org/wiki/Encode/H.264#crf
-    crf = kwargs["crf"] if "crf" in kwargs else 32
+    # Default CRF values differ by format
+    crf = kwargs.get("crf", 35 if is_webm else 32)
 
-    # run command
+    # Common parameters that apply to both formats
     command = [
         "ffmpeg",
         "-y" if overwrite else "-n",
         "-i",
         source_file_path,
-        "-profile:v",
-        "baseline",
-        "-level",
-        "3.0",
+        "-vf",
+        "scale={}".format(scale),
         "-b:a",
         "32k",
         "-ac",
         "1",
-        "-vf",
-        "scale={}".format(scale),
         "-crf",
         str(crf),
-        "-preset",
-        "slow",
         "-v",
         "error",
         "-strict",
         "-2",
         "-stats",
-        "-movflags",
-        "faststart",
-        target_file,
     ]
+
+    # Format-specific parameters
+    if is_webm:
+        command.extend(
+            [
+                "-c:v",
+                "libvpx-vp9",
+                "-b:v",
+                "0",
+                "-deadline",
+                "good",
+                "-cpu-used",
+                "1",
+            ]
+        )
+    else:
+        command.extend(
+            [
+                "-profile:v",
+                "baseline",
+                "-level",
+                "3.0",
+                "-preset",
+                "slow",
+                "-movflags",
+                "faststart",
+            ]
+        )
+
+    command.append(target_file)
+
     try:
         subprocess.check_output(command, stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError as e:
@@ -240,7 +277,12 @@ def web_faststart_video(source_file_path, target_file, overwrite=False):
     """
     Add faststart flag to an mp4 file
     """
-    # run command
+    ext = os.path.splitext(target_file)[1].lower()
+    if ext == ".webm":
+        raise VideoCompressionError(
+            "web_faststart_video not needed for WebM files - the WebM container format is already optimized for web streaming"
+        )
+
     command = [
         "ffmpeg",
         "-y" if overwrite else "-n",
