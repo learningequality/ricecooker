@@ -522,21 +522,6 @@ def pressurcooker_test_files():
     return download_fixture_files(PRESSURECOOKER_SUBS_FIXTURES)
 
 
-@pytest.fixture
-def youtube_test_file():
-    return download_fixture_files(
-        [
-            {
-                "srcfilename": "testsubtitles_ar.ttml",
-                "subtitlesformat": "ttml",
-                "language": "ar",
-                "check_words": "Mohammed Liyaudheen wafy",
-                "url": "https://www.youtube.com/api/timedtext?lang=ar&v=C_9f7Qq4YZc&fmt=ttml&name=",
-            }
-        ]
-    )
-
-
 def test_convertible_substitles_from_pressurcooker(pressurcooker_test_files):
     """
     Try to load all the test files used in pressurecooker as riceccooker `SubtitleFile`s.
@@ -557,18 +542,15 @@ def test_convertible_substitles_from_pressurcooker(pressurcooker_test_files):
             ), "missing check_words in converted subs"
 
 
-def test_convertible_substitles_ar_ttml(youtube_test_file):
+def test_convertible_substitles_ar_ttml():
     """
     Regression test to make sure correct lang_code is detected from .ttml data.
     """
-    # local_path = os.path.join(
-    #     "tests", "testcontent", "downloaded", "testsubtitles_ar.ttml"
-    # )
     local_path = os.path.abspath(
         os.path.join(
             os.path.dirname(__file__),
             "testcontent",
-            "downloaded",
+            "samples",
             "testsubtitles_ar.ttml",
         )
     )
@@ -580,18 +562,15 @@ def test_convertible_substitles_ar_ttml(youtube_test_file):
     assert filename.endswith(".vtt"), "converted filename must have .vtt extension"
 
 
-def test_convertible_substitles_noext_subtitlesformat():
+def test_convertible_subtitles_noext_subtitlesformat():
     """
-    Check that we handle correctly cases when path doesn't contain extenstion.
+    Check that we handle correctly cases when path doesn't contain extension.
     """
-    # local_path = os.path.join(
-    #     "tests", "testcontent", "downloaded", "testsubtitles_ar.ttml"
-    # )
     local_path = os.path.abspath(
         os.path.join(
             os.path.dirname(__file__),
             "testcontent",
-            "downloaded",
+            "samples",
             "testsubtitles_ar.ttml",
         )
     )

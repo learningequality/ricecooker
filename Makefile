@@ -92,9 +92,12 @@ latexdocs:
 servedocs: docs ## compile the docs watching for changes
 	watchmedo shell-command -p '*.rst' -c '$(MAKE) -C docs html' -R -D .
 
-release: clean ## package and upload a release
+dist: clean
+	pip install setuptools wheel
+	python setup.py sdist bdist_wheel
+
+release: dist ## package and upload a release
 	pip install twine
-	python setup.py sdist
 	twine upload dist/*
 
 install: clean ## install the package to the active Python's site-packages
