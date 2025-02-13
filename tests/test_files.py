@@ -578,14 +578,17 @@ def test_convertible_subtitles_noext_subtitlesformat():
     local_path_no_ext = local_path.replace(".ttml", "")
     copyfile(local_path, local_path_no_ext)
     assert os.path.exists(local_path_no_ext)
-    subtitle_file = SubtitleFile(
-        local_path_no_ext,
-        language="ar",
-        subtitlesformat="ttml",  # settting subtitlesformat becaue no ext
-    )
-    filename = subtitle_file.process_file()
-    assert filename, "converted filename must exist"
-    assert filename.endswith(".vtt"), "converted filename must have .vtt extension"
+    try:
+        subtitle_file = SubtitleFile(
+            local_path_no_ext,
+            language="ar",
+            subtitlesformat="ttml",  # settting subtitlesformat becaue no ext
+        )
+        filename = subtitle_file.process_file()
+        assert filename, "converted filename must exist"
+        assert filename.endswith(".vtt"), "converted filename must have .vtt extension"
+    finally:
+        os.remove(local_path_no_ext)
 
 
 def test_convertible_substitles_weirdext_subtitlesformat():
