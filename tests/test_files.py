@@ -200,66 +200,6 @@ def test_set_language():
     pytest.raises(TypeError, SubtitleFile, "path", language="notalanguage")
 
 
-def test_presets():
-    assert True
-
-
-def test_validate():
-    assert True
-
-
-def test_to_dict():
-    assert True
-
-
-""" *********** DOWNLOADFILE TESTS *********** """
-
-
-def test_downloadfile_validate():
-    assert True
-
-
-def test_downloadfile_process_file():
-    assert True
-
-
-""" *********** THUMBNAILFILE TESTS *********** """
-
-
-def test_thumbnailfile_validate():
-    assert True
-
-
-def test_thumbnailfile_to_dict():
-    assert True
-
-
-def test_languages():
-    assert True
-
-
-""" *********** DOCUMENTFILE TESTS *********** """
-
-
-def test_documentfile_validate():
-    assert True
-
-
-def test_documentfile_to_dict():
-    assert True
-
-
-""" *********** HTMLZIPFILE TESTS *********** """
-
-
-def test_htmlfile_validate():
-    assert True
-
-
-def test_htmlfile_to_dict():
-    assert True
-
-
 @pytest.mark.skip(
     "Skipping one-off create_predictable_zip stress test because long running..."
 )
@@ -281,51 +221,6 @@ def test_create_many_predictable_zip_files(ndirs=8193):
     assert len(zip_paths) == ndirs, "wrong number of zip files created"
 
 
-""" *********** EXTRACTEDVIDEOTHUMBNAILFILE TESTS *********** """
-
-
-def test_extractedvideothumbnail_process_file():
-    assert True
-
-
-def test_extractedvideothumbnail_validate():
-    assert True
-
-
-def test_extractedvideothumbnail_to_dict():
-    assert True
-
-
-def test_extractedvideothumbnail_derive_thumbnail():
-    assert True
-
-
-""" *********** VIDEOFILE TESTS *********** """
-
-
-def test_video_validate():
-    assert True
-
-
-def test_video_to_dict():
-    assert True
-
-
-""" *********** WEBVIDEOFILE TESTS *********** """
-
-
-def test_webvideo_process_file():
-    assert True
-
-
-def test_webvideo_validate():
-    assert True
-
-
-def test_webvideo_to_dict():
-    assert True
-
-
 """ *********** YOUTUBEVIDEOFILE TESTS *********** """
 
 
@@ -335,14 +230,6 @@ def test_youtubevideo_process_file(youtube_video_dict):
     filename = video_file.process_file()
     assert filename is not None, "Processing YouTubeVideoFile file failed"
     assert filename.endswith(".mp4"), "Wrong extenstion for video"
-
-
-def test_youtubevideo_validate():
-    assert True
-
-
-def test_youtubevideo_to_dict():
-    assert True
 
 
 """ *********** YOUTUBESUBTITLEFILE TESTS *********** """
@@ -405,14 +292,6 @@ def test_youtubesubtitle_process_file(youtube_video_with_subs_dict):
     assert filename is not None, "Processing YouTubeSubtitleFile file failed"
     assert filename.endswith(".vtt"), "Wrong extenstion for video subtitles"
     assert not filename.endswith("." + lang + ".vtt"), "Lang code in extension"
-
-
-def test_youtubesubtitle_validate():
-    assert True
-
-
-def test_youtubesubtitle_to_dict():
-    assert True
 
 
 """ *********** SUBTITLEFILE TESTS *********** """
