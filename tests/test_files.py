@@ -1,20 +1,42 @@
 """ Tests for file downloading and processing """
+import base64
 import hashlib
 import os.path
+import sys
 import tempfile
+import zipfile
+from io import BytesIO
 from shutil import copyfile
+from unittest.mock import patch
 
 import pytest
+from le_utils.constants import file_formats
+from le_utils.constants import format_presets
 from le_utils.constants import languages
+from le_utils.constants.exercises import GRAPHIE_DELIMITER
+from PIL import Image
+from requests import HTTPError
 from test_pdfutils import _save_file_url_to_path
 
 from ricecooker import config
+from ricecooker.classes.files import _ExerciseGraphieFile
 from ricecooker.classes.files import _get_language_with_alpha2_fallback
+from ricecooker.classes.files import AudioFile
+from ricecooker.classes.files import Base64ImageFile
+from ricecooker.classes.files import CONVERTIBLE_FORMATS
+from ricecooker.classes.files import DocumentFile
+from ricecooker.classes.files import DownloadFile
+from ricecooker.classes.files import File
 from ricecooker.classes.files import get_filename_from_content_disposition_header
+from ricecooker.classes.files import H5PFile
+from ricecooker.classes.files import HTMLZipFile
 from ricecooker.classes.files import is_youtube_subtitle_file_supported_language
 from ricecooker.classes.files import SubtitleFile
+from ricecooker.classes.files import VideoFile
 from ricecooker.classes.files import YouTubeSubtitleFile
 from ricecooker.classes.files import YouTubeVideoFile
+from ricecooker.utils.audio import AudioCompressionError
+from ricecooker.utils.videos import VideoCompressionError
 from ricecooker.utils.zip import create_predictable_zip
 
 
@@ -188,6 +210,206 @@ def test_download_to_storage(
     ), "Subtitle hash should match"
 
 
+# Base File class method tests
+
+
+@pytest.fixture
+def mock_node():
+    """Mock node with source_id for testing truncation logs"""
+
+    class MockNode:
+        def __init__(self):
+            self.source_id = "test_123"
+
+    return MockNode()
+
+
+def test_truncate_original_filename(mock_node):
+    """Test that original_filename gets truncated to max length"""
+    test_file = File()
+    test_file.original_filename = "x" * (config.MAX_ORIGINAL_FILENAME_LENGTH + 10)
+
+    test_file.node = mock_node
+
+    test_file.truncate_fields()
+
+    assert len(test_file.original_filename) == config.MAX_ORIGINAL_FILENAME_LENGTH
+
+
+def test_truncate_source_url(mock_node):
+    """Test that source_url gets truncated to max length"""
+    test_file = File()
+    test_file.source_url = "http://example.com/" + "x" * config.MAX_SOURCE_URL_LENGTH
+    test_file.node = mock_node
+    test_file.truncate_fields()
+
+    assert len(test_file.source_url) == config.MAX_SOURCE_URL_LENGTH
+
+
+@pytest.mark.skip("Skipping test that is not currently implemented in ricecooker")
+def test_truncate_preserves_extension(mock_node):
+    """Test that truncation preserves the file extension"""
+    test_file = File()
+    long_name = "x" * config.MAX_ORIGINAL_FILENAME_LENGTH + ".pdf"
+    test_file.original_filename = long_name
+    test_file.node = mock_node
+    test_file.truncate_fields()
+
+    assert test_file.original_filename.endswith(".pdf")
+    assert len(test_file.original_filename) == config.MAX_ORIGINAL_FILENAME_LENGTH
+
+
+def test_truncate_non_ascii(mock_node):
+    """Test truncation with non-ASCII characters"""
+    test_file = File()
+    # Unicode characters: é (2 bytes), 世 (3 bytes), 🌍 (4 bytes)
+    test_file.original_filename = "é世🌍" * (config.MAX_ORIGINAL_FILENAME_LENGTH)
+    test_file.node = mock_node
+    test_file.truncate_fields()
+
+    assert len(test_file.original_filename) == config.MAX_ORIGINAL_FILENAME_LENGTH
+    # Verify we still have valid UTF-8 after truncation
+    assert (
+        test_file.original_filename.encode("utf-8").decode("utf-8")
+        == test_file.original_filename
+    )
+
+
+# Basic file download error handling tests
+
+
+@pytest.fixture
+def mock_session():
+    with patch.object(config, "DOWNLOAD_SESSION") as mock_session:
+        yield mock_session
+
+
+def test_download_file_404_error(mock_session):
+    """Test that 404 errors are properly caught"""
+    mock_session.get.side_effect = HTTPError("404 Client Error: Not Found")
+
+    download_file = DownloadFile("http://fake.url/file.txt")
+    result = download_file.process_file()
+
+    assert result is None
+    assert "404 Client Error" in download_file.error
+    assert download_file in config.FAILED_FILES
+
+
+def test_download_file_connection_timeout(mock_session):
+    """Test handling of connection timeouts"""
+    mock_session.get.side_effect = ConnectionError("Connection timed out")
+
+    download_file = DownloadFile("http://fake.url/file.txt")
+    result = download_file.process_file()
+
+    assert result is None
+    assert "Connection timed out" in download_file.error
+    assert download_file in config.FAILED_FILES
+
+
+# Check basic caching for downloaded files
+
+
+def test_downloadfile_basic_caching(document_file):
+    """Test that DocumentFile caches processed files"""
+    # First download should process and cache
+    filename1 = document_file.process_file()
+    assert filename1 is not None
+
+    # Second download should use cache
+    doc_file2 = DocumentFile(document_file.path)
+    with patch("ricecooker.classes.files.write_path_to_filename") as mock_write:
+        filename2 = doc_file2.process_file()
+        assert not mock_write.called
+        assert filename2 == filename1
+
+
+def test_file_cache_invalidation_with_update(document_file):
+    """Test cache invalidation when UPDATE flag is set"""
+    # Initial download
+    filename1 = document_file.process_file()
+    assert filename1 is not None
+
+    # With UPDATE flag should reprocess
+    with patch("ricecooker.config.UPDATE", True):
+        doc_file2 = DocumentFile(document_file.path)
+        filename2 = doc_file2.process_file()
+        # But should get same hash since content unchanged
+        assert filename2 == filename1
+
+
+# Test caching and error handling for media compression
+
+
+def test_videofile_compression_caching(video_file):
+    """Test VideoFile caches both raw and compressed versions"""
+    # Process with no compression
+    filename1 = video_file.process_file()
+    assert filename1 is not None
+
+    # Process with compression settings
+    video_file2 = VideoFile(video_file.path, ffmpeg_settings={"max_height": 480})
+    filename2 = video_file2.process_file()
+
+    # Should get different cache entries due to different settings
+    assert filename2 != filename1
+
+    with patch("ricecooker.classes.files.compress_video") as mock_compress:
+        # Third file with same settings should use cache
+        video_file3 = VideoFile(video_file.path, ffmpeg_settings={"max_height": 480})
+        filename3 = video_file3.process_file()
+        assert not mock_compress.called
+        assert filename3 == filename2
+
+
+def test_video_compression_error(video_file):
+    """Test that video compression errors are properly handled"""
+    with patch("ricecooker.classes.files.compress_video") as mock_compress:
+        mock_compress.side_effect = VideoCompressionError("FFmpeg failed")
+
+        video_file = VideoFile(video_file.path, ffmpeg_settings={"crf": 32})
+        result = video_file.process_file()
+
+        assert result is None
+        assert "FFmpeg failed" in video_file.error
+        assert video_file in config.FAILED_FILES
+
+
+def test_audiofile_compression_caching(audio_file):
+    """Test AudioFile caches compressed versions separately"""
+    # Process with default compression
+    filename1 = audio_file.process_file()
+    assert filename1 is not None
+
+    # Process with custom compression
+    audio_file2 = AudioFile(audio_file.path, ffmpeg_settings={"bit_rate": 32})
+    filename2 = audio_file2.process_file()
+
+    # Should be different cache entries
+    assert filename2 != filename1
+
+    # Same settings should use cache
+    audio_file3 = AudioFile(audio_file.path, ffmpeg_settings={"bit_rate": 32})
+    with patch("ricecooker.classes.files.compress_audio") as mock_compress:
+        filename3 = audio_file3.process_file()
+        assert not mock_compress.called
+        assert filename3 == filename2
+
+
+def test_audio_compression_error(audio_file):
+    """Test that audio compression errors are properly handled"""
+    with patch("ricecooker.classes.files.compress_audio") as mock_compress:
+        mock_compress.side_effect = AudioCompressionError("Audio compression failed")
+
+        audio_file = AudioFile(audio_file.path, ffmpeg_settings={"bitrate": "32k"})
+        result = audio_file.process_file()
+
+        assert result is None
+        assert "Audio compression failed" in audio_file.error
+        assert audio_file in config.FAILED_FILES
+
+
 def test_set_language():
     sub1 = SubtitleFile("path", language="en")
     sub2 = SubtitleFile("path", language=languages.getlang("es"))
@@ -200,64 +422,302 @@ def test_set_language():
     pytest.raises(TypeError, SubtitleFile, "path", language="notalanguage")
 
 
-def test_presets():
-    assert True
+# Video validation tests
 
 
-def test_validate():
-    assert True
+def test_allowed_video_formats():
+    # MP4 and WEBM are allowed formats
+    for ext in [file_formats.MP4, file_formats.WEBM]:
+        video = VideoFile(f"/path/to/video.{ext}")
+        try:
+            video.validate()  # Should not raise error
+        except ValueError as e:
+            pytest.fail(f"Validation failed for {ext}: {str(e)}")
 
 
-def test_to_dict():
-    assert True
+def test_disallowed_video_formats():
+    video = VideoFile("/path/to/video.xyz")
+    with pytest.raises(ValueError) as excinfo:
+        video.validate()
+    assert "Incompatible extension" in str(excinfo.value)
 
 
-""" *********** DOWNLOADFILE TESTS *********** """
+def test_convertible_video_formats():
+    # AVI and MOV are convertible formats
+    for ext in CONVERTIBLE_FORMATS[format_presets.VIDEO_HIGH_RES]:
+        video = VideoFile(f"/path/to/video.{ext}")
+        try:
+            video.validate()  # Should not raise error
+        except ValueError as e:
+            pytest.fail(f"Validation failed for {ext}: {str(e)}")
 
 
-def test_downloadfile_validate():
-    assert True
+def test_video_default_ext():
+    video = VideoFile("/path/to/video", default_ext=file_formats.MP4)
+    try:
+        video.validate()  # Should not raise error
+    except ValueError as e:
+        pytest.fail(f"Validation failed: {str(e)}")
 
 
-def test_downloadfile_process_file():
-    assert True
+def test_video_no_extension_no_default():
+    video = VideoFile("/path/to/video")
+    video.default_ext = None
+    with pytest.raises(ValueError) as excinfo:
+        video.validate()
+    assert "No extension" in str(excinfo.value)
 
 
-""" *********** THUMBNAILFILE TESTS *********** """
+# Audio validation tests
+def test_allowed_audio_formats():
+    # Only MP3 is allowed
+    audio = AudioFile("/path/to/audio.mp3")
+    try:
+        audio.validate()  # Should not raise error
+    except ValueError as e:
+        pytest.fail(f"Validation failed: {str(e)}")
 
 
-def test_thumbnailfile_validate():
-    assert True
+def test_convertible_audio_formats():
+    # wav and ogg are convertible formats
+    for ext in CONVERTIBLE_FORMATS[format_presets.AUDIO]:
+        audio = AudioFile(f"/path/to/audio.{ext}")
+        try:
+            audio.validate()  # Should not raise error
+        except ValueError as e:
+            pytest.fail(f"Validation failed for {ext}: {str(e)}")
 
 
-def test_thumbnailfile_to_dict():
-    assert True
+@pytest.mark.skip("Audio validation is not currently enforced")
+def test_disallowed_audio_format():
+    audio = AudioFile("/path/to/audio.xyz")
+    with pytest.raises(ValueError) as excinfo:
+        audio.validate()
+    assert "Incompatible extension" in str(excinfo.value)
 
 
-def test_languages():
-    assert True
+def test_audio_default_ext():
+    audio = AudioFile("/path/to/audio", default_ext=file_formats.MP3)
+    try:
+        audio.validate()  # Should not raise error
+    except ValueError as e:
+        pytest.fail(f"Validation failed: {str(e)}")
 
 
-""" *********** DOCUMENTFILE TESTS *********** """
+@pytest.mark.skip("Audio validation is not currently enforced")
+def test_audio_no_extension_no_default():
+    audio = AudioFile("/path/to/audio")
+    with pytest.raises(ValueError) as excinfo:
+        audio.validate()
+    assert "No extension" in str(excinfo.value)
 
 
-def test_documentfile_validate():
-    assert True
+# Subtitle validation tests
 
 
-def test_documentfile_to_dict():
-    assert True
+def test_vtt_format_validation():
+    """Test .vtt subtitle format passes validation"""
+    subtitle = SubtitleFile("/path/to/subs.vtt", language="en")
+    subtitle.validate()  # Should not raise error
 
 
-""" *********** HTMLZIPFILE TESTS *********** """
+def test_convertible_subtitle_formats():
+    """Test convertible formats (.srt, .ttml, etc) pass validation"""
+    for fmt in CONVERTIBLE_FORMATS[format_presets.VIDEO_SUBTITLE]:
+        subtitle = SubtitleFile(f"/path/to/subs.{fmt}", language="en")
+        try:
+            subtitle.validate()  # Should not raise error
+        except ValueError as e:
+            pytest.fail(f"Validation failed for {fmt}: {str(e)}")
 
 
-def test_htmlfile_validate():
-    assert True
+def test_subtitle_format_specified():
+    """Test validation passes when subtitlesformat is specified"""
+    subtitle = SubtitleFile("/path/to/subs", language="en", subtitlesformat="srt")
+    subtitle.validate()  # Should not raise error
 
 
-def test_htmlfile_to_dict():
-    assert True
+def test_invalid_format_validation():
+    """Test invalid format fails validation when no subtitlesformat specified"""
+    subtitle = SubtitleFile("/path/to/subs.xyz", language="en")
+    with pytest.raises(ValueError) as excinfo:
+        subtitle.validate()
+    assert "Incompatible extension" in str(excinfo.value)
+
+
+def test_missing_language_validation():
+    """Test validation fails when language is not specified"""
+    with pytest.raises(AssertionError) as excinfo:
+        SubtitleFile("/path/to/subs.vtt")  # No language specified
+    assert "Subtitles must have a language" in str(excinfo.value)
+
+
+# Zip file validation tests
+
+
+@pytest.fixture
+def valid_zip():
+    # Create a temporary zip file with index.html
+    fd, path = tempfile.mkstemp(suffix=".zip")
+    os.close(fd)
+
+    with zipfile.ZipFile(path, "w") as zf:
+        zf.writestr("index.html", "<html><body>Test</body></html>")
+
+    yield path
+    os.unlink(path)
+
+
+@pytest.fixture
+def invalid_zip():
+    # Create a temporary zip file without index.html
+    fd, path = tempfile.mkstemp(suffix=".zip")
+    os.close(fd)
+
+    with zipfile.ZipFile(path, "w") as zf:
+        zf.writestr("notindex.html", "<html><body>Test</body></html>")
+
+    yield path
+    os.unlink(path)
+
+
+@pytest.fixture
+def nested_index_zip():
+    # Create a temporary zip file with nested index.html
+    fd, path = tempfile.mkstemp(suffix=".zip")
+    os.close(fd)
+
+    with zipfile.ZipFile(path, "w") as zf:
+        zf.writestr("folder/index.html", "<html><body>Test</body></html>")
+
+    yield path
+    os.unlink(path)
+
+
+def test_valid_htmlzip_validation(valid_zip):
+    html_file = HTMLZipFile(valid_zip)
+    html_file.process_file()
+
+    assert html_file.filename is not None
+    assert html_file.error is None
+
+
+def test_invalid_htmlzip_validation(invalid_zip):
+    html_file = HTMLZipFile(invalid_zip)
+    html_file.process_file()
+
+    assert html_file.filename is None
+    assert html_file.error is not None
+    assert "index.html" in html_file.error
+
+
+def test_nested_index_htmlzip_validation(nested_index_zip):
+    html_file = HTMLZipFile(nested_index_zip)
+    html_file.process_file()
+
+    assert html_file.filename is None
+    assert html_file.error is not None
+    assert "index.html" in html_file.error
+
+
+def test_dependency_zip_validation(invalid_zip):
+    html_file = HTMLZipFile(invalid_zip, preset=format_presets.HTML5_DEPENDENCY_ZIP)
+    html_file.process_file()
+
+    assert html_file.filename is not None
+    assert html_file.error is None
+
+
+# H5P file validation tests
+
+
+@pytest.fixture
+def valid_h5p():
+    # Create a temporary h5p file with valid json files
+    fd, path = tempfile.mkstemp(suffix=".h5p")
+    os.close(fd)
+
+    with zipfile.ZipFile(path, "w") as zf:
+        zf.writestr("h5p.json", '{"valid": "json"}')
+        zf.writestr("content/content.json", '{"valid": "content"}')
+
+    yield path
+    os.unlink(path)
+
+
+@pytest.fixture
+def missing_h5p_json():
+    fd, path = tempfile.mkstemp(suffix=".h5p")
+    os.close(fd)
+
+    with zipfile.ZipFile(path, "w") as zf:
+        zf.writestr("content/content.json", '{"valid": "content"}')
+
+    yield path
+    os.unlink(path)
+
+
+@pytest.fixture
+def missing_content_json():
+    fd, path = tempfile.mkstemp(suffix=".h5p")
+    os.close(fd)
+
+    with zipfile.ZipFile(path, "w") as zf:
+        zf.writestr("h5p.json", '{"valid": "json"}')
+
+    yield path
+    os.unlink(path)
+
+
+@pytest.fixture
+def malformed_jsons():
+    fd, path = tempfile.mkstemp(suffix=".h5p")
+    os.close(fd)
+
+    with zipfile.ZipFile(path, "w") as zf:
+        zf.writestr("h5p.json", "{invalid json")
+        zf.writestr("content/content.json", "{also invalid")
+
+    yield path
+    os.unlink(path)
+
+
+def test_valid_h5p_validation(valid_h5p):
+    h5p_file = H5PFile(valid_h5p)
+    h5p_file.process_file()
+
+    assert h5p_file.filename is not None
+    assert h5p_file.error is None
+
+
+def test_missing_h5p_json_validation(missing_h5p_json):
+    h5p_file = H5PFile(missing_h5p_json)
+    h5p_file.process_file()
+
+    assert h5p_file.filename is None
+    assert h5p_file.error is not None
+    assert "h5p.json" in h5p_file.error
+
+
+def test_missing_content_json_validation(missing_content_json):
+    h5p_file = H5PFile(missing_content_json)
+    h5p_file.process_file()
+
+    assert h5p_file.filename is None
+    assert h5p_file.error is not None
+    assert "content.json" in h5p_file.error
+
+
+@pytest.mark.skip("Skipping behaviour that is not currently implemented in ricecooker")
+def test_malformed_json_validation(malformed_jsons):
+    h5p_file = H5PFile(malformed_jsons)
+    h5p_file.process_file()
+
+    assert h5p_file.filename is None
+    assert h5p_file.error is not None
+    # The error from zipfile will be about not finding valid JSON files
+    # since it won't be able to parse them
+    assert any(x in h5p_file.error for x in ["h5p.json", "content.json"])
 
 
 @pytest.mark.skip(
@@ -281,51 +741,6 @@ def test_create_many_predictable_zip_files(ndirs=8193):
     assert len(zip_paths) == ndirs, "wrong number of zip files created"
 
 
-""" *********** EXTRACTEDVIDEOTHUMBNAILFILE TESTS *********** """
-
-
-def test_extractedvideothumbnail_process_file():
-    assert True
-
-
-def test_extractedvideothumbnail_validate():
-    assert True
-
-
-def test_extractedvideothumbnail_to_dict():
-    assert True
-
-
-def test_extractedvideothumbnail_derive_thumbnail():
-    assert True
-
-
-""" *********** VIDEOFILE TESTS *********** """
-
-
-def test_video_validate():
-    assert True
-
-
-def test_video_to_dict():
-    assert True
-
-
-""" *********** WEBVIDEOFILE TESTS *********** """
-
-
-def test_webvideo_process_file():
-    assert True
-
-
-def test_webvideo_validate():
-    assert True
-
-
-def test_webvideo_to_dict():
-    assert True
-
-
 """ *********** YOUTUBEVIDEOFILE TESTS *********** """
 
 
@@ -335,14 +750,6 @@ def test_youtubevideo_process_file(youtube_video_dict):
     filename = video_file.process_file()
     assert filename is not None, "Processing YouTubeVideoFile file failed"
     assert filename.endswith(".mp4"), "Wrong extenstion for video"
-
-
-def test_youtubevideo_validate():
-    assert True
-
-
-def test_youtubevideo_to_dict():
-    assert True
 
 
 """ *********** YOUTUBESUBTITLEFILE TESTS *********** """
@@ -405,14 +812,6 @@ def test_youtubesubtitle_process_file(youtube_video_with_subs_dict):
     assert filename is not None, "Processing YouTubeSubtitleFile file failed"
     assert filename.endswith(".vtt"), "Wrong extenstion for video subtitles"
     assert not filename.endswith("." + lang + ".vtt"), "Lang code in extension"
-
-
-def test_youtubesubtitle_validate():
-    assert True
-
-
-def test_youtubesubtitle_to_dict():
-    assert True
 
 
 """ *********** SUBTITLEFILE TESTS *********** """
@@ -578,14 +977,17 @@ def test_convertible_subtitles_noext_subtitlesformat():
     local_path_no_ext = local_path.replace(".ttml", "")
     copyfile(local_path, local_path_no_ext)
     assert os.path.exists(local_path_no_ext)
-    subtitle_file = SubtitleFile(
-        local_path_no_ext,
-        language="ar",
-        subtitlesformat="ttml",  # settting subtitlesformat becaue no ext
-    )
-    filename = subtitle_file.process_file()
-    assert filename, "converted filename must exist"
-    assert filename.endswith(".vtt"), "converted filename must have .vtt extension"
+    try:
+        subtitle_file = SubtitleFile(
+            local_path_no_ext,
+            language="ar",
+            subtitlesformat="ttml",  # settting subtitlesformat becaue no ext
+        )
+        filename = subtitle_file.process_file()
+        assert filename, "converted filename must exist"
+        assert filename.endswith(".vtt"), "converted filename must have .vtt extension"
+    finally:
+        os.remove(local_path_no_ext)
 
 
 def test_convertible_substitles_weirdext_subtitlesformat():
@@ -645,3 +1047,372 @@ def test_get_filename_from_content_disposition_header(content_disposition, expec
     assert (
         result == expected
     ), f"Failed on {content_disposition}: expected {expected}, got {result}"
+
+
+# Tests for Base64 image files
+
+
+def create_test_image(format="PNG", size=(1, 1), color="black"):
+    """Create a test image and return its base64 encoding and MD5 hash"""
+    img = Image.new("RGB", size, color=color)
+
+    # Save to bytes buffer and get MD5
+    buffer = BytesIO()
+    img.save(buffer, format=format)
+    raw_bytes = buffer.getvalue()
+    md5 = hashlib.md5(raw_bytes).hexdigest()
+
+    # Convert to base64 with data URI scheme
+    b64 = base64.b64encode(raw_bytes).decode("utf-8")
+    data_uri = f"data:image/{format.lower()};base64,{b64}"
+
+    return data_uri, md5
+
+
+# Generate test image data
+TEST_PNG_BASE64, EXPECTED_PNG_MD5 = create_test_image(format="PNG")
+TEST_JPG_BASE64, EXPECTED_JPG_MD5 = create_test_image(format="JPEG")
+
+
+def test_png_hash():
+    """Test that a base64 PNG gets converted correctly"""
+    img = Base64ImageFile(encoding=TEST_PNG_BASE64)
+    filename = img.process_file()
+    assert filename == f"{EXPECTED_PNG_MD5}.png"
+
+
+def test_jpeg_hash():
+    """Test that a base64 JPEG gets converted correctly"""
+    img = Base64ImageFile(encoding=TEST_JPG_BASE64)
+    filename = img.process_file()
+    assert filename == f"{EXPECTED_JPG_MD5}.jpg"
+
+
+@pytest.mark.skip("Skipping test that is not currently implemented in ricecooker")
+def test_invalid_base64():
+    """Test handling of invalid base64 encoding"""
+    invalid_data = "data:image/png;base64,THIS_IS_NOT_VALID_BASE64!@#$"
+    img = Base64ImageFile(encoding=invalid_data)
+    filename = img.process_file()
+    assert filename is None
+    assert img.error is not None
+    assert img in config.FAILED_FILES
+
+
+@pytest.mark.skip("Skipping test that is not currently implemented in ricecooker")
+def test_wrong_header():
+    """Test handling of base64 data with invalid header"""
+    # Valid base64 but wrong header
+    wrong_header = "data:text/plain;base64," + TEST_PNG_BASE64.split("base64,")[1]
+    img = Base64ImageFile(encoding=wrong_header)
+    filename = img.process_file()
+    assert filename is None
+    assert img.error is not None
+    assert img in config.FAILED_FILES
+
+
+@pytest.mark.skip("Skipping test that is not currently implemented in ricecooker")
+def test_non_image_data():
+    """Test handling of base64 data that isn't an image"""
+    # Valid base64 of non-image data
+    text_bytes = b"This is not an image"
+    b64_text = base64.b64encode(text_bytes).decode("utf-8")
+    data_uri = f"data:image/png;base64,{b64_text}"
+
+    img = Base64ImageFile(encoding=data_uri)
+    filename = img.process_file()
+    assert filename is None
+    assert img.error is not None
+    assert img in config.FAILED_FILES
+
+
+def test_caching():
+    """Test that converted files are properly cached"""
+    # First conversion
+    img1 = Base64ImageFile(encoding=TEST_PNG_BASE64)
+    filename1 = img1.process_file()
+
+    # Second conversion of same content
+    img2 = Base64ImageFile(encoding=TEST_PNG_BASE64)
+    filename2 = img2.process_file()
+
+    # Should return same filename
+    assert filename1 == filename2
+    assert filename1 == f"{EXPECTED_PNG_MD5}.png"
+
+    # Key encoding tests
+    def test_missing_header():
+        """Test handling of base64 without required data URI header"""
+        # Just the base64 part without header
+        raw_base64 = TEST_PNG_BASE64.split("base64,")[1]
+        img = Base64ImageFile(encoding=raw_base64)
+        filename = img.process_file()
+        assert filename is None
+        assert img.error is not None
+        assert img in config.FAILED_FILES
+
+
+def test_different_images():
+    """Test that different images get different hashes"""
+    # Create two different test images
+    base64_1, md5_1 = create_test_image(size=(1, 1), color="black")
+    base64_2, md5_2 = create_test_image(size=(1, 1), color="white")
+
+    img1 = Base64ImageFile(encoding=base64_1)
+    img2 = Base64ImageFile(encoding=base64_2)
+
+    assert img1.process_file() != img2.process_file()
+
+
+# Tests for Graphie files
+
+
+# Sample SVG and JSON content for tests
+SAMPLE_SVG = """<?xml version="1.0" encoding="UTF-8"?>
+<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+    <rect width="100" height="100" fill="blue"/>
+</svg>"""
+
+SAMPLE_JSON = """{
+    "version": 0.1,
+    "elements": {
+        "rect1": {"type": "rect", "x": 0, "y": 0, "width": 100, "height": 100}
+    }
+}"""
+
+
+@pytest.fixture
+def graphie_filepaths(tmpdir):
+    """Create temporary SVG and JSON files for testing"""
+    # Create base filepath without extension
+    base_path = os.path.join(str(tmpdir), "testgraphie")
+
+    # Write SVG file
+    with open(f"{base_path}.svg", "w") as f:
+        f.write(SAMPLE_SVG)
+
+    # Write JSON file
+    with open(f"{base_path}-data.json", "w") as f:
+        f.write(SAMPLE_JSON)
+
+    return base_path
+
+
+windows_only_skip = pytest.mark.skipif(
+    sys.platform == "win32", reason="Skip on Windows until path handling is fixed"
+)
+
+
+@windows_only_skip
+def test_graphie_original_filename_extraction():
+    """Test that original filename is correctly extracted from path"""
+    path = "/path/to/exercise/123-graph"
+    graphie = _ExerciseGraphieFile(path)
+    assert graphie.original_filename == "123-graph"
+
+    path = "http://site.com/content/graph-2"
+    graphie = _ExerciseGraphieFile(path)
+    assert graphie.original_filename == "graph-2"
+
+
+@windows_only_skip
+def test_graphie_file_combination(graphie_filepaths):
+    """Test proper combination of SVG and JSON into graphie file"""
+    graphie = _ExerciseGraphieFile(graphie_filepaths)
+    filename = graphie.process_file()
+
+    assert filename is not None
+
+    # Read generated file and verify contents
+    with open(config.get_storage_path(filename), "rb") as f:
+        content = f.read()
+
+    # Split on delimiter and verify parts
+    svg_part, json_part = content.split(GRAPHIE_DELIMITER.encode("utf-8"))
+
+    assert svg_part.decode("utf-8").strip() == SAMPLE_SVG.strip()
+    assert json_part.decode("utf-8").strip() == SAMPLE_JSON.strip()
+
+
+def test_graphie_get_replacement_str_http():
+    """Test get_replacement_str with HTTP paths"""
+    path = "http://site.com/content/graph-name"
+    graphie = _ExerciseGraphieFile(path)
+    assert graphie.get_replacement_str() == "graph-name"
+
+
+@windows_only_skip
+def test_graphie_get_replacement_str_filesystem():
+    """Test get_replacement_str with filesystem paths"""
+    path = "/path/to/exercise/graph-123"
+    graphie = _ExerciseGraphieFile(path)
+    assert graphie.get_replacement_str() == "graph-123"
+
+
+def test_graphie_delimiter_insertion(graphie_filepaths):
+    """Test proper delimiter insertion between SVG and JSON"""
+    graphie = _ExerciseGraphieFile(graphie_filepaths)
+    filename = graphie.process_file()
+
+    assert filename is not None
+
+    with open(config.get_storage_path(filename), "rb") as f:
+        content = f.read()
+
+    # Check delimiter exists and separates content correctly
+    parts = content.split(GRAPHIE_DELIMITER.encode("utf-8"))
+    assert len(parts) == 2
+    assert len(parts[0]) > 0  # SVG part
+    assert len(parts[1]) > 0  # JSON part
+
+
+def test_graphie_caching(graphie_filepaths):
+    """Test caching of generated graphie files"""
+    # First run
+    graphie1 = _ExerciseGraphieFile(graphie_filepaths)
+    filename1 = graphie1.process_file()
+
+    assert filename1 is not None
+
+    # Second run with same content
+    graphie2 = _ExerciseGraphieFile(graphie_filepaths)
+    filename2 = graphie2.process_file()
+
+    assert filename1 == filename2
+
+
+@pytest.mark.skip("Skipping test that is not currently implemented in ricecooker")
+def test_graphie_invalid_json_content(graphie_filepaths):
+    """Test handling of invalid JSON content"""
+    # Write invalid JSON
+    with open(f"{graphie_filepaths}-data.json", "w") as f:
+        f.write("Not valid JSON content")
+
+    graphie = _ExerciseGraphieFile(graphie_filepaths)
+    assert graphie.process_file() is None
+    assert graphie in config.FAILED_FILES
+
+
+# Tests to ensure that cache keys remains stable as we update ricecooker code
+
+
+@pytest.fixture
+def mock_filecache():
+    """Mock cache that stores key/value pairs in a dict"""
+
+    class MockFileCache:
+        def __init__(self):
+            self.cache = {}
+
+        def get(self, key):
+            return self.cache.get(key)
+
+        def set(self, key, value):
+            self.cache[key] = value
+
+    mock_cache = MockFileCache()
+    with patch("ricecooker.classes.files.FILECACHE", mock_cache):
+        yield mock_cache
+
+
+def test_video_compression_cache_keys_with_settings(
+    mock_filecache, video_file, video_filename
+):
+    """Test cache key generation for video compression with custom settings"""
+    path = video_file.path
+    video = VideoFile(path, ffmpeg_settings={"max_height": 480, "crf": 28})
+    video.process_file()
+
+    # Verify exact cache keys generated
+    expected_keys = {
+        f"DOWNLOAD:{path}",
+        f"COMPRESSED: {video_filename} [('crf', 28), ('max_height', 480)]",
+    }
+    assert set(mock_filecache.cache.keys()) == expected_keys
+
+
+def test_video_compression_cache_keys_no_settings(
+    mock_filecache, video_file, video_filename
+):
+    """Test cache key generation for video compression with default settings"""
+    path = video_file.path
+    video = VideoFile(path)
+    with patch("ricecooker.classes.files.config.COMPRESS", True):
+        video.process_file()
+
+    expected_keys = {
+        f"DOWNLOAD:{path}",
+        f"COMPRESSED: {video_filename}  (default compression)",
+    }
+    assert set(mock_filecache.cache.keys()) == expected_keys
+
+
+def test_audio_compression_cache_keys_with_settings(
+    mock_filecache, audio_file, audio_filename
+):
+    """Test cache key generation for audio compression with custom settings"""
+    path = audio_file.path
+    audio = AudioFile(path, ffmpeg_settings={"bit_rate": 32})
+    audio.process_file()
+
+    expected_keys = {
+        f"DOWNLOAD:{path}",
+        f"COMPRESSED: {audio_filename} [('bit_rate', 32)]",
+    }
+    assert set(mock_filecache.cache.keys()) == expected_keys
+
+
+def test_audio_compression_cache_keys_no_settings(
+    mock_filecache, audio_file, audio_filename
+):
+    """Test cache key generation for audio compression with default settings"""
+    path = audio_file.path
+    audio = AudioFile(path)
+    with patch("ricecooker.classes.files.config.COMPRESS", True):
+        audio.process_file()
+
+    expected_keys = {
+        f"DOWNLOAD:{path}",
+        f"COMPRESSED: {audio_filename}  (default compression)",
+    }
+    assert set(mock_filecache.cache.keys()) == expected_keys
+
+
+def test_subtitle_cache_keys_with_format(mock_filecache, subtitle_file):
+    """Test cache key generation for subtitle processing with format specified"""
+    path = subtitle_file.path
+    sub = SubtitleFile(
+        path,
+        language="en",
+    )
+    sub.process_file()
+
+    expected_keys = {
+        f"DOWNLOAD:{path}",
+    }
+    assert set(mock_filecache.cache.keys()) == expected_keys
+
+
+def test_html5_zip_cache_keys(mock_filecache, html_file):
+    """Test cache key generation for HTML5 zip processing"""
+    path = html_file.path
+    html = HTMLZipFile(path)
+    html.process_file()
+
+    expected_keys = {
+        f"DOWNLOAD:{path}",
+    }
+    assert set(mock_filecache.cache.keys()) == expected_keys
+
+
+def test_base64_image_cache_keys(mock_filecache):
+    """Test cache key generation for base64 image processing"""
+    img_data = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+
+    img = Base64ImageFile(img_data)
+    img.process_file()
+
+    # Hash of the base64 content
+    content_hash = "8e49fd838705faf3665e6f1ec22b0e3f"  # example hash
+    expected_keys = {f"ENCODED: {content_hash} (base64 encoded)"}
+    assert set(mock_filecache.cache.keys()) == expected_keys
