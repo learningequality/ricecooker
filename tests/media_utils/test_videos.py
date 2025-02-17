@@ -340,3 +340,42 @@ class TempFile(object):
 
     def __exit__(self, _type, value, traceback):
         self.f.close()
+
+
+@pytest.fixture
+def corrupt_media_path():
+    # Create a corrupt file
+    with tempfile.NamedTemporaryFile(suffix=".mp4") as f:
+        f.write(b"This is not a valid media file")
+        yield f.name
+
+
+def test_validate_video_file_valid(video_file):
+    is_valid, error = videos.validate_media_file(video_file.path)
+    assert is_valid
+    assert error == ""
+
+
+def test_validate_audio_file_valid(audio_file):
+    is_valid, error = videos.validate_media_file(audio_file.path)
+    assert is_valid
+    assert error == ""
+
+
+def test_validate_media_file_corrupt(corrupt_media_path):
+    is_valid, error = videos.validate_media_file(corrupt_media_path)
+    assert not is_valid
+    assert "Failed to decode" in error
+
+
+def test_validate_media_file_nonexistent():
+    is_valid, error = videos.validate_media_file("nonexistent_file.mp4")
+    assert not is_valid
+    assert "Failed to decode" in error
+
+
+def test_validate_media_file_empty():
+    with tempfile.NamedTemporaryFile(suffix=".mp4") as empty_file:
+        is_valid, error = videos.validate_media_file(empty_file.name)
+        assert not is_valid
+        assert "Failed to decode" in error
