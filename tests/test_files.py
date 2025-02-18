@@ -2,11 +2,11 @@
 import base64
 import hashlib
 import os.path
-import sys
 import tempfile
 import zipfile
 from io import BytesIO
 from shutil import copyfile
+from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import pytest
@@ -1182,43 +1182,60 @@ SAMPLE_JSON = """{
 
 
 @pytest.fixture
-def graphie_filepaths(tmpdir):
-    """Create temporary SVG and JSON files for testing"""
-    # Create base filepath without extension
-    base_path = os.path.join(str(tmpdir), "testgraphie")
+def mock_download_session():
+    """Mock the download session to return appropriate content for SVG and JSON requests"""
+    with patch("ricecooker.config.DOWNLOAD_SESSION") as mock_session:
+        mock_response = MagicMock()
+        mock_response.headers = {}
 
-    # Write SVG file
-    with open(f"{base_path}.svg", "w") as f:
-        f.write(SAMPLE_SVG)
+        def iter_content(chunk_size=None):
+            content = None
+            if mock_response.url.endswith(".svg"):
+                content = SAMPLE_SVG.encode("utf-8")
+            elif mock_response.url.endswith("-data.json"):
+                content = SAMPLE_JSON.encode("utf-8")
+            else:
+                raise Exception(f"Unexpected URL pattern: {mock_response.url}")
 
-    # Write JSON file
-    with open(f"{base_path}-data.json", "w") as f:
-        f.write(SAMPLE_JSON)
+            if chunk_size is None:
+                yield content
+                return
 
-    return base_path
+            # Yield content in chunks of specified size
+            for i in range(0, len(content), chunk_size):
+                yield content[i : i + chunk_size]
+
+        mock_response.iter_content.side_effect = iter_content
+        mock_response.__iter__.side_effect = iter_content
+
+        def get_content(url, stream=True):
+            # Track requested URL path since iter_content needs it
+            mock_response.url = url
+            return mock_response
+
+        mock_session.get.side_effect = get_content
+        yield mock_session
 
 
-windows_only_skip = pytest.mark.skipif(
-    sys.platform == "win32", reason="Skip on Windows until path handling is fixed"
-)
-
-
-@windows_only_skip
-def test_graphie_original_filename_extraction():
-    """Test that original filename is correctly extracted from path"""
-    path = "/path/to/exercise/123-graph"
+def test_graphie_url_processing(mock_download_session):
+    """Test processing of web+graphie:// URLs"""
+    path = "https://example.com/graphie/test-graph"
     graphie = _ExerciseGraphieFile(path)
-    assert graphie.original_filename == "123-graph"
+    filename = graphie.process_file()
 
-    path = "http://site.com/content/graph-2"
+    assert filename is not None
+
+    # Verify correct URLs were requested
+    calls = mock_download_session.get.call_args_list
+    assert len(calls) == 2
+    assert calls[0][0][0] == "https://example.com/graphie/test-graph.svg"
+    assert calls[1][0][0] == "https://example.com/graphie/test-graph-data.json"
+
+
+def test_graphie_content_combination(mock_download_session):
+    """Test that SVG and JSON content are properly combined"""
+    path = "https://example.com/graphie/test-graph"
     graphie = _ExerciseGraphieFile(path)
-    assert graphie.original_filename == "graph-2"
-
-
-@windows_only_skip
-def test_graphie_file_combination(graphie_filepaths):
-    """Test proper combination of SVG and JSON into graphie file"""
-    graphie = _ExerciseGraphieFile(graphie_filepaths)
     filename = graphie.process_file()
 
     assert filename is not None
@@ -1234,63 +1251,50 @@ def test_graphie_file_combination(graphie_filepaths):
     assert json_part.decode("utf-8").strip() == SAMPLE_JSON.strip()
 
 
-def test_graphie_get_replacement_str_http():
-    """Test get_replacement_str with HTTP paths"""
-    path = "http://site.com/content/graph-name"
+def test_graphie_download_failure(mock_download_session):
+    """Test handling of download failures"""
+    mock_download_session.get.side_effect = HTTPError("Download failed")
+
+    path = "https://error.com/graphie/test-graph"
     graphie = _ExerciseGraphieFile(path)
+    filename = graphie.process_file()
+
+    assert filename is None
+    assert graphie in config.FAILED_FILES
+
+
+def test_graphie_get_replacement_str():
+    """Test get_replacement_str with https URLs"""
+    path = "https://site.com/content/graph-name"
+    graphie = _ExerciseGraphieFile(path)
+    # The replacement string should be the base filename without https:// prefix
     assert graphie.get_replacement_str() == "graph-name"
 
 
-@windows_only_skip
-def test_graphie_get_replacement_str_filesystem():
-    """Test get_replacement_str with filesystem paths"""
-    path = "/path/to/exercise/graph-123"
+def test_graphie_original_filename():
+    """Test extraction of original filename from https URLs"""
+    path = "https://site.com/content/graph-name"
     graphie = _ExerciseGraphieFile(path)
-    assert graphie.get_replacement_str() == "graph-123"
+    assert graphie.original_filename == "graph-name"
 
 
-def test_graphie_delimiter_insertion(graphie_filepaths):
-    """Test proper delimiter insertion between SVG and JSON"""
-    graphie = _ExerciseGraphieFile(graphie_filepaths)
-    filename = graphie.process_file()
+def test_graphie_caching(mock_download_session):
+    """Test caching of downloaded graphie files"""
+    # Use different path to other tests to avoid cache hits
+    path = "https://exemple.com/graphie/test-graph"
 
-    assert filename is not None
-
-    with open(config.get_storage_path(filename), "rb") as f:
-        content = f.read()
-
-    # Check delimiter exists and separates content correctly
-    parts = content.split(GRAPHIE_DELIMITER.encode("utf-8"))
-    assert len(parts) == 2
-    assert len(parts[0]) > 0  # SVG part
-    assert len(parts[1]) > 0  # JSON part
-
-
-def test_graphie_caching(graphie_filepaths):
-    """Test caching of generated graphie files"""
     # First run
-    graphie1 = _ExerciseGraphieFile(graphie_filepaths)
+    graphie1 = _ExerciseGraphieFile(path)
     filename1 = graphie1.process_file()
-
     assert filename1 is not None
 
-    # Second run with same content
-    graphie2 = _ExerciseGraphieFile(graphie_filepaths)
+    # Second run - should use cached file
+    graphie2 = _ExerciseGraphieFile(path)
     filename2 = graphie2.process_file()
 
     assert filename1 == filename2
-
-
-@pytest.mark.skip("Skipping test that is not currently implemented in ricecooker")
-def test_graphie_invalid_json_content(graphie_filepaths):
-    """Test handling of invalid JSON content"""
-    # Write invalid JSON
-    with open(f"{graphie_filepaths}-data.json", "w") as f:
-        f.write("Not valid JSON content")
-
-    graphie = _ExerciseGraphieFile(graphie_filepaths)
-    assert graphie.process_file() is None
-    assert graphie in config.FAILED_FILES
+    # Verify downloads only happened once
+    assert mock_download_session.get.call_count == 2  # Once for SVG, once for JSON
 
 
 # Tests to ensure that cache keys remains stable as we update ricecooker code
