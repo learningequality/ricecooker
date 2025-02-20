@@ -1,5 +1,10 @@
+import hashlib
 import os
 import re
+import shutil
+from urllib.parse import urlparse
+
+from ricecooker import config
 
 
 VALID_UUID_REGEX = re.compile("^([a-f0-9]{32})$")
@@ -33,3 +38,56 @@ class VideoURLFormatError(Exception):
                 url, expected_format
             )
         )
+
+
+def extract_path_ext(path, default_ext=None):
+    """
+    Extract file extension (without dot) from `path` or return `default_ext` if
+    path does not contain a valid extension.
+    """
+    _, dotext = os.path.splitext(path)
+    if dotext:
+        ext = dotext[1:]
+        if len(ext) > 3 and "?" in ext:  # strip off any querystring if present
+            ext = ext.split("?")[0]
+    else:
+        ext = None
+    if not ext and default_ext:
+        ext = default_ext
+    if not ext:
+        raise ValueError("No extension in path {} and default_ext is None".format(path))
+    return ext.lower()
+
+
+def get_hash(filepath):
+    file_hash = hashlib.md5()
+    with open(filepath, "rb") as fobj:
+        for chunk in iter(lambda: fobj.read(2097152), b""):
+            file_hash.update(chunk)
+    return file_hash.hexdigest()
+
+
+def is_valid_url(path):
+    """
+    Return `True` if path is a valid URL, else `False` if path is a local path.
+    """
+    parts = urlparse(path)
+    return parts.scheme != "" and parts.netloc != ""
+
+
+def copy_file_to_storage(srcfilename, ext=None):
+    """
+    Copy `srcfilename` (filepath) to destination.
+    :rtype: None
+    """
+    if ext is None:
+        ext = extract_path_ext(srcfilename)
+
+    hash = get_hash(srcfilename)
+    filename = "{}.{}".format(hash, ext)
+    try:
+        shutil.copy(srcfilename, config.get_storage_path(filename))
+    except shutil.SameFileError:
+        pass
+
+    return filename

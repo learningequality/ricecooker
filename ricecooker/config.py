@@ -20,6 +20,7 @@ THUMBNAILS = False
 PUBLISH = False
 PROGRESS_MANAGER = None
 SUSHI_BAR_CLIENT = None
+FILE_PIPELINE = None
 STAGE = False
 
 # When this is set to true, any failure will raise an error and stop the chef.

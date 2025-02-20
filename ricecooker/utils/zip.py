@@ -33,17 +33,11 @@ def create_predictable_zip(path, entrypoint=None, file_converter=None):
     # otherwise, if it's a zip file, open it up and pull out the list of names
     elif os.path.isfile(path):
         extension = os.path.splitext(path)[1]
-        try:
-            inputzip = zipfile.ZipFile(path)
-            paths = inputzip.namelist()
+        inputzip = zipfile.ZipFile(path)
+        paths = inputzip.namelist()
 
-            def reader(x):
-                return inputzip.read(x)
-
-        except Exception:
-            raise Exception(
-                "The `path` must either point to a directory or to a zip archive."
-            )
+        def reader(x):
+            return inputzip.read(x)
 
     # create a temporary zip file path to write the output into
     zippathfd, zippath = tempfile.mkstemp(suffix=".{}".format(extension))
