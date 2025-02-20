@@ -51,6 +51,16 @@ setup(
         "filetype>=1.1.0",
         "urllib3==2.3.0",
     ],
+    extras_require={
+        "test": [
+            "requests-cache==1.2.1",
+            "pytest==8.3.4",
+            "pycountry==24.6.1",
+            "pytest-env==1.1.5",
+            "vcrpy==7.0.0; python_version >='3.10'",
+            "mock==5.1.0",
+        ],
+    },
     python_requires=">=3.9, <3.13",
     license="MIT license",
     zip_safe=False,

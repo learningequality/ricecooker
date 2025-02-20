@@ -17,6 +17,7 @@ from le_utils.constants.exercises import GRAPHIE_DELIMITER
 from PIL import Image
 from requests import HTTPError
 from test_pdfutils import _save_file_url_to_path
+from vcr_config import my_vcr
 
 from ricecooker import config
 from ricecooker.classes.files import _ExerciseGraphieFile
@@ -744,7 +745,7 @@ def test_create_many_predictable_zip_files(ndirs=8193):
 """ *********** YOUTUBEVIDEOFILE TESTS *********** """
 
 
-@pytest.mark.skipif(True, reason="Requires connecting to youtube.")
+@my_vcr.use_cassette
 def test_youtubevideo_process_file(youtube_video_dict):
     video_file = YouTubeVideoFile(youtube_id=youtube_video_dict["youtube_id"])
     filename = video_file.process_file()
