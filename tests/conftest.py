@@ -4,6 +4,8 @@ import os
 import shutil
 import uuid
 import zipfile
+from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import pytest
 import requests
@@ -439,7 +441,7 @@ def invalid_video_file():
     if not os.path.exists(local_path):
         with open(local_path, "wb") as f:
             f.write(b"this is an invalid video file")
-    return DocumentFile(local_path)
+    return VideoFile(local_path)
 
 
 @pytest.fixture
@@ -545,7 +547,7 @@ def invalid_audio_file():
     if not os.path.exists(local_path):
         with open(local_path, "wb") as f:
             f.write(b"invalid MP3")
-    return DocumentFile(local_path)
+    return AudioFile(local_path)
 
 
 # DOCUMENT FIXTURES
@@ -621,7 +623,11 @@ def epub_file():
 
 @pytest.fixture
 def epub_filename():
-    return "5f91b55a7648206343b609cae692e08c.epub"
+    # This has been deliberately updated due to a change in the default behaviour.
+    # All epub files are now passed through our predictable zip file generator.
+    # In order to ensure consistent hashing of archive files (epub, h5p, etc.)
+    # regardless of when and how the archive was created.
+    return "fb987dae26b492756c33540396b3b4a2.epub"
 
 
 @pytest.fixture
@@ -870,16 +876,56 @@ def exercise_base64_image_filename():
 
 
 @pytest.fixture
+def exercise_graphie_mock_download_session():
+    """Mock the download session to return appropriate content for SVG and JSON requests"""
+    with patch("ricecooker.config.DOWNLOAD_SESSION") as mock_session:
+        mock_response = MagicMock()
+        mock_response.headers = {}
+
+        def iter_content(chunk_size=None):
+            file_path = os.path.abspath(
+                os.path.join(
+                    os.path.dirname(__file__),
+                    "testcontent",
+                    "exercises",
+                    "eb3f3bf7c317408ee90995b5bcf4f3a59606aedd",
+                )
+            )
+            if mock_response.url.endswith(".svg"):
+                ext = ".svg"
+            elif mock_response.url.endswith("-data.json"):
+                ext = "-data.json"
+            else:
+                raise Exception(f"Unexpected URL pattern: {mock_response.url}")
+
+            with open(f"{file_path}{ext}", "rb") as f:
+                content = f.read()
+
+            if chunk_size is None:
+                yield content
+                return
+
+            # Yield content in chunks of specified size
+            for i in range(0, len(content), chunk_size):
+                yield content[i : i + chunk_size]
+
+        mock_response.iter_content.side_effect = iter_content
+        mock_response.__iter__.side_effect = iter_content
+
+        def get_content(url, stream=True):
+            # Track requested URL path since iter_content needs it
+            mock_response.url = url
+            return mock_response
+
+        mock_session.get.side_effect = get_content
+        yield mock_session
+
+
+@pytest.fixture
 def exercise_graphie_file():
-    file_path = os.path.abspath(
-        os.path.join(
-            os.path.dirname(__file__),
-            "testcontent",
-            "exercises",
-            "eb3f3bf7c317408ee90995b5bcf4f3a59606aedd",
-        )
+    return _ExerciseGraphieFile(
+        "https://khanacademy.org/content/eb3f3bf7c317408ee90995b5bcf4f3a59606aedd"
     )
-    return _ExerciseGraphieFile(file_path)
 
 
 @pytest.fixture

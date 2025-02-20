@@ -1239,12 +1239,20 @@ class _ExerciseImageFile(ImageDownloadFile):
         return self.preset or format_presets.EXERCISE_IMAGE
 
 
-class _ExerciseGraphieFile(DownloadFile):
+class _ExerciseGraphieFile(File):
     default_ext = file_formats.GRAPHIE
 
-    def __init__(self, path, **kwargs):
+    def __init__(self, path):
         self.original_filename = path.split("/")[-1].split(".")[0]
-        super(_ExerciseGraphieFile, self).__init__(path, **kwargs)
+        self.path = path
+
+    def validate(self):
+        try:
+            parsed_url = urlparse(self.path)
+            if not parsed_url.scheme == "http" and not parsed_url.scheme == "https":
+                raise ValueError("Invalid URL")
+        except ValueError:
+            raise ValueError("_ExerciseGraphieFile must have a valid URL")
 
     def get_preset(self):
         return self.preset or format_presets.EXERCISE_GRAPHIE
@@ -1284,12 +1292,6 @@ class _ExerciseGraphieFile(DownloadFile):
         if not config.UPDATE and cache_file:
             return cache_file
 
-        # Create graphie file combining svg and json files
-        tempf_svg = tempfile.NamedTemporaryFile(suffix=".svg", delete=False)
-        tempf_svg.close()
-        tempf_json = tempfile.NamedTemporaryFile(suffix=".json", delete=False)
-        tempf_json.close()
-
         tempf = tempfile.NamedTemporaryFile(
             suffix=".{}".format(file_formats.GRAPHIE), delete=False
         )
@@ -1297,20 +1299,18 @@ class _ExerciseGraphieFile(DownloadFile):
         delimiter = bytes(exercises.GRAPHIE_DELIMITER, "UTF-8")
         config.LOGGER.info("\tDownloading graphie {}".format(self.original_filename))
         # Write to graphie file
-        write_path_to_filename(self.path + ".svg", tempf_svg.name)
-        with open(tempf_svg.name, "rb") as f:
-            for chunk in iter(lambda: f.read(2097152), b""):
-                tempf.write(chunk)
+        r = config.DOWNLOAD_SESSION.get(self.path + ".svg", stream=True)
+        r.raise_for_status()
+        for chunk in r.iter_content():
+            tempf.write(chunk)
         tempf.write(delimiter)
-        write_path_to_filename(self.path + "-data.json", tempf_json.name)
-        with open(tempf_json.name, "rb") as f:
-            for chunk in iter(lambda: f.read(2097152), b""):
-                tempf.write(chunk)
+        r = config.DOWNLOAD_SESSION.get(self.path + "-data.json", stream=True)
+        r.raise_for_status()
+        for chunk in r.iter_content():
+            tempf.write(chunk)
         tempf.close()
         filename = copy_file_to_storage(tempf.name, ext=file_formats.GRAPHIE)
         os.unlink(tempf.name)
-        os.unlink(tempf_svg.name)
-        os.unlink(tempf_json.name)
         FILECACHE.set(key, bytes(filename, "utf-8"))
         return filename
 
