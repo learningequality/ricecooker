@@ -21,7 +21,6 @@ from vcr_config import my_vcr
 
 from ricecooker import config
 from ricecooker.classes.files import _ExerciseGraphieFile
-from ricecooker.classes.files import _get_language_with_alpha2_fallback
 from ricecooker.classes.files import AudioFile
 from ricecooker.classes.files import Base64ImageFile
 from ricecooker.classes.files import CONVERTIBLE_FORMATS
@@ -31,10 +30,8 @@ from ricecooker.classes.files import File
 from ricecooker.classes.files import get_filename_from_content_disposition_header
 from ricecooker.classes.files import H5PFile
 from ricecooker.classes.files import HTMLZipFile
-from ricecooker.classes.files import is_youtube_subtitle_file_supported_language
 from ricecooker.classes.files import SubtitleFile
 from ricecooker.classes.files import VideoFile
-from ricecooker.classes.files import YouTubeSubtitleFile
 from ricecooker.classes.files import YouTubeVideoFile
 from ricecooker.utils.audio import AudioCompressionError
 from ricecooker.utils.videos import VideoCompressionError
@@ -753,68 +750,6 @@ def test_youtubevideo_process_file(youtube_video_dict):
     assert filename.endswith(".mp4"), "Wrong extenstion for video"
 
 
-""" *********** YOUTUBESUBTITLEFILE TESTS *********** """
-
-
-@pytest.fixture
-def subtitles_langs_internal():
-    return ["en", "es", "pt-BR"]
-
-
-@pytest.fixture
-def subtitles_langs_pycountry_mappable():
-    return ["zu"]
-
-
-@pytest.fixture
-def subtitles_langs_youtube_custom():
-    return ["iw", "zh-Hans", "pt-BR"]
-
-
-@pytest.fixture
-def subtitles_langs_ubsupported():
-    return ["sgn", "zzzza", "ab-dab", "bbb-qqq"]
-
-
-def test_is_youtube_subtitle_file_supported_language(
-    subtitles_langs_internal,
-    subtitles_langs_pycountry_mappable,
-    subtitles_langs_youtube_custom,
-):
-    for lang in subtitles_langs_internal:
-        assert is_youtube_subtitle_file_supported_language(lang), "should be supported"
-        lang_obj = _get_language_with_alpha2_fallback(lang)
-        assert lang_obj is not None, "lookup should return Language object"
-    for lang in subtitles_langs_pycountry_mappable:
-        assert is_youtube_subtitle_file_supported_language(lang), "should be supported"
-        lang_obj = _get_language_with_alpha2_fallback(lang)
-        assert lang_obj is not None, "lookup should return Language object"
-    for lang in subtitles_langs_youtube_custom:
-        assert is_youtube_subtitle_file_supported_language(lang), "should be supported"
-        lang_obj = _get_language_with_alpha2_fallback(lang)
-        assert lang_obj is not None, "lookup should return Language object"
-
-
-def test_is_youtube_subtitle_file_unsupported_language(subtitles_langs_ubsupported):
-    for lang in subtitles_langs_ubsupported:
-        assert not is_youtube_subtitle_file_supported_language(
-            lang
-        ), "should not be supported"
-        lang_obj = _get_language_with_alpha2_fallback(lang)
-        assert lang_obj is None, "lookup should fail"
-
-
-@pytest.mark.skipif(True, reason="Requires connecting to youtube.")
-def test_youtubesubtitle_process_file(youtube_video_with_subs_dict):
-    youtube_id = youtube_video_with_subs_dict["youtube_id"]
-    lang = youtube_video_with_subs_dict["subtitles_langs"][0]
-    sub_file = YouTubeSubtitleFile(youtube_id=youtube_id, language=lang)
-    filename = sub_file.process_file()
-    assert filename is not None, "Processing YouTubeSubtitleFile file failed"
-    assert filename.endswith(".vtt"), "Wrong extenstion for video subtitles"
-    assert not filename.endswith("." + lang + ".vtt"), "Lang code in extension"
-
-
 """ *********** SUBTITLEFILE TESTS *********** """
 
 
@@ -915,19 +850,19 @@ def download_fixture_files(fixtures_list):
 
 
 @pytest.fixture
-def pressurcooker_test_files():
+def pressurecooker_test_files():
     """
     Downloads all the subtitles test files and return as list of fixutes dicts.
     """
     return download_fixture_files(PRESSURECOOKER_SUBS_FIXTURES)
 
 
-def test_convertible_substitles_from_pressurcooker(pressurcooker_test_files):
+def test_convertible_subtitles_from_pressurecooker(pressurecooker_test_files):
     """
-    Try to load all the test files used in pressurecooker as riceccooker `SubtitleFile`s.
+    Try to load all the test files used in pressurecooker as ricecooker `SubtitleFile`s.
     All subs have the appropriate extension so no need to specify `subtitlesformat`.
     """
-    for fixture in pressurcooker_test_files:
+    for fixture in pressurecooker_test_files:
         localpath = fixture["localpath"]
         assert os.path.exists(localpath), "Error mising local test file " + localpath
         subtitle_file = SubtitleFile(localpath, language=fixture["language"])
