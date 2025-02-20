@@ -12,6 +12,11 @@ from le_utils.constants import exercises
 from le_utils.constants import licenses
 from le_utils.constants import roles
 
+try:
+    from vcr.stubs import VCRHTTPResponse
+except ImportError:
+    VCRHTTPResponse = None
+
 from ricecooker.__init__ import __version__
 from ricecooker.classes.files import _ExerciseBase64ImageFile
 from ricecooker.classes.files import _ExerciseGraphieFile
@@ -75,6 +80,18 @@ def global_fixture():
         except OSError:
             # Don't fail a test just because we failed to cleanup
             pass
+
+
+# Monkey patch VCRHTTPResponse to handle kwargs that are not compatible with BufferIO
+# This can be removed when this issue has been resolved: https://github.com/kevin1024/vcrpy/issues/902
+def _new_read(self, *args, **kwargs):
+    # urllib3 allows the kwarg 'decode_content' but BytesIO does not support it
+    kwargs.pop("decode_content", None)
+    return self._content.read(*args, **kwargs)
+
+
+if VCRHTTPResponse is not None:
+    VCRHTTPResponse.read = _new_read
 
 
 # CHANNEL FIXTURES
@@ -428,9 +445,9 @@ def invalid_video_file():
 @pytest.fixture
 def youtube_video_dict():
     """
-    A short 17 sec video that won't slow down tests too much.
+    A short 1 sec video that won't store too much data locally.
     """
-    return {"youtube_id": "C0DPdy98e4c"}
+    return {"youtube_id": "tPEE9ZwTmy0"}
 
 
 @pytest.fixture
