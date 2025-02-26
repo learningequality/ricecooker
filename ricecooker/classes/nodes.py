@@ -368,11 +368,8 @@ class ChannelNode(Node):
 
     kind = "Channel"
 
-    def __init__(
-        self, source_id, source_domain, tagline=None, channel_id=None, *args, **kwargs
-    ):
+    def __init__(self, source_id, source_domain, tagline=None, *args, **kwargs):
         # Map parameters to model variables
-        self.channel_id = channel_id
         self.source_domain = source_domain
         self.source_id = source_id
         self.tagline = tagline
@@ -407,7 +404,7 @@ class ChannelNode(Node):
         Returns: dict of channel data
         """
         return {
-            "id": self.channel_id or self.get_node_id().hex,
+            "id": self.get_node_id().hex,
             "name": self.title,
             "thumbnail": self.thumbnail.filename if self.thumbnail else None,
             "language": self.language,
