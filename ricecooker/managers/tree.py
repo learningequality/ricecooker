@@ -9,6 +9,12 @@ from requests.exceptions import RequestException
 from .. import config
 
 
+class InsufficientStorageException(Exception):
+    """Raised when there is not enough storage space."""
+
+    pass
+
+
 class ChannelManager:
     """Manager for handling channel tree structure and communicating to server
 
@@ -143,12 +149,6 @@ class ChannelManager:
                 )
                 if not exists
             ]
-
-
-class InsufficientStorageException(Exception):
-    """Raised when there is not enough storage space."""
-
-    pass
 
     def do_file_upload(self, filename):
         file_data = self.file_map[filename]
