@@ -60,6 +60,9 @@ setup(
             "vcrpy==7.0.0; python_version >='3.10'",
             "mock==5.2.0",
         ],
+        "dev": [
+            "pre-commit>=4.1.0",
+        ],
     },
     python_requires=">=3.9, <3.13",
     license="MIT license",
