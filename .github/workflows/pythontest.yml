@@ -61,7 +61,13 @@ jobs:
         path: ~/Library/Caches/Homebrew
         key: ${{ runner.os }}-brew-${{ hashFiles('.github/workflows/pythontest.yml') }}
     - name: Install Mac dependencies
-      run: brew install ffmpeg poppler
+      run: |
+        # Due to this still unresolved issue: https://github.com/actions/runner-images/issues/9966
+        # We get a conflict between the Python 3.13 version installed in the runner,
+        # and the one installed by Homebrew. This is a workaround to fix it.
+        # This may break things when we add Python 3.13 to the matrix though.
+        brew unlink python@3.13 && brew link --overwrite python@3.13
+        brew install ffmpeg poppler
       if: needs.pre_job.outputs.should_skip != 'true' && matrix.os == 'macos-13'
     - name: Windows dependencies cache
       id: windowscache
