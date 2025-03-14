@@ -58,7 +58,7 @@ setup(
             "pycountry==24.6.1",
             "pytest-env==1.1.5",
             "vcrpy==7.0.0; python_version >='3.10'",
-            "mock==5.1.0",
+            "mock==5.2.0",
         ],
     },
     python_requires=">=3.9, <3.13",
