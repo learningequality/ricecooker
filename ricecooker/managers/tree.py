@@ -167,7 +167,7 @@ class ChannelManager:
             # it does not currently use the passed in file_format as the default
             # extension.
             name, ext = os.path.splitext(data["name"])
-            if not ext:
+            if not ext or ext != data["file_format"]:
                 data["name"] = "{}.{}".format(name, data["file_format"])
             url_response = config.SESSION.post(config.get_upload_url(), json=data)
             if url_response.status_code == 412:
