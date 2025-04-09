@@ -596,7 +596,10 @@ def test_exercise_base64_image_file(
     reason="Passes on Windows 10, but fails on Github Action Windows runner",
 )
 def test_exercise_graphie_filename(
-    exercise_graphie_file, exercise_graphie_replacement_str, exercise_graphie_filename
+    exercise_graphie_file,
+    exercise_graphie_replacement_str,
+    exercise_graphie_filename,
+    exercise_graphie_mock_download_session,
 ):
     filename = exercise_graphie_file.get_filename()
     assert (

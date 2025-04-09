@@ -110,11 +110,13 @@ def bad_video():
     return f  # returns a closed file descriptor which we use for name attribute
 
 
-def make_video_file(video_file_file, language="en"):
+def make_video_file(video_file_file, language="en", ffmpeg_settings=None):
     """
     Creates a VideoFile object with path taken from `video_file_file.name`.
     """
-    return VideoFile(video_file_file.name, language=language)
+    return VideoFile(
+        video_file_file.name, language=language, ffmpeg_settings=ffmpeg_settings
+    )
 
 
 """ *********** TEST BASIC VIDEO PROCESSING  *********** """
@@ -207,8 +209,7 @@ class Test_video_compression(object):
         _clear_ricecookerfilecache()
 
     def test_default_compression_works(self, high_res_video):
-        video_file = make_video_file(high_res_video)
-        video_file.ffmpeg_settings = {"crf": 33}
+        video_file = make_video_file(high_res_video, ffmpeg_settings={"crf": 33})
         video_filename = video_file.process_file()
         video_path = config.get_storage_path(video_filename)
         width, height = get_resolution(video_path)
@@ -218,8 +219,9 @@ class Test_video_compression(object):
         ), "Should have low res preset"
 
     def test_compression_works(self, high_res_video):
-        video_file = make_video_file(high_res_video)
-        video_file.ffmpeg_settings = {"crf": 33, "max_height": 300}
+        video_file = make_video_file(
+            high_res_video, ffmpeg_settings={"crf": 33, "max_height": 300}
+        )
         video_filename = video_file.process_file()
         video_path = config.get_storage_path(video_filename)
         width, height = get_resolution(video_path)
@@ -229,8 +231,9 @@ class Test_video_compression(object):
         ), "Should have low res preset"
 
     def test_compression_max_width_works(self, high_res_video):
-        video_file = make_video_file(high_res_video)
-        video_file.ffmpeg_settings = {"crf": 33, "max_width": 200}
+        video_file = make_video_file(
+            high_res_video, ffmpeg_settings={"crf": 33, "max_width": 200}
+        )
         video_filename = video_file.process_file()
         video_path = config.get_storage_path(video_filename)
         width, height = get_resolution(video_path)
@@ -240,8 +243,7 @@ class Test_video_compression(object):
         ), "Should have low res preset"
 
     def test_handles_bad_file(self, bad_video):
-        video_file = make_video_file(bad_video)
-        video_file.ffmpeg_settings = {"crf": 33}
+        video_file = make_video_file(bad_video, ffmpeg_settings={"crf": 33})
         video_filename = video_file.process_file()
         assert (
             video_filename is None
@@ -262,8 +264,9 @@ class Test_video_conversion(object):
         _clear_ricecookerfilecache()
 
     def test_convert_ogv_works(self, low_res_ogv_video):
-        video_file = make_video_file(low_res_ogv_video)
-        video_file.ffmpeg_settings = {"crf": 33, "max_height": 300}
+        video_file = make_video_file(
+            low_res_ogv_video, ffmpeg_settings={"crf": 33, "max_height": 300}
+        )
         video_filename = video_file.process_file()
         video_path = config.get_storage_path(video_filename)
         width, height = get_resolution(video_path)
@@ -273,8 +276,9 @@ class Test_video_conversion(object):
         ), "Should have low res preset"
 
     def test_convert_and_resize_ogv_works(self, low_res_ogv_video):
-        video_file = make_video_file(low_res_ogv_video)
-        video_file.ffmpeg_settings = {"crf": 33, "max_height": 200}
+        video_file = make_video_file(
+            low_res_ogv_video, ffmpeg_settings={"crf": 33, "max_height": 200}
+        )
         video_filename = video_file.process_file()
         video_path = config.get_storage_path(video_filename)
         width, height = get_resolution(video_path)

@@ -13,13 +13,6 @@ from .managers.progress import RestoreManager
 from .managers.progress import Status
 from .managers.tree import ChannelManager
 
-# Fix to support Python 2.x.
-# http://stackoverflow.com/questions/954834/how-do-i-use-raw-input-in-python-3
-try:
-    input = raw_input
-except NameError:
-    pass
-
 
 def uploadchannel_wrapper(chef, args, options):
     """
@@ -73,6 +66,7 @@ def uploadchannel(  # noqa: C901
     config.THUMBNAILS = chef.get_setting("thumbnails", False)
     config.STAGE = stage
     config.PUBLISH = publish
+    config.FILE_PIPELINE = chef.file_pipeline
 
     # Set max retries for downloading
     config.DOWNLOAD_SESSION.mount(

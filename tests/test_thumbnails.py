@@ -11,6 +11,7 @@ from test_videos import low_res_video  # noqa F401
 from ricecooker import config
 from ricecooker.classes.files import AudioFile
 from ricecooker.classes.files import DocumentFile
+from ricecooker.classes.files import EPubFile
 from ricecooker.classes.files import HTMLZipFile
 from ricecooker.classes.files import ThumbnailFile
 from ricecooker.classes.files import TiledThumbnailFile
@@ -280,7 +281,7 @@ class TestThumbnailGeneration(object):
             "doc-src-id", "Document", licenses.PUBLIC_DOMAIN, thumbnail=None
         )
         non_existent_path = "does/not/exist.epub"
-        document_file = DocumentFile(non_existent_path, language="en")
+        document_file = EPubFile(non_existent_path, language="en")
         node.add_file(document_file)
         config.THUMBNAILS = True
         filenames = node.process_files()

@@ -32,6 +32,7 @@ from .utils.tokens import get_content_curation_token
 from .utils.youtube import YouTubePlaylistUtils
 from .utils.youtube import YouTubeVideoUtils
 from ricecooker.utils.images import convert_image
+from ricecooker.utils.pipeline import FilePipeline
 
 
 # SUSHI CHEF BASE CLASS
@@ -491,6 +492,7 @@ class SushiChef(object):
         self.CHEF_RUN_DATA["current_run"] = run_id
         self.CHEF_RUN_DATA["runs"].append({"id": run_id})
 
+        self.file_pipeline = FilePipeline()
         # TODO(Kevin): move self.download_content() call here
         self.pre_run(args, options)
         uploadchannel_wrapper(self, args, options)
