@@ -166,8 +166,6 @@ be uploaded to Studio as is. These codecs are relatively well supported by
 This video can be uploaded to Kolibri.
 
 
-
-
 ### Converting files using ffmpeg
 
 Recall the file `CM_National_Rice_Cooker_1982.mpg` that we downloaded above,
@@ -202,7 +200,7 @@ The video `compressed.mp4` is now ready for upload to Studio!
 We provide a helper script to help run the ffmpeg command. The instructions are different
 depending if your operating systems is Windows or Mac/Linux:
 
-  - For Windows users, download the file [convertvideo.bat](https://raw.githubusercontent.com/learningequality/ricecooker/master/resources/scripts/convertvideo.bat)
+  - For Windows users, download the file [convertvideo.bat](https://raw.githubusercontent.com/learningequality/ricecooker/develop/resources/scripts/convertvideo.bat)
     and save it to your computer. Make sure the extension is `.bat` (Windows batch file).
     Put the `convertvideo.bat` file in the same folder where you copied `ffmpeg.exe`.
     To convert `inputfile.mp4` to `outputfile.mp4` using the conversion script, open a
@@ -211,7 +209,7 @@ depending if your operating systems is Windows or Mac/Linux:
 
         convertvideo.bat  inputfile.mp4  outputfile.mp4
 
-  - Linux and Mac users should download [convertvideo.sh](https://raw.githubusercontent.com/learningequality/ricecooker/master/resources/scripts/convertvideo.sh),
+  - Linux and Mac users should download [convertvideo.sh](https://raw.githubusercontent.com/learningequality/ricecooker/develop/resources/scripts/convertvideo.sh),
     save it to the folder where all the videos are. Next open a command prompt and change
     directory to that folder. Make the script executable using `chmod u+x convertvideo.sh`,
     then you can start converting videos using:
@@ -234,7 +232,7 @@ so you can edit them with notepad.
 Note video conversion takes a long time, so be prepared to get a coffee or two.
 
 ### Using the ffmpeg helper scripts for WebM
-The same helper scripts provided for MP4 can be adopted for WebM files. If you're using the convertvideo script, jast make sure the file extension is `.webm` instead of `.mp4` when calling the script.
+The helper scripts currently do not support WebM conversion. For WebM, please use the appropriate 'ffmpeg' command line as detailed above and adjust the command parameters manually.
 
 -------------
 
@@ -270,7 +268,7 @@ with 720 vertical resolution.
 
 If your channel contains many videos, or very long videos, you should consider
 increasing the "Constant Rate Factor" compression parameter in the Video settings.
-Using the value [RF=32](https://github.com/learningequality/ricecooker/blob/master/docs/figures/HandBrake/handbreake_screenshot_video_settings.png)
+Using the value [RF=32](https://github.com/learningequality/ricecooker/blob/develop/docs/figures/HandBrake/handbreake_screenshot_video_settings.png)
 will result in highly compressed videos, with very small file sizes.
 
 ### HandBrake for WebM
