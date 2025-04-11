@@ -88,6 +88,31 @@ operable program or batch file,"  you will have to change directory to the folde
 saved the program files `ffmpeg.exe` and `ffprobe.exe`  (e.g. use `cd Desktop` if saved
 on the desktop or `cd %HOMEPATH%\Documents` to go to your Documents folder).
 
+### WebM Compression Guidelines
+- For users working with WebM videos, follow these steps to effectively compress your videos using `ffmpeg`:
+- File Format: Use the `.webm` file format.
+- Video Codec: Use the `libvpx-vp9` encoder (VP9 codec) for best browser compatibility.
+- Audio Codec: Use the `vorbis` audio codec.
+- **Compression Guidelines:**
+  - Short Videos: Videos with a duration of 5–10 minutes should be roughly less than 15 MB.
+  - Long Videos: Video lectures with a duration of approximately 1 hour should not exceed 200 MB.
+  - Resolution: High-resolution videos should be converted to lower resolution formats as per the guidelines for MP4.
+
+Here's an example `ffmpeg` command for compressing WebM:
+
+    ffmpeg -i inputfile.webm \
+      -b:a 32k -ac 1 \
+      -vf scale="'w=-2:h=trunc(min(ih,480)/2)*2'" \
+      -crf 32 \
+      -v error -strict -2 -stats \
+      -c:v libvpx-vp9 -b:v 0 -deadline good -cpu-used 1 \
+      -y outputfile.webm
+
+This command takes the `inputfile.webm` and outputs the file `outputfile.webm` that
+has the following transformations applied to it:
+  - Limits the audio codec to 32k/sec
+  - Scale the video to max-height of 480 pixels
+  - Compress the video with CRF of 32 (constant rate factor)
 
 ### Looking around with ffprobe
 Equally useful is the command `ffprobe` which prints detailed information for
@@ -141,8 +166,6 @@ be uploaded to Studio as is. These codecs are relatively well supported by
 This video can be uploaded to Kolibri.
 
 
-
-
 ### Converting files using ffmpeg
 
 Recall the file `CM_National_Rice_Cooker_1982.mpg` that we downloaded above,
@@ -172,12 +195,12 @@ Clearly the compression option `-crf 32` had an effect.
 The video `compressed.mp4` is now ready for upload to Studio!
 
 
-### Using the ffmpeg helper scripts
+### Using the ffmpeg helper scripts for MP4
 
 We provide a helper script to help run the ffmpeg command. The instructions are different
 depending if your operating systems is Windows or Mac/Linux:
 
-  - For Windows users, download the file [convertvideo.bat](https://raw.githubusercontent.com/learningequality/ricecooker/master/resources/scripts/convertvideo.bat)
+  - For Windows users, download the file [convertvideo.bat](https://raw.githubusercontent.com/learningequality/ricecooker/develop/resources/scripts/convertvideo.bat)
     and save it to your computer. Make sure the extension is `.bat` (Windows batch file).
     Put the `convertvideo.bat` file in the same folder where you copied `ffmpeg.exe`.
     To convert `inputfile.mp4` to `outputfile.mp4` using the conversion script, open a
@@ -186,7 +209,7 @@ depending if your operating systems is Windows or Mac/Linux:
 
         convertvideo.bat  inputfile.mp4  outputfile.mp4
 
-  - Linux and Mac users should download [convertvideo.sh](https://raw.githubusercontent.com/learningequality/ricecooker/master/resources/scripts/convertvideo.sh),
+  - Linux and Mac users should download [convertvideo.sh](https://raw.githubusercontent.com/learningequality/ricecooker/develop/resources/scripts/convertvideo.sh),
     save it to the folder where all the videos are. Next open a command prompt and change
     directory to that folder. Make the script executable using `chmod u+x convertvideo.sh`,
     then you can start converting videos using:
@@ -208,9 +231,12 @@ so you can edit them with notepad.
 
 Note video conversion takes a long time, so be prepared to get a coffee or two.
 
+### Using the ffmpeg helper scripts for WebM
+The helper scripts currently do not support WebM conversion. For WebM, please use the appropriate 'ffmpeg' command line as detailed above and adjust the command parameters manually.
 
+-------------
 
-### HandBrake
+### HandBrake for MP4
 If you don't have many videos to convert, you can use [HandBrake](https://handbrake.fr/),
 which is a video conversion tool with a graphical user interface. Handbrake uses
 `ffmpeg` under the hood, so the same compression results can be achieved as with
@@ -242,11 +268,13 @@ with 720 vertical resolution.
 
 If your channel contains many videos, or very long videos, you should consider
 increasing the "Constant Rate Factor" compression parameter in the Video settings.
-Using the value [RF=32](https://github.com/learningequality/ricecooker/blob/master/docs/figures/HandBrake/handbreake_screenshot_video_settings.png)
+Using the value [RF=32](https://github.com/learningequality/ricecooker/blob/develop/docs/figures/HandBrake/handbreake_screenshot_video_settings.png)
 will result in highly compressed videos, with very small file sizes.
 
+### HandBrake for WebM
+If you prefer using a GUI tool, HandBrake can also help compress WebM videos, although it doesn't natively support WebM output. In such cases you would convert the to MP4 first using HandBrake, and then re-encode it to WebM using the command above.
 
-### Experimenting
+### Experimenting with MP4 compression
 Since every content source is unique, we recommend that you experiment with
 different compression options. The command line tool `ffmpeg` offers a very
 useful option called `crf` which stands for Constant Rate Factor.
@@ -265,3 +293,6 @@ Here are the steps to preview different compression factors in Kolibri:
   - PUBLISH the channel and record the channel token
   - Import the channel into a Kolibri instance using the channel token
   - Test video playback on different devices (desktop and mobile browsers on all OSs)
+
+### Experimenting with WebM compression
+Experimenting with WebM compression, like MP4, is key to achieving the right balance of quality and file size. Adjust the `crf` parameter for different compression levels based on the desired video quality.
