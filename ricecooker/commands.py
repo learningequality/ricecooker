@@ -39,7 +39,7 @@ def uploadchannel(  # noqa: C901
     publish=False,
     compress=False,
     stage=False,
-    **kwargs
+    **kwargs,
 ):
     """uploadchannel: Upload channel to Kolibri Studio
     Args:
@@ -83,9 +83,9 @@ def uploadchannel(  # noqa: C901
         # Authenticate user and check current Ricecooker version
         username, token = authenticate_user(token)
         config.LOGGER.info("Logged in with username {0}".format(username))
-        config.DOWNLOAD_SESSION.headers.update({
-            "User-Agent": f"Ricecooker/{__version__} bot ({username})"
-        })
+        config.DOWNLOAD_SESSION.headers.update(
+            {"User-Agent": f"Ricecooker/{__version__} bot ({username})"}
+        )
         check_version_number()
     else:
         username = ""
