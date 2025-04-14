@@ -83,6 +83,9 @@ def uploadchannel(  # noqa: C901
         # Authenticate user and check current Ricecooker version
         username, token = authenticate_user(token)
         config.LOGGER.info("Logged in with username {0}".format(username))
+        config.DOWNLOAD_SESSION.headers.update({
+            "User-Agent": f"Ricecooker/{__version__} bot ({username})"
+        })
         check_version_number()
     else:
         username = ""
@@ -142,7 +145,7 @@ def uploadchannel(  # noqa: C901
     chef.save_channel_metadata_as_csv(channel)
 
     if command == "dryrun":
-        config.LOGGER.info("Command is dryrun so we are not uploading chanel.")
+        config.LOGGER.info("Command is dryrun so we are not uploading channel.")
         return
 
     # Set download manager in case steps were skipped
@@ -200,7 +203,7 @@ def authenticate_user(token):
     Args:
         token (str): Studio authorization token
     Returns:
-        username, token: Studio username and token if atthentication worked
+        username, token: Studio username and token if authentication worked
     """
     config.SESSION.headers.update({"Authorization": "Token {0}".format(token)})
     auth_endpoint = config.authentication_url()
@@ -237,7 +240,7 @@ def check_version_number():
 def prompt_yes_or_no(message):
     """prompt_yes_or_no: Prompt user to reply with a y/n response
     Args: None
-    Returns: None
+    Returns: bool indicating user response
     """
     user_input = input("{} [y/n]:".format(message)).lower()
     if user_input.startswith("y"):
@@ -280,12 +283,11 @@ def process_tree_files(tree):
 
 
 def get_file_diff(tree, files_to_diff):
-    """get_file_diff: Download files from nodes
+    """get_file_diff: Determine which files have not been uploaded to Kolibri Studio
     Args:
         tree (ChannelManager): manager to handle communication to Kolibri Studio
     Returns: list of files that are not on Kolibri Studio
     """
-    # Determine which files have not yet been uploaded to the CC server
     config.LOGGER.info("  Checking if files exist on Kolibri Studio...")
     file_diff = tree.get_file_diff(files_to_diff)
     return file_diff
@@ -296,9 +298,8 @@ def upload_files(tree, file_diff):
     Args:
         tree (ChannelManager): manager to handle communication to Kolibri Studio
         file_diff ([str]): list of files to upload
-    Returns: None
+    Returns: list of files that were uploaded
     """
-    # Upload new files to CC
     config.LOGGER.info(
         "  Uploading {0} new file(s) to Kolibri Studio...".format(len(file_diff))
     )
@@ -311,16 +312,15 @@ def create_tree(tree):
     """create_tree: Upload tree to Kolibri Studio
     Args:
         tree (ChannelManager): manager to handle communication to Kolibri Studio
-    Returns: channel id of created channel and link to channel
+    Returns: tuple of (channel link, channel id)
     """
-    # Create tree
     config.LOGGER.info("Creating tree on Kolibri Studio...")
     channel_id, channel_link = tree.upload_tree()
     return channel_link, channel_id
 
 
 def publish_tree(tree, channel_id):
-    """publish_tree: Publish tree to Kolibri
+    """publish_tree: Publish tree to Kolibri Studio
     Args:
         tree (ChannelManager): manager to handle communication to Kolibri Studio
         channel_id (str): id of channel to publish
@@ -344,10 +344,8 @@ def select_sample_nodes(channel, size=10, seed=42):  # noqa: C901
         for child in subtree.children:
             child_path = parents_path + (child,)
             if child.children:
-                # recurse
                 walk_tree(child_path, child)
             else:
-                # emit leaf node
                 node_paths.append(child_path)
 
     walk_tree((), channel)
@@ -372,7 +370,6 @@ def select_sample_nodes(channel, size=10, seed=42):  # noqa: C901
 
     def attach(parent, node_path):
         if len(node_path) == 1:
-            # leaf node
             parent.add_child(node_path[0])
         else:
             child = node_path[0]
@@ -384,3 +381,4 @@ def select_sample_nodes(channel, size=10, seed=42):  # noqa: C901
         attach(channel_sample, node_path)
 
     return channel_sample
+
