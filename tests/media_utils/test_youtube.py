@@ -296,7 +296,9 @@ def test_subtitles_lang_helpers_compatible():
     for youtube_language, sub_dict in vtt_subtitles.items():
         # 2. check compatibility with le-utils language codes (a.k.a. internal representation)
         verdict = youtube.is_youtube_subtitle_file_supported_language(youtube_language)
-        assert verdict, "Wrongly marked youtube_language as incompatible"
+        assert (
+            verdict
+        ), f"Wrongly marked youtube_language {youtube_language} as incompatible"
         # 3. TODO: figure out what to do for incompatible langs
 
         # 4. map youtube_language to le-utils language code (a.k.a. internal representation)

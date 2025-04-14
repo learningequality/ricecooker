@@ -7,6 +7,7 @@ import time
 from datetime import datetime
 from enum import Enum
 
+import langcodes
 import yt_dlp
 from le_utils.constants import languages
 
@@ -330,20 +331,35 @@ class YouTubeResource(object):
 ################################################################################
 
 
-def get_language_with_alpha2_fallback(language_code):
+def _get_language_with_alpha2_fallback(language_code):
     """
     Lookup language code `language_code` (string) in the internal language codes,
     and if that fails, try to map map `language_code` to the internal represention
-    using the `getlang_by_alpha2` helper method.
+    using either the alpha2 or alpha3 code.
     Returns either a le-utils Language object or None if both lookups fail.
     """
-    # 1. try to lookup `language` using internal representation
-    language_obj = languages.getlang(language_code)
-    # if language_obj not None, we know `language` is a valid language_id in the internal repr.
-    if language_obj is None:
-        # 2. try to match by two-letter ISO code
-        language_obj = languages.getlang_by_alpha2(language_code)
+    try:
+        language = langcodes.get(language_code)
+    except (LookupError, ValueError):
+        return
+    if not language.is_valid():
+        return
+    # try to lookup `language` using either the default tag or the alpha3 tag
+    language_obj = languages.getlang(language.to_tag()) or languages.getlang(
+        language.to_alpha3()
+    )
     return language_obj
+
+
+def get_language_with_alpha2_fallback(language_code):
+    """
+    Lookup language against our allowed language codes. Does a lookup of the exact code
+    or of just the language code in the BCP 47 language code format.
+    """
+    split_code = language_code.split("-", maxsplit=1)[0]
+    return _get_language_with_alpha2_fallback(
+        language_code
+    ) or _get_language_with_alpha2_fallback(split_code)
 
 
 def is_youtube_subtitle_file_supported_language(language):

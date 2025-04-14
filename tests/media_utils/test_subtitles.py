@@ -4,6 +4,7 @@ import os
 import tempfile
 from unittest import TestCase
 
+import langcodes
 from le_utils.constants import file_formats
 from le_utils.constants import languages
 
@@ -15,6 +16,13 @@ from ricecooker.utils.subtitles import LANGUAGE_CODE_UNKNOWN
 test_files_dir = os.path.join(
     os.path.abspath(os.path.dirname(__file__)), "files", "subtitles"
 )
+
+
+def getlang_by_name(name):
+    language = langcodes.find(name)
+    return languages.getlang(language.to_tag()) or languages.getlang(
+        language.to_alpha3()
+    )
 
 
 class SubtitleConverterTest(TestCase):
@@ -34,7 +42,7 @@ class SubtitleConverterTest(TestCase):
                 self.assertEqual(actual_str.strip(), expected_str.strip())
 
     def test_replace_unknown_language(self):
-        expected_language = languages.getlang_by_name("Arabic")
+        expected_language = getlang_by_name("Arabic")
 
         converter = build_subtitle_converter_from_file(
             os.path.join(test_files_dir, "basic.srt")
@@ -48,7 +56,7 @@ class SubtitleConverterTest(TestCase):
 
     def test_srt_conversion(self):
         expected_file = os.path.join(test_files_dir, "basic.vtt")
-        expected_language = languages.getlang_by_name("Arabic")
+        expected_language = getlang_by_name("Arabic")
 
         converter = build_subtitle_converter_from_file(
             os.path.join(test_files_dir, "basic.srt")
@@ -66,7 +74,7 @@ class SubtitleConverterTest(TestCase):
     def test_expected_srt_conversion(self):
         expected_format = file_formats.SRT
         expected_file = os.path.join(test_files_dir, "basic.vtt")
-        expected_language = languages.getlang_by_name("Arabic")
+        expected_language = getlang_by_name("Arabic")
 
         converter = build_subtitle_converter_from_file(
             os.path.join(test_files_dir, "basic.srt"), in_format=expected_format
@@ -83,7 +91,7 @@ class SubtitleConverterTest(TestCase):
 
     def test_not_expected_type(self):
         expected_format = file_formats.SCC
-        expected_language = languages.getlang_by_name("Arabic")
+        expected_language = getlang_by_name("Arabic")
 
         converter = build_subtitle_converter_from_file(
             os.path.join(test_files_dir, "basic.srt"), in_format=expected_format
@@ -93,7 +101,7 @@ class SubtitleConverterTest(TestCase):
             converter.convert(expected_language.code)
 
     def test_invalid_format(self):
-        expected_language = languages.getlang_by_name("English")
+        expected_language = getlang_by_name("English")
 
         converter = build_subtitle_converter_from_file(
             os.path.join(test_files_dir, "not.txt")
@@ -103,7 +111,7 @@ class SubtitleConverterTest(TestCase):
             converter.convert(expected_language.code)
 
     def test_invalid_format__empty(self):
-        expected_language = languages.getlang_by_name("English")
+        expected_language = getlang_by_name("English")
 
         converter = build_subtitle_converter_from_file(
             os.path.join(test_files_dir, "empty.ttml")
@@ -114,7 +122,7 @@ class SubtitleConverterTest(TestCase):
 
     def test_valid_language(self):
         expected_file = os.path.join(test_files_dir, "encapsulated.vtt")
-        expected_language = languages.getlang_by_name("English")
+        expected_language = getlang_by_name("English")
 
         converter = build_subtitle_converter_from_file(
             os.path.join(test_files_dir, "encapsulated.sami")
@@ -130,7 +138,7 @@ class SubtitleConverterTest(TestCase):
         os.remove(actual_file_name)
 
     def test_invalid_language(self):
-        expected_language = languages.getlang_by_name("Spanish")
+        expected_language = getlang_by_name("Spanish")
 
         converter = build_subtitle_converter_from_file(
             os.path.join(test_files_dir, "encapsulated.sami")

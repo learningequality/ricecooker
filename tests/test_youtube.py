@@ -90,7 +90,7 @@ def subtitles_langs_internal():
 
 @pytest.fixture
 def subtitles_langs_pycountry_mappable():
-    return ["zu"]
+    return ["ab-dab", "zu"]
 
 
 @pytest.fixture
@@ -100,7 +100,7 @@ def subtitles_langs_youtube_custom():
 
 @pytest.fixture
 def subtitles_langs_unsupported():
-    return ["sgn", "zzzza", "ab-dab", "bbb-qqq"]
+    return ["sgn", "zzzza", "bbb-qqq"]
 
 
 @pytest.mark.skipif(True, reason="Requires connecting to youtube.")
