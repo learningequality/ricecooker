@@ -39,7 +39,7 @@ def uploadchannel(  # noqa: C901
     publish=False,
     compress=False,
     stage=False,
-    **kwargs
+    **kwargs,
 ):
     """uploadchannel: Upload channel to Kolibri Studio
     Args:
@@ -83,6 +83,9 @@ def uploadchannel(  # noqa: C901
         # Authenticate user and check current Ricecooker version
         username, token = authenticate_user(token)
         config.LOGGER.info("Logged in with username {0}".format(username))
+        config.DOWNLOAD_SESSION.headers.update(
+            {"User-Agent": f"Ricecooker/{__version__} bot ({username})"}
+        )
         check_version_number()
     else:
         username = ""
@@ -142,7 +145,7 @@ def uploadchannel(  # noqa: C901
     chef.save_channel_metadata_as_csv(channel)
 
     if command == "dryrun":
-        config.LOGGER.info("Command is dryrun so we are not uploading chanel.")
+        config.LOGGER.info("Command is dryrun so we are not uploading channel.")
         return
 
     # Set download manager in case steps were skipped
@@ -200,7 +203,7 @@ def authenticate_user(token):
     Args:
         token (str): Studio authorization token
     Returns:
-        username, token: Studio username and token if atthentication worked
+        username, token: Studio username and token if authentication worked
     """
     config.SESSION.headers.update({"Authorization": "Token {0}".format(token)})
     auth_endpoint = config.authentication_url()
