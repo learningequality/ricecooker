@@ -321,7 +321,7 @@ def create_tree(tree):
 
 
 def publish_tree(tree, channel_id):
-    """publish_tree: Publish tree to Kolibri 
+    """publish_tree: Publish tree to Kolibri
     Args:
         tree (ChannelManager): manager to handle communication to Kolibri Studio
         channel_id (str): id of channel to publish
@@ -382,4 +382,3 @@ def select_sample_nodes(channel, size=10, seed=42):  # noqa: C901
         attach(channel_sample, node_path)
 
     return channel_sample
-
