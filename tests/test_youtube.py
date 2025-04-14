@@ -140,3 +140,37 @@ def test_is_youtube_subtitle_file_unsupported_language(subtitles_langs_unsupport
         ), "should not be supported"
         lang_obj = get_language_with_alpha2_fallback(lang)
         assert lang_obj is None, "lookup should fail"
+
+
+def test_known_alpha2_codes():
+    lang_obj = get_language_with_alpha2_fallback("en")
+    assert lang_obj is not None, "English not found"
+    assert lang_obj.code == "en", "Wrong code"
+    assert lang_obj.name == "English", "Wrong name"
+    assert lang_obj.native_name == "English", "Wrong native_name"
+
+    lang_obj = get_language_with_alpha2_fallback("zu")
+    assert lang_obj is not None, "Zulu not found"
+    assert lang_obj.code == "zul", "Wrong internal repr. code"
+    assert lang_obj.name == "Zulu", "Wrong name"
+    assert lang_obj.native_name == "isiZulu", "Wrong native_name"
+
+    lang_obj = get_language_with_alpha2_fallback("pt")
+    assert lang_obj is not None, "Portuguese not found"
+    assert lang_obj.code == "pt", "Wrong code"
+    assert lang_obj.name == "Portuguese", "Wrong name"
+    assert lang_obj.native_name == "Português", "Wrong native_name"
+
+
+def test_unknown_alpha2_code():
+    lang_obj = get_language_with_alpha2_fallback("zz")
+    assert lang_obj is None, "Uknown code zz returned non-None"
+
+
+def test_youtube_edgecases_alpha2_codes():
+    # check old language code for Hebrew works `iw`
+    lang_obj = get_language_with_alpha2_fallback("iw")
+    assert lang_obj is not None, "Hebrew not found"
+    assert lang_obj.code == "he", "Wrong code"
+    assert lang_obj.name == "Hebrew (modern)", "Wrong name"
+    assert lang_obj.native_name == "עברית", "Wrong native_name"
