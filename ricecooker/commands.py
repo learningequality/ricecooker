@@ -301,6 +301,7 @@ def upload_files(tree, file_diff):
         file_diff ([str]): list of files to upload
     Returns: None
     """
+    # Upload new files to CC
     config.LOGGER.info(
         "  Uploading {0} new file(s) to Kolibri Studio...".format(len(file_diff))
     )
@@ -315,6 +316,7 @@ def create_tree(tree):
         tree (ChannelManager): manager to handle communication to Kolibri Studio
     Returns: channel id of created channel and link to channel
     """
+    # Create tree
     config.LOGGER.info("Creating tree on Kolibri Studio...")
     channel_id, channel_link = tree.upload_tree()
     return channel_link, channel_id
@@ -345,8 +347,10 @@ def select_sample_nodes(channel, size=10, seed=42):  # noqa: C901
         for child in subtree.children:
             child_path = parents_path + (child,)
             if child.children:
+                # recurse
                 walk_tree(child_path, child)
             else:
+                # emit leaf node
                 node_paths.append(child_path)
 
     walk_tree((), channel)
@@ -371,6 +375,7 @@ def select_sample_nodes(channel, size=10, seed=42):  # noqa: C901
 
     def attach(parent, node_path):
         if len(node_path) == 1:
+            # leaf node
             parent.add_child(node_path[0])
         else:
             child = node_path[0]
