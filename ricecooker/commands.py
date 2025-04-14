@@ -240,7 +240,7 @@ def check_version_number():
 def prompt_yes_or_no(message):
     """prompt_yes_or_no: Prompt user to reply with a y/n response
     Args: None
-    Returns: bool indicating user response
+    Returns: None
     """
     user_input = input("{} [y/n]:".format(message)).lower()
     if user_input.startswith("y"):
@@ -283,11 +283,12 @@ def process_tree_files(tree):
 
 
 def get_file_diff(tree, files_to_diff):
-    """get_file_diff: Determine which files have not been uploaded to Kolibri Studio
+    """get_file_diff: Download files from nodes
     Args:
         tree (ChannelManager): manager to handle communication to Kolibri Studio
     Returns: list of files that are not on Kolibri Studio
     """
+    # Determine which files have not yet been uploaded to the CC server
     config.LOGGER.info("  Checking if files exist on Kolibri Studio...")
     file_diff = tree.get_file_diff(files_to_diff)
     return file_diff
@@ -298,7 +299,7 @@ def upload_files(tree, file_diff):
     Args:
         tree (ChannelManager): manager to handle communication to Kolibri Studio
         file_diff ([str]): list of files to upload
-    Returns: list of files that were uploaded
+    Returns: None
     """
     config.LOGGER.info(
         "  Uploading {0} new file(s) to Kolibri Studio...".format(len(file_diff))
@@ -312,7 +313,7 @@ def create_tree(tree):
     """create_tree: Upload tree to Kolibri Studio
     Args:
         tree (ChannelManager): manager to handle communication to Kolibri Studio
-    Returns: tuple of (channel link, channel id)
+    Returns: channel id of created channel and link to channel
     """
     config.LOGGER.info("Creating tree on Kolibri Studio...")
     channel_id, channel_link = tree.upload_tree()
@@ -320,7 +321,7 @@ def create_tree(tree):
 
 
 def publish_tree(tree, channel_id):
-    """publish_tree: Publish tree to Kolibri Studio
+    """publish_tree: Publish tree to Kolibri 
     Args:
         tree (ChannelManager): manager to handle communication to Kolibri Studio
         channel_id (str): id of channel to publish
