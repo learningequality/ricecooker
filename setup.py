@@ -30,7 +30,7 @@ setup(
     include_package_data=True,
     install_requires=[
         "requests>=2.11.1",
-        "le_utils>=0.1.26",
+        "le_utils>=0.2.10",
         "requests_file",
         "beautifulsoup4>=4.6.3,<4.9.0",  # pinned to match versions in le-pycaption
         "selenium==4.31.0",
