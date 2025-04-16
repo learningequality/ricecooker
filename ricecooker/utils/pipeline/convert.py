@@ -528,10 +528,11 @@ class SubtitleConversionHandler(ExtensionMatchingHandler):
 
         # Language is not present, let's try different codes
         if not converter.has_language(language):
+            input_language = get_language_with_alpha2_fallback(language)
             for lang_code in converter.get_language_codes():
-                language = get_language_with_alpha2_fallback(lang_code)
+                lang_obj = get_language_with_alpha2_fallback(lang_code)
 
-                if language and language.code == language:
+                if lang_obj and lang_obj.code == input_language.code:
                     convert_lang_code = lang_code
                     break
             else:
