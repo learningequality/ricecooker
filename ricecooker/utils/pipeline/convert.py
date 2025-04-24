@@ -22,7 +22,6 @@ import html5lib
 from html5lib.html5parser import ParseError
 from le_utils.constants import file_formats
 from le_utils.constants import format_presets
-from le_utils.constants import languages
 from PIL import Image
 from PIL import UnidentifiedImageError
 
@@ -43,6 +42,7 @@ from ricecooker.utils.utils import extract_path_ext
 from ricecooker.utils.videos import compress_video
 from ricecooker.utils.videos import validate_media_file
 from ricecooker.utils.videos import VideoCompressionError
+from ricecooker.utils.youtube import get_language_with_alpha2_fallback
 from ricecooker.utils.zip import create_predictable_zip
 
 
@@ -528,10 +528,11 @@ class SubtitleConversionHandler(ExtensionMatchingHandler):
 
         # Language is not present, let's try different codes
         if not converter.has_language(language):
+            input_language = get_language_with_alpha2_fallback(language)
             for lang_code in converter.get_language_codes():
-                language = languages.getlang_by_alpha2(lang_code)
+                lang_obj = get_language_with_alpha2_fallback(lang_code)
 
-                if language and language.code == language:
+                if lang_obj and lang_obj.code == input_language.code:
                     convert_lang_code = lang_code
                     break
             else:

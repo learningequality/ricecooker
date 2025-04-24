@@ -30,7 +30,7 @@ setup(
     include_package_data=True,
     install_requires=[
         "requests>=2.11.1",
-        "le_utils>=0.1.26",
+        "le_utils>=0.2.10",
         "requests_file",
         "beautifulsoup4>=4.6.3,<4.9.0",  # pinned to match versions in le-pycaption
         "selenium==4.31.0",
@@ -50,12 +50,12 @@ setup(
         "EbookLib>=0.17.1",
         "filetype>=1.1.0",
         "urllib3==2.4.0",
+        "langcodes[data]==3.5.0",
     ],
     extras_require={
         "test": [
             "requests-cache==1.2.1",
             "pytest==8.3.5",
-            "pycountry==24.6.1",
             "pytest-env==1.1.5",
             "vcrpy==7.0.0; python_version >='3.10'",
             "mock==5.2.0",
