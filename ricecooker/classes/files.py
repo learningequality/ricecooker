@@ -55,6 +55,7 @@ class File(object):
     is_primary = False
     duration = None
     skip_upload = False
+    default_preset = None
 
     def __init__(
         self,
@@ -91,8 +92,11 @@ class File(object):
     def get_preset(self):
         if self.preset:
             return self.preset
+        if self.default_preset:
+            return self.default_preset
         raise NotImplementedError(
-            "preset must be set if preset isn't specified when creating File object"
+            f"preset must be set if preset and default_preset isn't specified when creating {self.__class__.__name__} "
+            f"object for file {self.filename} ({self.original_filename})"
         )
 
     def get_filename(self):
@@ -204,6 +208,7 @@ class DownloadFile(File):
                     # Don't overwrite the input path.
                     continue
                 setattr(self, key, metadata[key])
+            self.validate()
             if not self.filename:
                 raise InvalidFileException("File could not be processed by pipeline")
             return super().process_file()
@@ -221,14 +226,12 @@ class ImageDownloadFile(DownloadFile):
 class SlideImageFile(ImageDownloadFile):
     default_ext = file_formats.PNG
     is_primary = True
+    default_preset = format_presets.SLIDESHOW_IMAGE
 
     def __init__(self, path, caption="", descriptive_text="", **kwargs):
         self.caption = caption
         self.descriptive_text = descriptive_text
         super(ImageDownloadFile, self).__init__(path, **kwargs)
-
-    def get_preset(self):
-        return format_presets.SLIDESHOW_IMAGE
 
 
 class ThumbnailFile(ThumbnailPresetMixin, ImageDownloadFile):
@@ -239,58 +242,46 @@ class AudioFile(DownloadFile):
     default_ext = file_formats.MP3
     allowed_formats = AudioCompressionHandler.EXTENSIONS
     is_primary = True
+    default_preset = format_presets.AUDIO
 
     def __init__(self, path, ffmpeg_settings=None, **kwargs):
         super(AudioFile, self).__init__(path, **kwargs)
         self.context["audio_settings"] = ffmpeg_settings or {}
-
-    def get_preset(self):
-        return self.preset or format_presets.AUDIO
 
 
 class DocumentFile(DownloadFile):
     default_ext = file_formats.PDF
     allowed_formats = {file_formats.PDF}
     is_primary = True
-
-    def get_preset(self):
-        return self.preset or format_presets.DOCUMENT
+    default_preset = format_presets.DOCUMENT
 
 
 class EPubFile(DownloadFile):
     default_ext = file_formats.EPUB
     allowed_formats = {file_formats.EPUB}
     is_primary = True
-
-    def get_preset(self):
-        return self.preset or format_presets.EPUB
+    default_preset = format_presets.EPUB
 
 
 class BloomPubFile(DownloadFile):
     default_ext = file_formats.BLOOMPUB
     allowed_formats = {file_formats.BLOOMPUB, file_formats.BLOOMD}
     is_primary = True
-
-    def get_preset(self):
-        return self.preset or format_presets.BLOOMPUB
+    default_preset = format_presets.BLOOMPUB
 
 
 class HTMLZipFile(DownloadFile):
     default_ext = file_formats.HTML5
     allowed_formats = {file_formats.HTML5}
     is_primary = True
-
-    def get_preset(self):
-        return self.preset or format_presets.HTML5_ZIP
+    default_preset = format_presets.HTML5_ZIP
 
 
 class H5PFile(DownloadFile):
     default_ext = file_formats.H5P
     allowed_formats = {file_formats.H5P}
     is_primary = True
-
-    def get_preset(self):
-        return self.preset or format_presets.H5P_ZIP
+    default_preset = format_presets.H5P_ZIP
 
 
 class VideoFile(DownloadFile):
@@ -301,9 +292,6 @@ class VideoFile(DownloadFile):
     def __init__(self, path, ffmpeg_settings=None, **kwargs):
         super(VideoFile, self).__init__(path, **kwargs)
         self.context["video_settings"] = ffmpeg_settings or {}
-
-    def get_preset(self):
-        return self.preset
 
 
 class WebVideoFile(DownloadFile):
@@ -325,9 +313,6 @@ class WebVideoFile(DownloadFile):
             self.context["max_height"] = maxheight
         self.context["high_resolution"] = high_resolution
 
-    def get_preset(self):
-        return self.preset
-
 
 class YouTubeVideoFile(WebVideoFile):
     def __init__(self, youtube_id, **kwargs):
@@ -337,6 +322,7 @@ class YouTubeVideoFile(WebVideoFile):
 
 
 class YouTubeSubtitleFile(File):
+    default_preset = format_presets.VIDEO_SUBTITLE
     """
     Helper class for downloading youtube subtitles.
     Args:
@@ -362,13 +348,11 @@ class YouTubeSubtitleFile(File):
         }
         assert self.language, "Subtitles must have a language"
 
-    def get_preset(self):
-        return self.preset or format_presets.VIDEO_SUBTITLE
-
 
 class SubtitleFile(DownloadFile):
     default_ext = file_formats.VTT
     allowed_formats = SubtitleConversionHandler.EXTENSIONS
+    default_preset = format_presets.VIDEO_SUBTITLE
 
     def __init__(self, path, **kwargs):
         """
@@ -386,9 +370,6 @@ class SubtitleFile(DownloadFile):
             "default_ext": self.subtitlesformat,
         }
 
-    def get_preset(self):
-        return self.preset or format_presets.VIDEO_SUBTITLE
-
 
 class Base64ImageFile(ThumbnailPresetMixin, DownloadFile):
     default_ext = file_formats.PNG
@@ -398,23 +379,22 @@ class Base64ImageFile(ThumbnailPresetMixin, DownloadFile):
 
 
 class _ExerciseBase64ImageFile(Base64ImageFile):
-    def get_preset(self):
-        return self.preset or format_presets.EXERCISE_IMAGE
+    default_preset = format_presets.EXERCISE_IMAGE
 
     def get_replacement_str(self):
         return self.get_filename() or self.path
 
 
 class _ExerciseImageFile(ImageDownloadFile):
+    default_preset = format_presets.EXERCISE_IMAGE
+
     def get_replacement_str(self):
         return self.get_filename() or self.path
-
-    def get_preset(self):
-        return self.preset or format_presets.EXERCISE_IMAGE
 
 
 class _ExerciseGraphieFile(File):
     default_ext = file_formats.GRAPHIE
+    default_preset = format_presets.EXERCISE_GRAPHIE
 
     def __init__(self, path):
         self.original_filename = path.split("/")[-1].split(".")[0]
@@ -427,9 +407,6 @@ class _ExerciseGraphieFile(File):
                 raise ValueError("Invalid URL")
         except ValueError:
             raise ValueError("_ExerciseGraphieFile must have a valid URL")
-
-    def get_preset(self):
-        return self.preset or format_presets.EXERCISE_GRAPHIE
 
     def get_replacement_str(self):
         if "http" in self.path:
@@ -525,6 +502,7 @@ class ExtractedThumbnailFile(ThumbnailFile):
 
 class ExtractedPdfThumbnailFile(ExtractedThumbnailFile):
     extractor_kwargs = {"page_number": 0, "crop": None}
+    allowed_formats = DocumentFile.allowed_formats
 
     def extractor_fun(self, fpath_in, thumbpath_out, **kwargs):
         create_image_from_pdf_page(fpath_in, thumbpath_out, **kwargs)
@@ -532,6 +510,7 @@ class ExtractedPdfThumbnailFile(ExtractedThumbnailFile):
 
 class ExtractedEPubThumbnailFile(ExtractedThumbnailFile):
     extractor_kwargs = {"crop": None}
+    allowed_formats = EPubFile.allowed_formats
 
     def extractor_fun(self, fpath_in, thumbpath_out, **kwargs):
         create_image_from_epub(fpath_in, thumbpath_out, **kwargs)
@@ -539,6 +518,7 @@ class ExtractedEPubThumbnailFile(ExtractedThumbnailFile):
 
 class ExtractedHTMLZipThumbnailFile(ExtractedThumbnailFile):
     extractor_kwargs = {"crop": "smart"}
+    allowed_formats = HTMLZipFile.allowed_formats
 
     def extractor_fun(self, fpath_in, thumbpath_out, **kwargs):
         create_image_from_zip(fpath_in, thumbpath_out, **kwargs)
@@ -546,6 +526,7 @@ class ExtractedHTMLZipThumbnailFile(ExtractedThumbnailFile):
 
 class ExtractedVideoThumbnailFile(ExtractedThumbnailFile):
     extractor_kwargs = {"overwrite": True}
+    allowed_formats = VideoFile.allowed_formats
 
     def extractor_fun(self, fpath_in, thumbpath_out, **kwargs):
         extract_thumbnail_from_video(fpath_in, thumbpath_out, **kwargs)

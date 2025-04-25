@@ -5,7 +5,6 @@ import uuid
 
 from le_utils.constants import content_kinds
 from le_utils.constants import exercises
-from le_utils.constants import file_formats
 from le_utils.constants import format_presets
 from le_utils.constants import languages
 from le_utils.constants import roles
@@ -20,6 +19,10 @@ from .. import __version__
 from .. import config
 from ..exceptions import InvalidNodeException
 from ..utils.utils import is_valid_uuid_string
+from .files import ExtractedEPubThumbnailFile
+from .files import ExtractedPdfThumbnailFile
+from .files import SubtitleFile
+from .files import YouTubeSubtitleFile
 from .licenses import License
 
 MASTERY_MODELS = [id for id, name in exercises.MASTERY_MODELS]
@@ -40,6 +43,7 @@ kind_activity_map = {
 class Node(object):
     """Node: model to represent all nodes in the tree"""
 
+    kind = None
     license = None
     language = None
 
@@ -89,8 +93,11 @@ class Node(object):
         metadata = "{0} {1}".format(
             count, "descendant" if count == 1 else "descendants"
         )
-        return "{title} ({kind}): {metadata}".format(
-            title=self.title, kind=self.__class__.__name__, metadata=metadata
+        return "{title} ({kind}) ({source_id}): {metadata}".format(
+            title=self.title,
+            kind=self.__class__.__name__,
+            source_id=self.source_id,
+            metadata=metadata,
         )
 
     def truncate_fields(self):
@@ -299,55 +306,48 @@ class Node(object):
         for child in self.children:
             child.save_channel_children_to_csv(metadata_csv, structure_string)
 
-    def validate_tree(self):
-        """
-        Validate all nodes in this tree recusively.
-          Args: None
-          Returns: boolean indicating if tree is valid
-        """
-        try:
-            self.validate()
-        except InvalidNodeException as e:
-            if config.STRICT:
-                raise
-            else:
-                config.LOGGER.warning(str(e))
-        for child in self.children:
-            assert child.validate_tree()
-        return True
+    def _validate_values(self, assertion, error_message):
+        if assertion:
+            raise InvalidNodeException(f"{self}: {error_message}")
 
-    def validate(self):
+    def validate(self):  # noqa: C901
         """validate: Makes sure node is valid
         Args: None
         Returns: boolean indicating if node is valid
         """
         from .files import File
 
-        assert (
-            self.source_id is not None
-        ), "Assumption Failed: Node must have a source_id"
-        assert isinstance(
-            self.title, str
-        ), "Assumption Failed: Node title is not a string"
-        assert (
-            len(self.title.strip()) > 0
-        ), "Assumption Failed: Node title cannot be empty"
-        assert (
-            isinstance(self.description, str) or self.description is None
-        ), "Assumption Failed: Node description is not a string"
-        assert isinstance(
-            self.children, list
-        ), "Assumption Failed: Node children is not a list"
+        self._validate_values(self.source_id is None, "Must have a source_id")
+
+        if self.__class__.kind is not None:
+            self._validate_values(
+                self.kind != self.__class__.kind,
+                f"{self.__class__.__name__} must have kind {self.__class__.kind}",
+            )
+            if self.kind != content_kinds.EXERCISE:
+                self._validate_values(
+                    bool(self.questions), f"{self.kind} should not have questions"
+                )
+
+        self._validate_values(not isinstance(self.title, str), "Title is not a string")
+        self._validate_values(len(self.title.strip()) == 0, "Title cannot be empty")
+        self._validate_values(
+            not (isinstance(self.description, str) or self.description is None),
+            "Description is not a string",
+        )
+        self._validate_values(
+            not isinstance(self.children, list), "Children is not a list"
+        )
+
         for f in self.files:
-            assert isinstance(f, File), "Assumption Failed: files must be file class"
+            self._validate_values(not isinstance(f, File), "Files must be file class")
             f.validate()
 
         source_ids = [c.source_id for c in self.children]
         duplicates = set([x for x in source_ids if source_ids.count(x) > 1])
-        assert (
-            len(duplicates) == 0
-        ), "Assumption Failed: Node must have unique source id among siblings ({} appears multiple times)".format(
-            duplicates
+        self._validate_values(
+            len(duplicates) > 0,
+            f"Must have unique source id among siblings ({duplicates} appears multiple times)",
         )
         return True
 
@@ -429,18 +429,11 @@ class ChannelNode(Node):
         Args: None
         Returns: boolean indicating if channel is valid
         """
-        try:
-            assert isinstance(
-                self.source_domain, str
-            ), "Channel domain must be a string"
-            assert self.language, "Channel must have a language"
-            return super(ChannelNode, self).validate()
-        except AssertionError as ae:
-            raise InvalidNodeException(
-                "Invalid channel ({}): {} - {}".format(
-                    ae.args[0], self.title, self.__dict__
-                )
-            )
+        self._validate_values(
+            not isinstance(self.source_domain, str), "Channel domain must be a string"
+        )
+        self._validate_values(self.language is None, "Channel must have a language")
+        return super(ChannelNode, self).validate()
 
 
 class TreeNode(Node):
@@ -479,7 +472,7 @@ class TreeNode(Node):
         categories=None,
         learner_needs=None,
         role=roles.LEARNER,
-        **kwargs
+        **kwargs,
     ):
         # Map parameters to model variables
         assert isinstance(source_id, str), "source_id must be a string"
@@ -613,86 +606,99 @@ class TreeNode(Node):
         Args: None
         Returns: boolean indicating if content node is valid
         """
-        assert isinstance(self.author, str), "Assumption Failed: Author is not a string"
-        assert isinstance(
-            self.aggregator, str
-        ), "Assumption Failed: Aggregator is not a string"
-        assert isinstance(
-            self.provider, str
-        ), "Assumption Failed: Provider is not a string"
-        assert isinstance(self.files, list), "Assumption Failed: Files is not a list"
-        assert isinstance(
-            self.questions, list
-        ), "Assumption Failed: Questions is not a list"
-        assert isinstance(
-            self.extra_fields, dict
-        ), "Assumption Failed: Extra fields is not a dict"
-        assert isinstance(self.tags, list), "Assumption Failed: Tags is not a list"
+        self._validate_values(
+            not isinstance(self.author, str), "Author is not a string"
+        )
+        self._validate_values(
+            not isinstance(self.aggregator, str), "Aggregator is not a string"
+        )
+        self._validate_values(
+            not isinstance(self.provider, str), "Provider is not a string"
+        )
+        self._validate_values(not isinstance(self.files, list), "Files is not a list")
+        self._validate_values(
+            not isinstance(self.questions, list), "Questions is not a list"
+        )
+        self._validate_values(
+            not isinstance(self.extra_fields, dict), "Extra fields is not a dict"
+        )
+        self._validate_values(not isinstance(self.tags, list), "Tags is not a list")
+
         for tag in self.tags:
-            assert isinstance(tag, str), "Assumption Failed: Tag is not a string"
-            assert len(tag) <= 30, (
-                "ERROR: tag " + tag + " is too long. Tags should be 30 chars or less."
+            self._validate_values(not isinstance(tag, str), "Tag is not a string")
+            self._validate_values(
+                len(tag) > 30,
+                f"Tag '{tag}' is too long. Tags should be 30 chars or less.",
             )
 
-        assert (
-            self.role in ROLES
-        ), "Assumption Failed: Role must be one of the following {}".format(ROLES)
+        if self.license is not None:
+            self._validate_values(
+                not isinstance(self.license, License), "License is not a license object"
+            )
+            try:
+                self.license.validate()
+            except AssertionError as e:
+                self._validate_values(True, str(e))
+
+        self._validate_values(
+            self.role not in ROLES, f"Role must be one of the following: {ROLES}"
+        )
+
         if self.grade_levels is not None:
             for grade in self.grade_levels:
-                assert (
-                    grade in levels.LEVELSLIST
-                ), "Assumption Failed: Grade levels must be one of the following {}".format(
-                    levels.LEVELSLIST
+                self._validate_values(
+                    grade not in levels.LEVELSLIST,
+                    f"Grade levels must be one of the following: {levels.LEVELSLIST}",
                 )
 
         if self.resource_types is not None:
             for res_type in self.resource_types:
-                assert (
-                    res_type in resource_type.RESOURCETYPELIST
-                ), "Assumption Failed: Resource types must be one of the following {}".format(
-                    resource_type.RESOURCETYPELIST
+                self._validate_values(
+                    res_type not in resource_type.RESOURCETYPELIST,
+                    f"Resource types must be one of the following: {resource_type.RESOURCETYPELIST}",
                 )
 
         if self.learning_activities is not None:
-            assert isinstance(
-                self.learning_activities, list
-            ), "Assumption Failed: Learning activities must be list"
+            self._validate_values(
+                not isinstance(self.learning_activities, list),
+                "Learning activities must be list",
+            )
             for learn_act in self.learning_activities:
-                assert (
-                    learn_act in learning_activities.LEARNINGACTIVITIESLIST
-                ), "Assumption Failed: Learning activities must be one of the following {}".format(
-                    learning_activities.LEARNINGACTIVITIESLIST
+                self._validate_values(
+                    learn_act not in learning_activities.LEARNINGACTIVITIESLIST,
+                    f"Learning activities must be one of the following: {learning_activities.LEARNINGACTIVITIESLIST}",
                 )
+
         if self.accessibility_labels is not None:
-            assert isinstance(
-                self.accessibility_labels, list
-            ), "Assumption Failed: Accessibility label must be list"
+            self._validate_values(
+                not isinstance(self.accessibility_labels, list),
+                "Accessibility label must be list",
+            )
             for access_label in self.accessibility_labels:
-                assert (
-                    access_label in accessibility_categories.ACCESSIBILITYCATEGORIESLIST
-                ), "Assumption Failed: Accessibility label must be one of the following {}".format(
-                    accessibility_categories.ACCESSIBILITYCATEGORIESLIST
+                self._validate_values(
+                    access_label
+                    not in accessibility_categories.ACCESSIBILITYCATEGORIESLIST,
+                    f"Accessibility label must be one of the following: {accessibility_categories.ACCESSIBILITYCATEGORIESLIST}",
                 )
+
         if self.categories is not None:
-            assert isinstance(
-                self.categories, list
-            ), "Assumption Failed: Categories must be list"
+            self._validate_values(
+                not isinstance(self.categories, list), "Categories must be list"
+            )
             for category in self.categories:
-                assert (
-                    category in subjects.SUBJECTSLIST
-                ), "Assumption Failed: Categories must be one of the following {}".format(
-                    subjects.SUBJECTSLIST
+                self._validate_values(
+                    category not in subjects.SUBJECTSLIST,
+                    f"Categories must be one of the following: {subjects.SUBJECTSLIST}",
                 )
 
         if self.learner_needs is not None:
-            assert isinstance(
-                self.learner_needs, list
-            ), "Assumption Failed: Learner needs must be list"
+            self._validate_values(
+                not isinstance(self.learner_needs, list), "Learner needs must be list"
+            )
             for learner_need in self.learner_needs:
-                assert (
-                    learner_need in needs.NEEDSLIST
-                ), "Assumption Failed: Learner needs must be one of the following {}".format(
-                    needs.NEEDSLIST
+                self._validate_values(
+                    learner_need not in needs.NEEDSLIST,
+                    f"Learner needs must be one of the following: {needs.NEEDSLIST}",
                 )
 
         return super(TreeNode, self).validate()
@@ -721,23 +727,6 @@ class TopicNode(TreeNode):
 
         return TiledThumbnailFile(self.get_non_topic_descendants())
 
-    def validate(self):
-        """validate: Makes sure topic is valid
-        Args: None
-        Returns: boolean indicating if topic is valid
-        """
-        try:
-            assert (
-                self.kind == content_kinds.TOPIC
-            ), "Assumption Failed: Node is supposed to be a topic"
-            return super(TopicNode, self).validate()
-        except AssertionError as ae:
-            raise InvalidNodeException(
-                "Invalid node ({}): {} - {}".format(
-                    ae.args[0], self.title, self.__dict__
-                )
-            )
-
 
 class ContentNode(TreeNode):
     """Model representing the content nodes in the channel's tree
@@ -760,7 +749,7 @@ class ContentNode(TreeNode):
         domain_ns (str): who is providing the content (e.g. learningequality.org) (optional)
     """
 
-    required_file_format = None
+    required_presets = tuple()
 
     def __init__(
         self,
@@ -769,7 +758,7 @@ class ContentNode(TreeNode):
         license,
         license_description=None,
         copyright_holder=None,
-        **kwargs
+        **kwargs,
     ):
         self.set_license(
             license, copyright_holder=copyright_holder, description=license_description
@@ -794,21 +783,32 @@ class ContentNode(TreeNode):
             )
         self.license = license
 
-    def validate(self):  # noqa F401
+    def validate(self):
         """validate: Makes sure content node is valid
         Args: None
         Returns: boolean indicating if content node is valid
         """
-        assert isinstance(self.license, str) or isinstance(
-            self.license, License
-        ), "Assumption Failed: License is not a string or license object"
-        self.license.validate()
-        # if self.required_file_format:
-        #     files_valid = False
-        #     #not any(f for f in self.files if isinstance(f, DownloadFile))
-        #     for f in self.files:
-        #         files_valid = files_valid or (f.path.endswith(self.required_file_format)
-        #     assert files_valid , "Assumption Failed: Node should have at least one {} file".format(self.required_file_format)
+        self._validate_values(self.license is None, "ContentNode must have a license")
+        if self.required_presets:
+            num_required_presets = 0
+            for f in self.files:
+                num_required_presets += (
+                    1
+                    if (
+                        any(
+                            f.get_preset() == preset for preset in self.required_presets
+                        )
+                    )
+                    else 0
+                )
+            self._validate_values(
+                num_required_presets == 0,
+                f"No required format preset found out of {self.required_presets}",
+            )
+            self._validate_values(
+                num_required_presets > 1,
+                f"Multiple ({num_required_presets}) required presets found out of {self.required_presets}",
+            )
         return super(ContentNode, self).validate()
 
     def to_dict(self):
@@ -870,7 +870,7 @@ class VideoNode(ContentNode):
     """
 
     kind = content_kinds.VIDEO
-    required_file_format = (file_formats.MP4, file_formats.WEBM)
+    required_presets = (format_presets.VIDEO_HIGH_RES, format_presets.VIDEO_LOW_RES)
 
     def __init__(self, source_id, title, license, **kwargs):
         super(VideoNode, self).__init__(source_id, title, license, **kwargs)
@@ -895,65 +895,28 @@ class VideoNode(ContentNode):
         Args: None
         Returns: boolean indicating if video is valid
         """
-        from .files import (
-            StudioFile,
-            VideoFile,
-            WebVideoFile,
-            SubtitleFile,
-            YouTubeSubtitleFile,
-        )
 
-        try:
-            assert (
-                self.kind == content_kinds.VIDEO
-            ), "Assumption Failed: Node should be a video"
-            assert (
-                self.questions == []
-            ), "Assumption Failed: Video should not have questions"
-
-            # Check if there are any .mp4 files if there are video files (other video types don't have paths)
-            assert any(
-                f
-                for f in self.files
-                if isinstance(f, VideoFile)
-                or isinstance(f, WebVideoFile)
-                or (
-                    isinstance(f, StudioFile)
-                    and f.preset
-                    in (format_presets.VIDEO_HIGH_RES, format_presets.VIDEO_LOW_RES)
-                )
-            ), "Assumption Failed: Video node should have at least one video file"
-
-            # Ensure that there is only one subtitle file per language code
-            new_files = []
-            language_codes_seen = set()
-            for file in self.files:
-                if isinstance(file, SubtitleFile) or isinstance(
-                    file, YouTubeSubtitleFile
-                ):
-                    language_code = file.language
-                    if language_code not in language_codes_seen:
-                        new_files.append(file)
-                        language_codes_seen.add(language_code)
-                    else:
-                        file_info = (
-                            file.path if hasattr(file, "path") else file.youtube_url
-                        )
-                        config.LOGGER.warning(
-                            "Skipping duplicate subs for "
-                            + language_code
-                            + " from "
-                            + file_info
-                        )
-                else:
+        # Ensure that there is only one subtitle file per language code
+        new_files = []
+        language_codes_seen = set()
+        for file in self.files:
+            if isinstance(file, SubtitleFile) or isinstance(file, YouTubeSubtitleFile):
+                language_code = file.language
+                if language_code not in language_codes_seen:
                     new_files.append(file)
-            self.files = new_files
-            return super(VideoNode, self).validate()
-
-        except AssertionError as ae:
-            raise InvalidNodeException(
-                "Invalid node {} - {}: {}".format(self.title, self.__dict__, ae)
-            )
+                    language_codes_seen.add(language_code)
+                else:
+                    file_info = file.path if hasattr(file, "path") else file.youtube_url
+                    config.LOGGER.warning(
+                        "Skipping duplicate subs for "
+                        + language_code
+                        + " from "
+                        + file_info
+                    )
+            else:
+                new_files.append(file)
+        self.files = new_files
+        return super(VideoNode, self)._validate()
 
 
 class AudioNode(ContentNode):
@@ -977,38 +940,7 @@ class AudioNode(ContentNode):
     """
 
     kind = content_kinds.AUDIO
-    required_file_format = file_formats.MP3
-
-    def validate(self):
-        """validate: Makes sure audio is valid
-        Args: None
-        Returns: boolean indicating if audio is valid
-        """
-        from .files import AudioFile, StudioFile
-
-        try:
-            assert (
-                self.kind == content_kinds.AUDIO
-            ), "Assumption Failed: Node should be audio"
-            assert (
-                self.questions == []
-            ), "Assumption Failed: Audio should not have questions"
-            assert (
-                len(self.files) > 0
-            ), "Assumption Failed: Audio should have at least one file"
-            assert [
-                f
-                for f in self.files
-                if isinstance(f, AudioFile)
-                or (isinstance(f, StudioFile) and f.preset == format_presets.AUDIO)
-            ], "Assumption Failed: Audio should have at least one audio file"
-            return super(AudioNode, self).validate()
-        except AssertionError as ae:
-            raise InvalidNodeException(
-                "Invalid node ({}): {} - {}".format(
-                    ae.args[0], self.title, self.__dict__
-                )
-            )
+    required_presets = (format_presets.AUDIO,)
 
 
 class DocumentNode(ContentNode):
@@ -1032,61 +964,16 @@ class DocumentNode(ContentNode):
     """
 
     kind = content_kinds.DOCUMENT
-    required_file_format = file_formats.PDF  # TODO(ivan) change ro allowed_formats
-
-    def validate(self):
-        """validate: Makes sure document node contains at least one EPUB or PDF
-        Args: None
-        Returns: boolean indicating if document is valid
-        """
-        from .files import DocumentFile, EPubFile, StudioFile, BloomPubFile
-
-        try:
-            assert (
-                self.kind == content_kinds.DOCUMENT
-            ), "Assumption Failed: Node should be a document"
-            assert (
-                self.questions == []
-            ), "Assumption Failed: Document should not have questions"
-            assert (
-                len(self.files) > 0
-            ), "Assumption Failed: Document should have at least one file"
-            assert [
-                f
-                for f in self.files
-                if isinstance(f, DocumentFile)
-                or isinstance(f, EPubFile)
-                or (
-                    isinstance(f, StudioFile)
-                    and f.preset in (format_presets.DOCUMENT, format_presets.EPUB)
-                )
-                or isinstance(f, BloomPubFile)
-            ], "Assumption Failed: Document should have at least one document file"
-            return super(DocumentNode, self).validate()
-        except AssertionError as ae:
-            raise InvalidNodeException(
-                "Invalid node ({}): {} - {}".format(
-                    ae.args[0], self.title, self.__dict__
-                )
-            )
+    required_presets = (
+        format_presets.DOCUMENT,
+        format_presets.EPUB,
+        format_presets.BLOOMPUB,
+    )
 
     def generate_thumbnail(self):
-        from .files import (
-            DocumentFile,
-            EPubFile,
-            ExtractedPdfThumbnailFile,
-            ExtractedEPubThumbnailFile,
-        )
-
-        pdf_files = [f for f in self.files if isinstance(f, DocumentFile)]
-        epub_files = [f for f in self.files if isinstance(f, EPubFile)]
-        if pdf_files and epub_files:
-            raise InvalidNodeException(
-                "Invalid node (both PDF and ePub provided): {} - {}".format(
-                    self.title, self.__dict__
-                )
-            )
-        elif pdf_files:
+        pdf_files = [f for f in self.files if f.get_preset() == format_presets.DOCUMENT]
+        epub_files = [f for f in self.files if f.get_preset() == format_presets.EPUB]
+        if pdf_files:
             pdf_file = pdf_files[0]
             if pdf_file.filename and not pdf_file.error:
                 storage_path = config.get_storage_path(pdf_file.filename)
@@ -1130,7 +1017,7 @@ class HTML5AppNode(ContentNode):
     """
 
     kind = content_kinds.HTML5
-    required_file_format = file_formats.HTML5
+    required_presets = (format_presets.HTML5_ZIP,)
 
     def __init__(self, *args, entrypoint=None, **kwargs):
         kwargs = _set_entrypoint(entrypoint, kwargs)
@@ -1147,34 +1034,6 @@ class HTML5AppNode(ContentNode):
                 return ExtractedHTMLZipThumbnailFile(storage_path)
         else:
             return None
-
-    def validate(self):
-        """validate: Makes sure HTML5 app is valid
-        Args: None
-        Returns: boolean indicating if HTML5 app is valid
-        """
-        from .files import HTMLZipFile, StudioFile
-
-        try:
-            assert (
-                self.kind == content_kinds.HTML5
-            ), "Assumption Failed: Node should be an HTML5 app"
-            assert (
-                self.questions == []
-            ), "Assumption Failed: HTML should not have questions"
-            assert [
-                f
-                for f in self.files
-                if isinstance(f, HTMLZipFile)
-                or (isinstance(f, StudioFile) and f.preset == format_presets.HTML5_ZIP)
-            ], "Assumption Failed: HTML should have at least one html file"
-            return super(HTML5AppNode, self).validate()
-        except AssertionError as ae:
-            raise InvalidNodeException(
-                "Invalid node ({}): {} - {}".format(
-                    ae.args[0], self.title, self.__dict__
-                )
-            )
 
 
 class H5PAppNode(ContentNode):
@@ -1197,35 +1056,7 @@ class H5PAppNode(ContentNode):
     """
 
     kind = content_kinds.H5P
-    required_file_format = file_formats.H5P
-
-    def validate(self):
-        """validate: Makes sure H5P app is valid
-        Args: None
-        Returns: boolean indicating if H5P app is valid
-        """
-        from .files import H5PFile, StudioFile
-
-        try:
-            assert (
-                self.kind == content_kinds.H5P
-            ), "Assumption Failed: Node should be an H5P app"
-            assert (
-                self.questions == []
-            ), "Assumption Failed: HTML should not have questions"
-            assert [
-                f
-                for f in self.files
-                if isinstance(f, H5PFile)
-                or (isinstance(f, StudioFile) and f.preset == format_presets.H5P_ZIP)
-            ], "Assumption Failed: H5PAppNode should have at least one h5p file"
-            return super(H5PAppNode, self).validate()
-        except AssertionError as ae:
-            raise InvalidNodeException(
-                "Invalid node ({}): {} - {}".format(
-                    ae.args[0], self.title, self.__dict__
-                )
-            )
+    required_presets = (format_presets.H5P_ZIP,)
 
 
 class ExerciseNode(ContentNode):
@@ -1342,43 +1173,43 @@ class ExerciseNode(ContentNode):
         Returns: boolean indicating if exercise is valid
         """
 
-        try:
-            self.process_exercise_data()
-
-            assert (
-                self.kind == content_kinds.EXERCISE
-            ), "Assumption Failed: Node should be an exercise"
-
-            # Check if questions are correct
-            assert any(
-                self.questions
-            ), "Assumption Failed: Exercise does not have a question"
-            assert all(
-                [q.validate() for q in self.questions]
-            ), "Assumption Failed: Exercise has invalid question"
-            assert (
-                self.extra_fields["mastery_model"] in MASTERY_MODELS
-            ), "Assumption Failed: Unrecognized mastery model {}".format(
-                self.extra_fields["mastery_model"]
+        # Check if questions are correct
+        self._validate_values(
+            not self.questions, "Exercise does not have any questions"
+        )
+        self._validate_values(
+            any(not q.validate() for q in self.questions),
+            "Exercise has invalid question",
+        )
+        self._validate_values(
+            self.extra_fields["mastery_model"] not in MASTERY_MODELS,
+            "Unrecognized mastery model {}".format(self.extra_fields["mastery_model"]),
+        )
+        if self.extra_fields["mastery_model"] == exercises.M_OF_N:
+            self._validate_values(
+                "m" not in self.extra_fields, "M of N mastery model is missing M value"
             )
-            if self.extra_fields["mastery_model"] == exercises.M_OF_N:
-                assert (
-                    "m" in self.extra_fields and "n" in self.extra_fields
-                ), "Assumption failed: M of N mastery model is missing M and/or N values"
-                assert isinstance(
-                    self.extra_fields["m"], int
-                ), "Assumption failed: M must be an integer value"
-                assert isinstance(
-                    self.extra_fields["m"], int
-                ), "Assumption failed: N must be an integer value"
-
-            return super(ExerciseNode, self).validate()
-        except (AssertionError, ValueError) as ae:
-            raise InvalidNodeException(
-                "Invalid node ({}): {} - {}".format(
-                    ae.args[0], self.title, self.__dict__
+            self._validate_values(
+                "n" not in self.extra_fields, "M of N mastery model is missing N value"
+            )
+            try:
+                int(self.extra_fields["m"])
+            except ValueError:
+                self._validate_values(
+                    True,
+                    "M must be an integer coerceable value",
                 )
-            )
+            try:
+                int(self.extra_fields["n"])
+            except ValueError:
+                self._validate_values(
+                    True,
+                    "N must be an integer coerceable value",
+                )
+
+        self.process_exercise_data()
+
+        return super(ExerciseNode, self)._validate()
 
     def truncate_fields(self):
         for q in self.questions:
@@ -1471,31 +1302,10 @@ class SlideshowNode(ContentNode):
             file_to_add.node = self
             self.files.append(file_to_add)
 
-    def validate(self):
-        from .files import SlideImageFile, ThumbnailFile
-
-        try:
-            assert [
-                f for f in self.files if isinstance(f, SlideImageFile)
-            ], "Assumption Failed: SlideshowNode must have at least one SlideImageFile file."
-            assert all(
-                [
-                    isinstance(f, SlideImageFile) or isinstance(f, ThumbnailFile)
-                    for f in self.files
-                ]
-            ), "Assumption Failed: SlideshowNode files must be of type SlideImageFile or ThumbnailFile."
-        except AssertionError as ae:
-            raise InvalidNodeException(
-                "Invalid node ({}): {} - {}".format(
-                    ae.args[0], self.title, self.__dict__
-                )
-            )
-        super(SlideshowNode, self).validate()
-
 
 class CustomNavigationNode(ContentNode):
     kind = content_kinds.TOPIC
-    required_file_format = file_formats.HTML5
+    required_presets = (format_presets.HTML5_ZIP,)
 
     def __init__(self, *args, entrypoint=None, **kwargs):
         kwargs = _set_entrypoint(entrypoint, kwargs)
@@ -1517,34 +1327,9 @@ class CustomNavigationNode(ContentNode):
         else:
             return None
 
-    def validate(self):
-        """validate: Makes sure Custom Navigation app is valid
-        Args: None
-        Returns: boolean indicating if Custom Navigation app is valid
-        """
-        from .files import HTMLZipFile
-
-        try:
-            assert (
-                self.kind == content_kinds.TOPIC
-            ), "Assumption Failed: Node should be a Topic Node"
-            assert (
-                self.questions == []
-            ), "Assumption Failed: Custom Navigation should not have questions"
-            assert any(
-                f for f in self.files if isinstance(f, HTMLZipFile)
-            ), "Assumption Failed: Custom Navigation should have at least one html file"
-            return super(CustomNavigationNode, self).validate()
-        except AssertionError as ae:
-            raise InvalidNodeException(
-                "Invalid node ({}): {} - {}".format(
-                    ae.args[0], self.title, self.__dict__
-                )
-            )
-
 
 class CustomNavigationChannelNode(ChannelNode):
-    required_file_format = file_formats.HTML5
+    required_presets = (format_presets.HTML5_ZIP,)
 
     def __init__(self, *args, entrypoint=None, **kwargs):
         kwargs = _set_entrypoint(entrypoint, kwargs)
@@ -1553,28 +1338,6 @@ class CustomNavigationChannelNode(ChannelNode):
         # TODO: update le-utils version and use a constant value here
         kwargs["extra_fields"]["options"].update({"modality": "CUSTOM_NAVIGATION"})
         super(CustomNavigationChannelNode, self).__init__(*args, **kwargs)
-
-    def validate(self):
-        """validate: Makes sure Custom Navigation app is valid
-        Args: None
-        Returns: boolean indicating if Custom Navigation app is valid
-        """
-        from .files import HTMLZipFile
-
-        try:
-            assert (
-                self.kind == "Channel"
-            ), "Assumption Failed: Node should be a Topic Node"
-            assert any(
-                f for f in self.files if isinstance(f, HTMLZipFile)
-            ), "Assumption Failed: Custom Navigation should have at least one html file"
-            return super(CustomNavigationChannelNode, self).validate()
-        except AssertionError as ae:
-            raise InvalidNodeException(
-                "Invalid node ({}): {} - {}".format(
-                    ae.args[0], self.title, self.__dict__
-                )
-            )
 
 
 class PracticeQuizNode(ExerciseNode):
@@ -1657,7 +1420,7 @@ class StudioContentNode(TreeNode):
                         key
                     )
                 )
-        super(StudioContentNode, self).validate()
+        return super(StudioContentNode, self)._validate()
 
     def to_dict(self):
         data = {
