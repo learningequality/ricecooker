@@ -36,7 +36,12 @@ class Handler(ABC):
         pass
 
     @abstractmethod
-    def execute(self, path: str, context: Optional[Dict] = None) -> list[FileMetadata]:
+    def execute(
+        self,
+        path: str,
+        context: Optional[Dict] = None,
+        skip_cache: Optional[bool] = False,
+    ) -> list[FileMetadata]:
         pass
 
 
@@ -178,7 +183,10 @@ class FileHandler(Handler):
         return [context.to_dict()]
 
     def _get_cached_and_uncached_files(
-        self, path: str, context: ContextMetadata
+        self,
+        path: str,
+        context: ContextMetadata,
+        skip_cache: bool,
     ) -> tuple[list[FileMetadata], list[Dict]]:
         kwargs_list = self.get_file_kwargs(context)
 
@@ -190,7 +198,7 @@ class FileHandler(Handler):
             file_metadata = get_cache_data(cache_key)
             if (
                 file_metadata
-                and not config.UPDATE
+                and not skip_cache
                 and not self.cached_file_outdated(file_metadata["filename"])
             ):
                 file_metadata["path"] = config.get_storage_path(
@@ -202,10 +210,15 @@ class FileHandler(Handler):
 
         return cached_files, uncached_files
 
-    def execute(self, path: str, context: Optional[Dict] = None) -> list[FileMetadata]:
+    def execute(
+        self,
+        path: str,
+        context: Optional[Dict] = None,
+        skip_cache: Optional[bool] = False,
+    ) -> list[FileMetadata]:
         context = self._get_context(context)
         file_metadata_list, uncached_kwargs = self._get_cached_and_uncached_files(
-            path, context
+            path, context, skip_cache
         )
 
         for kwargs in uncached_kwargs:
@@ -292,10 +305,15 @@ class FirstHandlerOnly(CompositeHandler):
     run the first handler that can handle the file.
     """
 
-    def execute(self, path: str, context: Optional[Dict] = None) -> list[FileMetadata]:
+    def execute(
+        self,
+        path: str,
+        context: Optional[Dict] = None,
+        skip_cache: Optional[bool] = False,
+    ) -> list[FileMetadata]:
         for handler in self._children:
             if handler.should_handle(path):
-                return handler.execute(path, context=context)
+                return handler.execute(path, context=context, skip_cache=skip_cache)
         return []
 
 

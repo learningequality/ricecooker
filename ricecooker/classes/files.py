@@ -195,7 +195,9 @@ class DownloadFile(File):
         self.validate()
         pipeline = config.FILE_PIPELINE or fallback_pipeline
         try:
-            metadata = pipeline.execute(self.path, context=self.context)[0]
+            metadata = pipeline.execute(
+                self.path, context=self.context, skip_cache=config.UPDATE
+            )[0]
             metadata = metadata.to_dict()
             for key in metadata:
                 if key == "path":
