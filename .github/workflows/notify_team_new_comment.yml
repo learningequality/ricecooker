@@ -1,9 +1,7 @@
 name: Send a slack notification when a contributor comments on issue
-
 on:
   issue_comment:
     types: [created]
-
 jobs:
   contributor_issue_comment:
     uses: learningequality/.github/.github/workflows/notify_team_new_comment.yml@main

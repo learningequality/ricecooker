@@ -1,27 +1,40 @@
 repos:
-    -   repo: https://github.com/python/black
-        rev: 21.12b0
-        hooks:
-            -   id: black
-                types_or: [ python, pyi ]
-                additional_dependencies: ['click==8.0.4']
-    -   repo: https://github.com/pycqa/flake8
-        rev: 7.1.1
-        hooks:
-            -   id: flake8
-                exclude: (?x)(.*examples.*)
-    -   repo: https://github.com/pre-commit/pre-commit-hooks
-        rev: v4.1.0
-        hooks:
-            -   id: trailing-whitespace
-            -   id: check-yaml
-            -   id: check-added-large-files
-                exclude: '^tests/cassettes'
-            -   id: debug-statements
-            -   id: end-of-file-fixer
-                exclude: '^.+?\.json$'
-
-    -   repo: https://github.com/asottile/reorder_python_imports
-        rev: v2.6.0
-        hooks:
-            -   id: reorder-python-imports
+  - repo: https://github.com/python/black
+    rev: 21.12b0
+    hooks:
+      - id: black
+        types_or: [python, pyi]
+        additional_dependencies: ['click==8.0.4']
+  - repo: https://github.com/pycqa/flake8
+    rev: 7.1.1
+    hooks:
+      - id: flake8
+        exclude: (?x)(.*examples.*)
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.1.0
+    hooks:
+      - id: trailing-whitespace
+      - id: check-yaml
+      - id: check-added-large-files
+        exclude: '^tests/cassettes'
+      - id: debug-statements
+      - id: end-of-file-fixer
+        exclude: '^.+?\.json$'
+  - repo: https://github.com/asottile/reorder_python_imports
+    rev: v2.6.0
+    hooks:
+      - id: reorder-python-imports
+  - repo: https://github.com/google/yamlfmt
+    rev: v0.14.0
+    hooks:
+      - id: yamlfmt
+        exclude: '^tests/cassettes'
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.7
+    hooks:
+      - id: actionlint
+        additional_dependencies:
+          # actionlint has a shellcheck integration which extracts shell scripts in `run:` steps from GitHub Actions
+          # and checks these with shellcheck. This is arguably its most useful feature,
+          # but the integration only works if shellcheck is installed
+          - "github.com/wasilibs/go-shellcheck/cmd/shellcheck@v0.10.0"

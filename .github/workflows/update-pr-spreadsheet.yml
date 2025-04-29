@@ -1,8 +1,7 @@
 name: Update community pull requests spreadsheet
 on:
   pull_request_target:
-    types: [assigned,unassigned,opened,closed,reopened]
-
+    types: [assigned, unassigned, opened, closed, reopened]
 jobs:
   call-update-spreadsheet:
     uses: learningequality/.github/.github/workflows/update-pr-spreadsheet.yml@main
