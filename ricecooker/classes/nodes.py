@@ -20,13 +20,18 @@ from .. import config
 from ..exceptions import InvalidNodeException
 from ..utils.utils import is_valid_uuid_string
 from .files import ExtractedEPubThumbnailFile
+from .files import ExtractedHTMLZipThumbnailFile
 from .files import ExtractedPdfThumbnailFile
+from .files import File
 from .files import SubtitleFile
 from .files import YouTubeSubtitleFile
 from .licenses import License
+from ricecooker.utils.pipeline.exceptions import ExpectedFileException
+from ricecooker.utils.pipeline.exceptions import InvalidFileException
 
 MASTERY_MODELS = [id for id, name in exercises.MASTERY_MODELS]
 ROLES = [id for id, name in roles.choices]
+PRESET_LOOKUP = {p.id: p for p in format_presets.PRESETLIST}
 
 
 # Used to map content kind to learning activity when a list of learning_activiies is not provided
@@ -46,6 +51,8 @@ class Node(object):
     kind = None
     license = None
     language = None
+    kind = None
+    valid = False
 
     def __init__(
         self,
@@ -99,6 +106,9 @@ class Node(object):
             source_id=self.source_id,
             metadata=metadata,
         )
+
+    def __repr__(self):
+        return self.__str__()
 
     def truncate_fields(self):
         if len(self.title) > config.MAX_TITLE_LENGTH:
@@ -178,21 +188,15 @@ class Node(object):
         """
         if isinstance(self, ChannelNode):
             return format_presets.CHANNEL_THUMBNAIL
-        elif isinstance(self, TopicNode):
-            return format_presets.TOPIC_THUMBNAIL
-        elif isinstance(self, VideoNode):
-            return format_presets.VIDEO_THUMBNAIL
-        elif isinstance(self, AudioNode):
-            return format_presets.AUDIO_THUMBNAIL
-        elif isinstance(self, DocumentNode):
-            return format_presets.DOCUMENT_THUMBNAIL
-        elif isinstance(self, ExerciseNode):
-            return format_presets.EXERCISE_THUMBNAIL
-        elif isinstance(self, HTML5AppNode):
-            return format_presets.HTML5_THUMBNAIL
-        elif isinstance(self, H5PAppNode):
-            return format_presets.H5P_THUMBNAIL
-        else:
+        try:
+            preset = next(
+                filter(
+                    lambda x: x.thumbnail and x.kind == self.kind,
+                    format_presets.PRESETLIST,
+                )
+            )
+            return preset.id
+        except StopIteration:
             return None
 
     def process_files(self):
@@ -310,7 +314,7 @@ class Node(object):
         if assertion:
             raise InvalidNodeException(f"{self}: {error_message}")
 
-    def validate(self):  # noqa: C901
+    def validate(self):
         """validate: Makes sure node is valid
         Args: None
         Returns: boolean indicating if node is valid
@@ -489,19 +493,18 @@ class TreeNode(Node):
 
         self.grade_levels = grade_levels or []
         self.resource_types = resource_types or []
-
-        # learning_activities can be set to a default based on the kind if not provided directly
-        if self.kind in kind_activity_map and not learning_activities:
-            self.learning_activities = [kind_activity_map[self.kind]]
-        else:
-            self.learning_activities = learning_activities or []
-
+        self.learning_activities = learning_activities or []
         self.accessibility_labels = accessibility_labels or []
         self.categories = categories or []
         self.learner_needs = learner_needs or []
         self.role = role
 
         super(TreeNode, self).__init__(title, **kwargs)
+
+    def infer_learning_activities(self):
+        # learning_activities can be set to a default based on the kind if not provided directly
+        if not self.learning_activities and self.kind in kind_activity_map:
+            self.learning_activities = [kind_activity_map[self.kind]]
 
     def get_domain_namespace(self):
         if not self.domain_ns:
@@ -606,6 +609,7 @@ class TreeNode(Node):
         Args: None
         Returns: boolean indicating if content node is valid
         """
+        self.infer_learning_activities()
         self._validate_values(
             not isinstance(self.author, str), "Author is not a string"
         )
@@ -747,6 +751,8 @@ class ContentNode(TreeNode):
         files ([<File>]): list of file objects for node (optional)
         extra_fields (dict): any additional data needed for node (optional)
         domain_ns (str): who is providing the content (e.g. learningequality.org) (optional)
+        uri (str): A URI for the main file for this content node
+        pipeline (FilePipeline): A FilePipeline instance for handling uri processing
     """
 
     required_presets = tuple()
@@ -756,6 +762,8 @@ class ContentNode(TreeNode):
         source_id,
         title,
         license,
+        uri=None,
+        pipeline=None,
         license_description=None,
         copyright_holder=None,
         **kwargs,
@@ -763,7 +771,20 @@ class ContentNode(TreeNode):
         self.set_license(
             license, copyright_holder=copyright_holder, description=license_description
         )
+        self.uri = uri
+        self._pipeline = pipeline
+        # Flag here to say that files haven't been processed.
+        # Until files have been processed we can't be sure that the files are actually valid
+        # for example, once we download a file we may discover it doesn't exist, that it's
+        # actually a video not a PDF etc.
+        self._files_processed = False
         super(ContentNode, self).__init__(source_id, title, **kwargs)
+
+    @property
+    def pipeline(self):
+        if self._pipeline is None:
+            return config.FILE_PIPELINE
+        return self._pipeline
 
     def __str__(self):
         metadata = "{0} {1}".format(
@@ -783,33 +804,96 @@ class ContentNode(TreeNode):
             )
         self.license = license
 
-    def validate(self):
+    def _validate_uri(self):
+        try:
+            should_handle = self.pipeline.should_handle(self.uri)
+        except InvalidFileException:
+            should_handle = False
+        if not should_handle:
+            raise InvalidNodeException(
+                "Invalid node: pipeline cannot handle uri {}".format(self.uri)
+            )
+
+    def _validate(self):
         """validate: Makes sure content node is valid
         Args: None
         Returns: boolean indicating if content node is valid
         """
         self._validate_values(self.license is None, "ContentNode must have a license")
-        if self.required_presets:
-            num_required_presets = 0
-            for f in self.files:
-                num_required_presets += (
-                    1
-                    if (
-                        any(
-                            f.get_preset() == preset for preset in self.required_presets
+        if self._files_processed:
+            self._validate_values(self.kind is None, "No kind has been set")
+            if self.required_presets:
+                num_required_presets = 0
+                for f in self.files:
+                    num_required_presets += (
+                        1
+                        if (
+                            any(
+                                f.filename and f.get_preset() == preset
+                                for preset in self.required_presets
+                            )
                         )
+                        else 0
                     )
-                    else 0
+                self._validate_values(
+                    num_required_presets == 0,
+                    f"No required format preset found out of {self.required_presets}",
                 )
-            self._validate_values(
-                num_required_presets == 0,
-                f"No required format preset found out of {self.required_presets}",
+                self._validate_values(
+                    num_required_presets > 1,
+                    f"Multiple ({num_required_presets}) required presets found out of {self.required_presets}",
+                )
+            # We don't need files if we have questions
+            if not self.questions:
+                has_default_file = False
+                for f in self.files:
+                    # If files have failed to process, they will not have a filename set.
+                    if not f.filename:
+                        continue
+                    preset = f.get_preset()
+                    preset_obj = PRESET_LOOKUP[preset]
+                    has_default_file = has_default_file or not preset_obj.supplementary
+                self._validate_values(not has_default_file, "No default file")
+        if self.uri:
+            self._validate_uri()
+        return super(ContentNode, self)._validate()
+
+    def _process_uri(self):
+        try:
+            file_metadata_list = self.pipeline.execute(
+                self.uri, skip_cache=config.UPDATE
             )
-            self._validate_values(
-                num_required_presets > 1,
-                f"Multiple ({num_required_presets}) required presets found out of {self.required_presets}",
-            )
-        return super(ContentNode, self).validate()
+        except (InvalidFileException, ExpectedFileException) as e:
+            config.LOGGER.error(f"Error processing path: {self.uri} with error: {e}")
+            return None
+        content_metadata = {}
+        for file_metadata in file_metadata_list:
+            metadata_dict = file_metadata.to_dict()
+            if "content_node_metadata" in metadata_dict:
+                content_metadata.update(metadata_dict.pop("content_node_metadata"))
+            # Remove path from metadata_dict as it is not needed for the File object
+            metadata_dict.pop("path", None)
+            file_obj = File(**metadata_dict)
+            self.add_file(file_obj)
+        for key, value in content_metadata.items():
+            if key == "extra_fields":
+                self.extra_fields.update(value)
+            else:
+                if key == "kind" and self.kind is not None and self.kind != value:
+                    raise InvalidNodeException(
+                        "Inferred kind is different from content node class kind."
+                    )
+                setattr(self, key, value)
+
+    def process_files(self):
+        if self.uri:
+            self._process_uri()
+        filenames = super().process_files()
+        # Now that we have set all the metadata, and files, we validate the node
+        # again to ensure that the metadata is valid
+        self._files_processed = True
+        self.validate()
+        return filenames
 
     def to_dict(self):
         """to_dict: puts data in format CC expects
@@ -1024,9 +1108,10 @@ class HTML5AppNode(ContentNode):
         super().__init__(*args, **kwargs)
 
     def generate_thumbnail(self):
-        from .files import HTMLZipFile, ExtractedHTMLZipThumbnailFile
 
-        html5_files = [f for f in self.files if isinstance(f, HTMLZipFile)]
+        html5_files = [
+            f for f in self.files if f.get_preset() == format_presets.HTML5_ZIP
+        ]
         if html5_files:
             html_file = html5_files[0]
             if html_file.filename and not html_file.error:
@@ -1316,9 +1401,9 @@ class CustomNavigationNode(ContentNode):
         super(CustomNavigationNode, self).__init__(*args, **kwargs)
 
     def generate_thumbnail(self):
-        from .files import HTMLZipFile, ExtractedHTMLZipThumbnailFile
-
-        html5_files = [f for f in self.files if isinstance(f, HTMLZipFile)]
+        html5_files = [
+            f for f in self.files if f.get_preset() == format_presets.HTML5_ZIP
+        ]
         if html5_files:
             html_file = html5_files[0]
             if html_file.filename and not html_file.error:

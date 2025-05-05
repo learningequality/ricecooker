@@ -61,6 +61,7 @@ class FilePipeline(CompositeHandler):
         """
         Execute the pipeline for a given file path.
         """
+        context = context or {}
         file_metadata_list = [FileMetadata(path=path)]
         for handler in self._children:
             updated_file_metadata_list = []

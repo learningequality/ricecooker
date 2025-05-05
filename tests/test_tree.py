@@ -19,6 +19,7 @@ from ricecooker.classes.files import SlideImageFile
 from ricecooker.classes.files import ThumbnailFile
 from ricecooker.classes.licenses import get_license
 from ricecooker.classes.licenses import License
+from ricecooker.classes.nodes import ContentNode
 from ricecooker.classes.nodes import CustomNavigationChannelNode
 from ricecooker.classes.nodes import CustomNavigationNode
 from ricecooker.classes.nodes import DocumentNode
@@ -27,6 +28,7 @@ from ricecooker.classes.nodes import SlideshowNode
 from ricecooker.classes.nodes import TopicNode
 from ricecooker.exceptions import InvalidNodeException
 from ricecooker.utils.jsontrees import build_tree_from_json
+from ricecooker.utils.pipeline import FilePipeline
 from ricecooker.utils.zip import create_predictable_zip
 
 
@@ -694,6 +696,7 @@ def test_remote_content_node_with_invalid_overridden_field():
 
 def test_default_learning_activities_in_tree_node():
     node = DocumentNode(title="test", source_id="test", license=licenses.CC_BY)
+    node.infer_learning_activities()
     assert node.learning_activities == [learning_activities.READ]
 
 
@@ -705,3 +708,73 @@ def test_no_default_learning_activities_in_tree_node_if_given():
         learning_activities=[learning_activities.WATCH],
     )
     assert node.learning_activities != [learning_activities.READ]
+
+
+def test_automatic_resource_node_video(video_file):
+    node = ContentNode(
+        "test",
+        "test",
+        licenses.CC_BY,
+        uri=video_file.path,
+        pipeline=FilePipeline(),
+        copyright_holder="Demo Holdings",
+    )
+    node.process_files()
+    assert node.kind == content_kinds.VIDEO
+    assert node.learning_activities == [learning_activities.WATCH]
+
+
+def test_automatic_resource_node_audio(audio_file):
+    node = ContentNode(
+        "test",
+        "test",
+        licenses.CC_BY,
+        uri=audio_file.path,
+        pipeline=FilePipeline(),
+        copyright_holder="Demo Holdings",
+    )
+    node.process_files()
+    assert node.kind == content_kinds.AUDIO
+    assert node.learning_activities == [learning_activities.LISTEN]
+
+
+def test_automatic_resource_node_document(document_file):
+    node = ContentNode(
+        "test",
+        "test",
+        licenses.CC_BY,
+        uri=document_file.path,
+        pipeline=FilePipeline(),
+        copyright_holder="Demo Holdings",
+    )
+    node.process_files()
+    assert node.kind == content_kinds.DOCUMENT
+    assert node.learning_activities == [learning_activities.READ]
+
+
+def test_automatic_resource_node_epub(epub_file):
+    node = ContentNode(
+        "test",
+        "test",
+        licenses.CC_BY,
+        uri=epub_file.path,
+        pipeline=FilePipeline(),
+        copyright_holder="Demo Holdings",
+    )
+    node.process_files()
+    assert node.kind == content_kinds.DOCUMENT
+    assert node.learning_activities == [learning_activities.READ]
+
+
+def test_automatic_resource_node_html5(html_file):
+    node = ContentNode(
+        "test",
+        "test",
+        licenses.CC_BY,
+        uri=html_file.path,
+        pipeline=FilePipeline(),
+        copyright_holder="Demo Holdings",
+    )
+    node.process_files()
+    assert node.kind == content_kinds.HTML5
+    assert node.learning_activities == [learning_activities.EXPLORE]

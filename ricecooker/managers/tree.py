@@ -7,6 +7,7 @@ import sys
 from requests.exceptions import RequestException
 
 from .. import config
+from ricecooker.exceptions import InvalidNodeException
 
 
 class InsufficientStorageException(Exception):
@@ -48,18 +49,18 @@ class ChannelManager:
     def validate_node(self, node):
         try:
             return node.validate()
-        except Exception as e:
+        except InvalidNodeException as e:
             if config.STRICT:
                 raise
             else:
-                config.LOGGER.warning(str(e))
+                node._error = str(e)
+                config.LOGGER.warning(node._error)
         return True
 
-    def process_tree(self, channel_node):
+    def process_tree(self):
         """
         Returns a list of all file names associated with a tree. Profiling suggests using a global list with `extend`
         is faster than using a global set or deque.
-        :param channel_node: Root node of the channel being processed
         :return: The list of unique file names in `channel_node`.
         """
         if not self.all_nodes:
@@ -85,7 +86,14 @@ class ChannelManager:
         :param node: The root of the current sub-tree being processed
         :return: None.
         """
-        node.process_files()
+        try:
+            node.process_files()
+        except (InvalidNodeException, ValueError) as e:
+            if config.STRICT:
+                raise
+            else:
+                node._error = str(e)
+                config.LOGGER.warning(node._error)
 
         output = {}
 
