@@ -45,6 +45,23 @@ kind_activity_map = {
 }
 
 
+inheritable_simple_value_fields = {
+    "language",
+    "license",
+    "author",
+    "aggregator",
+    "provider",
+}
+
+
+inheritable_metadata_label_fields = [
+    "grade_levels",
+    "resource_types",
+    "categories",
+    "learner_needs",
+]
+
+
 class Node(object):
     """Node: model to represent all nodes in the tree"""
 
@@ -56,7 +73,23 @@ class Node(object):
 
     def __init__(
         self,
+        source_id,
         title,
+        author="",
+        aggregator="",
+        provider="",
+        copyright_holder="",
+        license=None,
+        license_description=None,
+        tags=None,
+        domain_ns=None,
+        grade_levels=None,
+        resource_types=None,
+        learning_activities=None,
+        accessibility_labels=None,
+        categories=None,
+        learner_needs=None,
+        role=roles.LEARNER,
         language=None,
         description=None,
         thumbnail=None,
@@ -64,7 +97,11 @@ class Node(object):
         derive_thumbnail=False,
         node_modifications={},
         extra_fields=None,
+        suggested_duration=None,
     ):
+        assert isinstance(source_id, str), "source_id must be a string"
+        self.source_id = source_id
+
         self.files = []
         self.children = []
         self.descendants = []
@@ -83,6 +120,28 @@ class Node(object):
         self.set_thumbnail(thumbnail)
         # save modifications passed in by csv
         self.node_modifications = node_modifications
+
+        self.author = author or ""
+        self.aggregator = aggregator or ""
+        self.provider = provider or ""
+        self.tags = tags or []
+        self.domain_ns = domain_ns
+        self.suggested_duration = suggested_duration
+        self.questions = (
+            self.questions if hasattr(self, "questions") else []
+        )  # Needed for to_dict method
+
+        self.grade_levels = grade_levels or []
+        self.resource_types = resource_types or []
+        self.learning_activities = learning_activities or []
+        self.accessibility_labels = accessibility_labels or []
+        self.categories = categories or []
+        self.learner_needs = learner_needs or []
+        self.role = role
+
+        self.set_license(
+            license, copyright_holder=copyright_holder, description=license_description
+        )
 
     def set_language(self, language):
         """Set self.language to internal lang. repr. code from str or Language object."""
@@ -314,13 +373,26 @@ class Node(object):
         if assertion:
             raise InvalidNodeException(f"{self}: {error_message}")
 
-    def validate(self):
+    def infer_learning_activities(self):
+        # learning_activities can be set to a default based on the kind if not provided directly
+        if not self.learning_activities and self.kind in kind_activity_map:
+            self.learning_activities = [kind_activity_map[self.kind]]
+
+    def set_license(self, license, copyright_holder=None, description=None):
+        # Add license (create model if it's just a path)
+        if isinstance(license, str):
+            from .licenses import get_license
+
+            license = get_license(
+                license, copyright_holder=copyright_holder, description=description
+            )
+        self.license = license
+
+    def validate(self):  # noqa: C901
         """validate: Makes sure node is valid
         Args: None
         Returns: boolean indicating if node is valid
         """
-        from .files import File
-
         self._validate_values(self.source_id is None, "Must have a source_id")
 
         if self.__class__.kind is not None:
@@ -353,7 +425,132 @@ class Node(object):
             len(duplicates) > 0,
             f"Must have unique source id among siblings ({duplicates} appears multiple times)",
         )
+
+        self.infer_learning_activities()
+        self._validate_values(
+            not isinstance(self.author, str), "Author is not a string"
+        )
+        self._validate_values(
+            not isinstance(self.aggregator, str), "Aggregator is not a string"
+        )
+        self._validate_values(
+            not isinstance(self.provider, str), "Provider is not a string"
+        )
+        self._validate_values(not isinstance(self.files, list), "Files is not a list")
+        self._validate_values(
+            not isinstance(self.questions, list), "Questions is not a list"
+        )
+        self._validate_values(
+            not isinstance(self.extra_fields, dict), "Extra fields is not a dict"
+        )
+        self._validate_values(not isinstance(self.tags, list), "Tags is not a list")
+
+        for tag in self.tags:
+            self._validate_values(not isinstance(tag, str), "Tag is not a string")
+            self._validate_values(
+                len(tag) > 30,
+                f"Tag '{tag}' is too long. Tags should be 30 chars or less.",
+            )
+
+        if self.license is not None:
+            self._validate_values(
+                not isinstance(self.license, License), "License is not a license object"
+            )
+            try:
+                self.license.validate()
+            except AssertionError as e:
+                self._validate_values(True, str(e))
+
+        self._validate_values(
+            self.role not in ROLES, f"Role must be one of the following: {ROLES}"
+        )
+
+        if self.grade_levels is not None:
+            for grade in self.grade_levels:
+                self._validate_values(
+                    grade not in levels.LEVELSLIST,
+                    f"Grade levels must be one of the following: {levels.LEVELSLIST}",
+                )
+
+        if self.resource_types is not None:
+            for res_type in self.resource_types:
+                self._validate_values(
+                    res_type not in resource_type.RESOURCETYPELIST,
+                    f"Resource types must be one of the following: {resource_type.RESOURCETYPELIST}",
+                )
+
+        if self.learning_activities is not None:
+            self._validate_values(
+                not isinstance(self.learning_activities, list),
+                "Learning activities must be list",
+            )
+            for learn_act in self.learning_activities:
+                self._validate_values(
+                    learn_act not in learning_activities.LEARNINGACTIVITIESLIST,
+                    f"Learning activities must be one of the following: {learning_activities.LEARNINGACTIVITIESLIST}",
+                )
+
+        if self.accessibility_labels is not None:
+            self._validate_values(
+                not isinstance(self.accessibility_labels, list),
+                "Accessibility label must be list",
+            )
+            for access_label in self.accessibility_labels:
+                self._validate_values(
+                    access_label
+                    not in accessibility_categories.ACCESSIBILITYCATEGORIESLIST,
+                    f"Accessibility label must be one of the following: {accessibility_categories.ACCESSIBILITYCATEGORIESLIST}",
+                )
+
+        if self.categories is not None:
+            self._validate_values(
+                not isinstance(self.categories, list), "Categories must be list"
+            )
+            for category in self.categories:
+                self._validate_values(
+                    category not in subjects.SUBJECTSLIST,
+                    f"Categories must be one of the following: {subjects.SUBJECTSLIST}",
+                )
+
+        if self.learner_needs is not None:
+            self._validate_values(
+                not isinstance(self.learner_needs, list), "Learner needs must be list"
+            )
+            for learner_need in self.learner_needs:
+                self._validate_values(
+                    learner_need not in needs.NEEDSLIST,
+                    f"Learner needs must be one of the following: {needs.NEEDSLIST}",
+                )
+
         return True
+
+    def get_metadata_dict(self, metadata: dict[str, any]) -> dict[str, any]:
+        """
+        Supplements the metadata in the metadata dict argument with metadata from the node.
+        """
+        for field in inheritable_simple_value_fields:
+            # These fields, if not set, will be either None or empty string
+            value = getattr(self, field)
+            if value is not None and value != "":
+                metadata[field] = value
+        for field in inheritable_metadata_label_fields:
+            # These fields, if not set, will be empty list
+            ancestor_values = metadata.get(field, [])
+            node_values = getattr(self, field)
+            final_values = set()
+            # Get a list of all keys in reverse order of length so we can remove any less specific values
+            all_values = sorted(
+                set(ancestor_values).union(set(node_values)), key=len, reverse=True
+            )
+            for value in all_values:
+                if not any(k != value and k.startswith(value) for k in final_values):
+                    final_values.add(value)
+            if final_values:
+                metadata[field] = list(final_values)
+        return metadata
+
+    def gather_ancestor_metadata(self):
+        return self.get_metadata_dict({})
 
 
 class ChannelNode(Node):
@@ -372,13 +569,12 @@ class ChannelNode(Node):
 
     kind = "Channel"
 
-    def __init__(self, source_id, source_domain, tagline=None, *args, **kwargs):
+    def __init__(self, source_id, source_domain, title, tagline=None, **kwargs):
         # Map parameters to model variables
         self.source_domain = source_domain
-        self.source_id = source_id
         self.tagline = tagline
 
-        super(ChannelNode, self).__init__(*args, **kwargs)
+        super(ChannelNode, self).__init__(source_id, title, **kwargs)
 
     def get_domain_namespace(self):
         return uuid.uuid5(uuid.NAMESPACE_DNS, self.source_domain)
@@ -414,7 +610,7 @@ class ChannelNode(Node):
             "language": self.language,
             "description": self.description or "",
             "tagline": self.tagline or "",
-            "license": self.license,
+            "license": self.license.license_id if self.license else None,
             "source_domain": self.source_domain,
             "source_id": self.source_id,
             "ricecooker_version": __version__,
@@ -459,52 +655,6 @@ class TreeNode(Node):
         extra_fields (dict): any additional data needed for node (optional)
         domain_ns (str): who is providing the content (e.g. learningequality.org) (optional)
     """
-
-    def __init__(
-        self,
-        source_id,
-        title,
-        author="",
-        aggregator="",
-        provider="",
-        tags=None,
-        domain_ns=None,
-        grade_levels=None,
-        resource_types=None,
-        learning_activities=None,
-        accessibility_labels=None,
-        categories=None,
-        learner_needs=None,
-        role=roles.LEARNER,
-        **kwargs,
-    ):
-        # Map parameters to model variables
-        assert isinstance(source_id, str), "source_id must be a string"
-        self.source_id = source_id
-        self.author = author or ""
-        self.aggregator = aggregator or ""
-        self.provider = provider or ""
-        self.tags = tags or []
-        self.domain_ns = domain_ns
-        self.suggested_duration = kwargs.get("suggested_duration") or None
-        self.questions = (
-            self.questions if hasattr(self, "questions") else []
-        )  # Needed for to_dict method
-
-        self.grade_levels = grade_levels or []
-        self.resource_types = resource_types or []
-        self.learning_activities = learning_activities or []
-        self.accessibility_labels = accessibility_labels or []
-        self.categories = categories or []
-        self.learner_needs = learner_needs or []
-        self.role = role
-
-        super(TreeNode, self).__init__(title, **kwargs)
-
-    def infer_learning_activities(self):
-        # learning_activities can be set to a default based on the kind if not provided directly
-        if not self.learning_activities and self.kind in kind_activity_map:
-            self.learning_activities = [kind_activity_map[self.kind]]
 
     def get_domain_namespace(self):
         if not self.domain_ns:
@@ -604,108 +754,13 @@ class TreeNode(Node):
             "role": self.role,
         }
 
-    def validate(self):  # noqa: C901
-        """validate: Makes sure content node is valid
-        Args: None
-        Returns: boolean indicating if content node is valid
-        """
-        self.infer_learning_activities()
-        self._validate_values(
-            not isinstance(self.author, str), "Author is not a string"
-        )
-        self._validate_values(
-            not isinstance(self.aggregator, str), "Aggregator is not a string"
-        )
-        self._validate_values(
-            not isinstance(self.provider, str), "Provider is not a string"
-        )
-        self._validate_values(not isinstance(self.files, list), "Files is not a list")
-        self._validate_values(
-            not isinstance(self.questions, list), "Questions is not a list"
-        )
-        self._validate_values(
-            not isinstance(self.extra_fields, dict), "Extra fields is not a dict"
-        )
-        self._validate_values(not isinstance(self.tags, list), "Tags is not a list")
-
-        for tag in self.tags:
-            self._validate_values(not isinstance(tag, str), "Tag is not a string")
-            self._validate_values(
-                len(tag) > 30,
-                f"Tag '{tag}' is too long. Tags should be 30 chars or less.",
+    def gather_ancestor_metadata(self):
+        if not self.parent:
+            raise InvalidNodeException(
+                "Parent not found: cannot gather ancestor metadata if no parent exists"
             )
-
-        if self.license is not None:
-            self._validate_values(
-                not isinstance(self.license, License), "License is not a license object"
-            )
-            try:
-                self.license.validate()
-            except AssertionError as e:
-                self._validate_values(True, str(e))
-
-        self._validate_values(
-            self.role not in ROLES, f"Role must be one of the following: {ROLES}"
-        )
-
-        if self.grade_levels is not None:
-            for grade in self.grade_levels:
-                self._validate_values(
-                    grade not in levels.LEVELSLIST,
-                    f"Grade levels must be one of the following: {levels.LEVELSLIST}",
-                )
-
-        if self.resource_types is not None:
-            for res_type in self.resource_types:
-                self._validate_values(
-                    res_type not in resource_type.RESOURCETYPELIST,
-                    f"Resource types must be one of the following: {resource_type.RESOURCETYPELIST}",
-                )
-
-        if self.learning_activities is not None:
-            self._validate_values(
-                not isinstance(self.learning_activities, list),
-                "Learning activities must be list",
-            )
-            for learn_act in self.learning_activities:
-                self._validate_values(
-                    learn_act not in learning_activities.LEARNINGACTIVITIESLIST,
-                    f"Learning activities must be one of the following: {learning_activities.LEARNINGACTIVITIESLIST}",
-                )
-
-        if self.accessibility_labels is not None:
-            self._validate_values(
-                not isinstance(self.accessibility_labels, list),
-                "Accessibility label must be list",
-            )
-            for access_label in self.accessibility_labels:
-                self._validate_values(
-                    access_label
-                    not in accessibility_categories.ACCESSIBILITYCATEGORIESLIST,
-                    f"Accessibility label must be one of the following: {accessibility_categories.ACCESSIBILITYCATEGORIESLIST}",
-                )
-
-        if self.categories is not None:
-            self._validate_values(
-                not isinstance(self.categories, list), "Categories must be list"
-            )
-            for category in self.categories:
-                self._validate_values(
-                    category not in subjects.SUBJECTSLIST,
-                    f"Categories must be one of the following: {subjects.SUBJECTSLIST}",
-                )
-
-        if self.learner_needs is not None:
-            self._validate_values(
-                not isinstance(self.learner_needs, list), "Learner needs must be list"
-            )
-            for learner_need in self.learner_needs:
-                self._validate_values(
-                    learner_need not in needs.NEEDSLIST,
-                    f"Learner needs must be one of the following: {needs.NEEDSLIST}",
-                )
-
-        return super(TreeNode, self).validate()
+        metadata = self.parent.gather_ancestor_metadata()
+        return self.get_metadata_dict(metadata)
 
 
 class TopicNode(TreeNode):
@@ -757,20 +812,7 @@ class ContentNode(TreeNode):
 
     required_presets = tuple()
 
-    def __init__(
-        self,
-        source_id,
-        title,
-        license,
-        uri=None,
-        pipeline=None,
-        license_description=None,
-        copyright_holder=None,
-        **kwargs,
-    ):
-        self.set_license(
-            license, copyright_holder=copyright_holder, description=license_description
-        )
+    def __init__(self, source_id, title, license, uri=None, pipeline=None, **kwargs):
         self.uri = uri
         self._pipeline = pipeline
         # Flag here to say that files haven't been processed.
@@ -778,7 +820,7 @@ class ContentNode(TreeNode):
         # for example, once we download a file we may discover it doesn't exist, that it's
         # actually a video not a PDF etc.
         self._files_processed = False
-        super(ContentNode, self).__init__(source_id, title, **kwargs)
+        super(ContentNode, self).__init__(source_id, title, license=license, **kwargs)
 
     @property
     def pipeline(self):
@@ -793,16 +835,6 @@ class ContentNode(TreeNode):
         return "{title} ({kind}): {metadata}".format(
             title=self.title, kind=self.__class__.__name__, metadata=metadata
         )
-
-    def set_license(self, license, copyright_holder=None, description=None):
-        # Add license (create model if it's just a path)
-        if isinstance(license, str):
-            from .licenses import get_license
-
-            license = get_license(
-                license, copyright_holder=copyright_holder, description=description
-            )
-        self.license = license
 
     def _validate_uri(self):
         try:
@@ -931,6 +963,11 @@ class ContentNode(TreeNode):
             "categories": self.categories,
             "learner_needs": self.learner_needs,
         }
+
+    def set_metadata_from_ancestors(self):
+        metadata = self.gather_ancestor_metadata()
+        for field in metadata:
+            setattr(self, field, metadata[field])
 
 
 class VideoNode(ContentNode):

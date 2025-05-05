@@ -11,6 +11,9 @@ from le_utils.constants import format_presets
 from le_utils.constants import licenses
 from le_utils.constants.labels import learning_activities
 from le_utils.constants.labels import levels
+from le_utils.constants.labels import needs
+from le_utils.constants.labels import resource_type
+from le_utils.constants.labels import subjects
 from le_utils.constants.languages import getlang
 
 from ricecooker.classes.files import DocumentFile
@@ -19,13 +22,16 @@ from ricecooker.classes.files import SlideImageFile
 from ricecooker.classes.files import ThumbnailFile
 from ricecooker.classes.licenses import get_license
 from ricecooker.classes.licenses import License
+from ricecooker.classes.nodes import ChannelNode
 from ricecooker.classes.nodes import ContentNode
 from ricecooker.classes.nodes import CustomNavigationChannelNode
 from ricecooker.classes.nodes import CustomNavigationNode
 from ricecooker.classes.nodes import DocumentNode
+from ricecooker.classes.nodes import Node
 from ricecooker.classes.nodes import RemoteContentNode
 from ricecooker.classes.nodes import SlideshowNode
 from ricecooker.classes.nodes import TopicNode
+from ricecooker.classes.nodes import TreeNode
 from ricecooker.exceptions import InvalidNodeException
 from ricecooker.utils.jsontrees import build_tree_from_json
 from ricecooker.utils.pipeline import FilePipeline
@@ -778,3 +784,237 @@ def test_automatic_resource_node_html5(html_file):
     node.process_files()
     assert node.kind == content_kinds.HTML5
     assert node.learning_activities == [learning_activities.EXPLORE]
+
+
+def test_gather_ancestor_metadata_base_node_returns_empty_dict_with_no_metadata():
+    node = Node(source_id="test", title="Test Node")
+    assert node.gather_ancestor_metadata() == {}
+
+
+def test_gather_ancestor_metadata_treenode_with_empty_parent_returns_empty_dict():
+    node = TreeNode(source_id="test", title="Test Node")
+    node.parent = Node(source_id="root", title="Test Node")
+    assert node.gather_ancestor_metadata() == {}
+
+
+def _assert_metadata_equal(expected, actual):
+    assert set(actual.keys()) == set(expected.keys()), "Metadata keys do not match"
+    for field, value in expected.items():
+        if isinstance(value, list):
+            assert set(actual[field]) == set(
+                value
+            ), f"Metadata for {field} does not match"
+        elif field == "license":
+            assert (
+                actual[field].license_id == value
+            ), f"Metadata for {field} does not match"
+        else:
+            assert actual[field] == value, f"Metadata for {field} does not match"
+
+
+def test_gather_ancestor_metadata_treenode_with_parent_gathers_metadata():
+    parent_metadata = {
+        "language": "en",
+        "license": "CC BY",
+        "author": "Test Author",
+        "aggregator": "Test Aggregator",
+        "provider": "Test Provider",
+        "grade_levels": [levels.UPPER_PRIMARY],
+        "resource_types": [resource_type.ACTIVITY],
+        "categories": [subjects.MATHEMATICS],
+        "learner_needs": [needs.INTERNET],
+    }
+
+    parent = ChannelNode(
+        "parent", "www.learningequality.org", "Parent Node", **parent_metadata
+    )
+
+    node = TreeNode(source_id="test", title="Test Node")
+    node.parent = parent
+
+    # Test that the node gathers metadata from its parent
+    _assert_metadata_equal(parent_metadata, node.gather_ancestor_metadata())
+
+
+def test_gather_ancestor_metadata_treenode_combines_own_and_parent_metadata():
+    parent_metadata = {
+        "language": "en",
+        "license": "CC BY",
+        "author": "Parent Author",
+        "grade_levels": [levels.UPPER_PRIMARY],
+        "resource_types": [resource_type.ACTIVITY],
+    }
+
+    parent = ChannelNode(
+        "parent", "www.learningequality.org", "Parent Node", **parent_metadata
+    )
+
+    node = TreeNode(
+        source_id="test",
+        title="Test Node",
+        language="es",
+        author="Child Author",
+        grade_levels=[levels.LOWER_SECONDARY],
+        categories=[subjects.BIOLOGY],
+    )
+    node.parent = parent
+
+    expected_metadata = {
+        "language": "es",  # Child's value overrides parent's
+        "license": "CC BY",  # Inherited from parent
+        "author": "Child Author",  # Child's value overrides parent's
+        "grade_levels": [levels.LOWER_SECONDARY, levels.UPPER_PRIMARY],  # Combined list
+        "resource_types": [resource_type.ACTIVITY],  # Inherited from parent
+        "categories": [subjects.BIOLOGY],  # Child's value only
+    }
+
+    # Test that the node combines its own metadata with parent's
+    _assert_metadata_equal(expected_metadata, node.gather_ancestor_metadata())
+
+
+def test_gather_ancestor_metadata_hierarchical_metadata_merging():
+    # Test that when a parent has a broader subject and child has a more specific one,
+    # only the specific one is kept if the broader one is a prefix of the specific one
+    parent_metadata = {
+        "categories": [subjects.MATHEMATICS, subjects.SCIENCES],
+    }
+
+    parent = ChannelNode(
+        "parent", "www.learningequality.org", "Parent Node", **parent_metadata
+    )
+
+    node = TreeNode(
+        source_id="test",
+        title="Test Node",
+        categories=[subjects.ALGEBRA],  # ALGEBRA is under MATHEMATICS
+    )
+    node.parent = parent
+
+    result = node.gather_ancestor_metadata()
+
+    # MATHEMATICS should be removed since ALGEBRA is a sub-subject
+    # SCIENCES should be kept since it's not related to ALGEBRA
+    assert subjects.MATHEMATICS not in result["categories"]
+    assert subjects.ALGEBRA in result["categories"]
+    assert subjects.SCIENCES in result["categories"]
+
+
+def test_set_metadata_from_ancestors_contentnode_inherits_simple_fields():
+    parent_metadata = {
+        "language": "en",
+        "license": "CC BY",
+        "author": "Test Author",
+        "aggregator": "Test Aggregator",
+        "provider": "Test Provider",
+    }
+
+    parent = ChannelNode(
+        "parent", "www.learningequality.org", "Parent Node", **parent_metadata
+    )
+
+    node = ContentNode(
+        source_id="test",
+        title="Test Node",
+        license=None,  # This should be populated from parent
+    )
+    node.parent = parent
+
+    # Call the method being tested
+    node.set_metadata_from_ancestors()
+
+    # Verify the fields were properly set
+    _assert_metadata_equal(parent_metadata, node.gather_ancestor_metadata())
+
+
+def test_set_metadata_from_ancestors_contentnode_inherits_label_fields():
+    parent_metadata = {
+        "grade_levels": [levels.UPPER_PRIMARY],
+        "resource_types": [resource_type.ACTIVITY],
+        "categories": [subjects.MATHEMATICS],
+        "learner_needs": [needs.INTERNET],
+    }
+
+    parent = ChannelNode(
+        "parent", "www.learningequality.org", "Parent Node", **parent_metadata
+    )
+
+    node = ContentNode(source_id="test", title="Test Node", license="CC BY")
+    node.parent = parent
+
+    # Call the method being tested
+    node.set_metadata_from_ancestors()
+
+    expected = parent_metadata.copy()
+    expected["license"] = "CC BY"
+
+    # Verify the label fields were properly set
+    _assert_metadata_equal(expected, node.gather_ancestor_metadata())
+
+
+def test_set_metadata_from_ancestors_contentnode_does_not_override_existing_values():
+    parent_metadata = {
+        "language": "en",
+        "license": "CC BY",
+        "author": "Parent Author",
+        "grade_levels": [levels.UPPER_PRIMARY],
+        "resource_types": [resource_type.ACTIVITY],
+    }
+
+    parent = ChannelNode(
+        "parent", "www.learningequality.org", "Parent Node", **parent_metadata
+    )
+
+    node = ContentNode(
+        source_id="test",
+        title="Test Node",
+        license="CC BY-SA",
+        language="es",
+        author="Child Author",
+        grade_levels=[levels.LOWER_SECONDARY],
+        categories=[subjects.BIOLOGY],
+    )
+    node.parent = parent
+
+    # Call the method being tested
+    node.set_metadata_from_ancestors()
+
+    # Verify that existing values were not overridden
+    assert node.language == "es"
+    assert node.license.license_id == "CC BY-SA"
+    assert node.author == "Child Author"
+    assert set(node.grade_levels) == set([levels.UPPER_PRIMARY, levels.LOWER_SECONDARY])
+    assert node.categories == [subjects.BIOLOGY]
+
+    # But non-existing values were set
+    assert node.resource_types == [resource_type.ACTIVITY]
+
+
+def test_set_metadata_from_ancestors_hierarchical_labels_inheritance():
+    # Parent has MATHEMATICS, child has ALGEBRA
+    parent_metadata = {
+        "categories": [subjects.MATHEMATICS, subjects.HISTORY],
+        "learner_needs": [needs.PEOPLE, needs.MATERIALS],
+    }
+
+    parent = ChannelNode(
+        "parent", "www.learningequality.org", "Parent Node", **parent_metadata
+    )
+
+    node = ContentNode(
+        source_id="test",
+        title="Test Node",
+        license="CC BY",
+        categories=[subjects.ALGEBRA],  # More specific than MATHEMATICS
+    )
+    node.parent = parent
+
+    node.set_metadata_from_ancestors()
+
+    # Should only have ALGEBRA and HISTORY, not MATHEMATICS
+    assert subjects.ALGEBRA in node.categories
+    assert subjects.HISTORY in node.categories
+    assert subjects.MATHEMATICS not in node.categories
+
+    # Should inherit all learner needs
+    assert needs.PEOPLE in node.learner_needs
+    assert needs.MATERIALS in node.learner_needs
