@@ -1,0 +1,215 @@
+interactions:
+- request:
+    body: assertion=eyJ0eXAiOiAiSldUIiwgImFsZyI6ICJSUzI1NiIsICJraWQiOiAiZWVmZTA2MjVmMDBlY2IwYmI2MjZmMDE1OWU5YjY4OGE0ZmE4NGQyMyJ9.eyJpYXQiOiAxNzQwMDk5MzY0LCAiZXhwIjogMTc0MDEwMjk2NCwgImlzcyI6ICJyaWNoYXJkLWRhdGEtZXhwb3J0QGNvbnRlbnR3b3Jrc2hvcC0xNTk5MjAuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLCAiYXVkIjogImh0dHBzOi8vb2F1dGgyLmdvb2dsZWFwaXMuY29tL3Rva2VuIiwgInNjb3BlIjogImh0dHBzOi8vd3d3Lmdvb2dsZWFwaXMuY29tL2F1dGgvZHJpdmUucmVhZG9ubHkifQ.sx3vXS8eY2LDeQEty8eZ_n-2bIsaI0viON2yb7dwTcRFH1RLDsV6x1bIRGei0wybNZUojah5JSnN9AUm_n0GfSZZNHMQV-Txr7EOHPx_Ssk0KwWSeGVh1P1DraIlsdxKbi79edIQp0YYuGPyoLfFLWZmJQWBOVP4y46et3AKdoMyGvWmoz-631MGJOgGfst-_xNcrZ0435LN3m3eJVuKdKjz7BlIonxxNI0GiBtTjFWihku1oxT_5kxhg0HNeh8-AR8wQVgiAUHlIgnYKdIx4oftNzGmuQnLVy64MvD0drAeiq8ivohE0Foo6eauKBdHETouGCcLTc9hZD-guS72Hw&grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer
+    headers:
+      accept-encoding:
+      - gzip, deflate
+      content-type:
+      - application/x-www-form-urlencoded
+      user-agent:
+      - Python-httplib2/0.22.0 (gzip)
+      x-goog-api-client:
+      - gl-python/3.10.10 auth/2.38.0 auth-request-type/at cred-type/sa
+    method: POST
+    uri: https://oauth2.googleapis.com/token
+  response:
+    body:
+      string: !!binary |
+        H4sIAAAAAAAC/x3UuZKjOACA4XdxPEwhENdmjW3cYkzbQHMmlLhvjAQWMLXvvl0b/dGffn9POMsK
+        SpNl6orx9M9px4L2O/ud8R+u84e/RZly83zq1rKcCHsXfKU+JX80wjwYixIc6udjC/lmT6uQnyaa
+        TfZ9hnpzB57vXBPrBozaUy0tJlcxI8d41yXpO126QbvPRgdM9amA29c+f6oXAw+X88AbioA5rrkm
+        Z/D88IXZihO/ifYHmeF3gD/3A90vI2tqN/aisoDip7nebsblE3SO2wvE97QVs66/DGccimHhNMPr
+        LH2prEWTI3ytc//8xJPbzqBHMR8dfu9pVGGVSklMVFPmr+DYrtW3avvCcXZhdttLYzFL00hU//Es
+        W5o/LxNK72B4zgDp5re971PxxpCPb9fhe+KyRG/SV7HW5QK0C/9nwVwlRiutqtTvJQ5Z37g9snui
+        nov6tkClfQ0oZ8ro2cY5IOPHVVSl8+KQYBDXeT/IWkMwj2yukGHPik77eNLs4oUQfrzQEhxJwkYj
+        VNb9vcF+VAo4a16iRFg8BrXZgBn1luBwNcQsS/mhK4hiGZSJtdYdur7ajVdoEVq52FZ64ufWMeNK
+        H7Cb5tzeHN2o1mvz6ATWasmRGXrYlnJoWyngKioOFtGDx/GAFTgcm0OjMkJfhuFLXbwMoYiukRWv
+        g/tzHgCxiXs7WfAWlwiabGwFzYpMT5Dk6CCs2dpOp4Iimly8D6SnpbFT5ydzRTOYWlo6s4Q5+qA5
+        kloFLWUJeo1gBGKdBV65jemc5HzA9WgL2BiDnHTrBINd6cS8o6vg+MNbJHzPDlvONxztbbwgLI2w
+        zbJB00kWmNuYrzvMu4pqOY0HOzaW6C0HzmYTF1fq7ncmKPMHYbk5S6MQlzNs3Nbxg9CtUmZtmkzH
+        dVrcspFWP29lhoFdv7B2IFPlC5+3cOQag0KTMDmKPlGnyN89+lLYQ+8bbfb1BscqqgdDYNJUAmPa
+        DfVRcM5RpK9RBVY26oJsBgddotK2oBfG/l7DGuRezJRJY1RGel7uq1OLctSoRmHksuK6w3QoBRJ6
+        mwAOqrHv6PYcltyDW6llor4WHCtjfE044C5xPp1+nYrt1ZCCJs2PB6Kkab9O/+OQLPur+BFCLzAp
+        yOnf/wBnvIB8OwQAAA==
+    headers:
+      Alt-Svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      Content-Encoding:
+      - gzip
+      Content-Type:
+      - application/json; charset=UTF-8
+      Date:
+      - Fri, 21 Feb 2025 00:56:04 GMT
+      Server:
+      - scaffolding on HTTPServer2
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Origin
+      - X-Origin
+      - Referer
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - SAMEORIGIN
+      X-XSS-Protection:
+      - '0'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      content-length:
+      - '0'
+      user-agent:
+      - (gzip)
+      x-allowed-locations:
+      - '0x0'
+      x-goog-api-client:
+      - gdcl/2.161.0 gl-python/3.10.10 cred-type/sa
+    method: GET
+    uri: https://www.googleapis.com/drive/v3/files/1wLoTx5ZjmsN9E7q6FXz6fz9qWjTnpYED?fields=name%2C+mimeType&alt=json
+  response:
+    body:
+      string: !!binary |
+        H4sIAAAAAAAC/6vmUlBQykvMTVWyUlBKzUtOLCguzUksSU3RKyspUdIByeZm5qaGVBaAVZSkVpTo
+        g2S4arkA1XNwtDsAAAA=
+    headers:
+      Alt-Svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      Cache-Control:
+      - no-cache, no-store, max-age=0, must-revalidate
+      Content-Encoding:
+      - gzip
+      Content-Type:
+      - application/json; charset=UTF-8
+      Date:
+      - Fri, 21 Feb 2025 00:56:04 GMT
+      Expires:
+      - Mon, 01 Jan 1990 00:00:00 GMT
+      Pragma:
+      - no-cache
+      Server:
+      - ESF
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Origin, X-Origin
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - SAMEORIGIN
+      X-XSS-Protection:
+      - '0'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      range:
+      - bytes=0-104857599
+      user-agent:
+      - Python-httplib2/0.22.0 (gzip)
+      x-allowed-locations:
+      - '0x0'
+      x-goog-api-client:
+      - gdcl/2.161.0 gl-python/3.10.10 cred-type/sa
+    method: GET
+    uri: https://www.googleapis.com/drive/v3/files/1wLoTx5ZjmsN9E7q6FXz6fz9qWjTnpYED?alt=media
+  response:
+    body:
+      string: 'WEBVTT
+
+
+        00:09.209 --> 00:12.312
+
+        ( clock ticking )
+
+
+        00:14.848 --> 00:17.000
+
+        MAN:
+
+        When we think
+
+        \u266a ...say bow, wow, \u266a
+
+
+        00:17.000 --> 00:18.752 align:right
+
+        we have this vision of Einstein
+
+
+        00:18.752 --> 00:20.887
+
+        &nbsp;
+
+        as an old, wrinkly man
+
+        with white hair.
+
+
+        00:20.887 --> 00:26.760
+
+        MAN 2:
+
+        E equals m c-squared is
+
+        not about an old Einstein.
+
+
+        00:26.760 --> 00:32.200
+
+        MAN 2:
+
+        It''s all about an eternal Einstein.
+
+
+        00:32.200 --> 00:36.200
+
+        &lt;LAUGHING &amp; WHOOPS!>
+
+        '
+    headers:
+      Access-Control-Allow-Credentials:
+      - 'true'
+      Alt-Svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      Cache-Control:
+      - private, max-age=0, must-revalidate
+      Content-Disposition:
+      - attachment
+      Content-Length:
+      - '470'
+      Content-Range:
+      - bytes 0-469/470
+      Content-Type:
+      - text/vtt
+      Date:
+      - Fri, 21 Feb 2025 00:56:05 GMT
+      Expires:
+      - Fri, 21 Feb 2025 00:56:05 GMT
+      Server:
+      - ESF
+      Vary:
+      - Origin, X-Origin
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - SAMEORIGIN
+      X-GUploader-UploadID:
+      - AHMx-iHqRB74Z2qsbAsabq09q_MER1CwvqDwBNt9l2kSL8FEBMKfgdVv6AojnhuozEj6G3bY2gwOTo4
+      X-Goog-Hash:
+      - crc32c=+3nwfQ==
+      X-XSS-Protection:
+      - '0'
+    status:
+      code: 206
+      message: Partial Content
+version: 1

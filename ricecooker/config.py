@@ -216,6 +216,13 @@ USEPROXY = (
     else False
 )
 
+GOOGLE_SERVICE_ACCOUNT_CREDENTIALS_PATH = os.getenv(
+    "GOOGLE_SERVICE_ACCOUNT_CREDENTIALS_PATH", None
+)
+
+if GOOGLE_SERVICE_ACCOUNT_CREDENTIALS_PATH:
+    TASK_THREADS = 1  # If using service account, only one thread is allowed - random errors happen otherwise.
+
 # CSV headers
 CSV_HEADERS = [
     "Source ID",
