@@ -7,6 +7,7 @@ try:
         cassette_library_dir="tests/cassettes",
         record_mode="new_episodes",
         path_transformer=vcr.VCR.ensure_suffix(".yaml"),
+        filter_headers=["authorization"],
     )
 except ImportError:
 

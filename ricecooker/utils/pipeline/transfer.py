@@ -1,5 +1,6 @@
 import base64
 import hashlib
+import mimetypes
 import os
 import re
 import tempfile
@@ -237,6 +238,131 @@ class YoutubeDownloadHandler(WebResourceHandler):
             return FileMetadata(language=language_obj.code)
 
 
+instructions = "Please install ricecooker using `pip install ricecooker[google_drive]` to include required dependencies"
+
+
+class GoogleDriveHandler(WebResourceHandler):
+    """Handles downloading from Google Drive share URLs"""
+
+    PATTERNS = ["drive.google.com", "docs.google.com"]
+
+    # Mapping of Google Workspace MIME types to export formats
+    GOOGLE_WORKSPACE_FORMATS = {
+        "application/vnd.google-apps.document": "application/pdf",
+        "application/vnd.google-apps.spreadsheet": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "application/vnd.google-apps.presentation": "application/pdf",
+        "application/vnd.google-apps.drawing": "image/png",
+    }
+
+    def __init__(self):
+        super().__init__()
+        self._drive_service = None
+
+    @property
+    def HANDLED_EXCEPTIONS(self):
+        from googleapiclient.errors import HttpError as GoogleHttpError
+
+        return [GoogleHttpError]
+
+    @property
+    def drive_service(self):
+        try:
+            from google.oauth2.service_account import Credentials
+            from googleapiclient.discovery import build
+        except ImportError:
+            raise RuntimeError(
+                "Google Drive downloads require google-auth and google-api-python-client libraries\n"
+                + instructions
+            )
+
+        if self._drive_service is None:
+            if not config.GOOGLE_SERVICE_ACCOUNT_CREDENTIALS_PATH:
+                raise RuntimeError(
+                    "Google Drive downloads require service account credentials.\n"
+                    "Please set GOOGLE_SERVICE_ACCOUNT_CREDENTIALS_PATH environment variable."
+                )
+            credentials = Credentials.from_service_account_file(
+                config.GOOGLE_SERVICE_ACCOUNT_CREDENTIALS_PATH,
+                scopes=["https://www.googleapis.com/auth/drive.readonly"],
+            )
+            self._drive_service = build(
+                "drive", "v3", credentials=credentials, cache_discovery=False
+            )
+        return self._drive_service
+
+    def _get_file_id(self, url):
+        """Extract file ID from Google Drive URL"""
+        FILE_ID_PATTERNS = [
+            r"drive\.google\.com/file/d/([^/]+)",  # /file/d/{fileid}/view
+            r"drive\.google\.com/open\?id=([^/]+)",  # /open?id={fileid}
+            r"docs\.google\.com/\w+/d/([^/]+)",  # docs/sheets/etc
+        ]
+
+        for pattern in FILE_ID_PATTERNS:
+            match = re.search(pattern, url)
+            if match:
+                return match.group(1)
+        raise ValueError(f"Could not extract file ID from URL: {url}")
+
+    def _is_google_workspace_file(self, mime_type: str) -> bool:
+        """Check if file is a Google Workspace native format"""
+        return mime_type.startswith("application/vnd.google-apps.")
+
+    def _get_export_mime_type(self, mime_type: str) -> str:
+        """Get the export MIME type for a Google Workspace file"""
+        export_type = self.GOOGLE_WORKSPACE_FORMATS.get(mime_type)
+        if not export_type:
+            # Default to PDF for unknown Google Workspace types
+            export_type = "application/pdf"
+        return export_type
+
+    def handle_file(self, path: str):
+        try:
+            from googleapiclient.http import MediaIoBaseDownload
+        except ImportError:
+            raise RuntimeError(
+                "Google Drive downloads require google-api-python-client library\n"
+                + instructions
+            )
+        file_id = self._get_file_id(path)
+
+        # Get file metadata to determine extension
+        file = (
+            self.drive_service.files()
+            .get(fileId=file_id, fields="name, mimeType")
+            .execute()
+        )
+
+        mime_type = file["mimeType"]
+        is_workspace_file = self._is_google_workspace_file(mime_type)
+
+        if is_workspace_file:
+            # Handle Google Workspace files using export
+            export_mime_type = self._get_export_mime_type(mime_type)
+            request = self.drive_service.files().export_media(
+                fileId=file_id, mimeType=export_mime_type
+            )
+            # Update extension based on export format
+            ext = mimetypes.guess_extension(export_mime_type) or ""
+        else:
+            # Handle regular binary files
+            request = self.drive_service.files().get_media(fileId=file_id)
+            # Get extension from original filename or mimetype
+            _, ext = os.path.splitext(file["name"])
+            if not ext and mime_type:
+                ext = mimetypes.guess_extension(mime_type) or ""
+
+        with self.write_file(ext.lstrip(".")) as fh:
+            downloader = MediaIoBaseDownload(fh, request)
+            done = False
+            while not done:
+                _, done = downloader.next_chunk()
+
+        return FileMetadata(
+            original_filename=file["name"],
+        )
+
+
 class Base64FileHandler(FileHandler):
     def should_handle(self, path: str) -> bool:
         return bool(get_base64_encoding(path))
@@ -260,6 +386,7 @@ class DownloadStageHandler(StageHandler):
     STAGE = "DOWNLOAD"
     DEFAULT_CHILDREN = [
         YoutubeDownloadHandler,
+        GoogleDriveHandler,
         CatchAllWebResourceDownloadHandler,
         DiskResourceHandler,
         Base64FileHandler,

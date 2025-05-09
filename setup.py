@@ -63,6 +63,7 @@ setup(
         "dev": [
             "pre-commit>=4.1.0",
         ],
+        "google_drive": ["google-api-python-client", "google-auth"],
     },
     python_requires=">=3.9, <3.13",
     license="MIT license",
