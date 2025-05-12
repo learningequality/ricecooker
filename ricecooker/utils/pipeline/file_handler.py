@@ -16,6 +16,7 @@ from typing import Union
 from .context import ContextMetadata
 from .context import FileMetadata
 from .exceptions import ExpectedFileException
+from .exceptions import InvalidFileException
 from ricecooker import config
 from ricecooker.utils.caching import get_cache_data
 from ricecooker.utils.caching import set_cache_data
@@ -118,7 +119,10 @@ class FileHandler(Handler):
         with DualModeTemporaryFile(ext=extension) as tempf:
             yield tempf
             tempf.flush()
-            assert tempf.file_not_empty(), "File failed to write (corrupted)."
+            if not tempf.file_not_empty():
+                raise InvalidFileException(
+                    f"File with extension {extension} failed to write (corrupted)."
+                )
             filename = copy_file_to_storage(tempf.name, ext=extension)
             self._output_path = config.get_storage_path(filename)
 

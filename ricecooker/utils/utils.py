@@ -45,13 +45,10 @@ def extract_path_ext(path, default_ext=None):
     Extract file extension (without dot) from `path` or return `default_ext` if
     path does not contain a valid extension.
     """
-    _, dotext = os.path.splitext(path)
-    if dotext:
-        ext = dotext[1:]
-        if len(ext) > 3 and "?" in ext:  # strip off any querystring if present
-            ext = ext.split("?")[0]
-    else:
-        ext = None
+    path = urlparse(path).path
+    _, ext = os.path.splitext(path)
+    # Remove the leading "." from the extension
+    ext = ext[1:] if ext else ext
     if not ext and default_ext:
         ext = default_ext
     if not ext:
