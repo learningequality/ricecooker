@@ -51,12 +51,8 @@ If you are proposing a new feature:
 The `ricecooker` project is open for code, testing, and documentation contributions.
 The `ricecooker.utils` package is constantly growing with new helper methods that
 simplify various aspects of the content extraction, transformations, and upload to Studio.
-If you figured out how to fix a `ricecooker` bug or added some new functionality
-that you would like to share with the community, please open a
-[pull request](https://github.com/learningequality/ricecooker/pulls).
 
-
-
+To find out how to contribute, visit the [Contributing to our open code base](https://learningequality.org/contributing-to-our-open-code-base).
 
 Becoming a ricecooker developer
 -------------------------------
