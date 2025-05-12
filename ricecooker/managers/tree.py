@@ -276,11 +276,7 @@ class ChannelManager:
         self.truncate_fields(self.channel)
 
         self.add_nodes(root, self.channel)
-        if self.check_failed(print_warning=False):
-            failed = self.failed_node_builds
-            self.failed_node_builds = {}
-            self.reattempt_failed(failed)
-            self.check_failed()
+        self.check_failed()
         channel_id, channel_link = self.commit_channel(channel_id)
         end_time = datetime.now()
         config.LOGGER.info(
@@ -293,43 +289,18 @@ class ChannelManager:
         for child in node.children:
             self.truncate_fields(child)
 
-    def reattempt_failed(self, failed):
-        for node_id in failed:
-            node = failed[node_id]
-            config.LOGGER.info("\tReattempting {0}s".format(str(node["node"])))
-            for f in node["node"].files:
-                # Attempt to upload file
-                try:
-                    assert f.filename, "File failed to download (cannot be uploaded)"
-                    self.do_file_upload(f.filename)
-                except AssertionError as ae:
-                    config.LOGGER.warning(ae)
-            # Attempt to create node
-            self.add_nodes(node_id, node["node"])
-
-    def check_failed(self, print_warning=True):
+    def check_failed(self):
         if len(self.failed_node_builds) > 0:
-            if print_warning:
+            config.LOGGER.warning("WARNING: The following nodes could not be created:")
+            for node_id in self.failed_node_builds:
+                node = self.failed_node_builds[node_id]
                 config.LOGGER.warning(
-                    "WARNING: The following nodes have one or more descendants that could not be created:"
+                    "\t{} ({})".format(str(node["node"]), node["error"])
                 )
-                for node_id in self.failed_node_builds:
-                    node = self.failed_node_builds[node_id]
-                    config.LOGGER.warning(
-                        "\t{} ({})".format(str(node["node"]), node["error"])
-                    )
-                    if "content" in node:
-                        config.LOGGER.warning(node["content"][:80])
-            else:
-                config.LOGGER.error(
-                    "Failed to create descendants for {} node(s).".format(
-                        len(self.failed_node_builds)
-                    )
-                )
-            return True
+                if "content" in node:
+                    config.LOGGER.warning(node["content"][:80])
         else:
-            config.LOGGER.info("   All nodes were created successfully.")
-        return False
+            config.LOGGER.info("All nodes were created successfully.")
 
     def add_channel(self):
         """add_channel: sends processed channel data to server to create tree
@@ -389,8 +360,9 @@ class ChannelManager:
                         if f.is_primary
                         and (not f.filename or self.failed_uploads.get(f.filename))
                     ]
-                    if any(failed):
-                        if not self.failed_node_builds.get(root_id):
+                    if failed or not child.valid:
+                        node_id = child.get_node_id().hex
+                        if not self.failed_node_builds.get(node_id):
                             error_message = ""
                             for fail in failed:
                                 reason = (
@@ -401,8 +373,10 @@ class ChannelManager:
                                     else "File failed to download"
                                 )
                                 error_message = error_message + reason + ", "
-                            self.failed_node_builds[root_id] = {
-                                "node": current_node,
+                            if hasattr(child, "_error"):
+                                error_message = error_message + child._error + ", "
+                            self.failed_node_builds[node_id] = {
+                                "node": child,
                                 "error": error_message[:-2],
                             }
                     else:

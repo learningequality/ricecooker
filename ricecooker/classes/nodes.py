@@ -388,7 +388,7 @@ class Node(object):
             )
         self.license = license
 
-    def validate(self):  # noqa: C901
+    def _validate(self):  # noqa: C901
         """validate: Makes sure node is valid
         Args: None
         Returns: boolean indicating if node is valid
@@ -524,6 +524,11 @@ class Node(object):
 
         return True
 
+    def validate(self):
+        self.valid = False
+        self.valid = self._validate()
+        return self.valid
+
     def get_metadata_dict(self, metadata: dict[str, any]) -> dict[str, any]:
         """
         Supplements the metadata in the metadata dict argument with metadata from the node.
@@ -624,7 +629,7 @@ class ChannelNode(Node):
             ],
         }
 
-    def validate(self):
+    def _validate(self):
         """validate: Makes sure channel is valid
         Args: None
         Returns: boolean indicating if channel is valid
@@ -633,7 +638,7 @@ class ChannelNode(Node):
             not isinstance(self.source_domain, str), "Channel domain must be a string"
         )
         self._validate_values(self.language is None, "Channel must have a language")
-        return super(ChannelNode, self).validate()
+        return super(ChannelNode, self)._validate()
 
 
 class TreeNode(Node):
@@ -1011,7 +1016,7 @@ class VideoNode(ContentNode):
                 return ExtractedVideoThumbnailFile(storage_path)
         return None
 
-    def validate(self):
+    def _validate(self):
         """validate: Makes sure video is valid
         Args: None
         Returns: boolean indicating if video is valid
@@ -1289,7 +1294,7 @@ class ExerciseNode(ContentNode):
         self.extra_fields.update({"m": m_value})
         self.extra_fields.update({"n": n_value})
 
-    def validate(self):
+    def _validate(self):
         """validate: Makes sure exercise is valid
         Args: None
         Returns: boolean indicating if exercise is valid
@@ -1526,7 +1531,7 @@ class StudioContentNode(TreeNode):
             source_node_id or source_content_id, overriden_title, **kwargs
         )
 
-    def validate(self):
+    def _validate(self):
         if not self.source_channel_id:
             raise InvalidNodeException(
                 "Invalid node: source_channel_id must be specified, and be a valid UUID string."
