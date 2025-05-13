@@ -9,14 +9,13 @@ from test_videos import _clear_ricecookerfilecache
 from test_videos import low_res_video  # noqa F401
 
 from ricecooker import config
-from ricecooker.classes.files import AudioFile
-from ricecooker.classes.files import DocumentFile
-from ricecooker.classes.files import EPubFile
-from ricecooker.classes.files import HTMLZipFile
+from ricecooker.classes.files import ExtractedEPubThumbnailFile
+from ricecooker.classes.files import ExtractedHTMLZipThumbnailFile
+from ricecooker.classes.files import ExtractedPdfThumbnailFile
+from ricecooker.classes.files import ExtractedVideoThumbnailFile
 from ricecooker.classes.files import ThumbnailFile
 from ricecooker.classes.files import TiledThumbnailFile
 from ricecooker.classes.files import VideoFile
-from ricecooker.classes.nodes import AudioNode
 from ricecooker.classes.nodes import DocumentNode
 from ricecooker.classes.nodes import HTML5AppNode
 from ricecooker.classes.nodes import TopicNode
@@ -255,111 +254,69 @@ class TestThumbnailGeneration(object):
     ############################################################################
 
     def test_non_existent_pdf_fails(self):
-        node = DocumentNode(
-            "doc-src-id", "Document", licenses.PUBLIC_DOMAIN, thumbnail=None
-        )
         non_existent_path = "does/not/exist.pdf"
-        document_file = DocumentFile(non_existent_path, language="en")
-        node.add_file(document_file)
-        config.THUMBNAILS = True
-        filenames = node.process_files()
-        assert filenames == [None], "expected one None (the non existent pdf)"
+        thumbnail_file = ExtractedPdfThumbnailFile(non_existent_path)
+        result = thumbnail_file.process_file()
+
+        assert result is None, "expected None result for non-existent PDF"
         assert len(config.FAILED_FILES) == 1, "expected one failed file"
+        assert thumbnail_file.filename is None, "filename should remain None"
 
     def test_invalid_pdf_fails(self, invalid_document_file):
-        node = DocumentNode(
-            "doc-src-id", "Document", licenses.PUBLIC_DOMAIN, thumbnail=None
-        )
-        node.add_file(invalid_document_file)
-        config.THUMBNAILS = True
-        node.process_files()
-        # assert filenames == [None], 'expected one None filename (the broken pdf)'
+        thumbnail_file = ExtractedPdfThumbnailFile(invalid_document_file.path)
+        result = thumbnail_file.process_file()
+
+        assert result is None, "expected None result for invalid PDF"
         assert len(config.FAILED_FILES) == 1, "expected one failed file"
+        assert thumbnail_file.filename is None, "filename should remain None"
 
     def test_non_existent_epub_fails(self):
-        node = DocumentNode(
-            "doc-src-id", "Document", licenses.PUBLIC_DOMAIN, thumbnail=None
-        )
         non_existent_path = "does/not/exist.epub"
-        document_file = EPubFile(non_existent_path, language="en")
-        node.add_file(document_file)
-        config.THUMBNAILS = True
-        filenames = node.process_files()
-        assert filenames == [None], "expected one None (the non existent epub)"
+        thumbnail_file = ExtractedEPubThumbnailFile(non_existent_path)
+        result = thumbnail_file.process_file()
+
+        assert result is None, "expected None result for non-existent EPUB"
         assert len(config.FAILED_FILES) == 1, "expected one failed file"
+        assert thumbnail_file.filename is None, "filename should remain None"
 
     def test_invalid_epub_fails(self, invalid_epub_file):
-        node = DocumentNode(
-            "doc-src-id", "Document", licenses.PUBLIC_DOMAIN, thumbnail=None
-        )
-        node.add_file(invalid_epub_file)
-        config.THUMBNAILS = True
-        node.process_files()
-        # assert filenames == [None], 'expected one None filename (the broken epub)'  # TODO: implement epub deep validation
+        thumbnail_file = ExtractedEPubThumbnailFile(invalid_epub_file.path)
+        result = thumbnail_file.process_file()
+
+        assert result is None, "expected None result for invalid EPUB"
         assert len(config.FAILED_FILES) == 1, "expected one failed file"
+        assert thumbnail_file.filename is None, "filename should remain None"
 
     def test_non_existent_htmlzip_fails(self):
-        node = HTML5AppNode(
-            "doc-src-id", "Document", licenses.PUBLIC_DOMAIN, thumbnail=None
-        )
         non_existent_path = "does/not/exist.zip"
-        html_file = HTMLZipFile(non_existent_path, language="en")
-        node.add_file(html_file)
-        config.THUMBNAILS = True
-        filenames = node.process_files()
-        assert filenames == [None], "expected one None filename (the broken zip)"
+        thumbnail_file = ExtractedHTMLZipThumbnailFile(non_existent_path)
+        result = thumbnail_file.process_file()
+
+        assert result is None, "expected None result for non-existent HTML zip"
         assert len(config.FAILED_FILES) == 1, "expected one failed file"
+        assert thumbnail_file.filename is None, "filename should remain None"
 
     def test_invalid_htmlzip_fails(self, html_invalid_file):
-        node = DocumentNode(
-            "doc-src-id", "Document", licenses.PUBLIC_DOMAIN, thumbnail=None
-        )
-        node.add_file(html_invalid_file)
-        config.THUMBNAILS = True
-        filenames = node.process_files()
-        assert filenames == [None], "expected one None filename (the broken html)"
-        assert len(config.FAILED_FILES) == 1, "expected one failed file"
+        thumbnail_file = ExtractedHTMLZipThumbnailFile(html_invalid_file.path)
+        result = thumbnail_file.process_file()
 
-    def test_non_existent_mp3_fails(self):
-        node = AudioNode(
-            "audio-src-id", "Document", licenses.PUBLIC_DOMAIN, thumbnail=None
-        )
-        non_existent_path = "does/not/exist.mp3"
-        document_file = AudioFile(non_existent_path, language="en")
-        node.add_file(document_file)
-        config.THUMBNAILS = True
-        filenames = node.process_files()
-        assert filenames == [None], "expected one None (the non existent mp3)"
+        assert result is None, "expected None result for invalid HTML zip"
         assert len(config.FAILED_FILES) == 1, "expected one failed file"
-
-    def test_invalid_mp3_fails(self, invalid_audio_file):
-        node = AudioNode(
-            "audio-src-id", "Document", licenses.PUBLIC_DOMAIN, thumbnail=None
-        )
-        node.add_file(invalid_audio_file)
-        config.THUMBNAILS = True
-        node.process_files()
-        # assert filenames == [None], 'expected one None filename (the broken mp3)'   # TODO: implement mp3 deep validation
-        # assert len(config.FAILED_FILES) == 1, 'expected one failed file'
+        assert thumbnail_file.filename is None, "filename should remain None"
 
     def test_non_existent_mp4_fails(self):
-        node = VideoNode(
-            "video-src-id", "Video", licenses.PUBLIC_DOMAIN, thumbnail=None
-        )
         non_existent_path = "does/not/exist.mp4"
-        document_file = VideoFile(non_existent_path, language="en")
-        node.add_file(document_file)
-        config.THUMBNAILS = True
-        filenames = node.process_files()
-        assert filenames == [None], "expected one None (the non existent mp4)"
+        thumbnail_file = ExtractedVideoThumbnailFile(non_existent_path)
+        result = thumbnail_file.process_file()
+
+        assert result is None, "expected None result for non-existent MP4"
         assert len(config.FAILED_FILES) == 1, "expected one failed file"
+        assert thumbnail_file.filename is None, "filename should remain None"
 
     def test_invalid_mp4_fails(self, invalid_video_file):
-        node = VideoNode(
-            "video-src-id", "Document", licenses.PUBLIC_DOMAIN, thumbnail=None
-        )
-        node.add_file(invalid_video_file)
-        config.THUMBNAILS = True
-        node.process_files()
-        # assert filenames == [None], 'expected one None filename (the broken mp4)'   # TODO: implement deep video validation
-        # assert len(config.FAILED_FILES) == 1, 'expected one failed file'
+        thumbnail_file = ExtractedVideoThumbnailFile(invalid_video_file.path)
+        result = thumbnail_file.process_file()
+
+        assert result is None, "expected None result for invalid MP4"
+        assert len(config.FAILED_FILES) == 1, "expected one failed file"
+        assert thumbnail_file.filename is None, "filename should remain None"

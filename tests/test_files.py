@@ -1324,7 +1324,11 @@ def test_html5_zip_cache_keys(mock_filecache, html_file):
     html = HTMLZipFile(path)
     html.process_file()
 
-    expected_keys = {f"DOWNLOAD:{path}", f"CONVERT:{html.filename}"}
+    expected_keys = {
+        f"DOWNLOAD:{path}",
+        f"CONVERT:{html.filename}",
+        f"EXTRACT_METADATA:{html.filename}",
+    }
     assert set(mock_filecache.cache.keys()) == expected_keys
 
 

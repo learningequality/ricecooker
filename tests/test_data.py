@@ -57,16 +57,16 @@ def test_validate(
     # Content node validation
     pytest.raises(InvalidNodeException, contentnode_invalid_license.validate)
     pytest.raises(InvalidNodeException, contentnode_no_source_id.validate)
-    pytest.raises(InvalidNodeException, contentnode_invalid_files.validate)
+    pytest.raises(InvalidNodeException, contentnode_invalid_files.process_files)
     assert video.validate(), "Valid videos should pass validation"
-    pytest.raises(InvalidNodeException, video_invalid_files.validate)
+    pytest.raises(InvalidNodeException, video_invalid_files.process_files)
     assert audio.validate(), "Valid audio content should pass validation"
-    pytest.raises(InvalidNodeException, audio_invalid_files.validate)
+    pytest.raises(InvalidNodeException, audio_invalid_files.process_files)
     assert document.validate(), "Valid document content should pass validation"
-    pytest.raises(InvalidNodeException, document_invalid_files.validate)
+    pytest.raises(InvalidNodeException, document_invalid_files.process_files)
     assert html.validate(), "Valid html content should pass validation"
-    pytest.raises(InvalidNodeException, html_invalid_files.validate)
-    # pytest.raises(InvalidNodeException, html_invalid_zip.validate)  # TODO: implement index.html checking logic
+    pytest.raises(InvalidNodeException, html_invalid_files.process_files)
+    pytest.raises(InvalidNodeException, html_invalid_zip.process_files)
     assert exercise.validate(), "Valid html content should pass validation"
     pytest.raises(InvalidQuestionException, exercise_invalid_question.validate)
 

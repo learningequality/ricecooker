@@ -52,10 +52,16 @@ class FilePipeline(CompositeHandler):
         ExtractMetadataStageHandler,
     ]
 
-    def execute(self, path: str, context: Optional[Dict] = None) -> list[FileMetadata]:
+    def execute(
+        self,
+        path: str,
+        context: Optional[Dict] = None,
+        skip_cache: Optional[bool] = False,
+    ) -> list[FileMetadata]:
         """
         Execute the pipeline for a given file path.
         """
+        context = context or {}
         file_metadata_list = [FileMetadata(path=path)]
         for handler in self._children:
             updated_file_metadata_list = []
@@ -66,7 +72,9 @@ class FilePipeline(CompositeHandler):
                     scoped_context.update(file_metadata.to_dict())
                     # Execute the handler and get the new list of metadata
                     new_metadata_list = handler.execute(
-                        file_metadata.path, context=scoped_context
+                        file_metadata.path,
+                        context=scoped_context,
+                        skip_cache=skip_cache,
                     )
                     for new_metadata in new_metadata_list:
                         # For each new metadata in the returned list

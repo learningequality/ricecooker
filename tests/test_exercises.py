@@ -138,7 +138,7 @@ def test_exercise_extra_fields_string(exercise):
     # Make sure we throw an error if we have non-int strings
     exercise.extra_fields = {"mastery_model": exercises.M_OF_N, "m": "3.0", "n": "5.1"}
 
-    with pytest.raises(ValueError):
+    with pytest.raises(InvalidNodeException):
         exercise.process_files()
 
     with pytest.raises(InvalidNodeException):
@@ -151,7 +151,7 @@ def test_exercise_extra_fields_string(exercise):
         "n": "five",
     }
 
-    with pytest.raises(ValueError):
+    with pytest.raises(InvalidNodeException):
         exercise.process_files()
 
     with pytest.raises(InvalidNodeException):

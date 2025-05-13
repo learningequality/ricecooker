@@ -400,8 +400,13 @@ class DownloadStageHandler(StageHandler):
             raise InvalidFileException(f"Could not handle download from {path}")
         return should_handle
 
-    def execute(self, path: str, context: Optional[Dict] = None) -> list[FileMetadata]:
-        metadata_list = super().execute(path, context=context)
+    def execute(
+        self,
+        path: str,
+        context: Optional[Dict] = None,
+        skip_cache: Optional[bool] = False,
+    ) -> list[FileMetadata]:
+        metadata_list = super().execute(path, context=context, skip_cache=skip_cache)
         if not metadata_list:
             # The download stage is special, as we expect it to always return a file
             # if it does not, we raise an exception to prevent further processing
