@@ -397,7 +397,8 @@ class _ExerciseGraphieFile(File):
     default_ext = file_formats.GRAPHIE
     default_preset = format_presets.EXERCISE_GRAPHIE
 
-    def __init__(self, path, ka_language):
+    def __init__(self, path, ka_language, **kwargs):
+        super().__init__(**kwargs)
         self.original_filename = path.split("/")[-1].split(".")[0]
         self.path = path
         self.ka_language = ka_language
