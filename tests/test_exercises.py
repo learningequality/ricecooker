@@ -345,7 +345,7 @@ def test_perseus_process_question(item, image_hashes):
     _clear_ricecookerfilecache()  # clear file cache each time to avoid test interactions
 
     # SIT
-    testq = PerseusQuestion(id="x43bbec76d5f14f88_en", raw_data=item)
+    testq = PerseusQuestion(id="x43bbec76d5f14f88_en", raw_data=item, ka_language="en")
     filenames = testq.process_question()
 
     # check 1

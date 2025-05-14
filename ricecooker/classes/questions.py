@@ -239,11 +239,13 @@ class PerseusQuestion(BaseQuestion):
     Attributes:
         id (str): question's unique id
         raw_data (str): pre-formatted perseus question
+        ka_language (str): the Khan Academy language code for this question
         images (dict): maps image string to replace to path to image `{key: str, ...}`
     """
 
-    def __init__(self, id, raw_data, source_url=None, **kwargs):
+    def __init__(self, id, raw_data, ka_language, source_url=None, **kwargs):
         raw_data = raw_data if isinstance(raw_data, str) else json.dumps(raw_data)
+        self.ka_language = ka_language
         super(PerseusQuestion, self).__init__(
             id,
             "",
@@ -294,7 +296,7 @@ class PerseusQuestion(BaseQuestion):
                 break
         else:
             if protocol == "web+graphie":
-                exercise_image_file = _ExerciseGraphieFile(full_path)
+                exercise_image_file = _ExerciseGraphieFile(full_path, self.ka_language)
             elif get_base64_encoding(full_path):
                 exercise_image_file = _ExerciseBase64ImageFile(full_path)
             else:
