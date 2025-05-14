@@ -5,6 +5,7 @@ import os
 import re
 import tempfile
 from dataclasses import field
+from sys import platform
 from typing import Dict
 from typing import Optional
 from urllib.parse import unquote
@@ -41,8 +42,29 @@ class DiskResourceHandler(FileHandler):
 
     HANDLED_EXCEPTIONS = [IOError, FileNotFoundError]
 
+    def _normalize_path(self, path):
+        """Convert file:// URLs to local file paths."""
+        parsed = urlparse(path)
+        if parsed.scheme == "file":
+
+            # Normalise & platform-adapt
+            path = os.path.normpath(unquote(parsed.path))
+
+            if platform == "win32":
+                # Path already uses back-slashes after normpath; just ensure a
+                # drive-letter path is not prefixed with an extra separator.
+                if (
+                    path.startswith("\\")
+                    and len(path) > 2
+                    and path[1].isalpha()
+                    and path[2] == ":"
+                ):
+                    path = path.lstrip("\\")
+
+        return path
+
     def should_handle(self, path):
-        return os.path.exists(path)
+        return os.path.exists(self._normalize_path(path))
 
     def cached_file_outdated(self, filename):
         path = config.get_storage_path(filename)
@@ -52,6 +74,7 @@ class DiskResourceHandler(FileHandler):
         return not hash or not filename.startswith(hash)
 
     def handle_file(self, path, default_ext=None):
+        path = self._normalize_path(path)
         ext = extract_path_ext(path, default_ext=default_ext)
         with self.write_file(ext) as fh:
             with open(path, "rb") as fobj:
