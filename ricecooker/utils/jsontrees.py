@@ -433,6 +433,7 @@ def add_questions(exercise_node, question_list):
             q_obj = questions.PerseusQuestion(
                 id=q["id"],
                 raw_data=q.get("item_data"),
+                ka_language=q.get("ka_language"),
                 source_url=q.get("source_url") or "https://www.khanacademy.org/",
             )
             exercise_node.add_question(q_obj)

@@ -6,6 +6,7 @@ from le_utils.constants import exercises
 from le_utils.constants import file_formats
 from le_utils.constants import format_presets
 from le_utils.constants import languages
+from requests import HTTPError
 
 from .. import config
 from ..exceptions import UnknownFileTypeError
@@ -396,9 +397,11 @@ class _ExerciseGraphieFile(File):
     default_ext = file_formats.GRAPHIE
     default_preset = format_presets.EXERCISE_GRAPHIE
 
-    def __init__(self, path):
+    def __init__(self, path, ka_language, **kwargs):
+        super().__init__(**kwargs)
         self.original_filename = path.split("/")[-1].split(".")[0]
         self.path = path
+        self.ka_language = ka_language
 
     def validate(self):
         try:
@@ -429,7 +432,11 @@ class _ExerciseGraphieFile(File):
             config.FAILED_FILES.append(self)
 
     def generate_graphie_file(self):
-        key = "GRAPHIE: {}".format(self.path)
+        if self.ka_language is None:
+            raise ValueError("ka_language must be specified")
+        key = "GRAPHIE: {}".format(
+            self.path + (self.ka_language if self.ka_language != "en" else "")
+        )
 
         cache_file = get_cache_filename(key)
         if not config.UPDATE and cache_file:
@@ -447,14 +454,31 @@ class _ExerciseGraphieFile(File):
         for chunk in r.iter_content():
             tempf.write(chunk)
         tempf.write(delimiter)
-        r = config.DOWNLOAD_SESSION.get(self.path + "-data.json", stream=True)
-        r.raise_for_status()
+        # Separate the path into these components, splitting on the final /
+        # in the same way that the KA frontend code does for localization here:
+        # https://github.com/Khan/perseus/blob/458d3ed600be91dd75a30a80bfac1fbd87c60bcd/packages/perseus/src/util/graphie-utils.ts#L75
+        if self.ka_language == "en":
+            json_path_base = self.path
+        else:
+            base_path, _, file_hash = self.path.rpartition("/")
+            json_path_base = base_path + "/" + self.ka_language + "/" + file_hash
+        should_cache = True
+        try:
+            r = config.DOWNLOAD_SESSION.get(json_path_base + "-data.json", stream=True)
+            r.raise_for_status()
+        except HTTPError:
+            if self.ka_language == "en":
+                raise
+            r = config.DOWNLOAD_SESSION.get(self.path + "-data.json", stream=True)
+            r.raise_for_status()
+            should_cache = False
         for chunk in r.iter_content():
             tempf.write(chunk)
         tempf.close()
         filename = copy_file_to_storage(tempf.name, ext=file_formats.GRAPHIE)
         os.unlink(tempf.name)
-        FILECACHE.set(key, bytes(filename, "utf-8"))
+        if should_cache:
+            FILECACHE.set(key, bytes(filename, "utf-8"))
         return filename
 
 

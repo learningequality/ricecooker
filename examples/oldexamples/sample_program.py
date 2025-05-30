@@ -569,6 +569,7 @@ def create_question(raw_question):
         return questions.PerseusQuestion(
             id=raw_question["id"],
             raw_data=parse_images(raw_question.get("item_data")),
+            ka_language=raw_question.get("ka_language"),
             source_url="https://www.google.com/",
         )
     else:

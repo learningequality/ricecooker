@@ -1143,7 +1143,7 @@ def mock_download_session():
 def test_graphie_url_processing(mock_download_session):
     """Test processing of web+graphie:// URLs"""
     path = "https://example.com/graphie/test-graph"
-    graphie = _ExerciseGraphieFile(path)
+    graphie = _ExerciseGraphieFile(path, "en")
     filename = graphie.process_file()
 
     assert filename is not None
@@ -1158,7 +1158,7 @@ def test_graphie_url_processing(mock_download_session):
 def test_graphie_content_combination(mock_download_session):
     """Test that SVG and JSON content are properly combined"""
     path = "https://example.com/graphie/test-graph"
-    graphie = _ExerciseGraphieFile(path)
+    graphie = _ExerciseGraphieFile(path, "en")
     filename = graphie.process_file()
 
     assert filename is not None
@@ -1179,7 +1179,7 @@ def test_graphie_download_failure(mock_download_session):
     mock_download_session.get.side_effect = HTTPError("Download failed")
 
     path = "https://error.com/graphie/test-graph"
-    graphie = _ExerciseGraphieFile(path)
+    graphie = _ExerciseGraphieFile(path, "en")
     filename = graphie.process_file()
 
     assert filename is None
@@ -1189,7 +1189,7 @@ def test_graphie_download_failure(mock_download_session):
 def test_graphie_get_replacement_str():
     """Test get_replacement_str with https URLs"""
     path = "https://site.com/content/graph-name"
-    graphie = _ExerciseGraphieFile(path)
+    graphie = _ExerciseGraphieFile(path, "en")
     # The replacement string should be the base filename without https:// prefix
     assert graphie.get_replacement_str() == "graph-name"
 
@@ -1197,7 +1197,7 @@ def test_graphie_get_replacement_str():
 def test_graphie_original_filename():
     """Test extraction of original filename from https URLs"""
     path = "https://site.com/content/graph-name"
-    graphie = _ExerciseGraphieFile(path)
+    graphie = _ExerciseGraphieFile(path, "en")
     assert graphie.original_filename == "graph-name"
 
 
@@ -1207,12 +1207,12 @@ def test_graphie_caching(mock_download_session):
     path = "https://exemple.com/graphie/test-graph"
 
     # First run
-    graphie1 = _ExerciseGraphieFile(path)
+    graphie1 = _ExerciseGraphieFile(path, "en")
     filename1 = graphie1.process_file()
     assert filename1 is not None
 
     # Second run - should use cached file
-    graphie2 = _ExerciseGraphieFile(path)
+    graphie2 = _ExerciseGraphieFile(path, "en")
     filename2 = graphie2.process_file()
 
     assert filename1 == filename2

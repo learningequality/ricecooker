@@ -1,10 +1,13 @@
 import json
 import os
 import tempfile
+from sys import platform
+from unittest.mock import patch
 
 import pytest
 from vcr_config import my_vcr
 
+from ricecooker.utils.pipeline.transfer import DiskResourceHandler
 from ricecooker.utils.pipeline.transfer import (
     get_filename_from_content_disposition_header,
 )
@@ -245,3 +248,46 @@ def test_gdrive_channel_spreadsheet(mock_google_creds):
     assert file_metadata is not None
     assert file_metadata[0].filename.endswith("xlsx")
     assert file_metadata[0].original_filename == "Channel spreadsheet"
+
+
+def test_disk_transfer_file_protocol():
+    file_path = os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__), "..", "testcontent", "samples", "thumbnail.png"
+        )
+    )
+
+    # Convert to proper file:// URL format based on platform
+    if platform == "win32":
+        # Windows needs file:/// followed by the path (e.g., file:///C:/path/to/file)
+        file_path_with_protocol = "file:///" + file_path.replace("\\", "/")
+    else:
+        # Unix-like systems should use file:// followed by the path (e.g., file:///path/to/file)
+        file_path_with_protocol = "file://" + file_path
+
+    handler = DiskResourceHandler()
+    assert handler.should_handle(
+        file_path_with_protocol
+    ), f"Handler should handle {file_path_with_protocol}"
+
+    file_metadata = handler.execute(file_path_with_protocol)
+    assert file_metadata is not None, "File metadata should not be None"
+    assert file_metadata[0].filename.endswith(
+        "png"
+    ), "File extension should be preserved"
+
+
+def test_disk_transfer_non_file_protocol():
+    """Test that non-file protocols are left unchanged."""
+    path = "http://example.com/path/to/file.jpg"
+    handler = DiskResourceHandler()
+
+    # The handler should not process non-file URLs
+    normalized_path = handler._normalize_path(path)
+    assert normalized_path == path, "Non-file URL should be left unchanged"
+
+    # The handler should not handle non-file URLs
+    with patch(
+        "os.path.exists", return_value=False
+    ):  # Ensure it doesn't try to check a web URL
+        assert not handler.should_handle(path), "Handler should not handle HTTP URLs"

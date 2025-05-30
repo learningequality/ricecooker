@@ -924,7 +924,7 @@ def exercise_graphie_mock_download_session():
 @pytest.fixture
 def exercise_graphie_file():
     return _ExerciseGraphieFile(
-        "https://khanacademy.org/content/eb3f3bf7c317408ee90995b5bcf4f3a59606aedd"
+        "https://khanacademy.org/content/eb3f3bf7c317408ee90995b5bcf4f3a59606aedd", "en"
     )
 
 
