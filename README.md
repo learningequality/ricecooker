@@ -39,10 +39,12 @@ and highlights the part which is covered by the `ricecooker` framework (bottom l
 ![Overview of steps for integrating external content sources for use in the Kolibri Learning Platform](docs/figures/content_pipeline_diagram_with_highlight.png)
 *External content sources (left) are first uploaded to [Kolibri Studio](https://studio.learningequality.org/) (middle), so they can be used in the [Kolibri Learning Platform](http://learningequality.org/kolibri/) (right).*
 
+## How can I contribute?
 
+Visit [Contributing](./CONTRIBUTING.md).
 
+## Further reading
 
-##### Further reading
 The [Ricecooker docs](https://ricecooker.readthedocs.io/) website is the best
 place to learn about writing automated content integration scripts.
 
