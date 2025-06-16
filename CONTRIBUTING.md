@@ -13,11 +13,11 @@ Types of Contributions
 
 ### Cheffing
 
-Use your Python and ricecooker knowledge to help with the content integration of
-content sources that will benefit offline learners from around the world.
+Use your Python and ricecooker knowledge to help with the content integration of content sources that will benefit offline learners from around the world.
 
 
 ### Report Bugs
+
 Report bugs at [https://github.com/learningequality/ricecooker/issues](https://github.com/learningequality/ricecooker/issues)
 
 If you are reporting a bug, please include:
@@ -26,12 +26,6 @@ If you are reporting a bug, please include:
 * Which operating system you're using (name and version).
 * Any details about your local setup that might be helpful in troubleshooting.
 * Detailed steps to reproduce the bug.
-
-
-### Fix Bugs
-
-Look through the GitHub issues for bugs. Anything tagged with "bug" and
-"help wanted" is open game for community contributors.
 
 
 ### Submit Feedback
@@ -45,18 +39,11 @@ If you are proposing a new feature:
 * Try to keep the scope as narrow as possible to make it easier to implement.
 * Remember this is a volunteer-driven project, and contributions are welcome :)
 
-
 ### Code contributions
 
-The `ricecooker` project is open for code, testing, and documentation contributions.
-The `ricecooker.utils` package is constantly growing with new helper methods that
-simplify various aspects of the content extraction, transformations, and upload to Studio.
-If you figured out how to fix a `ricecooker` bug or added some new functionality
-that you would like to share with the community, please open a
-[pull request](https://github.com/learningequality/ricecooker/pulls).
+The `ricecooker` project is open for code, testing, and documentation contributions. The `ricecooker.utils` package is constantly growing with new helper methods that simplify various aspects of the content extraction, transformations, and upload to Studio.
 
-
-
+First, visit [Contributing to our open code base](https://learningequality.org/contributing-to-our-open-code-base/) where you will find general contributing guidelines and how to find an issue to work on.
 
 Becoming a ricecooker developer
 -------------------------------
