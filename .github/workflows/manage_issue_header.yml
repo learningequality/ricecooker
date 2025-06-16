@@ -1,9 +1,7 @@
 name: Manage issue header
-
 on:
   issues:
     types: [labeled, unlabeled]
-
 jobs:
   handle-help-wanted:
     uses: learningequality/.github/.github/workflows/manage-issue-header.yml@main
