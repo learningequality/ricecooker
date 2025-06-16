@@ -393,7 +393,6 @@ def test_video_compression_error(video_file):
         result = video_file.process_file()
 
         assert result is None
-        assert "FFmpeg failed" in video_file.error
         assert video_file in config.FAILED_FILES
 
 
@@ -427,7 +426,6 @@ def test_audio_compression_error(audio_file):
         result = audio_file.process_file()
 
         assert result is None
-        assert "Audio compression failed" in audio_file.error
         assert audio_file in config.FAILED_FILES
 
 

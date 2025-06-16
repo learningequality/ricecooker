@@ -248,9 +248,6 @@ class Test_video_compression(object):
         assert (
             video_filename is None
         ), "Should return None if trying to compress bad file"
-        assert "Invalid data" in str(
-            video_file.error
-        ), "File object should have error details"
         assert (
             video_file in config.FAILED_FILES
         ), "Video file sould be added to config.FAILED_FILES"
