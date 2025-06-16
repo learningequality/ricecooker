@@ -24,6 +24,8 @@ from le_utils.constants import file_formats
 from le_utils.constants import format_presets
 from PIL import Image
 from PIL import UnidentifiedImageError
+from PyPDF2 import PdfFileReader
+from PyPDF2.utils import PdfReadError
 
 from .file_handler import ExtensionMatchingHandler
 from .file_handler import StageHandler
@@ -430,6 +432,29 @@ class BloomConversionHandler(ArchiveProcessingBaseHandler):
                 )
 
 
+class PDFValidationHandler(ExtensionMatchingHandler):
+    """
+    A FileHandler that validates PDF files.
+    """
+
+    EXTENSIONS = {file_formats.PDF}
+
+    def handle_file(self, path):
+        try:
+            with open(path, "rb") as f:
+                pdf = PdfFileReader(f)
+                if pdf.getNumPages() == 0:
+                    raise InvalidFileException(
+                        f"PDF file {path} has no pages."
+                    )
+        except PdfReadError as e:
+            raise InvalidFileException(
+                f"PDF file {path} did not pass validation: {e}"
+            )
+        except FileNotFoundError:
+            raise InvalidFileException(f"File not found at path: {path}")
+
+
 class ImageConversionHandler(ExtensionMatchingHandler):
     """
     A FileHandler that converts image files to supported formats.
@@ -549,6 +574,7 @@ class ConversionStageHandler(StageHandler):
     DEFAULT_CHILDREN = [
         SubtitleConversionHandler,
         SVGValidationHandler,
+        PDFValidationHandler,
         ImageConversionHandler,
         BloomConversionHandler,
         EPUBConversionHandler,

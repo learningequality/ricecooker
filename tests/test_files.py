@@ -34,6 +34,8 @@ from ricecooker.classes.files import SubtitleFile
 from ricecooker.classes.files import VideoFile
 from ricecooker.classes.files import YouTubeVideoFile
 from ricecooker.utils.audio import AudioCompressionError
+from ricecooker.utils.pipeline.convert import PDFValidationHandler
+from ricecooker.utils.pipeline.exceptions import InvalidFileException
 from ricecooker.utils.videos import VideoCompressionError
 from ricecooker.utils.zip import create_predictable_zip
 
@@ -1300,6 +1302,51 @@ def test_audio_compression_cache_keys_no_settings(
     # of the video compression - which is not stable across invocations of ffmpeg
     # on different software.
     assert set(mock_filecache.cache.keys()) > expected_keys
+
+
+def test_pdf_validation_handler_valid_pdf(self, sample_pdf_file):
+    """
+    Test that PDFValidationHandler does not raise an exception for a valid PDF.
+    """
+    handler = PDFValidationHandler()
+    try:
+        handler.run(sample_pdf_file.path)
+    except InvalidFileException:
+        pytest.fail("PDFValidationHandler raised InvalidFileException unexpectedly for a valid PDF.")
+
+def test_pdf_validation_handler_invalid_pdf(self):
+    """
+    Test that PDFValidationHandler raises an InvalidFileException for an invalid PDF.
+    """
+    handler = PDFValidationHandler()
+    broken_pdf_path = os.path.join(
+        os.path.dirname(__file__), "testcontent", "samples", "broken.pdf"
+    )
+    # Ensure the broken PDF file actually exists for the test
+    if not os.path.exists(broken_pdf_path):
+            # Create a dummy broken PDF file if it doesn't exist.
+        with open(broken_pdf_path, "w") as f:
+            f.write("This is definitely not a PDF.")
+
+    with pytest.raises(InvalidFileException):
+        handler.run(broken_pdf_path)
+
+def test_pdf_validation_handler_empty_pdf(self, tmpdir):
+    """
+    Test that PDFValidationHandler raises an InvalidFileException for a PDF with no pages.
+    """
+    handler = PDFValidationHandler()
+    empty_pdf_path = os.path.join(str(tmpdir), "empty.pdf")
+
+    # Create an empty PDF file using PyPDF2
+    from PyPDF2 import PdfFileWriter # Import here to avoid making PyPDF2 a global test dependency if not already
+    writer = PdfFileWriter()
+    with open(empty_pdf_path, "wb") as f:
+        writer.write(f)
+
+    with pytest.raises(InvalidFileException) as context:
+        handler.run(empty_pdf_path)
+    assert "has no pages" in str(context.exception)
 
 
 def test_subtitle_cache_keys_with_format(mock_filecache, subtitle_file):
