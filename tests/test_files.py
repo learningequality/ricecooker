@@ -9,7 +9,7 @@ from shutil import copyfile
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
-import pytest
+import pytest # Ensure pytest is imported
 from le_utils.constants import file_formats
 from le_utils.constants import format_presets
 from le_utils.constants import languages
@@ -1304,7 +1304,7 @@ def test_audio_compression_cache_keys_no_settings(
     assert set(mock_filecache.cache.keys()) > expected_keys
 
 
-def test_pdf_validation_handler_valid_pdf(self, sample_pdf_file):
+def test_pdf_validation_handler_valid_pdf(sample_pdf_file):
     """
     Test that PDFValidationHandler does not raise an exception for a valid PDF.
     """
@@ -1314,7 +1314,7 @@ def test_pdf_validation_handler_valid_pdf(self, sample_pdf_file):
     except InvalidFileException:
         pytest.fail("PDFValidationHandler raised InvalidFileException unexpectedly for a valid PDF.")
 
-def test_pdf_validation_handler_invalid_pdf(self):
+def test_pdf_validation_handler_invalid_pdf():
     """
     Test that PDFValidationHandler raises an InvalidFileException for an invalid PDF.
     """
@@ -1331,7 +1331,7 @@ def test_pdf_validation_handler_invalid_pdf(self):
     with pytest.raises(InvalidFileException):
         handler.run(broken_pdf_path)
 
-def test_pdf_validation_handler_empty_pdf(self, tmpdir):
+def test_pdf_validation_handler_empty_pdf(tmpdir):
     """
     Test that PDFValidationHandler raises an InvalidFileException for a PDF with no pages.
     """
