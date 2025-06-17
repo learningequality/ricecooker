@@ -9,7 +9,7 @@ from shutil import copyfile
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
-import pytest # Ensure pytest is imported
+import pytest
 from le_utils.constants import file_formats
 from le_utils.constants import format_presets
 from le_utils.constants import languages
@@ -38,6 +38,7 @@ from ricecooker.utils.pipeline.convert import PDFValidationHandler
 from ricecooker.utils.pipeline.exceptions import InvalidFileException
 from ricecooker.utils.videos import VideoCompressionError
 from ricecooker.utils.zip import create_predictable_zip
+from PyPDF2 import PdfFileWriter
 
 
 @pytest.fixture
@@ -1304,13 +1305,14 @@ def test_audio_compression_cache_keys_no_settings(
     assert set(mock_filecache.cache.keys()) > expected_keys
 
 
-def test_pdf_validation_handler_valid_pdf(sample_pdf_file):
+# Assuming document_file is a fixture from conftest.py that provides a DocumentFile object
+def test_pdf_validation_handler_valid_pdf(document_file):
     """
     Test that PDFValidationHandler does not raise an exception for a valid PDF.
     """
     handler = PDFValidationHandler()
     try:
-        handler.run(sample_pdf_file.path)
+        handler.execute(document_file.path)
     except InvalidFileException:
         pytest.fail("PDFValidationHandler raised InvalidFileException unexpectedly for a valid PDF.")
 
@@ -1329,7 +1331,7 @@ def test_pdf_validation_handler_invalid_pdf():
             f.write("This is definitely not a PDF.")
 
     with pytest.raises(InvalidFileException):
-        handler.run(broken_pdf_path)
+        handler.execute(broken_pdf_path)
 
 def test_pdf_validation_handler_empty_pdf(tmpdir):
     """
@@ -1339,13 +1341,12 @@ def test_pdf_validation_handler_empty_pdf(tmpdir):
     empty_pdf_path = os.path.join(str(tmpdir), "empty.pdf")
 
     # Create an empty PDF file using PyPDF2
-    from PyPDF2 import PdfFileWriter # Import here to avoid making PyPDF2 a global test dependency if not already
     writer = PdfFileWriter()
     with open(empty_pdf_path, "wb") as f:
         writer.write(f)
 
     with pytest.raises(InvalidFileException) as context:
-        handler.run(empty_pdf_path)
+        handler.execute(empty_pdf_path)
     assert "has no pages" in str(context.exception)
 
 
