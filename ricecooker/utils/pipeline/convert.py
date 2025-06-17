@@ -444,13 +444,9 @@ class PDFValidationHandler(ExtensionMatchingHandler):
             with open(path, "rb") as f:
                 pdf = PdfFileReader(f)
                 if pdf.getNumPages() == 0:
-                    raise InvalidFileException(
-                        f"PDF file {path} has no pages."
-                    )
+                    raise InvalidFileException(f"PDF file {path} has no pages.")
         except PdfReadError as e:
-            raise InvalidFileException(
-                f"PDF file {path} did not pass validation: {e}"
-            )
+            raise InvalidFileException(f"PDF file {path} did not pass validation: {e}")
         except FileNotFoundError:
             raise InvalidFileException(f"File not found at path: {path}")
 

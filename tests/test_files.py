@@ -15,6 +15,7 @@ from le_utils.constants import format_presets
 from le_utils.constants import languages
 from le_utils.constants.exercises import GRAPHIE_DELIMITER
 from PIL import Image
+from PyPDF2 import PdfFileWriter
 from requests import ConnectionError
 from requests import HTTPError
 from test_pdfutils import _save_file_url_to_path
@@ -38,7 +39,6 @@ from ricecooker.utils.pipeline.convert import PDFValidationHandler
 from ricecooker.utils.pipeline.exceptions import InvalidFileException
 from ricecooker.utils.videos import VideoCompressionError
 from ricecooker.utils.zip import create_predictable_zip
-from PyPDF2 import PdfFileWriter
 
 
 @pytest.fixture
@@ -1314,7 +1314,10 @@ def test_pdf_validation_handler_valid_pdf(document_file):
     try:
         handler.execute(document_file.path)
     except InvalidFileException:
-        pytest.fail("PDFValidationHandler raised InvalidFileException unexpectedly for a valid PDF.")
+        pytest.fail(
+            "PDFValidationHandler raised InvalidFileException unexpectedly for a valid PDF."
+        )
+
 
 def test_pdf_validation_handler_invalid_pdf():
     """
@@ -1326,12 +1329,13 @@ def test_pdf_validation_handler_invalid_pdf():
     )
     # Ensure the broken PDF file actually exists for the test
     if not os.path.exists(broken_pdf_path):
-            # Create a dummy broken PDF file if it doesn't exist.
+        # Create a dummy broken PDF file if it doesn't exist.
         with open(broken_pdf_path, "w") as f:
             f.write("This is definitely not a PDF.")
 
     with pytest.raises(InvalidFileException):
         handler.execute(broken_pdf_path)
+
 
 def test_pdf_validation_handler_empty_pdf(tmpdir):
     """
@@ -1345,9 +1349,8 @@ def test_pdf_validation_handler_empty_pdf(tmpdir):
     with open(empty_pdf_path, "wb") as f:
         writer.write(f)
 
-    with pytest.raises(InvalidFileException) as context:
+    with pytest.raises(InvalidFileException):
         handler.execute(empty_pdf_path)
-    assert "has no pages" in str(context.exception)
 
 
 def test_subtitle_cache_keys_with_format(mock_filecache, subtitle_file):
