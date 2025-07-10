@@ -201,6 +201,7 @@ class ArchiveProcessingBaseHandler(ExtensionMatchingHandler):
             self._read_and_compress_archive_file,
             audio_settings=audio_settings,
             video_settings=video_settings,
+            ext=ext,
         )
         # create_predictable_zip will iterate over subfiles, call file_converter
         processed_zip_path = create_predictable_zip(
@@ -233,9 +234,9 @@ class ArchiveProcessingBaseHandler(ExtensionMatchingHandler):
             )
 
     def _read_and_compress_archive_file(
-        self, filepath, reader, audio_settings=None, video_settings=None
+        self, filepath, reader, audio_settings=None, video_settings=None, ext=None
     ):
-        extension = extract_path_ext(filepath)
+        extension = extract_path_ext(filepath, default_ext=ext)
 
         # If it's mp4, webm, or mp3, compress it; else pass it through
         if extension in {file_formats.MP4, file_formats.WEBM, file_formats.MP3}:
