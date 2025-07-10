@@ -33,7 +33,7 @@ setup(
         "le_utils>=0.2.10",
         "requests_file",
         "beautifulsoup4>=4.6.3,<4.9.0",  # pinned to match versions in le-pycaption
-        "selenium==4.33.0",
+        "selenium==4.34.2",
         "yt-dlp>=2024.12.23",
         "html5lib",
         "cachecontrol==0.14.3",
@@ -49,7 +49,7 @@ setup(
         "le-pycaption>=2.2.0a1",
         "EbookLib>=0.17.1",
         "filetype>=1.1.0",
-        "urllib3==2.4.0",
+        "urllib3==2.5.0",
         "langcodes[data]==3.5.0",
     ],
     extras_require={
