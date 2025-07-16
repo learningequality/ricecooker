@@ -434,4 +434,7 @@ class DownloadStageHandler(StageHandler):
             # The download stage is special, as we expect it to always return a file
             # if it does not, we raise an exception to prevent further processing
             raise InvalidFileException(f"No file could be downloaded from {path}")
+        for metadata in metadata_list:
+            if metadata.path == path:
+                raise InvalidFileException(f"{path} failed to transfer")
         return metadata_list
