@@ -14,8 +14,8 @@ from .files import _ExerciseGraphieFile
 from .files import _ExerciseImageFile
 from ricecooker.utils.encodings import get_base64_encoding
 
-
-IMAGE_URL_REGEX = r"(?P<protocol>web\+graphie|https?|file|data):(?P<rawpath>[^\)\"]+)"  # match protocol:{{path}}
+# match protocol:{{path}} either wrapped in parentheses or quotes
+IMAGE_URL_REGEX = r"(?P<open>\(|\")(?P<protocol>web\+graphie|https?|file|data):(?P<rawpath>[^\)\"]+)(?P<close>\)|\")"
 MARKDOWN_IMAGE_REGEX = r"!\[([^\]]+)?\]\(([^\)]+?)\)"  # match ![{{smth}}]({{url}})
 
 
@@ -284,8 +284,10 @@ class PerseusQuestion(BaseQuestion):
     def _replace_image(self, match):
         protocol = match.group("protocol")
         path = match.group("rawpath")
+        open = match.group("open")
+        close = match.group("close")
         if exercises.CONTENT_STORAGE_PLACEHOLDER in path:
-            return f"{protocol}:{path}"
+            return f"{open}{protocol}:{path}{close}"
         # Strip `path` of whitespace
         # Remove stray encoded line-breaks sometimes present in KA exports
         stripped_path = re.sub(r"\s", "", path).lstrip("\\n").rstrip("\\n")
@@ -312,7 +314,7 @@ class PerseusQuestion(BaseQuestion):
         )
         if protocol == "web+graphie":  # need to put back the `web+graphie:` prefix
             new_path = "web+graphie:" + new_path
-        return new_path
+        return f"{open}{new_path}{close}"
 
     def process_question(self):
         """
