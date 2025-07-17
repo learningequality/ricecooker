@@ -12,6 +12,7 @@ from .classes.nodes import ChannelNode
 from .managers.progress import RestoreManager
 from .managers.progress import Status
 from .managers.tree import ChannelManager
+from .utils.slack import send_slack_notification
 
 
 def uploadchannel_wrapper(chef, args, options):
@@ -191,6 +192,9 @@ def uploadchannel(  # noqa: C901
     if prompt and prompt_yes_or_no("Would you like to open your channel now?"):
         config.LOGGER.info("Opening channel... ")
         webbrowser.open_new_tab(channel_link)
+
+    if config.SLACK_WEBHOOK_URL:
+        send_slack_notification(tree.channel, channel_link)
 
     config.PROGRESS_MANAGER.set_done()
     return channel_link
