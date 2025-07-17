@@ -82,7 +82,7 @@ class TestChef(SushiChef):
 
         # We are also going to add a video file called 'Example Video'
         video_file = VideoFile(
-            path="https://ia600209.us.archive.org/27/items/RiceChef/Rice Chef.mp4"
+            path="https://archive.org/download/vd_is_for_everybody/vd_is_for_everybody_512kb.mp4"
         )
         fancy_license = get_license(
             licenses.SPECIAL_PERMISSIONS,
@@ -98,7 +98,7 @@ class TestChef(SushiChef):
 
         # Finally, we are creating an audio file called 'Example Audio'
         audio_file = AudioFile(
-            path="https://ia802508.us.archive.org/5/items/testmp3testfile/mpthreetest.mp3"
+            path="https://ia800203.us.archive.org/26/items/Bach_Original_works_and_transcriptions-6556/Felipe_Sarro_-_08_-_Bach_Sinfonia_11_BWV_797.mp3"
         )
         exampleaudio = AudioNode(
             title="Example Audio",
