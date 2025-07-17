@@ -333,6 +333,28 @@ with open(
     perseus_test_data.append(datum)
 
 
+# False positive image match for inline link
+with open(
+    os.path.join(TESTCONTENT_DIR, "exercises", "perseus_question_inline_link.json"),
+    encoding="utf-8",
+) as inf:
+
+    item_data_link = json.load(inf)
+    datum = (
+        item_data_link,
+        [
+            "949e1b754041305b19341d56a6f6c221",
+            "e4b1946a1afae11c9e8180d0754d9b6e",
+            "8f8af0fe48828449d24d87f7731c78c1",
+            "62de458c0f364a088482a49b40d75861",
+            "d023803c551f9f65a258900376d9c344",
+            "18903f1786aae4ebc29934b35375fa25",
+            "2f2954d5418807096e24476d7459f874",
+        ],
+    )
+    perseus_test_data.append(datum)
+
+
 @pytest.mark.parametrize("item,image_hashes", perseus_test_data)
 def test_perseus_process_question(item, image_hashes):
     """
