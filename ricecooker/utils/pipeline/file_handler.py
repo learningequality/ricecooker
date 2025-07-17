@@ -242,6 +242,8 @@ class FileHandler(Handler):
                 )
                 raise ExpectedFileException(e) from e
 
+            original_path = path
+
             path = self._output_path or path
 
             file_metadata.filename = os.path.basename(path)
@@ -256,11 +258,11 @@ class FileHandler(Handler):
 
             if kwargs:
                 config.LOGGER.info(
-                    f"\tCompleted {self.STAGE} for {path} with kwargs {kwargs} saved to {file_metadata.path}"
+                    f"\tCompleted {self.STAGE} for {original_path} with kwargs {kwargs} saved to {file_metadata.path}"
                 )
             else:
                 config.LOGGER.info(
-                    f"\tCompleted {self.STAGE} for {path} saved to {file_metadata.path}"
+                    f"\tCompleted {self.STAGE} for {original_path} saved to {file_metadata.path}"
                 )
 
         return file_metadata_list

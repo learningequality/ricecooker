@@ -85,6 +85,6 @@ def copy_file_to_storage(srcfilename, ext=None):
     try:
         shutil.copy(srcfilename, config.get_storage_path(filename))
     except shutil.SameFileError:
-        pass
+        return filename
 
     return filename
