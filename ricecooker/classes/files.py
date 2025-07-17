@@ -173,11 +173,12 @@ class DownloadFile(File):
     ext = None
     allowed_formats = None
 
-    def __init__(self, path, **kwargs):
+    def __init__(self, path, context=None, **kwargs):
         self.path = path.strip()
         self.context = {
             "default_ext": self.default_ext,
         }
+        self.context.update(context or {})
         super(DownloadFile, self).__init__(**kwargs)
 
     def validate(self):
@@ -246,8 +247,9 @@ class AudioFile(DownloadFile):
     default_preset = format_presets.AUDIO
 
     def __init__(self, path, ffmpeg_settings=None, **kwargs):
-        super(AudioFile, self).__init__(path, **kwargs)
-        self.context["audio_settings"] = ffmpeg_settings or {}
+        super(AudioFile, self).__init__(
+            path, context={"audio_settings": ffmpeg_settings or {}}, **kwargs
+        )
 
 
 class DocumentFile(DownloadFile):
@@ -291,8 +293,9 @@ class VideoFile(DownloadFile):
     is_primary = True
 
     def __init__(self, path, ffmpeg_settings=None, **kwargs):
-        super(VideoFile, self).__init__(path, **kwargs)
-        self.context["video_settings"] = ffmpeg_settings or {}
+        super(VideoFile, self).__init__(
+            path, context={"video_settings": ffmpeg_settings or {}}, **kwargs
+        )
 
 
 class WebVideoFile(DownloadFile):
