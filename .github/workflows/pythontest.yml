@@ -30,7 +30,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-latest, ubuntu-latest, macos-13]
-        python-version: [3.9, '3.10', '3.11', '3.12']
+        python-version: [3.9, '3.10', '3.11', '3.12', '3.13']
         include:
           - os: ubuntu-latest
             pippath: ~/.cache/pip
@@ -58,13 +58,19 @@ jobs:
         with:
           path: ~/Library/Caches/Homebrew
           key: ${{ runner.os }}-brew-${{ hashFiles('.github/workflows/pythontest.yml') }}
+      - name: Unlink Homebrew Python 3.13 if not testing 3.13
+        if: needs.pre_job.outputs.should_skip != 'true' && matrix.os == 'macos-13' && matrix.python-version != '3.13'
+        run: brew unlink python@3.13 || true
       - name: Install Mac dependencies
         run: |
-          # Due to this still unresolved issue: https://github.com/actions/runner-images/issues/9966
-          # We get a conflict between the Python 3.13 version installed in the runner,
-          # and the one installed by Homebrew. This is a workaround to fix it.
-          # This may break things when we add Python 3.13 to the matrix though.
-          brew unlink python@3.13 && brew link --overwrite python@3.13
+          # Conditionally link python@3.13 to avoid conflicts when testing Python 3.13
+          # See: https://github.com/actions/runner-images/issues/9966
+          if [[ "${{ matrix.python-version }}" != "3.13" ]]; then
+            echo "Linking Homebrew python@3.13"
+            brew link --overwrite python@3.13
+          else
+            echo "Skipping Homebrew python@3.13 linking for Python 3.13 test."
+          fi
           brew install ffmpeg poppler
         if: needs.pre_job.outputs.should_skip != 'true' && matrix.os == 'macos-13'
       - name: Windows dependencies cache
