@@ -49,8 +49,8 @@ clean-test: ## remove test and coverage artifacts
 	rm -rf tests/testcontent/downloaded/*
 	rm -rf tests/testcontent/generated/*
 
-lint: ## check style with flake8
-	flake8 ricecooker tests
+lint:
+	pre-commit run --all-files
 
 test: clean-test ## run tests quickly with the default Python
 	pytest
