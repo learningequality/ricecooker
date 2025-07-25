@@ -38,6 +38,7 @@ from ricecooker.utils.pipeline.context import ContextMetadata
 from ricecooker.utils.pipeline.context import FileMetadata
 from ricecooker.utils.pipeline.exceptions import InvalidFileException
 from ricecooker.utils.subtitles import build_subtitle_converter_from_file
+from ricecooker.utils.subtitles import InvalidSubtitleFormatError
 from ricecooker.utils.subtitles import InvalidSubtitleLanguageError
 from ricecooker.utils.subtitles import LANGUAGE_CODE_UNKNOWN
 from ricecooker.utils.utils import extract_path_ext
@@ -528,6 +529,8 @@ class SubtitleConversionHandler(ExtensionMatchingHandler):
     EXTENSIONS = {file_formats.VTT} | set(
         CONVERTIBLE_FORMATS[format_presets.VIDEO_SUBTITLE]
     )
+
+    HANDLED_EXCEPTIONS = [InvalidSubtitleFormatError, InvalidSubtitleLanguageError]
 
     def get_cache_key(
         self, path: str, language: str = None, subtitle_format: str = None
