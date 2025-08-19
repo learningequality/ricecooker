@@ -39,7 +39,7 @@ jobs:
           - os: windows-latest
             pippath: ~\AppData\Local\pip\Cache
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         if: ${{ needs.pre_job.outputs.should_skip != 'true' }}
       - name: Set up Python ${{ matrix.python-version }}
         if: ${{ needs.pre_job.outputs.should_skip != 'true' }}
