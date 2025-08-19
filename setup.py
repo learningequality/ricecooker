@@ -37,7 +37,7 @@ setup(
         "yt-dlp>=2024.12.23",
         "html5lib",
         "cachecontrol==0.14.3",
-        "filelock==3.18.0",  # This is needed, but not specified as a dependency by cachecontrol
+        "filelock==3.19.1",  # This is needed, but not specified as a dependency by cachecontrol
         "css-html-js-minify==2.5.5",
         "pypdf2==1.26.0",
         "dictdiffer>=0.8.0",
