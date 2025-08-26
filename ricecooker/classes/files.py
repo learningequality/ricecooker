@@ -608,11 +608,11 @@ class StudioFile(File):
     skip_upload = True
 
     def __init__(self, checksum, ext, preset, is_primary=False, **kwargs):
+        kwargs["preset"] = preset
+        super(StudioFile, self).__init__(**kwargs)
+        self._validated = False
         self.filename = "{}.{}".format(checksum, ext)
         self.is_primary = is_primary
-        kwargs["preset"] = preset
-        self._validated = False
-        super(StudioFile, self).__init__(**kwargs)
 
     def validate(self):
         if not self._validated:
