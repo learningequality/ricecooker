@@ -77,6 +77,8 @@ def uploadchannel(  # noqa: C901
         "https://", requests.adapters.HTTPAdapter(max_retries=int(download_attempts))
     )
 
+    config.DOWNLOAD_SESSION.auth = chef.auth
+
     # Get domain to upload to
     config.init_file_mapping_store()
 
