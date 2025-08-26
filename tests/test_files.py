@@ -792,7 +792,7 @@ def test_convertible_substitles_ar_srt():
     with open(storage_path, encoding="utf-8") as converted_vtt:
         filecontents = converted_vtt.read()
         check_words = "لناس على"
-        assert check_words in filecontents, "missing check word in converted subs"
+        assert check_words in filecontents, "expected words not found in converted subs"
 
 
 @pytest.fixture
@@ -956,24 +956,32 @@ def test_convertible_substitles_weirdext_subtitlesformat():
     Check that we handle cases when ext cannot be guessed from URL or localpath.
     Passing `subtitlesformat` allows chef authors to manually specify subs format.
     """
-    subs_url = (
-        "https://commons.wikimedia.org/w/api.php?"
-        + "action=timedtext&title=File%3AA_Is_for_Atom_1953.webm&lang=es&trackformat=srt"
+    # Create a temporary file copy without extension
+    source_path = os.path.join(
+        os.path.dirname(__file__), "testcontent", "samples", "testsubtitles_ar.srt"
     )
-    subtitle_file = SubtitleFile(
-        subs_url,
-        language="es",
-        subtitlesformat="srt",  # set subtitlesformat when can't inferr ext form url
-    )
-    filename = subtitle_file.process_file()
-    assert filename, "converted filename must exist"
-    assert filename.endswith(".vtt"), "converted filename must have .vtt extension"
-    storage_path = config.get_storage_path(filename)
-    with open(storage_path, encoding="utf-8") as converted_vtt:
-        filecontents = converted_vtt.read()
-        assert (
-            "El total de los protones y neutrones de un átomo" in filecontents
-        ), "missing check words in converted subs"
+    temp_file = tempfile.NamedTemporaryFile(suffix="", delete=False)
+    temp_file.close()
+
+    try:
+        copyfile(source_path, temp_file.name)
+
+        subtitle_file = SubtitleFile(
+            temp_file.name,
+            language="ar",
+            subtitlesformat="srt",  # set subtitlesformat when can't inferr ext form url
+        )
+        filename = subtitle_file.process_file()
+        assert filename, "converted filename must exist"
+        assert filename.endswith(".vtt"), "converted filename must have .vtt extension"
+        storage_path = config.get_storage_path(filename)
+        with open(storage_path, encoding="utf-8") as converted_vtt:
+            filecontents = converted_vtt.read()
+            assert "لناس على" in filecontents, "missing check words in converted subs"
+    finally:
+        # Clean up temporary file
+        if os.path.exists(temp_file.name):
+            os.remove(temp_file.name)
 
 
 # Tests for Base64 image files
