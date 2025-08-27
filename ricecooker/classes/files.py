@@ -198,9 +198,12 @@ class DownloadFile(File):
         return self.path
 
     def process_file(self):
-        self.validate()
-        pipeline = config.FILE_PIPELINE or fallback_pipeline
         try:
+            try:
+                self.validate()
+            except ValueError as ve:
+                raise InvalidFileException from ve
+            pipeline = config.FILE_PIPELINE or fallback_pipeline
             metadata = pipeline.execute(
                 self.path, context=self.context, skip_cache=config.UPDATE
             )[0]

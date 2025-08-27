@@ -811,7 +811,7 @@ def bad_subtitles_file():
 
 def test_bad_subtitles_raises(bad_subtitles_file):
     subs_file = SubtitleFile(bad_subtitles_file.name, language="en")
-    pytest.raises(ValueError, subs_file.process_file)
+    assert subs_file.process_file() is None
 
 
 PRESSURECOOKER_REPO_URL = "https://raw.githubusercontent.com/bjester/pressurecooker/"
