@@ -31,6 +31,7 @@ from ricecooker.classes.files import DownloadFile
 from ricecooker.classes.files import File
 from ricecooker.classes.files import H5PFile
 from ricecooker.classes.files import HTMLZipFile
+from ricecooker.classes.files import StudioFile
 from ricecooker.classes.files import SubtitleFile
 from ricecooker.classes.files import VideoFile
 from ricecooker.classes.files import YouTubeVideoFile
@@ -792,7 +793,7 @@ def test_convertible_substitles_ar_srt():
     with open(storage_path, encoding="utf-8") as converted_vtt:
         filecontents = converted_vtt.read()
         check_words = "لناس على"
-        assert check_words in filecontents, "missing check word in converted subs"
+        assert check_words in filecontents, "expected words not found in converted subs"
 
 
 @pytest.fixture
@@ -810,7 +811,7 @@ def bad_subtitles_file():
 
 def test_bad_subtitles_raises(bad_subtitles_file):
     subs_file = SubtitleFile(bad_subtitles_file.name, language="en")
-    pytest.raises(ValueError, subs_file.process_file)
+    assert subs_file.process_file() is None
 
 
 PRESSURECOOKER_REPO_URL = "https://raw.githubusercontent.com/bjester/pressurecooker/"
@@ -956,24 +957,32 @@ def test_convertible_substitles_weirdext_subtitlesformat():
     Check that we handle cases when ext cannot be guessed from URL or localpath.
     Passing `subtitlesformat` allows chef authors to manually specify subs format.
     """
-    subs_url = (
-        "https://commons.wikimedia.org/w/api.php?"
-        + "action=timedtext&title=File%3AA_Is_for_Atom_1953.webm&lang=es&trackformat=srt"
+    # Create a temporary file copy without extension
+    source_path = os.path.join(
+        os.path.dirname(__file__), "testcontent", "samples", "testsubtitles_ar.srt"
     )
-    subtitle_file = SubtitleFile(
-        subs_url,
-        language="es",
-        subtitlesformat="srt",  # set subtitlesformat when can't inferr ext form url
-    )
-    filename = subtitle_file.process_file()
-    assert filename, "converted filename must exist"
-    assert filename.endswith(".vtt"), "converted filename must have .vtt extension"
-    storage_path = config.get_storage_path(filename)
-    with open(storage_path, encoding="utf-8") as converted_vtt:
-        filecontents = converted_vtt.read()
-        assert (
-            "El total de los protones y neutrones de un átomo" in filecontents
-        ), "missing check words in converted subs"
+    temp_file = tempfile.NamedTemporaryFile(suffix="", delete=False)
+    temp_file.close()
+
+    try:
+        copyfile(source_path, temp_file.name)
+
+        subtitle_file = SubtitleFile(
+            temp_file.name,
+            language="ar",
+            subtitlesformat="srt",  # set subtitlesformat when can't inferr ext form url
+        )
+        filename = subtitle_file.process_file()
+        assert filename, "converted filename must exist"
+        assert filename.endswith(".vtt"), "converted filename must have .vtt extension"
+        storage_path = config.get_storage_path(filename)
+        with open(storage_path, encoding="utf-8") as converted_vtt:
+            filecontents = converted_vtt.read()
+            assert "لناس على" in filecontents, "missing check words in converted subs"
+    finally:
+        # Clean up temporary file
+        if os.path.exists(temp_file.name):
+            os.remove(temp_file.name)
 
 
 # Tests for Base64 image files
@@ -1395,3 +1404,95 @@ def test_base64_image_cache_keys(mock_filecache):
         f"CONVERT:{img.filename}",
     }
     assert set(mock_filecache.cache.keys()) == expected_keys
+
+
+# StudioFile tests - regression test for constructor ordering bug
+
+
+def test_studiofile_initialization():
+    """Test that StudioFile initializes correctly with proper constructor ordering"""
+    checksum = "abc123def456"
+    ext = "mp4"
+    preset = format_presets.VIDEO_HIGH_RES
+
+    studio_file = StudioFile(checksum=checksum, ext=ext, preset=preset)
+
+    # Verify basic properties are set correctly
+    assert studio_file.filename == f"{checksum}.{ext}"
+    assert studio_file.get_preset() == preset
+    assert studio_file.skip_upload is True
+    assert studio_file.is_primary is False
+    assert studio_file._validated is False
+
+
+def test_studiofile_with_primary():
+    """Test StudioFile initialization with is_primary=True"""
+    checksum = "def789ghi012"
+    ext = "pdf"
+    preset = format_presets.DOCUMENT
+
+    studio_file = StudioFile(checksum=checksum, ext=ext, preset=preset, is_primary=True)
+
+    assert studio_file.filename == f"{checksum}.{ext}"
+    assert studio_file.is_primary is True
+
+
+@patch("ricecooker.config.get_storage_url")
+def test_studiofile_validation_success(mock_get_storage_url):
+    """Test that StudioFile validation works when file exists on remote"""
+    checksum = "valid123hash456"
+    ext = "mp3"
+    preset = format_presets.AUDIO
+
+    # Mock successful HEAD request
+    with patch("ricecooker.config.DOWNLOAD_SESSION") as mock_session:
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
+        mock_session.head.return_value = mock_response
+        mock_get_storage_url.return_value = (
+            f"https://storage.example.com/{checksum}.{ext}"
+        )
+
+        studio_file = StudioFile(checksum=checksum, ext=ext, preset=preset)
+        studio_file.validate()  # Should not raise exception
+
+        assert studio_file._validated is True
+        mock_session.head.assert_called_once()
+        mock_get_storage_url.assert_called_with(f"{checksum}.{ext}")
+
+
+@patch("ricecooker.config.get_storage_url")
+def test_studiofile_validation_failure(mock_get_storage_url):
+    """Test that StudioFile validation fails when file doesn't exist on remote"""
+    checksum = "missing123hash456"
+    ext = "png"
+    preset = format_presets.EXERCISE_IMAGE
+
+    # Mock failed HEAD request
+    with patch("ricecooker.config.DOWNLOAD_SESSION") as mock_session:
+        mock_response = MagicMock()
+        mock_response.raise_for_status.side_effect = HTTPError("404 Not Found")
+        mock_session.head.return_value = mock_response
+        mock_get_storage_url.return_value = (
+            f"https://storage.example.com/{checksum}.{ext}"
+        )
+
+        studio_file = StudioFile(checksum=checksum, ext=ext, preset=preset)
+
+        with pytest.raises(ValueError) as excinfo:
+            studio_file.validate()
+
+        assert "Could not find remote file" in str(excinfo.value)
+        assert f"{checksum}.{ext}" in str(excinfo.value)
+        assert studio_file._validated is False
+
+
+def test_studiofile_str_representation():
+    """Test StudioFile string representation"""
+    checksum = "str123test456"
+    ext = "zip"
+    preset = format_presets.HTML5_ZIP
+
+    studio_file = StudioFile(checksum=checksum, ext=ext, preset=preset)
+
+    assert str(studio_file) == f"{checksum}.{ext}"

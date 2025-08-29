@@ -343,13 +343,10 @@ with open(
     datum = (
         item_data_link,
         [
-            "949e1b754041305b19341d56a6f6c221",
-            "e4b1946a1afae11c9e8180d0754d9b6e",
-            "8f8af0fe48828449d24d87f7731c78c1",
-            "62de458c0f364a088482a49b40d75861",
-            "d023803c551f9f65a258900376d9c344",
-            "18903f1786aae4ebc29934b35375fa25",
-            "2f2954d5418807096e24476d7459f874",
+            "2672f777fd35a425ed221936cf29fb48",
+            "9570c5339784b65baf6873ed8cfada9d",
+            "c70736eb538798719445c79f8ff647a2",
+            "e489fde9967e09feec04165f3b679c3b",
         ],
     )
     perseus_test_data.append(datum)

@@ -198,9 +198,12 @@ class DownloadFile(File):
         return self.path
 
     def process_file(self):
-        self.validate()
-        pipeline = config.FILE_PIPELINE or fallback_pipeline
         try:
+            try:
+                self.validate()
+            except ValueError as ve:
+                raise InvalidFileException from ve
+            pipeline = config.FILE_PIPELINE or fallback_pipeline
             metadata = pipeline.execute(
                 self.path, context=self.context, skip_cache=config.UPDATE
             )[0]
@@ -608,11 +611,11 @@ class StudioFile(File):
     skip_upload = True
 
     def __init__(self, checksum, ext, preset, is_primary=False, **kwargs):
+        kwargs["preset"] = preset
+        super(StudioFile, self).__init__(**kwargs)
+        self._validated = False
         self.filename = "{}.{}".format(checksum, ext)
         self.is_primary = is_primary
-        kwargs["preset"] = preset
-        self._validated = False
-        super(StudioFile, self).__init__(**kwargs)
 
     def validate(self):
         if not self._validated:

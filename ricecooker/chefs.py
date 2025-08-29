@@ -33,6 +33,7 @@ from .utils.youtube import YouTubePlaylistUtils
 from .utils.youtube import YouTubeVideoUtils
 from ricecooker.utils.images import convert_image
 from ricecooker.utils.pipeline import FilePipeline
+from ricecooker.utils.request_utils import DomainSpecificAuth
 
 
 # SUSHI CHEF BASE CLASS
@@ -48,6 +49,9 @@ class SushiChef(object):
 
     CHEF_RUN_DATA = config.CHEF_DATA_DEFAULT  # loaded from chefdata/chef_data.json
     TREES_DATA_DIR = config.TREES_DATA_DIR  # tree archives and JsonTreeChef inputs
+    DOMAIN_AUTH_HEADERS = (
+        {}
+    )  # dict of {domain: {header: env var name}} for requests auth
 
     channel_node_class = nodes.ChannelNode
 
@@ -493,6 +497,7 @@ class SushiChef(object):
         self.CHEF_RUN_DATA["runs"].append({"id": run_id})
 
         self.file_pipeline = FilePipeline()
+        self.auth = DomainSpecificAuth(self.DOMAIN_AUTH_HEADERS)
         # TODO(Kevin): move self.download_content() call here
         self.pre_run(args, options)
         uploadchannel_wrapper(self, args, options)

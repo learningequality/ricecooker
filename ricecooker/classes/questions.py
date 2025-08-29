@@ -14,8 +14,20 @@ from .files import _ExerciseGraphieFile
 from .files import _ExerciseImageFile
 from ricecooker.utils.encodings import get_base64_encoding
 
-# match protocol:{{path}} either wrapped in parentheses or quotes
-IMAGE_URL_REGEX = r"(?P<open>\(|\")(?P<protocol>web\+graphie|https?|file|data):(?P<rawpath>[^\)\"]+)(?P<close>\)|\")"
+# Reusable protocol and path pattern for Perseus questions
+PERSEUS_PROTOCOL_PATH = (
+    r"(?P<protocol>web\+graphie|https?|file|data):(?P<rawpath>[^\)\"]+)"
+)
+
+# match protocol:{{path}} in quotation marks for Perseus
+PERSEUS_QUOTED_IMAGE_REGEX = rf"(?P<open>\"){PERSEUS_PROTOCOL_PATH}(?P<close>\")"
+
+# match protocol:{{path}} in markdown images ![text](url) for Perseus - captures the URL part only
+PERSEUS_MARKDOWN_IMAGE_REGEX = (
+    rf"(?P<open>!\[[^\]]*\]\(){PERSEUS_PROTOCOL_PATH}(?P<close>\))"
+)
+
+# match protocol:{{path}} either wrapped in parentheses or quotes (original regex)
 MARKDOWN_IMAGE_REGEX = r"!\[([^\]]+)?\]\(([^\)]+?)\)"  # match ![{{smth}}]({{url}})
 
 
@@ -319,10 +331,17 @@ class PerseusQuestion(BaseQuestion):
     def process_question(self):
         """
         Parse specific fields in `self.raw_data` that needs to have image strings
-        processed: repalced by references to `CONTENTSTORAGE` + added as files.
+        processed: replaced by references to `CONTENTSTORAGE` + added as files.
         Returns: list of all files needed to render this question.
         """
-        self.raw_data = re.sub(IMAGE_URL_REGEX, self._replace_image, self.raw_data)
+        # First pass: handle quoted images
+        self.raw_data = re.sub(
+            PERSEUS_QUOTED_IMAGE_REGEX, self._replace_image, self.raw_data
+        )
+        # Second pass: handle markdown images (excluding those already processed)
+        self.raw_data = re.sub(
+            PERSEUS_MARKDOWN_IMAGE_REGEX, self._replace_image, self.raw_data
+        )
 
         # Return all filenames
         return [f.filename for f in self.files]
