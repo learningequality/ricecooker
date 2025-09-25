@@ -7,7 +7,11 @@ from unittest.mock import patch
 import pytest
 from vcr_config import my_vcr
 
+from ricecooker.utils.pipeline.context import FileMetadata
+from ricecooker.utils.pipeline.exceptions import InvalidFileException
+from ricecooker.utils.pipeline.file_handler import FileHandler
 from ricecooker.utils.pipeline.transfer import DiskResourceHandler
+from ricecooker.utils.pipeline.transfer import DownloadStageHandler
 from ricecooker.utils.pipeline.transfer import (
     get_filename_from_content_disposition_header,
 )
@@ -291,3 +295,36 @@ def test_disk_transfer_non_file_protocol():
         "os.path.exists", return_value=False
     ):  # Ensure it doesn't try to check a web URL
         assert not handler.should_handle(path), "Handler should not handle HTTP URLs"
+
+
+class DummyPassthroughHandler(FileHandler):
+    """A dummy handler that passes through the original path without transferring to storage.
+
+    This simulates the bug where a download handler fails to actually download/transfer
+    the file but returns the original URL as the path.
+    """
+
+    def should_handle(self, path: str) -> bool:
+        return path.startswith("http://dummy-test-url.com")
+
+    def handle_file(self, path, **kwargs):
+        # Intentionally don't use write_file context manager
+        # This simulates a handler that fails to transfer the file to storage
+        return FileMetadata(original_filename="test.txt")
+
+
+def test_download_stage_handler_catches_failed_transfer():
+    """Test that DownloadStageHandler catches when files aren't transferred to storage.
+
+    This is a regression test for the issue where download handlers would sometimes
+    log "saved to [original URL]" instead of the actual storage path, indicating
+    that the file wasn't actually transferred to storage.
+    """
+    # Create a DownloadStageHandler with our dummy passthrough handler
+    download_handler = DownloadStageHandler(children=[DummyPassthroughHandler()])
+
+    dummy_url = "http://dummy-test-url.com/test.txt"
+
+    # The handler should raise an InvalidFileException when the file isn't transferred to storage
+    with pytest.raises(InvalidFileException, match="failed to transfer to storage"):
+        download_handler.execute(dummy_url)
