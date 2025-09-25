@@ -17,6 +17,7 @@ from requests.exceptions import ConnectionError
 from requests.exceptions import HTTPError
 from requests.exceptions import InvalidSchema
 from requests.exceptions import InvalidURL
+from requests.exceptions import Timeout
 
 from .context import ContextMetadata
 from .context import FileMetadata
@@ -139,10 +140,19 @@ class CatchAllWebResourceDownloadHandler(WebResourceHandler):
 
     PATTERNS = [""]
 
-    HANDLED_EXCEPTIONS = [HTTPError, ConnectionError, InvalidURL, InvalidSchema]
+    HANDLED_EXCEPTIONS = [
+        HTTPError,
+        ConnectionError,
+        InvalidURL,
+        InvalidSchema,
+        Timeout,
+    ]
 
     def handle_file(self, path, default_ext=None):
-        r = config.DOWNLOAD_SESSION.get(path, stream=True)
+        # Use explicit timeout to prevent hanging downloads
+        # (connection_timeout, read_timeout) - connection timeout for establishing connection,
+        # read timeout for time between receiving data chunks (prevents stuck downloads)
+        r = config.DOWNLOAD_SESSION.get(path, stream=True, timeout=(30, 60))
         original_filename = extract_filename_from_request(path, r)
         default_ext = extract_path_ext(original_filename, default_ext=default_ext)
         r.raise_for_status()
@@ -434,8 +444,10 @@ class DownloadStageHandler(StageHandler):
             # The download stage is special, as we expect it to always return a file
             # if it does not, we raise an exception to prevent further processing
             raise InvalidFileException(f"No file could be downloaded from {path}")
+
         # Ensure all downloaded files are actually in storage
         for metadata in metadata_list:
             if not metadata.path.startswith(os.path.abspath(config.STORAGE_DIRECTORY)):
                 raise InvalidFileException(f"{path} failed to transfer to storage")
+
         return metadata_list
