@@ -3,6 +3,7 @@ Utilities for handling file downloads from URLs
 """
 import os
 import tempfile
+import threading
 from abc import ABC
 from abc import abstractmethod
 from contextlib import contextmanager
@@ -103,6 +104,20 @@ class FileHandler(Handler):
 
     # Subclasses can define this list to specify which exceptions should be caught and reported
     HANDLED_EXCEPTIONS = []
+
+    def __init__(self):
+        super().__init__()
+        self._thread_local = threading.local()
+
+    @property
+    def _output_path(self):
+        """Thread-safe output path property."""
+        return getattr(self._thread_local, "output_path", None)
+
+    @_output_path.setter
+    def _output_path(self, value):
+        """Thread-safe output path setter."""
+        self._thread_local.output_path = value
 
     def _get_context(self, context: Optional[Dict] = None):
         fields = set(get_type_hints(self.CONTEXT_CLASS).keys())
