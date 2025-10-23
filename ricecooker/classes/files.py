@@ -142,6 +142,19 @@ class File(object):
             )
             self.source_url = self.source_url[: config.MAX_SOURCE_URL_LENGTH]
 
+    def file_dict(self, filename=None):
+        if not filename:
+            filename = self.get_filename()
+        return {
+            "size": self.size,
+            "preset": self.get_preset(),
+            "filename": filename,
+            "original_filename": self.original_filename,
+            "language": self.language,
+            "source_url": self.source_url,
+            "duration": self.duration,
+        }
+
     def to_dict(self):
         filename = self.get_filename()
 
@@ -149,15 +162,7 @@ class File(object):
         # Otherwise return None
         if filename:
             if os.path.isfile(config.get_storage_path(filename)):
-                return {
-                    "size": self.size,
-                    "preset": self.get_preset(),
-                    "filename": filename,
-                    "original_filename": self.original_filename,
-                    "language": self.language,
-                    "source_url": self.source_url,
-                    "duration": self.duration,
-                }
+                return self.file_dict(filename=filename)
             else:
                 config.LOGGER.warning(
                     "File not found: {}".format(config.get_storage_path(filename))
@@ -609,6 +614,7 @@ class StudioFile(File):
     """
 
     skip_upload = True
+    size = None
 
     def __init__(self, checksum, ext, preset, is_primary=False, **kwargs):
         kwargs["preset"] = preset
@@ -629,7 +635,11 @@ class StudioFile(File):
                         self.filename, e
                     )
                 )
+            self.size = int(response.headers.get("Content-Length", 0))
             self._validated = True
+
+    def to_dict(self):
+        return self.file_dict()
 
     def __str__(self):
         return self.filename
