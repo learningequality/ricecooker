@@ -428,7 +428,7 @@ def download_static_assets(  # noqa: C901
         return content
 
     def css_node_filter(node):
-        if "rel" in node:
+        if "rel" in node.attrs:
             return "stylesheet" in node["rel"]
         return node["href"].split("?")[0].strip().endswith(".css")
 
