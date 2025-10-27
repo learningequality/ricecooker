@@ -4,46 +4,26 @@ Utilities for handling file downloads from URLs
 import os
 import tempfile
 import threading
-from abc import ABC
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from contextlib import contextmanager
-from typing import ClassVar
-from typing import Dict
-from typing import get_type_hints
-from typing import Optional
-from typing import Type
-from typing import Union
+from typing import ClassVar, Dict, Optional, Type, Union, get_type_hints
 
-from .context import ContextMetadata
-from .context import FileMetadata
-from .exceptions import ExpectedFileException
-from .exceptions import InvalidFileException
+from .context import ContextMetadata, FileMetadata
+from .exceptions import ExpectedFileException, InvalidFileException
 from ricecooker import config
-from ricecooker.utils.caching import get_cache_data
-from ricecooker.utils.caching import set_cache_data
-from ricecooker.utils.utils import copy_file_to_storage
-from ricecooker.utils.utils import extract_path_ext
+from ricecooker.utils.caching import get_cache_data, set_cache_data
+from ricecooker.utils.utils import copy_file_to_storage, extract_path_ext
 
 
 class Handler(ABC):
     """Base class for handling file fetching and processing"""
 
-    def __init__(self):
-        self.parent = None
-
-    @abstractmethod
-    def should_handle(self, path: str) -> bool:
-        """Check if this handler should handle the given path"""
-        pass
-
-    @abstractmethod
-    def execute(
-        self,
-        path: str,
-        context: Optional[Dict] = None,
-        skip_cache: Optional[bool] = False,
-    ) -> list[FileMetadata]:
-        pass
+    def __init__(self, **context):
+        """
+        Optionally initialize the handler with a fixed context.
+        This allows the handler to store configuration data at creation time.
+        """
+        self._fixed_context = context or {}
 
 
 class DualModeTemporaryFile:
@@ -61,7 +41,6 @@ class DualModeTemporaryFile:
         return self._handle.name
 
     def write(self, data):
-        # Write to the file, reopening if needed
         if not self._write_handle:
             self._write_handle = open(self.name, "wb")
         return self._write_handle.write(data)
@@ -74,14 +53,12 @@ class DualModeTemporaryFile:
         if self._write_handle:
             return self._write_handle.tell() > 0
         with open(self.name, "rb") as f:
-            # Read a byte from the file to assert we have written something
             return len(f.read(1)) > 0
 
     def close(self):
         if self._write_handle:
             self._write_handle.close()
             self._write_handle = None
-
         try:
             os.unlink(self.name)
         except OSError:
@@ -101,8 +78,6 @@ class FileHandler(Handler):
     """Base leaf class for handling file fetching and processing"""
 
     CONTEXT_CLASS: ClassVar[Optional[Type[ContextMetadata]]] = ContextMetadata
-
-    # Subclasses can define this list to specify which exceptions should be caught and reported
     HANDLED_EXCEPTIONS = []
 
     def __init__(self):
@@ -111,12 +86,10 @@ class FileHandler(Handler):
 
     @property
     def _output_path(self):
-        """Thread-safe output path property."""
         return getattr(self._thread_local, "output_path", None)
 
     @_output_path.setter
     def _output_path(self, value):
-        """Thread-safe output path setter."""
         self._thread_local.output_path = value
 
     def _get_context(self, context: Optional[Dict] = None):
@@ -133,9 +106,6 @@ class FileHandler(Handler):
 
     @contextmanager
     def write_file(self, extension: str):
-        """
-        Context manager that provides a file handle to write to and handles copying to storage.
-        """
         with DualModeTemporaryFile(ext=extension) as tempf:
             try:
                 yield tempf
@@ -153,26 +123,18 @@ class FileHandler(Handler):
         """
         Handle the file at path with the given kwargs.
 
-        Subclasses should do all necessary downloading/processing here.
-        Specifically, they may:
-         - Read from disk or a remote source
-         - Perform transformations or conversions
-         - Write the resulting bytes to using the write_file helper contextmanager.
-
-        Returns:
-            - None
-
-            - OR a FileMetadata object containing additional metadata about the processed
-              file. For example:
-
-                {
-                  "file_extension": "mp4",
-                  "original_filename": "video_source.mp4",
-                  "duration": 120.0,
-                  "language": "en",
-                  ...
-                }
+        Subclasses should perform downloading, processing, or conversion tasks.
+        Returns None or a FileMetadata object.
         """
+        pass
+
+    def handle_file(self, path, **kwargs) -> Union[None, FileMetadata]:
+        """
+        Handles file operations. If both fixed and per-call context exist,
+        per-call kwargs override the fixed context values.
+        """
+        context = {**self._fixed_context, **kwargs}
+        # This will be used by subclasses implementing the logic
         pass
 
     @property
@@ -180,7 +142,6 @@ class FileHandler(Handler):
         return self.parent and self.parent.STAGE
 
     def normalize_path(self, path):
-        # If this is a storage path, just use the hashed filename and extension
         if path.startswith(os.path.abspath(config.STORAGE_DIRECTORY)):
             path = os.path.basename(path)
         return path
@@ -192,21 +153,12 @@ class FileHandler(Handler):
         return False
 
     def get_file_kwargs(self, context: ContextMetadata) -> list[Dict]:
-        """
-        An overridable method to return a list of kwargs for the file handler.
-        Defaults to [{}] which means that the file handler will be called once.
-        This is particularly useful if a single path should be processed multiple times with different kwargs.
-        """
         return [context.to_dict()]
 
     def _get_cached_and_uncached_files(
-        self,
-        path: str,
-        context: ContextMetadata,
-        skip_cache: bool,
+        self, path: str, context: ContextMetadata, skip_cache: bool
     ) -> tuple[list[FileMetadata], list[Dict]]:
         kwargs_list = self.get_file_kwargs(context)
-
         cached_files = []
         uncached_files = []
 
@@ -228,10 +180,7 @@ class FileHandler(Handler):
         return cached_files, uncached_files
 
     def execute(
-        self,
-        path: str,
-        context: Optional[Dict] = None,
-        skip_cache: Optional[bool] = False,
+        self, path: str, context: Optional[Dict] = None, skip_cache: Optional[bool] = False
     ) -> list[FileMetadata]:
         context = self._get_context(context)
         file_metadata_list, uncached_kwargs = self._get_cached_and_uncached_files(
@@ -258,17 +207,11 @@ class FileHandler(Handler):
                 raise ExpectedFileException(e) from e
 
             original_path = path
-
             path = self._output_path or path
-
             file_metadata.filename = os.path.basename(path)
-
             set_cache_data(cache_key, file_metadata.to_dict())
-
             file_metadata.path = path
-
             self._output_path = None
-
             file_metadata_list.append(file_metadata)
 
             if kwargs:
@@ -319,16 +262,10 @@ class CompositeHandler(Handler):
 
 
 class FirstHandlerOnly(CompositeHandler):
-    """
-    A composite handler that will only
-    run the first handler that can handle the file.
-    """
+    """A composite handler that only runs the first matching handler."""
 
     def execute(
-        self,
-        path: str,
-        context: Optional[Dict] = None,
-        skip_cache: Optional[bool] = False,
+        self, path: str, context: Optional[Dict] = None, skip_cache: Optional[bool] = False
     ) -> list[FileMetadata]:
         for handler in self._children:
             if handler.should_handle(path):
@@ -341,3 +278,4 @@ class StageHandler(FirstHandlerOnly):
     @abstractmethod
     def STAGE(self) -> str:
         pass
+
