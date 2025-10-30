@@ -389,12 +389,12 @@ def download_static_assets(  # noqa: C901
                 # if we're really stuck, just default to HTML as that is most likely if this is a redirect.
                 if not ext:
                     ext = ".html"
-                # may need to add escaping - https://stackoverflow.com/questions/7406102/create-sane-safe-filename-from-any-unsafe-string
-                # this isn't the correct code, dirname grabs the parent directory for a path
-                # safe_path_parts = [os.path.dirname(path_segment) for path_segment in filename.split("/")]
-                safe_path_parts = filename.split("/")
-                subpath = "/".join(safe_path_parts)
-                filename = subpath + "/index{}".format(ext)
+
+                subpath = filename
+                # Add the existing filename in front of index.xxx, this can contain slashes and those will result
+                # in subdirectories created in the downloaded version. This ensures multiple instances of extensionless
+                # resources referenced from a page won't clobber each other.
+                filename = filename + "/index{}".format(ext)
 
                 os.makedirs(os.path.join(destination, subpath), exist_ok=True)
 
