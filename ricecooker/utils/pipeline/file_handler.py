@@ -29,12 +29,11 @@ class Handler(ABC):
 
 
 class DualModeTemporaryFile:
-    """Temporary file helper, similar to previous implementation."""
+    """Temporary file helper."""
 
     def __init__(self, ext: str = ""):
         self._file = tempfile.NamedTemporaryFile(delete=False, suffix=ext)
         self._write_handle = None
-        self._read_handle = None
         self.name = self._file.name
 
     def __enter__(self):
@@ -58,7 +57,7 @@ class DualModeTemporaryFile:
 
 
 class FileHandler(Handler):
-    """Base class for handling file fetching and processing"""
+    """Base class for file handling with caching and context support"""
 
     CONTEXT_CLASS: ClassVar[Optional[Type[ContextMetadata]]] = ContextMetadata
     HANDLED_EXCEPTIONS = []
@@ -78,7 +77,6 @@ class FileHandler(Handler):
     def _get_context(self, context: Optional[Dict] = None) -> Dict:
         merged_context = {**self._fixed_context, **(context or {})}
         if self.CONTEXT_CLASS:
-            # Optional: validate fields using get_type_hints
             hints = get_type_hints(self.CONTEXT_CLASS)
             for key in hints:
                 if key not in merged_context:
@@ -98,7 +96,6 @@ class FileHandler(Handler):
     @abstractmethod
     def handle_file(self, path: str, **kwargs) -> Union[None, FileMetadata]:
         """Subclasses must implement actual file handling"""
-        context = {**self._fixed_context, **kwargs}
         pass
 
     def normalize_path(self, path: str) -> str:
