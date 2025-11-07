@@ -250,6 +250,15 @@ def make_request(
 
 _CSS_URL_RE = re.compile(r"url\(['\"]?(.*?)['\"]?\)")
 
+# Handle CSS imports with a string rather than a url()
+# From MDN docs on @import:
+# https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/At-rules/@import
+# url - Is a <string> or a <url> type representing the location of the resource to import.
+#       The URL may be absolute or relative.
+# Note that this regex is for the specialized import case that can be given a regular
+# string with a URL in it. An @import given a value of type <url>, will be handled
+# by the above regex and associated code.
+_CSS_IMPORT_RE = re.compile(r"@import['\"](.*?)['\"]")
 
 # TODO(davidhu): Use MD5 hash of URL (ideally file) instead.
 def _derive_filename(url):
@@ -438,12 +447,18 @@ def download_static_assets(  # noqa: C901
 
         root_parts = urlparse(url)
 
+        def repl_url(match):
+            return 'url(%s)' % fix_url(match)
+
+        def repl_import(match):
+            return '@import%s' % fix_url(match)
+
         # Download linked fonts and images
-        def repl(match):
+        def fix_url(match):
             src = match.group(1)
 
             if src.startswith("//localhost"):
-                return "url()"
+                return ""
             # Don't download data: files
             if src.startswith("data:"):
                 return match.group(0)
@@ -465,7 +480,7 @@ def download_static_assets(  # noqa: C901
 
             if _is_blacklisted(src_url, url_blacklist):
                 print("        Skipping downloading blacklisted url", src_url)
-                return "url()"
+                return ""
 
             derived_filename = derive_filename(src_url)
 
@@ -492,9 +507,10 @@ def download_static_assets(  # noqa: C901
                 LOGGER.debug(
                     "Resource already downloaded, skipping: {}".format(src_url)
                 )
-            return 'url("%s")' % new_url
+            return '"%s"' % new_url
 
-        return _CSS_URL_RE.sub(repl, content)
+        urls_rewritten = _CSS_URL_RE.sub(repl_url, content)
+        return _CSS_IMPORT_RE.sub(repl_import, urls_rewritten)
 
     if link_policy is not None and "blacklist" in link_policy:
         url_blacklist += link_policy["blacklist"]
