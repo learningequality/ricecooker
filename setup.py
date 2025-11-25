@@ -42,7 +42,7 @@ setup(
         "pypdf2==1.26.0",
         "dictdiffer>=0.8.0",
         "Pillow==11.3.0",
-        "colorlog>=4.1.0,<6.9",
+        "colorlog>=4.1.0,<6.11",
         "chardet==5.2.0",
         "ffmpy>=0.2.2",
         "pdf2image==1.17.0",
