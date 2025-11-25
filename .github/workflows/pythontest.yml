@@ -29,7 +29,7 @@ jobs:
       max-parallel: 5
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest, macos-13]
+        os: [windows-latest, ubuntu-latest, macos-latest]
         python-version: [3.9, '3.10', '3.11', '3.12', '3.13']
         include:
           - os: ubuntu-latest
@@ -54,12 +54,12 @@ jobs:
         if: ${{ needs.pre_job.outputs.should_skip != 'true' && startsWith(matrix.os, 'ubuntu') }}
       - name: Cache Mac dependencies
         uses: actions/cache@v4
-        if: needs.pre_job.outputs.should_skip != 'true' && matrix.os == 'macos-13'
+        if: needs.pre_job.outputs.should_skip != 'true' && matrix.os == 'macos-latest'
         with:
           path: ~/Library/Caches/Homebrew
           key: ${{ runner.os }}-brew-${{ hashFiles('.github/workflows/pythontest.yml') }}
       - name: Unlink Homebrew Python 3.13 if not testing 3.13
-        if: needs.pre_job.outputs.should_skip != 'true' && matrix.os == 'macos-13' && matrix.python-version != '3.13'
+        if: needs.pre_job.outputs.should_skip != 'true' && matrix.os == 'macos-latest' && matrix.python-version != '3.13'
         run: brew unlink python@3.13 || true
       - name: Install Mac dependencies
         run: |
@@ -72,7 +72,7 @@ jobs:
             echo "Skipping Homebrew python@3.13 linking for Python 3.13 test."
           fi
           brew install ffmpeg poppler
-        if: needs.pre_job.outputs.should_skip != 'true' && matrix.os == 'macos-13'
+        if: needs.pre_job.outputs.should_skip != 'true' && matrix.os == 'macos-latest'
       - name: Windows dependencies cache
         id: windowscache
         if: needs.pre_job.outputs.should_skip != 'true' && matrix.os == 'windows-latest'
