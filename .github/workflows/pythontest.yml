@@ -29,15 +29,8 @@ jobs:
       max-parallel: 5
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest, macos-13]
+        os: [windows-latest, ubuntu-latest, macos-latest]
         python-version: [3.9, '3.10', '3.11', '3.12', '3.13']
-        include:
-          - os: ubuntu-latest
-            pippath: ~/.cache/pip
-          - os: macos-13
-            pippath: ~/Library/Caches/pip
-          - os: windows-latest
-            pippath: ~\AppData\Local\pip\Cache
     steps:
       - uses: actions/checkout@v5
         if: ${{ needs.pre_job.outputs.should_skip != 'true' }}
@@ -46,6 +39,7 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
+          cache: 'pip'
       - name: Install Ubuntu dependencies
         run: |
           sudo apt-get -y -qq update
@@ -54,12 +48,12 @@ jobs:
         if: ${{ needs.pre_job.outputs.should_skip != 'true' && startsWith(matrix.os, 'ubuntu') }}
       - name: Cache Mac dependencies
         uses: actions/cache@v4
-        if: needs.pre_job.outputs.should_skip != 'true' && matrix.os == 'macos-13'
+        if: needs.pre_job.outputs.should_skip != 'true' && matrix.os == 'macos-latest'
         with:
           path: ~/Library/Caches/Homebrew
           key: ${{ runner.os }}-brew-${{ hashFiles('.github/workflows/pythontest.yml') }}
       - name: Unlink Homebrew Python 3.13 if not testing 3.13
-        if: needs.pre_job.outputs.should_skip != 'true' && matrix.os == 'macos-13' && matrix.python-version != '3.13'
+        if: needs.pre_job.outputs.should_skip != 'true' && matrix.os == 'macos-latest' && matrix.python-version != '3.13'
         run: brew unlink python@3.13 || true
       - name: Install Mac dependencies
         run: |
@@ -72,7 +66,7 @@ jobs:
             echo "Skipping Homebrew python@3.13 linking for Python 3.13 test."
           fi
           brew install ffmpeg poppler
-        if: needs.pre_job.outputs.should_skip != 'true' && matrix.os == 'macos-13'
+        if: needs.pre_job.outputs.should_skip != 'true' && matrix.os == 'macos-latest'
       - name: Windows dependencies cache
         id: windowscache
         if: needs.pre_job.outputs.should_skip != 'true' && matrix.os == 'windows-latest'
@@ -110,12 +104,6 @@ jobs:
         run: |
           Add-Content -Path $env:GITHUB_PATH -Value "$env:GITHUB_WORKSPACE\tools\ffmpeg-master-latest-win64-gpl\bin" -Encoding utf8
           Add-Content -Path $env:GITHUB_PATH -Value "$env:GITHUB_WORKSPACE\tools\poppler-21.11.0\Library\bin" -Encoding utf8
-      - name: Cache pip
-        if: ${{ needs.pre_job.outputs.should_skip != 'true' && !startsWith(runner.os, 'windows') }}
-        uses: actions/cache@v4
-        with:
-          path: ${{ matrix.pippath }}
-          key: ${{ runner.os }}-pip-py${{ matrix.python-version }}-${{ hashFiles('setup.py') }}
       - name: Install tox
         if: ${{ needs.pre_job.outputs.should_skip != 'true' }}
         run: |
