@@ -63,7 +63,38 @@ inheritable_metadata_label_fields = [
 
 
 class Node(object):
-    """Node: model to represent all nodes in the tree"""
+    """Base model representing all nodes in the content tree.
+
+    This is the base class for all node types including channels, topics, and content.
+
+    Attributes:
+        source_id (str): unique identifier for the content from the source
+        title (str): title of the content
+        author (str): who created the content (optional)
+        aggregator (str): website or org hosting the content collection but not
+            necessarily the creator or copyright holder (optional)
+        provider (str): organization that commissioned or is distributing the content (optional)
+        copyright_holder (str): holder of the content's copyright (optional)
+        license (str or License): content's license (optional for some node types)
+        license_description (str): additional license description (optional)
+        tags ([str]): list of tags for the content (optional)
+        domain_ns (str): domain namespace, typically the source domain (optional)
+        grade_levels ([str]): target grade levels from le_utils.constants.labels.levels (optional)
+        resource_types ([str]): resource types from le_utils.constants.labels.resource_type (optional)
+        learning_activities ([str]): learning activities from le_utils.constants.labels.learning_activities (optional)
+        accessibility_labels ([str]): accessibility labels from le_utils.constants.labels.accessibility_categories (optional)
+        categories ([str]): subject categories from le_utils.constants.labels.subjects (optional)
+        learner_needs ([str]): learner needs from le_utils.constants.labels.needs (optional)
+        role (str): roles.LEARNER or roles.COACH for teacher-facing materials (default roles.LEARNER)
+        language (str or Language): language code or Language object (optional)
+        description (str): description of the content (optional)
+        thumbnail (str or ThumbnailFile): local path, url, or ThumbnailFile for thumbnail (optional)
+        files ([File]): list of File objects for the node (optional)
+        derive_thumbnail (bool): whether to auto-generate thumbnail from content (default False)
+        node_modifications (dict): modifications passed in by CSV import (optional)
+        extra_fields (dict): additional data needed for the node (optional)
+        suggested_duration (int): suggested duration in seconds (optional)
+    """
 
     kind = None
     license = None
@@ -559,17 +590,15 @@ class Node(object):
 
 
 class ChannelNode(Node):
-    """Model representing the channel you are creating
+    """Model representing the channel being created.
 
-    Used to store metadata on channel that is being created
+    The root node of a content tree. Requires a source_domain and language.
 
     Attributes:
-        source_id (str): channel's unique id
-        source_domain (str): who is providing the content (e.g. learningequality.org)
-        title (str): name of channel
-        description (str): description of the channel (optional)
-        thumbnail (str): file path or url of channel's thumbnail (optional)
-        files ([<File>]): list of file objects for node (optional)
+        source_domain (str): domain of the content provider (e.g. learningequality.org)
+        tagline (str): short tagline for the channel (optional)
+
+    See Node for inherited attributes.
     """
 
     kind = "Channel"
@@ -642,23 +671,12 @@ class ChannelNode(Node):
 
 
 class TreeNode(Node):
-    """Model representing the content nodes in the channel's tree
+    """Model representing nodes in the channel's content tree.
 
-    Base model for different content node kinds (topic, video, exercise, etc.)
+    Base model for topic and content nodes. Adds tree navigation methods
+    and node/content ID generation based on parent relationships.
 
-    Attributes:
-        source_id (str): content's original id
-        title (str): content's title
-        license (str or <License>): content's license
-        description (str): description of content (optional)
-        author (str): who created the content (optional)
-        aggregator (str): website or org hosting the content collection but not necessarily the creator or copyright holder (optional)
-        provider (str): organization that commissioned or is distributing the content (optional)
-        thumbnail (str): local path or url to thumbnail image (optional)
-        files ([<File>]): list of file objects for node (optional)
-        tags ([str]): list of tags for node (optional)
-        extra_fields (dict): any additional data needed for node (optional)
-        domain_ns (str): who is providing the content (e.g. learningequality.org) (optional)
+    See Node for inherited attributes.
     """
 
     def get_domain_namespace(self):
@@ -769,16 +787,12 @@ class TreeNode(Node):
 
 
 class TopicNode(TreeNode):
-    """Model representing channel topics
+    """Model representing topic nodes for organizing channel content.
 
-    Topic nodes are used to add organization to the channel's content
+    Topic nodes create the folder structure of a channel. When derive_thumbnail
+    is True, generates a tiled thumbnail from descendant content nodes.
 
-    Attributes:
-        source_id (str): content's original id
-        title (str): content's title
-        description (str): description of content (optional)
-        thumbnail (str): local path or url to thumbnail image (optional)
-        derive_thumbnail (bool): set to generate tiled thumbnail from children (optional)
+    See TreeNode and Node for inherited attributes.
     """
 
     kind = content_kinds.TOPIC
@@ -793,26 +807,16 @@ class TopicNode(TreeNode):
 
 
 class ContentNode(TreeNode):
-    """Model representing the content nodes in the channel's tree
+    """Model representing content nodes (non-topic leaf nodes) in the channel's tree.
 
-    Base model for different content node kinds (topic, video, exercise, etc.)
+    Base model for different content kinds (video, audio, document, exercise, etc.).
+    ContentNodes require a license.
 
     Attributes:
-        source_id (str): content's original id
-        title (str): content's title
-        license (str or <License>): content's license
-        description (str): description of content (optional)
-        author (str): who created the content (optional)
-        aggregator (str): website or org hosting the content collection but not necessarily the creator or copyright holder (optional)
-        provider (str): organization that commissioned or is distributing the content (optional)
-        role (str): set to roles.COACH for teacher-facing materials (default roles.LEARNER)
-        thumbnail (str): local path or url to thumbnail image (optional)
-        derive_thumbnail (bool): set to generate thumbnail from content (optional)
-        files ([<File>]): list of file objects for node (optional)
-        extra_fields (dict): any additional data needed for node (optional)
-        domain_ns (str): who is providing the content (e.g. learningequality.org) (optional)
-        uri (str): A URI for the main file for this content node
-        pipeline (FilePipeline): A FilePipeline instance for handling uri processing
+        uri (str): URI for the main file for this content node (optional)
+        pipeline (FilePipeline): FilePipeline instance for handling uri processing (optional)
+
+    See TreeNode and Node for inherited attributes.
     """
 
     required_presets = tuple()
@@ -937,37 +941,21 @@ class ContentNode(TreeNode):
         Args: None
         Returns: dict of channel data
         """
-        return {
-            "title": self.node_modifications.get("New Title") or self.title,
-            "language": self.language,
-            "description": self.node_modifications.get("New Description")
-            or self.description,
-            "node_id": self.get_node_id().hex,
-            "content_id": self.get_content_id().hex,
-            "source_domain": self.domain_ns.hex,
-            "source_id": self.source_id,
-            "author": self.author,
-            "aggregator": self.aggregator,
-            "provider": self.provider,
-            "files": [
-                f.to_dict() for f in filter(lambda x: x and x.filename, self.files)
-            ],  # Filter out failed downloads
-            "tags": self.node_modifications.get("New Tags") or self.tags,
-            "kind": self.kind,
-            "license": self.license.license_id,
-            "license_description": self.license.description,
-            "copyright_holder": self.license.copyright_holder,
-            "questions": [question.to_dict() for question in self.questions],
-            "extra_fields": json.dumps(self.extra_fields),
-            "role": self.role,
-            "suggested_duration": self.suggested_duration,
-            "grade_levels": self.grade_levels,
-            "resource_types": self.resource_types,
-            "learning_activities": self.learning_activities,
-            "accessibility_labels": self.accessibility_labels,
-            "categories": self.categories,
-            "learner_needs": self.learner_needs,
-        }
+        # Get base dict from TreeNode
+        data = super(ContentNode, self).to_dict()
+
+        # Override/add ContentNode-specific fields
+        data.update(
+            {
+                "license": self.license.license_id,
+                "license_description": self.license.description,
+                "copyright_holder": self.license.copyright_holder,
+                "questions": [question.to_dict() for question in self.questions],
+                "suggested_duration": self.suggested_duration,
+            }
+        )
+
+        return data
 
     def set_metadata_from_ancestors(self):
         metadata = self.gather_ancestor_metadata()
@@ -981,25 +969,13 @@ class VideoNode(ContentNode):
     Videos must be mp4 or webm format
 
     Attributes:
-        source_id (str): content's original id
-        title (str): content's title
-        license (str or <License>): content's license
-        author (str): who created the content (optional)
-        aggregator (str): website or org hosting the content collection but not necessarily the creator or copyright holder (optional)
-        provider (str): organization that commissioned or is distributing the content (optional)
-        description (str): description of content (optional)
         derive_thumbnail (bool): set to generate thumbnail from video (optional)
-        thumbnail (str): local path or url to thumbnail image (optional)
-        extra_fields (dict): any additional data needed for node (optional)
-        domain_ns (str): who is providing the content (e.g. learningequality.org) (optional)
-        files ([<File>]): list of file objects for node (optional)
+
+    See ContentNode for inherited attributes.
     """
 
     kind = content_kinds.VIDEO
     required_presets = (format_presets.VIDEO_HIGH_RES, format_presets.VIDEO_LOW_RES)
-
-    def __init__(self, source_id, title, license, **kwargs):
-        super(VideoNode, self).__init__(source_id, title, license, **kwargs)
 
     def generate_thumbnail(self):
         from .files import VideoFile, WebVideoFile, ExtractedVideoThumbnailFile
@@ -1050,19 +1026,7 @@ class AudioNode(ContentNode):
 
     Audio must be in mp3 format
 
-    Attributes:
-        source_id (str): content's original id
-        title (str): content's title
-        license (str or <License>): content's license
-        author (str): who created the content (optional)
-        aggregator (str): website or org hosting the content collection but not necessarily the creator or copyright holder (optional)
-        provider (str): organization that commissioned or is distributing the content (optional)
-        description (str): description of content (optional)
-        thumbnail (str): local path or url to thumbnail image (optional)
-        derive_thumbnail (bool): set to generate waveform thumbnail (optional)
-        extra_fields (dict): any additional data needed for node (optional)
-        domain_ns (str): who is providing the content (e.g. learningequality.org) (optional)
-        files ([<File>]): list of file objects for node (optional)
+    See ContentNode for inherited attributes.
     """
 
     kind = content_kinds.AUDIO
@@ -1075,18 +1039,9 @@ class DocumentNode(ContentNode):
     Documents must be in PDF or ePub format
 
     Attributes:
-        source_id (str): content's original id
-        title (str): content's title
-        license (str or <License>): content's license
-        author (str): who created the content (optional)
-        aggregator (str): website or org hosting the content collection but not necessarily the creator or copyright holder (optional)
-        provider (str): organization that commissioned or is distributing the content (optional)
-        description (str): description of content (optional)
-        thumbnail (str): local path or url to thumbnail image (optional)
         derive_thumbnail (bool): automatically generate thumbnail (optional)
-        extra_fields (dict): any additional data needed for node (optional)
-        domain_ns (str): who is providing the content (e.g. learningequality.org) (optional)
-        files ([<File>]): list of file objects for node (optional)
+
+    See ContentNode for inherited attributes.
     """
 
     kind = content_kinds.DOCUMENT
@@ -1128,18 +1083,10 @@ class HTML5AppNode(ContentNode):
     All links (e.g. href and src) must be relative URLs, pointing to other files in the zip.
 
     Attributes:
-        source_id (str): content's original id
-        title (str): content's title
-        license (str or <License>): content's license
-        author (str): who created the content (optional)
-        aggregator (str): website or org hosting the content collection but not necessarily the creator or copyright holder (optional)
-        provider (str): organization that commissioned or is distributing the content (optional)
-        description (str): description of content (optional)
-        thumbnail (str): local path or url to thumbnail image (optional)
+        entrypoint (str): custom entry point file (optional, defaults to index.html)
         derive_thumbnail (bool): generate thumbnail from largest image inside zip (optional)
-        extra_fields (dict): any additional data needed for node (optional)
-        domain_ns (str): who is providing the content (e.g. learningequality.org) (optional)
-        files ([<File>]): list of file objects for node (optional)
+
+    See ContentNode for inherited attributes.
     """
 
     kind = content_kinds.HTML5
@@ -1168,18 +1115,7 @@ class H5PAppNode(ContentNode):
 
     The .h5p file is self-contained and inlcuding media and javascript libs.
 
-    Attributes:
-        source_id (str): content's original id
-        title (str): content's title
-        license (str or <License>): content's license
-        author (str): who created the content (optional)
-        aggregator (str): website or org hosting the content collection but not necessarily the creator or copyright holder (optional)
-        provider (str): organization that commissioned or is distributing the content (optional)
-        description (str): description of content (optional)
-        thumbnail (str): local path or url to thumbnail image (optional)
-        extra_fields (dict): any additional data needed for node (optional)
-        domain_ns (str): who is providing the content (e.g. learningequality.org) (optional)
-        files ([<File>]): list of file objects for node (optional)
+    See ContentNode for inherited attributes.
     """
 
     kind = content_kinds.H5P
@@ -1193,25 +1129,15 @@ class ExerciseNode(ContentNode):
     understanding of the content
 
     Attributes:
-        source_id (str): content's original id
-        title (str): content's title
-        license (str or <License>): content's license
-        author (str): who created the content (optional)
-        aggregator (str): website or org hosting the content collection but not necessarily the creator or copyright holder (optional)
-        provider (str): organization that commissioned or is distributing the content (optional)
-        description (str): description of content (optional)
-        exercise_data ({mastery_model:str, randomize:bool, m:int, n:int}): data on mastery requirements (optional)
-        thumbnail (str): local path or url to thumbnail image (optional)
-        extra_fields (dict): any additional data needed for node (optional)
-        domain_ns (str): who is providing the content (e.g. learningequality.org) (optional)
         questions ([<Question>]): list of question objects for node (optional)
+        exercise_data ({mastery_model:str, randomize:bool, m:int, n:int}): data on mastery requirements (optional)
+
+    See ContentNode for inherited attributes.
     """
 
     kind = content_kinds.EXERCISE
 
-    def __init__(
-        self, source_id, title, license, questions=None, exercise_data=None, **kwargs
-    ):
+    def __init__(self, *args, questions=None, exercise_data=None, **kwargs):
         self.questions = questions or []
 
         # Set mastery model defaults if none provided
@@ -1227,9 +1153,7 @@ class ExerciseNode(ContentNode):
             }
         )
 
-        super(ExerciseNode, self).__init__(
-            source_id, title, license, extra_fields=exercise_data, **kwargs
-        )
+        super(ExerciseNode, self).__init__(*args, extra_fields=exercise_data, **kwargs)
 
     def __str__(self):
         metadata = "{0} {1}".format(
@@ -1352,22 +1276,15 @@ class SlideshowNode(ContentNode):
     Slides are shown in a specified sequential order.
 
     Attributes:
-        source_id (str): content's original id
-        title (str): content's title
-        license (str or <License>): content's license
-        author (str): who created the content (optional)
-        aggregator (str): website or org hosting the content collection but not necessarily the creator or copyright holder (optional)
-        provider (str): organization that commissioned or is distributing the content (optional)
-        description (str): description of content (optional)
+        slideshow_data (list): list of slide metadata dictionaries (optional)
         files ([<SlideImageFile>]): images associated with slides
-        thumbnail (str): local path or url to thumbnail image (optional)
-        extra_fields (dict): any additional data needed for node (optional)
-        domain_ns (str): who is providing the content (e.g. learningequality.org) (optional)
+
+    See ContentNode for inherited attributes.
     """
 
     kind = content_kinds.SLIDESHOW
 
-    def __init__(self, source_id, title, license, slideshow_data=None, **kwargs):
+    def __init__(self, *args, slideshow_data=None, **kwargs):
         if slideshow_data:
             extra_fields = {"slideshow_data": slideshow_data}
         else:
@@ -1375,9 +1292,7 @@ class SlideshowNode(ContentNode):
         # THe Node base class' __init__ method has:
         #       for f in files or []:
         #           self.add_file(f)
-        super(SlideshowNode, self).__init__(
-            source_id, title, license, extra_fields=extra_fields, **kwargs
-        )
+        super(SlideshowNode, self).__init__(*args, extra_fields=extra_fields, **kwargs)
 
     def add_file(self, file_to_add):
         """
