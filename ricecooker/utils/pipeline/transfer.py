@@ -229,6 +229,20 @@ class YoutubeDownloadHandler(WebResourceHandler):
             if result2 is None or not os.path.exists(destination_path):
                 raise yt_dlp.utils.DownloadError("Failed to download resource " + path)
 
+    def _extract_youtube_id(self, url):
+        """Extract YouTube video ID from URL."""
+        parsed = urlparse(url)
+        if parsed.hostname in ["www.youtube.com", "youtube.com", "m.youtube.com"]:
+            # Extract from query parameter v=
+            from urllib.parse import parse_qs
+            query_params = parse_qs(parsed.query)
+            if "v" in query_params:
+                return query_params["v"][0]
+        elif parsed.hostname in ["youtu.be"]:
+            # Extract from path
+            return parsed.path.lstrip("/")
+        return None
+
     def handle_file(self, path, yt_dlp_settings=None):
         # By default assume we are downloading a video file
         if yt_dlp_settings is None:
@@ -268,7 +282,11 @@ class YoutubeDownloadHandler(WebResourceHandler):
                     fh.write(chunk)
         if youtube_language is not None:
             language_obj = get_language_with_alpha2_fallback(youtube_language)
-            return FileMetadata(language=language_obj.code)
+            youtube_id = self._extract_youtube_id(path)
+            original_filename = f"{youtube_id}.{youtube_language}.vtt" if youtube_id else None
+            return FileMetadata(
+                language=language_obj.code, original_filename=original_filename
+            )
 
 
 instructions = "Please install ricecooker using `pip install ricecooker[google_drive]` to include required dependencies"

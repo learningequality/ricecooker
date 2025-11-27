@@ -328,3 +328,98 @@ def test_download_stage_handler_catches_failed_transfer():
     # The handler should raise an InvalidFileException when the file isn't transferred to storage
     with pytest.raises(InvalidFileException, match="failed to transfer to storage"):
         download_handler.execute(dummy_url)
+
+
+def test_youtube_handler_extract_id_standard_url():
+    """Test extracting YouTube ID from standard youtube.com URLs."""
+    from ricecooker.utils.pipeline.transfer import YoutubeDownloadHandler
+
+    handler = YoutubeDownloadHandler()
+
+    # Test standard YouTube URL
+    url1 = "http://www.youtube.com/watch?v=dQw4w9WgXcQ"
+    assert handler._extract_youtube_id(url1) == "dQw4w9WgXcQ"
+
+    # Test HTTPS
+    url2 = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+    assert handler._extract_youtube_id(url2) == "dQw4w9WgXcQ"
+
+    # Test with additional query parameters
+    url3 = "https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=42s"
+    assert handler._extract_youtube_id(url3) == "dQw4w9WgXcQ"
+
+
+def test_youtube_handler_extract_id_short_url():
+    """Test extracting YouTube ID from youtu.be short URLs."""
+    from ricecooker.utils.pipeline.transfer import YoutubeDownloadHandler
+
+    handler = YoutubeDownloadHandler()
+
+    # Test short URL
+    url1 = "http://youtu.be/dQw4w9WgXcQ"
+    assert handler._extract_youtube_id(url1) == "dQw4w9WgXcQ"
+
+    # Test HTTPS
+    url2 = "https://youtu.be/dQw4w9WgXcQ"
+    assert handler._extract_youtube_id(url2) == "dQw4w9WgXcQ"
+
+
+def test_youtube_handler_extract_id_mobile_url():
+    """Test extracting YouTube ID from mobile youtube URLs."""
+    from ricecooker.utils.pipeline.transfer import YoutubeDownloadHandler
+
+    handler = YoutubeDownloadHandler()
+
+    url = "https://m.youtube.com/watch?v=dQw4w9WgXcQ"
+    assert handler._extract_youtube_id(url) == "dQw4w9WgXcQ"
+
+
+def test_youtube_handler_extract_id_invalid_url():
+    """Test that invalid URLs return None."""
+    from ricecooker.utils.pipeline.transfer import YoutubeDownloadHandler
+
+    handler = YoutubeDownloadHandler()
+
+    # Test non-YouTube URL
+    url1 = "http://example.com/video"
+    assert handler._extract_youtube_id(url1) is None
+
+    # Test YouTube URL without video ID
+    url2 = "http://www.youtube.com/"
+    assert handler._extract_youtube_id(url2) is None
+
+
+@pytest.mark.skipif(True, reason="Requires connecting to youtube and downloading files.")
+def test_youtube_subtitle_original_filename():
+    """Test that YouTube subtitle downloads set original_filename with the video ID.
+
+    This is a regression test for issue #538 - ensuring that subtitle files
+    preserve the original filename information.
+    """
+    from ricecooker.classes.files import YouTubeSubtitleFile
+    from ricecooker import config
+
+    # Test with a known YouTube video that has English subtitles
+    youtube_id = "dQw4w9WgXcQ"
+    language = "en"
+
+    sub_file = YouTubeSubtitleFile(youtube_id=youtube_id, language=language)
+
+    # Process the file (this will download it)
+    filename = sub_file.process_file()
+
+    # Verify the file was processed
+    assert filename is not None, "File processing should succeed"
+    assert filename.endswith(".vtt"), "Should be a VTT file"
+
+    # Verify original_filename is set with the YouTube ID
+    assert sub_file.original_filename is not None, "original_filename should be set"
+    assert youtube_id in sub_file.original_filename, f"original_filename should contain YouTube ID {youtube_id}"
+    assert language in sub_file.original_filename, f"original_filename should contain language {language}"
+    assert sub_file.original_filename.endswith(".vtt"), "original_filename should end with .vtt"
+
+    # Verify it's included in the file dict
+    file_dict = sub_file.to_dict()
+    assert file_dict is not None, "to_dict should return a dict"
+    assert "original_filename" in file_dict, "File dict should include original_filename"
+    assert file_dict["original_filename"] == sub_file.original_filename

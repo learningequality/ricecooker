@@ -174,3 +174,53 @@ def test_youtube_edgecases_alpha2_codes():
     assert lang_obj.code == "he", "Wrong code"
     assert lang_obj.name == "Hebrew (modern)", "Wrong name"
     assert lang_obj.native_name == "עברית", "Wrong native_name"
+
+
+def test_youtubesubtitlefile_inherits_from_downloadfile():
+    """Test that YouTubeSubtitleFile properly inherits from DownloadFile."""
+    from ricecooker.classes.files import DownloadFile
+
+    sub_file = YouTubeSubtitleFile(youtube_id="dQw4w9WgXcQ", language="en")
+
+    # Verify it's a DownloadFile
+    assert isinstance(sub_file, DownloadFile), "YouTubeSubtitleFile should inherit from DownloadFile"
+
+    # Verify path is set correctly
+    assert hasattr(sub_file, "path"), "YouTubeSubtitleFile should have path attribute"
+    assert sub_file.path == "http://www.youtube.com/watch?v=dQw4w9WgXcQ"
+
+    # Verify youtube_url is set
+    assert hasattr(sub_file, "youtube_url"), "YouTubeSubtitleFile should have youtube_url attribute"
+    assert sub_file.youtube_url == "http://www.youtube.com/watch?v=dQw4w9WgXcQ"
+
+    # Verify youtube_id is stored
+    assert hasattr(sub_file, "youtube_id"), "YouTubeSubtitleFile should have youtube_id attribute"
+    assert sub_file.youtube_id == "dQw4w9WgXcQ"
+
+    # Verify context is set correctly
+    assert "subtitle_languages" in sub_file.context
+    assert sub_file.context["subtitle_languages"] == ["en"]
+    assert sub_file.context["download_video"] is False
+
+
+def test_youtubesubtitlefile_preserves_language():
+    """Test that YouTubeSubtitleFile properly preserves language information."""
+    # Test with internal language code
+    sub_file = YouTubeSubtitleFile(youtube_id="dQw4w9WgXcQ", language="en")
+    assert sub_file.language == "en"
+    assert sub_file.youtube_language == "en"
+
+    # Test with language that needs conversion
+    sub_file2 = YouTubeSubtitleFile(youtube_id="dQw4w9WgXcQ", language="zu")
+    assert sub_file2.language == "zul"  # Internal representation
+    assert sub_file2.youtube_language == "zu"  # YouTube code
+
+
+def test_youtubesubtitlefile_with_original_filename_kwarg():
+    """Test that YouTubeSubtitleFile accepts original_filename in kwargs."""
+    sub_file = YouTubeSubtitleFile(
+        youtube_id="dQw4w9WgXcQ",
+        language="en",
+        original_filename="test_subtitle.vtt"
+    )
+    assert sub_file.original_filename == "test_subtitle.vtt"
