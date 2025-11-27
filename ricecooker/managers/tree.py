@@ -30,6 +30,8 @@ class ChannelManager:
         self.failed_uploads = {}
         self.file_map = {}
         self.all_nodes = []
+        self.root_id = None  # Will be set during early permission check
+        self.channel_id = None  # Will be set during early permission check
 
     def validate(self):
         """validate: checks if tree structure is valid
@@ -269,7 +271,11 @@ class ChannelManager:
         from datetime import datetime
 
         start_time = datetime.now()
-        root, channel_id = self.add_channel()
+        # Use cached root_id and channel_id if already set (from early permission check)
+        if self.root_id is not None and self.channel_id is not None:
+            root, channel_id = self.root_id, self.channel_id
+        else:
+            root, channel_id = self.add_channel()
         self.node_count_dict = {"upload_count": 0, "total_count": self.channel.count()}
 
         config.LOGGER.info("\tPreparing fields...")
