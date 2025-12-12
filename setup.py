@@ -49,7 +49,7 @@ setup(
         "le-pycaption>=2.2.0a1",
         "EbookLib>=0.17.1",
         "filetype>=1.1.0",
-        "urllib3==2.6.0",
+        "urllib3==2.6.2",
         "langcodes[data]==3.5.1",
     ],
     extras_require={
