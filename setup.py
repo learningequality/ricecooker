@@ -50,7 +50,7 @@ setup(
         "EbookLib>=0.17.1",
         "filetype>=1.1.0",
         "urllib3==2.6.0",
-        "langcodes[data]==3.5.0",
+        "langcodes[data]==3.5.1",
     ],
     extras_require={
         "test": [
