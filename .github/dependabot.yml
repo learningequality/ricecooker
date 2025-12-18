@@ -6,16 +6,18 @@ updates:
   - package-ecosystem: "pip"
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "friday"
+      interval: "monthly"
       time: "00:00"
+    cooldown:
+      default-days: 7
   # Maintain dependencies for Github Actions
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "friday"
+      interval: "monthly"
       time: "00:00"
+    cooldown:
+      default-days: 7
     groups:
       github:
         patterns:
