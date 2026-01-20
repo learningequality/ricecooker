@@ -404,6 +404,34 @@ class EPUBConversionHandler(ArchiveProcessingBaseHandler):
             self._validate_opf(zf, path, opf_path)
 
 
+class KPUBConversionHandler(ArchiveProcessingBaseHandler):
+
+    EXTENSIONS = {file_formats.HTML5_ARTICLE}
+    FILE_TYPE = "KPUB"
+
+    def validate_archive(self, path: str):
+        with self.open_and_verify_archive(path) as zf:
+            dom = self._validate_index_html_body(zf, path)
+
+            # Check for inline <script> tags (parsed without namespaces)
+            for _ in dom.iter("script"):
+                raise InvalidFileException(
+                    f"File {path} is not a valid KPUB file, inline JavaScript (<script> tags) is not allowed."
+                )
+
+            # Check for disallowed file types
+            for filename in zf.namelist():
+                lower_name = filename.lower()
+                if lower_name.endswith(".js"):
+                    raise InvalidFileException(
+                        f"File {path} is not a valid KPUB file, JavaScript files (.js) are not allowed."
+                    )
+                if lower_name.endswith(".css"):
+                    raise InvalidFileException(
+                        f"File {path} is not a valid KPUB file, external CSS files (.css) are not allowed."
+                    )
+
+
 class BloomConversionHandler(ArchiveProcessingBaseHandler):
 
     EXTENSIONS = {file_formats.BLOOMPUB, file_formats.BLOOMD}
@@ -580,6 +608,7 @@ class ConversionStageHandler(StageHandler):
         EPUBConversionHandler,
         H5PConversionHandler,
         HTML5ConversionHandler,
+        KPUBConversionHandler,
         VideoCompressionHandler,
         AudioCompressionHandler,
     ]

@@ -4,8 +4,13 @@ import tempfile
 import zipfile
 from unittest.mock import patch
 
+import pytest
+
 from ricecooker.classes.files import H5PFile
 from ricecooker.classes.files import HTMLZipFile
+from ricecooker.utils.pipeline.convert import HTML5ConversionHandler
+from ricecooker.utils.pipeline.convert import KPUBConversionHandler
+from ricecooker.utils.pipeline.exceptions import InvalidFileException
 
 
 def test_html5_archive_with_mp4_compression(video_file, audio_file):
@@ -120,3 +125,120 @@ def test_archive_no_compression_when_disabled(video_file, audio_file):
 
     finally:
         os.unlink(temp_archive.name)
+
+
+# HTML5 Conversion Tests
+# These test the HTML5ConversionHandler validation logic
+
+
+def _create_archive(path, files_dict):
+    """Helper to create a zip archive with given files."""
+    with zipfile.ZipFile(path, "w") as zf:
+        for filename, content in files_dict.items():
+            if isinstance(content, str):
+                content = content.encode("utf-8")
+            zf.writestr(filename, content)
+
+
+class TestHTML5Validation:
+    """Regression tests for HTML5ConversionHandler body validation."""
+
+    def _validate(self, files):
+        """Create an HTML5 archive with given files and validate it."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, "test.zip")
+            _create_archive(path, files)
+            HTML5ConversionHandler().validate_archive(path)
+
+    def test_empty_body_rejected(self):
+        with pytest.raises(InvalidFileException, match="(?i)empty"):
+            self._validate({"index.html": "<html><body></body></html>"})
+
+    def test_whitespace_only_body_rejected(self):
+        with pytest.raises(InvalidFileException, match="(?i)empty"):
+            self._validate({"index.html": "<html><body>   \n  </body></html>"})
+
+    def test_body_with_child_element_accepted(self):
+        self._validate({"index.html": "<html><body><p>Hello</p></body></html>"})
+
+    def test_body_with_text_only_accepted(self):
+        self._validate({"index.html": "<html><body>Hello world</body></html>"})
+
+
+class TestKPUBValidation:
+    """Tests for KPUBConversionHandler validation."""
+
+    def _validate(self, files):
+        """Create a KPUB archive with given files and validate it."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, "test.kpub")
+            _create_archive(path, files)
+            KPUBConversionHandler().validate_archive(path)
+
+    def test_valid_archive(self):
+        self._validate({"index.html": "<html><body><p>Hello world</p></body></html>"})
+
+    def test_missing_index_html(self):
+        with pytest.raises(InvalidFileException, match="(?i)index.html"):
+            self._validate({"content.html": "<html><body><p>Hello</p></body></html>"})
+
+    def test_javascript_rejected(self):
+        with pytest.raises(InvalidFileException, match="(?i)javascript"):
+            self._validate(
+                {
+                    "index.html": "<html><body><p>Hello</p></body></html>",
+                    "script.js": "console.log('hello');",
+                }
+            )
+
+    def test_css_file_rejected(self):
+        with pytest.raises(InvalidFileException, match="(?i)css"):
+            self._validate(
+                {
+                    "index.html": "<html><body><p>Hello</p></body></html>",
+                    "styles.css": "body { color: red; }",
+                }
+            )
+
+    def test_inline_script_rejected(self):
+        with pytest.raises(InvalidFileException, match="(?i)javascript"):
+            self._validate(
+                {
+                    "index.html": "<html><body><p>Hello</p><script>alert('hi');</script></body></html>",
+                }
+            )
+
+    def test_inline_styles_allowed(self):
+        self._validate(
+            {"index.html": '<html><body><p style="color: red;">Hello</p></body></html>'}
+        )
+
+    def test_images_allowed(self):
+        png_data = (
+            b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01"
+            b"\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89"
+            b"\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01"
+            b"\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82"
+        )
+        self._validate(
+            {
+                "index.html": '<html><body><img src="image.png"></body></html>',
+                "image.png": png_data,
+            }
+        )
+
+    def test_empty_body_rejected(self):
+        with pytest.raises(InvalidFileException, match="(?i)empty"):
+            self._validate({"index.html": "<html><body></body></html>"})
+
+    def test_whitespace_only_body_rejected(self):
+        with pytest.raises(InvalidFileException, match="(?i)empty"):
+            self._validate({"index.html": "<html><body>   \n  </body></html>"})
+
+    def test_invalid_zip(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, "test.kpub")
+            with open(path, "wb") as f:
+                f.write(b"not a zip file")
+            with pytest.raises(InvalidFileException, match="(?i)zip"):
+                KPUBConversionHandler().validate_archive(path)
