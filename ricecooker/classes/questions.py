@@ -30,6 +30,10 @@ PERSEUS_MARKDOWN_IMAGE_REGEX = (
 # match protocol:{{path}} either wrapped in parentheses or quotes (original regex)
 MARKDOWN_IMAGE_REGEX = r"!\[([^\]]+)?\]\(([^\)]+?)\)"  # match ![{{smth}}]({{url}})
 
+# Pre/post test variant constants for UnitNode questions
+VARIANT_A = "A"
+VARIANT_B = "B"
+
 
 class BaseQuestion:
     """Base model representing exercise questions
@@ -69,6 +73,11 @@ class BaseQuestion:
         self.randomize = randomize
         self.id = uuid.uuid5(uuid.NAMESPACE_DNS, id)
 
+    @property
+    def assessment_id(self):
+        """Return the assessment ID as a hex string."""
+        return self.id.hex
+
     def truncate_fields(self):
         if self.source_url and len(self.source_url) > config.MAX_SOURCE_URL_LENGTH:
             config.print_truncate(
@@ -82,7 +91,7 @@ class BaseQuestion:
         Returns: dict of node's data
         """
         return {
-            "assessment_id": self.id.hex,
+            "assessment_id": self.assessment_id,
             "type": self.question_type,
             "files": [
                 f.to_dict() for f in filter(lambda x: x and x.filename, self.files)
