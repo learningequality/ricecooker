@@ -4,8 +4,12 @@ import tempfile
 import zipfile
 from unittest.mock import patch
 
+import pytest
+
 from ricecooker.classes.files import H5PFile
 from ricecooker.classes.files import HTMLZipFile
+from ricecooker.utils.pipeline.convert import KPUBConversionHandler
+from ricecooker.utils.pipeline.exceptions import InvalidFileException
 
 
 def test_html5_archive_with_mp4_compression(video_file, audio_file):
@@ -120,3 +124,165 @@ def test_archive_no_compression_when_disabled(video_file, audio_file):
 
     finally:
         os.unlink(temp_archive.name)
+
+
+# KPUB Conversion Tests
+# These test the KPUBConversionHandler validation logic
+
+
+def _create_kpub_archive(path, files_dict):
+    """Helper to create a .kpub archive with given files."""
+    with zipfile.ZipFile(path, "w") as zf:
+        for filename, content in files_dict.items():
+            if isinstance(content, str):
+                content = content.encode("utf-8")
+            zf.writestr(filename, content)
+
+
+def test_kpub_valid_archive_passes():
+    """A valid KPUB with index.html should pass validation."""
+    temp_archive = tempfile.NamedTemporaryFile(suffix=".kpub", delete=False)
+    temp_archive.close()
+
+    try:
+        _create_kpub_archive(
+            temp_archive.name,
+            {"index.html": "<html><body><p>Hello world</p></body></html>"},
+        )
+
+        handler = KPUBConversionHandler()
+        # Should not raise
+        handler.validate_archive(temp_archive.name)
+    finally:
+        os.unlink(temp_archive.name)
+
+
+def test_kpub_missing_index_html_fails():
+    """A KPUB without index.html should fail validation."""
+    temp_archive = tempfile.NamedTemporaryFile(suffix=".kpub", delete=False)
+    temp_archive.close()
+
+    try:
+        _create_kpub_archive(
+            temp_archive.name,
+            {"content.html": "<html><body><p>Hello</p></body></html>"},
+        )
+
+        handler = KPUBConversionHandler()
+        with pytest.raises(InvalidFileException) as exc_info:
+            handler.validate_archive(temp_archive.name)
+
+        assert "index.html" in str(exc_info.value).lower()
+    finally:
+        os.unlink(temp_archive.name)
+
+
+def test_kpub_with_javascript_fails():
+    """A KPUB containing .js files should fail validation."""
+    temp_archive = tempfile.NamedTemporaryFile(suffix=".kpub", delete=False)
+    temp_archive.close()
+
+    try:
+        _create_kpub_archive(
+            temp_archive.name,
+            {
+                "index.html": "<html><body><p>Hello</p></body></html>",
+                "script.js": "console.log('hello');",
+            },
+        )
+
+        handler = KPUBConversionHandler()
+        with pytest.raises(InvalidFileException) as exc_info:
+            handler.validate_archive(temp_archive.name)
+
+        error_msg = str(exc_info.value).lower()
+        assert "javascript" in error_msg or ".js" in error_msg
+    finally:
+        os.unlink(temp_archive.name)
+
+
+def test_kpub_with_css_file_fails():
+    """A KPUB containing external .css files should fail validation."""
+    temp_archive = tempfile.NamedTemporaryFile(suffix=".kpub", delete=False)
+    temp_archive.close()
+
+    try:
+        _create_kpub_archive(
+            temp_archive.name,
+            {
+                "index.html": "<html><body><p>Hello</p></body></html>",
+                "styles.css": "body { color: red; }",
+            },
+        )
+
+        handler = KPUBConversionHandler()
+        with pytest.raises(InvalidFileException) as exc_info:
+            handler.validate_archive(temp_archive.name)
+
+        assert "css" in str(exc_info.value).lower()
+    finally:
+        os.unlink(temp_archive.name)
+
+
+def test_kpub_with_inline_styles_passes():
+    """A KPUB with inline styles (no external CSS) should pass validation."""
+    temp_archive = tempfile.NamedTemporaryFile(suffix=".kpub", delete=False)
+    temp_archive.close()
+
+    try:
+        _create_kpub_archive(
+            temp_archive.name,
+            {
+                "index.html": '<html><body><p style="color: red;">Hello</p></body></html>'
+            },
+        )
+
+        handler = KPUBConversionHandler()
+        # Should not raise
+        handler.validate_archive(temp_archive.name)
+    finally:
+        os.unlink(temp_archive.name)
+
+
+def test_kpub_with_images_passes():
+    """A KPUB with image files should pass validation."""
+    temp_archive = tempfile.NamedTemporaryFile(suffix=".kpub", delete=False)
+    temp_archive.close()
+
+    try:
+        # Create a minimal PNG (1x1 transparent pixel)
+        png_data = (
+            b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01"
+            b"\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89"
+            b"\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01"
+            b"\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82"
+        )
+        _create_kpub_archive(
+            temp_archive.name,
+            {
+                "index.html": '<html><body><img src="image.png"></body></html>',
+                "image.png": png_data,
+            },
+        )
+
+        handler = KPUBConversionHandler()
+        # Should not raise
+        handler.validate_archive(temp_archive.name)
+    finally:
+        os.unlink(temp_archive.name)
+
+
+def test_kpub_invalid_zip_fails():
+    """A file with .kpub extension that isn't a valid zip should fail."""
+    temp_file = tempfile.NamedTemporaryFile(suffix=".kpub", delete=False)
+    temp_file.write(b"not a zip file")
+    temp_file.close()
+
+    try:
+        handler = KPUBConversionHandler()
+        with pytest.raises(InvalidFileException) as exc_info:
+            handler.validate_archive(temp_file.name)
+
+        assert "zip" in str(exc_info.value).lower()
+    finally:
+        os.unlink(temp_file.name)
