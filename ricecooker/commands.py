@@ -134,6 +134,19 @@ def uploadchannel(  # noqa: C901
         config.PROGRESS_MANAGER.set_tree(create_initial_tree(channel))
     tree = config.PROGRESS_MANAGER.tree
 
+    # Early permission check: Try creating the channel before downloading/uploading files
+    # This will fail fast if the user lacks edit permissions
+    # Fixes issues #95 and #434 by avoiding wasted downloads/uploads
+    if (
+        config.PROGRESS_MANAGER.get_status_val() <= Status.CREATE_TREE.value
+        and command != "dryrun"
+    ):
+        config.LOGGER.info("Checking channel permissions...")
+        try:
+            tree.root_id, tree.channel_id = tree.add_channel()
+        except Exception:
+            sys.exit(1)
+
     # Download files if they haven't been downloaded already
     if config.PROGRESS_MANAGER.get_status_val() <= Status.DOWNLOAD_FILES.value:
         config.LOGGER.info("")
