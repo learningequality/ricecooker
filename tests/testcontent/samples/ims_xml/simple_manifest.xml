@@ -1,0 +1,63 @@
+<manifest xmlns:imsmd="http://www.imsglobal.org/xsd/imsmd_v1p2">
+    <metadata>
+    <imsmd:lom>
+        <imsmd:general>
+        <imsmd:title>
+            <imsmd:langstring xml:lang="en">Test File</imsmd:langstring>
+        </imsmd:title>
+        <imsmd:language>en</imsmd:language>
+        <imsmd:description>
+            <imsmd:langstring xml:lang="en">Example of test file</imsmd:langstring>
+        </imsmd:description>
+        </imsmd:general>
+    </imsmd:lom>
+    </metadata>
+    <organizations>
+    <organization>
+        <title>Folder 1</title>
+        <item identifierref="file1Ref">
+            <title>Test File1</title>
+        </item>
+        <item identifierref="file2Ref">
+            <title>Test File2</title>
+        </item>
+        <item identifier="folder2">
+            <title>Folder 2</title>
+            <item identifierref="file1Ref">
+                <title>Test File1 Nested</title>
+            </item>
+            <item identifierref="file2Ref">
+                <title>Test File2 Nested</title>
+            </item>
+        </item>
+        <item identifier="folder3">
+            <title>Folder 3</title>
+            <item identifierref="file3Ref">
+                <title>Test File3 Nested</title>
+            </item>
+            <item identifierref="file4Ref">
+                <title>Test File4 Nested</title>
+            </item>
+        </item>
+    </organization>
+    <organization>
+        <title>Folder 4</title>
+        <item identifierref="file3Ref">
+            <title>Test File3</title>
+        </item>
+        <item identifierref="file4Ref">
+            <title>Test File4</title>
+        </item>
+    </organization>
+    </organizations>
+    <resources>
+    <resource identifier="file1Ref" type="webcontent" href="file1.html">
+    </resource>
+    <resource identifier="file2Ref" type="webcontent" href="file2.html">
+    </resource>
+    <resource identifier="file3Ref" type="webcontent" href="file3.html">
+    </resource>
+    <resource identifier="file4Ref" type="webcontent" href="file4.html">
+    </resource>
+    </resources>
+</manifest>
