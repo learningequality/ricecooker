@@ -34,6 +34,9 @@ from ricecooker.exceptions import UnknownFileTypeError
 from ricecooker.utils.audio import AudioCompressionError
 from ricecooker.utils.audio import compress_audio
 from ricecooker.utils.caching import generate_key
+from ricecooker.utils.imscp import has_imscp_manifest
+from ricecooker.utils.imscp import ManifestParseError
+from ricecooker.utils.imscp import parse_manifest_from_zip
 from ricecooker.utils.pipeline.context import ContextMetadata
 from ricecooker.utils.pipeline.context import FileMetadata
 from ricecooker.utils.pipeline.exceptions import InvalidFileException
@@ -282,6 +285,32 @@ class ArchiveProcessingBaseHandler(ExtensionMatchingHandler):
                     os.unlink(temp_out.name)
 
         return reader(filepath)
+
+
+class IMSCPConversionHandler(ArchiveProcessingBaseHandler):
+    """Validates IMSCP content packages (zip files containing imsmanifest.xml)."""
+
+    EXTENSIONS = {file_formats.HTML5}
+    FILE_TYPE = "IMSCP"
+
+    def should_handle(self, path: str) -> bool:
+        if not super().should_handle(path):
+            return False
+        return has_imscp_manifest(path)
+
+    def validate_archive(self, path: str):
+        with self.open_and_verify_archive(path) as zf:
+            if "imsmanifest.xml" not in zf.namelist():
+                raise InvalidFileException(
+                    f"File {path} is not a valid IMSCP file, imsmanifest.xml is missing."
+                )
+            # Verify the manifest is parseable using the already-open zip
+            try:
+                parse_manifest_from_zip(zf)
+            except ManifestParseError as e:
+                raise InvalidFileException(
+                    f"File {path} has an invalid imsmanifest.xml: {e}"
+                )
 
 
 class HTML5ConversionHandler(ArchiveProcessingBaseHandler):
@@ -579,6 +608,7 @@ class ConversionStageHandler(StageHandler):
         BloomConversionHandler,
         EPUBConversionHandler,
         H5PConversionHandler,
+        IMSCPConversionHandler,
         HTML5ConversionHandler,
         VideoCompressionHandler,
         AudioCompressionHandler,
