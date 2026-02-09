@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest xmlns="http://www.imsglobal.org/xsd/imscp_v1p1">
+  <metadata>
+    <lom xmlns="http://ltsc.ieee.org/xsd/LOM">
+      <general>
+        <title><string language="en">Dangling Ref Test</string></title>
+        <language>en</language>
+      </general>
+    </lom>
+  </metadata>
+  <organizations>
+    <organization identifier="org1">
+      <title>Test Org</title>
+      <item identifier="valid_item" identifierref="resource1">
+        <title>Valid Item</title>
+      </item>
+      <item identifier="dangling_item" identifierref="nonexistent_resource">
+        <title>Dangling Item</title>
+      </item>
+    </organization>
+  </organizations>
+  <resources>
+    <resource identifier="resource1" type="webcontent" href="valid.html">
+      <file href="valid.html"/>
+    </resource>
+  </resources>
+</manifest>

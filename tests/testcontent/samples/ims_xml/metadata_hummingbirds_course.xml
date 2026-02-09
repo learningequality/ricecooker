@@ -1,0 +1,232 @@
+<?xml version="1.0" ?>
+<lom xmlns="http://ltsc.ieee.org/xsd/LOM" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://ltsc.ieee.org/xsd/LOM lom.xsd">
+  <general>
+    <identifier>
+      <catalog>URI</catalog>
+      <entry>com.example.hummingbirds.contentpackaging.metadata.2024</entry>
+    </identifier>
+    <title>
+      <string language="en-US">Discovering Hummingbirds</string>
+      <string language="es">Descubriendo Colibríes</string>
+    </title>
+    <language>en</language>
+    <description>
+      <string language="en-US">An engaging overview of hummingbirds, covering their biology, behavior, and habitats. This course is designed for enthusiasts and bird watchers of all levels.</string>
+    </description>
+    <keyword>
+      <string language="en-US">hummingbirds</string>
+    </keyword>
+    <keyword>
+      <string language="en-US">bird watching</string>
+    </keyword>
+    <keyword>
+      <string language="en-US">ornithology</string>
+    </keyword>
+    <coverage>
+      <string language="en-US">Global range, with a focus on the Americas.</string>
+    </coverage>
+    <structure>
+      <source>LOMv1.0</source>
+      <value>hierarchical</value>
+    </structure>
+    <aggregationLevel>
+      <source>LOMv1.0</source>
+      <value>2</value>
+    </aggregationLevel>
+  </general>
+
+  <lifeCycle>
+    <version>
+      <string language="en-US">1.0</string>
+    </version>
+    <status>
+      <source>LOMv1.0</source>
+      <value>final</value>
+    </status>
+    <contribute>
+      <role>
+        <source>LOMv1.0</source>
+        <value>publisher</value>
+      </role>
+      <entity>BEGIN:VCARD
+VERSION:2.1
+FN:John Doe
+ORG:Example Organization
+TEL;WORK;VOICE:(555) 123-4567
+ADR;WORK:;;1234 Main St;Anytown;AN;12345;Country
+EMAIL;PREF;INTERNET:john.doe@example.com
+END:VCARD
+      </entity>
+      <date>
+        <dateTime>2024-01-01</dateTime>
+        <description>
+          <string language="en-US">Initial publication date of the course.</string>
+        </description>
+      </date>
+    </contribute>
+  </lifeCycle>
+
+  <metaMetadata>
+    <identifier>
+      <catalog>URI</catalog>
+      <entry>com.example.hummingbirds.metadata.2024</entry>
+    </identifier>
+    <metadataSchema>LOMv1.0</metadataSchema>
+    <metadataSchema>SCORM_CAM_v1.3</metadataSchema>
+    <language>en-us</language>
+  </metaMetadata>
+
+  <technical>
+    <format>text/html</format>
+    <format>image/jpeg</format>
+    <format>video/mp4</format>
+    <size>1048576</size>
+    <location>http://www.example.com/hummingbirds</location>
+    <requirement>
+      <orComposite>
+        <type>
+          <source>LOMv1.0</source>
+          <value>browser</value>
+        </type>
+        <name>
+          <source>LOMv1.0</source>
+          <value>any</value>
+        </name>
+      </orComposite>
+    </requirement>
+    <installationRemarks>
+      <string language="en-us">No specific installation requirements, accessible via standard web browsers.</string>
+    </installationRemarks>
+    <otherPlatformRequirements>
+      <string language="en-us">Optimized for both desktop and mobile platforms.</string>
+    </otherPlatformRequirements>
+    <duration>
+      <duration>P1H</duration>
+      <description>
+        <string language="en-us">The average time to complete the course is approximately 1 hour.</string>
+      </description>
+    </duration>
+  </technical>
+
+  <educational>
+    <learningResourceType>
+      <source>LOMv1.0</source>
+      <value>documentary</value>
+    </learningResourceType>
+    <learningResourceType>
+      <source>LOMv1.0</source>
+      <value>interactive lesson</value>
+    </learningResourceType>
+    <interactivityLevel>
+      <source>LOMv1.0</source>
+      <value>medium</value>
+    </interactivityLevel>
+    <semanticDensity>
+      <source>LOMv1.0</source>
+      <value>medium</value>
+    </semanticDensity>
+    <intendedEndUserRole>
+      <source>LOMv1.0</source>
+      <value>learner</value>
+    </intendedEndUserRole>
+    <context>
+      <source>LOMv1.0</source>
+      <value>training</value>
+    </context>
+    <typicalAgeRange>
+      <string language="en-us">Age 12 and up</string>
+    </typicalAgeRange>
+    <difficulty>
+      <source>LOMv1.0</source>
+      <value>easy</value>
+    </difficulty>
+    <typicalLearningTime>
+      <duration>P1H</duration>
+      <description>
+        <string language="en-us">Approximately 1 hour is needed to complete the course.</string>
+      </description>
+    </typicalLearningTime>
+    <description>
+      <string language="en-us">This course provides an introduction to hummingbirds, suitable for beginners in ornithology and bird watching.</string>
+    </description>
+    <language>en-us</language>
+  </educational>
+
+  <rights>
+    <cost>
+      <source>LOMv1.0</source>
+      <value>no</value>
+    </cost>
+    <copyrightAndOtherRestrictions>
+      <source>LOMv1.0</source>
+      <value>yes</value>
+    </copyrightAndOtherRestrictions>
+    <description>
+      <string>Content is protected under Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License.</string>
+    </description>
+  </rights>
+
+  <relation>
+    <kind>
+      <source>LOMv1.0</source>
+      <value>ispartof</value>
+    </kind>
+    <resource>
+      <identifier>
+        <catalog>URI</catalog>
+        <entry>com.example.biologyseries</entry>
+      </identifier>
+      <description>
+        <string language="en-us">Part of a larger series on biology and wildlife.</string>
+      </description>
+    </resource>
+  </relation>
+
+  <annotation>
+    <entity>BEGIN:VCARD
+VERSION:2.1
+FN:Jane Smith
+ORG:Example Organization
+TEL;WORK;VOICE:(555) 987-6543
+ADR;WORK:;;4321 Side St;Anytown;AN;54321;Country
+EMAIL;PREF;INTERNET:jane.smith@example.com
+END:VCARD
+    </entity>
+    <date>
+      <dateTime>2024-02-01</dateTime>
+      <description>
+        <string language="en-us">Annotation added to provide additional insights into course content.</string>
+      </description>
+    </date>
+    <description>
+      <string language="en-us">This course includes interactive elements to enhance learner engagement with the subject of hummingbirds.</string>
+    </description>
+  </annotation>
+
+  <classification>
+    <purpose>
+      <source>LOMv1.0</source>
+      <value>discipline</value>
+    </purpose>
+    <taxonPath>
+      <source>
+        <string language="en-us">Example Organization's catalog of biology courses</string>
+      </source>
+      <taxon>
+        <id>ornithology_basics</id>
+        <entry>
+          <string language="en-us">Basic Ornithology</string>
+        </entry>
+      </taxon>
+    </taxonPath>
+    <description>
+      <string language="en-US">This course serves as an introductory module in the Basic Ornithology series, focusing on hummingbirds.</string>
+    </description>
+    <keyword>
+      <string language="en-US">biology</string>
+    </keyword>
+    <keyword>
+      <string language="en-US">wildlife</string>
+    </keyword>
+  </classification>
+</lom>
