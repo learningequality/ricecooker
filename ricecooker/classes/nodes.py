@@ -95,7 +95,7 @@ class Node(object):
         thumbnail=None,
         files=None,
         derive_thumbnail=False,
-        node_modifications={},
+        node_modifications=None,
         extra_fields=None,
         suggested_duration=None,
     ):
@@ -119,7 +119,7 @@ class Node(object):
 
         self.set_thumbnail(thumbnail)
         # save modifications passed in by csv
-        self.node_modifications = node_modifications
+        self.node_modifications = node_modifications or {}
 
         self.author = author or ""
         self.aggregator = aggregator or ""
@@ -767,6 +767,73 @@ class TreeNode(Node):
         metadata = self.parent.gather_ancestor_metadata()
         return self.get_metadata_dict(metadata)
 
+    def _build_children_from_metadata(self, children_list, parent_files=None, license=None):
+        """Build child TopicNode/ContentNode tree from nested ContentNodeMetadata dicts.
+
+        Called when the pipeline produces nested metadata (e.g. IMSCP manifests).
+
+        Args:
+            children_list: list of child metadata dicts
+            parent_files: files to propagate to leaf children (defaults to self.files)
+            license: license to propagate to leaf ContentNode children (defaults to self.license)
+        """
+        if parent_files is None:
+            parent_files = list(self.files)
+        license = license or getattr(self, "license", None)
+
+        for child_data in children_list:
+            source_id = child_data.get("source_id", child_data.get("title", "unknown"))
+            title = child_data.get("title", "Untitled")
+
+            nested_children = child_data.get("children")
+
+            if nested_children:
+                # This is a topic node
+                node = TopicNode(
+                    source_id,
+                    title,
+                )
+                node._build_children_from_metadata(
+                    nested_children, parent_files=parent_files, license=license
+                )
+            else:
+                # This is a leaf content node — filter files by preset if specified
+                file_presets = child_data.get("file_presets", [])
+                if file_presets:
+                    files = [f for f in parent_files if f.get_preset() in file_presets]
+                else:
+                    files = []
+                extra_fields = child_data.get("extra_fields", {})
+                node = ContentNode(
+                    source_id,
+                    title,
+                    license,
+                    files=list(files),
+                    extra_fields=extra_fields,
+                )
+                node.kind = child_data.get("kind", content_kinds.HTML5)
+                node._files_processed = True
+
+            # Apply additional metadata fields
+            metadata_fields = [
+                "description",
+                "learning_activities",
+                "resource_types",
+                "learner_needs",
+                "tags",
+                "language",
+            ]
+            for field in metadata_fields:
+                if field in child_data:
+                    val = child_data[field]
+                    existing = getattr(node, field, None)
+                    if isinstance(existing, list) and isinstance(val, list):
+                        setattr(node, field, existing + val)
+                    elif val:
+                        setattr(node, field, val)
+
+            self.add_child(node)
+
 
 class TopicNode(TreeNode):
     """Model representing channel topics
@@ -912,9 +979,15 @@ class ContentNode(TreeNode):
             metadata_dict.pop("path", None)
             file_obj = File(**metadata_dict)
             self.add_file(file_obj)
+
+        # Pop children before applying metadata to self
+        children_data = content_metadata.pop("children", None)
+
         for key, value in content_metadata.items():
             if key == "extra_fields":
                 self.extra_fields.update(value)
+            elif key == "tags":
+                self.tags = self.tags + value
             else:
                 if key == "kind" and self.kind is not None and self.kind != value:
                     raise InvalidNodeException(
@@ -922,10 +995,37 @@ class ContentNode(TreeNode):
                     )
                 setattr(self, key, value)
 
+        # Build child nodes from nested metadata (e.g. IMSCP organizations)
+        if children_data:
+            self._dynamic_children = True
+            self._build_children_from_metadata(children_data)
+
+    def _collect_dynamic_filenames(self, node):
+        """Recursively collect filenames from dynamically created children.
+
+        Validates ContentNode leaves and recurses into TopicNode children.
+        """
+        filenames = []
+        for child in node.children:
+            if isinstance(child, ContentNode) and not child._files_processed:
+                child._files_processed = True
+                child.validate()
+            for f in child.files:
+                if f.filename:
+                    filenames.append(f.filename)
+            if isinstance(child, TopicNode):
+                filenames.extend(self._collect_dynamic_filenames(child))
+        return filenames
+
     def process_files(self):
         if self.uri:
             self._process_uri()
         filenames = super().process_files()
+
+        # Process dynamically created children (recursively)
+        if getattr(self, "_dynamic_children", False):
+            filenames.extend(self._collect_dynamic_filenames(self))
+
         # Now that we have set all the metadata, and files, we validate the node
         # again to ensure that the metadata is valid
         self._files_processed = True

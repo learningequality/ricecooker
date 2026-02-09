@@ -35,6 +35,9 @@ class ContentNodeMetadata:
     source_id: Optional[str] = None
     kind: Optional[str] = None
     extra_fields: Optional[dict] = None
+    tags: Optional[list[str]] = None
+    children: Optional[list] = None  # list of ContentNodeMetadata dicts
+    file_presets: Optional[list[str]] = None  # presets for filtering parent files
 
 
 def _recursive_update(target, source):
