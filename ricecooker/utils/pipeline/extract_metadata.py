@@ -1,10 +1,15 @@
+from le_utils.constants import content_kinds
 from le_utils.constants import file_formats
 from le_utils.constants import format_presets
 
 from .file_handler import ExtensionMatchingHandler
 from .file_handler import StageHandler
 from ricecooker.utils.imscp import has_imscp_manifest
+from ricecooker.utils.imscp import has_qti_items
+from ricecooker.utils.imscp import has_webcontent_items
+from ricecooker.utils.imscp import is_qti_resource
 from ricecooker.utils.imscp import parse_imscp_manifest
+from ricecooker.utils.pipeline.context import _content_node_metadata_from_dict
 from ricecooker.utils.pipeline.context import ContentNodeMetadata
 from ricecooker.utils.pipeline.context import FileMetadata
 from ricecooker.utils.SCORM_metadata import metadata_dict_to_content_node_fields
@@ -77,7 +82,20 @@ class IMSCPMetadataExtractor(MetadataExtractor):
             return False
         return has_imscp_manifest(path)
 
-    def infer_preset(self, path):
+    def _infer_preset_from_manifest(self, manifest):
+        """Infer the primary preset from a parsed manifest dict.
+
+        Returns QTI_ZIP for pure QTI packages, IMSCP_ZIP for everything else
+        (pure webcontent, mixed QTI+webcontent, or manifests with no
+        organizations/leaf items).
+        """
+        has_qti = has_qti_items(manifest)
+        has_webcontent = has_webcontent_items(manifest)
+        if has_qti and not has_webcontent:
+            # Pure QTI package (assessments only)
+            return format_presets.QTI_ZIP
+        # IMSCP for: pure webcontent, mixed (QTI + webcontent), or
+        # unknown resource types (safe default for any IMS package)
         return format_presets.IMSCP_ZIP
 
     def _build_children_metadata(self, items):
@@ -93,23 +111,20 @@ class IMSCPMetadataExtractor(MetadataExtractor):
                 fields["kind"] = "topic"
                 fields["children"] = self._build_children_metadata(item["children"])
             else:
-                # This is a leaf content node
-                fields["kind"] = "html5"
-                fields["file_presets"] = [format_presets.IMSCP_ZIP]
+                # This is a leaf content node — detect QTI vs webcontent
+                resource_type = item.get("type", "")
+                if is_qti_resource(resource_type):
+                    fields["kind"] = content_kinds.EXERCISE
+                    fields["file_preset"] = format_presets.QTI_ZIP
+                else:
+                    fields["kind"] = content_kinds.HTML5
+                    fields["file_preset"] = format_presets.IMSCP_ZIP
                 entry = item.get("href", "")
                 if item.get("parameters"):
                     entry += item["parameters"]
                 fields["extra_fields"] = {"options": {"entry": entry}}
 
-            children.append(
-                ContentNodeMetadata(
-                    **{
-                        k: v
-                        for k, v in fields.items()
-                        if k in ContentNodeMetadata.__dataclass_fields__
-                    }
-                )
-            )
+            children.append(_content_node_metadata_from_dict(fields))
         return children
 
     def handle_file(self, path):
@@ -121,14 +136,8 @@ class IMSCPMetadataExtractor(MetadataExtractor):
             root_fields["kind"] = "topic"
             root_fields["children"] = self._build_children_metadata(organizations)
 
-        preset = self.infer_preset(path)
-        content_node_metadata = ContentNodeMetadata(
-            **{
-                k: v
-                for k, v in root_fields.items()
-                if k in ContentNodeMetadata.__dataclass_fields__
-            }
-        )
+        preset = self._infer_preset_from_manifest(manifest)
+        content_node_metadata = _content_node_metadata_from_dict(root_fields)
 
         return FileMetadata(
             preset=preset,

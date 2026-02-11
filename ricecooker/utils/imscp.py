@@ -13,7 +13,23 @@ from lxml import etree
 
 from ricecooker.utils.SCORM_metadata import imscp_metadata_keys
 
+_SAFE_PARSER = etree.XMLParser(resolve_entities=False, no_network=True)
+
 logger = logging.getLogger(__name__)
+
+QTI_RESOURCE_TYPE_PREFIX = "imsqti_"
+
+
+def is_qti_resource(resource_type):
+    """Check whether a resource type string indicates a QTI resource.
+
+    Args:
+        resource_type: the type attribute from a <resource> element
+
+    Returns:
+        bool
+    """
+    return bool(resource_type) and resource_type.startswith(QTI_RESOURCE_TYPE_PREFIX)
 
 
 class ManifestParseError(Exception):
@@ -35,7 +51,7 @@ def _get_elem_for_tag(root, tag):
     return root.find(tag)
 
 
-def _extract_lom_text(elem, preferred_language):
+def _extract_lom_text(elem, preferred_language) -> "str | list[str] | None":
     """Extract text from a LOM element using direct lxml traversal.
 
     Handles common LOM XML patterns:
@@ -43,6 +59,11 @@ def _extract_lom_text(elem, preferred_language):
       - <field><langstring xml:lang="en">text</langstring></field>
       - <field><source>LOMv1.0</source><value>text</value></field>
       - <field>plain text</field>
+
+    Returns:
+        A single string when one match is found (or a preferred-language match),
+        a list of strings when multiple matches exist and none is preferred,
+        or None when the element has no extractable text.
     """
     strings = elem.findall("string") or elem.findall("langstring")
     if strings:
@@ -89,8 +110,13 @@ def _resolve_metadata_elem(root, zip_file):
         namespaces={"adlcp": "http://www.adlnet.org/xsd/adlcp_v1p3"},
     )
     if external_ref is not None and zip_file is not None:
-        with zip_file.open(external_ref.text) as external_file:
-            metadata_elem = etree.parse(external_file).getroot()
+        try:
+            with zip_file.open(external_ref.text) as external_file:
+                metadata_elem = etree.parse(external_file, _SAFE_PARSER).getroot()
+        except KeyError:
+            raise ManifestParseError(
+                "External metadata file not found in zip: {}".format(external_ref.text)
+            )
 
     strip_ns_prefix(metadata_elem)
     return metadata_elem
@@ -170,7 +196,7 @@ def parse_manifest_from_zip(zf):
     """
     try:
         with zf.open("imsmanifest.xml") as manifest_file:
-            return etree.parse(manifest_file).getroot()
+            return etree.parse(manifest_file, _SAFE_PARSER).getroot()
     except (etree.XMLSyntaxError, OSError):
         pass
 
@@ -184,7 +210,7 @@ def parse_manifest_from_zip(zf):
         info = chardet.detect(data)
         encoding = info["encoding"] or "utf-8"
         data = data.decode(encoding)
-        return etree.parse(io.BytesIO(data.encode("utf-8"))).getroot()
+        return etree.parse(io.BytesIO(data.encode("utf-8")), _SAFE_PARSER).getroot()
     except (etree.XMLSyntaxError, OSError, UnicodeDecodeError) as e:
         raise ManifestParseError(str(e)) from e
 
@@ -280,7 +306,8 @@ def collect_resources(item, resources_dict):
             if key_stripped not in item:
                 item[key_stripped] = value
 
-        if resource_elem.get("type") == "webcontent":
+        resource_type = resource_elem.get("type", "")
+        if resource_type == "webcontent" or is_qti_resource(resource_type):
             item["files"] = derive_content_files_dict(resource_elem, resources_dict)
 
 
@@ -305,7 +332,9 @@ def flatten_single_child_topics(item):
     if len(item["children"]) == 1:
         only_child = item["children"][0]
         if "children" in only_child:
-            # Merge: keep child's structure but preserve parent's metadata if richer
+            # Merge: keep child's structure but use parent's title when child lacks one
+            if not only_child.get("title"):
+                only_child["title"] = item.get("title", "")
             if not only_child.get("metadata"):
                 only_child["metadata"] = item.get("metadata", {})
             return only_child
@@ -337,7 +366,11 @@ def parse_imscp_manifest(zip_path, language=None):
         metadata = collect_metadata(manifest, zip_file=zf, language=language)
 
         resources_elem = manifest.find("resources", nsmap)
-        resources_dict = dict((r.get("identifier"), r) for r in resources_elem)
+        resources_dict = (
+            {r.get("identifier"): r for r in resources_elem}
+            if resources_elem is not None
+            else {}
+        )
 
         organizations = []
         for org_elem in manifest.findall("organizations/organization", nsmap):
@@ -367,3 +400,75 @@ def has_imscp_manifest(zip_path):
             return "imsmanifest.xml" in zf.namelist()
     except (zipfile.BadZipFile, FileNotFoundError):
         return False
+
+
+def has_qti_resources(zip_path):
+    """Check whether an IMSCP zip contains any QTI resources.
+
+    This scans raw <resource> elements without full manifest parsing.
+    Prefer has_qti_items() when you already have a parsed manifest dict.
+
+    Args:
+        zip_path: path to the zip file
+
+    Returns:
+        bool
+    """
+    try:
+        manifest = get_manifest(zip_path)
+    except (zipfile.BadZipFile, FileNotFoundError, KeyError, ManifestParseError):
+        return False
+
+    nsmap = manifest.nsmap
+    resources_elem = manifest.find("resources", nsmap)
+    if resources_elem is None:
+        return False
+
+    for resource in resources_elem:
+        if is_qti_resource(resource.get("type", "")):
+            return True
+    return False
+
+
+def _collect_leaf_types(item):
+    """Recursively yield resource type strings from leaf items in a parsed manifest tree."""
+    if "children" in item:
+        for child in item["children"]:
+            yield from _collect_leaf_types(child)
+    elif "type" in item:
+        yield item["type"]
+
+
+def has_qti_items(parsed_manifest):
+    """Check whether a parsed manifest dict contains any QTI resource items.
+
+    Operates on an already-parsed manifest. Prefer this over has_qti_resources()
+    when you already have the result of parse_imscp_manifest().
+
+    Args:
+        parsed_manifest: dict returned by parse_imscp_manifest()
+
+    Returns:
+        bool
+    """
+    for org in parsed_manifest.get("organizations", []):
+        for leaf_type in _collect_leaf_types(org):
+            if is_qti_resource(leaf_type):
+                return True
+    return False
+
+
+def has_webcontent_items(parsed_manifest):
+    """Check whether a parsed manifest dict contains any webcontent resource items.
+
+    Args:
+        parsed_manifest: dict returned by parse_imscp_manifest()
+
+    Returns:
+        bool
+    """
+    for org in parsed_manifest.get("organizations", []):
+        for leaf_type in _collect_leaf_types(org):
+            if leaf_type == "webcontent":
+                return True
+    return False
