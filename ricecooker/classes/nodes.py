@@ -1,4 +1,5 @@
 # Node models to represent channel's tree
+import copy
 import json
 import re
 import uuid
@@ -126,7 +127,7 @@ class Node(object):
         thumbnail=None,
         files=None,
         derive_thumbnail=False,
-        node_modifications={},
+        node_modifications=None,
         extra_fields=None,
         suggested_duration=None,
     ):
@@ -150,7 +151,7 @@ class Node(object):
 
         self.set_thumbnail(thumbnail)
         # save modifications passed in by csv
-        self.node_modifications = node_modifications
+        self.node_modifications = node_modifications or {}
 
         self.author = author or ""
         self.aggregator = aggregator or ""
@@ -785,6 +786,91 @@ class TreeNode(Node):
         metadata = self.parent.gather_ancestor_metadata()
         return self.get_metadata_dict(metadata)
 
+    def _build_children_from_metadata(
+        self, children_list, parent_files=None, license=None
+    ):
+        """Build child TopicNode/ContentNode tree from nested ContentNodeMetadata.
+
+        Called when the pipeline produces nested metadata (e.g. IMSCP manifests).
+
+        File copy semantics:
+          - Leaf children with a ``file_preset`` receive shallow copies
+            (``copy.copy``) of the parent files, with the copy's preset
+            overridden to the child's ``file_preset``.
+          - Leaf children without a ``file_preset`` receive no files.
+          - TopicNode children never receive files.
+
+        Note: Leaf children are created as ContentNode which requires a license.
+        The license defaults to self.license, so this method is primarily suited
+        for calls from ContentNode (which has a license attribute).  Calling from
+        TopicNode requires passing the license argument explicitly.
+
+        Args:
+            children_list: list of ContentNodeMetadata objects
+            parent_files: files to propagate to leaf children (defaults to self.files)
+            license: license to propagate to leaf ContentNode children (defaults to self.license)
+        """
+        if parent_files is None:
+            parent_files = list(self.files)
+        license = license or getattr(self, "license", None)
+
+        for child_meta in children_list:
+            source_id = child_meta.source_id or child_meta.title or "unknown"
+            title = child_meta.title or "Untitled"
+
+            if child_meta.children:
+                # This is a topic node
+                node = TopicNode(
+                    source_id,
+                    title,
+                )
+                node._build_children_from_metadata(
+                    child_meta.children, parent_files=parent_files, license=license
+                )
+            else:
+                # This is a leaf content node — copy files with child's preset.
+                # Shallow copy is safe here: File attributes are all simple
+                # types (str, int, None), so no mutable state is shared.
+                file_preset = child_meta.file_preset
+                if file_preset:
+                    files = []
+                    for f in parent_files:
+                        f_copy = copy.copy(f)
+                        f_copy.preset = file_preset
+                        files.append(f_copy)
+                else:
+                    files = []
+                extra_fields = child_meta.extra_fields or {}
+                node = ContentNode(
+                    source_id,
+                    title,
+                    license,
+                    files=list(files),
+                    extra_fields=extra_fields,
+                )
+                node.kind = child_meta.kind or content_kinds.HTML5
+                node._files_processed = True
+
+            # Apply additional metadata fields
+            metadata_fields = [
+                "description",
+                "learning_activities",
+                "resource_types",
+                "learner_needs",
+                "tags",
+                "language",
+            ]
+            for field in metadata_fields:
+                val = getattr(child_meta, field, None)
+                if val is not None:
+                    existing = getattr(node, field, None)
+                    if isinstance(existing, list) and isinstance(val, list):
+                        setattr(node, field, existing + val)
+                    elif val:
+                        setattr(node, field, val)
+
+            self.add_child(node)
+
 
 class TopicNode(TreeNode):
     """Model representing topic nodes for organizing channel content.
@@ -899,6 +985,37 @@ class ContentNode(TreeNode):
             self._validate_uri()
         return super(ContentNode, self)._validate()
 
+    _FILE_INIT_KEYS = {
+        "preset",
+        "language",
+        "default_ext",
+        "source_url",
+        "duration",
+        "original_filename",
+        "filename",
+    }
+
+    # Fields from ContentNodeMetadata that _process_uri may apply to the node.
+    # Identity/legal fields (source_id, license, license_description,
+    # copyright_holder) are intentionally excluded to prevent pipeline
+    # metadata from overwriting values set in the constructor.
+    _METADATA_APPLY_FIELDS = (
+        "title",
+        "description",
+        "thumbnail",
+        "author",
+        "aggregator",
+        "provider",
+        "language",
+        "grade_levels",
+        "categories",
+        "resource_types",
+        "learning_activities",
+        "accessibility_labels",
+        "learner_needs",
+        "role",
+    )
+
     def _process_uri(self):
         try:
             file_metadata_list = self.pipeline.execute(
@@ -907,29 +1024,83 @@ class ContentNode(TreeNode):
         except (InvalidFileException, ExpectedFileException) as e:
             config.LOGGER.error(f"Error processing path: {self.uri} with error: {e}")
             return None
-        content_metadata = {}
+        content_node_metadata = None
         for file_metadata in file_metadata_list:
-            metadata_dict = file_metadata.to_dict()
-            if "content_node_metadata" in metadata_dict:
-                content_metadata.update(metadata_dict.pop("content_node_metadata"))
-            # Remove path from metadata_dict as it is not needed for the File object
-            metadata_dict.pop("path", None)
-            file_obj = File(**metadata_dict)
-            self.add_file(file_obj)
-        for key, value in content_metadata.items():
-            if key == "extra_fields":
-                self.extra_fields.update(value)
-            else:
-                if key == "kind" and self.kind is not None and self.kind != value:
-                    raise InvalidNodeException(
-                        "Inferred kind is different from content node class kind."
-                    )
-                setattr(self, key, value)
+            # Extract ContentNodeMetadata as typed object (not via to_dict)
+            if file_metadata.content_node_metadata is not None:
+                content_node_metadata = file_metadata.content_node_metadata
+            self._add_file_from_metadata(file_metadata)
+
+        if content_node_metadata is not None:
+            self._apply_content_node_metadata(content_node_metadata)
+
+    def _add_file_from_metadata(self, file_metadata):
+        """Create a File object from FileMetadata and add it to this node."""
+        metadata_dict = file_metadata.to_dict()
+        metadata_dict.pop("content_node_metadata", None)
+        metadata_dict.pop("path", None)
+        # Filter to only keys accepted by File.__init__
+        dropped = set(metadata_dict.keys()) - self._FILE_INIT_KEYS
+        if dropped:
+            config.LOGGER.debug(
+                "Dropped keys from FileMetadata when creating File: %s", dropped
+            )
+        file_kwargs = {
+            k: v for k, v in metadata_dict.items() if k in self._FILE_INIT_KEYS
+        }
+        self.add_file(File(**file_kwargs))
+
+    def _apply_content_node_metadata(self, content_node_metadata):
+        """Apply ContentNodeMetadata fields to this node and build children.
+
+        See _METADATA_APPLY_FIELDS for the allowlist and exclusion rationale.
+        """
+        for field_name in self._METADATA_APPLY_FIELDS:
+            value = getattr(content_node_metadata, field_name, None)
+            if value is not None:
+                setattr(self, field_name, value)
+        if content_node_metadata.extra_fields is not None:
+            self.extra_fields.update(content_node_metadata.extra_fields)
+        if content_node_metadata.tags is not None:
+            self.tags = self.tags + content_node_metadata.tags
+        kind = content_node_metadata.kind
+        if kind is not None:
+            if self.kind is not None and self.kind != kind:
+                raise InvalidNodeException(
+                    "Inferred kind is different from content node class kind."
+                )
+            self.kind = kind
+        # Build child nodes from nested metadata (e.g. IMSCP organizations)
+        if content_node_metadata.children:
+            self._dynamic_children = True
+            self._build_children_from_metadata(content_node_metadata.children)
+
+    def _validate_and_collect_dynamic_filenames(self, node):
+        """Recursively collect filenames from dynamically created children.
+
+        Validates ContentNode leaves and recurses into any node with children.
+        """
+        filenames = []
+        for child in node.children:
+            if isinstance(child, ContentNode) and not child._files_processed:
+                child._files_processed = True
+                child.validate()
+            for f in child.files:
+                if f.filename:
+                    filenames.append(f.filename)
+            if child.children:
+                filenames.extend(self._validate_and_collect_dynamic_filenames(child))
+        return filenames
 
     def process_files(self):
         if self.uri:
             self._process_uri()
         filenames = super().process_files()
+
+        # Process dynamically created children (recursively)
+        if getattr(self, "_dynamic_children", False):
+            filenames.extend(self._validate_and_collect_dynamic_filenames(self))
+
         # Now that we have set all the metadata, and files, we validate the node
         # again to ensure that the metadata is valid
         self._files_processed = True

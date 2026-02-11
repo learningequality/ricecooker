@@ -1,0 +1,103 @@
+<?xml version="1.0" standalone="no" ?>
+<!--
+Hummingbirds Exploration Course Manifest Example
+
+This example demonstrates the use of metadata, including in-line and
+external metadata references. The external course-level metadata contains a comprehensive
+example of proper metadata element usage.
+-->
+<manifest identifier="com.example.hummingbirds.contentpackaging.metadata.2024" version="1"
+          xmlns="http://www.imsglobal.org/xsd/imscp_v1p1"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xmlns:adlcp="http://www.adlnet.org/xsd/adlcp_v1p3"
+          xmlns:adlseq="http://www.adlnet.org/xsd/adlseq_v1p3"
+          xmlns:adlnav="http://www.adlnet.org/xsd/adlnav_v1p3"
+          xmlns:imsss="http://www.imsglobal.org/xsd/imsss"
+          xmlns:lom="http://ltsc.ieee.org/xsd/LOM"
+          xsi:schemaLocation="http://www.imsglobal.org/xsd/imscp_v1p1 imscp_v1p1.xsd
+                              http://www.adlnet.org/xsd/adlcp_v1p3 adlcp_v1p3.xsd
+                              http://www.adlnet.org/xsd/adlseq_v1p3 adlseq_v1p3.xsd
+                              http://www.adlnet.org/xsd/adlnav_v1p3 adlnav_v1p3.xsd
+                              http://www.imsglobal.org/xsd/imsss imsss_v1p0.xsd
+                              http://ltsc.ieee.org/xsd/LOM lom.xsd">
+
+  <metadata>
+		<schema>ADL SCORM</schema>
+		<schemaversion>2004 3rd Edition</schemaversion>
+    <!-- External metadata file for the course -->
+    <adlcp:location>metadata_hummingbirds_course.xml</adlcp:location>
+	</metadata>
+
+	<organizations default="hummingbirds_default_org">
+        <organization identifier="hummingbirds_default_org">
+            <title>Discovering Hummingbirds</title>
+            <!-- Metadata about this organization -->
+            <metadata>
+                <adlcp:location>metadata_hummingbirds_organization.xml</adlcp:location>
+            </metadata>
+
+            <!-- Item 1 -->
+            <item identifier="item1" identifierref="resource1">
+                <title>Introduction to Hummingbirds</title>
+                <metadata>
+                    <lom>
+                        <general>
+                            <description>
+                                <string language="en-US">Explore the fascinating world of hummingbirds, their unique characteristics and behaviors.</string>
+                            </description>
+                            <language>en-US</language>
+                        </general>
+                    </lom>
+                </metadata>
+            </item>
+
+            <!-- Item 2 -->
+            <item identifier="item2" identifierref="resource2">
+                <title>Hummingbird Habitats</title>
+                <metadata>
+                    <lom>
+                        <general>
+                            <description>
+                                <string language="en-US">Learn about various habitats of hummingbirds, from tropical jungles to backyard gardens.</string>
+                            </description>
+                        </general>
+                    </lom>
+                </metadata>
+            </item>
+
+            <!-- Item 3 -->
+            <item identifier="item3" identifierref="resource3">
+                <title>Hummingbird Species</title>
+                <metadata>
+                    <lom>
+                        <general>
+                            <description>
+                                <string language="en-US">Discover the diversity of hummingbird species and their unique adaptations.</string>
+                            </description>
+                        </general>
+                    </lom>
+                </metadata>
+            </item>
+        </organization>
+	</organizations>
+
+    <resources>
+        <!-- Resources for Item 1 -->
+        <resource identifier="resource1" type="webcontent" href="intro.html">
+            <file href="intro.html"/>
+            <file href="shared/style.css"/>
+        </resource>
+
+        <!-- Resources for Item 2 -->
+        <resource identifier="resource2" type="webcontent" href="habitats.html">
+            <file href="habitats.html"/>
+            <file href="shared/image1.jpg"/>
+        </resource>
+
+        <!-- Resources for Item 3 -->
+        <resource identifier="resource3" type="webcontent" href="species.html">
+            <file href="species.html"/>
+            <file href="shared/image2.jpg"/>
+        </resource>
+    </resources>
+</manifest>

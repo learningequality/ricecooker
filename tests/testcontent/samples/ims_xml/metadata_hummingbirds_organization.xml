@@ -1,0 +1,14 @@
+<?xml version="1.0" ?>
+<!-- An example of organization-level metadata for the Discovering Hummingbirds course.-->
+<lom xmlns="http://ltsc.ieee.org/xsd/LOM" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://ltsc.ieee.org/xsd/LOM lom.xsd">
+  <general>
+    <description>
+      <string language="en-US">This metadata provides information about the structure and organization of the Discovering Hummingbirds course. The course is organized in a hierarchical manner, guiding learners from basic concepts to more detailed aspects of hummingbird biology and behavior.</string>
+    </description>
+
+    <structure>
+      <source>LOMv1.0</source>
+      <value>hierarchical</value>
+    </structure>
+  </general>
+</lom>
