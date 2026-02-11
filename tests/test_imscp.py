@@ -2,38 +2,92 @@
 import os
 import tempfile
 import zipfile
-from contextlib import contextmanager
 
 import pytest
+from helpers import create_zip_with_manifest
 
+from ricecooker.utils.imscp import _SAFE_PARSER
 from ricecooker.utils.imscp import flatten_single_child_topics
 from ricecooker.utils.imscp import has_imscp_manifest
+from ricecooker.utils.imscp import has_qti_items
+from ricecooker.utils.imscp import has_qti_resources
+from ricecooker.utils.imscp import has_webcontent_items
+from ricecooker.utils.imscp import is_qti_resource
+from ricecooker.utils.imscp import ManifestParseError
 from ricecooker.utils.imscp import parse_imscp_manifest
 from ricecooker.utils.SCORM_metadata import metadata_dict_to_content_node_fields
 
 
-BASE_PATH = os.path.dirname(os.path.abspath(__file__))
-IMS_XML_DIR = os.path.join(BASE_PATH, "testcontent", "samples", "ims_xml")
+# --- Safe parser tests ---
 
 
-@contextmanager
-def create_zip_with_manifest(manifest_filename, *additional_files):
-    """Create a temp zip with a manifest and optional additional files."""
+def test_safe_parser_disables_entity_resolution():
+    """_SAFE_PARSER does not resolve XML entities."""
+    from lxml import etree
+    import io
+
+    # XML with an internal entity reference
+    xml_bytes = b"""<?xml version="1.0"?>
+    <!DOCTYPE foo [<!ENTITY xxe "expanded">]>
+    <root>&xxe;</root>"""
+    tree = etree.parse(io.BytesIO(xml_bytes), _SAFE_PARSER)
+    # With resolve_entities=False the entity reference is NOT resolved into text
+    assert tree.getroot().text is None
+
+
+# --- Null guard / error handling tests ---
+
+
+def test_parse_manifest_without_resources_element():
+    """Manifest with <organizations> but no <resources> should not crash."""
+    manifest_content = b"""<?xml version="1.0" encoding="UTF-8"?>
+<manifest>
+    <metadata><lom><general><title><string>No Resources</string></title></general></lom></metadata>
+    <organizations>
+        <organization>
+            <title>Org</title>
+            <item identifier="i1" identifierref="r1"><title>Item 1</title></item>
+        </organization>
+    </organizations>
+</manifest>"""
     temp_zip = tempfile.NamedTemporaryFile(suffix=".zip", delete=False)
     temp_zip_path = temp_zip.name
     temp_zip.close()
     try:
-        manifest_file = os.path.join(IMS_XML_DIR, manifest_filename)
         with zipfile.ZipFile(temp_zip_path, "w") as zf:
-            zf.write(manifest_file, "imsmanifest.xml")
-            for additional_file in additional_files:
-                zf.write(os.path.join(IMS_XML_DIR, additional_file), additional_file)
-        yield temp_zip_path
+            zf.writestr("imsmanifest.xml", manifest_content)
+        result = parse_imscp_manifest(temp_zip_path)
+        # Should not crash; the item with identifierref won't resolve
+        assert result["metadata"]["title"] == "No Resources"
+        assert len(result["organizations"]) == 1
     finally:
-        try:
-            os.remove(temp_zip_path)
-        except (FileNotFoundError, OSError):
-            pass
+        os.remove(temp_zip_path)
+
+
+def test_resolve_metadata_with_missing_external_file():
+    """<adlcp:location> pointing to nonexistent file in zip raises ManifestParseError."""
+    manifest_content = b"""<?xml version="1.0" encoding="UTF-8"?>
+<manifest xmlns:adlcp="http://www.adlnet.org/xsd/adlcp_v1p3">
+    <metadata>
+        <adlcp:location>nonexistent_metadata.xml</adlcp:location>
+    </metadata>
+    <organizations>
+        <organization>
+            <title>Test</title>
+        </organization>
+    </organizations>
+    <resources/>
+</manifest>"""
+    temp_zip = tempfile.NamedTemporaryFile(suffix=".zip", delete=False)
+    temp_zip_path = temp_zip.name
+    temp_zip.close()
+    try:
+        with zipfile.ZipFile(temp_zip_path, "w") as zf:
+            zf.writestr("imsmanifest.xml", manifest_content)
+        with pytest.raises(ManifestParseError, match="nonexistent_metadata.xml"):
+            parse_imscp_manifest(temp_zip_path)
+    finally:
+        os.remove(temp_zip_path)
 
 
 # --- Manifest parsing tests ---
@@ -190,6 +244,48 @@ def test_flatten_deep_single_chain():
     assert result["title"] == "L3"
     assert len(result["children"]) == 1
     assert result["children"][0]["title"] == "Leaf"
+
+
+def test_flatten_preserves_parent_title_when_child_has_none():
+    """When child has no title, parent's title is preserved."""
+    item = {
+        "title": "Parent Title",
+        "metadata": {},
+        "children": [
+            {
+                "metadata": {"description": "child desc"},
+                "children": [
+                    {"title": "Leaf1", "metadata": {}, "href": "page1.html"},
+                    {"title": "Leaf2", "metadata": {}, "href": "page2.html"},
+                ],
+            }
+        ],
+    }
+    result = flatten_single_child_topics(item)
+
+    # Child has no title, so parent's title should be used
+    assert result["title"] == "Parent Title"
+    assert len(result["children"]) == 2
+
+
+def test_flatten_replaces_empty_string_title_with_parent():
+    """When child has an empty-string title, parent's title is used."""
+    item = {
+        "title": "Parent Title",
+        "metadata": {},
+        "children": [
+            {
+                "title": "",
+                "metadata": {},
+                "children": [
+                    {"title": "Leaf", "metadata": {}, "href": "page.html"},
+                ],
+            }
+        ],
+    }
+    result = flatten_single_child_topics(item)
+    # Empty string is not a meaningful title — parent's title should be used
+    assert result["title"] == "Parent Title"
 
 
 def test_flatten_preserves_leaf():
@@ -362,9 +458,7 @@ def test_scorm_resource_types_single_string():
     from ricecooker.utils.SCORM_metadata import map_scorm_to_educator_resource_types
     from le_utils.constants.labels import resource_type
 
-    result = map_scorm_to_educator_resource_types(
-        {"learningResourceType": "exercise"}
-    )
+    result = map_scorm_to_educator_resource_types({"learningResourceType": "exercise"})
     assert result == [resource_type.EXERCISE]
 
 
@@ -409,3 +503,183 @@ def test_metadata_dict_to_content_node_fields_lifecycle():
     }
     result = metadata_dict_to_content_node_fields(metadata)
     assert result["provider"] == "Example Organization"
+
+
+# --- QTI resource detection tests ---
+
+
+@pytest.mark.parametrize(
+    "resource_type,expected",
+    [
+        ("imsqti_item_xmlv2p1", True),
+        ("imsqti_test_xmlv2p1", True),
+        ("imsqti_assessment_xmlv2p1", True),
+        ("webcontent", False),
+        ("", False),
+        (None, False),
+        ("associatedcontent/imscc_xmlv1p1/learning-application-resource", False),
+    ],
+)
+def test_is_qti_resource(resource_type, expected):
+    assert is_qti_resource(resource_type) is expected
+
+
+def test_collect_resources_qti():
+    """QTI resources get files populated just like webcontent."""
+    with create_zip_with_manifest("qti_manifest.xml") as zip_path:
+        result = parse_imscp_manifest(zip_path)
+
+    org = result["organizations"][0]
+    # Both items reference QTI resources and should have files
+    for child in org["children"]:
+        assert "files" in child, f"QTI item '{child['title']}' should have files"
+        assert len(child["files"]) > 0
+
+
+def test_collect_resources_mixed():
+    """Mixed package: both webcontent and QTI items get files."""
+    with create_zip_with_manifest("mixed_manifest.xml") as zip_path:
+        result = parse_imscp_manifest(zip_path)
+
+    org = result["organizations"][0]
+    lessons = next(c for c in org["children"] if c["title"] == "Lessons")
+    quizzes = next(c for c in org["children"] if c["title"] == "Quizzes")
+
+    # Webcontent leaf
+    lesson1 = lessons["children"][0]
+    assert "files" in lesson1
+    assert "lesson1.html" in lesson1["files"]
+
+    # QTI leaves
+    for quiz in quizzes["children"]:
+        assert "files" in quiz, f"QTI item '{quiz['title']}' should have files"
+
+
+def test_has_qti_resources_true():
+    """Zip with QTI resource types returns True."""
+    with create_zip_with_manifest("qti_manifest.xml") as zip_path:
+        assert has_qti_resources(zip_path) is True
+
+
+def test_has_qti_resources_false():
+    """Zip with only webcontent returns False."""
+    with create_zip_with_manifest("simple_manifest.xml") as zip_path:
+        assert has_qti_resources(zip_path) is False
+
+
+def test_has_qti_resources_mixed():
+    """Mixed package with both webcontent and QTI returns True."""
+    with create_zip_with_manifest("mixed_manifest.xml") as zip_path:
+        assert has_qti_resources(zip_path) is True
+
+
+def test_has_qti_resources_nonexistent_file():
+    assert has_qti_resources("/nonexistent/path.zip") is False
+
+
+def test_has_qti_resources_bad_zip():
+    """Garbage bytes file: has_qti_resources returns False."""
+    temp = tempfile.NamedTemporaryFile(suffix=".zip", delete=False)
+    temp.write(b"this is not a zip file at all")
+    temp.close()
+    try:
+        assert has_qti_resources(temp.name) is False
+    finally:
+        os.remove(temp.name)
+
+
+def test_has_qti_resources_invalid_manifest():
+    """Zip with malformed XML as imsmanifest.xml: has_qti_resources returns False."""
+    temp_zip = tempfile.NamedTemporaryFile(suffix=".zip", delete=False)
+    temp_zip_path = temp_zip.name
+    temp_zip.close()
+    try:
+        with zipfile.ZipFile(temp_zip_path, "w") as zf:
+            zf.writestr("imsmanifest.xml", "<<<not valid xml>>>")
+        assert has_qti_resources(temp_zip_path) is False
+    finally:
+        os.remove(temp_zip_path)
+
+
+def test_has_qti_resources_manifest_missing_from_zip():
+    """Zip without imsmanifest.xml: has_qti_resources returns False."""
+    temp_zip = tempfile.NamedTemporaryFile(suffix=".zip", delete=False)
+    temp_zip_path = temp_zip.name
+    temp_zip.close()
+    try:
+        with zipfile.ZipFile(temp_zip_path, "w") as zf:
+            zf.writestr("index.html", "<html></html>")
+        assert has_qti_resources(temp_zip_path) is False
+    finally:
+        os.remove(temp_zip_path)
+
+
+def test_collect_resources_qti_preserves_type():
+    """QTI items have their resource type preserved in the item dict."""
+    with create_zip_with_manifest("qti_manifest.xml") as zip_path:
+        result = parse_imscp_manifest(zip_path)
+
+    org = result["organizations"][0]
+    for child in org["children"]:
+        assert child.get("type") == "imsqti_item_xmlv2p1"
+
+
+def test_collect_resources_mixed_preserves_types():
+    """Mixed items preserve their respective resource types."""
+    with create_zip_with_manifest("mixed_manifest.xml") as zip_path:
+        result = parse_imscp_manifest(zip_path)
+
+    org = result["organizations"][0]
+    lessons = next(c for c in org["children"] if c["title"] == "Lessons")
+    quizzes = next(c for c in org["children"] if c["title"] == "Quizzes")
+
+    lesson1 = lessons["children"][0]
+    assert lesson1.get("type") == "webcontent"
+
+    quiz1 = quizzes["children"][0]
+    assert is_qti_resource(quiz1.get("type", ""))
+
+
+# --- has_qti_items / has_webcontent_items tests (parsed manifest dict) ---
+
+
+def test_has_qti_items_pure_qti():
+    """has_qti_items returns True for a pure QTI manifest."""
+    with create_zip_with_manifest("qti_manifest.xml") as zip_path:
+        parsed = parse_imscp_manifest(zip_path)
+    assert has_qti_items(parsed) is True
+
+
+def test_has_qti_items_pure_imscp():
+    """has_qti_items returns False for a pure IMSCP (webcontent) manifest."""
+    with create_zip_with_manifest("simple_manifest.xml") as zip_path:
+        parsed = parse_imscp_manifest(zip_path)
+    assert has_qti_items(parsed) is False
+
+
+def test_has_qti_items_mixed():
+    """has_qti_items returns True for a mixed manifest."""
+    with create_zip_with_manifest("mixed_manifest.xml") as zip_path:
+        parsed = parse_imscp_manifest(zip_path)
+    assert has_qti_items(parsed) is True
+
+
+def test_has_webcontent_items_pure_imscp():
+    """has_webcontent_items returns True for a pure IMSCP (webcontent) manifest."""
+    with create_zip_with_manifest("simple_manifest.xml") as zip_path:
+        parsed = parse_imscp_manifest(zip_path)
+    assert has_webcontent_items(parsed) is True
+
+
+def test_has_webcontent_items_pure_qti():
+    """has_webcontent_items returns False for a pure QTI manifest."""
+    with create_zip_with_manifest("qti_manifest.xml") as zip_path:
+        parsed = parse_imscp_manifest(zip_path)
+    assert has_webcontent_items(parsed) is False
+
+
+def test_has_webcontent_items_mixed():
+    """has_webcontent_items returns True for a mixed manifest."""
+    with create_zip_with_manifest("mixed_manifest.xml") as zip_path:
+        parsed = parse_imscp_manifest(zip_path)
+    assert has_webcontent_items(parsed) is True

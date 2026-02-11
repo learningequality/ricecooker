@@ -298,7 +298,11 @@ class IMSCPZipFile(DownloadFile):
 
 
 class QTIZipFile(DownloadFile):
-    """Placeholder for QTI zip file support. QTI pipeline handlers are not yet implemented."""
+    """File class for QTI (Question and Test Interoperability) zip packages.
+
+    Used for exercise-kind leaf nodes within IMSCP packages that contain
+    QTI assessment resources (resource type prefix ``imsqti_``).
+    """
 
     default_ext = file_formats.HTML5
     allowed_formats = {file_formats.HTML5}
