@@ -46,6 +46,7 @@ from ricecooker.utils.videos import compress_video
 from ricecooker.utils.videos import validate_media_file
 from ricecooker.utils.videos import VideoCompressionError
 from ricecooker.utils.youtube import get_language_with_alpha2_fallback
+from ricecooker.utils.archive_assets import download_and_rewrite_external_refs
 from ricecooker.utils.zip import create_predictable_zip
 
 
@@ -194,10 +195,31 @@ class ArchiveProcessingBaseHandler(ExtensionMatchingHandler):
     def validate_archive(self, path: str):
         pass
 
+    def _process_external_refs(self, path):
+        """
+        Process external URL references in the archive.
+
+        Returns the path to process — either a temp directory with downloaded
+        assets, or the original path if processing fails or finds nothing.
+        """
+        try:
+            return download_and_rewrite_external_refs(path)
+        except Exception as e:
+            config.LOGGER.warning(
+                "Failed to process external references in %s: %s. "
+                "Continuing with original archive.",
+                path,
+                e,
+            )
+            return path
+
     def handle_file(self, path, audio_settings=None, video_settings=None):
         self.validate_archive(path)
 
         ext = extract_path_ext(path)
+
+        # Download external references and get processed directory
+        processed_path = self._process_external_refs(path)
 
         # Create partial for reading & compressing subfiles
         file_converter = partial(
@@ -208,7 +230,7 @@ class ArchiveProcessingBaseHandler(ExtensionMatchingHandler):
         )
         # create_predictable_zip will iterate over subfiles, call file_converter
         processed_zip_path = create_predictable_zip(
-            path, file_converter=file_converter if config.COMPRESS else None
+            processed_path, file_converter=file_converter if config.COMPRESS else None
         )
 
         with self.write_file(ext) as fh:
@@ -217,6 +239,8 @@ class ArchiveProcessingBaseHandler(ExtensionMatchingHandler):
 
         # Clean up
         os.unlink(processed_zip_path)
+        if processed_path != path:
+            shutil.rmtree(processed_path, ignore_errors=True)
 
     @contextmanager
     def open_and_verify_archive(self, path):
