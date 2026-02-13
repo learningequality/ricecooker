@@ -1,4 +1,5 @@
 """Tests for audio and video compression in archive files."""
+
 import json
 import os
 import tempfile
@@ -215,7 +216,9 @@ def test_h5p_archive_external_video_downloaded():
 
             data = json.loads(zf.read("content/content.json"))
             video_path = data["video"]["files"][0]["path"]
-            assert "https://h5p.org" not in video_path, "External URL should be rewritten"
+            assert (
+                "https://h5p.org" not in video_path
+            ), "External URL should be rewritten"
             assert "_external/" in video_path, "Should reference local path"
 
     finally:
@@ -238,13 +241,15 @@ def test_archive_external_refs_failure_graceful():
         with patch(
             "ricecooker.utils.pipeline.convert.download_and_rewrite_external_refs"
         ) as mock_process:
-            mock_process.side_effect = Exception("Network error")
+            mock_process.side_effect = OSError("Network error")
 
             with patch("ricecooker.config.COMPRESS", False):
                 html_file = HTMLZipFile(temp_archive.name)
                 result = html_file.process_file()
 
-        assert result is not None, "Processing should succeed even on external ref failure"
+        assert (
+            result is not None
+        ), "Processing should succeed even on external ref failure"
 
         # Original URL should be preserved since processing failed
         result_path = config.get_storage_path(result)

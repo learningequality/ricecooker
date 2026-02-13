@@ -177,9 +177,7 @@ class TestBasicFunctionality:
 
     def test_css_with_import(self, mock_download):
         zip_path = _create_zip(
-            {
-                "style.css": "@import 'https://fonts.googleapis.com/css?family=Roboto';"
-            }
+            {"style.css": "@import 'https://fonts.googleapis.com/css?family=Roboto';"}
         )
         try:
             result_dir = download_and_rewrite_external_refs(zip_path)
@@ -234,9 +232,7 @@ class TestBasicFunctionality:
                 )
                 assert os.path.exists(video_path)
 
-                with open(
-                    os.path.join(result_dir, "content", "content.json")
-                ) as f:
+                with open(os.path.join(result_dir, "content", "content.json")) as f:
                     data = json.load(f)
                 path_val = data["video"]["files"][0]["path"]
                 assert "https://h5p.org" not in path_val
@@ -410,14 +406,10 @@ class TestEdgeCases:
             os.unlink(zip_path)
 
     def test_blacklisted_urls_skipped(self, mock_download):
-        zip_path = _create_zip(
-            {
-                "index.html": """<html><body>
+        zip_path = _create_zip({"index.html": """<html><body>
                 <img src="https://cdn.example.com/photo.jpg">
                 <img src="https://blocked.example.com/img.jpg">
-                </body></html>"""
-            }
-        )
+                </body></html>"""})
         try:
             result_dir = download_and_rewrite_external_refs(
                 zip_path, url_blacklist=["blocked.example.com"]
@@ -464,12 +456,8 @@ class TestIntegrationShape:
             result_dir = download_and_rewrite_external_refs(zip_path)
             try:
                 assert os.path.exists(os.path.join(result_dir, "index.html"))
-                assert os.path.exists(
-                    os.path.join(result_dir, "images", "local.png")
-                )
-                assert os.path.exists(
-                    os.path.join(result_dir, "scripts", "app.js")
-                )
+                assert os.path.exists(os.path.join(result_dir, "images", "local.png"))
+                assert os.path.exists(os.path.join(result_dir, "scripts", "app.js"))
             finally:
                 shutil.rmtree(result_dir, ignore_errors=True)
         finally:

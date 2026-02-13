@@ -2,6 +2,7 @@
 To avoid making the pipeline overly convoluted, these handlers
 both validate and convert files.
 """
+
 import json
 import os
 import shutil
@@ -31,6 +32,7 @@ from .file_handler import ExtensionMatchingHandler
 from .file_handler import StageHandler
 from ricecooker import config
 from ricecooker.exceptions import UnknownFileTypeError
+from ricecooker.utils.archive_assets import download_and_rewrite_external_refs
 from ricecooker.utils.audio import AudioCompressionError
 from ricecooker.utils.audio import compress_audio
 from ricecooker.utils.caching import generate_key
@@ -46,9 +48,7 @@ from ricecooker.utils.videos import compress_video
 from ricecooker.utils.videos import validate_media_file
 from ricecooker.utils.videos import VideoCompressionError
 from ricecooker.utils.youtube import get_language_with_alpha2_fallback
-from ricecooker.utils.archive_assets import download_and_rewrite_external_refs
 from ricecooker.utils.zip import create_predictable_zip
-
 
 CONVERTIBLE_FORMATS = {p.id: p.convertible_formats for p in format_presets.PRESETLIST}
 
@@ -204,7 +204,7 @@ class ArchiveProcessingBaseHandler(ExtensionMatchingHandler):
         """
         try:
             return download_and_rewrite_external_refs(path)
-        except Exception as e:
+        except (OSError, zipfile.BadZipFile, ValueError) as e:
             config.LOGGER.warning(
                 "Failed to process external references in %s: %s. "
                 "Continuing with original archive.",

@@ -6,17 +6,14 @@ All tests operate on plain strings. No HTTP, no filesystem, no archives.
 
 import json
 
-from ricecooker.utils.url_utils import (
-    derive_local_filename,
-    extract_urls_from_css,
-    extract_urls_from_h5p_json,
-    extract_urls_from_html,
-    is_external_url,
-    rewrite_urls_in_css,
-    rewrite_urls_in_h5p_json,
-    rewrite_urls_in_html,
-)
-
+from ricecooker.utils.url_utils import derive_local_filename
+from ricecooker.utils.url_utils import extract_urls_from_css
+from ricecooker.utils.url_utils import extract_urls_from_h5p_json
+from ricecooker.utils.url_utils import extract_urls_from_html
+from ricecooker.utils.url_utils import is_external_url
+from ricecooker.utils.url_utils import rewrite_urls_in_css
+from ricecooker.utils.url_utils import rewrite_urls_in_h5p_json
+from ricecooker.utils.url_utils import rewrite_urls_in_html
 
 # ---------------------------------------------------------------------------
 # is_external_url tests
@@ -70,9 +67,7 @@ class TestDeriveLocalFilename:
         assert result == "_external/fonts.example.com/v1/fonts/roboto.woff2"
 
     def test_url_with_query(self):
-        result = derive_local_filename(
-            "https://fonts.googleapis.com/css?family=Roboto"
-        )
+        result = derive_local_filename("https://fonts.googleapis.com/css?family=Roboto")
         assert result == "_external/fonts.googleapis.com/css?family=Roboto"
 
     def test_url_root_path(self):
@@ -90,9 +85,7 @@ class TestDeriveLocalFilename:
         assert "etc/passwd" in result
 
     def test_path_traversal_deep(self):
-        result = derive_local_filename(
-            "https://evil.com/a/../../b/../../../etc/passwd"
-        )
+        result = derive_local_filename("https://evil.com/a/../../b/../../../etc/passwd")
         assert ".." not in result
         assert result.startswith("_external/")
 
@@ -213,7 +206,9 @@ class TestExtractUrlsFromHTML:
         assert "https://cdn.example.com/img-600.jpg" in extracted
 
     def test_extract_img_srcset_mixed_relative_external(self):
-        html = '<img srcset="img-300.jpg 300w, https://cdn.example.com/img-600.jpg 600w">'
+        html = (
+            '<img srcset="img-300.jpg 300w, https://cdn.example.com/img-600.jpg 600w">'
+        )
         urls = extract_urls_from_html(html, "index.html")
         srcset_urls = [u for u in urls if u.context == "html_srcset"]
         assert len(srcset_urls) == 1
@@ -337,9 +332,7 @@ class TestExtractUrlsFromH5PJSON:
                 "level1": {
                     "level2": {
                         "level3": [
-                            {
-                                "path": "https://cdn.example.com/deep/resource.mp4"
-                            }
+                            {"path": "https://cdn.example.com/deep/resource.mp4"}
                         ]
                     }
                 }
@@ -477,9 +470,7 @@ class TestRewriteUrlsInHTML:
 
     def test_rewrite_script_src(self):
         html = '<script src="https://cdn.example.com/lib.js"></script>'
-        url_map = {
-            "https://cdn.example.com/lib.js": "_external/cdn.example.com/lib.js"
-        }
+        url_map = {"https://cdn.example.com/lib.js": "_external/cdn.example.com/lib.js"}
         result = rewrite_urls_in_html(html, url_map)
         assert "_external/cdn.example.com/lib.js" in result
 
@@ -511,34 +502,22 @@ class TestRewriteUrlsInH5PJSON:
                 "image": {"path": "https://other.com/image.jpg"},
             }
         )
-        url_map = {
-            "https://example.com/video.mp4": "_external/example.com/video.mp4"
-        }
+        url_map = {"https://example.com/video.mp4": "_external/example.com/video.mp4"}
         result = rewrite_urls_in_h5p_json(data, url_map)
         parsed = json.loads(result)
         assert parsed["video"]["path"] == "_external/example.com/video.mp4"
         assert parsed["image"]["path"] == "https://other.com/image.jpg"
 
     def test_rewrite_deeply_nested(self):
-        data = json.dumps(
-            {
-                "a": {
-                    "b": [{"path": "https://example.com/deep.mp4"}]
-                }
-            }
-        )
-        url_map = {
-            "https://example.com/deep.mp4": "_external/example.com/deep.mp4"
-        }
+        data = json.dumps({"a": {"b": [{"path": "https://example.com/deep.mp4"}]}})
+        url_map = {"https://example.com/deep.mp4": "_external/example.com/deep.mp4"}
         result = rewrite_urls_in_h5p_json(data, url_map)
         parsed = json.loads(result)
         assert parsed["a"]["b"][0]["path"] == "_external/example.com/deep.mp4"
 
     def test_rewrite_relative_path_unchanged(self):
         data = json.dumps({"image": {"path": "images/photo.jpg"}})
-        url_map = {
-            "https://example.com/video.mp4": "_external/example.com/video.mp4"
-        }
+        url_map = {"https://example.com/video.mp4": "_external/example.com/video.mp4"}
         result = rewrite_urls_in_h5p_json(data, url_map)
         parsed = json.loads(result)
         assert parsed["image"]["path"] == "images/photo.jpg"

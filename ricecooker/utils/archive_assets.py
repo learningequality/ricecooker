@@ -12,15 +12,13 @@ import tempfile
 import zipfile
 
 from ricecooker.utils.downloader import make_request
-from ricecooker.utils.url_utils import (
-    derive_local_filename,
-    extract_urls_from_css,
-    extract_urls_from_h5p_json,
-    extract_urls_from_html,
-    rewrite_urls_in_css,
-    rewrite_urls_in_h5p_json,
-    rewrite_urls_in_html,
-)
+from ricecooker.utils.url_utils import derive_local_filename
+from ricecooker.utils.url_utils import extract_urls_from_css
+from ricecooker.utils.url_utils import extract_urls_from_h5p_json
+from ricecooker.utils.url_utils import extract_urls_from_html
+from ricecooker.utils.url_utils import rewrite_urls_in_css
+from ricecooker.utils.url_utils import rewrite_urls_in_h5p_json
+from ricecooker.utils.url_utils import rewrite_urls_in_html
 
 logger = logging.getLogger(__name__)
 
@@ -88,9 +86,104 @@ def _download_external_url(url, dest_dir, local_path):
         with open(full_path, "wb") as f:
             f.write(response.content)
         return True
-    except Exception:
+    except (OSError, IOError, ValueError):
         logger.warning("Error downloading %s", url, exc_info=True)
         return False
+
+
+def _extract_urls_from_file(full_path, rel_path, content_type):
+    """Extract external URLs from a single file. Returns list or None on error."""
+    try:
+        with open(full_path, "r", encoding="utf-8") as f:
+            content = f.read()
+    except (UnicodeDecodeError, OSError):
+        logger.warning("Could not read %s as text, skipping", rel_path)
+        return None
+
+    extractors = {
+        "html": extract_urls_from_html,
+        "css": extract_urls_from_css,
+        "json": extract_urls_from_h5p_json,
+    }
+    extractor = extractors.get(content_type)
+    if extractor is None:
+        return None
+    return extractor(content, rel_path)
+
+
+def _scan_archive_for_urls(temp_dir, url_blacklist):
+    """Scan all text files in an extracted archive for external URLs."""
+    all_urls = {}  # url -> derive_local_filename result
+    file_urls = {}  # filepath -> list of extracted URLs
+
+    for root, _dirs, filenames in os.walk(temp_dir):
+        for filename in filenames:
+            full_path = os.path.join(root, filename)
+            rel_path = os.path.relpath(full_path, temp_dir)
+            content_type = _detect_content_type(rel_path)
+            if content_type is None:
+                continue
+
+            extracted = _extract_urls_from_file(full_path, rel_path, content_type)
+            if extracted is None:
+                continue
+
+            external = [
+                e for e in extracted if not _is_blacklisted(e.url, url_blacklist)
+            ]
+            if external:
+                file_urls[rel_path] = external
+                for e in external:
+                    if e.url not in all_urls:
+                        all_urls[e.url] = derive_local_filename(e.url)
+
+    return all_urls, file_urls
+
+
+def _download_all_urls(temp_dir, all_urls, url_blacklist):
+    """Download all external URLs, including recursive CSS references."""
+    successful_downloads = set()
+    visited_urls = set()
+
+    for url, local_path in list(all_urls.items()):
+        if url in visited_urls:
+            continue
+        visited_urls.add(url)
+
+        if _download_external_url(url, temp_dir, local_path):
+            successful_downloads.add(url)
+            if local_path.endswith(".css") or "css" in local_path.split("?")[0]:
+                _process_downloaded_css(
+                    temp_dir,
+                    local_path,
+                    all_urls,
+                    successful_downloads,
+                    visited_urls,
+                    url_blacklist,
+                )
+
+    return successful_downloads
+
+
+def _rewrite_file(temp_dir, rel_path, url_map):
+    """Rewrite URL references in a single file."""
+    full_path = os.path.join(temp_dir, rel_path)
+    content_type = _detect_content_type(rel_path)
+
+    with open(full_path, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    rewriters = {
+        "html": rewrite_urls_in_html,
+        "css": rewrite_urls_in_css,
+        "json": rewrite_urls_in_h5p_json,
+    }
+    rewriter = rewriters.get(content_type)
+    if rewriter:
+        content = rewriter(content, url_map)
+
+    with open(full_path, "w", encoding="utf-8") as f:
+        f.write(content)
 
 
 def download_and_rewrite_external_refs(archive_path, url_blacklist=None):
@@ -106,82 +199,18 @@ def download_and_rewrite_external_refs(archive_path, url_blacklist=None):
         Path to a temporary directory containing the processed archive contents.
         The caller is responsible for cleaning up this directory.
     """
-    # Extract archive to temp directory
     temp_dir = tempfile.mkdtemp(prefix="ricecooker_archive_")
 
     with zipfile.ZipFile(archive_path, "r") as zf:
         zf.extractall(temp_dir)
 
-    # Phase 1: Scan all text files for external URLs
-    all_urls = {}  # url -> derive_local_filename result
-    file_urls = {}  # filepath -> list of extracted URLs
-
-    for root, _dirs, filenames in os.walk(temp_dir):
-        for filename in filenames:
-            full_path = os.path.join(root, filename)
-            rel_path = os.path.relpath(full_path, temp_dir)
-            content_type = _detect_content_type(rel_path)
-
-            if content_type is None:
-                continue
-
-            try:
-                with open(full_path, "r", encoding="utf-8") as f:
-                    content = f.read()
-            except (UnicodeDecodeError, OSError):
-                logger.warning("Could not read %s as text, skipping", rel_path)
-                continue
-
-            if content_type == "html":
-                extracted = extract_urls_from_html(content, rel_path)
-            elif content_type == "css":
-                extracted = extract_urls_from_css(content, rel_path)
-            elif content_type == "json":
-                extracted = extract_urls_from_h5p_json(content, rel_path)
-            else:
-                continue
-
-            # Filter out blacklisted URLs
-            external = [
-                e
-                for e in extracted
-                if not _is_blacklisted(e.url, url_blacklist)
-            ]
-
-            if external:
-                file_urls[rel_path] = external
-                for e in external:
-                    if e.url not in all_urls:
-                        all_urls[e.url] = derive_local_filename(e.url)
+    all_urls, file_urls = _scan_archive_for_urls(temp_dir, url_blacklist)
 
     if not all_urls:
         return temp_dir
 
-    # Phase 2: Download all external URLs
-    successful_downloads = set()
-    visited_urls = set()
+    successful_downloads = _download_all_urls(temp_dir, all_urls, url_blacklist)
 
-    for url, local_path in list(all_urls.items()):
-        if url in visited_urls:
-            continue
-        visited_urls.add(url)
-
-        if _download_external_url(url, temp_dir, local_path):
-            successful_downloads.add(url)
-
-            # CSS recursive download: scan downloaded CSS for more external refs
-            if local_path.endswith(".css") or "css" in local_path.split("?")[0]:
-                _process_downloaded_css(
-                    temp_dir,
-                    local_path,
-                    all_urls,
-                    successful_downloads,
-                    visited_urls,
-                    url_blacklist,
-                )
-
-    # Phase 3: Rewrite references in text files
-    url_map_by_file = {}
     for rel_path, extracted_list in file_urls.items():
         url_map = {}
         for e in extracted_list:
@@ -189,30 +218,18 @@ def download_and_rewrite_external_refs(archive_path, url_blacklist=None):
                 local_path = all_urls[e.url]
                 url_map[e.url] = _compute_relative_path(rel_path, local_path)
         if url_map:
-            url_map_by_file[rel_path] = url_map
-
-    for rel_path, url_map in url_map_by_file.items():
-        full_path = os.path.join(temp_dir, rel_path)
-        content_type = _detect_content_type(rel_path)
-
-        with open(full_path, "r", encoding="utf-8") as f:
-            content = f.read()
-
-        if content_type == "html":
-            content = rewrite_urls_in_html(content, url_map)
-        elif content_type == "css":
-            content = rewrite_urls_in_css(content, url_map)
-        elif content_type == "json":
-            content = rewrite_urls_in_h5p_json(content, url_map)
-
-        with open(full_path, "w", encoding="utf-8") as f:
-            f.write(content)
+            _rewrite_file(temp_dir, rel_path, url_map)
 
     return temp_dir
 
 
 def _process_downloaded_css(
-    temp_dir, css_local_path, all_urls, successful_downloads, visited_urls, url_blacklist
+    temp_dir,
+    css_local_path,
+    all_urls,
+    successful_downloads,
+    visited_urls,
+    url_blacklist,
 ):
     """Scan a downloaded CSS file for additional external references and download them."""
     full_path = os.path.join(temp_dir, css_local_path)
@@ -223,9 +240,7 @@ def _process_downloaded_css(
         return
 
     extracted = extract_urls_from_css(css_content, css_local_path)
-    external = [
-        e for e in extracted if not _is_blacklisted(e.url, url_blacklist)
-    ]
+    external = [e for e in extracted if not _is_blacklisted(e.url, url_blacklist)]
 
     if not external:
         return

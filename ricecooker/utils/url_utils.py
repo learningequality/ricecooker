@@ -113,6 +113,77 @@ def _parse_srcset(srcset_value):
     return urls
 
 
+def _extract_src_urls(soup, source_file, seen, results):
+    """Extract external URLs from src attributes on img, script, source tags."""
+    for tag_name in ("img", "script", "source"):
+        for node in soup.find_all(tag_name, src=True):
+            url = node["src"]
+            if is_external_url(url) and url not in seen:
+                seen.add(url)
+                results.append(
+                    ExtractedURL(
+                        url=url,
+                        source_file=source_file,
+                        context="html_attr",
+                        tag=tag_name,
+                        attr="src",
+                    )
+                )
+
+
+def _extract_srcset_urls(soup, source_file, seen, results):
+    """Extract external URLs from srcset attributes on img, source tags."""
+    for tag_name in ("img", "source"):
+        for node in soup.find_all(tag_name, srcset=True):
+            for url in _parse_srcset(node["srcset"]):
+                if is_external_url(url) and url not in seen:
+                    seen.add(url)
+                    results.append(
+                        ExtractedURL(
+                            url=url,
+                            source_file=source_file,
+                            context="html_srcset",
+                            tag=tag_name,
+                            attr="srcset",
+                        )
+                    )
+
+
+def _extract_stylesheet_urls(soup, source_file, seen, results):
+    """Extract external URLs from link[rel=stylesheet] href attributes."""
+    for node in soup.find_all("link", href=True):
+        if "rel" in node.attrs and "stylesheet" in node.get("rel", []):
+            url = node["href"]
+            if is_external_url(url) and url not in seen:
+                seen.add(url)
+                results.append(
+                    ExtractedURL(
+                        url=url,
+                        source_file=source_file,
+                        context="html_attr",
+                        tag="link",
+                        attr="href",
+                    )
+                )
+
+
+def _extract_style_urls(soup, source_file, seen, results):
+    """Extract external URLs from inline style attributes and style blocks."""
+    for node in soup.find_all(style=True):
+        style_val = node.get("style", "")
+        for extracted in extract_urls_from_css(style_val, source_file):
+            if extracted.url not in seen:
+                seen.add(extracted.url)
+                results.append(extracted)
+
+    for style_node in soup.find_all("style"):
+        if style_node.string:
+            for extracted in extract_urls_from_css(style_node.string, source_file):
+                if extracted.url not in seen:
+                    seen.add(extracted.url)
+                    results.append(extracted)
+
+
 def extract_urls_from_html(html_content, source_file=""):
     """
     Extract all external URL references from HTML content.
@@ -134,69 +205,10 @@ def extract_urls_from_html(html_content, source_file=""):
     results = []
     seen = set()
 
-    # img[src], script[src], source[src]
-    for tag_name in ("img", "script", "source"):
-        for node in soup.find_all(tag_name, src=True):
-            url = node["src"]
-            if is_external_url(url) and url not in seen:
-                seen.add(url)
-                results.append(
-                    ExtractedURL(
-                        url=url,
-                        source_file=source_file,
-                        context="html_attr",
-                        tag=tag_name,
-                        attr="src",
-                    )
-                )
-
-    # img[srcset], source[srcset]
-    for tag_name in ("img", "source"):
-        for node in soup.find_all(tag_name, srcset=True):
-            for url in _parse_srcset(node["srcset"]):
-                if is_external_url(url) and url not in seen:
-                    seen.add(url)
-                    results.append(
-                        ExtractedURL(
-                            url=url,
-                            source_file=source_file,
-                            context="html_srcset",
-                            tag=tag_name,
-                            attr="srcset",
-                        )
-                    )
-
-    # link[rel=stylesheet][href] — use "rel" in node.attrs (PR #636 fix)
-    for node in soup.find_all("link", href=True):
-        if "rel" in node.attrs and "stylesheet" in node.get("rel", []):
-            url = node["href"]
-            if is_external_url(url) and url not in seen:
-                seen.add(url)
-                results.append(
-                    ExtractedURL(
-                        url=url,
-                        source_file=source_file,
-                        context="html_attr",
-                        tag="link",
-                        attr="href",
-                    )
-                )
-
-    # Inline style attributes with url()
-    for node in soup.find_all(style=True):
-        style_val = node.get("style", "")
-        for extracted in extract_urls_from_css(style_val, source_file):
-            if extracted.url not in seen:
-                seen.add(extracted.url)
-                results.append(extracted)
-
-    # <style> blocks
-    for style_node in soup.find_all("style"):
-        if style_node.string:
-            for extracted in extract_urls_from_css(style_node.string, source_file):
-                if extracted.url not in seen:
-                    seen.add(extracted.url)
-                    results.append(extracted)
+    _extract_src_urls(soup, source_file, seen, results)
+    _extract_srcset_urls(soup, source_file, seen, results)
+    _extract_stylesheet_urls(soup, source_file, seen, results)
+    _extract_style_urls(soup, source_file, seen, results)
 
     return results
 
@@ -261,6 +273,51 @@ def rewrite_urls_in_css(css_content, url_map):
     return result
 
 
+def _rewrite_src_attrs(soup, url_map):
+    """Rewrite src attributes on img, script, source tags."""
+    for tag_name in ("img", "script", "source"):
+        for node in soup.find_all(tag_name, src=True):
+            url = node["src"]
+            if url in url_map:
+                node["src"] = url_map[url]
+
+
+def _rewrite_srcset_attrs(soup, url_map):
+    """Rewrite srcset attributes on img, source tags."""
+    for tag_name in ("img", "source"):
+        for node in soup.find_all(tag_name, srcset=True):
+            entries = []
+            for entry in node["srcset"].split(","):
+                entry = entry.strip()
+                if not entry:
+                    continue
+                parts = entry.split()
+                if parts[0] in url_map:
+                    parts[0] = url_map[parts[0]]
+                entries.append(" ".join(parts))
+            node["srcset"] = ", ".join(entries)
+
+
+def _rewrite_stylesheet_hrefs(soup, url_map):
+    """Rewrite href attributes on link[rel=stylesheet] tags."""
+    for node in soup.find_all("link", href=True):
+        if "rel" in node.attrs and "stylesheet" in node.get("rel", []):
+            url = node["href"]
+            if url in url_map:
+                node["href"] = url_map[url]
+
+
+def _rewrite_style_content(soup, url_map):
+    """Rewrite URLs in inline style attributes and style blocks."""
+    for node in soup.find_all(style=True):
+        style_val = node.get("style", "")
+        node["style"] = rewrite_urls_in_css(style_val, url_map)
+
+    for style_node in soup.find_all("style"):
+        if style_node.string:
+            style_node.string = rewrite_urls_in_css(style_node.string, url_map)
+
+
 def rewrite_urls_in_html(html_content, url_map):
     """
     Rewrite URL references in HTML content using the provided mapping.
@@ -276,44 +333,10 @@ def rewrite_urls_in_html(html_content, url_map):
 
     soup = BeautifulSoup(html_content, "html.parser")
 
-    # img[src], script[src], source[src]
-    for tag_name in ("img", "script", "source"):
-        for node in soup.find_all(tag_name, src=True):
-            url = node["src"]
-            if url in url_map:
-                node["src"] = url_map[url]
-
-    # img[srcset], source[srcset]
-    for tag_name in ("img", "source"):
-        for node in soup.find_all(tag_name, srcset=True):
-            entries = []
-            for entry in node["srcset"].split(","):
-                entry = entry.strip()
-                if not entry:
-                    continue
-                parts = entry.split()
-                url = parts[0]
-                if url in url_map:
-                    parts[0] = url_map[url]
-                entries.append(" ".join(parts))
-            node["srcset"] = ", ".join(entries)
-
-    # link[rel=stylesheet][href]
-    for node in soup.find_all("link", href=True):
-        if "rel" in node.attrs and "stylesheet" in node.get("rel", []):
-            url = node["href"]
-            if url in url_map:
-                node["href"] = url_map[url]
-
-    # Inline style attributes
-    for node in soup.find_all(style=True):
-        style_val = node.get("style", "")
-        node["style"] = rewrite_urls_in_css(style_val, url_map)
-
-    # <style> blocks
-    for style_node in soup.find_all("style"):
-        if style_node.string:
-            style_node.string = rewrite_urls_in_css(style_node.string, url_map)
+    _rewrite_src_attrs(soup, url_map)
+    _rewrite_srcset_attrs(soup, url_map)
+    _rewrite_stylesheet_hrefs(soup, url_map)
+    _rewrite_style_content(soup, url_map)
 
     return str(soup)
 
