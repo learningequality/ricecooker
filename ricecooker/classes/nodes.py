@@ -3,10 +3,13 @@ import json
 import re
 import uuid
 
+from le_utils.constants import completion_criteria
 from le_utils.constants import content_kinds
 from le_utils.constants import exercises
 from le_utils.constants import format_presets
 from le_utils.constants import languages
+from le_utils.constants import mastery_criteria
+from le_utils.constants import modalities
 from le_utils.constants import roles
 from le_utils.constants.labels import accessibility_categories
 from le_utils.constants.labels import learning_activities
@@ -19,6 +22,7 @@ from .. import __version__
 from .. import config
 from ..exceptions import InvalidNodeException
 from ..utils.utils import is_valid_uuid_string
+from .curriculum import LearningObjective
 from .files import ExtractedEPubThumbnailFile
 from .files import ExtractedHTMLZipThumbnailFile
 from .files import ExtractedPdfThumbnailFile
@@ -26,6 +30,8 @@ from .files import File
 from .files import SubtitleFile
 from .files import YouTubeSubtitleFile
 from .licenses import License
+from .questions import VARIANT_A
+from .questions import VARIANT_B
 from ricecooker.utils.pipeline.exceptions import ExpectedFileException
 from ricecooker.utils.pipeline.exceptions import InvalidFileException
 
@@ -101,6 +107,7 @@ class Node(object):
     language = None
     kind = None
     valid = False
+    _allows_questions = False  # Only ExerciseNode and UnitNode set this True
 
     def __init__(
         self,
@@ -431,9 +438,10 @@ class Node(object):
                 self.kind != self.__class__.kind,
                 f"{self.__class__.__name__} must have kind {self.__class__.kind}",
             )
-            if self.kind != content_kinds.EXERCISE:
+            if not self._allows_questions:
                 self._validate_values(
-                    bool(self.questions), f"{self.kind} should not have questions"
+                    bool(self.questions),
+                    f"{self.__class__.__name__} should not have questions",
                 )
 
         self._validate_values(not isinstance(self.title, str), "Title is not a string")
@@ -838,9 +846,12 @@ class ContentNode(TreeNode):
         return self._pipeline
 
     def __str__(self):
-        metadata = "{0} {1}".format(
-            len(self.files), "file" if len(self.files) == 1 else "files"
-        )
+        if len(self.files) == 0 and self.uri:
+            metadata = "uri: {}".format(self.uri)
+        else:
+            metadata = "{0} {1}".format(
+                len(self.files), "file" if len(self.files) == 1 else "files"
+            )
         return "{title} ({kind}): {metadata}".format(
             title=self.title, kind=self.__class__.__name__, metadata=metadata
         )
@@ -1036,7 +1047,7 @@ class AudioNode(ContentNode):
 class DocumentNode(ContentNode):
     """Model representing documents in channel
 
-    Documents must be in PDF or ePub format
+    Documents must be in PDF, ePub, Bloom, or KPUB format
 
     Attributes:
         derive_thumbnail (bool): automatically generate thumbnail (optional)
@@ -1049,6 +1060,7 @@ class DocumentNode(ContentNode):
         format_presets.DOCUMENT,
         format_presets.EPUB,
         format_presets.BLOOMPUB,
+        format_presets.KPUB_ZIP,
     )
 
     def generate_thumbnail(self):
@@ -1136,6 +1148,7 @@ class ExerciseNode(ContentNode):
     """
 
     kind = content_kinds.EXERCISE
+    _allows_questions = True
 
     def __init__(self, *args, questions=None, exercise_data=None, **kwargs):
         self.questions = questions or []
@@ -1482,3 +1495,257 @@ class StudioContentNode(TreeNode):
 
 # add alias for back-compatibility
 RemoteContentNode = StudioContentNode
+
+
+class _CurriculumNode(TopicNode):
+    """
+    Internal base class for curriculum-structured topic nodes (Course, Unit, Lesson).
+
+    Provides common functionality for setting modality and validating child types.
+    Not intended to be instantiated directly.
+
+    Attributes:
+        MODALITY: The modality constant from le_utils.constants.modalities
+        CHILD_CLASS: The allowed child node class
+    """
+
+    MODALITY = None  # Subclasses must define
+    CHILD_CLASS = None  # Subclasses must define
+
+    def __init__(self, *args, **kwargs):
+        kwargs["extra_fields"] = kwargs.get("extra_fields", {})
+        kwargs["extra_fields"]["options"] = kwargs["extra_fields"].get("options", {})
+        kwargs["extra_fields"]["options"]["modality"] = self.MODALITY
+        super().__init__(*args, **kwargs)
+
+    def _validate_child(self, node):
+        """Validate that node is an instance of the allowed child class."""
+        if not isinstance(node, self.CHILD_CLASS):
+            raise InvalidNodeException(
+                f"{self.__class__.__name__} can only have {self.CHILD_CLASS.__name__} children"
+            )
+
+    def add_child(self, node):
+        """Add a child node after validating its type."""
+        self._validate_child(node)
+        super().add_child(node)
+
+
+class LessonNode(_CurriculumNode):
+    """
+    Topic node representing a lesson within a unit.
+
+    Lessons can only contain resource nodes (ContentNode subclasses like
+    VideoNode, DocumentNode, etc.), not other topic nodes.
+
+    Attributes:
+        source_id (str): lesson's original id
+        title (str): lesson's title
+        description (str): description of lesson (optional)
+        thumbnail (str): local path or url to thumbnail image (optional)
+    """
+
+    MODALITY = modalities.LESSON
+    CHILD_CLASS = ContentNode
+
+
+class UnitNode(_CurriculumNode):
+    """
+    Topic node representing a unit within a course.
+
+    Units can only contain LessonNodes as children. Units also manage
+    pre/post test questions and learning objectives.
+
+    Attributes:
+        source_id (str): unit's original id
+        title (str): unit's title
+        description (str): description of unit (optional)
+        thumbnail (str): local path or url to thumbnail image (optional)
+        test_questions (list): list of (question, variant, learning_objectives) tuples
+        lesson_objectives (dict): mapping of LessonNode to list of LearningObjective
+    """
+
+    MODALITY = modalities.UNIT
+    CHILD_CLASS = LessonNode
+    _allows_questions = True
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.test_questions = []  # List of (question, variant, [LOs])
+        self.lesson_objectives = {}  # {lesson_node: [LOs]}
+
+    @property
+    def questions(self):
+        """Return an iterable of just the question objects for file processing."""
+        return [q for q, _, _ in self.test_questions]
+
+    @questions.setter
+    def questions(self, value):
+        """Setter to allow base Node class initialization (ignored for UnitNode)."""
+        # UnitNode manages questions through test_questions, so ignore base class assignment
+        pass
+
+    def _validate_learning_objectives(self, learning_objectives):
+        """Validate that all items are valid LearningObjective instances."""
+        for lo in learning_objectives:
+            if not isinstance(lo, LearningObjective):
+                raise InvalidNodeException(
+                    f"Expected LearningObjective, got {type(lo).__name__}"
+                )
+            if not lo.validate():
+                raise InvalidNodeException(f"Invalid LearningObjective: '{lo.text}'")
+
+    def add_child(self, node, learning_objectives):
+        """
+        Add a LessonNode with its associated learning objectives.
+
+        Args:
+            node: LessonNode to add
+            learning_objectives: List of LearningObjective instances
+        """
+        self._validate_child(node)
+        if not learning_objectives:
+            raise InvalidNodeException(
+                "LessonNode must have at least one learning objective"
+            )
+        self._validate_learning_objectives(learning_objectives)
+        self.lesson_objectives[node] = learning_objectives
+        # Call Node.add_child directly to skip _CurriculumNode validation
+        Node.add_child(self, node)
+
+    def add_question(self, question, variant, learning_objectives):
+        """
+        Add a pre/post test question.
+
+        Args:
+            question: Question instance (same types as ExerciseNode)
+            variant: VARIANT_A or VARIANT_B
+            learning_objectives: List of LearningObjective instances
+        """
+        if variant not in (VARIANT_A, VARIANT_B):
+            raise InvalidNodeException("variant must be VARIANT_A or VARIANT_B")
+        if not learning_objectives:
+            raise InvalidNodeException(
+                "Question must have at least one learning objective"
+            )
+        self._validate_learning_objectives(learning_objectives)
+        self.test_questions.append((question, variant, learning_objectives))
+
+    def _validate(self):
+        """Validate the unit including question balance and LO matching."""
+        # Single pass: validate questions and partition by variant
+        variant_a = []
+        variant_b = []
+        for question, variant, los in self.test_questions:
+            self._validate_values(
+                not question.validate(), "UnitNode has invalid question"
+            )
+            if variant == VARIANT_A:
+                variant_a.append((question, los))
+            else:
+                variant_b.append((question, los))
+
+        # Minimum 2 questions per variant
+        self._validate_values(
+            len(variant_a) < 2, "Must have at least 2 VARIANT_A questions"
+        )
+        self._validate_values(
+            len(variant_b) < 2, "Must have at least 2 VARIANT_B questions"
+        )
+
+        # Equal total counts
+        self._validate_values(
+            len(variant_a) != len(variant_b),
+            "VARIANT_A and VARIANT_B must have equal question counts",
+        )
+
+        # LO sets must match
+        lesson_los = {lo.id for los in self.lesson_objectives.values() for lo in los}
+        question_los = {lo.id for _, los in variant_a + variant_b for lo in los}
+        self._validate_values(
+            lesson_los != question_los,
+            "Learning objectives on lessons must match those on questions",
+        )
+
+        # Each LO equally represented across variants
+        for lo_id in lesson_los:
+            a_count = sum(
+                1 for _, los in variant_a if any(lo.id == lo_id for lo in los)
+            )
+            b_count = sum(
+                1 for _, los in variant_b if any(lo.id == lo_id for lo in los)
+            )
+            self._validate_values(
+                a_count != b_count,
+                "Learning objective must have equal questions in each variant",
+            )
+
+        return super()._validate()
+
+    def _get_mastery_criteria(self):
+        """Build mastery criteria dict for pre/post test."""
+        all_ids = [q.assessment_id for q, _, _ in self.test_questions]
+        a_ids = [q.assessment_id for q, v, _ in self.test_questions if v == VARIANT_A]
+        b_ids = [q.assessment_id for q, v, _ in self.test_questions if v == VARIANT_B]
+
+        return {
+            "mastery_model": mastery_criteria.PRE_POST_TEST,
+            "pre_post_test": {
+                "assessment_item_ids": all_ids,
+                "version_a_item_ids": a_ids,
+                "version_b_item_ids": b_ids,
+            },
+        }
+
+    def _get_learning_objectives_data(self):
+        """Build learning objectives structure per le_utils schema."""
+        # Collect unique LOs from lesson_objectives
+        # (validation guarantees match with questions)
+        all_los = {lo.id: lo for los in self.lesson_objectives.values() for lo in los}
+
+        return {
+            "learning_objectives": [lo.to_dict() for lo in all_los.values()],
+            "assessment_objectives": {
+                q.assessment_id: [lo.id for lo in los]
+                for q, _, los in self.test_questions
+            },
+            "lesson_objectives": {
+                node.get_node_id().hex: [lo.id for lo in los]
+                for node, los in self.lesson_objectives.items()
+            },
+        }
+
+    def to_dict(self):
+        """Serialize UnitNode including mastery model and learning objectives in options."""
+        result = super().to_dict()
+
+        # Parse extra_fields, add mastery model and learning objectives to options
+        extra_fields = json.loads(result["extra_fields"])
+        extra_fields["options"]["completion_criteria"] = {
+            "model": completion_criteria.MASTERY,
+            "threshold": self._get_mastery_criteria(),
+        }
+        extra_fields["options"].update(self._get_learning_objectives_data())
+        result["extra_fields"] = json.dumps(extra_fields)
+
+        # Serialize test questions
+        result["questions"] = [q.to_dict() for q in self.questions]
+
+        return result
+
+
+class CourseNode(_CurriculumNode):
+    """
+    Topic node representing a course.
+
+    Courses can only contain UnitNodes as children.
+
+    Attributes:
+        source_id (str): course's original id
+        title (str): course's title
+        description (str): description of course (optional)
+        thumbnail (str): local path or url to thumbnail image (optional)
+    """
+
+    MODALITY = modalities.COURSE
+    CHILD_CLASS = UnitNode
