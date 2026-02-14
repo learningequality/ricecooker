@@ -2,37 +2,13 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## What is Ricecooker
+@AGENTS.md
 
-A Python framework for converting educational content into Kolibri content channels and uploading them to Kolibri Studio. Content integration scripts ("chefs") subclass `SushiChef`, build a tree of nodes and files, and call `main()` to process and upload everything.
-
-## Commands
-
-```bash
-pip install -e '.[test,dev]'        # install for development (use uv pip if venv was created with uv)
-pytest                              # run all tests
-pytest tests/test_files.py          # run a single test file
-pytest -k 'test_something'         # filter by test name
-pre-commit run --all-files          # lint (the only way to run linting)
-```
-
-**System dependencies required:** `ffmpeg` and `poppler-utils`.
-
-**Code style:** max line length is 160 characters, enforced by black via pre-commit.
-
-## Architecture
+## Extended Architecture
 
 ### End-to-End Flow
 
 Chef script builds node tree → `uploadchannel()` validates → processes all files (download, convert, extract metadata) → diffs against Studio → uploads missing files → uploads channel structure → optionally publishes.
-
-### Key Modules
-
-- **`chefs.py`**: `SushiChef` base class (override `construct_channel()`), plus `JsonTreeChef`, `LineCook`, `YouTubeSushiChef`
-- **`classes/nodes.py`**: `ChannelNode` (root), `TopicNode` (folders), `ContentNode` subclasses (`VideoNode`, `AudioNode`, `DocumentNode`, `HTML5AppNode`, `ExerciseNode`, `SlideshowNode`)
-- **`classes/files.py`**: `DownloadFile` subclasses (`VideoFile`, `AudioFile`, `DocumentFile`, `HTMLZipFile`, `H5PFile`, etc.)
-- **`managers/tree.py`**: `ChannelManager` — orchestrates validation, processing, upload
-- **`utils/pipeline/`**: File processing pipeline (see below)
 
 ### File Processing Pipeline (`utils/pipeline/`)
 
