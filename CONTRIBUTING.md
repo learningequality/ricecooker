@@ -117,6 +117,14 @@ Here are the steps for setting up `ricecooker` for local development:
 6. When you're done making changes, check that your changes pass flake8 linter rules
    and the `ricecooker` test suite, including testing other Python versions with tox:
 
+   To run the tests you will need to install the extra depedencies tagged "test"
+
+   ```
+   pip install -e .[test]
+   ```
+
+   Running the tests
+
     ```
     flake8 ricecooker tests
     pytest
