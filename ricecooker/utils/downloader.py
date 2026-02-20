@@ -389,8 +389,12 @@ def download_static_assets(  # noqa: C901
                 # if we're really stuck, just default to HTML as that is most likely if this is a redirect.
                 if not ext:
                     ext = ".html"
-                subpath = os.path.dirname(filename)
-                filename = "index{}".format(ext)
+
+                subpath = filename
+                # Add the existing filename in front of index.xxx, this can contain slashes and those will result
+                # in subdirectories created in the downloaded version. This ensures multiple instances of extensionless
+                # resources referenced from a page won't clobber each other.
+                filename = filename + "/index{}".format(ext)
 
                 os.makedirs(os.path.join(destination, subpath), exist_ok=True)
 
@@ -428,7 +432,7 @@ def download_static_assets(  # noqa: C901
         return content
 
     def css_node_filter(node):
-        if "rel" in node:
+        if "rel" in node.attrs:
             return "stylesheet" in node["rel"]
         return node["href"].split("?")[0].strip().endswith(".css")
 
