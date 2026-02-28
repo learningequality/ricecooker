@@ -236,6 +236,31 @@ class ArchiveProcessingBaseHandler(ExtensionMatchingHandler):
                 f"File {zf.filename} is not a valid {self.FILE_TYPE} file, {filepath} is missing."
             )
 
+    def _validate_index_html_body(self, zf, path):
+        """Validate that index.html exists and has a non-empty body."""
+        index_html = self.read_file_from_archive(zf, "index.html")
+        try:
+            dom = html5lib.parse(index_html, namespaceHTMLElements=False)
+            body = dom.find("body")
+            if body is None:
+                raise InvalidFileException(
+                    f"File {path} is not a valid {self.FILE_TYPE} file, index.html is missing a body element."
+                )
+            # Check that the body has at least one child element
+            # for some reason it seems like comments don't get a string tag attribute
+            body_children = [
+                c for c in body.iter() if isinstance(c.tag, str) and c.tag != "body"
+            ]
+            if not (body.text and body.text.strip()) and not body_children:
+                raise InvalidFileException(
+                    f"File {path} is not a valid {self.FILE_TYPE} file, index.html is empty."
+                )
+            return dom
+        except ParseError:
+            raise InvalidFileException(
+                f"File {path} is not a valid {self.FILE_TYPE} file, index.html is not well-formed."
+            )
+
     def _read_and_compress_archive_file(
         self, filepath, reader, audio_settings=None, video_settings=None, ext=None
     ):
@@ -291,28 +316,7 @@ class HTML5ConversionHandler(ArchiveProcessingBaseHandler):
 
     def validate_archive(self, path: str):
         with self.open_and_verify_archive(path) as zf:
-            # Check index.html exists and is valid HTML
-            index_html = self.read_file_from_archive(zf, "index.html")
-            try:
-                dom = html5lib.parse(index_html, namespaceHTMLElements=False)
-                body = dom.find("body")
-                if body is None:
-                    raise InvalidFileException(
-                        f"File {path} is not a valid HTML5 file, index.html is missing a body element."
-                    )
-                # Check that the body has at least one child element
-                # for some reason it seems like comments don't get a string tag attribute
-                body_children = [
-                    c for c in body.iter() if isinstance(c.tag, str) and c.tag != "body"
-                ]
-                if not body.text.strip() and not body_children:
-                    raise InvalidFileException(
-                        f"File {path} is not a valid HTML5 file, index.html is empty."
-                    )
-            except ParseError:
-                raise InvalidFileException(
-                    f"File {path} is not a valid HTML5 file, index.html is not well-formed."
-                )
+            self._validate_index_html_body(zf, path)
 
 
 class H5PConversionHandler(ArchiveProcessingBaseHandler):
