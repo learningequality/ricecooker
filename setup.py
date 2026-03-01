@@ -54,7 +54,7 @@ setup(
     ],
     extras_require={
         "test": [
-            "requests-cache==1.2.1",
+            "requests-cache==1.3.0",
             "pytest==8.4.2",
             "pytest-env==1.1.5",
             "vcrpy==7.0.0; python_version >='3.10'",
