@@ -170,6 +170,32 @@ def test_exercise_extra_fields_float(exercise):
     exercise.validate()
 
 
+def test_exercise_invalid_question_raises_invalid_node_exception(exercise_data):
+    """Invalid questions (e.g. SingleSelect with zero correct answers) produce
+    InvalidNodeException via _validate_values, not raw AssertionError (issue #659).
+    """
+    # SingleSelectQuestion with no correct answer (all correct=False)
+    bad_question = SingleSelectQuestion(
+        id="bad",
+        question="Q?",
+        correct_answer="A",
+        all_answers=["A", "B", "C"],
+    )
+    for a in bad_question.answers:
+        a["correct"] = False
+
+    node = ExerciseNode(
+        source_id=exercise_data["id"],
+        title=exercise_data["title"],
+        author=exercise_data["author"],
+        license=exercise_data["license"],
+        questions=[bad_question],
+    )
+    with pytest.raises(InvalidNodeException) as exc_info:
+        node.validate()
+    assert "invalid question" in str(exc_info.value).lower()
+
+
 ################################################################################
 # Perseus image asset processing and image loading tests
 ################################################################################
