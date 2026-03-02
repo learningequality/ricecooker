@@ -8,7 +8,6 @@ from le_utils.constants import content_kinds
 from ricecooker.classes.nodes import ChannelNode
 from ricecooker.classes.nodes import TopicNode
 from ricecooker.exceptions import InvalidNodeException
-from ricecooker.exceptions import InvalidQuestionException
 
 
 """ *********** CHANNEL TESTS *********** """
@@ -68,7 +67,7 @@ def test_validate(
     pytest.raises(InvalidNodeException, html_invalid_files.process_files)
     pytest.raises(InvalidNodeException, html_invalid_zip.process_files)
     assert exercise.validate(), "Valid html content should pass validation"
-    pytest.raises(InvalidQuestionException, exercise_invalid_question.validate)
+    pytest.raises(InvalidNodeException, exercise_invalid_question.validate)
 
 
 """ *********** ALT DOMAIN TESTS *********** """
