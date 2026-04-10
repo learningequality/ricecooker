@@ -49,7 +49,6 @@ pip-delete-this-directory.txt
 
 # Unit test / coverage reports
 htmlcov/
-.tox/
 .coverage
 .coverage.*
 .cache
@@ -137,3 +136,6 @@ cache.sqlite
 
 chefdata/
 audio_cache.sqlite
+
+# uv
+.venv/
