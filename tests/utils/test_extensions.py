@@ -30,9 +30,7 @@ def test_extract_path_ext_urls():
 def test_extract_path_ext_urls_with_query_params():
     """Test URLs with query parameters."""
     assert extract_path_ext("http://example.com/file.html?param=value") == "html"
-    assert (
-        extract_path_ext("https://api.domain.org/data.json?id=123&token=abc") == "json"
-    )
+    assert extract_path_ext("https://api.domain.org/data.json?id=123&token=abc") == "json"
     assert extract_path_ext("http://site.com/download.tar.gz?download=true") == "gz"
 
 
@@ -61,10 +59,7 @@ def test_extract_path_ext_default_ext():
     """Test default extension parameter."""
     assert extract_path_ext("file_without_extension", default_ext="txt") == "txt"
     assert extract_path_ext("file.", default_ext="dat") == "dat"
-    assert (
-        extract_path_ext("http://example.com/api/v1/resource", default_ext="json")
-        == "json"
-    )
+    assert extract_path_ext("http://example.com/api/v1/resource", default_ext="json") == "json"
 
 
 def test_extract_path_ext_complex_paths():

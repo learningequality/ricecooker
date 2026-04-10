@@ -5,28 +5,24 @@ from unittest.mock import patch
 import pytest
 
 from ricecooker.classes.files import YouTubeSubtitleFile
-from ricecooker.utils.youtube import get_language_with_alpha2_fallback
-from ricecooker.utils.youtube import is_youtube_subtitle_file_supported_language
 from ricecooker.utils.youtube import YouTubePlaylistUtils
 from ricecooker.utils.youtube import YouTubeVideoUtils
+from ricecooker.utils.youtube import get_language_with_alpha2_fallback
+from ricecooker.utils.youtube import is_youtube_subtitle_file_supported_language
 
 """ *********** YouTube Cache FIXTURES *********** """
 
 
 @pytest.fixture
 def youtube_video_cache():
-    cache_dir = os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "testcontent", "youtubecache")
-    )
+    cache_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "testcontent", "youtubecache"))
     assert os.path.isdir(cache_dir), "Incorrect directory path setting"
     return YouTubeVideoUtils(id="zzJLYK893gQ", alias="test-video", cache_dir=cache_dir)
 
 
 @pytest.fixture
 def youtube_playlist_cache():
-    cache_dir = os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "testcontent", "youtubecache")
-    )
+    cache_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "testcontent", "youtubecache"))
     assert os.path.isdir(cache_dir), "Incorrect directory path setting"
     return YouTubePlaylistUtils(
         id="PLOZioxrIwCv33zt5aFFjWqDoEMm55MVA9",
@@ -59,14 +55,8 @@ def test_youtube_video_cache(youtube_video_cache):
         mock_youtube_dl_class.return_value = mock_youtube_dl_instance
         mock_youtube_dl_instance.extract_info.return_value = mock_video_info
 
-        video_info = youtube_video_cache.get_video_info(
-            use_proxy=False, get_subtitle_languages=True
-        )
-    video_cache_filepath = os.path.abspath(
-        os.path.join(
-            os.path.dirname(__file__), "testcontent", "youtubecache", "test-video.json"
-        )
-    )
+        video_info = youtube_video_cache.get_video_info(use_proxy=False, get_subtitle_languages=True)
+    video_cache_filepath = os.path.abspath(os.path.join(os.path.dirname(__file__), "testcontent", "youtubecache", "test-video.json"))
     assert video_info and os.path.exists(video_cache_filepath)
 
 
@@ -135,9 +125,7 @@ def test_is_youtube_subtitle_file_supported_language(
 
 def test_is_youtube_subtitle_file_unsupported_language(subtitles_langs_unsupported):
     for lang in subtitles_langs_unsupported:
-        assert not is_youtube_subtitle_file_supported_language(
-            lang
-        ), "should not be supported"
+        assert not is_youtube_subtitle_file_supported_language(lang), "should not be supported"
         lang_obj = get_language_with_alpha2_fallback(lang)
         assert lang_obj is None, "lookup should fail"
 

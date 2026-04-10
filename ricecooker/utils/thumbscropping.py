@@ -180,9 +180,7 @@ def scale_and_crop(  # noqa: C901
             box.append(int(min(source_x, box[0] + target_x)))
             box.append(int(min(source_y, box[1] + target_y)))
             # See if an edge cropping argument was provided.
-            edge_crop = isinstance(crop, string_types) and re.match(
-                r"(?:(-?)(\d+))?,(?:(-?)(\d+))?$", crop
-            )
+            edge_crop = isinstance(crop, string_types) and re.match(r"(?:(-?)(\d+))?,(?:(-?)(\d+))?$", crop)
             if edge_crop and filter(None, edge_crop.groups()):
                 x_right, x_crop, y_bottom, y_crop = edge_crop.groups()
                 if x_crop:

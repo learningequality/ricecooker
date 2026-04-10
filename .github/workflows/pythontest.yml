@@ -20,7 +20,7 @@ jobs:
         uses: fkirc/skip-duplicate-actions@master
         with:
           github_token: ${{ github.token }}
-          paths: '["**.py", "requirements_test.txt", ".github/workflows/pythontest.yml"]'
+          paths: '["**.py", "pyproject.toml", "uv.lock", ".github/workflows/pythontest.yml"]'
   unit_test:
     name: Python unit tests
     needs: pre_job
@@ -30,16 +30,19 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-latest, ubuntu-latest, macos-latest]
-        python-version: [3.9, '3.10', '3.11', '3.12', '3.13']
+        python-version: ['3.9', '3.10', '3.11', '3.12', '3.13']
     steps:
       - uses: actions/checkout@v6
         if: ${{ needs.pre_job.outputs.should_skip != 'true' }}
-      - name: Set up Python ${{ matrix.python-version }}
-        if: ${{ needs.pre_job.outputs.should_skip != 'true' }}
-        uses: actions/setup-python@v6
         with:
+          fetch-depth: 0
+      - name: Set up uv
+        if: ${{ needs.pre_job.outputs.should_skip != 'true' }}
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-python: true
           python-version: ${{ matrix.python-version }}
-          cache: 'pip'
       - name: Install Ubuntu dependencies
         run: |
           sudo apt-get -y -qq update
@@ -104,17 +107,6 @@ jobs:
         run: |
           Add-Content -Path $env:GITHUB_PATH -Value "$env:GITHUB_WORKSPACE\tools\ffmpeg-master-latest-win64-gpl\bin" -Encoding utf8
           Add-Content -Path $env:GITHUB_PATH -Value "$env:GITHUB_WORKSPACE\tools\poppler-21.11.0\Library\bin" -Encoding utf8
-      - name: Install tox
+      - name: Run tests
         if: ${{ needs.pre_job.outputs.should_skip != 'true' }}
-        run: |
-          python -m pip install --upgrade pip
-          pip install tox
-      - name: tox env cache
-        if: ${{ needs.pre_job.outputs.should_skip != 'true' && !startsWith(runner.os, 'windows') }}
-        uses: actions/cache@v5
-        with:
-          path: ${{ github.workspace }}/.tox/py${{ matrix.python-version }}
-          key: ${{ runner.os }}-tox-py${{ matrix.python-version }}-${{ hashFiles('setup.py') }}
-      - name: Test with tox
-        if: ${{ needs.pre_job.outputs.should_skip != 'true' }}
-        run: tox -e py${{ matrix.python-version }}
+        run: uv run --group test --extra google_drive pytest

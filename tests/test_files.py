@@ -1,4 +1,5 @@
-""" Tests for file downloading and processing """
+"""Tests for file downloading and processing"""
+
 import base64
 import hashlib
 import os.path
@@ -22,10 +23,9 @@ from test_pdfutils import _save_file_url_to_path
 from vcr_config import my_vcr
 
 from ricecooker import config
-from ricecooker.classes.files import _ExerciseGraphieFile
+from ricecooker.classes.files import CONVERTIBLE_FORMATS
 from ricecooker.classes.files import AudioFile
 from ricecooker.classes.files import Base64ImageFile
-from ricecooker.classes.files import CONVERTIBLE_FORMATS
 from ricecooker.classes.files import DocumentFile
 from ricecooker.classes.files import DownloadFile
 from ricecooker.classes.files import File
@@ -35,6 +35,7 @@ from ricecooker.classes.files import StudioFile
 from ricecooker.classes.files import SubtitleFile
 from ricecooker.classes.files import VideoFile
 from ricecooker.classes.files import YouTubeVideoFile
+from ricecooker.classes.files import _ExerciseGraphieFile
 from ricecooker.utils.audio import AudioCompressionError
 from ricecooker.utils.pipeline.convert import PDFValidationHandler
 from ricecooker.utils.pipeline.exceptions import InvalidFileException
@@ -126,27 +127,13 @@ def test_download_filenames(
     subtitle_file,
     subtitle_filename,
 ):
-    assert (
-        video_file.process_file() == video_filename
-    ), "Video file should have filename {}".format(video_filename)
-    assert (
-        html_file.process_file() == html_filename
-    ), "HTML file should have filename {}".format(html_filename)
-    assert (
-        audio_file.process_file() == audio_filename
-    ), "Audio file should have filename {}".format(audio_filename)
-    assert (
-        document_file.process_file() == document_filename
-    ), "PDF document file should have filename {}".format(document_filename)
-    assert (
-        epub_file.process_file() == epub_filename
-    ), "ePub document file should have filename {}".format(epub_filename)
-    assert (
-        thumbnail_file.process_file() == thumbnail_filename
-    ), "Thumbnail file should have filename {}".format(thumbnail_filename)
-    assert (
-        subtitle_file.process_file() == subtitle_filename
-    ), "Subtitle file should have filename {}".format(subtitle_filename)
+    assert video_file.process_file() == video_filename, "Video file should have filename {}".format(video_filename)
+    assert html_file.process_file() == html_filename, "HTML file should have filename {}".format(html_filename)
+    assert audio_file.process_file() == audio_filename, "Audio file should have filename {}".format(audio_filename)
+    assert document_file.process_file() == document_filename, "PDF document file should have filename {}".format(document_filename)
+    assert epub_file.process_file() == epub_filename, "ePub document file should have filename {}".format(epub_filename)
+    assert thumbnail_file.process_file() == thumbnail_filename, "Thumbnail file should have filename {}".format(thumbnail_filename)
+    assert subtitle_file.process_file() == subtitle_filename, "Subtitle file should have filename {}".format(subtitle_filename)
 
 
 def read_file_hash(filepath):
@@ -197,41 +184,19 @@ def test_download_to_storage(
     subtitle_path = config.get_storage_path(subtitle_filename)
 
     assert os.path.isfile(video_path), "Video should be stored at {}".format(video_path)
-    assert (
-        read_file_hash(video_path) == video_filename.split(".")[0]
-    ), "Video hash should match"
+    assert read_file_hash(video_path) == video_filename.split(".")[0], "Video hash should match"
     assert os.path.isfile(html_path), "HTML should be stored at {}".format(html_path)
-    assert (
-        read_file_hash(html_path) == html_filename.split(".")[0]
-    ), "HTML hash should match"
+    assert read_file_hash(html_path) == html_filename.split(".")[0], "HTML hash should match"
     assert os.path.isfile(audio_path), "Audio should be stored at {}".format(audio_path)
-    assert (
-        read_file_hash(audio_path) == audio_filename.split(".")[0]
-    ), "Audio hash should match"
-    assert os.path.isfile(document_path), "PDF document should be stored at {}".format(
-        document_path
-    )
-    assert (
-        read_file_hash(document_path) == document_filename.split(".")[0]
-    ), "PDF hash should match"
-    assert os.path.isfile(epub_path), "ePub document should be stored at {}".format(
-        epub_path
-    )
-    assert (
-        read_file_hash(epub_path) == epub_filename.split(".")[0]
-    ), "ePub hash should match"
-    assert os.path.isfile(thumbnail_path), "Thumbnail should be stored at {}".format(
-        thumbnail_path
-    )
-    assert (
-        read_file_hash(thumbnail_path) == thumbnail_filename.split(".")[0]
-    ), "Thumbnail hash should match"
-    assert os.path.isfile(subtitle_path), "Subtitle should be stored at {}".format(
-        subtitle_path
-    )
-    assert (
-        read_file_hash(subtitle_path) == subtitle_filename.split(".")[0]
-    ), "Subtitle hash should match"
+    assert read_file_hash(audio_path) == audio_filename.split(".")[0], "Audio hash should match"
+    assert os.path.isfile(document_path), "PDF document should be stored at {}".format(document_path)
+    assert read_file_hash(document_path) == document_filename.split(".")[0], "PDF hash should match"
+    assert os.path.isfile(epub_path), "ePub document should be stored at {}".format(epub_path)
+    assert read_file_hash(epub_path) == epub_filename.split(".")[0], "ePub hash should match"
+    assert os.path.isfile(thumbnail_path), "Thumbnail should be stored at {}".format(thumbnail_path)
+    assert read_file_hash(thumbnail_path) == thumbnail_filename.split(".")[0], "Thumbnail hash should match"
+    assert os.path.isfile(subtitle_path), "Subtitle should be stored at {}".format(subtitle_path)
+    assert read_file_hash(subtitle_path) == subtitle_filename.split(".")[0], "Subtitle hash should match"
 
 
 # Base File class method tests
@@ -292,10 +257,7 @@ def test_truncate_non_ascii(mock_node):
 
     assert len(test_file.original_filename) == config.MAX_ORIGINAL_FILENAME_LENGTH
     # Verify we still have valid UTF-8 after truncation
-    assert (
-        test_file.original_filename.encode("utf-8").decode("utf-8")
-        == test_file.original_filename
-    )
+    assert test_file.original_filename.encode("utf-8").decode("utf-8") == test_file.original_filename
 
 
 # Basic file download error handling tests
@@ -342,9 +304,7 @@ def test_downloadfile_basic_caching(document_file):
 
     # Second download should use cache
     doc_file2 = DocumentFile(document_file.path)
-    with patch(
-        "ricecooker.utils.pipeline.transfer.DiskResourceHandler.handle_file"
-    ) as mock_write:
+    with patch("ricecooker.utils.pipeline.transfer.DiskResourceHandler.handle_file") as mock_write:
         filename2 = doc_file2.process_file()
         assert not mock_write.called
         assert filename2 == filename1
@@ -436,9 +396,7 @@ def test_audio_compression_error(audio_file):
 def test_set_language():
     sub1 = SubtitleFile("path", language="en")
     sub2 = SubtitleFile("path", language=languages.getlang("es"))
-    assert isinstance(
-        sub1.language, str
-    ), "Subtitles must be converted to Language class"
+    assert isinstance(sub1.language, str), "Subtitles must be converted to Language class"
     assert isinstance(sub2.language, str), "Subtitles can be passed as Langauge models"
     assert sub1.language == "en", "Subtitles must have a language"
     assert sub2.language == "es", "Subtitles must have a language"
@@ -642,9 +600,7 @@ def test_nested_index_htmlzip_validation(nested_index_zip):
     assert "index.html" in html_file.error
 
 
-@pytest.mark.skip(
-    "Currently leaving this disabled as it is not a common use case - and the new validation is too strict for this case"
-)
+@pytest.mark.skip("Currently leaving this disabled as it is not a common use case - and the new validation is too strict for this case")
 def test_dependency_zip_validation(invalid_zip):
     html_file = HTMLZipFile(invalid_zip, preset=format_presets.HTML5_DEPENDENCY_ZIP)
     html_file.process_file()
@@ -744,9 +700,7 @@ def test_malformed_json_validation(malformed_jsons):
     assert any(x in h5p_file.error for x in ["h5p.json", "content.json"])
 
 
-@pytest.mark.skip(
-    "Skipping one-off create_predictable_zip stress test because long running..."
-)
+@pytest.mark.skip("Skipping one-off create_predictable_zip stress test because long running...")
 def test_create_many_predictable_zip_files(ndirs=8193):
     """
     Regression test for `OSError: [Errno 24] Too many open files` when using
@@ -815,9 +769,7 @@ def test_bad_subtitles_raises(bad_subtitles_file):
 
 
 PRESSURECOOKER_REPO_URL = "https://raw.githubusercontent.com/bjester/pressurecooker/"
-PRESSURECOOKER_FILES_URL_BASE = (
-    PRESSURECOOKER_REPO_URL + "pycaption/tests/files/subtitles/"
-)
+PRESSURECOOKER_FILES_URL_BASE = PRESSURECOOKER_REPO_URL + "pycaption/tests/files/subtitles/"
 PRESSURECOOKER_SUBS_FIXTURES = [
     {
         "srcfilename": "basic.srt",
@@ -854,22 +806,12 @@ def download_fixture_files(fixtures_list):
     for fixture in fixtures_list:
         srcfilename = fixture["srcfilename"]
         # localpath = os.path.join("tests", "testcontent", "downloaded", srcfilename)
-        local_path = os.path.abspath(
-            os.path.join(
-                os.path.dirname(__file__), "testcontent", "downloaded", srcfilename
-            )
-        )
+        local_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "testcontent", "downloaded", srcfilename))
 
         if not os.path.exists(local_path):
-            url = (
-                fixture["url"]
-                if "url" in fixture.keys()
-                else PRESSURECOOKER_FILES_URL_BASE + srcfilename
-            )
+            url = fixture["url"] if "url" in fixture.keys() else PRESSURECOOKER_FILES_URL_BASE + srcfilename
             _save_file_url_to_path(url, local_path)
-            assert os.path.exists(local_path), (
-                "Error mising local test file " + local_path
-            )
+            assert os.path.exists(local_path), "Error mising local test file " + local_path
         fixture["localpath"] = local_path
         fixtures.append(fixture)
     return fixtures
@@ -898,9 +840,7 @@ def test_convertible_subtitles_from_pressurecooker(pressurecooker_test_files):
         storage_path = config.get_storage_path(filename)
         with open(storage_path, encoding="utf-8") as converted_vtt:
             filecontents = converted_vtt.read()
-            assert (
-                fixture["check_words"] in filecontents
-            ), "missing check_words in converted subs"
+            assert fixture["check_words"] in filecontents, "missing check_words in converted subs"
 
 
 def test_convertible_substitles_ar_ttml():
@@ -958,9 +898,7 @@ def test_convertible_substitles_weirdext_subtitlesformat():
     Passing `subtitlesformat` allows chef authors to manually specify subs format.
     """
     # Create a temporary file copy without extension
-    source_path = os.path.join(
-        os.path.dirname(__file__), "testcontent", "samples", "testsubtitles_ar.srt"
-    )
+    source_path = os.path.join(os.path.dirname(__file__), "testcontent", "samples", "testsubtitles_ar.srt")
     temp_file = tempfile.NamedTemporaryFile(suffix="", delete=False)
     temp_file.close()
 
@@ -1233,9 +1171,7 @@ def test_graphie_caching(mock_download_session):
 # Tests to ensure that cache keys remains stable as we update ricecooker code
 
 
-def test_video_compression_cache_keys_with_settings(
-    mock_filecache, video_file, video_filename
-):
+def test_video_compression_cache_keys_with_settings(mock_filecache, video_file, video_filename):
     """Test cache key generation for video compression with custom settings"""
     path = video_file.path
     video = VideoFile(path, ffmpeg_settings={"max_height": 480, "crf": 28})
@@ -1253,9 +1189,7 @@ def test_video_compression_cache_keys_with_settings(
     assert set(mock_filecache.cache.keys()) > expected_keys
 
 
-def test_video_compression_cache_keys_no_settings(
-    mock_filecache, video_file, video_filename
-):
+def test_video_compression_cache_keys_no_settings(mock_filecache, video_file, video_filename):
     """Test cache key generation for video compression with default settings"""
     path = video_file.path
     video = VideoFile(path)
@@ -1273,9 +1207,7 @@ def test_video_compression_cache_keys_no_settings(
     assert set(mock_filecache.cache.keys()) > expected_keys
 
 
-def test_audio_compression_cache_keys_with_settings(
-    mock_filecache, audio_file, audio_filename
-):
+def test_audio_compression_cache_keys_with_settings(mock_filecache, audio_file, audio_filename):
     """Test cache key generation for audio compression with custom settings"""
     path = audio_file.path
     audio = AudioFile(path, ffmpeg_settings={"bit_rate": 32})
@@ -1292,9 +1224,7 @@ def test_audio_compression_cache_keys_with_settings(
     assert set(mock_filecache.cache.keys()) > expected_keys
 
 
-def test_audio_compression_cache_keys_no_settings(
-    mock_filecache, audio_file, audio_filename
-):
+def test_audio_compression_cache_keys_no_settings(mock_filecache, audio_file, audio_filename):
     """Test cache key generation for audio compression with default settings"""
     path = audio_file.path
     audio = AudioFile(path)
@@ -1321,9 +1251,7 @@ def test_pdf_validation_handler_valid_pdf(document_file):
     try:
         handler.execute(document_file.path)
     except InvalidFileException:
-        pytest.fail(
-            "PDFValidationHandler raised InvalidFileException unexpectedly for a valid PDF."
-        )
+        pytest.fail("PDFValidationHandler raised InvalidFileException unexpectedly for a valid PDF.")
 
 
 def test_pdf_validation_handler_invalid_pdf():
@@ -1331,9 +1259,7 @@ def test_pdf_validation_handler_invalid_pdf():
     Test that PDFValidationHandler raises an InvalidFileException for an invalid PDF.
     """
     handler = PDFValidationHandler()
-    broken_pdf_path = os.path.join(
-        os.path.dirname(__file__), "testcontent", "samples", "broken.pdf"
-    )
+    broken_pdf_path = os.path.join(os.path.dirname(__file__), "testcontent", "samples", "broken.pdf")
     # Ensure the broken PDF file actually exists for the test
     if not os.path.exists(broken_pdf_path):
         # Create a dummy broken PDF file if it doesn't exist.
@@ -1449,9 +1375,7 @@ def test_studiofile_validation_success(mock_get_storage_url):
         mock_response = MagicMock()
         mock_response.raise_for_status.return_value = None
         mock_session.head.return_value = mock_response
-        mock_get_storage_url.return_value = (
-            f"https://storage.example.com/{checksum}.{ext}"
-        )
+        mock_get_storage_url.return_value = f"https://storage.example.com/{checksum}.{ext}"
 
         studio_file = StudioFile(checksum=checksum, ext=ext, preset=preset)
         studio_file.validate()  # Should not raise exception
@@ -1473,9 +1397,7 @@ def test_studiofile_validation_failure(mock_get_storage_url):
         mock_response = MagicMock()
         mock_response.raise_for_status.side_effect = HTTPError("404 Not Found")
         mock_session.head.return_value = mock_response
-        mock_get_storage_url.return_value = (
-            f"https://storage.example.com/{checksum}.{ext}"
-        )
+        mock_get_storage_url.return_value = f"https://storage.example.com/{checksum}.{ext}"
 
         studio_file = StudioFile(checksum=checksum, ext=ext, preset=preset)
 

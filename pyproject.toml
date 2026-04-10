@@ -1,0 +1,114 @@
+[build-system]
+requires = ["setuptools>=75.0", "setuptools-scm>=8"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ricecooker"
+description = "API for adding content to the Kolibri content curation server"
+authors = [
+    {name = "Learning Equality", email = "dev@learningequality.org"},
+]
+license = "MIT"
+readme = "README.md"
+keywords = ["ricecooker"]
+requires-python = ">=3.9, <3.14"
+dynamic = ["version"]
+classifiers = [
+    "Intended Audience :: Developers",
+    "Development Status :: 5 - Production/Stable",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Natural Language :: English",
+    "Topic :: Education",
+]
+dependencies = [
+    "requests>=2.11.1",
+    "le_utils>=0.2.10",
+    "requests_file",
+    "beautifulsoup4>=4.6.3,<4.9.0",
+    "selenium==4.36.0",
+    "yt-dlp>=2024.12.23",
+    "html5lib",
+    "cachecontrol==0.14.3",
+    "filelock==3.19.1",
+    "css-html-js-minify==2.5.5",
+    "pypdf2==1.26.0",
+    "dictdiffer>=0.8.0",
+    "Pillow==11.3.0",
+    "colorlog>=4.1.0,<6.11",
+    "chardet==5.2.0",
+    "ffmpy>=0.2.2",
+    "pdf2image==1.17.0",
+    "le-pycaption>=2.2.0a1",
+    "EbookLib>=0.17.1",
+    "filetype>=1.1.0",
+    "urllib3==2.6.3",
+    "langcodes[data]==3.5.1",
+]
+
+[project.optional-dependencies]
+google_drive = ["google-api-python-client", "google-auth"]
+sentry = ["sentry-sdk>=2.32.0"]
+
+[project.scripts]
+corrections = "ricecooker.utils.corrections:correctionsmain"
+
+[project.urls]
+Homepage = "https://github.com/learningequality/ricecooker"
+
+[dependency-groups]
+test = [
+    "requests-cache==1.2.1",
+    "pytest==8.4.2",
+    "pytest-env==1.1.5",
+    "vcrpy==7.0.0; python_version >='3.10'",
+    "mock==5.2.0",
+]
+dev = [
+    {include-group = "test"},
+    "ruff>=0.11",
+]
+
+[tool.setuptools-scm]
+
+[tool.setuptools.packages.find]
+include = ["ricecooker*"]
+
+[tool.uv]
+# Only resolve for CPython (vcrpy has urllib3<2 constraint on PyPy that conflicts)
+environments = ["platform_python_implementation == 'CPython'"]
+# Update this date periodically to allow new dependency versions
+exclude-newer = "2026-03-24T00:00:00Z"
+# Exempt le-utils from the exclude-newer cooldown
+exclude-newer-package = { le-utils = "2099-12-31T00:00:00Z" }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+norecursedirs = ["docs", "examples", "resources"]
+env = [
+    "RICECOOKER_STORAGE=./.pytest_storage",
+    "RICECOOKER_FILECACHE=./.pytest_filecache",
+]
+
+[tool.ruff]
+target-version = "py39"
+line-length = 160
+exclude = ["docs", "examples"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "C90"]
+ignore = ["E226", "E203", "E741"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["F811"]
+"ricecooker/utils/downloader.py" = ["C901"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["ricecooker"]
+force-single-line = true

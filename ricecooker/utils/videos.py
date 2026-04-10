@@ -6,8 +6,9 @@ from typing import Tuple
 
 from le_utils.constants import format_presets
 
-from .images import ThumbnailGenerationError
 from ricecooker import config
+
+from .images import ThumbnailGenerationError
 
 LOGGER = logging.getLogger("VideoResource")
 LOGGER.setLevel(logging.DEBUG)
@@ -100,9 +101,7 @@ def extract_thumbnail_from_video(fpath_in, fpath_out, overwrite=False):
     except subprocess.CalledProcessError as e:
         raise ThumbnailGenerationError("{}: {}".format(e, e.output))
     except AttributeError:
-        raise ThumbnailGenerationError(
-            "No suitable frame for thumbnail generation was found"
-        )
+        raise ThumbnailGenerationError("No suitable frame for thumbnail generation was found")
 
 
 def _get_stream_duration(fpath_in, extension):
@@ -204,13 +203,9 @@ def compress_video(source_file_path, target_file, overwrite=False, **kwargs):
     # using value -2 to get robust behaviour: maintains the aspect ratio and also
     # ensure the calculated dimension is divisible by 2
     if "max_width" in kwargs:
-        scale = "'w=trunc(min(iw,{max_width})/2)*2:h=-2'".format(
-            max_width=kwargs["max_width"]
-        )
+        scale = "'w=trunc(min(iw,{max_width})/2)*2:h=-2'".format(max_width=kwargs["max_width"])
     else:
-        scale = "'w=-2:h=trunc(min(ih,{max_height})/2)*2'".format(
-            max_height=kwargs.get("max_height", config.VIDEO_HEIGHT or "480")
-        )
+        scale = "'w=-2:h=trunc(min(ih,{max_height})/2)*2'".format(max_height=kwargs.get("max_height", config.VIDEO_HEIGHT or "480"))
 
     # Default CRF values differ by format
     crf = kwargs.get("crf", 35 if is_webm else 32)
@@ -280,9 +275,7 @@ def web_faststart_video(source_file_path, target_file, overwrite=False):
     """
     ext = os.path.splitext(target_file)[1].lower()
     if ext == ".webm":
-        raise VideoCompressionError(
-            "web_faststart_video not needed for WebM files - the WebM container format is already optimized for web streaming"
-        )
+        raise VideoCompressionError("web_faststart_video not needed for WebM files - the WebM container format is already optimized for web streaming")
 
     command = [
         "ffmpeg",

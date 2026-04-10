@@ -1,4 +1,5 @@
 """Tests for metadata extraction in the file pipeline."""
+
 import os
 import tempfile
 import zipfile

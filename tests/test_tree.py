@@ -1,4 +1,5 @@
-""" Tests for tree construction """
+"""Tests for tree construction"""
+
 import os
 import tempfile
 import uuid
@@ -22,8 +23,8 @@ from ricecooker.classes.files import DocumentFile
 from ricecooker.classes.files import HTMLZipFile
 from ricecooker.classes.files import SlideImageFile
 from ricecooker.classes.files import ThumbnailFile
-from ricecooker.classes.licenses import get_license
 from ricecooker.classes.licenses import License
+from ricecooker.classes.licenses import get_license
 from ricecooker.classes.nodes import ChannelNode
 from ricecooker.classes.nodes import ContentNode
 from ricecooker.classes.nodes import CustomNavigationChannelNode
@@ -40,7 +41,6 @@ from ricecooker.managers.tree import InsufficientStorageException
 from ricecooker.utils.jsontrees import build_tree_from_json
 from ricecooker.utils.pipeline import FilePipeline
 from ricecooker.utils.zip import create_predictable_zip
-
 
 """ *********** TOPIC FIXTURES *********** """
 
@@ -92,21 +92,13 @@ def document_node_id(topic_node_id, document_content_id):
 
 @pytest.fixture
 def thumbnail_path():
-    return os.path.abspath(
-        os.path.join(
-            os.path.dirname(__file__), "testcontent", "samples", "thumbnail.png"
-        )
-    )
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), "testcontent", "samples", "thumbnail.png"))
     # return "testcontent/samples/thumbnail.png"
 
 
 @pytest.fixture
 def thumbnail_path_jpg():
-    return os.path.abspath(
-        os.path.join(
-            os.path.dirname(__file__), "testcontent", "samples", "thumbnail.jpg"
-        )
-    )
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), "testcontent", "samples", "thumbnail.jpg"))
     # return "tests/testcontent/samples/thumbnail.jpg"
 
 
@@ -121,12 +113,8 @@ def license_name():
 
 
 @pytest.fixture
-def document(
-    document_id, document_file, thumbnail_path, copyright_holder, license_name
-):
-    node = DocumentNode(
-        document_id, "Document", licenses.CC_BY, thumbnail=thumbnail_path
-    )
+def document(document_id, document_file, thumbnail_path, copyright_holder, license_name):
+    node = DocumentNode(document_id, "Document", licenses.CC_BY, thumbnail=thumbnail_path)
     node.add_file(document_file)
     node.set_license(license_name, copyright_holder=copyright_holder)
     return node
@@ -167,9 +155,7 @@ def test_nodes_initialized(channel, topic, document):
 
 def test_add_child(tree, topic, document):
     assert tree.children[0] == topic, "Channel should have topic child node"
-    assert (
-        tree.children[0].children[0] == document
-    ), "Topic should have a document child node"
+    assert tree.children[0].children[0] == document, "Topic should have a document child node"
 
 
 def test_ids(
@@ -185,24 +171,12 @@ def test_ids(
     topic = tree.children[0]
     document = topic.children[0]
 
-    assert (
-        channel.get_content_id() == channel_content_id
-    ), "Channel content id should be {}".format(channel_content_id)
-    assert (
-        channel.get_node_id() == channel_node_id
-    ), "Channel node id should be {}".format(channel_node_id)
-    assert (
-        topic.get_content_id() == topic_content_id
-    ), "Topic content id should be {}".format(topic_content_id)
-    assert topic.get_node_id() == topic_node_id, "Topic node id should be {}".format(
-        topic_node_id
-    )
-    assert (
-        document.get_content_id() == document_content_id
-    ), "Document content id should be {}".format(document_content_id)
-    assert (
-        document.get_node_id() == document_node_id
-    ), "Document node id should be {}".format(document_node_id)
+    assert channel.get_content_id() == channel_content_id, "Channel content id should be {}".format(channel_content_id)
+    assert channel.get_node_id() == channel_node_id, "Channel node id should be {}".format(channel_node_id)
+    assert topic.get_content_id() == topic_content_id, "Topic content id should be {}".format(topic_content_id)
+    assert topic.get_node_id() == topic_node_id, "Topic node id should be {}".format(topic_node_id)
+    assert document.get_content_id() == document_content_id, "Document content id should be {}".format(document_content_id)
+    assert document.get_node_id() == document_node_id, "Document node id should be {}".format(document_node_id)
 
 
 def test_add_file(document, document_file):
@@ -214,9 +188,7 @@ def test_add_file(document, document_file):
 def test_thumbnail(topic, document, thumbnail_path):
     assert document.has_thumbnail(), "Document must have a thumbnail"
     assert not topic.has_thumbnail(), "Topic must not have a thumbnail"
-    assert [
-        f for f in document.files if f.path == thumbnail_path
-    ], "Document is missing a thumbnail with path {}".format(thumbnail_path)
+    assert [f for f in document.files if f.path == thumbnail_path], "Document is missing a thumbnail with path {}".format(thumbnail_path)
 
 
 def test_count(tree):
@@ -224,23 +196,13 @@ def test_count(tree):
 
 
 def test_get_non_topic_descendants(tree, document):
-    assert tree.get_non_topic_descendants() == [
-        document
-    ], "Channel should only have 1 non-topic descendant"
+    assert tree.get_non_topic_descendants() == [document], "Channel should only have 1 non-topic descendant"
 
 
 def test_licenses(channel, topic, document, license_name, copyright_holder):
-    assert isinstance(
-        document.license, License
-    ), "Document should have a license object"
-    assert (
-        document.license.license_id == license_name
-    ), "Document license should have public domain license"
-    assert (
-        document.license.copyright_holder == copyright_holder
-    ), "Document license should have copyright holder set to {}".format(
-        copyright_holder
-    )
+    assert isinstance(document.license, License), "Document should have a license object"
+    assert document.license.license_id == license_name, "Document license should have public domain license"
+    assert document.license.copyright_holder == copyright_holder, "Document license should have copyright holder set to {}".format(copyright_holder)
     assert not channel.license, "Channel should not have a license"
     assert not topic.license, "Topic should not have a license"
 
@@ -372,9 +334,7 @@ def test_slideshow_node_via_files(channel):
                 caption="Unlock your potential with this demo.",
                 descriptive_text="Unlock your potential with this demo.",
             ),
-            ThumbnailFile(
-                path="tests/testcontent/samples/thumbnail.png", language="en"
-            ),
+            ThumbnailFile(path="tests/testcontent/samples/thumbnail.png", language="en"),
         ],
     )
     assert slideshow_node
@@ -412,9 +372,7 @@ def test_slideshow_node_via_add_file(channel):
         descriptive_text="Touch the demo to learn new things!",
     )
     slideshow_node.add_file(slideimg2)
-    thumbimg1 = ThumbnailFile(
-        path="tests/testcontent/samples/thumbnail.jpg", language="en"
-    )
+    thumbimg1 = ThumbnailFile(path="tests/testcontent/samples/thumbnail.jpg", language="en")
     slideshow_node.add_file(thumbimg1)
 
     # print(slideshow_node.__dict__)
@@ -443,9 +401,7 @@ def test_custom_navigation_node_via_files(channel):
         license=get_license("CC BY", copyright_holder="Demo Holdings"),
         files=[
             HTMLZipFile(path=zip_path, language="en"),
-            ThumbnailFile(
-                path="tests/testcontent/samples/thumbnail.png", language="en"
-            ),
+            ThumbnailFile(path="tests/testcontent/samples/thumbnail.png", language="en"),
         ],
     )
     assert custom_navigation_node
@@ -455,8 +411,7 @@ def test_custom_navigation_node_via_files(channel):
     assert (
         "options" in custom_navigation_node.extra_fields
         and "modality" in custom_navigation_node.extra_fields["options"]
-        and custom_navigation_node.extra_fields["options"]["modality"]
-        == "CUSTOM_NAVIGATION"
+        and custom_navigation_node.extra_fields["options"]["modality"] == "CUSTOM_NAVIGATION"
     ), "missing custom navigation modality"
     custom_navigation_node.process_files()
     channel.add_child(custom_navigation_node)
@@ -480,9 +435,7 @@ def test_custom_navigation_node_via_add_file(channel):
     )
     zipfile = HTMLZipFile(path=zip_path, language="en")
     custom_navigation_node.add_file(zipfile)
-    thumbimg1 = ThumbnailFile(
-        path="tests/testcontent/samples/thumbnail.jpg", language="en"
-    )
+    thumbimg1 = ThumbnailFile(path="tests/testcontent/samples/thumbnail.jpg", language="en")
     custom_navigation_node.add_file(thumbimg1)
 
     assert custom_navigation_node
@@ -492,8 +445,7 @@ def test_custom_navigation_node_via_add_file(channel):
     assert (
         "options" in custom_navigation_node.extra_fields
         and "modality" in custom_navigation_node.extra_fields["options"]
-        and custom_navigation_node.extra_fields["options"]["modality"]
-        == "CUSTOM_NAVIGATION"
+        and custom_navigation_node.extra_fields["options"]["modality"] == "CUSTOM_NAVIGATION"
     ), "missing custom navigation modality"
     custom_navigation_node.process_files()
     channel.add_child(custom_navigation_node)
@@ -510,9 +462,7 @@ def test_custom_navigation_channel_node_via_files():
         testf.write("something something")
     zip_path = create_predictable_zip(inputdir)
     zipfile = HTMLZipFile(path=zip_path, language="en")
-    thumbimg1 = ThumbnailFile(
-        path="tests/testcontent/samples/thumbnail.png", language="en"
-    )
+    thumbimg1 = ThumbnailFile(path="tests/testcontent/samples/thumbnail.png", language="en")
     custom_navigation_channel_node = CustomNavigationChannelNode(
         title="The Nav App",
         description="Custom Navigation Content Demo",
@@ -528,8 +478,7 @@ def test_custom_navigation_channel_node_via_files():
     assert (
         "options" in custom_navigation_channel_node.extra_fields
         and "modality" in custom_navigation_channel_node.extra_fields["options"]
-        and custom_navigation_channel_node.extra_fields["options"]["modality"]
-        == "CUSTOM_NAVIGATION"
+        and custom_navigation_channel_node.extra_fields["options"]["modality"] == "CUSTOM_NAVIGATION"
     ), "missing custom navigation modality"
     custom_navigation_channel_node.set_thumbnail(thumbimg1)
     custom_navigation_channel_node.process_files()
@@ -537,10 +486,7 @@ def test_custom_navigation_channel_node_via_files():
     assert custom_navigation_channel_node.to_dict()
     assert custom_navigation_channel_node.to_dict()["thumbnail"] == thumbimg1.filename
     assert len(custom_navigation_channel_node.to_dict()["files"]) == 1
-    assert (
-        custom_navigation_channel_node.to_dict()["files"][0]["filename"]
-        == zipfile.filename
-    )
+    assert custom_navigation_channel_node.to_dict()["files"][0]["filename"] == zipfile.filename
 
 
 def test_custom_navigation_channel_node_via_add_file():
@@ -558,9 +504,7 @@ def test_custom_navigation_channel_node_via_add_file():
     )
     zipfile = HTMLZipFile(path=zip_path, language="en")
     custom_navigation_channel_node.add_file(zipfile)
-    thumbimg1 = ThumbnailFile(
-        path="tests/testcontent/samples/thumbnail.jpg", language="en"
-    )
+    thumbimg1 = ThumbnailFile(path="tests/testcontent/samples/thumbnail.jpg", language="en")
     custom_navigation_channel_node.add_file(thumbimg1)
 
     assert custom_navigation_channel_node
@@ -570,8 +514,7 @@ def test_custom_navigation_channel_node_via_add_file():
     assert (
         "options" in custom_navigation_channel_node.extra_fields
         and "modality" in custom_navigation_channel_node.extra_fields["options"]
-        and custom_navigation_channel_node.extra_fields["options"]["modality"]
-        == "CUSTOM_NAVIGATION"
+        and custom_navigation_channel_node.extra_fields["options"]["modality"] == "CUSTOM_NAVIGATION"
     ), "missing custom navigation modality"
     custom_navigation_channel_node.set_thumbnail(thumbimg1)
     custom_navigation_channel_node.process_files()
@@ -579,10 +522,7 @@ def test_custom_navigation_channel_node_via_add_file():
     assert custom_navigation_channel_node.to_dict()
     assert custom_navigation_channel_node.to_dict()["thumbnail"] == thumbimg1.filename
     assert len(custom_navigation_channel_node.to_dict()["files"]) == 1
-    assert (
-        custom_navigation_channel_node.to_dict()["files"][0]["filename"]
-        == zipfile.filename
-    )
+    assert custom_navigation_channel_node.to_dict()["files"][0]["filename"] == zipfile.filename
 
 
 def test_remote_content_node_with_no_overrides():
@@ -650,9 +590,7 @@ def test_remote_content_node_with_bad_source_content_node_ids():
 
 
 def test_remote_content_node_with_overridden_thumbnail():
-    thumbimg1 = ThumbnailFile(
-        path="tests/testcontent/samples/thumbnail.jpg", language="en"
-    )
+    thumbimg1 = ThumbnailFile(path="tests/testcontent/samples/thumbnail.jpg", language="en")
     remote_content_node = RemoteContentNode(
         "a" * 32,
         source_content_id="c" * 32,
@@ -790,13 +728,9 @@ def _assert_metadata_equal(expected, actual):
     assert set(actual.keys()) == set(expected.keys()), "Metadata keys do not match"
     for field, value in expected.items():
         if isinstance(value, list):
-            assert set(actual[field]) == set(
-                value
-            ), f"Metadata for {field} does not match"
+            assert set(actual[field]) == set(value), f"Metadata for {field} does not match"
         elif field == "license":
-            assert (
-                actual[field].license_id == value
-            ), f"Metadata for {field} does not match"
+            assert actual[field].license_id == value, f"Metadata for {field} does not match"
         else:
             assert actual[field] == value, f"Metadata for {field} does not match"
 
@@ -814,9 +748,7 @@ def test_gather_ancestor_metadata_treenode_with_parent_gathers_metadata():
         "learner_needs": [needs.INTERNET],
     }
 
-    parent = ChannelNode(
-        "parent", "www.learningequality.org", "Parent Node", **parent_metadata
-    )
+    parent = ChannelNode("parent", "www.learningequality.org", "Parent Node", **parent_metadata)
 
     node = TreeNode(source_id="test", title="Test Node")
     node.parent = parent
@@ -834,9 +766,7 @@ def test_gather_ancestor_metadata_treenode_combines_own_and_parent_metadata():
         "resource_types": [resource_type.ACTIVITY],
     }
 
-    parent = ChannelNode(
-        "parent", "www.learningequality.org", "Parent Node", **parent_metadata
-    )
+    parent = ChannelNode("parent", "www.learningequality.org", "Parent Node", **parent_metadata)
 
     node = TreeNode(
         source_id="test",
@@ -868,9 +798,7 @@ def test_gather_ancestor_metadata_hierarchical_metadata_merging():
         "categories": [subjects.MATHEMATICS, subjects.SCIENCES],
     }
 
-    parent = ChannelNode(
-        "parent", "www.learningequality.org", "Parent Node", **parent_metadata
-    )
+    parent = ChannelNode("parent", "www.learningequality.org", "Parent Node", **parent_metadata)
 
     node = TreeNode(
         source_id="test",
@@ -897,9 +825,7 @@ def test_set_metadata_from_ancestors_contentnode_inherits_simple_fields():
         "provider": "Test Provider",
     }
 
-    parent = ChannelNode(
-        "parent", "www.learningequality.org", "Parent Node", **parent_metadata
-    )
+    parent = ChannelNode("parent", "www.learningequality.org", "Parent Node", **parent_metadata)
 
     node = ContentNode(
         source_id="test",
@@ -923,9 +849,7 @@ def test_set_metadata_from_ancestors_contentnode_inherits_label_fields():
         "learner_needs": [needs.INTERNET],
     }
 
-    parent = ChannelNode(
-        "parent", "www.learningequality.org", "Parent Node", **parent_metadata
-    )
+    parent = ChannelNode("parent", "www.learningequality.org", "Parent Node", **parent_metadata)
 
     node = ContentNode(source_id="test", title="Test Node", license="CC BY")
     node.parent = parent
@@ -949,9 +873,7 @@ def test_set_metadata_from_ancestors_contentnode_does_not_override_existing_valu
         "resource_types": [resource_type.ACTIVITY],
     }
 
-    parent = ChannelNode(
-        "parent", "www.learningequality.org", "Parent Node", **parent_metadata
-    )
+    parent = ChannelNode("parent", "www.learningequality.org", "Parent Node", **parent_metadata)
 
     node = ContentNode(
         source_id="test",
@@ -985,9 +907,7 @@ def test_set_metadata_from_ancestors_hierarchical_labels_inheritance():
         "learner_needs": [needs.PEOPLE, needs.MATERIALS],
     }
 
-    parent = ChannelNode(
-        "parent", "www.learningequality.org", "Parent Node", **parent_metadata
-    )
+    parent = ChannelNode("parent", "www.learningequality.org", "Parent Node", **parent_metadata)
 
     node = ContentNode(
         source_id="test",
@@ -1094,9 +1014,7 @@ def test_add_nodes_skips_invalid_nodes(channel):
     # Mock the session post response
     mock_response = MagicMock()
     mock_response.status_code = 200
-    mock_response._content = '{"root_ids": {"valid_hex": "new_root_id"}}'.encode(
-        "utf-8"
-    )
+    mock_response._content = '{"root_ids": {"valid_hex": "new_root_id"}}'.encode("utf-8")
 
     # Call add_nodes
     with patch("ricecooker.config.SESSION.post", return_value=mock_response):
@@ -1199,14 +1117,13 @@ def test_file_upload_insufficient_storage(channel):
     mock_response = MagicMock()
     mock_response.status_code = 412
 
-    with patch("builtins.open", mocked_open), patch(
-        "ricecooker.config.get_storage_path", return_value="/tmp/test_file.mp4"
-    ), patch("ricecooker.config.SESSION.post", return_value=mock_response):
-
+    # fmt: off
+    with patch("builtins.open", mocked_open), \
+         patch("ricecooker.config.get_storage_path", return_value="/tmp/test_file.mp4"), \
+         patch("ricecooker.config.SESSION.post", return_value=mock_response):
+        # fmt: on
         # Check that InsufficientStorageException is raised
-        with pytest.raises(
-            InsufficientStorageException, match="You have run out of storage space."
-        ):
+        with pytest.raises(InsufficientStorageException, match="You have run out of storage space."):
             manager.do_file_upload(filename)
 
 
@@ -1251,9 +1168,7 @@ def test_add_nodes_checks_both_failed_files_and_validity(channel):
     # Mock the session post response
     mock_response = MagicMock()
     mock_response.status_code = 200
-    mock_response._content = '{"root_ids": {"valid-hex": "new-root-id"}}'.encode(
-        "utf-8"
-    )
+    mock_response._content = '{"root_ids": {"valid-hex": "new-root-id"}}'.encode("utf-8")
 
     # Call add_nodes
     with patch("ricecooker.config.SESSION.post", return_value=mock_response):

@@ -43,35 +43,35 @@ clean-pyc: ## remove Python file artifacts
 	find . -name '__pycache__' -exec rm -fr {} +
 
 clean-test: ## remove test and coverage artifacts
-	rm -fr .tox/
 	rm -f .coverage
 	rm -fr htmlcov/
 	rm -rf tests/testcontent/downloaded/*
 	rm -rf tests/testcontent/generated/*
 
-lint:
-	pre-commit run --all-files
+lint: ## run linting with prek
+	uvx prek run --all-files
 
 test: clean-test ## run tests quickly with the default Python
-	pytest
+	uv run --group test pytest
 
-
-test-all: clean-test ## run tests on every Python version with tox
-	tox
+test-all: clean-test ## run tests on every Python version
+	for py in 3.9 3.10 3.11 3.12 3.13; do \
+		echo "Testing Python $$py"; \
+		uv run --python $$py --group test pytest || exit 1; \
+	done
 
 integration-test:
 	echo "Testing against hotfixes"
-	CONTENTWORKSHOP_URL=https://hotfixes.studio.learningequality.org python tests/test_chef_integration.py
+	CONTENTWORKSHOP_URL=https://hotfixes.studio.learningequality.org uv run python tests/test_chef_integration.py
 	echo "Testing against unstable"
-	CONTENTWORKSHOP_URL=https://unstable.studio.learningequality.org python tests/test_chef_integration.py
+	CONTENTWORKSHOP_URL=https://unstable.studio.learningequality.org uv run python tests/test_chef_integration.py
 	echo "Testing against production"
-	CONTENTWORKSHOP_URL=https://studio.learningequality.org python tests/test_chef_integration.py
+	CONTENTWORKSHOP_URL=https://studio.learningequality.org uv run python tests/test_chef_integration.py
 
 coverage: ## check code coverage quickly with the default Python
-	pip install coverage pytest
-	coverage run --source ricecooker -m pytest
-	coverage report -m
-	coverage html
+	uv run --group test --with coverage coverage run --source ricecooker -m pytest
+	uv run --with coverage coverage report -m
+	uv run --with coverage coverage html
 	$(BROWSER) htmlcov/index.html
 
 docsclean:
@@ -79,26 +79,21 @@ docsclean:
 	rm -f docs/_build/*
 
 docs: ## generate Sphinx HTML documentation
-	pip install -r docs/requirements.txt
-	$(MAKE) -C docs clean
-	$(MAKE) -C docs html
-	# $(BROWSER) docs/build/html/index.html
+	uv run --with-requirements docs/requirements.txt $(MAKE) -C docs clean
+	uv run --with-requirements docs/requirements.txt $(MAKE) -C docs html
 
 latexdocs:
-	pip install -r docs/requirements.txt
-	$(MAKE) -C docs clean
-	$(MAKE) -C docs latex
+	uv run --with-requirements docs/requirements.txt $(MAKE) -C docs clean
+	uv run --with-requirements docs/requirements.txt $(MAKE) -C docs latex
 
 servedocs: docs ## compile the docs watching for changes
 	watchmedo shell-command -p '*.rst' -c '$(MAKE) -C docs html' -R -D .
 
-dist: clean
-	pip install setuptools wheel
-	python setup.py sdist bdist_wheel
+dist: clean ## build source and wheel distributions
+	uv build
 
 release: dist ## package and upload a release
-	pip install twine
-	twine upload dist/*
+	uv run --with twine twine upload dist/*
 
 install: clean ## install the package to the active Python's site-packages
-	python setup.py install
+	uv sync

@@ -7,25 +7,22 @@ import uuid
 from bs4 import BeautifulSoup
 from le_utils.constants import exercises
 
+from ricecooker.utils.encodings import get_base64_encoding
+
 from .. import config
 from ..exceptions import InvalidQuestionException
 from .files import _ExerciseBase64ImageFile
 from .files import _ExerciseGraphieFile
 from .files import _ExerciseImageFile
-from ricecooker.utils.encodings import get_base64_encoding
 
 # Reusable protocol and path pattern for Perseus questions
-PERSEUS_PROTOCOL_PATH = (
-    r"(?P<protocol>web\+graphie|https?|file|data):(?P<rawpath>[^\)\"]+)"
-)
+PERSEUS_PROTOCOL_PATH = r"(?P<protocol>web\+graphie|https?|file|data):(?P<rawpath>[^\)\"]+)"
 
 # match protocol:{{path}} in quotation marks for Perseus
 PERSEUS_QUOTED_IMAGE_REGEX = rf"(?P<open>\"){PERSEUS_PROTOCOL_PATH}(?P<close>\")"
 
 # match protocol:{{path}} in markdown images ![text](url) for Perseus - captures the URL part only
-PERSEUS_MARKDOWN_IMAGE_REGEX = (
-    rf"(?P<open>!\[[^\]]*\]\(){PERSEUS_PROTOCOL_PATH}(?P<close>\))"
-)
+PERSEUS_MARKDOWN_IMAGE_REGEX = rf"(?P<open>!\[[^\]]*\]\(){PERSEUS_PROTOCOL_PATH}(?P<close>\))"
 
 # match protocol:{{path}} either wrapped in parentheses or quotes (original regex)
 MARKDOWN_IMAGE_REGEX = r"!\[([^\]]+)?\]\(([^\)]+?)\)"  # match ![{{smth}}]({{url}})
@@ -64,9 +61,7 @@ class BaseQuestion:
         self.question_type = question_type
         self.files = []
         self.answers = answers if answers is not None else []
-        self.hints = (
-            [] if hints is None else [hints] if isinstance(hints, str) else hints
-        )
+        self.hints = [] if hints is None else [hints] if isinstance(hints, str) else hints
         self.raw_data = raw_data
         self.source_id = id
         self.source_url = source_url
@@ -80,9 +75,7 @@ class BaseQuestion:
 
     def truncate_fields(self):
         if self.source_url and len(self.source_url) > config.MAX_SOURCE_URL_LENGTH:
-            config.print_truncate(
-                "question_source_url", self.source_id, self.source_url
-            )
+            config.print_truncate("question_source_url", self.source_id, self.source_url)
             self.source_url = self.source_url[: config.MAX_SOURCE_URL_LENGTH]
 
     def to_dict(self):
@@ -93,9 +86,7 @@ class BaseQuestion:
         return {
             "assessment_id": self.assessment_id,
             "type": self.question_type,
-            "files": [
-                f.to_dict() for f in filter(lambda x: x and x.filename, self.files)
-            ],
+            "files": [f.to_dict() for f in filter(lambda x: x and x.filename, self.files)],
             "question": self.question,
             "hints": json.dumps(self.hints, ensure_ascii=False),
             "answers": json.dumps(self.answers, ensure_ascii=False),
@@ -218,9 +209,7 @@ class BaseQuestion:
         # Process file to make the replacement_str available
         exercise_image_file.process_file()
         # Get `new_text` = the replacement path for the image resource
-        new_text = exercises.CONTENT_STORAGE_FORMAT.format(
-            exercise_image_file.get_replacement_str()
-        )
+        new_text = exercises.CONTENT_STORAGE_FORMAT.format(exercise_image_file.get_replacement_str())
         return new_text, [exercise_image_file]
 
     def validate(self):
@@ -229,24 +218,14 @@ class BaseQuestion:
         Returns: boolean indicating if question is valid
         """
         assert self.id is not None, "Assumption Failed: Question must have an id"
-        assert (
-            isinstance(self.question, str) or self.question is None
-        ), "Assumption Failed: Question must be a string"
-        assert isinstance(
-            self.question_type, str
-        ), "Assumption Failed: Question type must be a string"
-        assert isinstance(
-            self.answers, list
-        ), "Assumption Failed: Answers must be a list"
+        assert isinstance(self.question, str) or self.question is None, "Assumption Failed: Question must be a string"
+        assert isinstance(self.question_type, str), "Assumption Failed: Question type must be a string"
+        assert isinstance(self.answers, list), "Assumption Failed: Answers must be a list"
         assert isinstance(self.hints, list), "Assumption Failed: Hints must be a list"
         for a in self.answers:
-            assert isinstance(
-                a, dict
-            ), "Assumption Failed: Answer in answer list is not a dict"
+            assert isinstance(a, dict), "Assumption Failed: Answer in answer list is not a dict"
         for h in self.hints:
-            assert isinstance(
-                h, str
-            ), "Assumption Failed: Hint in hints list is not a string"
+            assert isinstance(h, str), "Assumption Failed: Hint in hints list is not a string"
         return True
 
 
@@ -284,23 +263,13 @@ class PerseusQuestion(BaseQuestion):
         Returns: boolean indicating if perseus question is valid
         """
         try:
-            assert (
-                self.question == ""
-            ), "Assumption Failed: Perseus question should not have a question"
-            assert (
-                self.question_type == exercises.PERSEUS_QUESTION
-            ), "Assumption Failed: Question should be perseus type"
-            assert (
-                self.answers == []
-            ), "Assumption Failed: Answer list should be empty for perseus question"
-            assert (
-                self.hints == []
-            ), "Assumption Failed: Hints list should be empty for perseus question"
+            assert self.question == "", "Assumption Failed: Perseus question should not have a question"
+            assert self.question_type == exercises.PERSEUS_QUESTION, "Assumption Failed: Question should be perseus type"
+            assert self.answers == [], "Assumption Failed: Answer list should be empty for perseus question"
+            assert self.hints == [], "Assumption Failed: Hints list should be empty for perseus question"
             return super(PerseusQuestion, self).validate()
         except AssertionError:
-            raise InvalidQuestionException(
-                "Invalid question: {0}".format(self.__dict__)
-            )
+            raise InvalidQuestionException("Invalid question: {0}".format(self.__dict__))
 
     def _replace_image(self, match):
         protocol = match.group("protocol")
@@ -330,9 +299,7 @@ class PerseusQuestion(BaseQuestion):
             exercise_image_file.process_file()
             self.files.append(exercise_image_file)
         # Get `new_path` = the replacement path for the image resource
-        new_path = exercises.CONTENT_STORAGE_FORMAT.format(
-            exercise_image_file.get_replacement_str()
-        )
+        new_path = exercises.CONTENT_STORAGE_FORMAT.format(exercise_image_file.get_replacement_str())
         if protocol == "web+graphie":  # need to put back the `web+graphie:` prefix
             new_path = "web+graphie:" + new_path
         return f"{open}{new_path}{close}"
@@ -344,13 +311,9 @@ class PerseusQuestion(BaseQuestion):
         Returns: list of all files needed to render this question.
         """
         # First pass: handle quoted images
-        self.raw_data = re.sub(
-            PERSEUS_QUOTED_IMAGE_REGEX, self._replace_image, self.raw_data
-        )
+        self.raw_data = re.sub(PERSEUS_QUOTED_IMAGE_REGEX, self._replace_image, self.raw_data)
         # Second pass: handle markdown images (excluding those already processed)
-        self.raw_data = re.sub(
-            PERSEUS_MARKDOWN_IMAGE_REGEX, self._replace_image, self.raw_data
-        )
+        self.raw_data = re.sub(PERSEUS_MARKDOWN_IMAGE_REGEX, self._replace_image, self.raw_data)
 
         # Return all filenames
         return [f.filename for f in self.files]
@@ -376,23 +339,12 @@ class MultipleSelectQuestion(BaseQuestion):
     def __init__(self, id, question, correct_answers, all_answers, **kwargs):
         # Put answers into standard format
         set_all_answers = set(all_answers)
-        all_answers += [
-            answer for answer in correct_answers if answer not in set_all_answers
-        ]
-        answers = [
-            self.create_answer(answer, answer in correct_answers)
-            for answer in all_answers
-        ]
+        all_answers += [answer for answer in correct_answers if answer not in set_all_answers]
+        answers = [self.create_answer(answer, answer in correct_answers) for answer in all_answers]
         if len(answers) == 0:
             answers = [self.create_answer("No answers provided.")]
-            config.LOGGER.warning(
-                "\tWARNING: Question {id} does not have any answers (set to default)".format(
-                    id=id
-                )
-            )
-        super(MultipleSelectQuestion, self).__init__(
-            id, question, exercises.MULTIPLE_SELECTION, answers, **kwargs
-        )
+            config.LOGGER.warning("\tWARNING: Question {id} does not have any answers (set to default)".format(id=id))
+        super(MultipleSelectQuestion, self).__init__(id, question, exercises.MULTIPLE_SELECTION, answers, **kwargs)
 
     def validate(self):
         """validate: Makes sure multiple selection question is valid
@@ -400,28 +352,16 @@ class MultipleSelectQuestion(BaseQuestion):
         Returns: boolean indicating if multiple selection question is valid
         """
         try:
-            assert (
-                self.question_type == exercises.MULTIPLE_SELECTION
-            ), "Assumption Failed: Question should be multiple selection type"
-            assert (
-                len(self.answers) > 0
-            ), "Assumption Failed: Multiple selection question should have answers"
+            assert self.question_type == exercises.MULTIPLE_SELECTION, "Assumption Failed: Question should be multiple selection type"
+            assert len(self.answers) > 0, "Assumption Failed: Multiple selection question should have answers"
             for a in self.answers:
-                assert "answer" in a and isinstance(
-                    a["answer"], str
-                ), "Assumption Failed: Answer in answer list is not a string"
-                assert "correct" in a and isinstance(
-                    a["correct"], bool
-                ), "Assumption Failed: Correct indicator is not a boolean in answer list"
+                assert "answer" in a and isinstance(a["answer"], str), "Assumption Failed: Answer in answer list is not a string"
+                assert "correct" in a and isinstance(a["correct"], bool), "Assumption Failed: Correct indicator is not a boolean in answer list"
             for h in self.hints:
-                assert isinstance(
-                    h, str
-                ), "Assumption Failed: Hint in hint list is not a string"
+                assert isinstance(h, str), "Assumption Failed: Hint in hint list is not a string"
             return super(MultipleSelectQuestion, self).validate()
         except AssertionError:
-            raise InvalidQuestionException(
-                "Invalid question: {0}".format(self.__dict__)
-            )
+            raise InvalidQuestionException("Invalid question: {0}".format(self.__dict__))
 
 
 class SingleSelectQuestion(BaseQuestion):
@@ -443,20 +383,11 @@ class SingleSelectQuestion(BaseQuestion):
         # Put answers into standard format
         if correct_answer not in all_answers:
             all_answers += [correct_answer]
-        answers = [
-            self.create_answer(answer, answer == correct_answer)
-            for answer in all_answers
-        ]
+        answers = [self.create_answer(answer, answer == correct_answer) for answer in all_answers]
         if len(answers) == 0:
             answers = [self.create_answer("No answers provided.")]
-            config.LOGGER.warning(
-                "\tWARNING: Question {id} does not have any answers (set to default)".format(
-                    id=id
-                )
-            )
-        super(SingleSelectQuestion, self).__init__(
-            id, question, exercises.SINGLE_SELECTION, answers, **kwargs
-        )
+            config.LOGGER.warning("\tWARNING: Question {id} does not have any answers (set to default)".format(id=id))
+        super(SingleSelectQuestion, self).__init__(id, question, exercises.SINGLE_SELECTION, answers, **kwargs)
 
     def validate(self):
         """validate: Makes sure single selection question is valid
@@ -464,33 +395,19 @@ class SingleSelectQuestion(BaseQuestion):
         Returns: boolean indicating if single selection question is valid
         """
         try:
-            assert (
-                self.question_type == exercises.SINGLE_SELECTION
-            ), "Assumption Failed: Question should be single selection type"
-            assert (
-                len(self.answers) > 0
-            ), "Assumption Failed: Multiple selection question should have answers"
+            assert self.question_type == exercises.SINGLE_SELECTION, "Assumption Failed: Question should be single selection type"
+            assert len(self.answers) > 0, "Assumption Failed: Multiple selection question should have answers"
             correct_answers = 0
             for a in self.answers:
-                assert "answer" in a and isinstance(
-                    a["answer"], str
-                ), "Assumption Failed: Answer in answer list is not a string"
-                assert "correct" in a and isinstance(
-                    a["correct"], bool
-                ), "Assumption Failed: Correct indicator is not a boolean in answer list"
+                assert "answer" in a and isinstance(a["answer"], str), "Assumption Failed: Answer in answer list is not a string"
+                assert "correct" in a and isinstance(a["correct"], bool), "Assumption Failed: Correct indicator is not a boolean in answer list"
                 correct_answers += 1 if a["correct"] else 0
-            assert (
-                correct_answers == 1
-            ), "Assumption Failed: Single selection question should have only one correct answer"
+            assert correct_answers == 1, "Assumption Failed: Single selection question should have only one correct answer"
             for h in self.hints:
-                assert isinstance(
-                    h, str
-                ), "Assumption Failed: Hint in hints list is not a string"
+                assert isinstance(h, str), "Assumption Failed: Hint in hints list is not a string"
             return super(SingleSelectQuestion, self).validate()
         except AssertionError:
-            raise InvalidQuestionException(
-                "Invalid question: {0}".format(self.__dict__)
-            )
+            raise InvalidQuestionException("Invalid question: {0}".format(self.__dict__))
 
 
 class InputQuestion(BaseQuestion):
@@ -511,14 +428,8 @@ class InputQuestion(BaseQuestion):
         answers = [self.create_answer(answer) for answer in answers]
         if len(answers) == 0:
             answers = [self.create_answer("No answers provided.")]
-            config.LOGGER.warning(
-                "\tWARNING: Question {id} does not have any answers (set to default)".format(
-                    id=id
-                )
-            )
-        super(InputQuestion, self).__init__(
-            id, question, exercises.INPUT_QUESTION, answers, **kwargs
-        )
+            config.LOGGER.warning("\tWARNING: Question {id} does not have any answers (set to default)".format(id=id))
+        super(InputQuestion, self).__init__(id, question, exercises.INPUT_QUESTION, answers, **kwargs)
 
     def validate(self):
         """validate: Makes sure input question is valid
@@ -526,28 +437,16 @@ class InputQuestion(BaseQuestion):
         Returns: boolean indicating if input question is valid
         """
         try:
-            assert (
-                self.question_type == exercises.INPUT_QUESTION
-            ), "Assumption Failed: Question should be input answer type"
-            assert (
-                len(self.answers) > 0
-            ), "Assumption Failed: Multiple selection question should have answers"
+            assert self.question_type == exercises.INPUT_QUESTION, "Assumption Failed: Question should be input answer type"
+            assert len(self.answers) > 0, "Assumption Failed: Multiple selection question should have answers"
             for a in self.answers:
-                assert (
-                    "answer" in a
-                ), "Assumption Failed: Answers must have an answer field"
+                assert "answer" in a, "Assumption Failed: Answers must have an answer field"
                 try:
                     float(a["answer"])
                 except ValueError:
-                    assert False, "Assumption Failed: Answer {} must be numeric".format(
-                        a["answer"]
-                    )
+                    assert False, "Assumption Failed: Answer {} must be numeric".format(a["answer"])
             for h in self.hints:
-                assert isinstance(
-                    h, str
-                ), "Assumption Failed: Hint in hints list is not a string"
+                assert isinstance(h, str), "Assumption Failed: Hint in hints list is not a string"
             return super(InputQuestion, self).validate()
         except AssertionError:
-            raise InvalidQuestionException(
-                "Invalid question: {0}".format(self.__dict__)
-            )
+            raise InvalidQuestionException("Invalid question: {0}".format(self.__dict__))

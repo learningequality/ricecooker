@@ -21,7 +21,6 @@ from ricecooker.classes.nodes import HTML5AppNode
 from ricecooker.classes.nodes import TopicNode
 from ricecooker.classes.nodes import VideoNode
 
-
 SHOW_THUMBS = False  # set to True to show outputs when running tests locally
 
 
@@ -38,9 +37,7 @@ class TestThumbnailSetting(object):
 
     def get_video_node(self, path, thumbnail=None):
         video_file = VideoFile(path, language="en")
-        video_node = VideoNode(
-            "vid-src-id", "Video", licenses.PUBLIC_DOMAIN, thumbnail=thumbnail
-        )
+        video_node = VideoNode("vid-src-id", "Video", licenses.PUBLIC_DOMAIN, thumbnail=thumbnail)
         video_node.add_file(video_file)
         return video_node
 
@@ -63,15 +60,15 @@ class TestThumbnailSetting(object):
         assert len(failed_files) == 1, "multiple failed files found"
         failed_file = failed_files[0]
         assert failed_file.error, "must have error set"
-        assert (
-            thumbnail_file == failed_file
-        ), "bad thumbnail file not found in config.FAILED_FILES"
+        assert thumbnail_file == failed_file, "bad thumbnail file not found in config.FAILED_FILES"
 
     # HAPPY PATHS
     ############################################################################
 
     def test_set_png_thumbnail_from_local_path(
-        self, low_res_video, thumbnail_path  # noqa F811
+        self,
+        low_res_video,
+        thumbnail_path,  # noqa F811
     ):
         video_node = self.get_video_node(  # noqa F811
             path=low_res_video.name, thumbnail=thumbnail_path
@@ -81,11 +78,11 @@ class TestThumbnailSetting(object):
         self.check_correct_thumbnail(video_node)
 
     def test_set_jpg_thumbnail_from_local_path(
-        self, low_res_video, thumbnail_path_jpg  # noqa F811
+        self,
+        low_res_video,
+        thumbnail_path_jpg,  # noqa F811
     ):
-        video_node = self.get_video_node(
-            path=low_res_video.name, thumbnail=thumbnail_path_jpg
-        )
+        video_node = self.get_video_node(path=low_res_video.name, thumbnail=thumbnail_path_jpg)
         video_node.validate()
         _ = video_node.process_files()
         expected_thumbnail_filename = "d7ab03e4263fc374737d96ac2da156c1.jpg"
@@ -96,9 +93,7 @@ class TestThumbnailSetting(object):
         assert thumbnail_filename == expected_thumbnail_filename, "Wrong thumbnail"
 
     def test_set_thumbnail_from_url(self, low_res_video):  # noqa F811
-        video_node = self.get_video_node(
-            path=low_res_video.name, thumbnail=THUMBNAIL_URL
-        )
+        video_node = self.get_video_node(path=low_res_video.name, thumbnail=THUMBNAIL_URL)
         video_node.validate()
         _ = video_node.process_files()
         self.check_correct_thumbnail(video_node)
@@ -111,12 +106,12 @@ class TestThumbnailSetting(object):
         self.check_correct_thumbnail(video_node)
 
     def test_set_thumbnail_from_ThumbnailFile(
-        self, low_res_video, thumbnail_path  # noqa F811
+        self,
+        low_res_video,
+        thumbnail_path,  # noqa F811
     ):
         thumbnail_file = ThumbnailFile(thumbnail_path)
-        video_node = self.get_video_node(
-            path=low_res_video.name, thumbnail=thumbnail_file
-        )
+        video_node = self.get_video_node(path=low_res_video.name, thumbnail=thumbnail_file)
         video_node.validate()
         _ = video_node.process_files()
         self.check_correct_thumbnail(video_node)
@@ -134,22 +129,20 @@ class TestThumbnailSetting(object):
 
     def test_set_thumbnail_from_non_existent_path(self, low_res_video):  # noqa F811
         non_existent_path = "does/not/exist.png"
-        video_node = self.get_video_node(
-            path=low_res_video.name, thumbnail=non_existent_path
-        )
+        video_node = self.get_video_node(path=low_res_video.name, thumbnail=non_existent_path)
         video_node.validate()
         _ = video_node.process_files()
         self.assert_failed_thumbnail(video_node)
 
     def test_set_thumbnail_from_bad_path(
-        self, low_res_video, fake_thumbnail_file  # noqa F811
+        self,
+        low_res_video,
+        fake_thumbnail_file,  # noqa F811
     ):
         """
         File path exists, but is not a valid PNG file.
         """
-        video_node = self.get_video_node(
-            path=low_res_video.name, thumbnail=fake_thumbnail_file
-        )
+        video_node = self.get_video_node(path=low_res_video.name, thumbnail=fake_thumbnail_file)
         video_node.validate()
         _ = video_node.process_files()
         self.assert_failed_thumbnail(video_node)
@@ -165,11 +158,7 @@ class TestThumbnailGeneration(object):
         config.THUMBNAILS = False
 
     def check_has_thumbnail(self, node):
-        thumbnail_files = [
-            f
-            for f in node.files
-            if isinstance(f, ThumbnailFile) or isinstance(f, TiledThumbnailFile)
-        ]
+        thumbnail_files = [f for f in node.files if isinstance(f, ThumbnailFile) or isinstance(f, TiledThumbnailFile)]
         assert len(thumbnail_files) == 1, "expected single thumbnail"
         thumbnail_file = thumbnail_files[0]
         thumbnail_filename = thumbnail_file.get_filename()
@@ -192,17 +181,13 @@ class TestThumbnailGeneration(object):
         assert len(failed_files) == 1, "multiple failed files found"
         failed_file = failed_files[0]
         assert failed_file.error, "must have error set"
-        assert (
-            thumbnail_file == failed_file
-        ), "bad thumbnail file not found in config.FAILED_FILES"
+        assert thumbnail_file == failed_file, "bad thumbnail file not found in config.FAILED_FILES"
 
     # HAPPY PATHS
     ############################################################################
 
     def test_generate_thumbnail_from_pdf(self, document_file):
-        node = DocumentNode(
-            "doc-src-id", "Document", licenses.PUBLIC_DOMAIN, thumbnail=None
-        )
+        node = DocumentNode("doc-src-id", "Document", licenses.PUBLIC_DOMAIN, thumbnail=None)
         node.add_file(document_file)
         config.THUMBNAILS = True
         filenames = node.process_files()
@@ -210,9 +195,7 @@ class TestThumbnailGeneration(object):
         self.check_has_thumbnail(node)
 
     def test_generate_thumbnail_from_epub(self, epub_file):
-        node = DocumentNode(
-            "doc-src-id", "Document", licenses.PUBLIC_DOMAIN, thumbnail=None
-        )
+        node = DocumentNode("doc-src-id", "Document", licenses.PUBLIC_DOMAIN, thumbnail=None)
         node.add_file(epub_file)
         config.THUMBNAILS = True
         filenames = node.process_files()
@@ -220,9 +203,7 @@ class TestThumbnailGeneration(object):
         self.check_has_thumbnail(node)
 
     def test_generate_thumbnail_from_html(self, html_file):
-        node = HTML5AppNode(
-            "html-src-id", "HTML5 App", licenses.PUBLIC_DOMAIN, thumbnail=None
-        )
+        node = HTML5AppNode("html-src-id", "HTML5 App", licenses.PUBLIC_DOMAIN, thumbnail=None)
         node.add_file(html_file)
         config.THUMBNAILS = True
         filenames = node.process_files()

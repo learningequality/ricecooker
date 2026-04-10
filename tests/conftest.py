@@ -19,10 +19,7 @@ try:
 except ImportError:
     VCRHTTPResponse = None
 
-from ricecooker.__init__ import __version__
-from ricecooker.classes.files import _ExerciseBase64ImageFile
-from ricecooker.classes.files import _ExerciseGraphieFile
-from ricecooker.classes.files import _ExerciseImageFile
+from ricecooker import __version__
 from ricecooker.classes.files import AudioFile
 from ricecooker.classes.files import DocumentFile
 from ricecooker.classes.files import EPubFile
@@ -31,18 +28,20 @@ from ricecooker.classes.files import SlideImageFile
 from ricecooker.classes.files import SubtitleFile
 from ricecooker.classes.files import ThumbnailFile
 from ricecooker.classes.files import VideoFile
+from ricecooker.classes.files import _ExerciseBase64ImageFile
+from ricecooker.classes.files import _ExerciseGraphieFile
+from ricecooker.classes.files import _ExerciseImageFile
 from ricecooker.classes.nodes import AudioNode
 from ricecooker.classes.nodes import ChannelNode
 from ricecooker.classes.nodes import DocumentNode
 from ricecooker.classes.nodes import ExerciseNode
 from ricecooker.classes.nodes import HTML5AppNode
-from ricecooker.classes.nodes import kind_activity_map
 from ricecooker.classes.nodes import SlideshowNode
 from ricecooker.classes.nodes import TopicNode
 from ricecooker.classes.nodes import VideoNode
+from ricecooker.classes.nodes import kind_activity_map
 from ricecooker.classes.questions import InputQuestion
 from ricecooker.classes.questions import SingleSelectQuestion
-
 
 # GLOBAL TEST SETUP/TEARDOWN UTILS
 ################################################################################
@@ -52,9 +51,7 @@ def pytest_sessionfinish(session, exitstatus):
     """
     Cleanup testcontent/generated/ directory after each test run is finished.
     """
-    generated_path = os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "testcontent", "generated")
-    )
+    generated_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "testcontent", "generated"))
     for path in glob.glob(generated_path + os.path.sep + "*"):
         os.remove(path)
 
@@ -126,9 +123,7 @@ def channel_content_id(channel_domain_namespace, channel_node_id):
 
 
 @pytest.fixture
-def channel_data(
-    channel_node_id, channel_content_id, domain_namespace, channel_source_id
-):
+def channel_data(channel_node_id, channel_content_id, domain_namespace, channel_source_id):
     return {
         "id": channel_node_id.hex,
         "name": "Channel",
@@ -357,14 +352,8 @@ def contentnode_no_source_id(title):
 
 @pytest.fixture
 def video_file():  # uses same file as test_videos.low_res_video fixture
-    source_url = (
-        "https://archive.org/download/vd_is_for_everybody/vd_is_for_everybody_512kb.mp4"
-    )
-    local_path = os.path.abspath(
-        os.path.join(
-            os.path.dirname(__file__), "testcontent", "downloaded", "low_res_video.mp4"
-        )
-    )
+    source_url = "https://archive.org/download/vd_is_for_everybody/vd_is_for_everybody_512kb.mp4"
+    local_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "testcontent", "downloaded", "low_res_video.mp4"))
     download_fixture_file(source_url, local_path)
     assert os.path.exists(local_path)
     return VideoFile(local_path)
@@ -377,11 +366,7 @@ def video_filename():
 
 @pytest.fixture
 def subtitle_file():
-    local_path = os.path.abspath(
-        os.path.join(
-            os.path.dirname(__file__), "testcontent", "generated", "testsubtitles.vtt"
-        )
-    )
+    local_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "testcontent", "generated", "testsubtitles.vtt"))
     if not os.path.exists(local_path):
         with open(local_path, "wb") as subtitlefile:
             subtitlefile.write(b"WEBVTT\n")
@@ -433,11 +418,7 @@ def video_invalid_files(video_data, document_file):
 
 @pytest.fixture
 def invalid_video_file():
-    local_path = os.path.abspath(
-        os.path.join(
-            os.path.dirname(__file__), "testcontent", "generated", "invalid_video.mp4"
-        )
-    )
+    local_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "testcontent", "generated", "invalid_video.mp4"))
     if not os.path.exists(local_path):
         with open(local_path, "wb") as f:
             f.write(b"this is an invalid video file")
@@ -480,15 +461,8 @@ def youtube_video_with_subs_dict():
 
 @pytest.fixture
 def audio_file():
-    source_url = (
-        "https://ia800203.us.archive.org/26/items/Bach_Original_works_and_transcriptions-6556"
-        "/Felipe_Sarro_-_08_-_Bach_Sinfonia_11_BWV_797.mp3"
-    )
-    local_path = os.path.abspath(
-        os.path.join(
-            os.path.dirname(__file__), "testcontent", "downloaded", "testaudio.mp3"
-        )
-    )
+    source_url = "https://ia800203.us.archive.org/26/items/Bach_Original_works_and_transcriptions-6556/Felipe_Sarro_-_08_-_Bach_Sinfonia_11_BWV_797.mp3"
+    local_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "testcontent", "downloaded", "testaudio.mp3"))
     download_fixture_file(source_url, local_path)
     assert os.path.exists(local_path)
     return AudioFile(local_path)
@@ -500,9 +474,7 @@ def audio_filename():
 
 
 @pytest.fixture
-def audio_data(
-    contentnode_base_data, audio_file, channel_domain_namespace, channel_node_id
-):
+def audio_data(contentnode_base_data, audio_file, channel_domain_namespace, channel_node_id):
     audio_data = copy.deepcopy(contentnode_base_data)
     ids_dict = genrate_random_ids(channel_domain_namespace, channel_node_id)
     audio_data.update(ids_dict)
@@ -538,11 +510,7 @@ def audio_invalid_files(audio_data, document_file):
 
 @pytest.fixture
 def invalid_audio_file():
-    local_path = os.path.abspath(
-        os.path.join(
-            os.path.dirname(__file__), "testcontent", "generated", "invalid_audio.mp3"
-        )
-    )
+    local_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "testcontent", "generated", "invalid_audio.mp3"))
 
     if not os.path.exists(local_path):
         with open(local_path, "wb") as f:
@@ -557,11 +525,7 @@ def invalid_audio_file():
 @pytest.fixture
 def document_file():
     source_url = "https://archive.org/download/manualzz-id-707752/707752.pdf"
-    local_path = os.path.abspath(
-        os.path.join(
-            os.path.dirname(__file__), "testcontent", "downloaded", "testdocument.pdf"
-        )
-    )
+    local_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "testcontent", "downloaded", "testdocument.pdf"))
 
     download_fixture_file(source_url, local_path)
     assert os.path.exists(local_path)
@@ -574,9 +538,7 @@ def document_filename():
 
 
 @pytest.fixture
-def document_data(
-    contentnode_base_data, document_file, channel_domain_namespace, channel_node_id
-):
+def document_data(contentnode_base_data, document_file, channel_domain_namespace, channel_node_id):
     document_data = copy.deepcopy(contentnode_base_data)
     ids_dict = genrate_random_ids(channel_domain_namespace, channel_node_id)
     document_data.update(ids_dict)
@@ -612,11 +574,7 @@ def document_invalid_files(document_data, audio_file):
 
 @pytest.fixture
 def epub_file():
-    path = os.path.abspath(
-        os.path.join(
-            os.path.dirname(__file__), "testcontent", "samples", "testdocument.epub"
-        )
-    )
+    path = os.path.abspath(os.path.join(os.path.dirname(__file__), "testcontent", "samples", "testdocument.epub"))
     assert os.path.exists(path)
     return EPubFile(path)
 
@@ -670,15 +628,8 @@ def invalid_epub_file():
 
 @pytest.fixture
 def html_file():
-    source_url = (
-        "https://studio.learningequality.org/content/storage/"
-        "e/d/ed494d6547b603b8ff22095cf5f5b624.zip"
-    )
-    local_path = os.path.abspath(
-        os.path.join(
-            os.path.dirname(__file__), "testcontent", "downloaded", "testhtml.zip"
-        )
-    )
+    source_url = "https://studio.learningequality.org/content/storage/e/d/ed494d6547b603b8ff22095cf5f5b624.zip"
+    local_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "testcontent", "downloaded", "testhtml.zip"))
     download_fixture_file(source_url, local_path)
     assert os.path.exists(local_path)
     return HTMLZipFile(local_path)
@@ -690,9 +641,7 @@ def html_filename():
 
 
 @pytest.fixture
-def html_data(
-    contentnode_base_data, html_file, channel_domain_namespace, channel_node_id
-):
+def html_data(contentnode_base_data, html_file, channel_domain_namespace, channel_node_id):
     html_data = copy.deepcopy(contentnode_base_data)
     ids_dict = genrate_random_ids(channel_domain_namespace, channel_node_id)
     html_data.update(ids_dict)
@@ -731,11 +680,7 @@ def html_invalid_files(html_data, document_file):
 
 @pytest.fixture
 def html_invalid_file():
-    local_path = os.path.abspath(
-        os.path.join(
-            os.path.dirname(__file__), "testcontent", "generated", "testinvalidhtml.zip"
-        )
-    )
+    local_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "testcontent", "generated", "testinvalidhtml.zip"))
 
     if not os.path.exists(local_path):
         with zipfile.ZipFile(local_path, "w", zipfile.ZIP_DEFLATED) as archive:
@@ -817,11 +762,7 @@ def exercise_invalid_question(exercise):
 
 @pytest.fixture
 def thumbnail_file():
-    local_path = os.path.abspath(
-        os.path.join(
-            os.path.dirname(__file__), "testcontent", "samples", "thumbnail.png"
-        )
-    )
+    local_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "testcontent", "samples", "thumbnail.png"))
     assert os.path.exists(local_path)
     return ThumbnailFile(local_path)
 
@@ -833,11 +774,7 @@ def thumbnail_filename():
 
 @pytest.fixture
 def fake_thumbnail_file():
-    local_path = os.path.abspath(
-        os.path.join(
-            os.path.dirname(__file__), "testcontent", "generated", "invalidimage.png"
-        )
-    )
+    local_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "testcontent", "generated", "invalidimage.png"))
     if not os.path.exists(local_path):
         with open(local_path, "wb") as imgfile:
             imgfile.write(b"not_a_valid_PNG")
@@ -850,11 +787,7 @@ def fake_thumbnail_file():
 
 @pytest.fixture
 def exercise_image_file():
-    path = os.path.abspath(
-        os.path.join(
-            os.path.dirname(__file__), "testcontent", "exercises", "no-wifi.png"
-        )
-    )
+    path = os.path.abspath(os.path.join(os.path.dirname(__file__), "testcontent", "exercises", "no-wifi.png"))
     return _ExerciseImageFile(path)
 
 
@@ -923,9 +856,7 @@ def exercise_graphie_mock_download_session():
 
 @pytest.fixture
 def exercise_graphie_file():
-    return _ExerciseGraphieFile(
-        "https://khanacademy.org/content/eb3f3bf7c317408ee90995b5bcf4f3a59606aedd", "en"
-    )
+    return _ExerciseGraphieFile("https://khanacademy.org/content/eb3f3bf7c317408ee90995b5bcf4f3a59606aedd", "en")
 
 
 @pytest.fixture
@@ -962,9 +893,7 @@ def slideshow_files():
 
 
 @pytest.fixture
-def slideshow_data(
-    contentnode_base_data, slideshow_files, channel_domain_namespace, channel_node_id
-):
+def slideshow_data(contentnode_base_data, slideshow_files, channel_domain_namespace, channel_node_id):
     slideshow_data = copy.deepcopy(contentnode_base_data)
     ids_dict = genrate_random_ids(channel_domain_namespace, channel_node_id)
     slideshow_data.update(ids_dict)
@@ -1001,12 +930,13 @@ def download_fixture_file(source_url, local_path):
     """
     if os.path.exists(local_path):
         return
-    with open(local_path, "wb") as f:
+    try:
         response = requests.get(source_url, stream=True)
-        assert (
-            response.status_code == 200
-        ), "Fixture file with url: {} not found".format(source_url)
-        for chunk in response.iter_content(chunk_size=1048576):
-            f.write(chunk)
-        f.flush()
-        f.close()
+        if response.status_code != 200:
+            pytest.skip("Fixture file with url: {} not available (status {})".format(source_url, response.status_code))
+        with open(local_path, "wb") as f:
+            for chunk in response.iter_content(chunk_size=1048576):
+                f.write(chunk)
+            f.flush()
+    except requests.exceptions.RequestException as e:
+        pytest.skip("Fixture file with url: {} not available (network error: {})".format(source_url, e))

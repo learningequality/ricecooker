@@ -19,16 +19,12 @@ class SlackTestCase(unittest.TestCase):
         )
         url = "https://studio.learningequality.org/en/channels/test-channel-id/"
 
-        with patch.dict(
-            "os.environ", {"SLACK_WEBHOOK_URL": "https://hooks.slack.com/services/test"}
-        ):
+        with patch.dict("os.environ", {"SLACK_WEBHOOK_URL": "https://hooks.slack.com/services/test"}):
             send_slack_notification(channel, url)
 
         mock_post.assert_called_once()
         args, kwargs = mock_post.call_args
         self.assertEqual(args[0], "https://hooks.slack.com/services/test")
-        self.assertIn(
-            "A new channel has been uploaded to Kolibri Studio:", kwargs["json"]["text"]
-        )
+        self.assertIn("A new channel has been uploaded to Kolibri Studio:", kwargs["json"]["text"])
         self.assertIn("Test Channel", kwargs["json"]["text"])
         self.assertIn(url, kwargs["json"]["text"])

@@ -1,4 +1,5 @@
-""" Tests for handling requests to Kolibri Studio """
+"""Tests for handling requests to Kolibri Studio"""
+
 import copy
 import uuid
 
@@ -9,7 +10,6 @@ from ricecooker.classes.nodes import DocumentNode
 from ricecooker.classes.nodes import TopicNode
 from ricecooker.exceptions import InvalidNodeException
 from ricecooker.managers.tree import ChannelManager
-
 
 """ *********** TOPIC FIXTURES *********** """
 

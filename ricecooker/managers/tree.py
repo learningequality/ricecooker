@@ -6,8 +6,9 @@ import sys
 
 from requests.exceptions import RequestException
 
-from .. import config
 from ricecooker.exceptions import InvalidNodeException
+
+from .. import config
 
 
 class InsufficientStorageException(Exception):
@@ -41,9 +42,7 @@ class ChannelManager:
         if not self.all_nodes:
             self.all_nodes = self.gather_tree_recur([], self.channel)
         valid = True
-        with concurrent.futures.ThreadPoolExecutor(
-            max_workers=config.TASK_THREADS
-        ) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=config.TASK_THREADS) as executor:
             for result in executor.map(self.validate_node, self.all_nodes):
                 valid = valid and result
         return valid
@@ -67,9 +66,7 @@ class ChannelManager:
         """
         if not self.all_nodes:
             self.all_nodes = self.gather_tree_recur([], self.channel)
-        with concurrent.futures.ThreadPoolExecutor(
-            max_workers=config.TASK_THREADS
-        ) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=config.TASK_THREADS) as executor:
             for data in executor.map(self.process_node, self.all_nodes):
                 self.file_map.update(data)
         return list(self.file_map.keys())
@@ -77,9 +74,7 @@ class ChannelManager:
     def gather_tree_recur(self, nodes, node):
         # Process node's children
         for child_node in node.children:
-            self.gather_tree_recur(
-                nodes, child_node
-            )  # Defer insert until after all descendants in case a tiled thumbnail is needed
+            self.gather_tree_recur(nodes, child_node)  # Defer insert until after all descendants in case a tiled thumbnail is needed
         nodes.append(node)
         return nodes
 
@@ -115,14 +110,10 @@ class ChannelManager:
         Returns: None
         """
         if len(config.FAILED_FILES) > 0:
-            config.LOGGER.error(
-                "   {} file(s) have failed to download".format(len(config.FAILED_FILES))
-            )
+            config.LOGGER.error("   {} file(s) have failed to download".format(len(config.FAILED_FILES)))
             for f in config.FAILED_FILES:
                 if f.node:  # files associated with a a content node
-                    info = "{0} {id}".format(
-                        f.node.kind.capitalize(), id=f.node.source_id
-                    )
+                    info = "{0} {id}".format(f.node.kind.capitalize(), id=f.node.source_id)
                 elif f.assessment_item:  # files associated with an assessment item
                     info = "{0} {id}".format("Question", id=f.assessment_item.source_id)
                 else:  # files not associated with a node or an assessment item
@@ -132,11 +123,7 @@ class ChannelManager:
                     file_identifier = f.path
                 elif hasattr(f, "youtube_url") and f.youtube_url:
                     file_identifier = f.youtube_url
-                config.LOGGER.warning(
-                    "\t{0}: {id} \n\t   {err}".format(
-                        info, id=file_identifier, err=f.error
-                    )
-                )
+                config.LOGGER.warning("\t{0}: {id} \n\t   {err}".format(info, id=file_identifier, err=f.error))
         else:
             config.LOGGER.info("   All files were successfully downloaded")
 
@@ -149,16 +136,8 @@ class ChannelManager:
         Args: None
         Returns: list of files that are not on server
         """
-        with concurrent.futures.ThreadPoolExecutor(
-            max_workers=config.TASK_THREADS
-        ) as executor:
-            return [
-                filename
-                for filename, exists in zip(
-                    files_to_diff, executor.map(self.check_file_exists, files_to_diff)
-                )
-                if not exists
-            ]
+        with concurrent.futures.ThreadPoolExecutor(max_workers=config.TASK_THREADS) as executor:
+            return [filename for filename, exists in zip(files_to_diff, executor.map(self.check_file_exists, files_to_diff)) if not exists]
 
     def do_file_upload(self, filename):
         file_data = self.file_map[filename]
@@ -189,27 +168,15 @@ class ChannelManager:
                 might_skip = response_data["might_skip"]
                 if might_skip and self.check_file_exists(filename):
                     return
-                b64checksum = (
-                    codecs.encode(codecs.decode(file_data.checksum, "hex"), "base64")
-                    .decode()
-                    .strip()
-                )
+                b64checksum = codecs.encode(codecs.decode(file_data.checksum, "hex"), "base64").decode().strip()
                 headers = {"Content-Type": content_type, "Content-MD5": b64checksum}
-                response = config.SESSION.put(
-                    upload_url, headers=headers, data=file_obj
-                )
+                response = config.SESSION.put(upload_url, headers=headers, data=file_obj)
                 if response.status_code == 200:
                     return
-                raise RequestException(
-                    "Error uploading file {}, response code: {} - {}".format(
-                        filename, response.status_code, response.text
-                    )
-                )
+                raise RequestException("Error uploading file {}, response code: {} - {}".format(filename, response.status_code, response.text))
             else:
                 raise RequestException(
-                    "Error retrieving upload URL for file {}, response code: {} - {}".format(
-                        filename, url_response.status_code, url_response.text
-                    )
+                    "Error retrieving upload URL for file {}, response code: {} - {}".format(filename, url_response.status_code, url_response.text)
                 )
 
     def _handle_upload(self, f):
@@ -231,22 +198,14 @@ class ChannelManager:
         Returns: None
         """
         counter = 0
-        files_to_upload = list(
-            set(file_list) - set(self.uploaded_files)
-        )  # In case restoring from previous session
+        files_to_upload = list(set(file_list) - set(self.uploaded_files))  # In case restoring from previous session
         try:
-            with concurrent.futures.ThreadPoolExecutor(
-                max_workers=config.TASK_THREADS
-            ) as executor:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=config.TASK_THREADS) as executor:
                 # Start the upload operations
                 for filename in executor.map(self._handle_upload, files_to_upload):
                     if filename is not None:
                         counter += 1
-                        config.LOGGER.info(
-                            "\tUploaded {0} ({count}/{total}) ".format(
-                                filename, count=counter, total=len(files_to_upload)
-                            )
-                        )
+                        config.LOGGER.info("\tUploaded {0} ({count}/{total}) ".format(filename, count=counter, total=len(files_to_upload)))
         finally:
             config.PROGRESS_MANAGER.set_uploading(self.uploaded_files)
 
@@ -256,9 +215,7 @@ class ChannelManager:
         Returns: None
         """
         if len(self.failed_uploads) > 0:
-            config.LOGGER.info(
-                "Reattempting to upload {0} file(s)...".format(len(self.failed_uploads))
-            )
+            config.LOGGER.info("Reattempting to upload {0} file(s)...".format(len(self.failed_uploads)))
             current_fails = [k for k in self.failed_uploads]
             self.failed_uploads = {}
             self.upload_files(current_fails)
@@ -285,9 +242,7 @@ class ChannelManager:
         self.check_failed()
         channel_id, channel_link = self.commit_channel(channel_id)
         end_time = datetime.now()
-        config.LOGGER.info(
-            "Upload time: {time}s".format(time=(end_time - start_time).total_seconds())
-        )
+        config.LOGGER.info("Upload time: {time}s".format(time=(end_time - start_time).total_seconds()))
         return channel_id, channel_link
 
     def truncate_fields(self, node):
@@ -300,9 +255,7 @@ class ChannelManager:
             config.LOGGER.warning("WARNING: The following nodes could not be created:")
             for node_id in self.failed_node_builds:
                 node = self.failed_node_builds[node_id]
-                config.LOGGER.warning(
-                    "\t{} ({})".format(str(node["node"]), node["error"])
-                )
+                config.LOGGER.warning("\t{} ({})".format(str(node["node"]), node["error"]))
                 if "content" in node:
                     config.LOGGER.warning(node["content"][:80])
         else:
@@ -316,9 +269,7 @@ class ChannelManager:
         config.LOGGER.info("   Creating channel {0}".format(self.channel.title))
         self.channel.truncate_fields()
         payload = {"channel_data": self.channel.to_dict()}
-        response = config.SESSION.post(
-            config.create_channel_url(), data=json.dumps(payload)
-        )
+        response = config.SESSION.post(config.create_channel_url(), data=json.dumps(payload))
         try:
             response.raise_for_status()
         except Exception:
@@ -352,32 +303,18 @@ class ChannelManager:
 
         # Send children in chunks to avoid gateway errors
         try:
-            chunks = [
-                current_node.children[x : x + 10]
-                for x in range(0, len(current_node.children), 10)
-            ]
+            chunks = [current_node.children[x : x + 10] for x in range(0, len(current_node.children), 10)]
             for chunk in chunks:
                 payload_children = []
 
                 for child in chunk:
-                    failed = [
-                        f
-                        for f in child.files
-                        if f.is_primary
-                        and (not f.filename or self.failed_uploads.get(f.filename))
-                    ]
+                    failed = [f for f in child.files if f.is_primary and (not f.filename or self.failed_uploads.get(f.filename))]
                     if failed or not child.valid:
                         node_id = child.get_node_id().hex
                         if not self.failed_node_builds.get(node_id):
                             error_message = ""
                             for fail in failed:
-                                reason = (
-                                    fail.filename
-                                    + ": "
-                                    + self.failed_uploads.get(fail.filename)
-                                    if fail.filename
-                                    else "File failed to download"
-                                )
+                                reason = fail.filename + ": " + self.failed_uploads.get(fail.filename) if fail.filename else "File failed to download"
                                 error_message = error_message + reason + ", "
                             if hasattr(child, "_error"):
                                 error_message = error_message + child._error + ", "
@@ -389,9 +326,7 @@ class ChannelManager:
                         payload_children.append(child.to_dict())
                 payload = {"root_id": root_id, "content_data": payload_children}
 
-                response = config.SESSION.post(
-                    config.add_nodes_url(), data=json.dumps(payload)
-                )
+                response = config.SESSION.post(config.add_nodes_url(), data=json.dumps(payload))
                 if response.status_code != 200:
                     self.failed_node_builds[root_id] = {
                         "node": current_node,
@@ -419,22 +354,12 @@ class ChannelManager:
         Returns: channel id and link to uploadedchannel
         """
         payload = {"channel_id": channel_id, "stage": config.STAGE}
-        response = config.SESSION.post(
-            config.finish_channel_url(), data=json.dumps(payload)
-        )
+        response = config.SESSION.post(config.finish_channel_url(), data=json.dumps(payload))
         if response.status_code != 200:
             config.LOGGER.error("")
-            config.LOGGER.error(
-                "Could not activate channel: {}\n".format(
-                    response._content.decode("utf-8")
-                )
-            )
+            config.LOGGER.error("Could not activate channel: {}\n".format(response._content.decode("utf-8")))
             if response.status_code == 403:
-                config.LOGGER.error(
-                    "Channel can be viewed at {}\n\n".format(
-                        config.open_channel_url(channel_id, staging=True)
-                    )
-                )
+                config.LOGGER.error("Channel can be viewed at {}\n\n".format(config.open_channel_url(channel_id, staging=True)))
                 sys.exit()
         response.raise_for_status()
         new_channel = json.loads(response._content.decode("utf-8"))
@@ -448,7 +373,5 @@ class ChannelManager:
         Returns: None
         """
         payload = {"channel_id": channel_id}
-        response = config.SESSION.post(
-            config.publish_channel_url(), data=json.dumps(payload)
-        )
+        response = config.SESSION.post(config.publish_channel_url(), data=json.dumps(payload))
         response.raise_for_status()

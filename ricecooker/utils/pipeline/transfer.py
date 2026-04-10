@@ -19,18 +19,19 @@ from requests.exceptions import InvalidSchema
 from requests.exceptions import InvalidURL
 from requests.exceptions import Timeout
 
-from .context import ContextMetadata
-from .context import FileMetadata
-from .file_handler import FileHandler
-from .file_handler import StageHandler
 from ricecooker import config
 from ricecooker.utils.caching import generate_key
 from ricecooker.utils.encodings import get_base64_encoding
 from ricecooker.utils.pipeline.exceptions import InvalidFileException
 from ricecooker.utils.utils import extract_path_ext
 from ricecooker.utils.utils import get_hash
-from ricecooker.utils.youtube import get_language_with_alpha2_fallback
 from ricecooker.utils.youtube import YouTubeResource
+from ricecooker.utils.youtube import get_language_with_alpha2_fallback
+
+from .context import ContextMetadata
+from .context import FileMetadata
+from .file_handler import FileHandler
+from .file_handler import StageHandler
 
 
 class GenericFileContextMetadata(ContextMetadata):
@@ -38,7 +39,6 @@ class GenericFileContextMetadata(ContextMetadata):
 
 
 class DiskResourceHandler(FileHandler):
-
     CONTEXT_CLASS = GenericFileContextMetadata
 
     HANDLED_EXCEPTIONS = [IOError, FileNotFoundError]
@@ -47,19 +47,13 @@ class DiskResourceHandler(FileHandler):
         """Convert file:// URLs to local file paths."""
         parsed = urlparse(path)
         if parsed.scheme == "file":
-
             # Normalise & platform-adapt
             path = os.path.normpath(unquote(parsed.path))
 
             if platform == "win32":
                 # Path already uses back-slashes after normpath; just ensure a
                 # drive-letter path is not prefixed with an extra separator.
-                if (
-                    path.startswith("\\")
-                    and len(path) > 2
-                    and path[1].isalpha()
-                    and path[2] == ":"
-                ):
+                if path.startswith("\\") and len(path) > 2 and path[1].isalpha() and path[2] == ":":
                     path = path.lstrip("\\")
 
         return path
@@ -103,9 +97,7 @@ class WebResourceHandler(FileHandler):
         return not os.path.exists(config.get_storage_path(filename))
 
 
-CONTENT_DISPOSITION_FILENAME_STAR_RE = re.compile(
-    r"filename\*=(?:([^\'\"]*)\'\')?([^;]+)"
-)
+CONTENT_DISPOSITION_FILENAME_STAR_RE = re.compile(r"filename\*=(?:([^\'\"]*)\'\')?([^;]+)")
 
 CONTENT_DISPOSITION_FILENAME_RE = re.compile(r'filename=["\']?([^"\';]+)["\']?')
 
@@ -237,9 +229,7 @@ class YoutubeDownloadHandler(WebResourceHandler):
         if "subtitleslangs" in yt_dlp_settings:
             file_format = file_formats.VTT
             youtube_language = yt_dlp_settings["subtitleslangs"][0]
-            download_ext = ext = ".{lang}.{ext}".format(
-                lang=youtube_language, ext=file_formats.VTT
-            )
+            download_ext = ext = ".{lang}.{ext}".format(lang=youtube_language, ext=file_formats.VTT)
         else:
             download_ext = ""
             ext = ".mp4"
@@ -303,24 +293,18 @@ class GoogleDriveHandler(WebResourceHandler):
             from google.oauth2.service_account import Credentials
             from googleapiclient.discovery import build
         except ImportError:
-            raise RuntimeError(
-                "Google Drive downloads require google-auth and google-api-python-client libraries\n"
-                + instructions
-            )
+            raise RuntimeError("Google Drive downloads require google-auth and google-api-python-client libraries\n" + instructions)
 
         if self._drive_service is None:
             if not config.GOOGLE_SERVICE_ACCOUNT_CREDENTIALS_PATH:
                 raise RuntimeError(
-                    "Google Drive downloads require service account credentials.\n"
-                    "Please set GOOGLE_SERVICE_ACCOUNT_CREDENTIALS_PATH environment variable."
+                    "Google Drive downloads require service account credentials.\nPlease set GOOGLE_SERVICE_ACCOUNT_CREDENTIALS_PATH environment variable."
                 )
             credentials = Credentials.from_service_account_file(
                 config.GOOGLE_SERVICE_ACCOUNT_CREDENTIALS_PATH,
                 scopes=["https://www.googleapis.com/auth/drive.readonly"],
             )
-            self._drive_service = build(
-                "drive", "v3", credentials=credentials, cache_discovery=False
-            )
+            self._drive_service = build("drive", "v3", credentials=credentials, cache_discovery=False)
         return self._drive_service
 
     def _get_file_id(self, url):
@@ -353,18 +337,11 @@ class GoogleDriveHandler(WebResourceHandler):
         try:
             from googleapiclient.http import MediaIoBaseDownload
         except ImportError:
-            raise RuntimeError(
-                "Google Drive downloads require google-api-python-client library\n"
-                + instructions
-            )
+            raise RuntimeError("Google Drive downloads require google-api-python-client library\n" + instructions)
         file_id = self._get_file_id(path)
 
         # Get file metadata to determine extension
-        file = (
-            self.drive_service.files()
-            .get(fileId=file_id, fields="name, mimeType")
-            .execute()
-        )
+        file = self.drive_service.files().get(fileId=file_id, fields="name, mimeType").execute()
 
         mime_type = file["mimeType"]
         is_workspace_file = self._is_google_workspace_file(mime_type)
@@ -372,9 +349,7 @@ class GoogleDriveHandler(WebResourceHandler):
         if is_workspace_file:
             # Handle Google Workspace files using export
             export_mime_type = self._get_export_mime_type(mime_type)
-            request = self.drive_service.files().export_media(
-                fileId=file_id, mimeType=export_mime_type
-            )
+            request = self.drive_service.files().export_media(fileId=file_id, mimeType=export_mime_type)
             # Update extension based on export format
             ext = mimetypes.guess_extension(export_mime_type) or ""
         else:

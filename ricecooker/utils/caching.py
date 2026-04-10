@@ -13,7 +13,6 @@ from ricecooker import config
 from ricecooker.utils.utils import get_hash
 from ricecooker.utils.utils import is_valid_url
 
-
 # Cache for filenames
 FILECACHE = FileCache(config.FILECACHE_DIRECTORY, forever=True)
 
@@ -50,12 +49,9 @@ class InvalidatingCacheControlAdapter(CacheControlAdapter):
     def __init__(self, heuristic=None, *args, **kw):
         if not heuristic:
             heuristic = NeverCache()
-        super(InvalidatingCacheControlAdapter, self).__init__(
-            *args, heuristic=heuristic, **kw
-        )
+        super(InvalidatingCacheControlAdapter, self).__init__(*args, heuristic=heuristic, **kw)
 
     def send(self, request, **kw):
-
         # delete any existing cached value from the cache
         try:
             cache_url = self.controller.cache_url(request.url)
@@ -82,9 +78,7 @@ def generate_key(action, path_or_id, settings=None, default=" (default)"):
         settings_str = json.dumps(settings, sort_keys=True)
     else:
         # keep using old strategy to avoid invalidating all chef caches
-        settings_str = (
-            "{}".format(str(sorted(settings.items()))) if settings else default
-        )
+        settings_str = "{}".format(str(sorted(settings.items()))) if settings else default
     return "{}: {} {}".format(action.upper(), path_or_id, settings_str)
 
 

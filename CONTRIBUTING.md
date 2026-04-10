@@ -49,9 +49,7 @@ Becoming a ricecooker developer
 -------------------------------
 
 Ready to contribute? In order to work on the `ricecooker` code you'll first need
-to make you have [Python 3](https://www.python.org/downloads/) on your computer.
-You'll also need to install the Python package [pip](https://pypi.org/project/pip/)
-if you don't have it already.
+to have [Python 3.9+](https://www.python.org/downloads/) on your computer.
 
 Here are the steps for setting up `ricecooker` for local development:
 
@@ -65,45 +63,22 @@ Here are the steps for setting up `ricecooker` for local development:
     cd ricecooker/
     ```
 
-3. Create a Python virtual environment for this project (optional, but recommended):
-
-   * Install the `virtualenv` package using the command
-     ```
-     pip install virtualenv
-     ```
-
-   * The next steps depends if you're using a UNIX system (Mac/Linux) or Windows:
-      * For UNIX operating systems:
-         * Create a virtual env called `venv` in the current directory using the
-           command:
-           ```
-           virtualenv -p python3 venv
-           ```
-         * Activate the virtualenv called `venv` by running:
-           ```
-           source venv/bin/activate
-           ```
-           Your command prompt will change to indicate you're working inside `venv`.
-
-      * For Windows systems:
-         * Create a virtual env called `venv` in the current directory using the
-           following command:
-           ```
-           virtualenv -p C:/Python36/python.exe venv
-           ```
-           You may need to adjust the `-p` argument depending on where your version
-           of Python is located. Note you'll need Python version 3.5 or higher.
-         * Activate the virtualenv called `venv` by running:
-           ```
-           .\venv\Scripts\activate
-           ```
-
-4. Install the `ricecooker` code in the virtual environment using these commands:
+3. Install [uv](https://docs.astral.sh/uv/getting-started/installation/) if you don't have it already:
 
     ```
-    pip install -e .
+    curl -LsSf https://astral.sh/uv/install.sh | sh
     ```
 
+    On Windows:
+    ```
+    powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+    ```
+
+4. Install the `ricecooker` code and its dependencies:
+
+    ```
+    uv sync --group dev
+    ```
 
 5. Create a branch for local development:
 
@@ -114,24 +89,23 @@ Here are the steps for setting up `ricecooker` for local development:
    Now you can make your changes locally.
 
 
-6. When you're done making changes, check that your changes pass flake8 linter rules
-   and the `ricecooker` test suite, including testing other Python versions with tox:
+6. When you're done making changes, check that your changes pass linting
+   and the `ricecooker` test suite:
 
-   To run the tests you will need to install the extra depedencies tagged "test"
-
-   ```
-   pip install -e .[test]
-   ```
-
-   Running the tests
-
+   Run linting:
     ```
-    flake8 ricecooker tests
-    pytest
-    tox
+    uvx prek run --all-files
     ```
 
-   To get `flake8` and `tox`, just `pip install` them into your virtualenv.
+   Run the tests:
+    ```
+    uv run --group test pytest
+    ```
+
+   Run tests across all supported Python versions:
+    ```
+    make test-all
+    ```
 
 
 7. Commit your changes and push your branch to GitHub:
@@ -157,8 +131,7 @@ Before you submit a pull request, check that it meets these guidelines:
 2. If the pull request adds functionality, the docs should be updated. Put
    your new functionality into a function with a docstring, and add the
    feature to the list in `README.md`.
-3. The pull request should work for Python 3.5+. Check
-   [https://travis-ci.org/github/learningequality/ricecooker/pull_requests](https://travis-ci.org/github/learningequality/ricecooker/pull_requests)
+3. The pull request should work for Python 3.9+. Check the GitHub Actions CI
    and make sure that the tests pass for all supported Python versions.
 
 

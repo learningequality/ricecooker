@@ -18,6 +18,9 @@ from le_utils.constants.labels import needs
 from le_utils.constants.labels import resource_type
 from le_utils.constants.labels import subjects
 
+from ricecooker.utils.pipeline.exceptions import ExpectedFileException
+from ricecooker.utils.pipeline.exceptions import InvalidFileException
+
 from .. import __version__
 from .. import config
 from ..exceptions import InvalidNodeException
@@ -32,8 +35,6 @@ from .files import YouTubeSubtitleFile
 from .licenses import License
 from .questions import VARIANT_A
 from .questions import VARIANT_B
-from ricecooker.utils.pipeline.exceptions import ExpectedFileException
-from ricecooker.utils.pipeline.exceptions import InvalidFileException
 
 MASTERY_MODELS = [id for id, name in exercises.MASTERY_MODELS]
 ROLES = [id for id, name in roles.choices]
@@ -167,9 +168,7 @@ class Node(object):
         self.tags = tags or []
         self.domain_ns = domain_ns
         self.suggested_duration = suggested_duration
-        self.questions = (
-            self.questions if hasattr(self, "questions") else []
-        )  # Needed for to_dict method
+        self.questions = self.questions if hasattr(self, "questions") else []  # Needed for to_dict method
 
         self.grade_levels = grade_levels or []
         self.resource_types = resource_types or []
@@ -179,9 +178,7 @@ class Node(object):
         self.learner_needs = learner_needs or []
         self.role = role
 
-        self.set_license(
-            license, copyright_holder=copyright_holder, description=license_description
-        )
+        self.set_license(license, copyright_holder=copyright_holder, description=license_description)
 
     def set_language(self, language):
         """Set self.language to internal lang. repr. code from str or Language object."""
@@ -196,9 +193,7 @@ class Node(object):
 
     def __str__(self):
         count = self.count()
-        metadata = "{0} {1}".format(
-            count, "descendant" if count == 1 else "descendants"
-        )
+        metadata = "{0} {1}".format(count, "descendant" if count == 1 else "descendants")
         return "{title} ({kind}) ({source_id}): {metadata}".format(
             title=self.title,
             kind=self.__class__.__name__,
@@ -215,9 +210,7 @@ class Node(object):
             self.title = self.title[: config.MAX_TITLE_LENGTH]
 
         if self.source_id and len(self.source_id) > config.MAX_SOURCE_ID_LENGTH:
-            config.print_truncate(
-                "source_id", self.source_id, self.source_id, kind=self.kind
-            )
+            config.print_truncate("source_id", self.source_id, self.source_id, kind=self.kind)
             self.source_id = self.source_id[: config.MAX_SOURCE_ID_LENGTH]
 
         for f in self.files:
@@ -245,9 +238,7 @@ class Node(object):
         """
         from .files import File
 
-        assert isinstance(
-            file_to_add, File
-        ), "Files being added must be instances of a subclass of File class"
+        assert isinstance(file_to_add, File), "Files being added must be instances of a subclass of File class"
         file_to_add.node = self
         if file_to_add not in self.files:
             self.files.append(file_to_add)
@@ -360,9 +351,7 @@ class Node(object):
         Args: indent (int): What level of indentation at which to start printing
         Returns: None
         """
-        config.LOGGER.info(
-            "{indent}{data}".format(indent="   " * indent, data=str(self))
-        )
+        config.LOGGER.info("{indent}{data}".format(indent="   " * indent, data=str(self)))
         for child in self.children:
             child.print_tree(indent + 1)
 
@@ -423,9 +412,7 @@ class Node(object):
         if isinstance(license, str):
             from .licenses import get_license
 
-            license = get_license(
-                license, copyright_holder=copyright_holder, description=description
-            )
+            license = get_license(license, copyright_holder=copyright_holder, description=description)
         self.license = license
 
     def _validate(self):  # noqa: C901
@@ -452,9 +439,7 @@ class Node(object):
             not (isinstance(self.description, str) or self.description is None),
             "Description is not a string",
         )
-        self._validate_values(
-            not isinstance(self.children, list), "Children is not a list"
-        )
+        self._validate_values(not isinstance(self.children, list), "Children is not a list")
 
         for f in self.files:
             self._validate_values(not isinstance(f, File), "Files must be file class")
@@ -468,22 +453,12 @@ class Node(object):
         )
 
         self.infer_learning_activities()
-        self._validate_values(
-            not isinstance(self.author, str), "Author is not a string"
-        )
-        self._validate_values(
-            not isinstance(self.aggregator, str), "Aggregator is not a string"
-        )
-        self._validate_values(
-            not isinstance(self.provider, str), "Provider is not a string"
-        )
+        self._validate_values(not isinstance(self.author, str), "Author is not a string")
+        self._validate_values(not isinstance(self.aggregator, str), "Aggregator is not a string")
+        self._validate_values(not isinstance(self.provider, str), "Provider is not a string")
         self._validate_values(not isinstance(self.files, list), "Files is not a list")
-        self._validate_values(
-            not isinstance(self.questions, list), "Questions is not a list"
-        )
-        self._validate_values(
-            not isinstance(self.extra_fields, dict), "Extra fields is not a dict"
-        )
+        self._validate_values(not isinstance(self.questions, list), "Questions is not a list")
+        self._validate_values(not isinstance(self.extra_fields, dict), "Extra fields is not a dict")
         self._validate_values(not isinstance(self.tags, list), "Tags is not a list")
 
         for tag in self.tags:
@@ -494,17 +469,13 @@ class Node(object):
             )
 
         if self.license is not None:
-            self._validate_values(
-                not isinstance(self.license, License), "License is not a license object"
-            )
+            self._validate_values(not isinstance(self.license, License), "License is not a license object")
             try:
                 self.license.validate()
             except AssertionError as e:
                 self._validate_values(True, str(e))
 
-        self._validate_values(
-            self.role not in ROLES, f"Role must be one of the following: {ROLES}"
-        )
+        self._validate_values(self.role not in ROLES, f"Role must be one of the following: {ROLES}")
 
         if self.grade_levels is not None:
             for grade in self.grade_levels:
@@ -538,15 +509,12 @@ class Node(object):
             )
             for access_label in self.accessibility_labels:
                 self._validate_values(
-                    access_label
-                    not in accessibility_categories.ACCESSIBILITYCATEGORIESLIST,
+                    access_label not in accessibility_categories.ACCESSIBILITYCATEGORIESLIST,
                     f"Accessibility label must be one of the following: {accessibility_categories.ACCESSIBILITYCATEGORIESLIST}",
                 )
 
         if self.categories is not None:
-            self._validate_values(
-                not isinstance(self.categories, list), "Categories must be list"
-            )
+            self._validate_values(not isinstance(self.categories, list), "Categories must be list")
             for category in self.categories:
                 self._validate_values(
                     category not in subjects.SUBJECTSLIST,
@@ -554,9 +522,7 @@ class Node(object):
                 )
 
         if self.learner_needs is not None:
-            self._validate_values(
-                not isinstance(self.learner_needs, list), "Learner needs must be list"
-            )
+            self._validate_values(not isinstance(self.learner_needs, list), "Learner needs must be list")
             for learner_need in self.learner_needs:
                 self._validate_values(
                     learner_need not in needs.NEEDSLIST,
@@ -585,9 +551,7 @@ class Node(object):
             node_values = getattr(self, field)
             final_values = set()
             # Get a list of all keys in reverse order of length so we can remove any less specific values
-            all_values = sorted(
-                set(ancestor_values).union(set(node_values)), key=len, reverse=True
-            )
+            all_values = sorted(set(ancestor_values).union(set(node_values)), key=len, reverse=True)
             for value in all_values:
                 if not any(k != value and k.startswith(value) for k in final_values):
                     final_values.add(value)
@@ -631,14 +595,10 @@ class ChannelNode(Node):
 
     def truncate_fields(self):
         if self.description and len(self.description) > config.MAX_DESCRIPTION_LENGTH:
-            config.print_truncate(
-                "description", self.source_id, self.description, kind=self.kind
-            )
+            config.print_truncate("description", self.source_id, self.description, kind=self.kind)
             self.description = self.description[: config.MAX_DESCRIPTION_LENGTH]
         if self.tagline and len(self.tagline) > config.MAX_TAGLINE_LENGTH:
-            config.print_truncate(
-                "tagline", self.source_id, self.tagline, kind=self.kind
-            )
+            config.print_truncate("tagline", self.source_id, self.tagline, kind=self.kind)
             self.tagline = self.tagline[: config.MAX_TAGLINE_LENGTH]
         super(ChannelNode, self).truncate_fields()
 
@@ -659,13 +619,7 @@ class ChannelNode(Node):
             "source_id": self.source_id,
             "ricecooker_version": __version__,
             "extra_fields": json.dumps(self.extra_fields),
-            "files": [
-                f.to_dict()
-                for f in self.files
-                if f
-                and f.filename
-                and not (self.thumbnail and self.thumbnail.filename is f.filename)
-            ],
+            "files": [f.to_dict() for f in self.files if f and f.filename and not (self.thumbnail and self.thumbnail.filename is f.filename)],
         }
 
     def _validate(self):
@@ -673,9 +627,7 @@ class ChannelNode(Node):
         Args: None
         Returns: boolean indicating if channel is valid
         """
-        self._validate_values(
-            not isinstance(self.source_domain, str), "Channel domain must be a string"
-        )
+        self._validate_values(not isinstance(self.source_domain, str), "Channel domain must be a string")
         self._validate_values(self.language is None, "Channel must have a language")
         return super(ChannelNode, self)._validate()
 
@@ -700,13 +652,9 @@ class TreeNode(Node):
         return self.content_id
 
     def get_node_id(self):
-        assert (
-            self.parent
-        ), "Parent not found: node id must be calculated based on parent"
+        assert self.parent, "Parent not found: node id must be calculated based on parent"
         if not self.node_id:
-            self.node_id = uuid.uuid5(
-                self.parent.get_node_id(), self.get_content_id().hex
-            )
+            self.node_id = uuid.uuid5(self.parent.get_node_id(), self.get_content_id().hex)
         return self.node_id
 
     def truncate_fields(self):
@@ -715,15 +663,11 @@ class TreeNode(Node):
             self.author = self.author[: config.MAX_AUTHOR_LENGTH]
 
         if self.aggregator and len(self.aggregator) > config.MAX_AGGREGATOR_LENGTH:
-            config.print_truncate(
-                "aggregator", self.source_id, self.aggregator, kind=self.kind
-            )
+            config.print_truncate("aggregator", self.source_id, self.aggregator, kind=self.kind)
             self.aggregator = self.aggregator[: config.MAX_AGGREGATOR_LENGTH]
 
         if self.provider and len(self.provider) > config.MAX_PROVIDER_LENGTH:
-            config.print_truncate(
-                "provider", self.source_id, self.provider, kind=self.kind
-            )
+            config.print_truncate("provider", self.source_id, self.provider, kind=self.kind)
             self.provider = self.provider[: config.MAX_PROVIDER_LENGTH]
 
         self.license and self.license.truncate_fields()
@@ -743,10 +687,7 @@ class TreeNode(Node):
                 return int(text) if text.isdigit() else text.lower()
 
             def key(key):
-                return [
-                    convert(re.sub(r"[^A-Za-z0-9]+", "", c.replace("&", "and")))
-                    for c in re.split("([0-9]+)", key.title)
-                ]
+                return [convert(re.sub(r"[^A-Za-z0-9]+", "", c.replace("&", "and"))) for c in re.split("([0-9]+)", key.title)]
 
         self.children = sorted(self.children, key=key, reverse=reverse)
         return self.children
@@ -759,8 +700,7 @@ class TreeNode(Node):
         return {
             "title": self.node_modifications.get("New Title") or self.title,
             "language": self.language,
-            "description": self.node_modifications.get("New Description")
-            or self.description,
+            "description": self.node_modifications.get("New Description") or self.description,
             "node_id": self.get_node_id().hex,
             "content_id": self.get_content_id().hex,
             "source_domain": self.domain_ns.hex,
@@ -768,9 +708,7 @@ class TreeNode(Node):
             "author": self.author,
             "aggregator": self.aggregator,
             "provider": self.provider,
-            "files": [
-                f.to_dict() for f in self.files if f and f.filename
-            ],  # Filter out failed downloads
+            "files": [f.to_dict() for f in self.files if f and f.filename],  # Filter out failed downloads
             "tags": self.node_modifications.get("New Tags") or self.tags,
             "kind": self.kind,
             "license": None,
@@ -789,9 +727,7 @@ class TreeNode(Node):
 
     def gather_ancestor_metadata(self):
         if not self.parent:
-            raise InvalidNodeException(
-                "Parent not found: cannot gather ancestor metadata if no parent exists"
-            )
+            raise InvalidNodeException("Parent not found: cannot gather ancestor metadata if no parent exists")
         metadata = self.parent.gather_ancestor_metadata()
         return self.get_metadata_dict(metadata)
 
@@ -851,12 +787,8 @@ class ContentNode(TreeNode):
         if len(self.files) == 0 and self.uri:
             metadata = "uri: {}".format(self.uri)
         else:
-            metadata = "{0} {1}".format(
-                len(self.files), "file" if len(self.files) == 1 else "files"
-            )
-        return "{title} ({kind}): {metadata}".format(
-            title=self.title, kind=self.__class__.__name__, metadata=metadata
-        )
+            metadata = "{0} {1}".format(len(self.files), "file" if len(self.files) == 1 else "files")
+        return "{title} ({kind}): {metadata}".format(title=self.title, kind=self.__class__.__name__, metadata=metadata)
 
     def _validate_uri(self):
         try:
@@ -864,9 +796,7 @@ class ContentNode(TreeNode):
         except InvalidFileException:
             should_handle = False
         if not should_handle:
-            raise InvalidNodeException(
-                "Invalid node: pipeline cannot handle uri {}".format(self.uri)
-            )
+            raise InvalidNodeException("Invalid node: pipeline cannot handle uri {}".format(self.uri))
 
     def _validate(self):
         """validate: Makes sure content node is valid
@@ -879,16 +809,7 @@ class ContentNode(TreeNode):
             if self.required_presets:
                 num_required_presets = 0
                 for f in self.files:
-                    num_required_presets += (
-                        1
-                        if (
-                            any(
-                                f.filename and f.get_preset() == preset
-                                for preset in self.required_presets
-                            )
-                        )
-                        else 0
-                    )
+                    num_required_presets += 1 if (any(f.filename and f.get_preset() == preset for preset in self.required_presets)) else 0
                 self._validate_values(
                     num_required_presets == 0,
                     f"No required format preset found out of {self.required_presets}",
@@ -914,9 +835,7 @@ class ContentNode(TreeNode):
 
     def _process_uri(self):
         try:
-            file_metadata_list = self.pipeline.execute(
-                self.uri, skip_cache=config.UPDATE
-            )
+            file_metadata_list = self.pipeline.execute(self.uri, skip_cache=config.UPDATE)
         except (InvalidFileException, ExpectedFileException) as e:
             config.LOGGER.error(f"Error processing path: {self.uri} with error: {e}")
             return None
@@ -934,9 +853,7 @@ class ContentNode(TreeNode):
                 self.extra_fields.update(value)
             else:
                 if key == "kind" and self.kind is not None and self.kind != value:
-                    raise InvalidNodeException(
-                        "Inferred kind is different from content node class kind."
-                    )
+                    raise InvalidNodeException("Inferred kind is different from content node class kind.")
                 setattr(self, key, value)
 
     def process_files(self):
@@ -991,13 +908,11 @@ class VideoNode(ContentNode):
     required_presets = (format_presets.VIDEO_HIGH_RES, format_presets.VIDEO_LOW_RES)
 
     def generate_thumbnail(self):
-        from .files import VideoFile, WebVideoFile, ExtractedVideoThumbnailFile
+        from .files import ExtractedVideoThumbnailFile
+        from .files import VideoFile
+        from .files import WebVideoFile
 
-        video_files = [
-            f
-            for f in self.files
-            if isinstance(f, VideoFile) or isinstance(f, WebVideoFile)
-        ]
+        video_files = [f for f in self.files if isinstance(f, VideoFile) or isinstance(f, WebVideoFile)]
         if video_files:
             video_file = video_files[0]
             if video_file.filename and not video_file.error:
@@ -1022,12 +937,7 @@ class VideoNode(ContentNode):
                     language_codes_seen.add(language_code)
                 else:
                     file_info = file.path if hasattr(file, "path") else file.youtube_url
-                    config.LOGGER.warning(
-                        "Skipping duplicate subs for "
-                        + language_code
-                        + " from "
-                        + file_info
-                    )
+                    config.LOGGER.warning("Skipping duplicate subs for " + language_code + " from " + file_info)
             else:
                 new_files.append(file)
         self.files = new_files
@@ -1111,10 +1021,7 @@ class HTML5AppNode(ContentNode):
         super().__init__(*args, **kwargs)
 
     def generate_thumbnail(self):
-
-        html5_files = [
-            f for f in self.files if f.get_preset() == format_presets.HTML5_ZIP
-        ]
+        html5_files = [f for f in self.files if f.get_preset() == format_presets.HTML5_ZIP]
         if html5_files:
             html_file = html5_files[0]
             if html_file.filename and not html_file.error:
@@ -1171,12 +1078,8 @@ class ExerciseNode(ContentNode):
         super(ExerciseNode, self).__init__(*args, extra_fields=exercise_data, **kwargs)
 
     def __str__(self):
-        metadata = "{0} {1}".format(
-            len(self.questions), "question" if len(self.questions) == 1 else "questions"
-        )
-        return "{title} ({kind}): {metadata}".format(
-            title=self.title, kind=self.__class__.__name__, metadata=metadata
-        )
+        metadata = "{0} {1}".format(len(self.questions), "question" if len(self.questions) == 1 else "questions")
+        return "{title} ({kind}): {metadata}".format(title=self.title, kind=self.__class__.__name__, metadata=metadata)
 
     def add_question(self, question):
         """add_question: adds question to question list
@@ -1189,9 +1092,7 @@ class ExerciseNode(ContentNode):
         """Goes through question fields and replaces image strings
         Returns: content-hash based filenames of all the required image files
         """
-        config.LOGGER.info(
-            "\t*** Processing images for exercise: {}".format(self.title)
-        )
+        config.LOGGER.info("\t*** Processing images for exercise: {}".format(self.title))
         downloaded = super(ExerciseNode, self).process_files()
         for question in self.questions:
             downloaded += question.process_question()
@@ -1240,9 +1141,7 @@ class ExerciseNode(ContentNode):
         """
 
         # Check if questions are correct
-        self._validate_values(
-            not self.questions, "Exercise does not have any questions"
-        )
+        self._validate_values(not self.questions, "Exercise does not have any questions")
         self._validate_values(
             any(not q.validate() for q in self.questions),
             "Exercise has invalid question",
@@ -1252,12 +1151,8 @@ class ExerciseNode(ContentNode):
             "Unrecognized mastery model {}".format(self.extra_fields["mastery_model"]),
         )
         if self.extra_fields["mastery_model"] == exercises.M_OF_N:
-            self._validate_values(
-                "m" not in self.extra_fields, "M of N mastery model is missing M value"
-            )
-            self._validate_values(
-                "n" not in self.extra_fields, "M of N mastery model is missing N value"
-            )
+            self._validate_values("m" not in self.extra_fields, "M of N mastery model is missing M value")
+            self._validate_values("n" not in self.extra_fields, "M of N mastery model is missing N value")
             try:
                 int(self.extra_fields["m"])
             except ValueError:
@@ -1316,11 +1211,12 @@ class SlideshowNode(ContentNode):
         Args: file (SlideshowNode or ThumbnailFile): file model to add to node
         Returns: None
         """
-        from .files import ThumbnailFile, SlideImageFile
+        from .files import SlideImageFile
+        from .files import ThumbnailFile
 
-        assert isinstance(file_to_add, ThumbnailFile) or isinstance(
-            file_to_add, SlideImageFile
-        ), "Files being added must be instances of a subclass of File class"
+        assert isinstance(file_to_add, ThumbnailFile) or isinstance(file_to_add, SlideImageFile), (
+            "Files being added must be instances of a subclass of File class"
+        )
 
         if file_to_add not in self.files:
             filename = file_to_add.get_filename()
@@ -1334,12 +1230,8 @@ class SlideshowNode(ContentNode):
             if isinstance(file_to_add, SlideImageFile):
                 #
                 # Find the idx of sort_order.next()
-                slideshow_image_files = [
-                    f for f in self.files if isinstance(f, SlideImageFile)
-                ]
-                idx = len(
-                    slideshow_image_files
-                )  # next available index, assuming added in desired order
+                slideshow_image_files = [f for f in self.files if isinstance(f, SlideImageFile)]
+                idx = len(slideshow_image_files)  # next available index, assuming added in desired order
                 #
                 # Add slideshow data to extra_fields['slideshow_data'] (aka manifest)
                 slideshow_data = self.extra_fields["slideshow_data"]
@@ -1373,9 +1265,7 @@ class CustomNavigationNode(ContentNode):
         super(CustomNavigationNode, self).__init__(*args, **kwargs)
 
     def generate_thumbnail(self):
-        html5_files = [
-            f for f in self.files if f.get_preset() == format_presets.HTML5_ZIP
-        ]
+        html5_files = [f for f in self.files if f.get_preset() == format_presets.HTML5_ZIP]
         if html5_files:
             html_file = html5_files[0]
             if html_file.filename and not html_file.error:
@@ -1443,40 +1333,22 @@ class StudioContentNode(TreeNode):
         "suggested_duration",
     ]
 
-    def __init__(
-        self, source_channel_id, source_node_id=None, source_content_id=None, **kwargs
-    ):
-        self.source_channel_id = (
-            source_channel_id if is_valid_uuid_string(source_channel_id) else None
-        )
-        self.source_node_id = (
-            source_node_id if is_valid_uuid_string(source_node_id) else None
-        )
-        self.source_content_id = (
-            source_content_id if is_valid_uuid_string(source_content_id) else None
-        )
+    def __init__(self, source_channel_id, source_node_id=None, source_content_id=None, **kwargs):
+        self.source_channel_id = source_channel_id if is_valid_uuid_string(source_channel_id) else None
+        self.source_node_id = source_node_id if is_valid_uuid_string(source_node_id) else None
+        self.source_content_id = source_content_id if is_valid_uuid_string(source_content_id) else None
         self.overrides = kwargs.copy()
         overriden_title = kwargs.pop("title", "<title from remote>")
-        super(StudioContentNode, self).__init__(
-            source_node_id or source_content_id, overriden_title, **kwargs
-        )
+        super(StudioContentNode, self).__init__(source_node_id or source_content_id, overriden_title, **kwargs)
 
     def _validate(self):
         if not self.source_channel_id:
-            raise InvalidNodeException(
-                "Invalid node: source_channel_id must be specified, and be a valid UUID string."
-            )
+            raise InvalidNodeException("Invalid node: source_channel_id must be specified, and be a valid UUID string.")
         if not self.source_node_id and not self.source_content_id:
-            raise InvalidNodeException(
-                "Invalid node: at least one of source_node_id or source_content_id must be specified, and be a valid UUID string."
-            )
+            raise InvalidNodeException("Invalid node: at least one of source_node_id or source_content_id must be specified, and be a valid UUID string.")
         for key in self.overrides:
             if key not in self.ALLOWED_OVERRIDES:
-                raise InvalidNodeException(
-                    "Invalid node: '{}' cannot be overriden on a StudioContentNode.".format(
-                        key
-                    )
-                )
+                raise InvalidNodeException("Invalid node: '{}' cannot be overriden on a StudioContentNode.".format(key))
         return super(StudioContentNode, self)._validate()
 
     def to_dict(self):
@@ -1487,9 +1359,7 @@ class StudioContentNode(TreeNode):
             "source_content_id": self.source_content_id,
         }
         if "thumbnail" in self.overrides:
-            self.overrides["files"] = [
-                f.to_dict() for f in self.files if f and f.filename
-            ]
+            self.overrides["files"] = [f.to_dict() for f in self.files if f and f.filename]
             del self.overrides["thumbnail"]
         data.update(self.overrides)
         return data
@@ -1523,9 +1393,7 @@ class _CurriculumNode(TopicNode):
     def _validate_child(self, node):
         """Validate that node is an instance of the allowed child class."""
         if not isinstance(node, self.CHILD_CLASS):
-            raise InvalidNodeException(
-                f"{self.__class__.__name__} can only have {self.CHILD_CLASS.__name__} children"
-            )
+            raise InvalidNodeException(f"{self.__class__.__name__} can only have {self.CHILD_CLASS.__name__} children")
 
     def add_child(self, node):
         """Add a child node after validating its type."""
@@ -1582,9 +1450,7 @@ class UnitNode(_CurriculumNode):
             raise InvalidNodeException("Must have at least one learning objective")
         for lo in learning_objectives:
             if not isinstance(lo, LearningObjective):
-                raise InvalidNodeException(
-                    f"Expected LearningObjective, got {type(lo).__name__}"
-                )
+                raise InvalidNodeException(f"Expected LearningObjective, got {type(lo).__name__}")
 
     def add_child(self, node, learning_objectives):
         """
@@ -1601,9 +1467,7 @@ class UnitNode(_CurriculumNode):
         """
         self._validate_learning_objectives(learning_objectives)
         if node.source_id in self.lesson_objectives:
-            raise InvalidNodeException(
-                f"Duplicate source_id '{node.source_id}' in {self.__class__.__name__}"
-            )
+            raise InvalidNodeException(f"Duplicate source_id '{node.source_id}' in {self.__class__.__name__}")
         self.lesson_objectives[node.source_id] = learning_objectives
         super().add_child(node)
 
@@ -1627,21 +1491,15 @@ class UnitNode(_CurriculumNode):
         variant_a = []
         variant_b = []
         for question, variant, los in self.test_questions:
-            self._validate_values(
-                not question.validate(), "UnitNode has invalid question"
-            )
+            self._validate_values(not question.validate(), "UnitNode has invalid question")
             if variant == VARIANT_A:
                 variant_a.append((question, los))
             else:
                 variant_b.append((question, los))
 
         # Minimum 2 questions per variant
-        self._validate_values(
-            len(variant_a) < 2, "Must have at least 2 VARIANT_A questions"
-        )
-        self._validate_values(
-            len(variant_b) < 2, "Must have at least 2 VARIANT_B questions"
-        )
+        self._validate_values(len(variant_a) < 2, "Must have at least 2 VARIANT_A questions")
+        self._validate_values(len(variant_b) < 2, "Must have at least 2 VARIANT_B questions")
 
         # Equal total counts
         self._validate_values(
@@ -1660,12 +1518,8 @@ class UnitNode(_CurriculumNode):
         # Each LO equally represented across variants and across LOs
         lo_totals = {}
         for lo_id in lesson_los:
-            a_count = sum(
-                1 for _, los in variant_a if any(lo.id == lo_id for lo in los)
-            )
-            b_count = sum(
-                1 for _, los in variant_b if any(lo.id == lo_id for lo in los)
-            )
+            a_count = sum(1 for _, los in variant_a if any(lo.id == lo_id for lo in los))
+            b_count = sum(1 for _, los in variant_b if any(lo.id == lo_id for lo in los))
             self._validate_values(
                 a_count != b_count,
                 "Learning objective must have equal questions in each variant",
@@ -1705,14 +1559,9 @@ class UnitNode(_CurriculumNode):
 
         return {
             "learning_objectives": [lo.to_dict() for lo in all_los.values()],
-            "assessment_objectives": {
-                q.assessment_id: [lo.id for lo in los]
-                for q, _, los in self.test_questions
-            },
+            "assessment_objectives": {q.assessment_id: [lo.id for lo in los] for q, _, los in self.test_questions},
             "lesson_objectives": {
-                child.get_node_id().hex: [
-                    lo.id for lo in self.lesson_objectives[child.source_id]
-                ]
+                child.get_node_id().hex: [lo.id for lo in self.lesson_objectives[child.source_id]]
                 for child in self.children
                 if child.source_id in self.lesson_objectives
             },
