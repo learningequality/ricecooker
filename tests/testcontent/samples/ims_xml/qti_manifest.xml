@@ -1,0 +1,34 @@
+<manifest xmlns:imsmd="http://www.imsglobal.org/xsd/imsmd_v1p2">
+    <metadata>
+    <imsmd:lom>
+        <imsmd:general>
+        <imsmd:title>
+            <imsmd:langstring xml:lang="en">QTI Assessment</imsmd:langstring>
+        </imsmd:title>
+        <imsmd:language>en</imsmd:language>
+        <imsmd:description>
+            <imsmd:langstring xml:lang="en">A pure QTI assessment package</imsmd:langstring>
+        </imsmd:description>
+        </imsmd:general>
+    </imsmd:lom>
+    </metadata>
+    <organizations>
+    <organization>
+        <title>Assessments</title>
+        <item identifierref="q1Ref">
+            <title>Question 1</title>
+        </item>
+        <item identifierref="q2Ref">
+            <title>Question 2</title>
+        </item>
+    </organization>
+    </organizations>
+    <resources>
+    <resource identifier="q1Ref" type="imsqti_item_xmlv2p1" href="question1.xml">
+        <file href="question1.xml"/>
+    </resource>
+    <resource identifier="q2Ref" type="imsqti_item_xmlv2p1" href="question2.xml">
+        <file href="question2.xml"/>
+    </resource>
+    </resources>
+</manifest>

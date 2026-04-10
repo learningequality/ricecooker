@@ -288,6 +288,30 @@ class HTMLZipFile(DownloadFile):
     default_preset = format_presets.HTML5_ZIP
 
 
+class IMSCPZipFile(DownloadFile):
+    default_ext = file_formats.HTML5
+    allowed_formats = {file_formats.HTML5}
+    is_primary = True
+
+    def get_preset(self):
+        return self.preset or format_presets.IMSCP_ZIP
+
+
+class QTIZipFile(DownloadFile):
+    """File class for QTI (Question and Test Interoperability) zip packages.
+
+    Used for exercise-kind leaf nodes within IMSCP packages that contain
+    QTI assessment resources (resource type prefix ``imsqti_``).
+    """
+
+    default_ext = file_formats.HTML5
+    allowed_formats = {file_formats.HTML5}
+    is_primary = True
+
+    def get_preset(self):
+        return self.preset or format_presets.QTI_ZIP
+
+
 class H5PFile(DownloadFile):
     default_ext = file_formats.H5P
     allowed_formats = {file_formats.H5P}
