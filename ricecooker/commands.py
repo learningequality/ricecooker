@@ -395,11 +395,21 @@ def select_sample_nodes(channel, size=10, seed=42):  # noqa: C901
     def attach(parent, node_path):
         if len(node_path) == 1:
             # leaf node
-            parent.add_child(node_path[0])
+            try:
+                parent.add_child(node_path[0])
+            except TypeError:
+                raise NotImplementedError(
+                    "--sample mode is not supported for channels with curriculum structure nodes"
+                )
         else:
             child = node_path[0]
             if not any(c.source_id == child.source_id for c in parent.children):
-                parent.add_child(child)
+                try:
+                    parent.add_child(child)
+                except TypeError:
+                    raise NotImplementedError(
+                        "--sample mode is not supported for channels with curriculum structure nodes"
+                    )
             attach(child, node_path[1:])
 
     for node_path in sample_paths:
