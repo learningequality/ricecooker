@@ -14,7 +14,6 @@ from le_utils.constants import format_presets
 
 from ricecooker.utils import videos
 
-
 # cache, so we don't keep requesting the full videos
 if sys.version_info[0] == 3:
     requests_cache.install_cache("video_cache_py3")
@@ -28,9 +27,7 @@ else:
 
 @pytest.fixture
 def low_res_video():
-    source_url = (
-        "https://archive.org/download/vd_is_for_everybody/vd_is_for_everybody_512kb.mp4"
-    )
+    source_url = "https://archive.org/download/vd_is_for_everybody/vd_is_for_everybody_512kb.mp4"
     local_path = os.path.abspath(
         os.path.join(
             os.path.dirname(__file__),
@@ -111,9 +108,7 @@ def high_res_video_webm():
 @pytest.fixture
 def low_res_ogv_video():
     source_url = (
-        "https://archive.org/download/"
-        "UnderConstructionFREEVideoBackgroundLoopHD1080p/"
-        "UnderConstruction%20-%20FREE%20Video%20Background%20Loop%20HD%201080p.ogv"
+        "https://archive.org/download/UnderConstructionFREEVideoBackgroundLoopHD1080p/UnderConstruction%20-%20FREE%20Video%20Background%20Loop%20HD%201080p.ogv"
     )
     local_path = os.path.abspath(
         os.path.join(
@@ -219,9 +214,7 @@ class Test_compress_video:
 
     def test_compression_max_width(self, high_res_video):
         with TempFile(suffix=".mp4") as vout:
-            videos.compress_video(
-                high_res_video.name, vout.name, overwrite=True, max_width=120
-            )
+            videos.compress_video(high_res_video.name, vout.name, overwrite=True, max_width=120)
             width, height = get_resolution(vout.name)
             assert width == 120, "should be 120 h resolution since max_width set"
 
@@ -230,19 +223,13 @@ class Test_compress_video:
         regression test for: https://github.com/learningequality/pressurecooker/issues/11
         """
         with TempFile(suffix=".mp4") as vout:
-            videos.compress_video(
-                high_res_video.name, vout.name, overwrite=True, max_width=121
-            )
+            videos.compress_video(high_res_video.name, vout.name, overwrite=True, max_width=121)
             width, height = get_resolution(vout.name)
-            assert (
-                width == 120
-            ), "should round down to 120 h resolution when max_width=121 set"
+            assert width == 120, "should round down to 120 h resolution when max_width=121 set"
 
     def test_compression_max_height(self, high_res_video):
         with TempFile(suffix=".mp4") as vout:
-            videos.compress_video(
-                high_res_video.name, vout.name, overwrite=True, max_height=140
-            )
+            videos.compress_video(high_res_video.name, vout.name, overwrite=True, max_height=140)
             width, height = get_resolution(vout.name)
             assert height == 140, "should be 140 v resolution since max_height set"
 
@@ -259,33 +246,25 @@ class Test_compress_video:
 
     def test_compression_works_webm(self, high_res_video_webm):
         with TempFile(suffix=".webm") as vout:
-            videos.compress_video(
-                high_res_video_webm.name, vout.name, overwrite=True, max_height=300
-            )
+            videos.compress_video(high_res_video_webm.name, vout.name, overwrite=True, max_height=300)
             width, height = get_resolution(vout.name)
             assert height == 300, "should be compress to 300 v resolution"
 
     def test_compression_max_width_works_webm(self, high_res_video_webm):
         with TempFile(suffix=".webm") as vout:
-            videos.compress_video(
-                high_res_video_webm.name, vout.name, overwrite=True, max_width=200
-            )
+            videos.compress_video(high_res_video_webm.name, vout.name, overwrite=True, max_width=200)
             width, height = get_resolution(vout.name)
             assert width == 200, "should be compress to 200 hz resolution"
 
     def test_compression_format_conversion_to_webm(self, high_res_video):
         with TempFile(suffix=".webm") as vout:
-            videos.compress_video(
-                high_res_video.name, vout.name, overwrite=True, max_height=300
-            )
+            videos.compress_video(high_res_video.name, vout.name, overwrite=True, max_height=300)
             width, height = get_resolution(vout.name)
             assert height == 300, "should be compress to 300 v resolution"
 
     def test_compression_webm_to_mp4_conversion(self, high_res_video_webm):
         with TempFile(suffix=".mp4") as vout:
-            videos.compress_video(
-                high_res_video_webm.name, vout.name, overwrite=True, max_height=300
-            )
+            videos.compress_video(high_res_video_webm.name, vout.name, overwrite=True, max_height=300)
             width, height = get_resolution(vout.name)
             assert height == 300, "should be compress to 300 v resolution"
 
@@ -299,9 +278,7 @@ class Test_convert_video:
 
     def test_convert_and_resize_ogv_works(self, low_res_ogv_video):
         with TempFile(suffix=".mp4") as vout:
-            videos.compress_video(
-                low_res_ogv_video.name, vout.name, overwrite=True, max_height=200
-            )
+            videos.compress_video(low_res_ogv_video.name, vout.name, overwrite=True, max_height=200)
             width, height = get_resolution(vout.name)
             assert height == 200, "should convert .ogv to .mp4 and set 200 v res"
 

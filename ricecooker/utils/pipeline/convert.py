@@ -2,6 +2,7 @@
 To avoid making the pipeline overly convoluted, these handlers
 both validate and convert files.
 """
+
 import json
 import os
 import shutil
@@ -27,8 +28,6 @@ from PIL import UnidentifiedImageError
 from PyPDF2 import PdfFileReader
 from PyPDF2.utils import PdfReadError
 
-from .file_handler import ExtensionMatchingHandler
-from .file_handler import StageHandler
 from ricecooker import config
 from ricecooker.exceptions import UnknownFileTypeError
 from ricecooker.utils.audio import AudioCompressionError
@@ -37,17 +36,19 @@ from ricecooker.utils.caching import generate_key
 from ricecooker.utils.pipeline.context import ContextMetadata
 from ricecooker.utils.pipeline.context import FileMetadata
 from ricecooker.utils.pipeline.exceptions import InvalidFileException
-from ricecooker.utils.subtitles import build_subtitle_converter_from_file
+from ricecooker.utils.subtitles import LANGUAGE_CODE_UNKNOWN
 from ricecooker.utils.subtitles import InvalidSubtitleFormatError
 from ricecooker.utils.subtitles import InvalidSubtitleLanguageError
-from ricecooker.utils.subtitles import LANGUAGE_CODE_UNKNOWN
+from ricecooker.utils.subtitles import build_subtitle_converter_from_file
 from ricecooker.utils.utils import extract_path_ext
+from ricecooker.utils.videos import VideoCompressionError
 from ricecooker.utils.videos import compress_video
 from ricecooker.utils.videos import validate_media_file
-from ricecooker.utils.videos import VideoCompressionError
 from ricecooker.utils.youtube import get_language_with_alpha2_fallback
 from ricecooker.utils.zip import create_predictable_zip
 
+from .file_handler import ExtensionMatchingHandler
+from .file_handler import StageHandler
 
 CONVERTIBLE_FORMATS = {p.id: p.convertible_formats for p in format_presets.PRESETLIST}
 
@@ -81,9 +82,7 @@ class VideoCompressionHandler(MediaCompressionHandler):
         file_formats.WEBM,
     }
 
-    EXTENSIONS = SUPPORTED_VIDEO_EXTS | set(
-        CONVERTIBLE_FORMATS[format_presets.VIDEO_HIGH_RES]
-    )
+    EXTENSIONS = SUPPORTED_VIDEO_EXTS | set(CONVERTIBLE_FORMATS[format_presets.VIDEO_HIGH_RES])
 
     HANDLED_EXCEPTIONS = [VideoCompressionError]
 
@@ -91,7 +90,6 @@ class VideoCompressionHandler(MediaCompressionHandler):
         return [{"ffmpeg_settings": context.video_settings}]
 
     def handle_file(self, path, ffmpeg_settings=None):
-
         ffmpeg_settings = ffmpeg_settings or {}
 
         input_ext = extract_path_ext(path)
@@ -102,9 +100,7 @@ class VideoCompressionHandler(MediaCompressionHandler):
                 # If we're not compressing, just validate the file.
                 is_valid, error = validate_media_file(path)
                 if not is_valid:
-                    raise InvalidFileException(
-                        f"Video file {path} did not pass verification with error: {error}"
-                    )
+                    raise InvalidFileException(f"Video file {path} did not pass verification with error: {error}")
                 return
         else:
             output_ext = file_formats.WEBM
@@ -148,9 +144,7 @@ class AudioCompressionHandler(MediaCompressionHandler):
                 # If we're not compressing, just validate the file.
                 is_valid, error = validate_media_file(path)
                 if not is_valid:
-                    raise InvalidFileException(
-                        f"Audio file {path} did not pass verification with error: {error}"
-                    )
+                    raise InvalidFileException(f"Audio file {path} did not pass verification with error: {error}")
                 return
 
         output_ext = file_formats.MP3
@@ -165,7 +159,6 @@ class ArchiveProcessingContextMetadata(ContextMetadata):
 
 
 class ArchiveProcessingBaseHandler(ExtensionMatchingHandler):
-
     CONTEXT_CLASS = ArchiveProcessingContextMetadata
 
     def get_cache_key(self, path, audio_settings=None, video_settings=None) -> str:
@@ -207,9 +200,7 @@ class ArchiveProcessingBaseHandler(ExtensionMatchingHandler):
             ext=ext,
         )
         # create_predictable_zip will iterate over subfiles, call file_converter
-        processed_zip_path = create_predictable_zip(
-            path, file_converter=file_converter if config.COMPRESS else None
-        )
+        processed_zip_path = create_predictable_zip(path, file_converter=file_converter if config.COMPRESS else None)
 
         with self.write_file(ext) as fh:
             with open(processed_zip_path, "rb") as zf:
@@ -224,17 +215,13 @@ class ArchiveProcessingBaseHandler(ExtensionMatchingHandler):
             with zipfile.ZipFile(path) as zf:
                 yield zf
         except zipfile.BadZipFile:
-            raise InvalidFileException(
-                f"File {path} is not a valid {self.FILE_TYPE} file, it is not a valid zip archive."
-            )
+            raise InvalidFileException(f"File {path} is not a valid {self.FILE_TYPE} file, it is not a valid zip archive.")
 
     def read_file_from_archive(self, zf, filepath):
         try:
             return zf.read(filepath)
         except KeyError:
-            raise InvalidFileException(
-                f"File {zf.filename} is not a valid {self.FILE_TYPE} file, {filepath} is missing."
-            )
+            raise InvalidFileException(f"File {zf.filename} is not a valid {self.FILE_TYPE} file, {filepath} is missing.")
 
     def _validate_index_html_body(self, zf, path):
         """Validate that index.html exists and has a non-empty body."""
@@ -243,27 +230,17 @@ class ArchiveProcessingBaseHandler(ExtensionMatchingHandler):
             dom = html5lib.parse(index_html, namespaceHTMLElements=False)
             body = dom.find("body")
             if body is None:
-                raise InvalidFileException(
-                    f"File {path} is not a valid {self.FILE_TYPE} file, index.html is missing a body element."
-                )
+                raise InvalidFileException(f"File {path} is not a valid {self.FILE_TYPE} file, index.html is missing a body element.")
             # Check that the body has at least one child element
             # for some reason it seems like comments don't get a string tag attribute
-            body_children = [
-                c for c in body.iter() if isinstance(c.tag, str) and c.tag != "body"
-            ]
+            body_children = [c for c in body.iter() if isinstance(c.tag, str) and c.tag != "body"]
             if not (body.text and body.text.strip()) and not body_children:
-                raise InvalidFileException(
-                    f"File {path} is not a valid {self.FILE_TYPE} file, index.html is empty."
-                )
+                raise InvalidFileException(f"File {path} is not a valid {self.FILE_TYPE} file, index.html is empty.")
             return dom
         except ParseError:
-            raise InvalidFileException(
-                f"File {path} is not a valid {self.FILE_TYPE} file, index.html is not well-formed."
-            )
+            raise InvalidFileException(f"File {path} is not a valid {self.FILE_TYPE} file, index.html is not well-formed.")
 
-    def _read_and_compress_archive_file(
-        self, filepath, reader, audio_settings=None, video_settings=None, ext=None
-    ):
+    def _read_and_compress_archive_file(self, filepath, reader, audio_settings=None, video_settings=None, ext=None):
         extension = extract_path_ext(filepath, default_ext=ext)
 
         # If it's mp4, webm, or mp3, compress it; else pass it through
@@ -276,9 +253,7 @@ class ArchiveProcessingBaseHandler(ExtensionMatchingHandler):
 
             try:
                 # Create a temp out for compressed result
-                with tempfile.NamedTemporaryFile(
-                    suffix=f".{extension}", delete=False
-                ) as temp_out:
+                with tempfile.NamedTemporaryFile(suffix=f".{extension}", delete=False) as temp_out:
                     temp_out.close()
 
                     if extension == file_formats.MP3:
@@ -310,7 +285,6 @@ class ArchiveProcessingBaseHandler(ExtensionMatchingHandler):
 
 
 class HTML5ConversionHandler(ArchiveProcessingBaseHandler):
-
     EXTENSIONS = {file_formats.HTML5}
     FILE_TYPE = "HTML5"
 
@@ -320,7 +294,6 @@ class HTML5ConversionHandler(ArchiveProcessingBaseHandler):
 
 
 class H5PConversionHandler(ArchiveProcessingBaseHandler):
-
     EXTENSIONS = {file_formats.H5P}
     FILE_TYPE = "H5P"
 
@@ -330,20 +303,15 @@ class H5PConversionHandler(ArchiveProcessingBaseHandler):
             try:
                 json.loads(h5p_json)
             except json.JSONDecodeError:
-                raise InvalidFileException(
-                    f"File {path} is not a valid H5P file, h5p.json is not valid JSON."
-                )
+                raise InvalidFileException(f"File {path} is not a valid H5P file, h5p.json is not valid JSON.")
             content_json = self.read_file_from_archive(zf, "content/content.json")
             try:
                 json.loads(content_json)
             except json.JSONDecodeError:
-                raise InvalidFileException(
-                    f"File {path} is not a valid H5P file, content/content.json is not valid JSON."
-                )
+                raise InvalidFileException(f"File {path} is not a valid H5P file, content/content.json is not valid JSON.")
 
 
 class EPUBConversionHandler(ArchiveProcessingBaseHandler):
-
     EXTENSIONS = {file_formats.EPUB}
     FILE_TYPE = "EPUB"
 
@@ -352,13 +320,9 @@ class EPUBConversionHandler(ArchiveProcessingBaseHandler):
         try:
             mimetype = mimetype.decode("utf-8").strip()
         except UnicodeDecodeError:
-            raise InvalidFileException(
-                f"File {path} is not a valid EPUB file, mimetype file is not UTF-8 encoded."
-            )
+            raise InvalidFileException(f"File {path} is not a valid EPUB file, mimetype file is not UTF-8 encoded.")
         if mimetype != "application/epub+zip":
-            raise InvalidFileException(
-                f"File {path} is not a valid EPUB file, mimetype is incorrect."
-            )
+            raise InvalidFileException(f"File {path} is not a valid EPUB file, mimetype is incorrect.")
 
     def _get_opf_path(self, zf, path):
         # Then read the container manifest to confirm it exists and get the path to the OPF file.
@@ -370,36 +334,24 @@ class EPUBConversionHandler(ArchiveProcessingBaseHandler):
                 {"ns": "urn:oasis:names:tc:opendocument:xmlns:container"},
             )
             if not rootfiles:
-                raise InvalidFileException(
-                    f"File {path} is not a valid EPUB file, rootfile is missing from container manifest."
-                )
+                raise InvalidFileException(f"File {path} is not a valid EPUB file, rootfile is missing from container manifest.")
             opf_path = rootfiles[0].get("full-path")
             if not opf_path:
-                raise InvalidFileException(
-                    f"File {path} is not a valid EPUB file, rootfile path is empty."
-                )
+                raise InvalidFileException(f"File {path} is not a valid EPUB file, rootfile path is empty.")
             return opf_path
         except ET.ParseError:
-            raise InvalidFileException(
-                f"File {path} is not a valid EPUB file, container manifest is not well-formed."
-            )
+            raise InvalidFileException(f"File {path} is not a valid EPUB file, container manifest is not well-formed.")
 
     def _validate_opf(self, zf, path, opf_path):
         # If the container manifest is valid, read the OPF file and confirm it exists and has a manifest.
         opf_file = self.read_file_from_archive(zf, opf_path)
         try:
             opf = ET.fromstring(opf_file)
-            manifest = opf.find(
-                ".//ns:manifest", {"ns": "http://www.idpf.org/2007/opf"}
-            )
+            manifest = opf.find(".//ns:manifest", {"ns": "http://www.idpf.org/2007/opf"})
             if manifest is None:
-                raise InvalidFileException(
-                    f"File {path} is not a valid EPUB file, manifest is missing from OPF."
-                )
+                raise InvalidFileException(f"File {path} is not a valid EPUB file, manifest is missing from OPF.")
         except ET.ParseError:
-            raise InvalidFileException(
-                f"File {path} is not a valid EPUB file, OPF file is not well-formed."
-            )
+            raise InvalidFileException(f"File {path} is not a valid EPUB file, OPF file is not well-formed.")
 
     def validate_archive(self, path: str):
         with self.open_and_verify_archive(path) as zf:
@@ -409,7 +361,6 @@ class EPUBConversionHandler(ArchiveProcessingBaseHandler):
 
 
 class KPUBConversionHandler(ArchiveProcessingBaseHandler):
-
     EXTENSIONS = {file_formats.HTML5_ARTICLE}
     FILE_TYPE = "KPUB"
 
@@ -419,25 +370,18 @@ class KPUBConversionHandler(ArchiveProcessingBaseHandler):
 
             # Check for inline <script> tags (parsed without namespaces)
             for _ in dom.iter("script"):
-                raise InvalidFileException(
-                    f"File {path} is not a valid KPUB file, inline JavaScript (<script> tags) is not allowed."
-                )
+                raise InvalidFileException(f"File {path} is not a valid KPUB file, inline JavaScript (<script> tags) is not allowed.")
 
             # Check for disallowed file types
             for filename in zf.namelist():
                 lower_name = filename.lower()
                 if lower_name.endswith(".js"):
-                    raise InvalidFileException(
-                        f"File {path} is not a valid KPUB file, JavaScript files (.js) are not allowed."
-                    )
+                    raise InvalidFileException(f"File {path} is not a valid KPUB file, JavaScript files (.js) are not allowed.")
                 if lower_name.endswith(".css"):
-                    raise InvalidFileException(
-                        f"File {path} is not a valid KPUB file, external CSS files (.css) are not allowed."
-                    )
+                    raise InvalidFileException(f"File {path} is not a valid KPUB file, external CSS files (.css) are not allowed.")
 
 
 class BloomConversionHandler(ArchiveProcessingBaseHandler):
-
     EXTENSIONS = {file_formats.BLOOMPUB, file_formats.BLOOMD}
     FILE_TYPE = "Bloom"
 
@@ -450,20 +394,14 @@ class BloomConversionHandler(ArchiveProcessingBaseHandler):
                 required_meta_fields = ["bookInstanceId", "title"]
                 missing_fields = [f for f in required_meta_fields if f not in meta]
                 if missing_fields:
-                    raise InvalidFileException(
-                        f'File {path} is not a valid bloom file, meta.json missing required fields: {", ".join(missing_fields)}'
-                    )
+                    raise InvalidFileException(f"File {path} is not a valid bloom file, meta.json missing required fields: {', '.join(missing_fields)}")
             except json.JSONDecodeError:
-                raise InvalidFileException(
-                    f"File {path} is not a valid bloom file, meta.json is not valid JSON."
-                )
+                raise InvalidFileException(f"File {path} is not a valid bloom file, meta.json is not valid JSON.")
 
             # Check for at least one .htm file
             htm_files = [f for f in zf.namelist() if f.lower().endswith(".htm")]
             if not htm_files:
-                raise InvalidFileException(
-                    f"File {path} is not a valid bloom file, no .htm files found."
-                )
+                raise InvalidFileException(f"File {path} is not a valid bloom file, no .htm files found.")
 
 
 class PDFValidationHandler(ExtensionMatchingHandler):
@@ -498,36 +436,28 @@ class ImageConversionHandler(ExtensionMatchingHandler):
     }
 
     # Add all supported image extensions from PIL except for PDF
-    EXTENSIONS = SUPPORTED_IMAGE_EXTENSIONS | {
-        key.strip(".") for key in Image.registered_extensions() if key != ".pdf"
-    }
+    EXTENSIONS = SUPPORTED_IMAGE_EXTENSIONS | {key.strip(".") for key in Image.registered_extensions() if key != ".pdf"}
 
     def handle_file(self, path):
         preferred_extension = extract_path_ext(path)
         file_type_guess = filetype.guess(path)
         extension = file_type_guess.extension if file_type_guess else None
         if extension is None and not preferred_extension:
-            raise UnknownFileTypeError(
-                "Unable to determine file type of {}".format(path)
-            )
+            raise UnknownFileTypeError("Unable to determine file type of {}".format(path))
         if extension == file_formats.JPEG and preferred_extension == file_formats.JPG:
             extension = preferred_extension
         try:
             with Image.open(path) as im:
                 im.verify()
             if extension not in self.SUPPORTED_IMAGE_EXTENSIONS:
-                tempf = tempfile.NamedTemporaryFile(
-                    suffix=".{}".format(file_formats.PNG), delete=False
-                )
+                tempf = tempfile.NamedTemporaryFile(suffix=".{}".format(file_formats.PNG), delete=False)
                 tempf.close()
                 extension = file_formats.PNG
                 with self.write_file(extension) as tempf:
                     with Image.open(path) as im:
                         im.convert("RGB").save(tempf, extension)
         except UnidentifiedImageError as e:
-            raise InvalidFileException(
-                f"Image file {path} did not pass verification: {e}"
-            )
+            raise InvalidFileException(f"Image file {path} did not pass verification: {e}")
 
 
 class SVGValidationHandler(ExtensionMatchingHandler):
@@ -541,9 +471,7 @@ class SVGValidationHandler(ExtensionMatchingHandler):
         try:
             ElementTree.parse(path)
         except ElementTree.ParseError as e:
-            raise InvalidFileException(
-                f"SVG file {path} did not pass verification: {e}"
-            )
+            raise InvalidFileException(f"SVG file {path} did not pass verification: {e}")
 
 
 class SubtitleContextMetadata(ContextMetadata):
@@ -558,15 +486,11 @@ class SubtitleConversionHandler(ExtensionMatchingHandler):
 
     CONTEXT_CLASS = SubtitleContextMetadata
 
-    EXTENSIONS = {file_formats.VTT} | set(
-        CONVERTIBLE_FORMATS[format_presets.VIDEO_SUBTITLE]
-    )
+    EXTENSIONS = {file_formats.VTT} | set(CONVERTIBLE_FORMATS[format_presets.VIDEO_SUBTITLE])
 
     HANDLED_EXCEPTIONS = [InvalidSubtitleFormatError, InvalidSubtitleLanguageError]
 
-    def get_cache_key(
-        self, path: str, language: str = None, subtitle_format: str = None
-    ) -> str:
+    def get_cache_key(self, path: str, language: str = None, subtitle_format: str = None) -> str:
         return super().get_cache_key(path)
 
     def handle_file(self, path, language=None, subtitle_format=None):
@@ -576,9 +500,7 @@ class SubtitleConversionHandler(ExtensionMatchingHandler):
         converter = build_subtitle_converter_from_file(path, in_format=subtitle_format)
 
         # We'll assume the provided file is in the passed language in this case
-        if len(converter.get_language_codes()) == 1 and converter.has_language(
-            LANGUAGE_CODE_UNKNOWN
-        ):
+        if len(converter.get_language_codes()) == 1 and converter.has_language(LANGUAGE_CODE_UNKNOWN):
             converter.replace_unknown_language(language)
 
         convert_lang_code = language
@@ -593,9 +515,7 @@ class SubtitleConversionHandler(ExtensionMatchingHandler):
                     convert_lang_code = lang_code
                     break
             else:
-                raise InvalidSubtitleLanguageError(
-                    "Missing language '{}' in subtitle file".format(language)
-                )
+                raise InvalidSubtitleLanguageError("Missing language '{}' in subtitle file".format(language))
         with self.write_file(file_formats.VTT) as fh:
             converter.write(fh.name, convert_lang_code)
         return FileMetadata(language=convert_lang_code)

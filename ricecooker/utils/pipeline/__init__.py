@@ -4,12 +4,12 @@ from copy import deepcopy
 from typing import Dict
 from typing import Optional
 
+from ricecooker.utils.pipeline.context import FileMetadata
+
 from .convert import ConversionStageHandler
 from .extract_metadata import ExtractMetadataStageHandler
 from .file_handler import CompositeHandler
 from .transfer import DownloadStageHandler
-from ricecooker.utils.pipeline.context import FileMetadata
-
 
 # Do this to prevent import of broken Windows filetype registry that makes guesstype not work.
 # https://www.thecodingforums.com/threads/mimetypes-guess_type-broken-in-windows-on-py2-7-and-python-3-x.952693/
@@ -80,9 +80,7 @@ class FilePipeline(CompositeHandler):
                         # For each new metadata in the returned list
                         # make a unique copy of the existing metadata and
                         # merge the new metadata into the existing metadata
-                        updated_file_metadata_list.append(
-                            file_metadata.merge(new_metadata)
-                        )
+                        updated_file_metadata_list.append(file_metadata.merge(new_metadata))
                 else:
                     # Otherwise, it's a noop
                     updated_file_metadata_list.append(file_metadata)

@@ -1,6 +1,7 @@
 """
 Utilities for handling file downloads from URLs
 """
+
 import os
 import tempfile
 import threading
@@ -9,20 +10,21 @@ from abc import abstractmethod
 from contextlib import contextmanager
 from typing import ClassVar
 from typing import Dict
-from typing import get_type_hints
 from typing import Optional
 from typing import Type
 from typing import Union
+from typing import get_type_hints
 
-from .context import ContextMetadata
-from .context import FileMetadata
-from .exceptions import ExpectedFileException
-from .exceptions import InvalidFileException
 from ricecooker import config
 from ricecooker.utils.caching import get_cache_data
 from ricecooker.utils.caching import set_cache_data
 from ricecooker.utils.utils import copy_file_to_storage
 from ricecooker.utils.utils import extract_path_ext
+
+from .context import ContextMetadata
+from .context import FileMetadata
+from .exceptions import ExpectedFileException
+from .exceptions import InvalidFileException
 
 
 class Handler(ABC):
@@ -126,9 +128,7 @@ class FileHandler(Handler):
             context = self.CONTEXT_CLASS(**context)
         except TypeError:
             missing = fields - set(context)
-            raise ValueError(
-                f"Missing required context for {self.__class__.__name__}: {missing}"
-            )
+            raise ValueError(f"Missing required context for {self.__class__.__name__}: {missing}")
         return context
 
     @contextmanager
@@ -142,9 +142,7 @@ class FileHandler(Handler):
             finally:
                 tempf.flush()
                 if not tempf.file_not_empty():
-                    raise InvalidFileException(
-                        f"File with extension {extension} failed to write (corrupted)."
-                    )
+                    raise InvalidFileException(f"File with extension {extension} failed to write (corrupted).")
                 filename = copy_file_to_storage(tempf.name, ext=extension)
                 self._output_path = config.get_storage_path(filename)
 
@@ -213,14 +211,8 @@ class FileHandler(Handler):
         for kwargs in kwargs_list:
             cache_key = self.get_cache_key(path, **kwargs)
             file_metadata = get_cache_data(cache_key)
-            if (
-                file_metadata
-                and not skip_cache
-                and not self.cached_file_outdated(file_metadata["filename"])
-            ):
-                file_metadata["path"] = config.get_storage_path(
-                    file_metadata["filename"]
-                )
+            if file_metadata and not skip_cache and not self.cached_file_outdated(file_metadata["filename"]):
+                file_metadata["path"] = config.get_storage_path(file_metadata["filename"])
                 cached_files.append(FileMetadata(**file_metadata))
             else:
                 uncached_files.append(kwargs)
@@ -234,16 +226,12 @@ class FileHandler(Handler):
         skip_cache: Optional[bool] = False,
     ) -> list[FileMetadata]:
         context = self._get_context(context)
-        file_metadata_list, uncached_kwargs = self._get_cached_and_uncached_files(
-            path, context, skip_cache
-        )
+        file_metadata_list, uncached_kwargs = self._get_cached_and_uncached_files(path, context, skip_cache)
 
         for kwargs in uncached_kwargs:
             self._output_path = None
             if kwargs:
-                config.LOGGER.info(
-                    f"\tInitiating {self.STAGE} for {path} with kwargs {kwargs}"
-                )
+                config.LOGGER.info(f"\tInitiating {self.STAGE} for {path} with kwargs {kwargs}")
             else:
                 config.LOGGER.info(f"\tInitiating {self.STAGE} for {path}")
 
@@ -252,9 +240,7 @@ class FileHandler(Handler):
             try:
                 file_metadata = self.handle_file(path, **kwargs) or FileMetadata()
             except tuple(self.HANDLED_EXCEPTIONS) as e:
-                config.LOGGER.error(
-                    f"\tFailed {self.STAGE} for {path} with kwargs {kwargs}"
-                )
+                config.LOGGER.error(f"\tFailed {self.STAGE} for {path} with kwargs {kwargs}")
                 raise ExpectedFileException(e) from e
 
             original_path = path
@@ -272,13 +258,9 @@ class FileHandler(Handler):
             file_metadata_list.append(file_metadata)
 
             if kwargs:
-                config.LOGGER.info(
-                    f"\tCompleted {self.STAGE} for {original_path} with kwargs {kwargs} saved to {file_metadata.path}"
-                )
+                config.LOGGER.info(f"\tCompleted {self.STAGE} for {original_path} with kwargs {kwargs} saved to {file_metadata.path}")
             else:
-                config.LOGGER.info(
-                    f"\tCompleted {self.STAGE} for {original_path} saved to {file_metadata.path}"
-                )
+                config.LOGGER.info(f"\tCompleted {self.STAGE} for {original_path} saved to {file_metadata.path}")
 
         return file_metadata_list
 

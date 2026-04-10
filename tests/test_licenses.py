@@ -1,4 +1,5 @@
-""" Tests for license getting and serialization """
+"""Tests for license getting and serialization"""
+
 import json
 
 import pytest
@@ -13,7 +14,6 @@ from le_utils.constants.licenses import PUBLIC_DOMAIN
 from le_utils.constants.licenses import SPECIAL_PERMISSIONS
 
 from ricecooker.classes.licenses import get_license
-
 
 """ *********** LICENSE FIXTURES *********** """
 
@@ -33,9 +33,7 @@ def license_objects():
     license_objects = []
     for regular_id in regular_ids:
         # with desciption and copyright_holder
-        licence_obj = get_license(
-            regular_id, copyright_holder="Some name", description="Le description"
-        )
+        licence_obj = get_license(regular_id, copyright_holder="Some name", description="Le description")
         assert licence_obj, "licence_obj should exist"
         license_objects.append(licence_obj)
 

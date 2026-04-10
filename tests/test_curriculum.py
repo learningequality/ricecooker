@@ -1,4 +1,5 @@
 """Tests for curriculum nodes and learning objectives."""
+
 import json
 import re
 import uuid
@@ -16,9 +17,9 @@ from ricecooker.classes.nodes import LessonNode
 from ricecooker.classes.nodes import TopicNode
 from ricecooker.classes.nodes import UnitNode
 from ricecooker.classes.nodes import VideoNode
-from ricecooker.classes.questions import SingleSelectQuestion
 from ricecooker.classes.questions import VARIANT_A
 from ricecooker.classes.questions import VARIANT_B
+from ricecooker.classes.questions import SingleSelectQuestion
 from ricecooker.exceptions import InvalidNodeException
 
 
@@ -43,18 +44,14 @@ class TestLearningObjective:
     def test_generates_uuid5_from_text(self):
         """LearningObjective generates a deterministic UUID5 from text."""
         lo = LearningObjective("Understand addition")
-        expected_id = uuid.uuid5(
-            LEARNING_OBJECTIVE_NAMESPACE, "Understand addition"
-        ).hex
+        expected_id = uuid.uuid5(LEARNING_OBJECTIVE_NAMESPACE, "Understand addition").hex
         assert lo.id == expected_id
 
     def test_id_is_compact_hex_format(self):
         """LearningObjective ID must be compact hex (32 chars, no dashes) per le_utils schema."""
         lo = LearningObjective("Understand addition")
         # Must match le_utils schema pattern: ^[0-9a-f]{32}$
-        assert re.match(
-            r"^[0-9a-f]{32}$", lo.id
-        ), f"ID '{lo.id}' is not compact hex format"
+        assert re.match(r"^[0-9a-f]{32}$", lo.id), f"ID '{lo.id}' is not compact hex format"
 
     def test_same_text_produces_same_id(self):
         """Identical text produces identical IDs (deterministic)."""
@@ -281,18 +278,14 @@ class TestUnitNodeAddChild:
         """UnitNode rejects LessonNode without learning_objectives."""
         unit = UnitNode(source_id="unit-1", title="Math Unit")
         lesson = LessonNode(source_id="lesson-1", title="Lesson 1")
-        with pytest.raises(
-            InvalidNodeException, match="Must have at least one learning objective"
-        ):
+        with pytest.raises(InvalidNodeException, match="Must have at least one learning objective"):
             unit.add_child(lesson, [])
 
     def test_rejects_lesson_with_none_learning_objectives(self):
         """UnitNode rejects LessonNode with None learning_objectives."""
         unit = UnitNode(source_id="unit-1", title="Math Unit")
         lesson = LessonNode(source_id="lesson-1", title="Lesson 1")
-        with pytest.raises(
-            InvalidNodeException, match="Must have at least one learning objective"
-        ):
+        with pytest.raises(InvalidNodeException, match="Must have at least one learning objective"):
             unit.add_child(lesson, None)
 
     def test_rejects_topic_node_as_child(self):
@@ -371,18 +364,14 @@ class TestUnitNodeAddQuestion:
         """UnitNode rejects question without learning objectives."""
         unit = UnitNode(source_id="unit-1", title="Math Unit")
         q = make_question("q1")
-        with pytest.raises(
-            InvalidNodeException, match="Must have at least one learning objective"
-        ):
+        with pytest.raises(InvalidNodeException, match="Must have at least one learning objective"):
             unit.add_question(q, VARIANT_A, [])
 
     def test_rejects_non_learning_objective_in_question(self):
         """UnitNode rejects non-LearningObjective items in add_question."""
         unit = UnitNode(source_id="unit-1", title="Math Unit")
         q = make_question("q1")
-        with pytest.raises(
-            InvalidNodeException, match="Expected LearningObjective, got str"
-        ):
+        with pytest.raises(InvalidNodeException, match="Expected LearningObjective, got str"):
             unit.add_question(q, VARIANT_A, ["not a LearningObjective"])
 
     def test_rejects_invalid_learning_objective_in_question(self):
@@ -425,9 +414,7 @@ class TestUnitNodeValidation:
         unit.add_question(make_question("q2"), VARIANT_B, [lo])
         unit.add_question(make_question("q3"), VARIANT_B, [lo])
 
-        with pytest.raises(
-            InvalidNodeException, match="Must have at least 2 VARIANT_A questions"
-        ):
+        with pytest.raises(InvalidNodeException, match="Must have at least 2 VARIANT_A questions"):
             unit.validate()
 
     def test_fails_with_less_than_2_variant_b_questions(self):
@@ -442,9 +429,7 @@ class TestUnitNodeValidation:
         unit.add_question(make_question("q2"), VARIANT_A, [lo])
         unit.add_question(make_question("q3"), VARIANT_B, [lo])
 
-        with pytest.raises(
-            InvalidNodeException, match="Must have at least 2 VARIANT_B questions"
-        ):
+        with pytest.raises(InvalidNodeException, match="Must have at least 2 VARIANT_B questions"):
             unit.validate()
 
     def test_fails_with_unequal_variant_counts(self):
@@ -655,18 +640,12 @@ class TestUnitNodeSerialization:
         # Validate learning_objectives IDs match hex-uuid pattern
         hex_uuid_pattern = SCHEMA["definitions"]["hex-uuid"]["pattern"]
         for obj in result["learning_objectives"]:
-            assert re.match(
-                hex_uuid_pattern, obj["id"]
-            ), f"Learning objective ID '{obj['id']}' doesn't match schema pattern {hex_uuid_pattern}"
+            assert re.match(hex_uuid_pattern, obj["id"]), f"Learning objective ID '{obj['id']}' doesn't match schema pattern {hex_uuid_pattern}"
 
         # Validate assessment_objectives keys match hex-uuid pattern
         for assessment_id in result["assessment_objectives"].keys():
-            assert re.match(
-                hex_uuid_pattern, assessment_id
-            ), f"Assessment ID '{assessment_id}' doesn't match schema pattern {hex_uuid_pattern}"
+            assert re.match(hex_uuid_pattern, assessment_id), f"Assessment ID '{assessment_id}' doesn't match schema pattern {hex_uuid_pattern}"
 
         # Validate lesson_objectives keys match hex-uuid pattern
         for lesson_id in result["lesson_objectives"].keys():
-            assert re.match(
-                hex_uuid_pattern, lesson_id
-            ), f"Lesson ID '{lesson_id}' doesn't match schema pattern {hex_uuid_pattern}"
+            assert re.match(hex_uuid_pattern, lesson_id), f"Lesson ID '{lesson_id}' doesn't match schema pattern {hex_uuid_pattern}"

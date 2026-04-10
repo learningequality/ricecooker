@@ -1,4 +1,5 @@
 """Tests for audio and video compression in archive files."""
+
 import os
 import tempfile
 import zipfile
@@ -28,12 +29,10 @@ def test_html5_archive_with_mp4_compression(video_file, audio_file):
             with open(audio_file.path, "rb") as af:
                 zf.writestr("audio/sample.mp3", af.read())
 
-        with patch(
-            "ricecooker.utils.pipeline.convert.compress_video"
-        ) as mock_video_compress, patch(
-            "ricecooker.utils.pipeline.convert.compress_audio"
-        ) as mock_audio_compress:
-
+        # fmt: off
+        with patch("ricecooker.utils.pipeline.convert.compress_video") as mock_video_compress, \
+             patch("ricecooker.utils.pipeline.convert.compress_audio") as mock_audio_compress:
+            # fmt: on
             # Mock successful compression
             mock_video_compress.return_value = None
             mock_audio_compress.return_value = None
@@ -44,12 +43,8 @@ def test_html5_archive_with_mp4_compression(video_file, audio_file):
                 result = html_file.process_file()
 
             # Verify both compression functions were called
-            assert (
-                mock_video_compress.called
-            ), "Video compression should be called for MP4 files"
-            assert (
-                mock_audio_compress.called
-            ), "Audio compression should be called for MP3 files"
+            assert mock_video_compress.called, "Video compression should be called for MP4 files"
+            assert mock_audio_compress.called, "Audio compression should be called for MP3 files"
             assert result is not None, "Processing should succeed"
 
     finally:
@@ -80,9 +75,7 @@ def test_h5p_archive_with_webm_compression(video_file):
                 result = h5p_file.process_file()
 
             # Verify compression was called
-            assert (
-                mock_compress.called
-            ), "Video compression should be called for WebM files"
+            assert mock_compress.called, "Video compression should be called for WebM files"
             assert result is not None, "Processing should succeed"
 
     finally:
@@ -103,24 +96,18 @@ def test_archive_no_compression_when_disabled(video_file, audio_file):
             with open(audio_file.path, "rb") as af:
                 zf.writestr("audio/sample.mp3", af.read())
 
-        with patch(
-            "ricecooker.utils.pipeline.convert.compress_video"
-        ) as mock_video_compress, patch(
-            "ricecooker.utils.pipeline.convert.compress_audio"
-        ) as mock_audio_compress:
-
+        # fmt: off
+        with patch("ricecooker.utils.pipeline.convert.compress_video") as mock_video_compress, \
+             patch("ricecooker.utils.pipeline.convert.compress_audio") as mock_audio_compress:
+            # fmt: on
             # Process the HTML5 file with compression disabled
             with patch("ricecooker.config.COMPRESS", False):
                 html_file = HTMLZipFile(temp_archive.name)
                 result = html_file.process_file()
 
             # Verify compression functions were not called
-            assert (
-                not mock_video_compress.called
-            ), "Video compression should not be called when disabled"
-            assert (
-                not mock_audio_compress.called
-            ), "Audio compression should not be called when disabled"
+            assert not mock_video_compress.called, "Video compression should not be called when disabled"
+            assert not mock_audio_compress.called, "Audio compression should not be called when disabled"
             assert result is not None, "Processing should still succeed"
 
     finally:
@@ -209,9 +196,7 @@ class TestKPUBValidation:
             )
 
     def test_inline_styles_allowed(self):
-        self._validate(
-            {"index.html": '<html><body><p style="color: red;">Hello</p></body></html>'}
-        )
+        self._validate({"index.html": '<html><body><p style="color: red;">Hello</p></body></html>'})
 
     def test_images_allowed(self):
         png_data = (

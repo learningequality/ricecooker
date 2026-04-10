@@ -3,13 +3,13 @@ import os
 import PIL
 import pytest
 
-from .test_videos import bad_video  # noqa F401
-from .test_videos import high_res_video  # noqa F401
-from .test_videos import low_res_video  # noqa F401
-from .test_videos import TempFile  # noqa F401
 from ricecooker.utils import images
 from ricecooker.utils import videos
 
+from .test_videos import TempFile  # noqa F401
+from .test_videos import bad_video  # noqa F401
+from .test_videos import high_res_video  # noqa F401
+from .test_videos import low_res_video  # noqa F401
 
 tests_dir = os.path.dirname(os.path.abspath(__file__))
 files_dir = os.path.join(tests_dir, "files")
@@ -202,7 +202,9 @@ class Test_epub_thumbnail_generation(BaseThumbnailGeneratorTestCase):
 
 class Test_video_thumbnail_generation(BaseThumbnailGeneratorTestCase):
     def test_generates_16_9_thumbnail_from_low_res(
-        self, tmpdir, low_res_video  # noqa F811
+        self,
+        tmpdir,
+        low_res_video,  # noqa F811
     ):
         input_file = low_res_video.name
         output_file = tmpdir.join("low_res_video_thumbnail.png").strpath
@@ -211,7 +213,9 @@ class Test_video_thumbnail_generation(BaseThumbnailGeneratorTestCase):
         self.check_is_png_file(output_file)
 
     def test_generates_16_9_thumbnail_from_high_res(
-        self, tmpdir, high_res_video  # noqa F811
+        self,
+        tmpdir,
+        high_res_video,  # noqa F811
     ):
         input_file = high_res_video.name
         output_file = tmpdir.join("high_res_video_thumbnail.png").strpath

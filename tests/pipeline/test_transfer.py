@@ -12,10 +12,8 @@ from ricecooker.utils.pipeline.exceptions import InvalidFileException
 from ricecooker.utils.pipeline.file_handler import FileHandler
 from ricecooker.utils.pipeline.transfer import DiskResourceHandler
 from ricecooker.utils.pipeline.transfer import DownloadStageHandler
-from ricecooker.utils.pipeline.transfer import (
-    get_filename_from_content_disposition_header,
-)
 from ricecooker.utils.pipeline.transfer import GoogleDriveHandler
+from ricecooker.utils.pipeline.transfer import get_filename_from_content_disposition_header
 
 content_disposition_filename_cases = [
     ('Content-Disposition: attachment; filename="example.jpg"', "example.jpg"),
@@ -41,14 +39,10 @@ content_disposition_filename_cases = [
 ]
 
 
-@pytest.mark.parametrize(
-    "content_disposition, expected", content_disposition_filename_cases
-)
+@pytest.mark.parametrize("content_disposition, expected", content_disposition_filename_cases)
 def test_get_filename_from_content_disposition_header(content_disposition, expected):
     result = get_filename_from_content_disposition_header(content_disposition)
-    assert (
-        result == expected
-    ), f"Failed on {content_disposition}: expected {expected}, got {result}"
+    assert result == expected, f"Failed on {content_disposition}: expected {expected}, got {result}"
 
 
 # Google Drive handler integration tests
@@ -139,9 +133,7 @@ def mock_google_creds(monkeypatch):
     temp_file.close()
 
     # Patch config to use our temporary file
-    monkeypatch.setattr(
-        "ricecooker.config.GOOGLE_SERVICE_ACCOUNT_CREDENTIALS_PATH", temp_file.name
-    )
+    monkeypatch.setattr("ricecooker.config.GOOGLE_SERVICE_ACCOUNT_CREDENTIALS_PATH", temp_file.name)
 
     yield
 
@@ -255,11 +247,7 @@ def test_gdrive_channel_spreadsheet(mock_google_creds):
 
 
 def test_disk_transfer_file_protocol():
-    file_path = os.path.abspath(
-        os.path.join(
-            os.path.dirname(__file__), "..", "testcontent", "samples", "thumbnail.png"
-        )
-    )
+    file_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "testcontent", "samples", "thumbnail.png"))
 
     # Convert to proper file:// URL format based on platform
     if platform == "win32":
@@ -270,15 +258,11 @@ def test_disk_transfer_file_protocol():
         file_path_with_protocol = "file://" + file_path
 
     handler = DiskResourceHandler()
-    assert handler.should_handle(
-        file_path_with_protocol
-    ), f"Handler should handle {file_path_with_protocol}"
+    assert handler.should_handle(file_path_with_protocol), f"Handler should handle {file_path_with_protocol}"
 
     file_metadata = handler.execute(file_path_with_protocol)
     assert file_metadata is not None, "File metadata should not be None"
-    assert file_metadata[0].filename.endswith(
-        "png"
-    ), "File extension should be preserved"
+    assert file_metadata[0].filename.endswith("png"), "File extension should be preserved"
 
 
 def test_disk_transfer_non_file_protocol():
@@ -291,9 +275,7 @@ def test_disk_transfer_non_file_protocol():
     assert normalized_path == path, "Non-file URL should be left unchanged"
 
     # The handler should not handle non-file URLs
-    with patch(
-        "os.path.exists", return_value=False
-    ):  # Ensure it doesn't try to check a web URL
+    with patch("os.path.exists", return_value=False):  # Ensure it doesn't try to check a web URL
         assert not handler.should_handle(path), "Handler should not handle HTTP URLs"
 
 

@@ -32,9 +32,7 @@ class DomainSpecificAuth(AuthBase):
             for key, value in headers.items():
                 new_value = os.environ.get(str(value))
                 if not new_value:
-                    raise ValueError(
-                        f"Environment variable for header value '{value}' not set."
-                    )
+                    raise ValueError(f"Environment variable for header value '{value}' not set.")
                 processed_headers[str(key)] = new_value
             processed_domain_to_headers[domain] = processed_headers
         return processed_domain_to_headers

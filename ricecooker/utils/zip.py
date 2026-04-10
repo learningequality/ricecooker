@@ -23,9 +23,7 @@ def create_predictable_zip(path, entrypoint=None, file_converter=None):
         paths = []
 
         for root, directories, filenames in os.walk(path):
-            paths += [
-                os.path.join(root, filename)[len(path) + 1 :] for filename in filenames
-            ]
+            paths += [os.path.join(root, filename)[len(path) + 1 :] for filename in filenames]
 
         def reader(x):
             return _read_file(os.path.join(path, x))
@@ -48,9 +46,7 @@ def create_predictable_zip(path, entrypoint=None, file_converter=None):
             write_file_to_zip_with_neutral_metadata(
                 outputzip,
                 filepath,
-                file_converter(filepath, reader)
-                if file_converter
-                else reader(filepath),
+                file_converter(filepath, reader) if file_converter else reader(filepath),
             )
         os.fdopen(zippathfd).close()
     return zippath

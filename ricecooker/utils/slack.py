@@ -20,9 +20,7 @@ def send_slack_notification(channel, url):
         return
 
     # Create the message payload
-    payload = {
-        "text": f"A new channel has been uploaded to Kolibri Studio: *{channel.title}* ({channel.get_node_id().hex}). You can view it here: {url}"
-    }
+    payload = {"text": f"A new channel has been uploaded to Kolibri Studio: *{channel.title}* ({channel.get_node_id().hex}). You can view it here: {url}"}
 
     # Send the request to the webhook URL
     try:

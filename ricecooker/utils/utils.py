@@ -6,7 +6,6 @@ from urllib.parse import urlparse
 
 from ricecooker import config
 
-
 VALID_UUID_REGEX = re.compile("^([a-f0-9]{32})$")
 
 
@@ -33,11 +32,7 @@ def make_dir_if_needed(path):
 
 class VideoURLFormatError(Exception):
     def __init__(self, url, expected_format):
-        self.message = (
-            "The video at {} does not appear to be a proper {} video URL.".format(
-                url, expected_format
-            )
-        )
+        self.message = "The video at {} does not appear to be a proper {} video URL.".format(url, expected_format)
 
 
 def extract_path_ext(path, default_ext=None):

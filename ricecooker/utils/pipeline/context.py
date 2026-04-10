@@ -59,9 +59,7 @@ class FileMetadata:
     content_node_metadata: Optional[ContentNodeMetadata] = None
 
     def to_dict(self):
-        return asdict(
-            self, dict_factory=lambda x: {k: v for k, v in x if v is not None}
-        )
+        return asdict(self, dict_factory=lambda x: {k: v for k, v in x if v is not None})
 
     def merge(self, other):
         """

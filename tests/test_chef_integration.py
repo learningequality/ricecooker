@@ -29,17 +29,11 @@ class TestChef(SushiChef):
     # you'll run this with your own API key we can use this random (enough) string generator (thanks SO)
     # to append a random set of characters to the two values.
     def randomstring():
-        return "".join(
-            random.choice(string.ascii_uppercase + string.digits) for _ in range(8)
-        )
+        return "".join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))
 
     channel_info = {
-        "CHANNEL_SOURCE_DOMAIN": "RicecookerIntegrationTest.{}".format(
-            randomstring()
-        ),  # who is providing the content (e.g. learningequality.org)
-        "CHANNEL_SOURCE_ID": "RicecookerTests.{}".format(
-            randomstring()
-        ),  # channel's unique id
+        "CHANNEL_SOURCE_DOMAIN": "RicecookerIntegrationTest.{}".format(randomstring()),  # who is providing the content (e.g. learningequality.org)
+        "CHANNEL_SOURCE_ID": "RicecookerTests.{}".format(randomstring()),  # channel's unique id
         "CHANNEL_TITLE": "Ricecooker Testing!",
         "CHANNEL_LANGUAGE": "en",
     }
@@ -81,9 +75,7 @@ class TestChef(SushiChef):
         )
 
         # We are also going to add a video file called 'Example Video'
-        video_file = VideoFile(
-            path="https://archive.org/download/vd_is_for_everybody/vd_is_for_everybody_512kb.mp4"
-        )
+        video_file = VideoFile(path="https://archive.org/download/vd_is_for_everybody/vd_is_for_everybody_512kb.mp4")
         fancy_license = get_license(
             licenses.SPECIAL_PERMISSIONS,
             description="Special license for ricecooker fans only.",
@@ -109,12 +101,8 @@ class TestChef(SushiChef):
 
         # Now that we have our files, let's add them to our channel
         channel.add_child(examplepdf)  # Adding 'Example PDF' to your channel
-        exampletopic.add_child(
-            examplevideo
-        )  # Adding 'Example Video' to 'Example Topic'
-        examplesubtopic.add_child(
-            exampleaudio
-        )  # Adding 'Example Audio' to 'Example Subtopic'
+        exampletopic.add_child(examplevideo)  # Adding 'Example Video' to 'Example Topic'
+        examplesubtopic.add_child(exampleaudio)  # Adding 'Example Audio' to 'Example Subtopic'
 
         # the `construct_channel` method returns a ChannelNode that will be
         # processed by the ricecooker framework
@@ -126,7 +114,5 @@ if __name__ == "__main__":
     This code will run when the sushi chef is called from the command line.
     """
     chef = TestChef()
-    print(
-        "Note that you will need your Studio API key for this. It will upload to your account."
-    )
+    print("Note that you will need your Studio API key for this. It will upload to your account.")
     chef.main()

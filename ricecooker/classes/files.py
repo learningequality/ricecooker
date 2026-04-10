@@ -8,15 +8,13 @@ from le_utils.constants import format_presets
 from le_utils.constants import languages
 from requests import HTTPError
 
-from .. import config
-from ..exceptions import UnknownFileTypeError
 from ricecooker.utils.caching import FILECACHE
 from ricecooker.utils.caching import get_cache_filename
+from ricecooker.utils.images import ThumbnailGenerationError
 from ricecooker.utils.images import create_image_from_epub
 from ricecooker.utils.images import create_image_from_pdf_page
 from ricecooker.utils.images import create_image_from_zip
 from ricecooker.utils.images import create_tiled_image
-from ricecooker.utils.images import ThumbnailGenerationError
 from ricecooker.utils.pipeline import FilePipeline
 from ricecooker.utils.pipeline.convert import AudioCompressionHandler
 from ricecooker.utils.pipeline.convert import ImageConversionHandler
@@ -29,6 +27,9 @@ from ricecooker.utils.utils import copy_file_to_storage
 from ricecooker.utils.utils import extract_path_ext
 from ricecooker.utils.videos import extract_thumbnail_from_video
 from ricecooker.utils.youtube import get_language_with_alpha2_fallback
+
+from .. import config
+from ..exceptions import UnknownFileTypeError
 
 fallback_pipeline = FilePipeline()
 
@@ -116,30 +117,19 @@ class File(object):
         return os.path.getsize(config.get_storage_path(self.get_filename()))
 
     def truncate_fields(self):
-        if (
-            self.original_filename
-            and len(self.original_filename) > config.MAX_ORIGINAL_FILENAME_LENGTH
-        ):
-            config.print_truncate(
-                "original_filename", self.node.source_id, self.original_filename
-            )
+        if self.original_filename and len(self.original_filename) > config.MAX_ORIGINAL_FILENAME_LENGTH:
+            config.print_truncate("original_filename", self.node.source_id, self.original_filename)
             original_extension = self.original_filename.split(".")[-1]
             if original_extension == self.original_filename:
                 original_extension = ""
             self.original_filename = self.original_filename.split(".")[0]
-            extension_length = (
-                0 if not original_extension else len(original_extension) + 1
-            )
-            self.original_filename = self.original_filename[
-                : config.MAX_ORIGINAL_FILENAME_LENGTH - extension_length
-            ]
+            extension_length = 0 if not original_extension else len(original_extension) + 1
+            self.original_filename = self.original_filename[: config.MAX_ORIGINAL_FILENAME_LENGTH - extension_length]
             if original_extension:
                 self.original_filename += "." + original_extension
 
         if self.source_url and len(self.source_url) > config.MAX_SOURCE_URL_LENGTH:
-            config.print_truncate(
-                "file_source_url", self.node.source_id, self.source_url
-            )
+            config.print_truncate("file_source_url", self.node.source_id, self.source_url)
             self.source_url = self.source_url[: config.MAX_SOURCE_URL_LENGTH]
 
     def file_dict(self, filename=None):
@@ -164,9 +154,7 @@ class File(object):
             if os.path.isfile(config.get_storage_path(filename)):
                 return self.file_dict(filename=filename)
             else:
-                config.LOGGER.warning(
-                    "File not found: {}".format(config.get_storage_path(filename))
-                )
+                config.LOGGER.warning("File not found: {}".format(config.get_storage_path(filename)))
 
         return None
 
@@ -195,9 +183,7 @@ class DownloadFile(File):
         if not extension:
             extension = extract_path_ext(self.path, default_ext=self.default_ext)
         if self.allowed_formats is not None and extension not in self.allowed_formats:
-            raise ValueError(
-                f"Incompatible extension {extension} for {self.__class__.__name__} at {self.path}"
-            )
+            raise ValueError(f"Incompatible extension {extension} for {self.__class__.__name__} at {self.path}")
 
     def __str__(self):
         return self.path
@@ -209,9 +195,7 @@ class DownloadFile(File):
             except ValueError as ve:
                 raise InvalidFileException from ve
             pipeline = config.FILE_PIPELINE or fallback_pipeline
-            metadata = pipeline.execute(
-                self.path, context=self.context, skip_cache=config.UPDATE
-            )[0]
+            metadata = pipeline.execute(self.path, context=self.context, skip_cache=config.UPDATE)[0]
             metadata = metadata.to_dict()
             for key in metadata:
                 if key == "path":
@@ -255,9 +239,7 @@ class AudioFile(DownloadFile):
     default_preset = format_presets.AUDIO
 
     def __init__(self, path, ffmpeg_settings=None, **kwargs):
-        super(AudioFile, self).__init__(
-            path, context={"audio_settings": ffmpeg_settings or {}}, **kwargs
-        )
+        super(AudioFile, self).__init__(path, context={"audio_settings": ffmpeg_settings or {}}, **kwargs)
 
 
 class DocumentFile(DownloadFile):
@@ -301,9 +283,7 @@ class VideoFile(DownloadFile):
     is_primary = True
 
     def __init__(self, path, ffmpeg_settings=None, **kwargs):
-        super(VideoFile, self).__init__(
-            path, context={"video_settings": ffmpeg_settings or {}}, **kwargs
-        )
+        super(VideoFile, self).__init__(path, context={"video_settings": ffmpeg_settings or {}}, **kwargs)
 
 
 class WebVideoFile(DownloadFile):
@@ -328,9 +308,7 @@ class WebVideoFile(DownloadFile):
 
 class YouTubeVideoFile(WebVideoFile):
     def __init__(self, youtube_id, **kwargs):
-        super(YouTubeVideoFile, self).__init__(
-            "http://www.youtube.com/watch?v={}".format(youtube_id), **kwargs
-        )
+        super(YouTubeVideoFile, self).__init__("http://www.youtube.com/watch?v={}".format(youtube_id), **kwargs)
 
 
 class YouTubeSubtitleFile(File):
@@ -349,9 +327,7 @@ class YouTubeSubtitleFile(File):
         self.youtube_url = "http://www.youtube.com/watch?v={}".format(youtube_id)
         if isinstance(language, languages.Language):
             language = language.code
-        self.youtube_language = (
-            language  # save youtube language code (can differ from internal repr.)
-        )
+        self.youtube_language = language  # save youtube language code (can differ from internal repr.)
         language_obj = get_language_with_alpha2_fallback(language)
         super(YouTubeSubtitleFile, self).__init__(language=language_obj.code, **kwargs)
         self.context = {
@@ -445,17 +421,13 @@ class _ExerciseGraphieFile(File):
     def generate_graphie_file(self):
         if self.ka_language is None:
             raise ValueError("ka_language must be specified")
-        key = "GRAPHIE: {}".format(
-            self.path + (self.ka_language if self.ka_language != "en" else "")
-        )
+        key = "GRAPHIE: {}".format(self.path + (self.ka_language if self.ka_language != "en" else ""))
 
         cache_file = get_cache_filename(key)
         if not config.UPDATE and cache_file:
             return cache_file
 
-        tempf = tempfile.NamedTemporaryFile(
-            suffix=".{}".format(file_formats.GRAPHIE), delete=False
-        )
+        tempf = tempfile.NamedTemporaryFile(suffix=".{}".format(file_formats.GRAPHIE), delete=False)
         # Initialize hash and files
         delimiter = bytes(exercises.GRAPHIE_DELIMITER, "UTF-8")
         config.LOGGER.info("\tDownloading graphie {}".format(self.original_filename))
@@ -507,9 +479,7 @@ class ExtractedThumbnailFile(ThumbnailFile):
         Returns: filename or None
         """
         config.LOGGER.info("\t--- Extracting thumbnail from {}".format(self.path))
-        tempf = tempfile.NamedTemporaryFile(
-            suffix=".{}".format(file_formats.PNG), delete=False
-        )
+        tempf = tempfile.NamedTemporaryFile(suffix=".{}".format(file_formats.PNG), delete=False)
         tempf.close()
         try:
             self.extractor_fun(self.path, tempf.name, **self.extractor_kwargs)
@@ -573,9 +543,7 @@ class TiledThumbnailFile(ThumbnailPresetMixin, File):
     def __init__(self, source_nodes, **kwargs):
         self.sources = []
         for n in source_nodes:
-            images = [
-                f for f in n.files if isinstance(f, ThumbnailFile) and f.get_filename()
-            ]
+            images = [f for f in n.files if isinstance(f, ThumbnailFile) and f.get_filename()]
             if len(images) > 0:
                 self.sources.append(images[0])
         super(TiledThumbnailFile, self).__init__(**kwargs)
@@ -594,13 +562,8 @@ class TiledThumbnailFile(ThumbnailPresetMixin, File):
         else:
             return None
         config.LOGGER.info("\tGenerating tiled thumbnail.")
-        images = [
-            config.get_storage_path(f.get_filename())
-            for f in self.sources[:num_pictures]
-        ]
-        with tempfile.NamedTemporaryFile(
-            suffix=".{}".format(file_formats.PNG)
-        ) as tempf:
+        images = [config.get_storage_path(f.get_filename()) for f in self.sources[:num_pictures]]
+        with tempfile.NamedTemporaryFile(suffix=".{}".format(file_formats.PNG)) as tempf:
             tempf.close()
             create_tiled_image(images, tempf.name)
             filename = copy_file_to_storage(tempf.name, ext=file_formats.PNG)
@@ -630,11 +593,7 @@ class StudioFile(File):
             try:
                 response.raise_for_status()
             except Exception as e:
-                raise ValueError(
-                    "Could not find remote file {} for reason {}".format(
-                        self.filename, e
-                    )
-                )
+                raise ValueError("Could not find remote file {} for reason {}".format(self.filename, e))
             self.size = int(response.headers.get("Content-Length", 0))
             self._validated = True
 

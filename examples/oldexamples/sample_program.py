@@ -150,11 +150,7 @@ def guess_content_kind(path=None, web_video_data=None, questions=None):
         ext = os.path.splitext(path)[1][1:].lower()
         if ext in content_kinds.MAPPING:
             return content_kinds.MAPPING[ext]
-        raise InvalidFormatException(
-            "Invalid file type: Allowed formats are {0}".format(
-                [key for key, value in content_kinds.MAPPING.items()]
-            )
-        )
+        raise InvalidFormatException("Invalid file type: Allowed formats are {0}".format([key for key, value in content_kinds.MAPPING.items()]))
     elif web_video_data:
         return content_kinds.VIDEO
     else:
@@ -185,9 +181,7 @@ EXERCISES_NODES = [
                 "license": licenses.CC_BY_NC_SA,
                 "copyright_holder": "Learning Equality",
                 "files": [
-                    {
-                        "path": "https://ia600209.us.archive.org/27/items/RiceChef/Rice Chef.mp4"
-                    },
+                    {"path": "https://ia600209.us.archive.org/27/items/RiceChef/Rice Chef.mp4"},
                     {
                         "encoding": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAABGdBTUEAALGPC/xhBQAAAAFzUkdCAK7OHOkAAAAgY0hSTQAAeiYAAICEAAD6AAAAgOgAAHUwAADqYAAAOpgAABdwnLpRPAAAAmFQTFRF////wN/2I0FiNFFuAAAAxdvsN1RxV3KMnrPFFi9PAB1CVG+KXHaQI0NjttLrEjVchIF4AyNGZXB5V087UUw/EzBMpqWeb2thbmpgpqOceXVsERgfTWeADg8QCAEApKGZBAYIop+XCQkIhZ+2T2mEg5mtnK/AobPDkKO2YXqTAAAAJkBetMraZH2VprjIz9zm4enw7/T47fP3wc7ae5GnAAAAN1BsSmSApLfI1ODq2OHp5Orv8PL09vb38fb5wM/bbISbrL/PfZSpxNPgzdnj2+Pr5evw6+/z6e3w3ePp2OPsma2/ABM5Q197ABk4jKG1yNfjytfh1uDo3eXs4unv1t/nztrjqbzMTmmEXneRES1Ji6CzxtXixdPfztrk1N/n1+Dp1d/oz9vlxdPeq73NVG+KYnyUAAAddIuhwtPhvMzaxtTgytfiy9jjwtHewtHenbDCHT1fS2eCRV52qr7PvM3cucrYv87cv8/cvMzavc3bucvacoyl////ByE8WnKKscXWv9Hguszbu8zbvc7dtcnaiJqrcHZ4f4SHEh0nEitFTWZ+hJqumrDDm7HDj6W5dI2lYGJfmZeQl5SNAAAADRciAAATHjdSOVNsPlhyLklmKCYjW1lUlpOLlZKLFSAqWXSOBQAADA0NAAAAHh0bWlhSk5CIk5CIBAYJDRQbERcdDBAUBgkMAAAEDg4NAAAAHBsZWFZQkY6GAAAAAAAABQUEHBsZAAAAGxoYVlROko+GBAQDZ2RdAAAAGhkYcW9oAgICAAAAExMSDQwLjouDjYuDioiAiIV9hoN7VlRO////Z2DcYwAAAMR0Uk5TAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACRKrJyrZlBQECaNXCsKaqypMGAUDcu7Gpn5mf03gDo8+4saiipKq3xRMBH83Eu7OsqbG61DkDMdbFvrizsbK3wNs9Ax/VysS/vLq/zNwfArDhxMfExMXE3pMCMe7byMjIzd33ZgYGQtnz6+zooeJXBQMFD1yHejZ1+l8FBgEELlOR+GgFCQ0SGxoBGFKg+m0BBwEMR6v+hAEDM6nRASWURVuYQQ4AAAABYktHRACIBR1IAAAACXBIWXMAAAjLAAAIywGEuOmJAAABCklEQVQY02NgUGZUUVVT19DUYtBmYmZhYdBh1dXTNzA0MjYxZTFjAwqwm1tYWlnb2NrZO3A4cgIFGJycXVzd3D08vbx9uHyBAn7+AYFBwSEhoWHhEdyRQIGo6JjYuPiExKTklFSeNKBAekZmVnZObk5efkEhbxFQgK+4pLSsvKKyqrqGoZZfgIVBsK6+obGpuaW1rV2oQ1hEgKFTtKu7p7evf8LEI5PEJotLMEyZyjJt+oyZsxhmzzk6V3KeFIO01vwFMrJyCxctXrL02DL55QwsClorVq5avWbtuvUbNh7fpMjAwsKyWWvLFJatStu279h5YhdIAAJ2s+zZu+/kfoQAy4HNLAcPHQYA5YtSi+k2/WkAAAAldEVYdGRhdGU6Y3JlYXRlADIwMTMtMTAtMDRUMTk6Mzk6MjEtMDQ6MDAwU1uYAAAAJXRFWHRkYXRlOm1vZGlmeQAyMDEzLTEwLTA0VDE5OjM5OjIxLTA0OjAwQQ7jJAAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAAAASUVORK5CYII="
                     },
@@ -200,11 +194,7 @@ EXERCISES_NODES = [
                 "license": licenses.CC_BY_NC_SA,
                 "copyright_holder": "Learning Equality",
                 "mastery_model": exercises.DO_ALL,
-                "files": [
-                    {
-                        "path": "http://www.publicdomainpictures.net/pictures/110000/nahled/bowl-of-rice.jpg"
-                    }
-                ],
+                "files": [{"path": "http://www.publicdomainpictures.net/pictures/110000/nahled/bowl-of-rice.jpg"}],
                 "questions": [
                     {
                         "id": "eeeee",
@@ -253,11 +243,7 @@ EXERCISES_NODES = [
                 "license": licenses.CC_BY_NC_SA,
                 "copyright_holder": "Learning Equality",
                 "mastery_model": exercises.M_OF_N,
-                "files": [
-                    {
-                        "path": "https://c1.staticflickr.com/5/4021/4302326650_b11f0f0aaf_b.jpg"
-                    }
-                ],
+                "files": [{"path": "https://c1.staticflickr.com/5/4021/4302326650_b11f0f0aaf_b.jpg"}],
                 "questions": [
                     {
                         "id": "11111",
@@ -289,11 +275,7 @@ EXERCISES_NODES = [
                 "license": licenses.CC_BY_NC_SA,
                 "copyright_holder": "Learning Equality",
                 "mastery_model": exercises.M_OF_N,
-                "files": [
-                    {
-                        "path": "https://upload.wikimedia.org/wikipedia/commons/b/b7/Rice_p1160004.jpg"
-                    }
-                ],
+                "files": [{"path": "https://upload.wikimedia.org/wikipedia/commons/b/b7/Rice_p1160004.jpg"}],
                 "questions": [
                     {
                         "id": "123456",
@@ -331,9 +313,7 @@ class SampleChef(SushiChef):
         """
         Create ChannelNode and build topic tree.
         """
-        channel = self.get_channel(
-            *args, **kwargs
-        )  # creates ChannelNode from data in self.channel_info
+        channel = self.get_channel(*args, **kwargs)  # creates ChannelNode from data in self.channel_info
         _build_tree(channel, SAMPLE_TREE)
         raise_for_invalid_channel(channel)
 
@@ -346,9 +326,7 @@ def _build_tree(node, sourcetree):
     """
     for child_source_node in sourcetree:
         try:
-            main_file = (
-                child_source_node["files"][0] if "files" in child_source_node else {}
-            )
+            main_file = child_source_node["files"][0] if "files" in child_source_node else {}
             kind = guess_content_kind(
                 path=main_file.get("path"),
                 web_video_data=main_file.get("youtube_id") or main_file.get("web_url"),
@@ -415,10 +393,7 @@ def _build_tree(node, sourcetree):
             node.add_child(child_node)
 
         elif kind == content_kinds.EXERCISE:
-            mastery_model = (
-                child_source_node.get("mastery_model")
-                and {"mastery_model": child_source_node["mastery_model"]}
-            ) or {}
+            mastery_model = (child_source_node.get("mastery_model") and {"mastery_model": child_source_node["mastery_model"]}) or {}
             child_node = nodes.ExerciseNode(
                 source_id=child_source_node["id"],
                 title=child_source_node["title"],
@@ -469,12 +444,9 @@ def _build_tree(node, sourcetree):
 
 def add_files(node, file_list):
     for f in file_list:
-
         path = f.get("path")
         if path is not None:
-            abspath = get_abspath(
-                path
-            )  # NEW: expand  content://  -->  ./content/  in file paths
+            abspath = get_abspath(path)
         else:
             abspath = None
 
@@ -509,20 +481,10 @@ def add_files(node, file_list):
         elif file_type == FileTypes.BASE64_FILE:
             node.add_file(files.Base64ImageFile(encoding=f["encoding"]))
         elif file_type == FileTypes.WEB_VIDEO_FILE:
-            node.add_file(
-                files.WebVideoFile(
-                    web_url=f["web_url"], high_resolution=f.get("high_resolution")
-                )
-            )
+            node.add_file(files.WebVideoFile(web_url=f["web_url"], high_resolution=f.get("high_resolution")))
         elif file_type == FileTypes.YOUTUBE_VIDEO_FILE:
-            node.add_file(
-                files.YouTubeVideoFile(
-                    youtube_id=f["youtube_id"], high_resolution=f.get("high_resolution")
-                )
-            )
-            node.add_file(
-                files.YouTubeSubtitleFile(youtube_id=f["youtube_id"], language="en")
-            )
+            node.add_file(files.YouTubeVideoFile(youtube_id=f["youtube_id"], high_resolution=f.get("high_resolution")))
+            node.add_file(files.YouTubeSubtitleFile(youtube_id=f["youtube_id"], language="en"))
         else:
             raise UnknownFileTypeError("Unrecognized file type '{0}'".format(f["path"]))
 
@@ -530,22 +492,14 @@ def add_files(node, file_list):
 def create_question(raw_question):
     question = parse_images(raw_question.get("question"))
     hints = raw_question.get("hints")
-    hints = (
-        parse_images(hints)
-        if isinstance(hints, str)
-        else [parse_images(hint) for hint in hints or []]
-    )
+    hints = parse_images(hints) if isinstance(hints, str) else [parse_images(hint) for hint in hints or []]
 
     if raw_question["type"] == exercises.MULTIPLE_SELECTION:
         return questions.MultipleSelectQuestion(
             id=raw_question["id"],
             question=question,
-            correct_answers=[
-                parse_images(answer) for answer in raw_question["correct_answers"]
-            ],
-            all_answers=[
-                parse_images(answer) for answer in raw_question["all_answers"]
-            ],
+            correct_answers=[parse_images(answer) for answer in raw_question["correct_answers"]],
+            all_answers=[parse_images(answer) for answer in raw_question["all_answers"]],
             hints=hints,
         )
     if raw_question["type"] == exercises.SINGLE_SELECTION:
@@ -553,9 +507,7 @@ def create_question(raw_question):
             id=raw_question["id"],
             question=question,
             correct_answer=parse_images(raw_question["correct_answer"]),
-            all_answers=[
-                parse_images(answer) for answer in raw_question["all_answers"]
-            ],
+            all_answers=[parse_images(answer) for answer in raw_question["all_answers"]],
             hints=hints,
         )
     if raw_question["type"] == exercises.INPUT_QUESTION:
@@ -574,9 +526,7 @@ def create_question(raw_question):
         )
     else:
         raise UnknownQuestionTypeError(
-            "Unrecognized question type '{0}': accepted types are {1}".format(
-                raw_question["type"], [key for key, value in exercises.question_choices]
-            )
+            "Unrecognized question type '{0}': accepted types are {1}".format(raw_question["type"], [key for key, value in exercises.question_choices])
         )
 
 

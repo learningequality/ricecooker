@@ -1,6 +1,7 @@
 """
 Settings and global config values for ricecooker.
 """
+
 import atexit
 import hashlib
 import logging.config
@@ -11,7 +12,6 @@ import tempfile
 
 import requests
 from requests_file import FileAdapter
-
 
 UPDATE = False
 COMPRESS = False
@@ -141,9 +141,9 @@ setup_logging()
 
 # Domain and file store location for uploading to production Studio server
 DEFAULT_DOMAIN = "https://api.studio.learningequality.org"
-DOMAIN_ENV = os.getenv("STUDIO_URL", None)
+DOMAIN_ENV = os.getenv("STUDIO_URL")
 if DOMAIN_ENV is None:  # check old ENV varable for backward compatibility
-    DOMAIN_ENV = os.getenv("CONTENTWORKSHOP_URL", None)
+    DOMAIN_ENV = os.getenv("CONTENTWORKSHOP_URL")
 DOMAIN = DOMAIN_ENV if DOMAIN_ENV else DEFAULT_DOMAIN
 if DOMAIN.endswith("/"):
     DOMAIN = DOMAIN.rstrip("/")
@@ -157,7 +157,7 @@ except (ValueError, TypeError):
 CURRENT_CWD = os.getcwd()
 
 # Allow users to choose which phantomjs they use
-PHANTOMJS_PATH = os.getenv("PHANTOMJS_PATH", None)
+PHANTOMJS_PATH = os.getenv("PHANTOMJS_PATH")
 
 # URL for authenticating user on Kolibri Studio
 AUTHENTICATION_URL = "{domain}/api/internal/authenticate_user_internal"
@@ -187,9 +187,7 @@ OPEN_CHANNEL_URL = "{domain}/channels/{channel_id}/{access}"
 PUBLISH_CHANNEL_URL = "{domain}/api/internal/publish_channel"
 
 # Folder to store downloaded files
-STORAGE_DIRECTORY = os.getenv(
-    "RICECOOKER_STORAGE", os.path.join(CURRENT_CWD, "storage")
-)
+STORAGE_DIRECTORY = os.getenv("RICECOOKER_STORAGE", os.path.join(CURRENT_CWD, "storage"))
 
 # Folder to store progress tracking information
 RESTORE_DIRECTORY = "restore"
@@ -198,9 +196,7 @@ RESTORE_DIRECTORY = "restore"
 SESSION = requests.Session()
 
 # Cache for filenames
-FILECACHE_DIRECTORY = os.getenv(
-    "RICECOOKER_FILECACHE", os.path.join(CURRENT_CWD, ".ricecookerfilecache")
-)
+FILECACHE_DIRECTORY = os.getenv("RICECOOKER_FILECACHE", os.path.join(CURRENT_CWD, ".ricecookerfilecache"))
 
 FAILED_FILES = []
 
@@ -209,16 +205,9 @@ DOWNLOAD_SESSION = requests.Session()
 DOWNLOAD_SESSION.mount("file://", FileAdapter())
 
 # Environment variable indicating we should use a proxy for yt_dlp downloads
-USEPROXY = False
-USEPROXY = (
-    True
-    if os.getenv("USEPROXY") is not None or os.getenv("PROXY_LIST") is not None
-    else False
-)
+USEPROXY = os.getenv("USEPROXY") is not None or os.getenv("PROXY_LIST") is not None
 
-GOOGLE_SERVICE_ACCOUNT_CREDENTIALS_PATH = os.getenv(
-    "GOOGLE_SERVICE_ACCOUNT_CREDENTIALS_PATH", None
-)
+GOOGLE_SERVICE_ACCOUNT_CREDENTIALS_PATH = os.getenv("GOOGLE_SERVICE_ACCOUNT_CREDENTIALS_PATH")
 
 if GOOGLE_SERVICE_ACCOUNT_CREDENTIALS_PATH:
     TASK_THREADS = 1  # If using service account, only one thread is allowed - random errors happen otherwise.
@@ -270,13 +259,9 @@ except ImportError:
     pass
 
 # Slack webhook URL for channel upload notifications
-SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL", None)
-if SLACK_WEBHOOK_URL and not SLACK_WEBHOOK_URL.startswith(
-    "https://hooks.slack.com/services/"
-):
-    LOGGER.warning(
-        "Invalid Slack webhook URL provided. Notifications will be disabled."
-    )
+SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL")
+if SLACK_WEBHOOK_URL and not SLACK_WEBHOOK_URL.startswith("https://hooks.slack.com/services/"):
+    LOGGER.warning("Invalid Slack webhook URL provided. Notifications will be disabled.")
     SLACK_WEBHOOK_URL = None
 
 
@@ -293,9 +278,7 @@ TREES_DATA_DIR = os.path.join(DATA_DIR, "trees")
 
 
 # Character limits based on Kolibri models
-TRUNCATE_MSG = (
-    "\t\t{kind} {id}: {field} {value} is too long - max {max} characters (truncating)"
-)
+TRUNCATE_MSG = "\t\t{kind} {id}: {field} {value} is too long - max {max} characters (truncating)"
 
 MAX_TITLE_LENGTH = 200
 MAX_SOURCE_ID_LENGTH = 200
@@ -371,12 +354,8 @@ def get_storage_path(filename):
     Args: filename (str): Name of file to store
     Returns: string path to file
     """
-    directory = os.path.abspath(
-        os.path.join(STORAGE_DIRECTORY, filename[0], filename[1])
-    )
-    # Make storage directory for downloaded files if it doesn't already exist
-    if not os.path.exists(directory):
-        os.makedirs(directory)
+    directory = os.path.abspath(os.path.join(STORAGE_DIRECTORY, filename[0], filename[1]))
+    os.makedirs(directory, exist_ok=True)
     return os.path.join(directory, filename)
 
 
@@ -432,9 +411,7 @@ def get_storage_url(filename):
     Args: filename (str): Name of file
     Returns: string URL for file
     """
-    file_url = FILE_STORAGE_URL.format(
-        domain=DOMAIN, f=filename[0], s=filename[1], filename=filename
-    )
+    file_url = FILE_STORAGE_URL.format(domain=DOMAIN, f=filename[0], s=filename[1], filename=filename)
     if DOMAIN == DEFAULT_DOMAIN:
         # If we are targeting the default domain, don't make content storage requests
         # to api.studio because it will skip cloudflare.
@@ -472,9 +449,7 @@ def open_channel_url(channel, staging=False):
         channel (str): channel id of uploaded channel
     Returns: string url to open channel
     """
-    frontend_domain = DOMAIN.replace(
-        "api.", ""
-    )  # Don't send them to the API domain for preview / review.
+    frontend_domain = DOMAIN.replace("api.", "")  # Don't send them to the API domain for preview / review.
     return OPEN_CHANNEL_URL.format(
         domain=frontend_domain,
         channel_id=channel,

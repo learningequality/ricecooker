@@ -3,6 +3,8 @@ import os
 
 from le_utils.constants import content_kinds
 
+from ricecooker.config import LOGGER
+
 from .jsontrees import AUDIO_FILE
 from .jsontrees import AUDIO_NODE
 from .jsontrees import DOCUMENT_FILE
@@ -16,8 +18,6 @@ from .jsontrees import VIDEO_FILE
 from .jsontrees import VIDEO_NODE
 from .jsontrees import write_tree_to_json_tree
 from .metadata_provider import path_to_tuple
-from ricecooker.config import LOGGER
-
 
 # LINECOOK CONFIGS
 ################################################################################
@@ -30,9 +30,7 @@ FILE_EXCLUDE_EXTENTIONS = [
     ".gitkeep",
 ]
 FILE_SKIP_PATTENRS = []
-FILE_SKIP_THUMBNAILS = (
-    []
-)  # global list of paths that correspond to thumbails for other content nodes
+FILE_SKIP_THUMBNAILS = []  # global list of paths that correspond to thumbails for other content nodes
 
 
 # LINECOOK HELPER FUNCTIONS
@@ -126,14 +124,8 @@ def filter_thumbnail_files(chan_path, filenames, metadata_provider):
     """
     We don't want to create `ContentNode` from thumbnail files.
     """
-    thumbnail_files_to_skip = set(
-        os.path.join(*p) for p in metadata_provider.get_thumbnail_paths()
-    )
-    return [
-        filename
-        for filename in filenames
-        if os.path.join(chan_path, filename) not in thumbnail_files_to_skip
-    ]
+    thumbnail_files_to_skip = set(os.path.join(*p) for p in metadata_provider.get_thumbnail_paths())
+    return [filename for filename in filenames if os.path.join(chan_path, filename) not in thumbnail_files_to_skip]
 
 
 def keep_folder(raw_path):
@@ -166,24 +158,18 @@ def process_folder(channel, rel_path, filenames, metadata_provider):
     if len(chan_path_list) == 1:
         # CASE CHANNEL ROOT: `rel_path` points to `channeldir`
         # No need to create a topic node here since channel already exists
-        containing_node = (
-            channel  # attach content nodes in filenames directly to channel
-        )
+        containing_node = channel  # attach content nodes in filenames directly to channel
 
     else:
         # CASE TOPIC FOLDER: `rel_path` points to a channelroot subfolder (a.k.a TopicNode)
-        dirname = (
-            chan_path_list.pop()
-        )  # name of the folder (used as ID for internal lookup)
+        dirname = chan_path_list.pop()  # name of the folder (used as ID for internal lookup)
         topic_parent_node = get_topic_for_path(channel, chan_path_list)
 
         # read topic metadata to get title and description for the TopicNode
         topic_metadata = metadata_provider.get(chan_path_tuple)
         thumbnail_chan_path = topic_metadata.get("thumbnail_chan_path", None)
         if thumbnail_chan_path:
-            thumbnail_rel_path = rel_path_from_chan_path(
-                thumbnail_chan_path, metadata_provider.channeldir
-            )
+            thumbnail_rel_path = rel_path_from_chan_path(thumbnail_chan_path, metadata_provider.channeldir)
         else:
             thumbnail_rel_path = None
         # create TopicNode for this folder
@@ -200,27 +186,19 @@ def process_folder(channel, rel_path, filenames, metadata_provider):
             children=[],
         )
         topic_parent_node["children"].append(topic)
-        containing_node = (
-            topic  # attach content nodes in filenames to the newly created topic
-        )
+        containing_node = topic  # attach content nodes in filenames to the newly created topic
 
     # filter filenames
     filenames_cleaned = filter_filenames(filenames)
-    filenames_cleaned2 = filter_thumbnail_files(
-        chan_path, filenames_cleaned, metadata_provider
-    )
+    filenames_cleaned2 = filter_thumbnail_files(chan_path, filenames_cleaned, metadata_provider)
 
     # PROCESS FILES
     for filename in filenames_cleaned2:
         chan_filepath = os.path.join(chan_path, filename)
         chan_filepath_tuple = path_to_tuple(chan_filepath)
         metadata = metadata_provider.get(chan_filepath_tuple)
-        node = make_content_node(
-            metadata_provider.channeldir, rel_path, filename, metadata
-        )
-        containing_node["children"].append(
-            node
-        )  # attach content node to containing_node
+        node = make_content_node(metadata_provider.channeldir, rel_path, filename, metadata)
+        containing_node["children"].append(node)  # attach content node to containing_node
 
 
 def build_ricecooker_json_tree(args, options, metadata_provider, json_tree_path):
@@ -239,9 +217,7 @@ def build_ricecooker_json_tree(args, options, metadata_provider, json_tree_path)
     channel_info = metadata_provider.get_channel_info()
     thumbnail_chan_path = channel_info.get("thumbnail_chan_path", None)
     if thumbnail_chan_path:
-        thumbnail_rel_path = rel_path_from_chan_path(
-            thumbnail_chan_path, metadata_provider.channeldir
-        )
+        thumbnail_rel_path = rel_path_from_chan_path(thumbnail_chan_path, metadata_provider.channeldir)
     else:
         thumbnail_rel_path = None
 
@@ -271,19 +247,13 @@ def build_ricecooker_json_tree(args, options, metadata_provider, json_tree_path)
         #     order of nodes within a given topic. Since alphabetical order is used to
         #     walk the files in the `channeldir`, we must "splice in" the exercises here
         if metadata_provider.has_exercises():
-            dir_chan_path = chan_path_from_rel_path(
-                rel_path, metadata_provider.channeldir
-            )
+            dir_chan_path = chan_path_from_rel_path(rel_path, metadata_provider.channeldir)
             dir_path_tuple = path_to_tuple(dir_chan_path)
-            exercises_filenames = metadata_provider.get_exercises_for_dir(
-                dir_path_tuple
-            )
+            exercises_filenames = metadata_provider.get_exercises_for_dir(dir_path_tuple)
             filenames.extend(exercises_filenames)
 
         sorted_filenames = sorted(filenames)
-        process_folder(
-            ricecooker_json_tree, rel_path, sorted_filenames, metadata_provider
-        )
+        process_folder(ricecooker_json_tree, rel_path, sorted_filenames, metadata_provider)
 
     # Write out ricecooker_json_tree.json
     write_tree_to_json_tree(json_tree_path, ricecooker_json_tree)
@@ -302,11 +272,7 @@ def make_content_node(channeldir, rel_path, filename, metadata):  # noqa: C901
     elif "questions" in metadata:
         kind = content_kinds.EXERCISE
     else:
-        raise ValueError(
-            "Could not find kind for extension "
-            + str(ext)
-            + " in content_kinds.MAPPING"
-        )
+        raise ValueError("Could not find kind for extension " + str(ext) + " in content_kinds.MAPPING")
 
     # Extract metadata fields
     source_id = metadata.get("source_id", None)
@@ -336,9 +302,7 @@ def make_content_node(channeldir, rel_path, filename, metadata):  # noqa: C901
             license=license_dict,
             derive_thumbnail=True,
             thumbnail=thumbnail_rel_path,
-            files=[
-                {"file_type": VIDEO_FILE, "path": filepath, "language": lang}
-            ],  # ffmpeg_settings={"crf": 24},
+            files=[{"file_type": VIDEO_FILE, "path": filepath, "language": lang}],  # ffmpeg_settings={"crf": 24},
         )
 
     elif kind == AUDIO_NODE:

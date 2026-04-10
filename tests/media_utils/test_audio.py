@@ -11,7 +11,6 @@ from conftest import download_fixture_file
 from ricecooker.utils import audio
 from ricecooker.utils import videos
 
-
 # cache, so we don't keep requesting the full audio
 requests_cache.install_cache("audio_cache")
 

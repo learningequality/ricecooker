@@ -8,7 +8,6 @@ from requests import PreparedRequest
 from ricecooker import chefs
 from ricecooker.utils.request_utils import DomainSpecificAuth
 
-
 settings = {"thumbnails": True, "compress": True}
 
 
@@ -107,9 +106,7 @@ def test_domain_auth_with_valid_environment_variables():
         # Verify headers were added
         assert result.headers["Authorization"] == "Bearer token123"
         assert result.headers["X-API-Key"] == "key456"
-        assert (
-            result.headers["Content-Type"] == "application/json"
-        )  # existing header preserved
+        assert result.headers["Content-Type"] == "application/json"  # existing header preserved
 
 
 def test_domain_auth_with_missing_environment_variable():
@@ -141,6 +138,4 @@ def test_domain_auth_no_headers_for_non_matching_domain():
 
         # Verify no auth headers were added
         assert "Authorization" not in result.headers
-        assert (
-            result.headers["Content-Type"] == "application/json"
-        )  # existing header preserved
+        assert result.headers["Content-Type"] == "application/json"  # existing header preserved
