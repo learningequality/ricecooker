@@ -5,19 +5,19 @@ Guidance for AI coding agents working in this repository.
 ## Quick Start
 
 ```bash
-pip install -e '.[test,dev]'        # install (use uv pip if venv was created with uv)
-pytest                              # run all tests
-pytest tests/test_files.py          # run a single test file
-pytest -k 'test_something'         # filter by test name
-pre-commit run --all-files          # lint (the ONLY way to run linting)
+uv sync --group dev                 # install (creates .venv and installs all dev dependencies)
+uv run --group test pytest          # run all tests
+uv run --group test pytest tests/test_files.py   # run a single test file
+uv run --group test pytest -k 'test_something'   # filter by test name
+uvx prek run --all-files            # lint (the ONLY way to run linting)
 ```
 
 **System dependencies:** `ffmpeg` and `poppler-utils`.
 
 ## Critical Gotchas
 
-- **Linting:** Always use `pre-commit run --all-files`. Never run black, flake8, or other tools directly.
-- **Line length:** 160 characters, enforced by pre-commit.
+- **Linting:** Always use `uvx prek run --all-files`. Never run ruff, black, flake8, or other tools directly.
+- **Line length:** 160 characters, enforced by prek/ruff.
 - **New file types require exactly two changes:** (1) a conversion handler in `convert.py`, (2) a metadata extractor in `extract_metadata.py`. That's it. Do NOT touch `classes/files.py` or `classes/nodes.py` — the existing File/Node subclasses there are legacy backwards-compatibility APIs that are NOT needed for new file types. The pipeline infers kinds and presets automatically.
 - **Test placement:** Pipeline tests go in `tests/pipeline/` — add to existing files like `test_convert.py` and `test_extract_metadata.py`. Do not create new test files.
 - **Validation logic:** Each handler implements only the validation its spec requires. Do not copy validation from other handlers (e.g., do not add HTML body parsing or empty-body checks unless the spec explicitly requires them).

@@ -24,7 +24,7 @@ Three stages with ordered handlers: **transfer** (download) → **convert** (com
 
 - The pipeline code is the reference architecture — follow its OOP patterns when writing new code.
 - Older code (especially `ricecooker/classes/`) has less test coverage. Take extra care when modifying it.
-- PRs target `main` on `learningequality/ricecooker`. CI tests Python 3.9–3.13 on Linux, macOS, and Windows.
+- PRs target `main` on `learningequality/ricecooker`. CI tests Python 3.9–3.13 on Linux, macOS, and Windows using uv.
 
 ### Adding support for new file types
 
