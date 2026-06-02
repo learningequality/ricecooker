@@ -3,11 +3,10 @@ import re
 from tempfile import TemporaryDirectory
 
 import pytest
-import requests
+from conftest import download_fixture_file
 from PyPDF2 import PdfFileReader
 
 from ricecooker.utils.pdf import PDFParser  # SIT
-
 
 # Fixtures
 ################################################################################
@@ -30,16 +29,6 @@ def doc1_with_toc_path():
     return doc1_with_toc_path
 
 
-def _save_file_url_to_path(url, path):
-    if not os.path.exists(path):
-        with open(path, "wb") as f:
-            resp = requests.get(url, stream=True)
-            for chunk in resp.iter_content(chunk_size=1048576):
-                f.write(chunk)
-            f.flush()
-    assert os.path.exists(path), "Error mising test file " + path
-
-
 @pytest.fixture
 def doc2_with_toc_path():
     """
@@ -48,13 +37,9 @@ def doc2_with_toc_path():
     doc2_with_toc_path = os.path.join(
         "tests", "testcontent", "downloaded", "Beyond-Good-and-Evil-Galbraithcolor.pdf"
     )
-    _save_file_url_to_path(
-        "https://s3-us-west-2.amazonaws.com/pressbooks-samplefiles/"
-        "GalbraithColorTheme/Beyond-Good-and-Evil-Galbraithcolor.pdf",
+    download_fixture_file(
+        "https://s3-us-west-2.amazonaws.com/pressbooks-samplefiles/GalbraithColorTheme/Beyond-Good-and-Evil-Galbraithcolor.pdf",
         doc2_with_toc_path,
-    )
-    assert os.path.exists(doc2_with_toc_path), (
-        "Error mising test file " + doc2_with_toc_path
     )
     return doc2_with_toc_path
 
@@ -67,11 +52,8 @@ def doc3_with_toc_path():
     doc3_with_toc_path = os.path.join(
         "tests", "testcontent", "downloaded", "41568-pdf.pdf"
     )
-    _save_file_url_to_path(
+    download_fixture_file(
         "https://www.gutenberg.org/files/41568/41568-pdf.pdf", doc3_with_toc_path
-    )
-    assert os.path.exists(doc3_with_toc_path), (
-        "Error mising test file " + doc3_with_toc_path
     )
     return doc3_with_toc_path
 
