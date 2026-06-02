@@ -1,15 +1,10 @@
 repos:
-  - repo: https://github.com/python/black
-    rev: 21.12b0
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.11.6
     hooks:
-      - id: black
-        types_or: [python, pyi]
-        additional_dependencies: ['click==8.0.4']
-  - repo: https://github.com/pycqa/flake8
-    rev: 7.1.1
-    hooks:
-      - id: flake8
-        exclude: (?x)(.*examples.*)
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.1.0
     hooks:
@@ -20,10 +15,6 @@ repos:
       - id: debug-statements
       - id: end-of-file-fixer
         exclude: '^.+?\.json$'
-  - repo: https://github.com/asottile/reorder_python_imports
-    rev: v2.6.0
-    hooks:
-      - id: reorder-python-imports
   - repo: https://github.com/google/yamlfmt
     rev: v0.14.0
     hooks:
@@ -35,3 +26,7 @@ repos:
       - id: actionlint
         # Expects shellcheck to be installed on the system
         # https://github.com/koalaman/shellcheck#installing
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    rev: 0.11.2
+    hooks:
+      - id: uv-lock
