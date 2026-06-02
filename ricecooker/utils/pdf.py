@@ -64,7 +64,11 @@ class PDFParser(object):
                 fobj.write(read(self.source_path))
 
         self.file = open(self.path, "rb")
-        self.pdf = CustomPDFReader(self.file)
+        try:
+            self.pdf = CustomPDFReader(self.file)
+        except Exception:
+            self.file.close()
+            raise
 
     def close(self):
         """
@@ -98,7 +102,6 @@ class PDFParser(object):
         index = 0
 
         for dest in self.pdf.getOutlines():
-
             # Process chapters
             if isinstance(dest, CustomDestination) and not isinstance(
                 dest["/Page"], NullObject

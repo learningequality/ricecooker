@@ -1,4 +1,5 @@
-""" Tests for exercise nodes, questions, and files """
+"""Tests for exercise nodes, questions, and files"""
+
 import json
 import os
 import re
@@ -257,9 +258,9 @@ def test_base_question_set_image(text, replacement_str, hash):
     new_text, images = testq.set_image(text)
 
     # check 1
-    assert (
-        new_text == replacement_str
-    ), "Unexpected replacement text produced by set_image"
+    assert new_text == replacement_str, (
+        "Unexpected replacement text produced by set_image"
+    )
 
     # check 2
     assert len(images) == 1, "Should find exactly one image"
@@ -270,9 +271,9 @@ def test_base_question_set_image(text, replacement_str, hash):
     assert hash in filename, "wrong content hash for file"
     expected_storage_dir = os.path.join(STORAGE_DIRECTORY, filename[0], filename[1])
     expected_storage_path = os.path.join(expected_storage_dir, filename)
-    assert os.path.exists(
-        expected_storage_path
-    ), "Image file not saved to ricecooker storage dir"
+    assert os.path.exists(expected_storage_path), (
+        "Image file not saved to ricecooker storage dir"
+    )
 
 
 # Test PerseusQuestion process_question method
@@ -303,7 +304,6 @@ with open(
     ),
     encoding="utf-8",
 ) as inf:
-
     item_data_bg = json.load(inf)
     datum = (
         item_data_bg,
@@ -320,7 +320,6 @@ with open(
     os.path.join(TESTCONTENT_DIR, "exercises", "perseus_question_new_bar_graphs.json"),
     encoding="utf-8",
 ) as inf:
-
     item_data_bar = json.load(inf)
     datum = (
         item_data_bar,
@@ -338,7 +337,6 @@ with open(
     os.path.join(TESTCONTENT_DIR, "exercises", "perseus_question_inline_link.json"),
     encoding="utf-8",
 ) as inf:
-
     item_data_link = json.load(inf)
     datum = (
         item_data_link,
@@ -368,9 +366,9 @@ def test_perseus_process_question(item, image_hashes):
     filenames = testq.process_question()
 
     # check 1
-    assert len(filenames) == len(
-        expected_image_hashes
-    ), "wrong number of filenames found"
+    assert len(filenames) == len(expected_image_hashes), (
+        "wrong number of filenames found"
+    )
 
     # check 2
     image_hashes = set()
@@ -393,9 +391,9 @@ def test_exercise_base64_image_file(
     exercise_base64_image_file, exercise_base64_image_filename
 ):
     filename = exercise_base64_image_file.get_filename()
-    assert (
-        filename == exercise_base64_image_filename
-    ), "wrong filename for _ExerciseBase64ImageFile"
+    assert filename == exercise_base64_image_filename, (
+        "wrong filename for _ExerciseBase64ImageFile"
+    )
 
 
 @pytest.mark.xfail(
@@ -409,10 +407,10 @@ def test_exercise_graphie_filename(
     exercise_graphie_mock_download_session,
 ):
     filename = exercise_graphie_file.get_filename()
-    assert (
-        filename == exercise_graphie_filename
-    ), "wrong filename for _ExerciseGraphieFile"
+    assert filename == exercise_graphie_filename, (
+        "wrong filename for _ExerciseGraphieFile"
+    )
     replacement_str = exercise_graphie_file.get_replacement_str()
-    assert (
-        replacement_str == exercise_graphie_replacement_str
-    ), "wrong replacement string for _ExerciseGraphieFile "
+    assert replacement_str == exercise_graphie_replacement_str, (
+        "wrong replacement string for _ExerciseGraphieFile "
+    )

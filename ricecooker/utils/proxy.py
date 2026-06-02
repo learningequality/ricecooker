@@ -4,6 +4,7 @@ Set the ENV variable PROXY_LIST to a ;-separated list of {ip}:{port} values to
 specify the list of proxies to use. If PROXY_LIST a default list will be loaded
 from proxyscrape.com (note the default proxies can be very slow).
 """
+
 import os
 import random
 import re

@@ -135,9 +135,9 @@ def test_is_youtube_subtitle_file_supported_language(
 
 def test_is_youtube_subtitle_file_unsupported_language(subtitles_langs_unsupported):
     for lang in subtitles_langs_unsupported:
-        assert not is_youtube_subtitle_file_supported_language(
-            lang
-        ), "should not be supported"
+        assert not is_youtube_subtitle_file_supported_language(lang), (
+            "should not be supported"
+        )
         lang_obj = get_language_with_alpha2_fallback(lang)
         assert lang_obj is None, "lookup should fail"
 

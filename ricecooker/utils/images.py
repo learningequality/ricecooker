@@ -135,9 +135,9 @@ def create_tiled_image(source_images, fpath_out):
     """
     try:
         sizes = {1: 1, 4: 2, 9: 3, 16: 4, 25: 5, 36: 6, 49: 7}
-        assert (
-            len(source_images) in sizes.keys()
-        ), "Number of images must be a perfect square <= 49"
+        assert len(source_images) in sizes.keys(), (
+            "Number of images must be a perfect square <= 49"
+        )
         root = sizes[len(source_images)]
 
         images = list(map(Image.open, source_images))

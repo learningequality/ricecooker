@@ -92,9 +92,10 @@ class RestoreManager:
         Args: None
         Returns: None
         """
-        with open(self.get_restore_path(Status.LAST), "wb") as handle, open(
-            self.get_restore_path(), "wb"
-        ) as step_handle:
+        with (
+            open(self.get_restore_path(Status.LAST), "wb") as handle,
+            open(self.get_restore_path(), "wb") as step_handle,
+        ):
             pickle.dump(self, handle)
             pickle.dump(self, step_handle)
 

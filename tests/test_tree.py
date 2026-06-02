@@ -1,4 +1,5 @@
-""" Tests for tree construction """
+"""Tests for tree construction"""
+
 import os
 import tempfile
 import uuid
@@ -167,9 +168,9 @@ def test_nodes_initialized(channel, topic, document):
 
 def test_add_child(tree, topic, document):
     assert tree.children[0] == topic, "Channel should have topic child node"
-    assert (
-        tree.children[0].children[0] == document
-    ), "Topic should have a document child node"
+    assert tree.children[0].children[0] == document, (
+        "Topic should have a document child node"
+    )
 
 
 def test_ids(
@@ -185,24 +186,24 @@ def test_ids(
     topic = tree.children[0]
     document = topic.children[0]
 
-    assert (
-        channel.get_content_id() == channel_content_id
-    ), "Channel content id should be {}".format(channel_content_id)
-    assert (
-        channel.get_node_id() == channel_node_id
-    ), "Channel node id should be {}".format(channel_node_id)
-    assert (
-        topic.get_content_id() == topic_content_id
-    ), "Topic content id should be {}".format(topic_content_id)
+    assert channel.get_content_id() == channel_content_id, (
+        "Channel content id should be {}".format(channel_content_id)
+    )
+    assert channel.get_node_id() == channel_node_id, (
+        "Channel node id should be {}".format(channel_node_id)
+    )
+    assert topic.get_content_id() == topic_content_id, (
+        "Topic content id should be {}".format(topic_content_id)
+    )
     assert topic.get_node_id() == topic_node_id, "Topic node id should be {}".format(
         topic_node_id
     )
-    assert (
-        document.get_content_id() == document_content_id
-    ), "Document content id should be {}".format(document_content_id)
-    assert (
-        document.get_node_id() == document_node_id
-    ), "Document node id should be {}".format(document_node_id)
+    assert document.get_content_id() == document_content_id, (
+        "Document content id should be {}".format(document_content_id)
+    )
+    assert document.get_node_id() == document_node_id, (
+        "Document node id should be {}".format(document_node_id)
+    )
 
 
 def test_add_file(document, document_file):
@@ -214,9 +215,9 @@ def test_add_file(document, document_file):
 def test_thumbnail(topic, document, thumbnail_path):
     assert document.has_thumbnail(), "Document must have a thumbnail"
     assert not topic.has_thumbnail(), "Topic must not have a thumbnail"
-    assert [
-        f for f in document.files if f.path == thumbnail_path
-    ], "Document is missing a thumbnail with path {}".format(thumbnail_path)
+    assert [f for f in document.files if f.path == thumbnail_path], (
+        "Document is missing a thumbnail with path {}".format(thumbnail_path)
+    )
 
 
 def test_count(tree):
@@ -224,22 +225,22 @@ def test_count(tree):
 
 
 def test_get_non_topic_descendants(tree, document):
-    assert tree.get_non_topic_descendants() == [
-        document
-    ], "Channel should only have 1 non-topic descendant"
+    assert tree.get_non_topic_descendants() == [document], (
+        "Channel should only have 1 non-topic descendant"
+    )
 
 
 def test_licenses(channel, topic, document, license_name, copyright_holder):
-    assert isinstance(
-        document.license, License
-    ), "Document should have a license object"
-    assert (
-        document.license.license_id == license_name
-    ), "Document license should have public domain license"
-    assert (
-        document.license.copyright_holder == copyright_holder
-    ), "Document license should have copyright holder set to {}".format(
-        copyright_holder
+    assert isinstance(document.license, License), (
+        "Document should have a license object"
+    )
+    assert document.license.license_id == license_name, (
+        "Document license should have public domain license"
+    )
+    assert document.license.copyright_holder == copyright_holder, (
+        "Document license should have copyright holder set to {}".format(
+            copyright_holder
+        )
     )
     assert not channel.license, "Channel should not have a license"
     assert not topic.license, "Topic should not have a license"
@@ -790,13 +791,13 @@ def _assert_metadata_equal(expected, actual):
     assert set(actual.keys()) == set(expected.keys()), "Metadata keys do not match"
     for field, value in expected.items():
         if isinstance(value, list):
-            assert set(actual[field]) == set(
-                value
-            ), f"Metadata for {field} does not match"
+            assert set(actual[field]) == set(value), (
+                f"Metadata for {field} does not match"
+            )
         elif field == "license":
-            assert (
-                actual[field].license_id == value
-            ), f"Metadata for {field} does not match"
+            assert actual[field].license_id == value, (
+                f"Metadata for {field} does not match"
+            )
         else:
             assert actual[field] == value, f"Metadata for {field} does not match"
 
@@ -1199,10 +1200,11 @@ def test_file_upload_insufficient_storage(channel):
     mock_response = MagicMock()
     mock_response.status_code = 412
 
-    with patch("builtins.open", mocked_open), patch(
-        "ricecooker.config.get_storage_path", return_value="/tmp/test_file.mp4"
-    ), patch("ricecooker.config.SESSION.post", return_value=mock_response):
-
+    with (
+        patch("builtins.open", mocked_open),
+        patch("ricecooker.config.get_storage_path", return_value="/tmp/test_file.mp4"),
+        patch("ricecooker.config.SESSION.post", return_value=mock_response),
+    ):
         # Check that InsufficientStorageException is raised
         with pytest.raises(
             InsufficientStorageException, match="You have run out of storage space."

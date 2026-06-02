@@ -245,9 +245,9 @@ class Node(object):
         """
         from .files import File
 
-        assert isinstance(
-            file_to_add, File
-        ), "Files being added must be instances of a subclass of File class"
+        assert isinstance(file_to_add, File), (
+            "Files being added must be instances of a subclass of File class"
+        )
         file_to_add.node = self
         if file_to_add not in self.files:
             self.files.append(file_to_add)
@@ -700,9 +700,9 @@ class TreeNode(Node):
         return self.content_id
 
     def get_node_id(self):
-        assert (
-            self.parent
-        ), "Parent not found: node id must be calculated based on parent"
+        assert self.parent, (
+            "Parent not found: node id must be calculated based on parent"
+        )
         if not self.node_id:
             self.node_id = uuid.uuid5(
                 self.parent.get_node_id(), self.get_content_id().hex
@@ -1111,7 +1111,6 @@ class HTML5AppNode(ContentNode):
         super().__init__(*args, **kwargs)
 
     def generate_thumbnail(self):
-
         html5_files = [
             f for f in self.files if f.get_preset() == format_presets.HTML5_ZIP
         ]

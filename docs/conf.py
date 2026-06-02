@@ -21,9 +21,9 @@ import os
 import sys
 from datetime import datetime
 
-from ricecooker import __version__ as current_ricecooker_version
-
 sys.path.insert(0, os.path.abspath(".."))
+
+from ricecooker import __version__ as current_ricecooker_version
 # from recommonmark.parser import CommonMarkParser
 
 

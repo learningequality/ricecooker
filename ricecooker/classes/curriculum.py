@@ -5,6 +5,7 @@ This module provides classes for representing curriculum concepts like
 learning objectives, which can be associated with lessons and assessment
 questions.
 """
+
 import uuid
 
 # Fixed namespace for generating deterministic learning objective UUIDs.

@@ -6,7 +6,8 @@ build:
     python: "3.11"
   jobs:
     pre_install:
-      - pip install -e .
+      - pip install uv
+      - uv pip install -e . --system
 sphinx:
   configuration: docs/conf.py
 python:

@@ -1,4 +1,5 @@
-""" Tests for handling requests to Kolibri Studio """
+"""Tests for handling requests to Kolibri Studio"""
+
 import copy
 import uuid
 

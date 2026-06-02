@@ -1,4 +1,5 @@
-""" Tests for file downloading and processing """
+"""Tests for file downloading and processing"""
+
 import base64
 import hashlib
 import os.path
@@ -18,7 +19,7 @@ from PIL import Image
 from PyPDF2 import PdfFileWriter
 from requests import ConnectionError
 from requests import HTTPError
-from test_pdfutils import _save_file_url_to_path
+from conftest import download_fixture_file
 from vcr_config import my_vcr
 
 from ricecooker import config
@@ -126,27 +127,27 @@ def test_download_filenames(
     subtitle_file,
     subtitle_filename,
 ):
-    assert (
-        video_file.process_file() == video_filename
-    ), "Video file should have filename {}".format(video_filename)
-    assert (
-        html_file.process_file() == html_filename
-    ), "HTML file should have filename {}".format(html_filename)
-    assert (
-        audio_file.process_file() == audio_filename
-    ), "Audio file should have filename {}".format(audio_filename)
-    assert (
-        document_file.process_file() == document_filename
-    ), "PDF document file should have filename {}".format(document_filename)
-    assert (
-        epub_file.process_file() == epub_filename
-    ), "ePub document file should have filename {}".format(epub_filename)
-    assert (
-        thumbnail_file.process_file() == thumbnail_filename
-    ), "Thumbnail file should have filename {}".format(thumbnail_filename)
-    assert (
-        subtitle_file.process_file() == subtitle_filename
-    ), "Subtitle file should have filename {}".format(subtitle_filename)
+    assert video_file.process_file() == video_filename, (
+        "Video file should have filename {}".format(video_filename)
+    )
+    assert html_file.process_file() == html_filename, (
+        "HTML file should have filename {}".format(html_filename)
+    )
+    assert audio_file.process_file() == audio_filename, (
+        "Audio file should have filename {}".format(audio_filename)
+    )
+    assert document_file.process_file() == document_filename, (
+        "PDF document file should have filename {}".format(document_filename)
+    )
+    assert epub_file.process_file() == epub_filename, (
+        "ePub document file should have filename {}".format(epub_filename)
+    )
+    assert thumbnail_file.process_file() == thumbnail_filename, (
+        "Thumbnail file should have filename {}".format(thumbnail_filename)
+    )
+    assert subtitle_file.process_file() == subtitle_filename, (
+        "Subtitle file should have filename {}".format(subtitle_filename)
+    )
 
 
 def read_file_hash(filepath):
@@ -197,41 +198,41 @@ def test_download_to_storage(
     subtitle_path = config.get_storage_path(subtitle_filename)
 
     assert os.path.isfile(video_path), "Video should be stored at {}".format(video_path)
-    assert (
-        read_file_hash(video_path) == video_filename.split(".")[0]
-    ), "Video hash should match"
+    assert read_file_hash(video_path) == video_filename.split(".")[0], (
+        "Video hash should match"
+    )
     assert os.path.isfile(html_path), "HTML should be stored at {}".format(html_path)
-    assert (
-        read_file_hash(html_path) == html_filename.split(".")[0]
-    ), "HTML hash should match"
+    assert read_file_hash(html_path) == html_filename.split(".")[0], (
+        "HTML hash should match"
+    )
     assert os.path.isfile(audio_path), "Audio should be stored at {}".format(audio_path)
-    assert (
-        read_file_hash(audio_path) == audio_filename.split(".")[0]
-    ), "Audio hash should match"
+    assert read_file_hash(audio_path) == audio_filename.split(".")[0], (
+        "Audio hash should match"
+    )
     assert os.path.isfile(document_path), "PDF document should be stored at {}".format(
         document_path
     )
-    assert (
-        read_file_hash(document_path) == document_filename.split(".")[0]
-    ), "PDF hash should match"
+    assert read_file_hash(document_path) == document_filename.split(".")[0], (
+        "PDF hash should match"
+    )
     assert os.path.isfile(epub_path), "ePub document should be stored at {}".format(
         epub_path
     )
-    assert (
-        read_file_hash(epub_path) == epub_filename.split(".")[0]
-    ), "ePub hash should match"
+    assert read_file_hash(epub_path) == epub_filename.split(".")[0], (
+        "ePub hash should match"
+    )
     assert os.path.isfile(thumbnail_path), "Thumbnail should be stored at {}".format(
         thumbnail_path
     )
-    assert (
-        read_file_hash(thumbnail_path) == thumbnail_filename.split(".")[0]
-    ), "Thumbnail hash should match"
+    assert read_file_hash(thumbnail_path) == thumbnail_filename.split(".")[0], (
+        "Thumbnail hash should match"
+    )
     assert os.path.isfile(subtitle_path), "Subtitle should be stored at {}".format(
         subtitle_path
     )
-    assert (
-        read_file_hash(subtitle_path) == subtitle_filename.split(".")[0]
-    ), "Subtitle hash should match"
+    assert read_file_hash(subtitle_path) == subtitle_filename.split(".")[0], (
+        "Subtitle hash should match"
+    )
 
 
 # Base File class method tests
@@ -436,9 +437,9 @@ def test_audio_compression_error(audio_file):
 def test_set_language():
     sub1 = SubtitleFile("path", language="en")
     sub2 = SubtitleFile("path", language=languages.getlang("es"))
-    assert isinstance(
-        sub1.language, str
-    ), "Subtitles must be converted to Language class"
+    assert isinstance(sub1.language, str), (
+        "Subtitles must be converted to Language class"
+    )
     assert isinstance(sub2.language, str), "Subtitles can be passed as Langauge models"
     assert sub1.language == "en", "Subtitles must have a language"
     assert sub2.language == "es", "Subtitles must have a language"
@@ -860,16 +861,12 @@ def download_fixture_files(fixtures_list):
             )
         )
 
-        if not os.path.exists(local_path):
-            url = (
-                fixture["url"]
-                if "url" in fixture.keys()
-                else PRESSURECOOKER_FILES_URL_BASE + srcfilename
-            )
-            _save_file_url_to_path(url, local_path)
-            assert os.path.exists(local_path), (
-                "Error mising local test file " + local_path
-            )
+        url = (
+            fixture["url"]
+            if "url" in fixture.keys()
+            else PRESSURECOOKER_FILES_URL_BASE + srcfilename
+        )
+        download_fixture_file(url, local_path)
         fixture["localpath"] = local_path
         fixtures.append(fixture)
     return fixtures
@@ -898,9 +895,9 @@ def test_convertible_subtitles_from_pressurecooker(pressurecooker_test_files):
         storage_path = config.get_storage_path(filename)
         with open(storage_path, encoding="utf-8") as converted_vtt:
             filecontents = converted_vtt.read()
-            assert (
-                fixture["check_words"] in filecontents
-            ), "missing check_words in converted subs"
+            assert fixture["check_words"] in filecontents, (
+                "missing check_words in converted subs"
+            )
 
 
 def test_convertible_substitles_ar_ttml():

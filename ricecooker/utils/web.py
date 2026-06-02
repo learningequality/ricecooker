@@ -3,6 +3,7 @@ This module contains tools for parsing and handling HTML and other web content.
 Note that we could not use html for the module name as recent versions of Python
 include their own html module.
 """
+
 import os
 
 from bs4 import BeautifulSoup

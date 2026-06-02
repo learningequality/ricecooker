@@ -1,4 +1,5 @@
 """Tests for curriculum nodes and learning objectives."""
+
 import json
 import re
 import uuid
@@ -52,9 +53,9 @@ class TestLearningObjective:
         """LearningObjective ID must be compact hex (32 chars, no dashes) per le_utils schema."""
         lo = LearningObjective("Understand addition")
         # Must match le_utils schema pattern: ^[0-9a-f]{32}$
-        assert re.match(
-            r"^[0-9a-f]{32}$", lo.id
-        ), f"ID '{lo.id}' is not compact hex format"
+        assert re.match(r"^[0-9a-f]{32}$", lo.id), (
+            f"ID '{lo.id}' is not compact hex format"
+        )
 
     def test_same_text_produces_same_id(self):
         """Identical text produces identical IDs (deterministic)."""
@@ -655,18 +656,18 @@ class TestUnitNodeSerialization:
         # Validate learning_objectives IDs match hex-uuid pattern
         hex_uuid_pattern = SCHEMA["definitions"]["hex-uuid"]["pattern"]
         for obj in result["learning_objectives"]:
-            assert re.match(
-                hex_uuid_pattern, obj["id"]
-            ), f"Learning objective ID '{obj['id']}' doesn't match schema pattern {hex_uuid_pattern}"
+            assert re.match(hex_uuid_pattern, obj["id"]), (
+                f"Learning objective ID '{obj['id']}' doesn't match schema pattern {hex_uuid_pattern}"
+            )
 
         # Validate assessment_objectives keys match hex-uuid pattern
         for assessment_id in result["assessment_objectives"].keys():
-            assert re.match(
-                hex_uuid_pattern, assessment_id
-            ), f"Assessment ID '{assessment_id}' doesn't match schema pattern {hex_uuid_pattern}"
+            assert re.match(hex_uuid_pattern, assessment_id), (
+                f"Assessment ID '{assessment_id}' doesn't match schema pattern {hex_uuid_pattern}"
+            )
 
         # Validate lesson_objectives keys match hex-uuid pattern
         for lesson_id in result["lesson_objectives"].keys():
-            assert re.match(
-                hex_uuid_pattern, lesson_id
-            ), f"Lesson ID '{lesson_id}' doesn't match schema pattern {hex_uuid_pattern}"
+            assert re.match(hex_uuid_pattern, lesson_id), (
+                f"Lesson ID '{lesson_id}' doesn't match schema pattern {hex_uuid_pattern}"
+            )

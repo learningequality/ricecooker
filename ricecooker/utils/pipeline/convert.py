@@ -2,6 +2,7 @@
 To avoid making the pipeline overly convoluted, these handlers
 both validate and convert files.
 """
+
 import json
 import os
 import shutil
@@ -91,7 +92,6 @@ class VideoCompressionHandler(MediaCompressionHandler):
         return [{"ffmpeg_settings": context.video_settings}]
 
     def handle_file(self, path, ffmpeg_settings=None):
-
         ffmpeg_settings = ffmpeg_settings or {}
 
         input_ext = extract_path_ext(path)
@@ -165,7 +165,6 @@ class ArchiveProcessingContextMetadata(ContextMetadata):
 
 
 class ArchiveProcessingBaseHandler(ExtensionMatchingHandler):
-
     CONTEXT_CLASS = ArchiveProcessingContextMetadata
 
     def get_cache_key(self, path, audio_settings=None, video_settings=None) -> str:
@@ -310,7 +309,6 @@ class ArchiveProcessingBaseHandler(ExtensionMatchingHandler):
 
 
 class HTML5ConversionHandler(ArchiveProcessingBaseHandler):
-
     EXTENSIONS = {file_formats.HTML5}
     FILE_TYPE = "HTML5"
 
@@ -320,7 +318,6 @@ class HTML5ConversionHandler(ArchiveProcessingBaseHandler):
 
 
 class H5PConversionHandler(ArchiveProcessingBaseHandler):
-
     EXTENSIONS = {file_formats.H5P}
     FILE_TYPE = "H5P"
 
@@ -343,7 +340,6 @@ class H5PConversionHandler(ArchiveProcessingBaseHandler):
 
 
 class EPUBConversionHandler(ArchiveProcessingBaseHandler):
-
     EXTENSIONS = {file_formats.EPUB}
     FILE_TYPE = "EPUB"
 
@@ -409,7 +405,6 @@ class EPUBConversionHandler(ArchiveProcessingBaseHandler):
 
 
 class KPUBConversionHandler(ArchiveProcessingBaseHandler):
-
     EXTENSIONS = {file_formats.HTML5_ARTICLE}
     FILE_TYPE = "KPUB"
 
@@ -437,7 +432,6 @@ class KPUBConversionHandler(ArchiveProcessingBaseHandler):
 
 
 class BloomConversionHandler(ArchiveProcessingBaseHandler):
-
     EXTENSIONS = {file_formats.BLOOMPUB, file_formats.BLOOMD}
     FILE_TYPE = "Bloom"
 
@@ -451,7 +445,7 @@ class BloomConversionHandler(ArchiveProcessingBaseHandler):
                 missing_fields = [f for f in required_meta_fields if f not in meta]
                 if missing_fields:
                     raise InvalidFileException(
-                        f'File {path} is not a valid bloom file, meta.json missing required fields: {", ".join(missing_fields)}'
+                        f"File {path} is not a valid bloom file, meta.json missing required fields: {', '.join(missing_fields)}"
                     )
             except json.JSONDecodeError:
                 raise InvalidFileException(

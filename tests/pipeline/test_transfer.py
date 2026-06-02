@@ -46,9 +46,9 @@ content_disposition_filename_cases = [
 )
 def test_get_filename_from_content_disposition_header(content_disposition, expected):
     result = get_filename_from_content_disposition_header(content_disposition)
-    assert (
-        result == expected
-    ), f"Failed on {content_disposition}: expected {expected}, got {result}"
+    assert result == expected, (
+        f"Failed on {content_disposition}: expected {expected}, got {result}"
+    )
 
 
 # Google Drive handler integration tests
@@ -270,15 +270,15 @@ def test_disk_transfer_file_protocol():
         file_path_with_protocol = "file://" + file_path
 
     handler = DiskResourceHandler()
-    assert handler.should_handle(
-        file_path_with_protocol
-    ), f"Handler should handle {file_path_with_protocol}"
+    assert handler.should_handle(file_path_with_protocol), (
+        f"Handler should handle {file_path_with_protocol}"
+    )
 
     file_metadata = handler.execute(file_path_with_protocol)
     assert file_metadata is not None, "File metadata should not be None"
-    assert file_metadata[0].filename.endswith(
-        "png"
-    ), "File extension should be preserved"
+    assert file_metadata[0].filename.endswith("png"), (
+        "File extension should be preserved"
+    )
 
 
 def test_disk_transfer_non_file_protocol():

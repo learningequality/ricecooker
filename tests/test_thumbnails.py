@@ -63,15 +63,17 @@ class TestThumbnailSetting(object):
         assert len(failed_files) == 1, "multiple failed files found"
         failed_file = failed_files[0]
         assert failed_file.error, "must have error set"
-        assert (
-            thumbnail_file == failed_file
-        ), "bad thumbnail file not found in config.FAILED_FILES"
+        assert thumbnail_file == failed_file, (
+            "bad thumbnail file not found in config.FAILED_FILES"
+        )
 
     # HAPPY PATHS
     ############################################################################
 
     def test_set_png_thumbnail_from_local_path(
-        self, low_res_video, thumbnail_path  # noqa F811
+        self,
+        low_res_video,
+        thumbnail_path,  # noqa F811
     ):
         video_node = self.get_video_node(  # noqa F811
             path=low_res_video.name, thumbnail=thumbnail_path
@@ -81,7 +83,9 @@ class TestThumbnailSetting(object):
         self.check_correct_thumbnail(video_node)
 
     def test_set_jpg_thumbnail_from_local_path(
-        self, low_res_video, thumbnail_path_jpg  # noqa F811
+        self,
+        low_res_video,
+        thumbnail_path_jpg,  # noqa F811
     ):
         video_node = self.get_video_node(
             path=low_res_video.name, thumbnail=thumbnail_path_jpg
@@ -111,7 +115,9 @@ class TestThumbnailSetting(object):
         self.check_correct_thumbnail(video_node)
 
     def test_set_thumbnail_from_ThumbnailFile(
-        self, low_res_video, thumbnail_path  # noqa F811
+        self,
+        low_res_video,
+        thumbnail_path,  # noqa F811
     ):
         thumbnail_file = ThumbnailFile(thumbnail_path)
         video_node = self.get_video_node(
@@ -142,7 +148,9 @@ class TestThumbnailSetting(object):
         self.assert_failed_thumbnail(video_node)
 
     def test_set_thumbnail_from_bad_path(
-        self, low_res_video, fake_thumbnail_file  # noqa F811
+        self,
+        low_res_video,
+        fake_thumbnail_file,  # noqa F811
     ):
         """
         File path exists, but is not a valid PNG file.
@@ -192,9 +200,9 @@ class TestThumbnailGeneration(object):
         assert len(failed_files) == 1, "multiple failed files found"
         failed_file = failed_files[0]
         assert failed_file.error, "must have error set"
-        assert (
-            thumbnail_file == failed_file
-        ), "bad thumbnail file not found in config.FAILED_FILES"
+        assert thumbnail_file == failed_file, (
+            "bad thumbnail file not found in config.FAILED_FILES"
+        )
 
     # HAPPY PATHS
     ############################################################################

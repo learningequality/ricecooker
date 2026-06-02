@@ -998,15 +998,32 @@ def slideshow(slideshow_files, slideshow_data, channel):
 def download_fixture_file(source_url, local_path):
     """
     Download fixture file `source_url` to `local_path` if not present already.
+    Skips the test on network failure to avoid leaving partial files that cause
+    cascading failures in subsequent tests.
     """
-    if os.path.exists(local_path):
+    if os.path.exists(local_path) and os.path.getsize(local_path) > 0:
         return
-    with open(local_path, "wb") as f:
+    # Write to a .tmp file first so a failed download never leaves an empty file
+    # at local_path (which would be mistaken for a valid file by subsequent tests).
+    tmp_path = local_path + ".tmp"
+    try:
         response = requests.get(source_url, stream=True)
-        assert (
-            response.status_code == 200
-        ), "Fixture file with url: {} not found".format(source_url)
-        for chunk in response.iter_content(chunk_size=1048576):
-            f.write(chunk)
-        f.flush()
-        f.close()
+        if response.status_code != 200:
+            pytest.skip(
+                "Fixture file with url: {} not found (status: {})".format(
+                    source_url, response.status_code
+                )
+            )
+        with open(tmp_path, "wb") as f:
+            for chunk in response.iter_content(chunk_size=1048576):
+                f.write(chunk)
+        os.replace(tmp_path, local_path)
+    except requests.RequestException:
+        if os.path.exists(tmp_path):
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+        pytest.skip(
+            "Network failure: could not download fixture from {}".format(source_url)
+        )

@@ -177,7 +177,6 @@ class YouTubeResource(object):
 
         LOGGER.info("Downloading {} to dir {}".format(self.url, download_dir))
         for i in range(self.num_retries):
-
             # Proxy configuration for download (default = no proxy)
             if useproxy:
                 # If useproxy ovverride specified, choose a new proxy server:

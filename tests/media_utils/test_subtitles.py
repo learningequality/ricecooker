@@ -35,9 +35,10 @@ class SubtitleConverterTest(TestCase):
         return hash.hexdigest()
 
     def assertFilesEqual(self, expected_file, actual_file):
-        with codecs.open(actual_file, "rb", encoding="utf-8") as act, codecs.open(
-            expected_file, "rb", encoding="utf-8"
-        ) as exp:
+        with (
+            codecs.open(actual_file, "rb", encoding="utf-8") as act,
+            codecs.open(expected_file, "rb", encoding="utf-8") as exp,
+        ):
             for actual_str, expected_str in zip(act.readlines(), exp.readlines()):
                 self.assertEqual(actual_str.strip(), expected_str.strip())
 

@@ -55,7 +55,6 @@ class InvalidatingCacheControlAdapter(CacheControlAdapter):
         )
 
     def send(self, request, **kw):
-
         # delete any existing cached value from the cache
         try:
             cache_url = self.controller.cache_url(request.url)
