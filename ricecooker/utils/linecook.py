@@ -30,9 +30,7 @@ FILE_EXCLUDE_EXTENTIONS = [
     ".gitkeep",
 ]
 FILE_SKIP_PATTENRS = []
-FILE_SKIP_THUMBNAILS = (
-    []
-)  # global list of paths that correspond to thumbails for other content nodes
+FILE_SKIP_THUMBNAILS = []  # global list of paths that correspond to thumbails for other content nodes
 
 
 # LINECOOK HELPER FUNCTIONS

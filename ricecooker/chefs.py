@@ -49,9 +49,7 @@ class SushiChef(object):
 
     CHEF_RUN_DATA = config.CHEF_DATA_DEFAULT  # loaded from chefdata/chef_data.json
     TREES_DATA_DIR = config.TREES_DATA_DIR  # tree archives and JsonTreeChef inputs
-    DOMAIN_AUTH_HEADERS = (
-        {}
-    )  # dict of {domain: {header: env var name}} for requests auth
+    DOMAIN_AUTH_HEADERS = {}  # dict of {domain: {header: env var name}} for requests auth
 
     channel_node_class = nodes.ChannelNode
 
@@ -70,7 +68,7 @@ class SushiChef(object):
                 warning_text = "thumbnails setting is deprecated and will be replaced by thumbnails in version 0.8 please update"
                 config.LOGGER.warn(warning_text)
                 warn(warning_text, DeprecationWarning)
-                self.SETTINGS["thumbnails"] == self.SETTINGS[
+                self.SETTINGS["thumbnails"] = self.SETTINGS[
                     "generate-missing-thumbnails"
                 ]
 
@@ -78,7 +76,7 @@ class SushiChef(object):
                 warning_text = "compress-videos setting is deprecated and will be replaced by compress in version 0.8 please update"
                 config.LOGGER.warn(warning_text)
                 warn(warning_text, DeprecationWarning)
-                self.SETTINGS["compress"] == self.SETTINGS["compress-videos"]
+                self.SETTINGS["compress"] = self.SETTINGS["compress-videos"]
 
         # these will be assigned to later by the argparse handling.
         self.args = None
@@ -441,9 +439,9 @@ class SushiChef(object):
                     if line_new_title != "":
                         metadata_dict[line_source_id]["New Title"] = line_new_title
                     if line_new_description != "":
-                        metadata_dict[line_source_id][
-                            "New Description"
-                        ] = line_new_description
+                        metadata_dict[line_source_id]["New Description"] = (
+                            line_new_description
+                        )
                     if line_new_tags != "":
                         tags_arr = re.split(",| ,", line_new_tags)
                         metadata_dict[line_source_id]["New Tags"] = tags_arr
@@ -792,7 +790,6 @@ class YouTubeSushiChef(SushiChef):
         playlist_nodes = []
 
         for playlist_id in self.get_playlist_ids():
-
             playlist = YouTubePlaylistUtils(
                 id=playlist_id, cache_dir=self.YOUTUBE_CACHE_DIR
             )

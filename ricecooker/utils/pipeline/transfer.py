@@ -38,7 +38,6 @@ class GenericFileContextMetadata(ContextMetadata):
 
 
 class DiskResourceHandler(FileHandler):
-
     CONTEXT_CLASS = GenericFileContextMetadata
 
     HANDLED_EXCEPTIONS = [IOError, FileNotFoundError]
@@ -47,7 +46,6 @@ class DiskResourceHandler(FileHandler):
         """Convert file:// URLs to local file paths."""
         parsed = urlparse(path)
         if parsed.scheme == "file":
-
             # Normalise & platform-adapt
             path = os.path.normpath(unquote(parsed.path))
 

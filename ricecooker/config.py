@@ -1,6 +1,7 @@
 """
 Settings and global config values for ricecooker.
 """
+
 import atexit
 import hashlib
 import logging.config

@@ -149,9 +149,9 @@ class StudioApi(object):
         """
         CONTENTNODE_ENDPOINT = self.studio_url + "/api/contentnode"
         REQUIRED_FIELDS = ["id", "tags", "prerequisite", "parent"]
-        assert data_has_required_keys(
-            data, REQUIRED_FIELDS
-        ), "missing necessary attributes"
+        assert data_has_required_keys(data, REQUIRED_FIELDS), (
+            "missing necessary attributes"
+        )
         # studio_id = data['id']
         url = CONTENTNODE_ENDPOINT
         # print('  semantic PATCH using PUT ' + url)
@@ -170,9 +170,9 @@ class StudioApi(object):
         """
         MOVE_NODES_ENDPOINT = self.studio_url + "/api/move_nodes/"
         REQUIRED_FIELDS = ["id"]
-        assert data_has_required_keys(
-            data, REQUIRED_FIELDS
-        ), "missing necessary attributes"
+        assert data_has_required_keys(data, REQUIRED_FIELDS), (
+            "missing necessary attributes"
+        )
         if trash_studio_id is None:
             channel_data = self.get_channel(channel_id)
             trash_studio_id = channel_data["trash_tree"]["id"]

@@ -234,9 +234,9 @@ class Test_compress_video:
                 high_res_video.name, vout.name, overwrite=True, max_width=121
             )
             width, height = get_resolution(vout.name)
-            assert (
-                width == 120
-            ), "should round down to 120 h resolution when max_width=121 set"
+            assert width == 120, (
+                "should round down to 120 h resolution when max_width=121 set"
+            )
 
     def test_compression_max_height(self, high_res_video):
         with TempFile(suffix=".mp4") as vout:

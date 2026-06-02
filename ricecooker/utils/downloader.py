@@ -219,7 +219,7 @@ def make_request(
                 stream=True,
                 timeout=timeout,
                 *args,
-                **kwargs
+                **kwargs,
             )
             if response.status_code != 200:
                 LOGGER.error(
@@ -348,7 +348,6 @@ def download_static_assets(  # noqa: C901
         nodes = doc.select(selector)
 
         for i, node in enumerate(nodes):
-
             if node_filter:
                 if not node_filter(node):
                     src = node[attr]

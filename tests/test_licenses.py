@@ -1,4 +1,5 @@
-""" Tests for license getting and serialization """
+"""Tests for license getting and serialization"""
+
 import json
 
 import pytest

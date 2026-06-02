@@ -216,9 +216,7 @@ class CsvMetadataProvider(MetadataProvider):
         self.contentinfo = contentinfo
         self.exercisesinfo = exercisesinfo
         self.questionsinfo = questionsinfo
-        self.contentcache = (
-            {}
-        )  # { ('chan', 'path','as','tuple's) --> node metadata dict
+        self.contentcache = {}  # { ('chan', 'path','as','tuple's) --> node metadata dict
         self.exercise_filenames_in_dir = defaultdict(
             list
         )  # { ('chan', 'path','some','dir) --> list of exercises (virtual filenames)
@@ -630,7 +628,6 @@ class CsvMetadataProvider(MetadataProvider):
 
             # TOPIC ############################################################
             if kind == "topic":
-
                 if is_root:
                     self.write_topic_row_from_studio_dict(
                         path_tuple, subtree, is_root=is_root

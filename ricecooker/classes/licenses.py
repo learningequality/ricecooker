@@ -50,12 +50,12 @@ class License(object):
         return self.license_id
 
     def validate(self):
-        assert (
-            not self.require_copyright_holder or self.copyright_holder != ""
-        ), "{} License requires a copyright holder".format(self.license_id)
-        assert isinstance(
-            self.copyright_holder, str
-        ), "Copyright holder must be a string"
+        assert not self.require_copyright_holder or self.copyright_holder != "", (
+            "{} License requires a copyright holder".format(self.license_id)
+        )
+        assert isinstance(self.copyright_holder, str), (
+            "Copyright holder must be a string"
+        )
 
     def truncate_fields(self):
         if (
