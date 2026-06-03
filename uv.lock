@@ -605,9 +605,12 @@ wheels = [
 
 [[package]]
 name = "le-utils"
-version = "0.2.16"
+version = "0.2.17"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/c3/f3/8e7240818ccea7d9c9e439370d4f2fb4c08c05c1dbb61499e848a1afb3b5/le_utils-0.2.16.tar.gz", hash = "sha256:e26e1a985f794c80ba3b46d54ac75c315d95ba015b6d6c9f28f47adad7dae9eb", size = 42077, upload-time = "2026-03-24T22:13:15.327Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e5/e6/68978027ef59db2e2928c902b61b16ebd189a768ad8fe3851d4acca42e6f/le_utils-0.2.17.tar.gz", hash = "sha256:c6b8166a05e77a89e07e9b0f4733fcc73241b19d6fb535687dbee2b7f25b4996", size = 145449, upload-time = "2026-04-13T20:00:06.671Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/9d/aa/6a7519a78d43b699d89868721bdbb60ad59c7d905ab05d8d81aaea868f5f/le_utils-0.2.17-py3-none-any.whl", hash = "sha256:a859d5413de0533d10b2961302ca56c2db6b1ed136df5941be010a34ec3c3a63", size = 40655, upload-time = "2026-04-13T20:00:05.182Z" },
+]
 
 [[package]]
 name = "lxml"
