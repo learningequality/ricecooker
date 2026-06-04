@@ -393,6 +393,13 @@ class Base64ImageFile(ThumbnailPresetMixin, DownloadFile):
 class _ExerciseBase64ImageFile(Base64ImageFile):
     default_preset = format_presets.EXERCISE_IMAGE
 
+    def get_preset(self):
+        # Exercise images are attached to a question, not a node, so the
+        # ThumbnailPresetMixin.get_preset inherited from Base64ImageFile
+        # (which dereferences self.node) does not apply. Use the exercise
+        # image preset, mirroring _ExerciseImageFile.
+        return self.preset or self.default_preset
+
     def get_replacement_str(self):
         return self.get_filename() or self.path
 
