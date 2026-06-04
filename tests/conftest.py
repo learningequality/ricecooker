@@ -689,15 +689,21 @@ def html_invalid_files(html_data, document_file):
 
 @pytest.fixture
 def html_invalid_file():
+    """
+    Invalid because the only HTML file in the zip has an empty body.
+    """
     local_path = os.path.abspath(
         os.path.join(
-            os.path.dirname(__file__), "testcontent", "generated", "testinvalidhtml.zip"
+            os.path.dirname(__file__),
+            "testcontent",
+            "generated",
+            "testinvalidemptyhtml.zip",
         )
     )
 
     if not os.path.exists(local_path):
         with zipfile.ZipFile(local_path, "w", zipfile.ZIP_DEFLATED) as archive:
-            archive.writestr("notindex.html", "<div></div>")
+            archive.writestr("index.html", "<html><head></head><body></body></html>")
     return HTMLZipFile(local_path)
 
 
