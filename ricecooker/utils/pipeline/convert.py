@@ -35,6 +35,7 @@ from ricecooker.exceptions import UnknownFileTypeError
 from ricecooker.utils.audio import AudioCompressionError
 from ricecooker.utils.audio import compress_audio
 from ricecooker.utils.caching import generate_key
+from ricecooker.utils.pipeline.context import ContentNodeMetadata
 from ricecooker.utils.pipeline.context import ContextMetadata
 from ricecooker.utils.pipeline.context import FileMetadata
 from ricecooker.utils.pipeline.exceptions import InvalidFileException
@@ -235,15 +236,15 @@ class ArchiveProcessingBaseHandler(ExtensionMatchingHandler):
                 f"File {zf.filename} is not a valid {self.FILE_TYPE} file, {filepath} is missing."
             )
 
-    def _validate_index_html_body(self, zf, path):
-        """Validate that index.html exists and has a non-empty body."""
-        index_html = self.read_file_from_archive(zf, "index.html")
+    def _validate_index_html_body(self, zf, path, index_path="index.html"):
+        """Validate that the entry HTML exists and has a non-empty body."""
+        index_html = self.read_file_from_archive(zf, index_path)
         try:
             dom = html5lib.parse(index_html, namespaceHTMLElements=False)
             body = dom.find("body")
             if body is None:
                 raise InvalidFileException(
-                    f"File {path} is not a valid {self.FILE_TYPE} file, index.html is missing a body element."
+                    f"File {path} is not a valid {self.FILE_TYPE} file, {index_path} is missing a body element."
                 )
             # Check that the body has at least one child element
             # for some reason it seems like comments don't get a string tag attribute
@@ -252,12 +253,12 @@ class ArchiveProcessingBaseHandler(ExtensionMatchingHandler):
             ]
             if not (body.text and body.text.strip()) and not body_children:
                 raise InvalidFileException(
-                    f"File {path} is not a valid {self.FILE_TYPE} file, index.html is empty."
+                    f"File {path} is not a valid {self.FILE_TYPE} file, {index_path} is empty."
                 )
             return dom
         except ParseError:
             raise InvalidFileException(
-                f"File {path} is not a valid {self.FILE_TYPE} file, index.html is not well-formed."
+                f"File {path} is not a valid {self.FILE_TYPE} file, {index_path} is not well-formed."
             )
 
     def _read_and_compress_archive_file(
@@ -308,13 +309,118 @@ class ArchiveProcessingBaseHandler(ExtensionMatchingHandler):
         return reader(filepath)
 
 
+def _find_common_root(names):
+    """Return the common parent directory shared by all file paths.
+
+    Ported from Studio's ``findCommonRoot`` (frontend/shared/utils/zipFile.js).
+    ``names`` are POSIX-style, non-directory archive member paths.
+    """
+    paths = [n.split("/")[:-1] for n in names]
+    if not paths:
+        return ""
+    if len(paths) == 1:
+        return "/".join(paths[0])
+    first = paths[0]
+    common = []
+    for i, part in enumerate(first):
+        for other in paths[1:]:
+            if i >= len(other) or other[i] != part:
+                return "/".join(common)
+        common.append(part)
+    return "/".join(common)
+
+
+def _find_entry_html(names):
+    """Return the archive member that is the HTML entry point, or None.
+
+    Ported from Studio's ``findFirstHtml`` (frontend/shared/utils/zipFile.js):
+    prefer ``index.html`` at the common-root-stripped root, then any
+    ``index.html``, then the shallowest / shortest-named ``.html`` file.
+    """
+    html_files = [n for n in names if n.lower().endswith(".html")]
+    if not html_files:
+        return None
+    common_root = _find_common_root(names)
+    prefix = common_root + "/" if common_root else ""
+    normalized = [
+        (n, n[len(prefix) :] if prefix and n.startswith(prefix) else n)
+        for n in html_files
+    ]
+    for original, norm in normalized:
+        if norm == "index.html":
+            return original
+    for original, norm in normalized:
+        if norm.split("/")[-1] == "index.html":
+            return original
+    normalized.sort(key=lambda t: (t[1].count("/"), len(t[1])))
+    return normalized[0][0]
+
+
 class HTML5ConversionHandler(ArchiveProcessingBaseHandler):
     EXTENSIONS = {file_formats.HTML5}
     FILE_TYPE = "HTML5"
 
+    def handle_file(self, path, audio_settings=None, video_settings=None):
+        prepared_path, entry = self._prepare_archive(path)
+        try:
+            super().handle_file(
+                prepared_path,
+                audio_settings=audio_settings,
+                video_settings=video_settings,
+            )
+        finally:
+            if prepared_path != path and os.path.exists(prepared_path):
+                os.unlink(prepared_path)
+        # Mirror Studio: when the entry point is not index.html at the root,
+        # record it in extra_fields.options.entry so Kolibri loads it.
+        if entry and entry != "index.html":
+            return FileMetadata(
+                content_node_metadata=ContentNodeMetadata(
+                    extra_fields={"options": {"entry": entry}}
+                )
+            )
+        return None
+
     def validate_archive(self, path: str):
         with self.open_and_verify_archive(path) as zf:
-            self._validate_index_html_body(zf, path)
+            names = [n for n in zf.namelist() if not n.endswith("/")]
+            entry = _find_entry_html(names)
+            if entry is None:
+                raise InvalidFileException(
+                    f"File {path} is not a valid {self.FILE_TYPE} file, "
+                    "no HTML file was found in the archive."
+                )
+            self._validate_index_html_body(zf, path, entry)
+
+    def _prepare_archive(self, path):
+        """Denest a zip whose files all share a common parent directory
+        (mirroring Studio's ``cleanHTML5Zip``), and return the path to use
+        along with the detected HTML entry point.
+
+        Returns ``(path, entry)`` unchanged when there is nothing to strip;
+        otherwise returns the path to a denested temporary zip.
+        """
+        try:
+            with zipfile.ZipFile(path) as zf:
+                names = [n for n in zf.namelist() if not n.endswith("/")]
+        except zipfile.BadZipFile:
+            return path, None  # let validate_archive raise the standard error
+
+        common_root = _find_common_root(names)
+        if not common_root:
+            return path, _find_entry_html(names)
+
+        prefix = common_root + "/"
+        with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as tmp:
+            tmp_path = tmp.name
+        with (
+            zipfile.ZipFile(path) as zin,
+            zipfile.ZipFile(tmp_path, "w", zipfile.ZIP_DEFLATED) as zout,
+        ):
+            for name in names:
+                zout.writestr(name[len(prefix) :], zin.read(name))
+        denested_names = [n[len(prefix) :] for n in names]
+        return tmp_path, _find_entry_html(denested_names)
 
 
 class H5PConversionHandler(ArchiveProcessingBaseHandler):
