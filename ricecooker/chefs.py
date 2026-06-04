@@ -19,7 +19,6 @@ from .classes import nodes
 from .commands import uploadchannel_wrapper
 from .exceptions import InvalidUsageException
 from .exceptions import raise_for_invalid_channel
-from .managers.progress import Status
 from .utils.jsontrees import build_tree_from_json
 from .utils.jsontrees import get_channel_node_from_json
 from .utils.jsontrees import read_tree_from_json
@@ -142,18 +141,6 @@ class SushiChef(object):
             type=int,
             default=3,
             help="Maximum number of times to retry downloading files.",
-        )
-        parser.add_argument(
-            "--resume",
-            action="store_true",
-            help="Resume chef session from a specified step.",
-        )
-        allsteps = [step.name.upper() for step in Status]
-        parser.add_argument(
-            "--step",
-            choices=allsteps,
-            default="LAST",
-            help="Step to resume progress from (use with the --resume).",
         )
         parser.add_argument(
             "--prompt",
