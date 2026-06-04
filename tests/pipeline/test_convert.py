@@ -7,15 +7,16 @@ from unittest.mock import patch
 
 import pytest
 
-from ricecooker.classes.files import H5PFile
-from ricecooker.classes.files import HTMLZipFile
+from ricecooker.utils.pipeline.convert import AudioCompressionHandler
+from ricecooker.utils.pipeline.convert import H5PConversionHandler
 from ricecooker.utils.pipeline.convert import HTML5ConversionHandler
 from ricecooker.utils.pipeline.convert import KPUBConversionHandler
+from ricecooker.utils.pipeline.convert import VideoCompressionHandler
 from ricecooker.utils.pipeline.exceptions import InvalidFileException
 
 
 def test_html5_archive_with_mp4_compression(video_file, audio_file):
-    """Test that MP4 and MP3 files within HTML5 archives are compressed when compression is enabled."""
+    """Test that MP4 and MP3 files within HTML5 archives are compressed when settings are provided."""
     # Create temporary HTML5 archive with media files
     temp_archive = tempfile.NamedTemporaryFile(suffix=".zip", delete=False)
     temp_archive.close()
@@ -41,10 +42,15 @@ def test_html5_archive_with_mp4_compression(video_file, audio_file):
             mock_video_compress.return_value = None
             mock_audio_compress.return_value = None
 
-            # Process the HTML5 file with compression enabled
-            with patch("ricecooker.config.COMPRESS", True):
-                html_file = HTMLZipFile(temp_archive.name)
-                result = html_file.process_file()
+            # Process the HTML5 file with compression settings provided
+            result = HTML5ConversionHandler().execute(
+                temp_archive.name,
+                context={
+                    "video_settings": {"crf": 32},
+                    "audio_settings": {"bit_rate": 96},
+                },
+                skip_cache=True,
+            )
 
             # Verify both compression functions were called
             assert mock_video_compress.called, (
@@ -60,7 +66,7 @@ def test_html5_archive_with_mp4_compression(video_file, audio_file):
 
 
 def test_h5p_archive_with_webm_compression(video_file):
-    """Test that WebM files within H5P archives are compressed when compression is enabled."""
+    """Test that WebM files within H5P archives are compressed when settings are provided."""
     # Create temporary H5P archive with WebM file
     temp_archive = tempfile.NamedTemporaryFile(suffix=".h5p", delete=False)
     temp_archive.close()
@@ -77,10 +83,12 @@ def test_h5p_archive_with_webm_compression(video_file):
             # Mock successful compression
             mock_compress.return_value = None
 
-            # Process the H5P file with compression enabled
-            with patch("ricecooker.config.COMPRESS", True):
-                h5p_file = H5PFile(temp_archive.name)
-                result = h5p_file.process_file()
+            # Process the H5P file with compression settings provided
+            result = H5PConversionHandler().execute(
+                temp_archive.name,
+                context={"video_settings": {"crf": 32}},
+                skip_cache=True,
+            )
 
             # Verify compression was called
             assert mock_compress.called, (
@@ -92,8 +100,8 @@ def test_h5p_archive_with_webm_compression(video_file):
         os.unlink(temp_archive.name)
 
 
-def test_archive_no_compression_when_disabled(video_file, audio_file):
-    """Test that media files are not compressed when compression is disabled."""
+def test_archive_no_compression_without_settings(video_file, audio_file):
+    """Test that archive media files are not compressed without explicit settings."""
     # Create temporary HTML5 archive with media files
     temp_archive = tempfile.NamedTemporaryFile(suffix=".zip", delete=False)
     temp_archive.close()
@@ -114,22 +122,44 @@ def test_archive_no_compression_when_disabled(video_file, audio_file):
                 "ricecooker.utils.pipeline.convert.compress_audio"
             ) as mock_audio_compress,
         ):
-            # Process the HTML5 file with compression disabled
-            with patch("ricecooker.config.COMPRESS", False):
-                html_file = HTMLZipFile(temp_archive.name)
-                result = html_file.process_file()
+            # Process the HTML5 file without compression settings
+            result = HTML5ConversionHandler().execute(
+                temp_archive.name, skip_cache=True
+            )
 
             # Verify compression functions were not called
             assert not mock_video_compress.called, (
-                "Video compression should not be called when disabled"
+                "Video compression should not be called without explicit settings"
             )
             assert not mock_audio_compress.called, (
-                "Audio compression should not be called when disabled"
+                "Audio compression should not be called without explicit settings"
             )
             assert result is not None, "Processing should still succeed"
 
     finally:
         os.unlink(temp_archive.name)
+
+
+def test_video_handler_only_validates_without_settings(video_file):
+    """Standalone media files are only validated when no explicit compression
+    settings are provided."""
+    with patch("ricecooker.utils.pipeline.convert.compress_video") as mock_compress:
+        VideoCompressionHandler().execute(video_file.path, skip_cache=True)
+
+    assert not mock_compress.called, (
+        "Video compression should not be called without explicit settings"
+    )
+
+
+def test_audio_handler_only_validates_without_settings(audio_file):
+    """Standalone media files are only validated when no explicit compression
+    settings are provided."""
+    with patch("ricecooker.utils.pipeline.convert.compress_audio") as mock_compress:
+        AudioCompressionHandler().execute(audio_file.path, skip_cache=True)
+
+    assert not mock_compress.called, (
+        "Audio compression should not be called without explicit settings"
+    )
 
 
 # HTML5 Conversion Tests

@@ -30,7 +30,6 @@ from PyPDF2.utils import PdfReadError
 
 from .file_handler import ExtensionMatchingHandler
 from .file_handler import StageHandler
-from ricecooker import config
 from ricecooker.exceptions import UnknownFileTypeError
 from ricecooker.utils.audio import AudioCompressionError
 from ricecooker.utils.audio import compress_audio
@@ -98,8 +97,8 @@ class VideoCompressionHandler(MediaCompressionHandler):
 
         if input_ext in self.SUPPORTED_VIDEO_EXTS:
             output_ext = input_ext
-            if not config.COMPRESS and not ffmpeg_settings:
-                # If we're not compressing, just validate the file.
+            if not ffmpeg_settings:
+                # No compression settings provided, just validate the file.
                 is_valid, error = validate_media_file(path)
                 if not is_valid:
                     raise InvalidFileException(
@@ -144,8 +143,8 @@ class AudioCompressionHandler(MediaCompressionHandler):
         ext = extract_path_ext(path)
 
         if ext in self.SUPPORTED_AUDIO_EXTS:
-            if not config.COMPRESS and not ffmpeg_settings:
-                # If we're not compressing, just validate the file.
+            if not ffmpeg_settings:
+                # No compression settings provided, just validate the file.
                 is_valid, error = validate_media_file(path)
                 if not is_valid:
                     raise InvalidFileException(
@@ -168,7 +167,7 @@ class ArchiveProcessingBaseHandler(ExtensionMatchingHandler):
     CONTEXT_CLASS = ArchiveProcessingContextMetadata
 
     def get_cache_key(self, path, audio_settings=None, video_settings=None) -> str:
-        if not config.COMPRESS:
+        if not audio_settings and not video_settings:
             return super().get_cache_key(path)
         # Mirror the old compress_files_in_archive logic, which used:
         # generate_key("COMPRESSED", filename, settings=ffmpeg_settings)
@@ -198,17 +197,18 @@ class ArchiveProcessingBaseHandler(ExtensionMatchingHandler):
 
         ext = extract_path_ext(path)
 
-        # Create partial for reading & compressing subfiles
-        file_converter = partial(
-            self._read_and_compress_archive_file,
-            audio_settings=audio_settings,
-            video_settings=video_settings,
-            ext=ext,
-        )
+        # Compress subfiles only when explicit settings are provided,
+        # mirroring the standalone media compression handlers.
+        file_converter = None
+        if audio_settings or video_settings:
+            file_converter = partial(
+                self._read_and_compress_archive_file,
+                audio_settings=audio_settings,
+                video_settings=video_settings,
+                ext=ext,
+            )
         # create_predictable_zip will iterate over subfiles, call file_converter
-        processed_zip_path = create_predictable_zip(
-            path, file_converter=file_converter if config.COMPRESS else None
-        )
+        processed_zip_path = create_predictable_zip(path, file_converter=file_converter)
 
         with self.write_file(ext) as fh:
             with open(processed_zip_path, "rb") as zf:

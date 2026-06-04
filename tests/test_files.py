@@ -1253,11 +1253,10 @@ def test_video_compression_cache_keys_with_settings(
 def test_video_compression_cache_keys_no_settings(
     mock_filecache, video_file, video_filename
 ):
-    """Test cache key generation for video compression with default settings"""
+    """Test cache key generation for video compression without settings"""
     path = video_file.path
     video = VideoFile(path)
-    with patch("ricecooker.utils.pipeline.convert.config.COMPRESS", True):
-        video.process_file()
+    video.process_file()
 
     expected_keys = {
         f"DOWNLOAD:{path}",
@@ -1292,11 +1291,10 @@ def test_audio_compression_cache_keys_with_settings(
 def test_audio_compression_cache_keys_no_settings(
     mock_filecache, audio_file, audio_filename
 ):
-    """Test cache key generation for audio compression with default settings"""
+    """Test cache key generation for audio compression without settings"""
     path = audio_file.path
     audio = AudioFile(path)
-    with patch("ricecooker.utils.pipeline.convert.config.COMPRESS", True):
-        audio.process_file()
+    audio.process_file()
 
     expected_keys = {
         f"DOWNLOAD:{path}",
