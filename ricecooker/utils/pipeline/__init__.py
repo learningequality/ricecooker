@@ -52,6 +52,10 @@ class FilePipeline(CompositeHandler):
         ExtractMetadataStageHandler,
     ]
 
+    def __init__(self, children=None, default_context=None):
+        super().__init__(children=children)
+        self.default_context = default_context or {}
+
     def execute(
         self,
         path: str,
@@ -61,7 +65,10 @@ class FilePipeline(CompositeHandler):
         """
         Execute the pipeline for a given file path.
         """
-        context = context or {}
+        merged_context = self.default_context.copy()
+        if context:
+            merged_context.update(context)
+        context = merged_context
         file_metadata_list = [FileMetadata(path=path)]
         for handler in self._children:
             updated_file_metadata_list = []

@@ -494,7 +494,16 @@ class SushiChef(object):
         self.CHEF_RUN_DATA["current_run"] = run_id
         self.CHEF_RUN_DATA["runs"].append({"id": run_id})
 
-        self.file_pipeline = FilePipeline()
+        default_context = {}
+        if self.get_setting("compress", False):
+            default_context["video_settings"] = {
+                "crf": 32,
+                "max_height": self.get_setting("video-height") or 720,
+            }
+            default_context["audio_settings"] = {
+                "bit_rate": 96,
+            }
+        self.file_pipeline = FilePipeline(default_context=default_context)
         self.auth = DomainSpecificAuth(self.DOMAIN_AUTH_HEADERS)
         # TODO(Kevin): move self.download_content() call here
         self.pre_run(args, options)
