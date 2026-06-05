@@ -11,9 +11,6 @@ This listing shows the `ricecooker` command line interface (CLI) arguments:
 
     usage: sushichef.py  [-h] [--token TOKEN] [-u] [-v] [--quiet] [--warn]
                             [--debug] [--compress] [--thumbnails]
-                            [--resume]  [--step {CONSTRUCT_CHANNEL, CREATE_TREE,
-                                                 DOWNLOAD_FILES, GET_FILE_DIFF,
-                                                 START_UPLOAD, UPLOAD_CHANNEL}]
                             [--deploy] [--publish]
 
     required arguments:
@@ -26,8 +23,6 @@ This listing shows the `ricecooker` command line interface (CLI) arguments:
       -v, --verbose         Verbose mode (default).
       --compress            Compress videos using ffmpeg -crf=32 -b:a 32k mono.
       --thumbnails          Automatically generate thumbnails for content nodes.
-      --resume              Resume chef session from a specified step.
-      --step  {INIT, ...    Step to resume progress from (must be used with --resume flag)
       --update              Force re-download of files (skip .ricecookerfilecache/ check)
       --sample SIZE         Upload a sample of SIZE nodes from the channel.
       --deploy              Immediately deploy changes to channel's main tree.
@@ -55,7 +50,7 @@ This is required if you suspect the files on the source website have been update
 Note that some chef scripts implement their own caching mechanism, so you need
 to disable those caches as well if you want to make sure you're getting new content.
 Use the commands `rm -rf .webcache` to clear the webcache if it is present,
-and `rm -rf .ricecookerfilecache/* storage/* restore/*` to clean all ricecooker
+and `rm -rf .ricecookerfilecache/* storage/*` to clean all ricecooker
 directories and start from scratch.
 
 
