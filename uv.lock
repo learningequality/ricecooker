@@ -38,6 +38,19 @@ wheels = [
 ]
 
 [[package]]
+name = "boxsdk"
+version = "10.5.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "requests", marker = "platform_python_implementation == 'CPython'" },
+    { name = "requests-toolbelt", marker = "platform_python_implementation == 'CPython'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/2a/8d/cd55dde64a2848d6309ecc746732b761de37cebcdffe7a3dc2880b98dad7/boxsdk-10.5.0.tar.gz", hash = "sha256:72ef749cfc4c219c3330ef47e657bbc8b73477d761cadbc0264d797e60351eee", size = 274530, upload-time = "2026-03-18T14:48:47.576Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b6/98/59f43e90fec594742b44370739dbe2363305ce2c9ad3684ef5af865a5bfa/boxsdk-10.5.0-py3-none-any.whl", hash = "sha256:69682c81c3b7e640a5dd4235783829e9a501fbe2eb0dd00c41906e98c1e20ea6", size = 577330, upload-time = "2026-03-18T14:48:45.843Z" },
+]
+
+[[package]]
 name = "cachecontrol"
 version = "0.14.3"
 source = { registry = "https://pypi.org/simple" }
@@ -1460,6 +1473,18 @@ wheels = [
 ]
 
 [[package]]
+name = "requests-toolbelt"
+version = "1.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "requests", marker = "platform_python_implementation == 'CPython'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f3/61/d7545dafb7ac2230c70d38d31cbfe4cc64f7144dc41f6e4e4b78ecd9f5bb/requests-toolbelt-1.0.0.tar.gz", hash = "sha256:7681a0a3d047012b5bdc0ee37d7f8f07ebe76ab08caeccfc3921ce23c88d5bc6", size = 206888, upload-time = "2023-05-01T04:11:33.229Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/3f/51/d4db610ef29373b879047326cbf6fa98b6c1969d6f6dc423279de2b1be2c/requests_toolbelt-1.0.0-py2.py3-none-any.whl", hash = "sha256:cccfdd665f0a24fcf4726e690f65639d272bb0637b9b92dfd91a5568ccf6bd06", size = 54481, upload-time = "2023-05-01T04:11:28.427Z" },
+]
+
+[[package]]
 name = "ricecooker"
 source = { editable = "." }
 dependencies = [
@@ -1489,6 +1514,9 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+box = [
+    { name = "boxsdk", marker = "platform_python_implementation == 'CPython'" },
+]
 google-drive = [
     { name = "google-api-python-client", marker = "platform_python_implementation == 'CPython'" },
     { name = "google-auth", marker = "platform_python_implementation == 'CPython'" },
@@ -1517,6 +1545,7 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "beautifulsoup4", specifier = ">=4.6.3,<4.9.0" },
+    { name = "boxsdk", marker = "extra == 'box'", specifier = ">=10" },
     { name = "cachecontrol", specifier = "==0.14.3" },
     { name = "chardet", specifier = "==5.2.0" },
     { name = "colorlog", specifier = ">=4.1.0,<6.11" },
@@ -1542,7 +1571,7 @@ requires-dist = [
     { name = "urllib3", specifier = "==2.6.3" },
     { name = "yt-dlp", specifier = ">=2024.12.23" },
 ]
-provides-extras = ["google-drive", "sentry"]
+provides-extras = ["google-drive", "box", "sentry"]
 
 [package.metadata.requires-dev]
 dev = [
