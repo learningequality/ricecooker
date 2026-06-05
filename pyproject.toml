@@ -51,6 +51,7 @@ dependencies = [
 
 [project.optional-dependencies]
 google_drive = ["google-api-python-client", "google-auth"]
+box = ["boxsdk>=10"]
 sentry = ["sentry-sdk>=2.32.0"]
 
 [project.scripts]

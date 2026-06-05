@@ -224,6 +224,10 @@ GOOGLE_SERVICE_ACCOUNT_CREDENTIALS_PATH = os.getenv(
 if GOOGLE_SERVICE_ACCOUNT_CREDENTIALS_PATH:
     TASK_THREADS = 1  # If using service account, only one thread is allowed - random errors happen otherwise.
 
+BOX_CLIENT_ID = os.getenv("BOX_CLIENT_ID", None)
+BOX_CLIENT_SECRET = os.getenv("BOX_CLIENT_SECRET", None)
+BOX_ENTERPRISE_ID = os.getenv("BOX_ENTERPRISE_ID", None)
+
 # CSV headers
 CSV_HEADERS = [
     "Source ID",

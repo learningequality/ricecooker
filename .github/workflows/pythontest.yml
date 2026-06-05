@@ -109,4 +109,4 @@ jobs:
           Add-Content -Path $env:GITHUB_PATH -Value "$env:GITHUB_WORKSPACE\tools\poppler-21.11.0\Library\bin" -Encoding utf8
       - name: Run tests
         if: ${{ needs.pre_job.outputs.should_skip != 'true' }}
-        run: uv run --group test --extra google_drive pytest
+        run: uv run --group test --extra google_drive --extra box pytest

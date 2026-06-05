@@ -2,14 +2,18 @@ import json
 import os
 import tempfile
 from sys import platform
+from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import pytest
+import requests_cache
+from vcr_config import box_vcr
 from vcr_config import my_vcr
 
 from ricecooker.utils.pipeline.context import FileMetadata
 from ricecooker.utils.pipeline.exceptions import InvalidFileException
 from ricecooker.utils.pipeline.file_handler import FileHandler
+from ricecooker.utils.pipeline.transfer import BoxHandler
 from ricecooker.utils.pipeline.transfer import DiskResourceHandler
 from ricecooker.utils.pipeline.transfer import DownloadStageHandler
 from ricecooker.utils.pipeline.transfer import (
@@ -252,6 +256,159 @@ def test_gdrive_channel_spreadsheet(mock_google_creds):
     assert file_metadata is not None
     assert file_metadata[0].filename.endswith("xlsx")
     assert file_metadata[0].original_filename == "Channel spreadsheet"
+
+
+# All these files are in this Box folder on the Learning Equality Box account:
+# https://app.box.com/s/d7wax7wg6bborzk8l0cjz9anws1ghsf6
+# in case they ever need to be updated or changed.
+# If they are updated, the relevant cassettes for these tests should be deleted
+# and recreated by running the test suite with real Box client credentials
+# grant values in the BOX_CLIENT_ID, BOX_CLIENT_SECRET, and BOX_ENTERPRISE_ID
+# environment variables.
+box_pdf_link = "https://app.box.com/s/g8ibjz3jd1m5xu943i5al0bh8k99rqtu"
+box_video_link = "https://app.box.com/s/5iunzudtzdrgkag35m7xptc52nbv033i"
+box_vtt_link = "https://app.box.com/s/2z5rwa70suvtmocwdmv0pedaax539poa"
+box_audio_link = "https://app.box.com/s/8nkrjotu27q6ol6ouaqb901dfdnbspym"
+
+BOX_CASSETTES_DIR = os.path.join(os.path.dirname(__file__), "..", "cassettes")
+BOX_SKIP_REASON = (
+    "Box cassette not recorded yet; run with real BOX_* env vars to record"
+)
+
+
+def box_cassette_missing(cassette_name):
+    """skipif condition: this test's cassette is unrecorded and no real creds are set."""
+    return not os.path.exists(
+        os.path.join(BOX_CASSETTES_DIR, cassette_name)
+    ) and not os.environ.get("BOX_CLIENT_ID")
+
+
+@pytest.fixture
+def mock_box_creds(monkeypatch):
+    """Fixture that provides mock Box credentials if real ones aren't configured.
+
+    If the BOX_* environment variables are set, this is a no-op (allowing
+    cassettes to be recorded). Otherwise, patches mock values into config so
+    the client can be constructed while VCR replays the recorded responses.
+    """
+    if os.environ.get("BOX_CLIENT_ID"):
+        yield
+        return
+
+    monkeypatch.setattr("ricecooker.config.BOX_CLIENT_ID", "mock-client-id")
+    monkeypatch.setattr("ricecooker.config.BOX_CLIENT_SECRET", "mock-client-secret")
+    monkeypatch.setattr("ricecooker.config.BOX_ENTERPRISE_ID", "123456789")
+    yield
+
+
+@pytest.fixture
+def no_requests_cache():
+    """Make Box tests immune to globally installed requests_cache.
+
+    tests/media_utils modules call requests_cache.install_cache() at import
+    time, globally patching requests.Session; the patched session cannot wrap
+    VCR's fake response objects, so restore the plain session for these tests.
+    """
+    with requests_cache.disabled():
+        yield
+
+
+def test_box_should_handle():
+    handler = BoxHandler()
+    assert handler.should_handle(box_pdf_link)
+    assert handler.should_handle(box_video_link)
+    assert handler.should_handle(box_vtt_link)
+    assert handler.should_handle(box_audio_link)
+    assert handler.should_handle("https://acme.app.box.com/s/abc123def")
+    assert not handler.should_handle("https://example.com/file.pdf")
+    assert not handler.should_handle("not-a-url")
+
+
+@pytest.mark.skipif(box_cassette_missing("test_box_pdf.yaml"), reason=BOX_SKIP_REASON)
+@box_vcr.use_cassette
+def test_box_pdf(mock_box_creds, no_requests_cache):
+    pytest.importorskip("box_sdk_gen")
+    handler = BoxHandler()
+    assert handler.should_handle(box_pdf_link)
+    file_metadata = handler.execute(box_pdf_link, skip_cache=True)
+    assert file_metadata is not None
+    assert file_metadata[0].filename.endswith("pdf")
+    assert file_metadata[0].original_filename == "41568-pdf.pdf"
+
+
+@pytest.mark.skipif(box_cassette_missing("test_box_video.yaml"), reason=BOX_SKIP_REASON)
+@box_vcr.use_cassette
+def test_box_video(mock_box_creds, no_requests_cache):
+    pytest.importorskip("box_sdk_gen")
+    handler = BoxHandler()
+    assert handler.should_handle(box_video_link)
+    file_metadata = handler.execute(box_video_link, skip_cache=True)
+    assert file_metadata is not None
+    assert file_metadata[0].filename.endswith("ogv")
+    assert file_metadata[0].original_filename == "low_res_ogv_video.ogv"
+
+
+@pytest.mark.skipif(box_cassette_missing("test_box_vtt.yaml"), reason=BOX_SKIP_REASON)
+@box_vcr.use_cassette
+def test_box_vtt(mock_box_creds, no_requests_cache):
+    pytest.importorskip("box_sdk_gen")
+    handler = BoxHandler()
+    assert handler.should_handle(box_vtt_link)
+    file_metadata = handler.execute(box_vtt_link, skip_cache=True)
+    assert file_metadata is not None
+    assert file_metadata[0].filename.endswith("vtt")
+    assert file_metadata[0].original_filename == "encapsulated.vtt"
+
+
+@pytest.mark.skipif(box_cassette_missing("test_box_audio.yaml"), reason=BOX_SKIP_REASON)
+@box_vcr.use_cassette
+def test_box_audio(mock_box_creds, no_requests_cache):
+    pytest.importorskip("box_sdk_gen")
+    handler = BoxHandler()
+    assert handler.should_handle(box_audio_link)
+    file_metadata = handler.execute(box_audio_link, skip_cache=True)
+    assert file_metadata is not None
+    assert file_metadata[0].filename.endswith("mp3")
+    assert file_metadata[0].original_filename == "audio_media_test.mp3"
+
+
+def test_box_handle_file_uses_shared_link_header():
+    """Unit test for the shared-link plumbing, independent of the Box SDK."""
+    handler = BoxHandler()
+    mock_client = MagicMock()
+    file_info = mock_client.shared_links_files.find_file_for_shared_link.return_value
+    file_info.name = "sample.pdf"
+    file_info.id = "12345"
+    file_info.type = "file"
+
+    def fake_download(file_id, output_stream, boxapi):
+        output_stream.write(b"%PDF-1.4 test bytes")
+
+    mock_client.downloads.download_file_to_output_stream.side_effect = fake_download
+    handler._box_client = mock_client
+
+    url = "https://app.box.com/s/abc123def"
+    file_metadata = handler.execute(url, skip_cache=True)
+
+    assert file_metadata[0].original_filename == "sample.pdf"
+    assert file_metadata[0].filename.endswith(".pdf")
+    expected_boxapi = f"shared_link={url}"
+    find_call = mock_client.shared_links_files.find_file_for_shared_link.call_args
+    assert find_call.kwargs["boxapi"] == expected_boxapi
+    download_call = mock_client.downloads.download_file_to_output_stream.call_args
+    assert download_call.kwargs["file_id"] == "12345"
+    assert download_call.kwargs["boxapi"] == expected_boxapi
+
+
+def test_box_client_requires_credentials():
+    pytest.importorskip("box_sdk_gen")
+    handler = BoxHandler()
+    with (
+        patch("ricecooker.config.BOX_CLIENT_ID", None),
+        patch("ricecooker.config.BOX_CLIENT_SECRET", None),
+    ):
+        with pytest.raises(RuntimeError, match="client credentials"):
+            handler.box_client
 
 
 def test_disk_transfer_file_protocol():
