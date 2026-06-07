@@ -125,7 +125,6 @@ def build_tree_from_json(parent_node, sourcetree):
                 # no role for topics (computed dynaically from descendants)
                 language=source_node.get("language"),
                 thumbnail=source_node.get("thumbnail"),
-                derive_thumbnail=source_node.get("derive_thumbnail", False),
                 tags=source_node.get("tags"),
             )
             parent_node.add_child(child_node)
@@ -144,7 +143,6 @@ def build_tree_from_json(parent_node, sourcetree):
                 role=source_node.get("role", roles.LEARNER),
                 language=source_node.get("language"),
                 thumbnail=source_node.get("thumbnail"),
-                derive_thumbnail=source_node.get("derive_thumbnail", False),
                 tags=source_node.get("tags"),
             )
             add_files(child_node, source_node.get("files") or [])
@@ -162,7 +160,6 @@ def build_tree_from_json(parent_node, sourcetree):
                 role=source_node.get("role", roles.LEARNER),
                 language=source_node.get("language"),
                 thumbnail=source_node.get("thumbnail"),
-                derive_thumbnail=source_node.get("derive_thumbnail", False),
                 tags=source_node.get("tags"),
             )
             add_files(child_node, source_node.get("files") or [])
@@ -180,9 +177,6 @@ def build_tree_from_json(parent_node, sourcetree):
                 role=source_node.get("role", roles.LEARNER),
                 language=source_node.get("language"),
                 thumbnail=source_node.get("thumbnail"),
-                derive_thumbnail=source_node.get(
-                    "derive_thumbnail", False
-                ),  # not supported yet
                 tags=source_node.get("tags"),
                 exercise_data=source_node.get("exercise_data"),
                 questions=[],
@@ -219,7 +213,6 @@ def build_tree_from_json(parent_node, sourcetree):
                 role=source_node.get("role", roles.LEARNER),
                 language=source_node.get("language"),
                 thumbnail=source_node.get("thumbnail"),
-                derive_thumbnail=source_node.get("derive_thumbnail", False),
                 tags=source_node.get("tags"),
             )
 
@@ -238,7 +231,6 @@ def build_tree_from_json(parent_node, sourcetree):
                 role=source_node.get("role", roles.LEARNER),
                 language=source_node.get("language"),
                 thumbnail=source_node.get("thumbnail"),
-                derive_thumbnail=source_node.get("derive_thumbnail", False),
                 tags=source_node.get("tags"),
             )
             add_files(child_node, source_node.get("files") or [])

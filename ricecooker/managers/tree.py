@@ -8,6 +8,7 @@ from requests.exceptions import RequestException
 
 from ricecooker.exceptions import ChannelIncompleteError
 from ricecooker.exceptions import InvalidNodeException
+from ricecooker.utils.images import ThumbnailGenerationError
 
 from .. import config
 
@@ -81,6 +82,7 @@ class ChannelManager:
         for node in self.all_nodes:
             if id(node) not in processed:
                 self.file_map.update(self.node_files(node))
+        self.generate_deferred_thumbnails()
         return list(self.file_map.keys())
 
     def deduplicate_shared_nodes(self):
@@ -115,7 +117,7 @@ class ChannelManager:
         for child_node in node.children:
             self.gather_tree_recur(
                 nodes, child_node
-            )  # Defer insert until after all descendants in case a tiled thumbnail is needed
+            )  # Insert after all descendants so generate_deferred_thumbnails can rely on children-first order
         nodes.append(node)
         return nodes
 
@@ -147,6 +149,31 @@ class ChannelManager:
                     if question_file.get_filename():
                         output[question_file.get_filename()] = question_file
         return output
+
+    def generate_deferred_thumbnails(self):
+        """
+        Generate thumbnails for nodes that defer generation until all their
+        descendants have been processed (topics). Runs sequentially after the
+        concurrent processing pass: self.all_nodes is ordered children-first,
+        so every descendant (and its generated thumbnail) is complete by the
+        time each ancestor is reached.
+        """
+        for node in self.all_nodes:
+            if not node.defer_thumbnail_generation:
+                continue
+            try:
+                new_filenames = node.generate_missing_thumbnail()
+            except ThumbnailGenerationError as e:
+                # Safety net: generation failures are normally recorded in
+                # config.FAILED_FILES by the file object and returned as None.
+                config.LOGGER.warning(
+                    "\tFailed to generate thumbnail for {}: {}".format(node.title, e)
+                )
+                continue
+            # Register the generated thumbnail (attached as node.thumbnail)
+            # so the upload pass knows about it.
+            for filename in new_filenames:
+                self.file_map[filename] = node.thumbnail
 
     def check_for_files_failed(self):
         """check_for_files_failed: print any files that failed during download process

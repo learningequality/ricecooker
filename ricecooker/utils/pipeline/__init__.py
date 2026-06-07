@@ -9,6 +9,7 @@ from ricecooker.utils.pipeline.context import FileMetadata
 from .convert import ConversionStageHandler
 from .extract_metadata import ExtractMetadataStageHandler
 from .file_handler import CompositeHandler
+from .thumbnails import ThumbnailStageHandler
 from .transfer import DownloadStageHandler
 
 # Do this to prevent import of broken Windows filetype registry that makes guesstype not work.
@@ -37,12 +38,17 @@ class FilePipeline(CompositeHandler):
     from ricecooker.utils.pipeline import FilePipeline
     from ricecooker.utils.pipeline.convert import ConversionStageHandler
     from ricecooker.utils.pipeline.extract_metadata import ExtractMetadataStageHandler
+    from ricecooker.utils.pipeline.thumbnails import ThumbnailStageHandler
     from ricecooker.utils.pipeline.transfer import DownloadStageHandler
     from ricecooker.utils.pipeline.transfer import DiskResourceHandler
 
     download_stage = DownloadStageHandler(children=[DiskResourceHandler()])
-    pipeline = FilePipeline(children=[download_stage, ConversionStageHandler(), ExtractMetadataStageHandler()])
+    pipeline = FilePipeline(
+        children=[download_stage, ConversionStageHandler(), ThumbnailStageHandler(), ExtractMetadataStageHandler()]
+    )
     ```
+    Note: omitting ThumbnailStageHandler disables automatic thumbnail generation
+    for files processed by the pipeline.
     This will replace the default `DownloadStageHandler` with a new one that has a `DiskResourceHandler` as its only child.
 
     Instead of a combined `default_context`, a stage's handler can be configured directly with init-time context:
@@ -61,6 +67,7 @@ class FilePipeline(CompositeHandler):
     DEFAULT_CHILDREN = [
         DownloadStageHandler,
         ConversionStageHandler,
+        ThumbnailStageHandler,
         ExtractMetadataStageHandler,
     ]
 

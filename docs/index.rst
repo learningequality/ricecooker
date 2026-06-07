@@ -152,8 +152,7 @@ Use the links below to jump to the specific topics that you want to learn about.
 
 `Command line interface <chefops.html#ricecooker-cli>`_
 *******************************************************
-Use command line options like ``--thumbnails`` (auto-generating thumbnails),
-and ``--compress`` (video compression) to create better channels.
+Use command line options like ``--compress`` (video compression) to create better channels.
 
 
 .. rst-class:: column column3

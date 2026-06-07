@@ -19,7 +19,6 @@ from .exceptions import FileNotFoundException
 
 UPDATE = False
 VIDEO_HEIGHT = None
-THUMBNAILS = False
 PUBLISH = False
 SUSHI_BAR_CLIENT = None
 FILE_PIPELINE = None

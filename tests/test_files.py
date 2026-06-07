@@ -1462,6 +1462,7 @@ def test_html5_zip_cache_keys(mock_filecache, html_file, html_filename):
     assert f"DOWNLOAD:{path}" in keys
     assert f"CONVERT:{html_filename}" in keys
     assert f"EXTRACT_METADATA:{html.filename}" in keys
+    assert not any(k.startswith("THUMBNAIL:") for k in keys)
     gif_convert_keys = {
         k for k in keys if k.startswith("CONVERT:") and k.endswith(".gif")
     }

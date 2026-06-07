@@ -10,7 +10,7 @@ Ricecooker CLI
 This listing shows the `ricecooker` command line interface (CLI) arguments:
 
     usage: sushichef.py  [-h] [--token TOKEN] [-u] [--debug] [-v] [--warn]
-                            [--quiet] [--compress] [--thumbnails]
+                            [--quiet] [--compress]
                             [--download-attempts DOWNLOAD_ATTEMPTS]
                             [--prompt] [--deploy] [--publish] [--sample SIZE]
 
@@ -26,7 +26,6 @@ This listing shows the `ricecooker` command line interface (CLI) arguments:
       --warn                Print errors and warnings.
       --quiet               Print only errors.
       --compress            Compress videos using ffmpeg -crf=32 -b:a 32k mono.
-      --thumbnails          Automatically generate thumbnails for content nodes.
       --download-attempts N Maximum number of times to retry downloading files (default: 3).
       --prompt              Prompt user to open the channel after the chef run.
       --deploy              Immediately deploy changes to channel's main tree.
@@ -42,12 +41,11 @@ the complete list: you'll have to run `./sushichef.py -h` to see the latest vers
 Below is a short guide to some of the most important and useful ones arguments.
 
 
-### Compression and thumbnail globals
-You can specify video compression settings (see this page) and thumbnails for
-specific nodes and files in the channel, or use `--compress` and `--thumbnails`
-to apply compression to ALL videos, and automatically generate thumbnails for
-all the supported content kinds. **We recommend you always use the `--thumbnails`**
-in order to create more colorful, lively channels that learners will want to browse.
+### Compression globals
+You can specify video compression settings for specific nodes and files in the
+channel, or use `--compress` to apply compression to ALL videos.
+Thumbnails are always generated automatically for any content node or topic that
+doesn't have a thumbnail provided — no flag is needed.
 
 
 ### Caching

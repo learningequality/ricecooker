@@ -49,6 +49,7 @@ from ricecooker.managers.tree import ChannelManager
 from ricecooker.managers.tree import InsufficientStorageException
 from ricecooker.utils.jsontrees import build_tree_from_json
 from ricecooker.utils.pipeline import FilePipeline
+from ricecooker.utils.pipeline.context import NODE_HAS_THUMBNAIL
 from ricecooker.utils.zip import create_predictable_zip
 
 """ *********** TOPIC FIXTURES *********** """
@@ -814,7 +815,9 @@ def test_content_node_passes_context_to_pipeline():
     )
     node._process_uri()
     mock_pipeline.execute.assert_called_once_with(
-        node.uri, context={"subtitle_languages": ["en", "es"]}, skip_cache=False
+        node.uri,
+        context={"subtitle_languages": ["en", "es"], NODE_HAS_THUMBNAIL: False},
+        skip_cache=False,
     )
 
 
