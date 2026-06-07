@@ -1,4 +1,5 @@
 import os
+from unittest.mock import patch
 
 import PIL
 import pytest
@@ -75,6 +76,44 @@ class Test_pdf_thumbnail_generation(BaseThumbnailGeneratorTestCase):
         output_file = tmpdir.join("pdf_16_9.png").strpath
         images.create_image_from_pdf_page(input_file, output_file, crop="smart")
         self.check_16_9_format(output_file)
+
+    def _render_mocked_page(self, tmpdir, native_width_px=None, **kwargs):
+        output_file = tmpdir.join("thumbnail.png").strpath
+        page = PIL.Image.new("RGB", (160, 90))
+        with patch(
+            "ricecooker.utils.images.convert_from_path", return_value=[page]
+        ) as mock_convert:
+            with patch(
+                "ricecooker.utils.images._pdf_page_width_px",
+                return_value=native_width_px,
+            ):
+                images.create_image_from_pdf_page("fake.pdf", output_file, **kwargs)
+        assert os.path.exists(output_file)
+        return mock_convert.call_args.kwargs
+
+    def test_max_width_caps_oversized_page(self, tmpdir):
+        kwargs = self._render_mocked_page(tmpdir, native_width_px=4250, max_width=1000)
+        assert kwargs["size"] == (1000, None)
+
+    def test_max_width_does_not_upscale_small_page(self, tmpdir):
+        kwargs = self._render_mocked_page(tmpdir, native_width_px=600, max_width=1000)
+        assert kwargs["size"] is None
+
+    def test_max_width_applied_when_page_size_unreadable(self, tmpdir):
+        kwargs = self._render_mocked_page(tmpdir, native_width_px=None, max_width=1000)
+        assert kwargs["size"] == (1000, None)
+
+    def test_no_max_width_renders_at_full_size(self, tmpdir):
+        kwargs = self._render_mocked_page(tmpdir)
+        assert kwargs["size"] is None
+
+    def test_pdf_page_width_px_reads_real_pdf(self):
+        input_file = os.path.join(files_dir, "generate_thumbnail", "sample.pdf")
+        width = images._pdf_page_width_px(input_file, page_number=0, dpi=500)
+        assert width is not None and width > 0
+
+    def test_pdf_page_width_px_returns_none_for_unreadable(self):
+        assert images._pdf_page_width_px("fake.pdf", page_number=0, dpi=500) is None
 
     def test_raises_for_missing_file(self, tmpdir):
         input_file = os.path.join(files_dir, "file_that_does_not_exist.pdf")

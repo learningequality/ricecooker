@@ -17,23 +17,28 @@ class TestFileHandler(FileHandler):
         return None
 
 
-def test_write_file_with_exception_still_checks_file_not_empty():
+def test_write_file_exception_propagates_unchanged():
     """
-    Test that file_not_empty check runs even when an exception is caught
-    within the context manager. This verifies the try/finally behavior.
-
-    Without the try/finally block, this test would fail because the exception
-    would prevent the file_not_empty check from running.
+    An exception raised inside the write_file body must propagate unchanged -
+    not be masked by the empty-file check - and nothing is copied to storage.
+    This lets handlers raise their typed exceptions (caught via
+    HANDLED_EXCEPTIONS) while writing directly into write_file's temp path.
     """
     handler = TestFileHandler()
 
-    # This should raise InvalidFileException from the finally block,
-    # not the RuntimeError from the try block
+    with pytest.raises(RuntimeError, match="boom"):
+        with handler.write_file("txt"):
+            raise RuntimeError("boom")
+    assert handler._output_path is None, "no partial file should reach storage"
+
+
+def test_write_file_empty_file_raises():
+    """A body that completes without writing anything is treated as corrupt."""
+    handler = TestFileHandler()
+
     with pytest.raises(InvalidFileException, match="failed to write \\(corrupted\\)"):
         with handler.write_file("txt"):
-            # Don't write anything to file (will make it empty)
-            # Then raise an exception that would normally prevent cleanup
-            raise RuntimeError("This exception should be caught by try/finally")
+            pass
 
 
 class ThreadRaceTestHandler(FileHandler):

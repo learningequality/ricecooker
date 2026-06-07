@@ -27,17 +27,19 @@ from .files import ExtractedEPubThumbnailFile
 from .files import ExtractedHTMLZipThumbnailFile
 from .files import ExtractedPdfThumbnailFile
 from .files import File
+from .files import PRESET_LOOKUP
 from .files import SubtitleFile
+from .files import ThumbnailFile
 from .files import YouTubeSubtitleFile
 from .licenses import License
 from .questions import VARIANT_A
 from .questions import VARIANT_B
+from ricecooker.utils.pipeline.context import NODE_HAS_THUMBNAIL
 from ricecooker.utils.pipeline.exceptions import ExpectedFileException
 from ricecooker.utils.pipeline.exceptions import InvalidFileException
 
 MASTERY_MODELS = [id for id, name in exercises.MASTERY_MODELS]
 ROLES = [id for id, name in roles.choices]
-PRESET_LOOKUP = {p.id: p for p in format_presets.PRESETLIST}
 
 
 # Used to map content kind to learning activity when a list of learning_activiies is not provided
@@ -96,7 +98,6 @@ class Node(object):
         description (str): description of the content (optional)
         thumbnail (str or ThumbnailFile): local path, url, or ThumbnailFile for thumbnail (optional)
         files ([File]): list of File objects for the node (optional)
-        derive_thumbnail (bool): whether to auto-generate thumbnail from content (default False)
         node_modifications (dict): modifications passed in by CSV import (optional)
         extra_fields (dict): additional data needed for the node (optional)
         suggested_duration (int): suggested duration in seconds (optional)
@@ -106,6 +107,10 @@ class Node(object):
     license = None
     language = None
     valid = False
+    # When True, thumbnail generation is deferred to the tree manager's
+    # post-pass, after all descendants have been processed (topics need
+    # their children's thumbnails to build a tiled image).
+    defer_thumbnail_generation = False
     # Nodes with questions (ExerciseNode, UnitNode) set this True.
     # This gates Node._validate() to allow a non-empty `questions` list,
     # which TreeNode.to_dict() serializes for the Studio API.
@@ -134,7 +139,6 @@ class Node(object):
         description=None,
         thumbnail=None,
         files=None,
-        derive_thumbnail=False,
         node_modifications={},
         extra_fields=None,
         suggested_duration=None,
@@ -151,7 +155,6 @@ class Node(object):
         self.title = title
         self.set_language(language)
         self.description = description or ""
-        self.derive_thumbnail = derive_thumbnail
         self.extra_fields = extra_fields or {}
 
         for f in files or []:
@@ -261,10 +264,13 @@ class Node(object):
         return None
 
     def has_thumbnail(self):
-        from .files import ThumbnailFile
-
-        return any(f for f in self.files if isinstance(f, ThumbnailFile))
-        # TODO deep check: f.process_file() and check f.filename is not None
+        """
+        Whether this node already has a thumbnail: either one was provided
+        explicitly (self.thumbnail), or one of its files has a thumbnail
+        format preset. The explicit self.thumbnail check handles uri-based nodes,
+        which have no kind until the pipeline runs.
+        """
+        return self.thumbnail is not None or any(f.is_thumbnail() for f in self.files)
 
     def set_thumbnail(self, thumbnail):
         """set_thumbnail: Set node's thumbnail
@@ -273,8 +279,6 @@ class Node(object):
         """
         self.thumbnail = thumbnail
         if isinstance(self.thumbnail, str):
-            from .files import ThumbnailFile
-
             self.thumbnail = ThumbnailFile(path=self.thumbnail)
 
         if self.thumbnail:
@@ -287,6 +291,11 @@ class Node(object):
         """
         if isinstance(self, ChannelNode):
             return format_presets.CHANNEL_THUMBNAIL
+        if self.kind is None:
+            # A kind-less node (e.g. a uri-based node before the pipeline has
+            # run) would otherwise wrongly match the channel_thumbnail preset,
+            # whose kind is also None.
+            return None
         try:
             preset = next(
                 filter(
@@ -298,29 +307,36 @@ class Node(object):
         except StopIteration:
             return None
 
-    def process_files(self):
-        """Processes all the files associated with this Node, including:
-        - download files if not present in the local storage
-        - convert and compress video files
-        - (optionally) generate thumbnail file from the node's content
-        Returns: content-hash based filenames of all the files for this node
+    def generate_missing_thumbnail(self):
+        """
+        Generate and attach a thumbnail if this node doesn't already have one.
+        Returns: list of generated thumbnail filenames (empty if nothing was
+        generated - node already has a thumbnail, not implemented for this
+        kind, no suitable source file, or generation failed).
         """
         filenames = []
-        for file in self.files:
-            filenames.append(file.process_file())
-
-        # Auto-generation of thumbnails happens here if derive_thumbnail or config.THUMBNAILS is set
-        if not self.has_thumbnail() and (config.THUMBNAILS or self.derive_thumbnail):
+        if not self.has_thumbnail():
             thumbnail_file = self.generate_thumbnail()
             if thumbnail_file:
                 thumbnail_filename = thumbnail_file.process_file()
                 if thumbnail_filename:
                     self.set_thumbnail(thumbnail_file)
                     filenames.append(thumbnail_filename)
-                else:
-                    pass  # failed to generate thumbnail
-            else:
-                pass  # method generate_thumbnail is not implemented or no suitable source file found
+        return filenames
+
+    def process_files(self):
+        """Processes all the files associated with this Node, including:
+        - download files if not present in the local storage
+        - convert and compress video files
+        - generate a thumbnail from the node's content when none is provided
+        Returns: content-hash based filenames of all the files for this node
+        """
+        filenames = []
+        for file in self.files:
+            filenames.append(file.process_file())
+
+        if not self.defer_thumbnail_generation:
+            filenames.extend(self.generate_missing_thumbnail())
 
         return filenames
 
@@ -799,13 +815,15 @@ class TreeNode(Node):
 class TopicNode(TreeNode):
     """Model representing topic nodes for organizing channel content.
 
-    Topic nodes create the folder structure of a channel. When derive_thumbnail
-    is True, generates a tiled thumbnail from descendant content nodes.
+    Topic nodes create the folder structure of a channel. A tiled thumbnail is
+    generated from descendants after all of them have been processed, unless a
+    thumbnail was provided.
 
     See TreeNode and Node for inherited attributes.
     """
 
     kind = content_kinds.TOPIC
+    defer_thumbnail_generation = True
 
     def generate_thumbnail(self):
         """Generate a ``TiledThumbnailFile`` based on the descendants.
@@ -913,9 +931,17 @@ class ContentNode(TreeNode):
         return super(ContentNode, self)._validate()
 
     def _process_uri(self):
+        # has_thumbnail() cannot resolve a ThumbnailFile's kind-dependent
+        # preset before the pipeline has set this node's kind, so also count
+        # provided ThumbnailFile instances (e.g. passed via files=[...]).
+        has_thumbnail = self.has_thumbnail() or any(
+            isinstance(f, ThumbnailFile) for f in self.files
+        )
         try:
             file_metadata_list = self.pipeline.execute(
-                self.uri, skip_cache=config.UPDATE
+                self.uri,
+                context={NODE_HAS_THUMBNAIL: has_thumbnail},
+                skip_cache=config.UPDATE,
             )
         except (InvalidFileException, ExpectedFileException) as e:
             config.LOGGER.error(f"Error processing path: {self.uri} with error: {e}")
@@ -980,9 +1006,6 @@ class VideoNode(ContentNode):
     """Model representing videos in channel
 
     Videos must be mp4 or webm format
-
-    Attributes:
-        derive_thumbnail (bool): set to generate thumbnail from video (optional)
 
     See ContentNode for inherited attributes.
     """
@@ -1051,9 +1074,6 @@ class DocumentNode(ContentNode):
 
     Documents must be in PDF, ePub, Bloom, or KPUB format
 
-    Attributes:
-        derive_thumbnail (bool): automatically generate thumbnail (optional)
-
     See ContentNode for inherited attributes.
     """
 
@@ -1098,7 +1118,6 @@ class HTML5AppNode(ContentNode):
 
     Attributes:
         entrypoint (str): custom entry point file (optional, defaults to index.html)
-        derive_thumbnail (bool): generate thumbnail from largest image inside zip (optional)
 
     See ContentNode for inherited attributes.
     """

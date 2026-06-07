@@ -64,19 +64,22 @@ class SushiChef(object):
         if not hasattr(self, "SETTINGS"):
             self.SETTINGS = {}
         else:
-            if "generate-missing-thumbnails" in self.SETTINGS:
-                warning_text = "thumbnails setting is deprecated and will be replaced by thumbnails in version 0.8 please update"
-                config.LOGGER.warn(warning_text)
-                warn(warning_text, DeprecationWarning)
-                self.SETTINGS["thumbnails"] = self.SETTINGS[
-                    "generate-missing-thumbnails"
-                ]
-
             if "compress-videos" in self.SETTINGS:
                 warning_text = "compress-videos setting is deprecated and will be replaced by compress in version 0.8 please update"
                 config.LOGGER.warn(warning_text)
                 warn(warning_text, DeprecationWarning)
                 self.SETTINGS["compress"] = self.SETTINGS["compress-videos"]
+
+            for thumbnail_setting in ("thumbnails", "generate-missing-thumbnails"):
+                if thumbnail_setting in self.SETTINGS:
+                    warning_text = (
+                        "{} setting is deprecated and is ignored: thumbnails are now always "
+                        "generated for nodes that do not provide one".format(
+                            thumbnail_setting
+                        )
+                    )
+                    config.LOGGER.warning(warning_text)
+                    warn(warning_text, DeprecationWarning)
 
         # these will be assigned to later by the argparse handling.
         self.args = None
@@ -130,11 +133,6 @@ class SushiChef(object):
             "--compress",
             action="store_true",
             help="Compress videos using ffmpeg -crf=32 -b:a 32k mono.",
-        )
-        parser.add_argument(
-            "--thumbnails",
-            action="store_true",
-            help="Automatically generate thumbnails for content nodes.",
         )
         parser.add_argument(
             "--download-attempts",
@@ -191,6 +189,15 @@ class SushiChef(object):
                 " Uploading a staging tree is now the default behavior. Use --deploy to upload to the main tree."
             ),
         )
+        parser.add_argument(
+            "--thumbnails",
+            dest="thumbnails_deprecated",
+            action="store_true",
+            help=(
+                "(deprecated) Thumbnails are now always generated"
+                " for content nodes and topics that do not provide one."
+            ),
+        )
 
         # [OPTIONS] --- extra key=value options are supported, but do not appear in help
 
@@ -211,10 +218,7 @@ class SushiChef(object):
 
         override = None
         # If there is a command line flag for this setting, allow for it to override the chef
-        # default. Note that these are all boolean flags, so they are true if set, false if not.
-        if setting == "thumbnails":
-            override = self.args and self.args["thumbnails"]
-
+        # default. Note that the compress flag is a boolean: true if set on the command line, false if not.
         if setting == "compress":
             override = self.args and self.args["compress"]
 
@@ -257,6 +261,11 @@ class SushiChef(object):
         if args["reset_deprecated"]:
             config.LOGGER.warning(
                 "DEPRECATION WARNING: --reset is now the default bevavior. The --reset flag has been deprecated and will be removed in ricecooker 1.0."
+            )
+        if args["thumbnails_deprecated"]:
+            config.LOGGER.warning(
+                "DEPRECATION WARNING: thumbnails are now always generated for content nodes and topics that do not provide one. "
+                "The --thumbnails flag has been deprecated and will be removed in ricecooker 1.0."
             )
         if args["publish"] and args["stage"]:
             raise InvalidUsageException(

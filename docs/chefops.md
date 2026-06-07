@@ -10,7 +10,7 @@ Ricecooker CLI
 This listing shows the `ricecooker` command line interface (CLI) arguments:
 
     usage: sushichef.py  [-h] [--token TOKEN] [-u] [-v] [--quiet] [--warn]
-                            [--debug] [--compress] [--thumbnails]
+                            [--debug] [--compress]
                             [--resume]  [--step {CONSTRUCT_CHANNEL, CREATE_TREE,
                                                  DOWNLOAD_FILES, GET_FILE_DIFF,
                                                  START_UPLOAD, UPLOAD_CHANNEL}]
@@ -25,7 +25,6 @@ This listing shows the `ricecooker` command line interface (CLI) arguments:
       --debug               Print extra debugging infomation.
       -v, --verbose         Verbose mode (default).
       --compress            Compress videos using ffmpeg -crf=32 -b:a 32k mono.
-      --thumbnails          Automatically generate thumbnails for content nodes.
       --resume              Resume chef session from a specified step.
       --step  {INIT, ...    Step to resume progress from (must be used with --resume flag)
       --update              Force re-download of files (skip .ricecookerfilecache/ check)
@@ -40,12 +39,11 @@ the complete list: you'll have to run `./sushichef.py -h` to see the latest vers
 Below is a short guide to some of the most important and useful ones arguments.
 
 
-### Compression and thumbnail globals
-You can specify video compression settings (see this page) and thumbnails for
-specific nodes and files in the channel, or use `--compress` and `--thumbnails`
-to apply compression to ALL videos, and automatically generate thumbnails for
-all the supported content kinds. **We recommend you always use the `--thumbnails`**
-in order to create more colorful, lively channels that learners will want to browse.
+### Compression globals
+You can specify video compression settings for specific nodes and files in the
+channel, or use `--compress` to apply compression to ALL videos.
+Thumbnails are always generated automatically for any content node or topic that
+doesn't have a thumbnail provided — no flag is needed.
 
 
 ### Caching
@@ -138,6 +136,6 @@ time to complete so it is best to run them on a dedicated server for this purpos
   - Clone the sushi chef git repository in the `/data` folder on the server
   - Run the chef script as follows `nohup <chef cmd> &`, where `<chef cmd>`
     is contains the entire script name and command line options,
-    e.g. `./sushichef.py --token=... --thumbnails lang=fr`.
+    e.g. `./sushichef.py --token=... lang=fr`.
   - By default `nohup` logs stderr and stdout output to a file called `nohup.out`
     in the current working directory. Use `tail -f nohup.out` to follow this log file.

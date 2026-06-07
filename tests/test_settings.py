@@ -9,7 +9,7 @@ from ricecooker import chefs
 from ricecooker.utils.request_utils import DomainSpecificAuth
 
 
-settings = {"thumbnails": True, "compress": True}
+settings = {"compress": True}
 
 
 def test_settings_unset_default():
@@ -36,32 +36,27 @@ def test_cli_args_override_settings():
     takes precedence over the default setting.
     """
 
-    test_argv = ["sushichef.py", "--compress", "--thumbnails", "--token", "12345"]
+    test_argv = ["sushichef.py", "--compress", "--token", "12345"]
 
     with patch.object(sys, "argv", test_argv):
         chef = chefs.SushiChef()
-        chef.SETTINGS["thumbnails"] = False
         chef.SETTINGS["compress"] = False
 
-        assert chef.get_setting("thumbnails") is False
         assert chef.get_setting("compress") is False
 
         chef.parse_args_and_options()
-        assert chef.get_setting("thumbnails") is True
         assert chef.get_setting("compress") is True
 
-    test_argv = ["sushichef.py", "--compress", "--thumbnails", "--token", "12345"]
+    test_argv = ["sushichef.py", "--compress", "--token", "12345"]
 
     with patch.object(sys, "argv", test_argv):
         chef = chefs.SushiChef()
 
         assert len(chef.SETTINGS) == 0
 
-        assert chef.get_setting("thumbnails") is None
         assert chef.get_setting("compress") is None
 
         chef.parse_args_and_options()
-        assert chef.get_setting("thumbnails") is True
         assert chef.get_setting("compress") is True
 
     # now test without setting the flags
@@ -69,15 +64,26 @@ def test_cli_args_override_settings():
 
     with patch.object(sys, "argv", test_argv):
         chef = chefs.SushiChef()
-        chef.SETTINGS["thumbnails"] = False
         chef.SETTINGS["compress"] = False
 
-        assert chef.get_setting("thumbnails") is False
         assert chef.get_setting("compress") is False
 
         chef.parse_args_and_options()
-        assert chef.get_setting("thumbnails") is False
         assert chef.get_setting("compress") is False
+
+
+def test_deprecated_thumbnail_settings_warn():
+    """
+    Thumbnail generation is always on, so the old opt-in SETTINGS keys are
+    obsolete; instantiation must warn rather than silently ignore them.
+    """
+    for key in ("thumbnails", "generate-missing-thumbnails"):
+
+        class ThumbnailSettingsChef(chefs.SushiChef):
+            SETTINGS = {key: True}
+
+        with pytest.warns(DeprecationWarning, match=key):
+            ThumbnailSettingsChef()
 
 
 # Domain-specific authentication tests

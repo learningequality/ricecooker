@@ -167,7 +167,7 @@ if __name__ == "__main__":
 
 
 # Run the chef using
-#   ./wikipedia_video_chef.py  --thumbnails --token=<yourstudiotoken>
+#   ./wikipedia_video_chef.py  --token=<yourstudiotoken>
 # and you should see something like:
 #
 #    Downloading https://commons.wikimedia.org/w/api.php?action=timedtext&title=File%3AA_Is_for_Atom_1953.webm&lang=en&trackformat=srt

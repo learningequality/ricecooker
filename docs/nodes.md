@@ -70,7 +70,6 @@ Each node has the following attributes:
   - __learner_needs__ (list[str]): Specific learning needs the content is suitable for. Expects a list of constants from `le_utils.constants.labels.needs`. Example: `from le_utils.constants.labels import needs; node.learner_needs = [needs.PRIOR_KNOWLEDGE_REMEDIATION]`. (optional)
   - __accessibility_labels__ (list[str]): Accessibility features provided by the content. Expects a list of constants from `le_utils.constants.labels.accessibility_categories`. Example: `from le_utils.constants.labels import accessibility_categories; node.accessibility_labels = [accessibility_categories.CAPTIONS_SUBTITLES]`. (optional)
   - __thumbnail__ (str or ThumbnailFile): path to thumbnail or file object (optional)
-  - __derive_thumbnail__ (bool): set to True to generate thumbnail from contents (optional)
   - __files__ ([FileObject]): list of file objects for node (optional)
   - __extra_fields__ (dict): any additional data needed for node (optional)
   - __domain_ns__ (uuid): who is providing the content (e.g. learningequality.org) (optional)
@@ -142,8 +141,7 @@ See [languages][./languages.md] to read more about language codes.
 Thumbnails can be passed in as a local filesystem path to an image file (str),
 a URL (str), or a `ThumbnailFile` object.
 The recommended size for thumbnail images is 400px by 225px (aspect ratio 16:9).
-Use the command line argument `--thumbnails` to automatically generate thumbnails
-for all content node that don't have a thumbnail specified.
+Thumbnails are automatically generated for all content nodes and topics that don't have a thumbnail specified.
 
 
 
@@ -166,9 +164,8 @@ Topic nodes are folder-like containers that are used to organize the channel's c
 
 It is highly recommended to find suitable thumbnail images for topic nodes. The
 presence of thumbnails will make the content more appealing and easier to browse.
-Set `derive_thumbnail=True` on a topic node or use the `--thumbnails` command
-line argument and Ricecooker will generate thumbnails for topic nodes based on
-the thumbnails of the content nodes they contain.
+When no thumbnail is provided for a topic node, Ricecooker automatically generates
+a tiled thumbnail by compositing the thumbnails of its descendant content nodes.
 
 
 
@@ -214,9 +211,9 @@ and the files will be downloaded for you automatically.
 You can replace `DocumentNode` and `DocumentFile` with any of the other combinations
 of content node and file types.
 
-Specify `derive_thumbnail=True` and leave thumbnail blank (`thumbnail=None`) to
-let Ricecooker automatically generate a thumbnail for the node based on its content.
-Thumbnail generation is supported for audio, video, PDF, and ePub, and HTML5 files.
+Leaving `thumbnail=None` (the default) causes Ricecooker to automatically generate
+a thumbnail for the node based on its content.
+Thumbnail generation is supported for video, PDF, ePub, and HTML5 files.
 
 
 
