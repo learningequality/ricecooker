@@ -5,6 +5,7 @@ from io import BytesIO
 import ebooklib.epub
 from pdf2image import convert_from_path
 from PIL import Image
+from PyPDF2 import PdfFileReader
 
 from .thumbscropping import scale_and_crop
 
@@ -107,14 +108,52 @@ def create_image_from_zip(htmlfile, fpath_out, crop="smart"):
         raise ThumbnailGenerationError("Fail on zip {} {}".format(htmlfile, e))
 
 
-def create_image_from_pdf_page(fpath_in, fpath_out, page_number=0, crop=None):
+def _pdf_page_width_px(fpath_in, page_number, dpi):
+    """
+    Native render width in pixels of the given pdf page at `dpi`, accounting
+    for page rotation, or None when the page dimensions cannot be read.
+    """
+    try:
+        # Open the file ourselves: PyPDF2 never closes streams it opens from
+        # a path string.
+        with open(fpath_in, "rb") as f:
+            # convert_from_path's page numbering is 1-based (0 is clamped to 1).
+            page = PdfFileReader(f, strict=False).getPage(max(page_number - 1, 0))
+            media_box = page.mediaBox
+            width_pts = float(media_box.getWidth())
+            if (page.get("/Rotate") or 0) % 180:
+                width_pts = float(media_box.getHeight())
+        return width_pts / 72 * dpi
+    except Exception:
+        return None
+
+
+def create_image_from_pdf_page(
+    fpath_in, fpath_out, page_number=0, crop=None, max_width=None
+):
     """
     Create an image from the pdf at fpath_in and write result to fpath_out.
+
+    Pass max_width to cap the rendered width (preserving aspect ratio);
+    this avoids enormous intermediate images for large-format pages.
+    Pages that would render narrower than max_width are not upscaled.
     """
     try:
         assert fpath_in.endswith("pdf"), "File must be in pdf format"
+        size = None
+        if max_width:
+            native_width = _pdf_page_width_px(fpath_in, page_number, 500)
+            # Cap, don't force: poppler's -scale-to-x renders at exactly the
+            # given width, so only pass it for pages that would render wider.
+            # When the page size can't be read, apply the cap defensively.
+            if native_width is None or native_width > max_width:
+                size = (max_width, None)
         pages = convert_from_path(
-            fpath_in, 500, first_page=page_number, last_page=page_number + 1
+            fpath_in,
+            500,
+            first_page=page_number,
+            last_page=page_number + 1,
+            size=size,
         )
         page = pages[0]
         # resize

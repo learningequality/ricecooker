@@ -31,7 +31,6 @@ def uploadchannel(  # noqa: C901
     chef,
     command="uploadchannel",
     update=False,
-    thumbnails=False,
     download_attempts=3,
     resume=False,
     step=Status.LAST.name,
@@ -47,7 +46,6 @@ def uploadchannel(  # noqa: C901
         chef (SushiChef subclass): class that implements the construct_channel method
         command (str): the action we want to perform in this run
         update (bool): indicates whether to re-download files (optional)
-        thumbnails (bool): indicates whether to automatically derive thumbnails from content (optional)
         download_attempts (int): number of times to retry downloading files (optional)
         resume (bool): indicates whether to resume last session automatically (optional)
         step (str): step to resume process from (optional)
@@ -64,7 +62,6 @@ def uploadchannel(  # noqa: C901
     config.UPDATE = update
     config.COMPRESS = chef.get_setting("compress", False)
     config.VIDEO_HEIGHT = chef.get_setting("video-height", None)
-    config.THUMBNAILS = chef.get_setting("thumbnails", False)
     config.STAGE = stage
     config.PUBLISH = publish
     config.FILE_PIPELINE = chef.file_pipeline

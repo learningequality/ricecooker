@@ -9,7 +9,6 @@ from le_utils.constants import languages
 from requests import HTTPError
 
 from .. import config
-from ..exceptions import UnknownFileTypeError
 from ricecooker.utils.caching import FILECACHE
 from ricecooker.utils.caching import get_cache_filename
 from ricecooker.utils.images import create_image_from_epub
@@ -22,6 +21,7 @@ from ricecooker.utils.pipeline.convert import AudioCompressionHandler
 from ricecooker.utils.pipeline.convert import ImageConversionHandler
 from ricecooker.utils.pipeline.convert import SubtitleConversionHandler
 from ricecooker.utils.pipeline.convert import VideoCompressionHandler
+from ricecooker.utils.pipeline.context import NODE_HAS_THUMBNAIL
 from ricecooker.utils.pipeline.exceptions import ExpectedFileException
 from ricecooker.utils.pipeline.exceptions import InvalidFileException
 from ricecooker.utils.pipeline.transfer import CatchAllWebResourceDownloadHandler
@@ -35,14 +35,16 @@ fallback_pipeline = FilePipeline()
 # Lookup table for convertible file formats for a given preset
 # used for converting avi/flv/etc. videos and srt subtitles
 CONVERTIBLE_FORMATS = {p.id: p.convertible_formats for p in format_presets.PRESETLIST}
+PRESET_LOOKUP = {p.id: p for p in format_presets.PRESETLIST}
 
 
 class ThumbnailPresetMixin(object):
     def get_preset(self):
-        thumbnail_preset = self.node.get_thumbnail_preset()
-        if thumbnail_preset is None:
-            UnknownFileTypeError("Thumbnails are not supported for node kind.")
-        return thumbnail_preset
+        # May return None: the node's kind may not be known yet (a uri-based
+        # node before the pipeline has run), or may have no thumbnail preset
+        # (e.g. StudioContentNode, whose serialized thumbnail overrides rely
+        # on a None preset being resolved by Studio).
+        return self.node.get_thumbnail_preset()
 
 
 class File(object):
@@ -99,6 +101,27 @@ class File(object):
             f"preset must be set if preset and default_preset isn't specified when creating {self.__class__.__name__} "
             f"object for file {self.filename} ({self.original_filename})"
         )
+
+    def is_thumbnail(self):
+        """
+        Whether this file is a thumbnail, based on its format preset.
+        Returns False when the preset cannot be resolved (a ThumbnailFile not yet attached to a node, or a File with no preset).
+        """
+        try:
+            # For ThumbnailPresetMixin files this may resolve to None (kind
+            # not yet known, or no thumbnail preset for the kind), which the
+            # PRESET_LOOKUP check below maps to False.
+            preset = self.get_preset()
+        except NotImplementedError:
+            # File with no preset and no default_preset.
+            return False
+        except AttributeError:
+            if self.node is None:
+                # ThumbnailFile (ThumbnailPresetMixin) not yet attached to a node.
+                return False
+            raise
+        preset_obj = PRESET_LOOKUP.get(preset)
+        return bool(preset_obj and preset_obj.thumbnail)
 
     def get_filename(self):
         return self.filename or self.process_file()
@@ -209,8 +232,14 @@ class DownloadFile(File):
             except ValueError as ve:
                 raise InvalidFileException from ve
             pipeline = config.FILE_PIPELINE or fallback_pipeline
+            # This legacy path only consumes the first (source) metadata entry,
+            # and thumbnails for legacy nodes are generated at the node level
+            # (generate_missing_thumbnail), so always skip the pipeline
+            # thumbnail stage rather than generate an image only to discard it.
+            context = dict(self.context)
+            context[NODE_HAS_THUMBNAIL] = True
             metadata = pipeline.execute(
-                self.path, context=self.context, skip_cache=config.UPDATE
+                self.path, context=context, skip_cache=config.UPDATE
             )[0]
             metadata = metadata.to_dict()
             for key in metadata:
@@ -536,7 +565,7 @@ class ExtractedThumbnailFile(ThumbnailFile):
 
 
 class ExtractedPdfThumbnailFile(ExtractedThumbnailFile):
-    extractor_kwargs = {"page_number": 0, "crop": None}
+    extractor_kwargs = {"page_number": 0, "crop": None, "max_width": 1000}
     allowed_formats = DocumentFile.allowed_formats
 
     def extractor_fun(self, fpath_in, thumbpath_out, **kwargs):
@@ -573,16 +602,25 @@ class TiledThumbnailFile(ThumbnailPresetMixin, File):
     def __init__(self, source_nodes, **kwargs):
         self.sources = []
         for n in source_nodes:
-            images = [
-                f for f in n.files if isinstance(f, ThumbnailFile) and f.get_filename()
-            ]
-            if len(images) > 0:
-                self.sources.append(images[0])
+            # Check f.filename directly (not get_filename()) so a thumbnail
+            # that failed to process is skipped rather than re-processed here.
+            image = next((f for f in n.files if f.is_thumbnail() and f.filename), None)
+            if image:
+                self.sources.append(image)
         super(TiledThumbnailFile, self).__init__(**kwargs)
 
     def process_file(self):
-        self.filename = self.generate_tiled_image()
-        config.LOGGER.info("\t--- Tiled image {}".format(self.filename))
+        try:
+            self.filename = self.generate_tiled_image()
+            if self.filename:
+                config.LOGGER.info("\t--- Tiled image {}".format(self.filename))
+            else:
+                config.LOGGER.info("\t--- No source thumbnails to tile")
+        except ThumbnailGenerationError as err:
+            config.LOGGER.warning("\t    Failed to generate tiled image {}".format(err))
+            self.filename = None
+            self.error = str(err)
+            config.FAILED_FILES.append(self)
         return self.filename
 
     def generate_tiled_image(self):

@@ -44,10 +44,11 @@ Each `Node` subclass implements the `process_files` method which includes the
 following steps:
   - call `process_file` on all files associated with the node (described below)
   - if the node has children, `process_files` is called on all child nodes
-  - call the node's `generate_thumbnail` method if it doesn't have a thumbnail
-    already, and the node has `derive_thumbnail` set to True, or if the global
-    command line argument `--thumbnail` (config.THUMBNAILS) is set to True.
-    See notes section "Node.generate_thumbnail".
+  - for content nodes: call `generate_missing_thumbnail` when no thumbnail has been
+    provided, generating one automatically from the node's content files.
+    Topic nodes skip this step; their thumbnails are generated in a separate
+    post-pass by `ChannelManager.generate_deferred_thumbnails()`, which runs after
+    all nodes have been processed and tiles the thumbnails of descendant content nodes.
 
 The result of the `node.process_file()` is a list of processed filenames, that
 reference files in the content-addressable storage directory `/content/storage/`.

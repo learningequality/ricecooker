@@ -1379,6 +1379,8 @@ def test_html5_zip_cache_keys(mock_filecache, html_file):
     html = HTMLZipFile(path)
     html.process_file()
 
+    # No THUMBNAIL key: the legacy DownloadFile path skips the pipeline
+    # thumbnail stage (node-level generation handles legacy thumbnails).
     expected_keys = {
         f"DOWNLOAD:{path}",
         f"CONVERT:{html.filename}",

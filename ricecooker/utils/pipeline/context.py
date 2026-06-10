@@ -4,6 +4,11 @@ from typing import Optional
 from typing import Type
 
 
+# Context key used by producers (nodes, chefs) to tell the thumbnail stage
+# that the node already has a thumbnail, so generation can be skipped.
+NODE_HAS_THUMBNAIL = "node_has_thumbnail"
+
+
 class AutoDataClassMetaClass(type):
     def __new__(mcs, name: str, bases: tuple, namespace: dict) -> Type:
         cls = super().__new__(mcs, name, bases, namespace)

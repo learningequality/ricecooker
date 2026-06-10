@@ -17,7 +17,6 @@ def cli_args_and_expected():
         "warn": False,
         "quiet": False,
         "compress": False,
-        "thumbnails": False,
         "download_attempts": 3,
         "resume": False,
         "step": "LAST",
@@ -25,6 +24,7 @@ def cli_args_and_expected():
         "reset_deprecated": False,
         "stage": True,
         "stage_deprecated": False,
+        "thumbnails_deprecated": False,
         "publish": False,
         "sample": None,
     }
@@ -37,6 +37,14 @@ def cli_args_and_expected():
         {  # nowadays we've changed the CLI defaults so don't need to specify these
             "cli_input": "./sushichef.py --token=letoken",
             "expected_args": dict(defaults, token="letoken"),
+            "expected_options": {},
+        },
+        {  # --thumbnails is deprecated (generation is always on) but must
+            # still parse as a no-op rather than crash options parsing
+            "cli_input": "./sushichef.py --token=letoken --thumbnails",
+            "expected_args": dict(
+                defaults, token="letoken", thumbnails_deprecated=True
+            ),
             "expected_options": {},
         },
         {
