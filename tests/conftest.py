@@ -43,7 +43,6 @@ from ricecooker.classes.nodes import VideoNode
 from ricecooker.classes.questions import InputQuestion
 from ricecooker.classes.questions import SingleSelectQuestion
 
-
 # GLOBAL TEST SETUP/TEARDOWN UTILS
 ################################################################################
 

@@ -8,8 +8,6 @@ from le_utils.constants import format_presets
 from le_utils.constants import languages
 from requests import HTTPError
 
-from .. import config
-from ..exceptions import UnknownFileTypeError
 from ricecooker.utils.caching import FILECACHE
 from ricecooker.utils.caching import get_cache_filename
 from ricecooker.utils.images import create_image_from_epub
@@ -29,6 +27,9 @@ from ricecooker.utils.utils import copy_file_to_storage
 from ricecooker.utils.utils import extract_path_ext
 from ricecooker.utils.videos import extract_thumbnail_from_video
 from ricecooker.utils.youtube import get_language_with_alpha2_fallback
+
+from .. import config
+from ..exceptions import UnknownFileTypeError
 
 fallback_pipeline = FilePipeline()
 

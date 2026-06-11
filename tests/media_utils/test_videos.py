@@ -14,7 +14,6 @@ from le_utils.constants import format_presets
 
 from ricecooker.utils import videos
 
-
 # cache, so we don't keep requesting the full videos
 if sys.version_info[0] == 3:
     requests_cache.install_cache("video_cache_py3")

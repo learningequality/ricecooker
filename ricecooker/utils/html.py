@@ -11,12 +11,12 @@ import chardet
 import requests
 from selenium import webdriver
 
-from .caching import CacheControlAdapter
-from .caching import FileCache
 from ricecooker.config import LOGGER
 from ricecooker.config import PHANTOMJS_PATH
 from ricecooker.config import STRICT
 
+from .caching import CacheControlAdapter
+from .caching import FileCache
 
 # create a default session with basic caching mechanisms (similar to what a browser would do)
 sess = requests.Session()

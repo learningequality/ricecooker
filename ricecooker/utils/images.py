@@ -8,7 +8,6 @@ from PIL import Image
 
 from .thumbscropping import scale_and_crop
 
-
 # SMARTCROP UTILS
 ################################################################################
 

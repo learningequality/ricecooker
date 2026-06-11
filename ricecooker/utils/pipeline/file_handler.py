@@ -15,15 +15,16 @@ from typing import Optional
 from typing import Type
 from typing import Union
 
-from .context import ContextMetadata
-from .context import FileMetadata
-from .exceptions import ExpectedFileException
-from .exceptions import InvalidFileException
 from ricecooker import config
 from ricecooker.utils.caching import get_cache_data
 from ricecooker.utils.caching import set_cache_data
 from ricecooker.utils.utils import copy_file_to_storage
 from ricecooker.utils.utils import extract_path_ext
+
+from .context import ContextMetadata
+from .context import FileMetadata
+from .exceptions import ExpectedFileException
+from .exceptions import InvalidFileException
 
 
 class Handler(ABC):

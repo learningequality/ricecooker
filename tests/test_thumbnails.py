@@ -21,7 +21,6 @@ from ricecooker.classes.nodes import HTML5AppNode
 from ricecooker.classes.nodes import TopicNode
 from ricecooker.classes.nodes import VideoNode
 
-
 SHOW_THUMBS = False  # set to True to show outputs when running tests locally
 
 

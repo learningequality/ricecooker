@@ -11,6 +11,7 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import pytest
+from conftest import download_fixture_file
 from le_utils.constants import file_formats
 from le_utils.constants import format_presets
 from le_utils.constants import languages
@@ -19,7 +20,6 @@ from PIL import Image
 from PyPDF2 import PdfFileWriter
 from requests import ConnectionError
 from requests import HTTPError
-from conftest import download_fixture_file
 from vcr_config import my_vcr
 
 from ricecooker import config

@@ -15,7 +15,6 @@ from le_utils.constants.licenses import SPECIAL_PERMISSIONS
 
 from ricecooker.classes.licenses import get_license
 
-
 """ *********** LICENSE FIXTURES *********** """
 
 

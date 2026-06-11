@@ -5,7 +5,6 @@ import pytest
 from ricecooker.utils import proxy
 from ricecooker.utils.youtube import YouTubeResource
 
-
 YOUTUBE_TEST_VIDEO = "https://www.youtube.com/watch?v=C0DPdy98e4c"
 YOUTUBE_TEST_PLAYLIST = "https://www.youtube.com/playlist?list=PL472BC6F4F2C3ABEF"
 

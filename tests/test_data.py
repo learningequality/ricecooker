@@ -11,7 +11,6 @@ from ricecooker.classes.nodes import TopicNode
 from ricecooker.exceptions import InvalidNodeException
 from ricecooker.exceptions import InvalidQuestionException
 
-
 """ *********** CHANNEL TESTS *********** """
 
 

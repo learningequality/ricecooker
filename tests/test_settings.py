@@ -8,7 +8,6 @@ from requests import PreparedRequest
 from ricecooker import chefs
 from ricecooker.utils.request_utils import DomainSpecificAuth
 
-
 settings = {"thumbnails": True, "compress": True}
 
 

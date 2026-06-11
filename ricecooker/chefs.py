@@ -10,6 +10,10 @@ from warnings import warn
 
 import requests
 
+from ricecooker.utils.images import convert_image
+from ricecooker.utils.pipeline import FilePipeline
+from ricecooker.utils.request_utils import DomainSpecificAuth
+
 from . import config
 from .classes import files
 from .classes import nodes
@@ -31,10 +35,6 @@ from .utils.metadata_provider import DEFAULT_EXERCISES_INFO_FILENAME
 from .utils.tokens import get_content_curation_token
 from .utils.youtube import YouTubePlaylistUtils
 from .utils.youtube import YouTubeVideoUtils
-from ricecooker.utils.images import convert_image
-from ricecooker.utils.pipeline import FilePipeline
-from ricecooker.utils.request_utils import DomainSpecificAuth
-
 
 # SUSHI CHEF BASE CLASS
 ################################################################################

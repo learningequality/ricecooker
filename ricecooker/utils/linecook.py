@@ -3,6 +3,8 @@ import os
 
 from le_utils.constants import content_kinds
 
+from ricecooker.config import LOGGER
+
 from .jsontrees import AUDIO_FILE
 from .jsontrees import AUDIO_NODE
 from .jsontrees import DOCUMENT_FILE
@@ -16,8 +18,6 @@ from .jsontrees import VIDEO_FILE
 from .jsontrees import VIDEO_NODE
 from .jsontrees import write_tree_to_json_tree
 from .metadata_provider import path_to_tuple
-from ricecooker.config import LOGGER
-
 
 # LINECOOK CONFIGS
 ################################################################################

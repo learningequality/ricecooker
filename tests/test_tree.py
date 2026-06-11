@@ -42,7 +42,6 @@ from ricecooker.utils.jsontrees import build_tree_from_json
 from ricecooker.utils.pipeline import FilePipeline
 from ricecooker.utils.zip import create_predictable_zip
 
-
 """ *********** TOPIC FIXTURES *********** """
 
 

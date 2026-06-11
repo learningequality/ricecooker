@@ -13,7 +13,6 @@ from ricecooker.classes.questions import MARKDOWN_IMAGE_REGEX
 from ricecooker.config import LOGGER
 from ricecooker.utils.libstudio import StudioApi
 
-
 # CONSTANTS
 ################################################################################
 DEFAULT_EXTRA_ITEMS_SEPARATOR = "🍣"  # used to separate list-like data in CSV
@@ -893,9 +892,7 @@ class CsvMetadataProvider(MetadataProvider):
         add content node rows for all the files in the `rel_path` folder.
         """
         LOGGER.debug("IN process_folder " + str(rel_path) + "     " + str(filenames))
-        from ricecooker.utils.linecook import (
-            filter_filenames,
-        )
+        from ricecooker.utils.linecook import filter_filenames
 
         # WRITE TOPIC ROW
         topicrow = self.channeldir_node_to_row(rel_path.split(os.path.sep))

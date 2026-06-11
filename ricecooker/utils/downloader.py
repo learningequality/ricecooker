@@ -58,7 +58,9 @@ archiver = None
 # Flake8 thinks this is too complex.
 try:  # noqa: C901
     import asyncio
-    from pyppeteer import launch, errors
+
+    from pyppeteer import errors
+    from pyppeteer import launch
 
     async def load_page(path, timeout=30, strict=True):
         browser = await launch({"headless": True})

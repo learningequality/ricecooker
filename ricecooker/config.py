@@ -13,7 +13,6 @@ import tempfile
 import requests
 from requests_file import FileAdapter
 
-
 UPDATE = False
 COMPRESS = False
 VIDEO_HEIGHT = None
