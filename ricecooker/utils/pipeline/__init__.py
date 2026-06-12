@@ -4,12 +4,12 @@ from copy import deepcopy
 from typing import Dict
 from typing import Optional
 
+from ricecooker.utils.pipeline.context import FileMetadata
+
 from .convert import ConversionStageHandler
 from .extract_metadata import ExtractMetadataStageHandler
 from .file_handler import CompositeHandler
 from .transfer import DownloadStageHandler
-from ricecooker.utils.pipeline.context import FileMetadata
-
 
 # Do this to prevent import of broken Windows filetype registry that makes guesstype not work.
 # https://www.thecodingforums.com/threads/mimetypes-guess_type-broken-in-windows-on-py2-7-and-python-3-x.952693/

@@ -6,8 +6,9 @@ import sys
 
 from requests.exceptions import RequestException
 
-from .. import config
 from ricecooker.exceptions import InvalidNodeException
+
+from .. import config
 
 
 class InsufficientStorageException(Exception):

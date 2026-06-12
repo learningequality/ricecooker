@@ -6,7 +6,6 @@ from urllib.parse import urlparse
 
 from ricecooker import config
 
-
 VALID_UUID_REGEX = re.compile("^([a-f0-9]{32})$")
 
 

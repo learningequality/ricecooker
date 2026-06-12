@@ -18,6 +18,9 @@ from le_utils.constants.labels import needs
 from le_utils.constants.labels import resource_type
 from le_utils.constants.labels import subjects
 
+from ricecooker.utils.pipeline.exceptions import ExpectedFileException
+from ricecooker.utils.pipeline.exceptions import InvalidFileException
+
 from .. import __version__
 from .. import config
 from ..exceptions import InvalidNodeException
@@ -32,8 +35,6 @@ from .files import YouTubeSubtitleFile
 from .licenses import License
 from .questions import VARIANT_A
 from .questions import VARIANT_B
-from ricecooker.utils.pipeline.exceptions import ExpectedFileException
-from ricecooker.utils.pipeline.exceptions import InvalidFileException
 
 MASTERY_MODELS = [id for id, name in exercises.MASTERY_MODELS]
 ROLES = [id for id, name in roles.choices]
@@ -991,7 +992,9 @@ class VideoNode(ContentNode):
     required_presets = (format_presets.VIDEO_HIGH_RES, format_presets.VIDEO_LOW_RES)
 
     def generate_thumbnail(self):
-        from .files import VideoFile, WebVideoFile, ExtractedVideoThumbnailFile
+        from .files import ExtractedVideoThumbnailFile
+        from .files import VideoFile
+        from .files import WebVideoFile
 
         video_files = [
             f
@@ -1315,7 +1318,8 @@ class SlideshowNode(ContentNode):
         Args: file (SlideshowNode or ThumbnailFile): file model to add to node
         Returns: None
         """
-        from .files import ThumbnailFile, SlideImageFile
+        from .files import SlideImageFile
+        from .files import ThumbnailFile
 
         assert isinstance(file_to_add, ThumbnailFile) or isinstance(
             file_to_add, SlideImageFile

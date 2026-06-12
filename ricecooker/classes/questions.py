@@ -7,12 +7,13 @@ import uuid
 from bs4 import BeautifulSoup
 from le_utils.constants import exercises
 
+from ricecooker.utils.encodings import get_base64_encoding
+
 from .. import config
 from ..exceptions import InvalidQuestionException
 from .files import _ExerciseBase64ImageFile
 from .files import _ExerciseGraphieFile
 from .files import _ExerciseImageFile
-from ricecooker.utils.encodings import get_base64_encoding
 
 # Reusable protocol and path pattern for Perseus questions
 PERSEUS_PROTOCOL_PATH = (

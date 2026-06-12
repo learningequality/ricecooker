@@ -12,7 +12,6 @@ import requests
 from ricecooker.config import LOGGER
 from ricecooker.utils.libstudio import StudioApi
 
-
 # CONFIG CONSTANTS for data directories
 ################################################################################
 STUDIO_CREDENTIALS = "credentials/studio.json"

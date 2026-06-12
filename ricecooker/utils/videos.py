@@ -6,8 +6,9 @@ from typing import Tuple
 
 from le_utils.constants import format_presets
 
-from .images import ThumbnailGenerationError
 from ricecooker import config
+
+from .images import ThumbnailGenerationError
 
 LOGGER = logging.getLogger("VideoResource")
 LOGGER.setLevel(logging.DEBUG)

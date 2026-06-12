@@ -1,0 +1,5 @@
+# Run this command to always ignore formatting commits in `git blame`
+# git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# Reformatted imports after enabling ruff isort rules
+4a50b65bf9a2e784b773f8cdcc2278d115b3c67d

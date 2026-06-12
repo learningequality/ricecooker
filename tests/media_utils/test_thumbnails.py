@@ -3,13 +3,13 @@ import os
 import PIL
 import pytest
 
+from ricecooker.utils import images
+from ricecooker.utils import videos
+
 from .test_videos import bad_video  # noqa F401
 from .test_videos import high_res_video  # noqa F401
 from .test_videos import low_res_video  # noqa F401
 from .test_videos import TempFile  # noqa F401
-from ricecooker.utils import images
-from ricecooker.utils import videos
-
 
 tests_dir = os.path.dirname(os.path.abspath(__file__))
 files_dir = os.path.join(tests_dir, "files")

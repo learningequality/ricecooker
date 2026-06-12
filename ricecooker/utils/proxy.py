@@ -12,7 +12,6 @@ import time
 
 import requests
 
-
 PROXY_LIST = []  # Current list of proxy servers to choose from
 
 RECENT_PROXIES = []  # Recently used proxies (to avoid using too often)

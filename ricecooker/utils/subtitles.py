@@ -12,7 +12,6 @@ from pycaption import WebVTTReader
 from pycaption import WebVTTWriter
 from pycaption.base import DEFAULT_LANGUAGE_CODE
 
-
 LANGUAGE_CODE_UNKNOWN = DEFAULT_LANGUAGE_CODE
 
 

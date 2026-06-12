@@ -1,14 +1,14 @@
 from le_utils.constants import file_formats
 from le_utils.constants import format_presets
 
-from .file_handler import ExtensionMatchingHandler
-from .file_handler import StageHandler
 from ricecooker.utils.pipeline.context import ContentNodeMetadata
 from ricecooker.utils.pipeline.context import FileMetadata
 from ricecooker.utils.utils import extract_path_ext
 from ricecooker.utils.videos import extract_duration_of_media
 from ricecooker.utils.videos import guess_video_preset_by_resolution
 
+from .file_handler import ExtensionMatchingHandler
+from .file_handler import StageHandler
 
 PRESETS_FROM_EXTENSIONS = {
     file_formats.MP3: format_presets.AUDIO,

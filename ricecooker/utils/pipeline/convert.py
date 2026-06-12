@@ -28,8 +28,6 @@ from PIL import UnidentifiedImageError
 from PyPDF2 import PdfFileReader
 from PyPDF2.utils import PdfReadError
 
-from .file_handler import ExtensionMatchingHandler
-from .file_handler import StageHandler
 from ricecooker import config
 from ricecooker.exceptions import UnknownFileTypeError
 from ricecooker.utils.audio import AudioCompressionError
@@ -49,6 +47,8 @@ from ricecooker.utils.videos import VideoCompressionError
 from ricecooker.utils.youtube import get_language_with_alpha2_fallback
 from ricecooker.utils.zip import create_predictable_zip
 
+from .file_handler import ExtensionMatchingHandler
+from .file_handler import StageHandler
 
 CONVERTIBLE_FORMATS = {p.id: p.convertible_formats for p in format_presets.PRESETLIST}
 

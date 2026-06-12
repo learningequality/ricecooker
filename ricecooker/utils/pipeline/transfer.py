@@ -19,10 +19,6 @@ from requests.exceptions import InvalidSchema
 from requests.exceptions import InvalidURL
 from requests.exceptions import Timeout
 
-from .context import ContextMetadata
-from .context import FileMetadata
-from .file_handler import FileHandler
-from .file_handler import StageHandler
 from ricecooker import config
 from ricecooker.utils.caching import generate_key
 from ricecooker.utils.encodings import get_base64_encoding
@@ -31,6 +27,11 @@ from ricecooker.utils.utils import extract_path_ext
 from ricecooker.utils.utils import get_hash
 from ricecooker.utils.youtube import get_language_with_alpha2_fallback
 from ricecooker.utils.youtube import YouTubeResource
+
+from .context import ContextMetadata
+from .context import FileMetadata
+from .file_handler import FileHandler
+from .file_handler import StageHandler
 
 
 class GenericFileContextMetadata(ContextMetadata):

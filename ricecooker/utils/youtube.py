@@ -14,7 +14,6 @@ from le_utils.constants import languages
 from . import proxy
 from . import utils
 
-
 LOGGER = logging.getLogger("YouTubeResource")
 LOGGER.setLevel(logging.DEBUG)
 

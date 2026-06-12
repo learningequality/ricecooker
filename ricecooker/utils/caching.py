@@ -13,7 +13,6 @@ from ricecooker import config
 from ricecooker.utils.utils import get_hash
 from ricecooker.utils.utils import is_valid_url
 
-
 # Cache for filenames
 FILECACHE = FileCache(config.FILECACHE_DIRECTORY, forever=True)
 
