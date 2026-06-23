@@ -8,6 +8,7 @@ import uuid
 
 import pytest
 from le_utils.constants import exercises
+from le_utils.constants import format_presets
 from le_utils.constants import licenses
 from test_videos import _clear_ricecookerfilecache
 
@@ -393,6 +394,14 @@ def test_exercise_base64_image_file(
     filename = exercise_base64_image_file.get_filename()
     assert filename == exercise_base64_image_filename, (
         "wrong filename for _ExerciseBase64ImageFile"
+    )
+
+
+def test_exercise_base64_image_preset(exercise_base64_image_file):
+    # Exercise images are attached to a question, not a node, so get_preset
+    # must not rely on ThumbnailPresetMixin's node dereference.
+    assert exercise_base64_image_file.get_preset() == format_presets.EXERCISE_IMAGE, (
+        "wrong preset for _ExerciseBase64ImageFile"
     )
 
 
