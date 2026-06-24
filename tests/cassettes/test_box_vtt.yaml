@@ -1,0 +1,249 @@
+interactions:
+- request:
+    body: grant_type=client_credentials&box_subject_type=enterprise
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '173'
+      Content-Type:
+      - application/x-www-form-urlencoded
+      User-Agent:
+      - box-python-generated-sdk-10.5.0
+      X-Box-UA:
+      - agent=box-python-generated-sdk/10.5.0; env=python/3.10.19
+    method: POST
+    uri: https://api.box.com/oauth2/token
+  response:
+    body:
+      string: '{"access_token": "FILTERED", "expires_in": 4119, "restricted_to": [],
+        "token_type": "bearer"}'
+    headers:
+      Alt-Svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      Transfer-Encoding:
+      - chunked
+      box-request-id:
+      - 0afbc97cd862e0e5f11381d4d5e92bf9f
+      cache-control:
+      - no-store
+      content-type:
+      - application/json;charset=UTF-8
+      date:
+      - Fri, 05 Jun 2026 20:21:09 GMT
+      strict-transport-security:
+      - max-age=31536000
+      via:
+      - 1.1 google
+      x-envoy-upstream-service-time:
+      - '170'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+      User-Agent:
+      - box-python-generated-sdk-10.5.0
+      X-Box-UA:
+      - agent=box-python-generated-sdk/10.5.0; env=python/3.10.19
+      boxapi:
+      - shared_link=https://app.box.com/s/2z5rwa70suvtmocwdmv0pedaax539poa
+    method: GET
+    uri: https://api.box.com/2.0/shared_items
+  response:
+    body:
+      string: '{"type": "file", "id": "2267417515024", "file_version": {"type": "file_version",
+        "id": "2509841911024", "sha1": "5080f8972e5ada52364857db8736887b5e8ffaf2"},
+        "sequence_id": "2", "etag": "2", "sha1": "5080f8972e5ada52364857db8736887b5e8ffaf2",
+        "name": "encapsulated.vtt", "description": "", "size": 470, "path_collection":
+        {"total_count": 0, "entries": []}, "created_at": "2026-06-05T12:20:57-07:00",
+        "modified_at": "2026-06-05T12:20:57-07:00", "trashed_at": null, "purged_at":
+        null, "content_created_at": "2024-12-27T10:24:32-08:00", "content_modified_at":
+        "2024-12-27T10:24:32-08:00", "created_by": {"type": "user", "id": "FILTERED",
+        "name": "FILTERED", "login": "FILTERED"}, "modified_by": {"type": "user",
+        "id": "FILTERED", "name": "FILTERED", "login": "FILTERED"}, "owned_by": {"type":
+        "user", "id": "FILTERED", "name": "FILTERED", "login": "FILTERED"}, "shared_link":
+        null, "parent": null, "item_status": "active"}'
+    headers:
+      Alt-Svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      Transfer-Encoding:
+      - chunked
+      box-request-id:
+      - 1cfdaef7c46640a07df9e51a3b8274f61
+      cache-control:
+      - no-cache, no-store
+      content-type:
+      - application/json
+      date:
+      - Fri, 05 Jun 2026 20:21:10 GMT
+      etag:
+      - '"2"'
+      strict-transport-security:
+      - max-age=31536000
+      via:
+      - 1.1 google
+      x-envoy-upstream-service-time:
+      - '184'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+      User-Agent:
+      - box-python-generated-sdk-10.5.0
+      X-Box-UA:
+      - agent=box-python-generated-sdk/10.5.0; env=python/3.10.19
+      boxapi:
+      - shared_link=https://app.box.com/s/2z5rwa70suvtmocwdmv0pedaax539poa
+    method: GET
+    uri: https://api.box.com/2.0/files/2267417515024/content
+  response:
+    body:
+      string: ''
+    headers:
+      Alt-Svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      Content-Length:
+      - '0'
+      box-request-id:
+      - 01f6de2de54e83f77c63640ff646a01d3
+      cache-control:
+      - no-cache, no-store
+      date:
+      - Fri, 05 Jun 2026 20:21:10 GMT
+      location:
+      - https://public.boxcloud.com/d/1/b1!cn8be2quzk7dHDSQi_Kp-IoaDCWr8j0XeITNiNVEqPonXw2p-qFFlh9nqg7PHdnAopy2PqN6angEaAsDocesK-tMpPRSDM2jFpWLqNEWMc-g52rT2aUB2R177YNn1YCFQPCdqBkcUtcQJb3jjuRBK3gD_oW1QeePPqPZDgggZRC1A4FzT1r7tetN34WCbPLjVQt3g2oQSSeSLOq1PNu0IMlb-ii92fM3XZmEzFhEdv_ozRkrW_JrcgksZdEVT-7d4DCvsiJZID2zYCcRPX7BAB9qZaoVBFyZ-eW5cjPrA3iTocsE08TrHofQHVQqAV1m3sGofpvAT08Spzk01ssuJAMSi1AdBIEiz3o1SOHDvQJnMXFaVXZOUQ1AVGb_hAAXh3cFeuOE_G73cmlZ56wm6RhgLECqvBAXKIpY0qxXqcgBlKf4N6vO5r8ex6aGY2NZihUi0qKN3-MdfCTqQcRt6-OB72ef8iiJYhytj6lsuSUVo8wqLupa6CKT09M-cAjdjdDPu5EgRiI9VQ1MTxvN54wsmuOD_59X9cauqQVwKlc2zP7F6Fz0PkCaiqjXS9XFzkbxKPLKlob7I6Xj9jBEe-RHTNpgEpbSEMjujjcfisrkAg4giafv5DUSioe_MpK61fmWOPvCJRIdHO33D6Ydvp0S3VOvHAhqIH1oYd6lpR2pp_O4R00ba-SFQieyybwbtGvxN9suadiIy8wuRIvoXA54SbU3FmyDlO5A5ZG43BEHimPX_hqiV8vUS78x6nw0Kya9mzaPzGb50RJfVsC769qsS0hnDivUHSEnzRCm9vhCJ2QS42RyTzIgMl8U_fUS6NclI0xfKEsRNs-fQSj6j94DGzoxDZ1meeYig0YmDq_SndjQbOyYjB-ZXWjhmY8jz3eHijEmXHsaSgoAB0CHHR789U2fjoObL4KN46GPTNmz0-USEYuCwruBO6hpUMh1ihYe8YCxCS5-gk7EEbH5agl4mJglyxvNfslZkRu0n3uShNAUoqbVkWufqRYrXBvIhVvYV8IOUwVGDD8B26TJ-B1MtN_5vFByrNkrNr-6wcIGGo2qmDXzQS6UsKpkSr8BNnAa82kYwhN43ghgWXuuUIa3ZU51Bq9jOa_GJtM5rikLZd-ftoJ1-Gas3K4wL_SNnfjKoAHGid6OJXC6aC_7TAxNuwY6YJy-p0quj5t2MR47_wErK4g8770ZUghnzfZWQHrKt_kgsm25AwWU5pp_lh8iyzF5EyFOs8i-YP-plwKMnPVEITso3aboFABjpQNEdOGoLMKOz8fGWiyCLiopqbm813DlNcSJX6Sl1k2JZ7zhtIjH2JJTbNbjz0SzODbIkrBD_KG3G0DHY94efbu23QHKws5q9Jj5yploohaKbL_fwaY50ppppcP_8vWHAw2S6fjZdjFghLdTOHQo6UMHt3Ju/download
+      strict-transport-security:
+      - max-age=31536000
+      via:
+      - 1.1 google
+      x-envoy-upstream-service-time:
+      - '309'
+    status:
+      code: 302
+      message: Found
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - box-python-generated-sdk-10.5.0
+      X-Box-UA:
+      - agent=box-python-generated-sdk/10.5.0; env=python/3.10.19
+      boxapi:
+      - shared_link=https://app.box.com/s/2z5rwa70suvtmocwdmv0pedaax539poa
+    method: GET
+    uri: https://public.boxcloud.com/d/1/b1!cn8be2quzk7dHDSQi_Kp-IoaDCWr8j0XeITNiNVEqPonXw2p-qFFlh9nqg7PHdnAopy2PqN6angEaAsDocesK-tMpPRSDM2jFpWLqNEWMc-g52rT2aUB2R177YNn1YCFQPCdqBkcUtcQJb3jjuRBK3gD_oW1QeePPqPZDgggZRC1A4FzT1r7tetN34WCbPLjVQt3g2oQSSeSLOq1PNu0IMlb-ii92fM3XZmEzFhEdv_ozRkrW_JrcgksZdEVT-7d4DCvsiJZID2zYCcRPX7BAB9qZaoVBFyZ-eW5cjPrA3iTocsE08TrHofQHVQqAV1m3sGofpvAT08Spzk01ssuJAMSi1AdBIEiz3o1SOHDvQJnMXFaVXZOUQ1AVGb_hAAXh3cFeuOE_G73cmlZ56wm6RhgLECqvBAXKIpY0qxXqcgBlKf4N6vO5r8ex6aGY2NZihUi0qKN3-MdfCTqQcRt6-OB72ef8iiJYhytj6lsuSUVo8wqLupa6CKT09M-cAjdjdDPu5EgRiI9VQ1MTxvN54wsmuOD_59X9cauqQVwKlc2zP7F6Fz0PkCaiqjXS9XFzkbxKPLKlob7I6Xj9jBEe-RHTNpgEpbSEMjujjcfisrkAg4giafv5DUSioe_MpK61fmWOPvCJRIdHO33D6Ydvp0S3VOvHAhqIH1oYd6lpR2pp_O4R00ba-SFQieyybwbtGvxN9suadiIy8wuRIvoXA54SbU3FmyDlO5A5ZG43BEHimPX_hqiV8vUS78x6nw0Kya9mzaPzGb50RJfVsC769qsS0hnDivUHSEnzRCm9vhCJ2QS42RyTzIgMl8U_fUS6NclI0xfKEsRNs-fQSj6j94DGzoxDZ1meeYig0YmDq_SndjQbOyYjB-ZXWjhmY8jz3eHijEmXHsaSgoAB0CHHR789U2fjoObL4KN46GPTNmz0-USEYuCwruBO6hpUMh1ihYe8YCxCS5-gk7EEbH5agl4mJglyxvNfslZkRu0n3uShNAUoqbVkWufqRYrXBvIhVvYV8IOUwVGDD8B26TJ-B1MtN_5vFByrNkrNr-6wcIGGo2qmDXzQS6UsKpkSr8BNnAa82kYwhN43ghgWXuuUIa3ZU51Bq9jOa_GJtM5rikLZd-ftoJ1-Gas3K4wL_SNnfjKoAHGid6OJXC6aC_7TAxNuwY6YJy-p0quj5t2MR47_wErK4g8770ZUghnzfZWQHrKt_kgsm25AwWU5pp_lh8iyzF5EyFOs8i-YP-plwKMnPVEITso3aboFABjpQNEdOGoLMKOz8fGWiyCLiopqbm813DlNcSJX6Sl1k2JZ7zhtIjH2JJTbNbjz0SzODbIkrBD_KG3G0DHY94efbu23QHKws5q9Jj5yploohaKbL_fwaY50ppppcP_8vWHAw2S6fjZdjFghLdTOHQo6UMHt3Ju/download
+  response:
+    body:
+      string: 'WEBVTT
+
+
+        00:09.209 --> 00:12.312
+
+        ( clock ticking )
+
+
+        00:14.848 --> 00:17.000
+
+        MAN:
+
+        When we think
+
+        \u266a ...say bow, wow, \u266a
+
+
+        00:17.000 --> 00:18.752 align:right
+
+        we have this vision of Einstein
+
+
+        00:18.752 --> 00:20.887
+
+        &nbsp;
+
+        as an old, wrinkly man
+
+        with white hair.
+
+
+        00:20.887 --> 00:26.760
+
+        MAN 2:
+
+        E equals m c-squared is
+
+        not about an old Einstein.
+
+
+        00:26.760 --> 00:32.200
+
+        MAN 2:
+
+        It''s all about an eternal Einstein.
+
+
+        00:32.200 --> 00:36.200
+
+        &lt;LAUGHING &amp; WHOOPS!>
+
+        '
+    headers:
+      Alt-Svc:
+      - h3=":443"; ma=2592000
+      Content-Length:
+      - '470'
+      accept-ranges:
+      - bytes
+      cache-control:
+      - private
+      content-disposition:
+      - attachment;filename="encapsulated.vtt";filename*=UTF-8''encapsulated.vtt
+      content-type:
+      - application/octet-stream
+      date:
+      - Fri, 05 Jun 2026 20:21:10 GMT
+      server:
+      - nginx
+      strict-transport-security:
+      - max-age=31536000
+      via:
+      - 1.1 google
+      x-content-type-options:
+      - nosniff
+      x-envoy-upstream-service-time:
+      - '196'
+      x-robots-tag:
+      - noindex, nofollow
+    status:
+      code: 200
+      message: OK
+version: 1

@@ -395,6 +395,78 @@ class GoogleDriveHandler(WebResourceHandler):
         )
 
 
+box_instructions = "Please install ricecooker using `pip install ricecooker[box]` to include required dependencies"
+
+
+class BoxHandler(WebResourceHandler):
+    """Handles downloading from Box shared link URLs"""
+
+    PATTERNS = ["box.com"]
+
+    def __init__(self):
+        super().__init__()
+        self._box_client = None
+
+    @property
+    def HANDLED_EXCEPTIONS(self):
+        try:
+            from box_sdk_gen.box.errors import BoxAPIError
+
+            return [BoxAPIError]
+        except ImportError:
+            return []
+
+    @property
+    def box_client(self):
+        try:
+            from box_sdk_gen import BoxCCGAuth
+            from box_sdk_gen import BoxClient
+            from box_sdk_gen import CCGConfig
+        except ImportError:
+            raise RuntimeError(
+                "Box downloads require the boxsdk library\n" + box_instructions
+            )
+
+        if self._box_client is None:
+            if not config.BOX_CLIENT_ID or not config.BOX_CLIENT_SECRET:
+                raise RuntimeError(
+                    "Box downloads require client credentials.\n"
+                    "Please set BOX_CLIENT_ID, BOX_CLIENT_SECRET, and BOX_ENTERPRISE_ID environment variables."
+                )
+            ccg_config = CCGConfig(
+                client_id=config.BOX_CLIENT_ID,
+                client_secret=config.BOX_CLIENT_SECRET,
+                enterprise_id=config.BOX_ENTERPRISE_ID,
+            )
+            auth = BoxCCGAuth(config=ccg_config)
+            self._box_client = BoxClient(auth=auth)
+        return self._box_client
+
+    def handle_file(self, path: str):
+        boxapi_header = f"shared_link={path}"
+
+        # Resolve the shared link to a file object
+        config.LOGGER.info(f"\tResolving Box shared link: {path}")
+        file_info = self.box_client.shared_links_files.find_file_for_shared_link(
+            boxapi=boxapi_header
+        )
+
+        filename = file_info.name
+        _, ext = os.path.splitext(filename)
+        config.LOGGER.info(
+            f"\tBox file: {filename} (id={file_info.id}, type={file_info.type})"
+        )
+
+        with self.write_file(ext.lstrip(".")) as fh:
+            self.box_client.downloads.download_file_to_output_stream(
+                file_id=file_info.id,
+                output_stream=fh,
+                boxapi=boxapi_header,
+            )
+
+        return FileMetadata(original_filename=filename)
+
+
 class Base64FileHandler(FileHandler):
     def should_handle(self, path: str) -> bool:
         return bool(get_base64_encoding(path))
@@ -419,6 +491,7 @@ class DownloadStageHandler(StageHandler):
     DEFAULT_CHILDREN = [
         YoutubeDownloadHandler,
         GoogleDriveHandler,
+        BoxHandler,
         CatchAllWebResourceDownloadHandler,
         DiskResourceHandler,
         Base64FileHandler,
