@@ -19,8 +19,6 @@ def cli_args_and_expected():
         "compress": False,
         "thumbnails": False,
         "download_attempts": 3,
-        "resume": False,
-        "step": "LAST",
         "prompt": False,
         "reset_deprecated": False,
         "stage": True,
@@ -40,13 +38,6 @@ def cli_args_and_expected():
             "expected_options": {},
         },
         {
-            "cli_input": "./sushichef.py --token=letoken --resume --step=START_UPLOAD",
-            "expected_args": dict(
-                defaults, token="letoken", resume=True, step="START_UPLOAD"
-            ),
-            "expected_options": {},
-        },
-        {
             "cli_input": "./sushichef.py --token=letoken lang=fr",
             "expected_args": dict(defaults, token="letoken"),
             "expected_options": dict(lang="fr"),
@@ -59,7 +50,7 @@ def cli_args_and_expected():
         {
             "cli_input": (
                 "./sushichef.py -uv --warn --compress --download-attempts=4 "
-                "--token=besttokenever --resume --step=PUBLISH_CHANNEL --prompt --deploy --publish"
+                "--token=besttokenever --prompt --deploy --publish"
             ),
             "expected_args": dict(
                 defaults,
@@ -68,8 +59,6 @@ def cli_args_and_expected():
                 compress=True,
                 download_attempts=4,
                 token="besttokenever",
-                resume=True,
-                step="PUBLISH_CHANNEL",
                 prompt=True,
                 stage=False,
                 publish=True,

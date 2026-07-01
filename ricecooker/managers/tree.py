@@ -232,24 +232,19 @@ class ChannelManager:
         Returns: None
         """
         counter = 0
-        files_to_upload = list(
-            set(file_list) - set(self.uploaded_files)
-        )  # In case restoring from previous session
-        try:
-            with concurrent.futures.ThreadPoolExecutor(
-                max_workers=config.TASK_THREADS
-            ) as executor:
-                # Start the upload operations
-                for filename in executor.map(self._handle_upload, files_to_upload):
-                    if filename is not None:
-                        counter += 1
-                        config.LOGGER.info(
-                            "\tUploaded {0} ({count}/{total}) ".format(
-                                filename, count=counter, total=len(files_to_upload)
-                            )
+        files_to_upload = list(set(file_list) - set(self.uploaded_files))
+        with concurrent.futures.ThreadPoolExecutor(
+            max_workers=config.TASK_THREADS
+        ) as executor:
+            # Start the upload operations
+            for filename in executor.map(self._handle_upload, files_to_upload):
+                if filename is not None:
+                    counter += 1
+                    config.LOGGER.info(
+                        "\tUploaded {0} ({count}/{total}) ".format(
+                            filename, count=counter, total=len(files_to_upload)
                         )
-        finally:
-            config.PROGRESS_MANAGER.set_uploading(self.uploaded_files)
+                    )
 
     def reattempt_upload_fails(self):
         """reattempt_upload_fails: uploads failed files to server

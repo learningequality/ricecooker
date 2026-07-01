@@ -108,7 +108,7 @@ If the command succeeds, you should see something like this printed in your term
 
 .. parsed-literal::
 
-    In SushiChef.run method. args={'command': 'uploadchannel', 'token': '<your-access-token>', 'update': False, 'resume': False, 'stage': True, 'publish': False} options={}
+    In SushiChef.run method. args={'command': 'uploadchannel', 'token': '<your-access-token>', 'update': False, 'stage': True, 'publish': False} options={}
     Logged in with username you@yourdomain.org
     Ricecooker v0.6.42 is up-to-date.
 

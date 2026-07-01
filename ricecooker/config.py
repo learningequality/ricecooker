@@ -3,7 +3,6 @@ Settings and global config values for ricecooker.
 """
 
 import atexit
-import hashlib
 import logging.config
 import os
 import shutil
@@ -18,7 +17,6 @@ COMPRESS = False
 VIDEO_HEIGHT = None
 THUMBNAILS = False
 PUBLISH = False
-PROGRESS_MANAGER = None
 SUSHI_BAR_CLIENT = None
 FILE_PIPELINE = None
 STAGE = False
@@ -139,7 +137,7 @@ def setup_logging(level=logging.INFO, main_log=None, error_log=None, add_loggers
 setup_logging()
 
 
-# Domain and file store location for uploading to production Studio server
+# Domain for uploading to production Studio server
 DEFAULT_DOMAIN = "https://api.studio.learningequality.org"
 DOMAIN_ENV = os.getenv("STUDIO_URL", None)
 if DOMAIN_ENV is None:  # check old ENV varable for backward compatibility
@@ -147,7 +145,6 @@ if DOMAIN_ENV is None:  # check old ENV varable for backward compatibility
 DOMAIN = DOMAIN_ENV if DOMAIN_ENV else DEFAULT_DOMAIN
 if DOMAIN.endswith("/"):
     DOMAIN = DOMAIN.rstrip("/")
-FILE_STORE_LOCATION = hashlib.md5(DOMAIN.encode("utf-8")).hexdigest()
 
 try:
     TASK_THREADS = int(os.environ.get("TASK_THREADS"))
@@ -190,9 +187,6 @@ PUBLISH_CHANNEL_URL = "{domain}/api/internal/publish_channel"
 STORAGE_DIRECTORY = os.getenv(
     "RICECOOKER_STORAGE", os.path.join(CURRENT_CWD, "storage")
 )
-
-# Folder to store progress tracking information
-RESTORE_DIRECTORY = "restore"
 
 # Session for communicating to Kolibri Studio
 SESSION = requests.Session()
@@ -386,29 +380,6 @@ def authentication_url():
     Returns: string url to authenticate_user_internal endpoint
     """
     return AUTHENTICATION_URL.format(domain=DOMAIN)
-
-
-def init_file_mapping_store():
-    """init_file_mapping_store: creates log to keep track of downloaded files
-    Args: None
-    Returns: None
-    """
-    # Make storage directory for restore files if it doesn't already exist
-    path = os.path.join(RESTORE_DIRECTORY, FILE_STORE_LOCATION)
-    if not os.path.exists(path):
-        os.makedirs(path)
-
-
-def get_restore_path(filename):
-    """get_restore_path: returns path to directory for restoration points
-    Args:
-        filename (str): Name of file to store
-    Returns: string path to file
-    """
-    path = os.path.join(RESTORE_DIRECTORY, FILE_STORE_LOCATION)
-    if not os.path.exists(path):
-        os.makedirs(path)
-    return os.path.join(path, filename + ".pickle")
 
 
 def check_version_url():
