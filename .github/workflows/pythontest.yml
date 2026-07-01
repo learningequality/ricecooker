@@ -32,7 +32,7 @@ jobs:
         os: [windows-latest, ubuntu-latest, macos-latest]
         python-version: ['3.9', '3.10', '3.11', '3.12', '3.13']
     steps:
-      - uses: actions/checkout@v6.0.2
+      - uses: actions/checkout@v7.0.0
         if: ${{ needs.pre_job.outputs.should_skip != 'true' }}
         with:
           fetch-depth: 0
@@ -50,7 +50,7 @@ jobs:
           sudo apt-get install -y poppler-utils
         if: ${{ needs.pre_job.outputs.should_skip != 'true' && startsWith(matrix.os, 'ubuntu') }}
       - name: Cache Mac dependencies
-        uses: actions/cache@v5
+        uses: actions/cache@v6.1.0
         if: needs.pre_job.outputs.should_skip != 'true' && matrix.os == 'macos-latest'
         with:
           path: ~/Library/Caches/Homebrew
@@ -73,7 +73,7 @@ jobs:
       - name: Windows dependencies cache
         id: windowscache
         if: needs.pre_job.outputs.should_skip != 'true' && matrix.os == 'windows-latest'
-        uses: actions/cache@v5
+        uses: actions/cache@v6.1.0
         with:
           path: ${{ github.workspace }}\tools
           key: ${{ runner.os }}-${{ matrix.python-version }}-tools-${{ hashFiles('.github/workflows/pythontest.yml') }}
