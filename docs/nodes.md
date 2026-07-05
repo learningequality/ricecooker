@@ -93,7 +93,7 @@ content nodes that aren't for that video need to have different `source_id`s.
 
 ### Licenses
 All content nodes within Kolibri and Kolibri Studio must have a license. The file
-[le_utils/constants/licenses.py](https://github.com/learningequality/le-utils/blob/master/le_utils/constants/licenses.py)
+[le_utils/constants/licenses.py](https://github.com/learningequality/le-utils/blob/main/le_utils/constants/licenses.py)
 contains the constants used to identify the license types. These constants are meant
 to be used in conjunction with the helper method `ricecooker.classes.licenses.get_license`
 to create `Licence` objects.
@@ -115,7 +115,7 @@ the stuff in the public domain.
 ### Languages
 The Python package `le-utils` defines the internal language codes used throughout
 the Kolibri platform (e.g. `en`, `es-MX`, and `zul`). To find the internal language
-code for a given language, you can locate it in the [lookup table](https://github.com/learningequality/le-utils/blob/master/le_utils/resources/languagelookup.json),
+code for a given language, you can locate it in the [lookup table](https://github.com/learningequality/le-utils/blob/main/le_utils/resources/languagelookup.json),
 or use one of the language lookup helper functions defined in `le_utils.constants.languages`:
   - `getlang(<code>) --> lang_obj`: basic lookup used to ensure `<code>` is a valid
     internal language code (otherwise returns `None`).
@@ -185,7 +185,7 @@ For your copy-paste convenience, here is the sample code for creating a content 
     )
 
 The pipeline infers the file(s), format preset, and content `kind` from `uri` —
-see [files.md](./files.md) and [concepts/introduction.md](./concepts/introduction.md#kolibri-channels).
+see [files.md](./files.md) and [concepts/introduction.md](./concepts/introduction.md#supported-content-kinds).
 `uri` accepts a URL or a local filesystem path, and the resource is downloaded
 for you automatically.
 
@@ -313,7 +313,7 @@ They remain useful when you need to attach files the pipeline can't infer
 from a single `uri` alone — e.g. a `VideoNode` with an attached `SubtitleFile`
 (see [files.md](./files.md#subtitle-files)) — though the same effect is
 achieved more simply with `ContentNode(uri=...)` plus `add_file(SubtitleFile(...))`,
-as shown in the [tutorial](../tutorial/tutorial.html#step-6-add-content).
+as shown in the [tutorial](tutorial/tutorial.html#step-6-add-content).
 
 
 SlideshowNode nodes

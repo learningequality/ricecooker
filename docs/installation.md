@@ -1,10 +1,11 @@
 Installation
 ============
 
-You can install `ricecooker` by running the command `pip install ricecooker`,
-which will install the Python package and all its Python dependencies.
-You'll need version 3.9 or higher of Python to use the `ricecooker` framework,
-as well as some software for media file conversions (`ffmpeg` and  `poppler`).
+Ricecooker chef scripts are typically developed inside their own project, managed
+with [`uv`](https://docs.astral.sh/uv/). Add `ricecooker` as a dependency in your
+chef project's `pyproject.toml` and run `uv sync` to install it and its Python
+dependencies. You'll need Python 3.9-3.13 (matching `ricecooker`'s supported
+range), as well as some software for media file conversions (`ffmpeg` and `poppler`).
 
 In the next fifteen minutes or so, we'll setup your computer with all these things
 so you can get started writing your first content integration scripts.
@@ -27,7 +28,7 @@ On a Debian or Ubuntu GNU/Linux, you can install the necessary packages using:
 
 You may need to adjust the package names for other Linux distributions (ContOS/Fedora/OpenSuSE).
 
-*Checklist*: verify your python version is 3.9 or higher by running `python3 --version`.
+*Checklist*: verify your python version is between 3.9 and 3.13 by running `python3 --version`.
 If no `python3` command exists, then try `python --version`.
 Run the commands `ffmpeg -h` and `pdftoppm -h` to make sure they are available.
 
@@ -37,7 +38,7 @@ Mac OS X users can install the necessary software using [Homebrew](https://brew.
 
     brew install  git python3 ffmpeg poppler
 
-*Checklist*: verify you python version is 3.9 or higher by running `python3 --version`.
+*Checklist*: verify your python version is between 3.9 and 3.13 by running `python3 --version`.
 Also run the commands `ffmpeg -h` and `pdftoppm -h` to make sure they are available.
 
 
@@ -59,7 +60,7 @@ several programs and make sure their `bin`-directories are added to the `Path` v
    to your user Path variable following [these instructions](https://www.computerhope.com/issues/ch000549.htm).
      - *Checklist*: Open a new command prompt and type in `ffmpeg -h` and `ffprobe -h`
        to verify the commands `ffmpeg` and `ffprobe` are available on your Path.
-3. Download the file linked under "Latest binary" from [poppler-windows](http://blog.alivate.com.au/poppler-windows/).
+3. Download the latest release archive from [poppler-windows](https://github.com/oschwartz10612/poppler-windows/releases/).
    You will need to download and install [7-zip](https://www.7-zip.org/) to "unzip"
    the `.7z` archive. Extract the file to a some permanent location in your files.
    Add the `bin` folder `poppler-0.xx.y\bin` to your Path variable.
@@ -82,12 +83,21 @@ installation steps and also explains the adding-to-Path process.
 
 Installing Ricecooker
 ---------------------
-To install the `ricecooker` package, simply run this command in a command prompt:
+Create a `pyproject.toml` for your chef project (or use an existing one), then run:
 
-    pip install ricecooker
+    uv add ricecooker
 
-You will see lots of lines scroll on the screen as `pip`, the package installer for Python,
-installs all the Python packages required to create content integration scripts.
+`uv` resolves and installs `ricecooker` and all the Python packages required to
+create content integration scripts into your project's `.venv`, and records the
+dependency in `pyproject.toml`.
+
+
+Contributing to ricecooker itself
+----------------------------------
+If you're contributing to `ricecooker` itself (not just writing a chef script),
+clone the repo and run `uv sync --group dev` to install all dev dependencies,
+`uv run --group test pytest` to run the test suite, and `uvx prek run --all-files`
+to lint before committing — see `AGENTS.md` for the full contributor quick start.
 
 **Reporting issues**: If you run into problems or encounter an error in any of the above steps,
 please let us know by [opening an issue on github](https://github.com/learningequality/ricecooker/issues).

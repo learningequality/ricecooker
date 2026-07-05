@@ -139,7 +139,7 @@ On (8), we set the `language` attribute to the internal language code `en`, to i
 the content node is in English. The Python package `le-utils` defines the internal
 language codes used throughout the Kolibri platform (e.g. `en`, `es-MX`, and `zul`).
 To find the internal language code for a given language, you can locate it in the
-[lookup table](https://github.com/learningequality/le-utils/blob/master/le_utils/resources/languagelookup.json),
+[lookup table](https://github.com/learningequality/le-utils/blob/main/le_utils/resources/languagelookup.json),
 or use one of the language lookup helper functions defined in `le_utils.constants.languages`.
 
 Line (9) shows the `uri` attribute — the path or URL to the actual pdf file. `uri` can be

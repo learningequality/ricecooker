@@ -116,7 +116,7 @@ If the command succeeds, you should see something like this printed in your term
        Validating channel structure...
           Potatoes info channel (ChannelNode): 2 descendants
              Potatoes! (TopicNode): 1 descendant
-                Growing potatoes (DocumentNode): 1 file
+                Growing potatoes (ContentNode): uri: https://www.gov.mb.ca/inr/pdf/pubs/mafri-potatoe.pdf
        Tree is valid
 
     Downloading files...

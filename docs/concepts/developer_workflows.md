@@ -129,7 +129,7 @@ Use the following rubric as a checklist to know when a sushi chef script is done
 ### Metadata checks
 1. Do all nodes have appropriate titles?
 2. Do all nodes have appropriate descriptions (when available in the source)?
-3. Is the correct [language code](https://github.com/learningequality/le-utils/blob/master/le_utils/resources/languagelookup.json)
+3. Is the correct [language code](https://github.com/learningequality/le-utils/blob/main/le_utils/resources/languagelookup.json)
    set on all nodes and files?
 4. Is the `license` field set to the correct value for all nodes?
 5. Is the `source_id` field set consistently for all content nodes?

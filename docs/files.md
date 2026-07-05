@@ -50,7 +50,7 @@ current working directory of the chef script, or the URL of a web resource.
 ### Language
 The Python package `le-utils` defines the internal language codes used throughout
 the Kolibri platform (e.g. `en`, `es-MX`, and `zul`). To find the internal language
-code for a given language, you can locate it in the [lookup table](https://github.com/learningequality/le-utils/blob/master/le_utils/resources/languagelookup.json),
+code for a given language, you can locate it in the [lookup table](https://github.com/learningequality/le-utils/blob/main/le_utils/resources/languagelookup.json),
 or use one of the language lookup helper functions defined in `le_utils.constants.languages`:
   - `getlang(<code>) --> lang_obj`: basic lookup used to ensure `<code>` is a valid
     internal language code (otherwise returns `None`).
@@ -96,6 +96,17 @@ Use the helper method `is_youtube_subtitle_file_supported_language` to test if
 a given youtube language code is supported by `YouTubeSubtitleFile` and skip the
 ones that are not currently supported. Please let the LE content team know when
 you run into language codes that are not supported so we can add them.
+
+`YouTubeSubtitleFile` pairs with the `ContentNode(uri=...)` approach for YouTube
+videos: passing a YouTube URL as `uri` downloads the video, and `YouTubeSubtitleFile`
+downloads the caption track directly from YouTube — no local `.vtt` file needed:
+```
+video_node = ContentNode(
+    source_id, title, license,
+    uri=f"https://www.youtube.com/watch?v={youtube_id}",
+)
+video_node.add_file(YouTubeSubtitleFile(youtube_id=youtube_id, language="en"))
+```
 
 
 
@@ -210,6 +221,11 @@ See [Subtitle files](#subtitle-files) above for `SubtitleFile`/`YouTubeSubtitleF
 ### Thumbnail files
 The class `ThumbnailFile` defined thumbnails that can be added to channel,
 topic nodes, and content nodes. The extensions `.png`, `.jpg`, and `.jpeg` and supported.
+
+In general it's recommended to add a thumbnail using the `thumbnail` attribute on
+`ChannelNode`/`TopicNode`/`ContentNode` (e.g. `ContentNode(..., thumbnail="path/or/url/to/image.png")`)
+rather than constructing a `ThumbnailFile` and calling `add_file()` — the `thumbnail`
+attribute accepts the same local path or URL and wraps it in a `ThumbnailFile` for you.
 
 The recommended size for thumbnail images is 400px by 225px (aspect ratio 16:9).
 

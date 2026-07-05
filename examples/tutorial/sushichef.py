@@ -76,7 +76,7 @@ class TutorialChef(SushiChef):
             title="Example Video",
             source_id="example-video",
             license=fancy_license,
-            uri="https://ia600209.us.archive.org/27/items/RiceChef/Rice Chef.mp4",
+            uri="https://archive.org/download/CM_National_Rice_Cooker_1982/CM_National_Rice_Cooker_1982.mp4",
         )
         # uri alone can't express subtitles - add them explicitly, language is required
         examplevideo.add_file(
