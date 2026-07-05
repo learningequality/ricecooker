@@ -51,6 +51,11 @@ Kolibri channels are tree-like structures that consist of the following types of
      - Slideshow (a sequence of `jpg` and `png` slide images)
      - Exercises containing questions like multiple choice, multiple selection, and numeric inputs
 
+Chef scripts create each content item by passing a `uri` (a local path or URL) to
+`ContentNode` — the file pipeline downloads the resource and infers which of the
+kinds above it is from the file extension, so you rarely need to specify the kind
+explicitly.
+
 
 Further reading
 ---------------

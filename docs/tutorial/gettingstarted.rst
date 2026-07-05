@@ -37,15 +37,12 @@ and pass in the command line argument ``--token=path/to/studiotoken.txt``.
 
 Video overview
 --------------
-Watch this `video tutorial <http://35.196.115.213/en/learn/#/topics/c/3bd5eca9a81557efbab488849058c8c7>`__
-to learn how to create a new content integration script and set the required
+Watch this video tutorial to learn how to create a new content integration script and set the required
 channel metadata fields like ``CHANNEL_SOURCE_DOMAIN`` and ``CHANNEL_SOURCE_ID``.
 
 .. raw:: html
 
-   <a href="http://35.196.115.213/en/learn/#/topics/c/3bd5eca9a81557efbab488849058c8c7" target='_blank'>
-    <iframe width="560" height="315" src="https://www.youtube.com/embed/tmCllZOzY0Q" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-   </a>
+   <iframe width="560" height="315" src="https://www.youtube.com/embed/tmCllZOzY0Q" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
    <div style="height:70px;">&nbsp;</div>
 
 
@@ -110,7 +107,7 @@ If the command succeeds, you should see something like this printed in your term
 
     In SushiChef.run method. args={'command': 'uploadchannel', 'token': '<your-access-token>', 'update': False, 'resume': False, 'stage': True, 'publish': False} options={}
     Logged in with username you@yourdomain.org
-    Ricecooker v0.6.42 is up-to-date.
+    Ricecooker vX.Y.Z is up-to-date.
 
     ***** Starting channel build process *****
 

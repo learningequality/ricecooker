@@ -16,24 +16,18 @@ questions object (defined in `ricecooker.classes.questions`) which are created s
 
 Overview
 --------
-The following diagram lists all the node classes defined in `ricecooker.classes.nodes`
-and shows the associated file and question classes that content nodes can contain.
+The following diagram shows the node classes defined in `ricecooker.classes.nodes`.
+Content is added using `ContentNode(uri=...)` — see [concepts/introduction.md](./concepts/introduction.md)
+for how the pipeline infers kind, preset, and files from `uri`. `ExerciseNode` is
+the other primary leaf class, since exercise questions can't be expressed as a `uri`.
 
           ricecooker.classes.nodes
           |
-          |                                               ricecooker.classes.files
-    class Node(object)                                    |
-        class ChannelNode(Node)                           |
-        class TreeNode(Node)                              |
-            class TopicNode(TreeNode)                     |
-            class ContentNode(TreeNode)                   |
-                class AudioNode(ContentNode)     files = [AudioFile]
-                class DocumentNode(ContentNode)  files = [DocumentFile, EPubFile]
-                class HTML5AppNode(ContentNode)  files = [HTMLZipFile]
-                class H5PAppNode(ContentNode)    files = [H5PFile]
-                class SlideshowNode(ContentNode) files = [SlideImageFile]
-                class VideoNode(ContentNode)     files = [VideoFile, WebVideoFile, YouTubeVideoFile,
-                                                          SubtitleFile, YouTubeSubtitleFile]
+    class Node(object)
+        class ChannelNode(Node)
+        class TreeNode(Node)
+            class TopicNode(TreeNode)
+            class ContentNode(TreeNode)      uri='...'  -->  pipeline infers kind, preset, and files
                 class ExerciseNode(ContentNode)  questions = [SingleSelectQuestion,
                                                               MultipleSelectQuestion,
                                                               InputQuestion,
@@ -41,6 +35,11 @@ and shows the associated file and question classes that content nodes can contai
                                                               |
                                                               |
                                                               ricecooker.classes.questions
+
+See [Legacy / advanced node classes](#legacy-advanced-node-classes) below for
+the `VideoNode`/`AudioNode`/`DocumentNode`/`HTML5AppNode`/`H5PAppNode` subclasses,
+and [SlideshowNode nodes](#slideshownode-nodes) for `SlideshowNode`, which has
+no `uri`-based equivalent.
 
 
 In the remainder of this document we'll describe in full detail the metadata that
@@ -174,45 +173,21 @@ the thumbnails of the content nodes they contain.
 
 Content nodes
 -------------
-The table summarizes summarizes the content node classes, their associated files,
-and the file formats supported by each file class:
+For your copy-paste convenience, here is the sample code for creating a content node:
 
-      ricecooker.classes.nodes  ricecooker.classes.files
-      |                         |
-      AudioNode     --files-->  AudioFile                                   # .mp3
-      DocumentNode  --files-->  DocumentFile                                # .pdf
-                                EPubFile                                    # .epub
-      SlideshowNode --files-->  SlideImageFile                              # .png/.jpg
-      HTML5AppNode  --files-->  HTMLZipFile                                 # .zip
-      VideoNode     --files-->  VideoFile, WebVideoFile, YouTubeVideoFile,  # .mp4
-                                SubtitleFile, YouTubeSubtitleFile           # .vtt
-
-
-For your copy-paste convenience, here is the sample code for creating a content
-node (`DocumentNode`) and an associated (`DocumentFile`)
-
-    content_node = DocumentNode(
-          source_id='<some unique identifier within source domain>',
-          title='Some Document',
-          author='First Last (author\'s name)',
-          description='Put node description here',
-          language=getlang('en').code,
-          license=get_license(licenses.CC_BY, copyright_holder='Copyright holder name'),
-          thumbnail='some/local/path/name_thumb.jpg',
-          files=[DocumentFile(
-                    path='some/local/path/name.pdf',
-                    language=getlang('en').code
-                 )]
+    content_node = ContentNode(
+          source_id='pubs/mafri-potatoe',
+          title='Growing potatoes',
+          description='An article about growing potatoes on your rooftop.',
+          license=get_license('CC BY', copyright_holder='University of Alberta'),
+          language='en',
+          uri='https://www.gov.mb.ca/inr/pdf/pubs/mafri-potatoe.pdf',
     )
 
-Files can be passed in upon initialization as in the above sample, or can be
-added after initialization using the content_node's `add_files` method.
-
-Note you also use URLs for `path` and `thumbnail` instead of local filesystem paths,
-and the files will be downloaded for you automatically.
-
-You can replace `DocumentNode` and `DocumentFile` with any of the other combinations
-of content node and file types.
+The pipeline infers the file(s), format preset, and content `kind` from `uri` —
+see [files.md](./files.md) and [concepts/introduction.md](./concepts/introduction.md#kolibri-channels).
+`uri` accepts a URL or a local filesystem path, and the resource is downloaded
+for you automatically.
 
 Specify `derive_thumbnail=True` and leave thumbnail blank (`thumbnail=None`) to
 let Ricecooker automatically generate a thumbnail for the node based on its content.
@@ -323,6 +298,22 @@ for which you can also a [rendered preview here](http://khan.github.io/perseus/?
 
 
 
+
+
+Legacy / advanced node classes
+-------------------------------
+**Deprecated:** `VideoNode`, `AudioNode`, `DocumentNode`, `HTML5AppNode`, and `H5PAppNode`
+are legacy backwards-compatibility classes. New chef scripts should use
+`ContentNode(uri=...)` instead — the pipeline infers everything these
+subclasses used to require you to specify by hand. These classes remain
+supported and are not scheduled for removal, but are no longer the
+documented happy path.
+
+They remain useful when you need to attach files the pipeline can't infer
+from a single `uri` alone — e.g. a `VideoNode` with an attached `SubtitleFile`
+(see [files.md](./files.md#subtitle-files)) — though the same effect is
+achieved more simply with `ContentNode(uri=...)` plus `add_file(SubtitleFile(...))`,
+as shown in the [tutorial](../tutorial/tutorial.html#step-6-add-content).
 
 
 SlideshowNode nodes

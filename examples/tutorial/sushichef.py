@@ -2,14 +2,10 @@
 from le_utils.constants import licenses
 
 from ricecooker.chefs import SushiChef
-from ricecooker.classes.files import AudioFile
-from ricecooker.classes.files import DocumentFile
-from ricecooker.classes.files import VideoFile
+from ricecooker.classes.files import SubtitleFile
 from ricecooker.classes.licenses import get_license
-from ricecooker.classes.nodes import AudioNode
-from ricecooker.classes.nodes import DocumentNode
+from ricecooker.classes.nodes import ContentNode
 from ricecooker.classes.nodes import TopicNode
-from ricecooker.classes.nodes import VideoNode
 
 
 class TutorialChef(SushiChef):
@@ -61,44 +57,44 @@ class TutorialChef(SushiChef):
         # Content
         # You can add documents (pdfs and ePubs), videos, audios, and other content
         ########################################################################
-        # let's create a document file called 'Example PDF'
-        document_file = DocumentFile(path="http://www.pdf995.com/samples/pdf.pdf")
-        examplepdf = DocumentNode(
+        # let's create a document node called 'Example PDF'
+        examplepdf = ContentNode(
             title="Example PDF",
             source_id="example-pdf",
-            files=[document_file],
             license=get_license(licenses.PUBLIC_DOMAIN),
+            uri="http://www.pdf995.com/samples/pdf.pdf",
         )
-        # TODO: Create your pdf file here (use any url to a .pdf file)
+        # TODO: Create your pdf node here (use any url to a .pdf file)
 
-        # We are also going to add a video file called 'Example Video'
-        video_file = VideoFile(
-            path="https://ia600209.us.archive.org/27/items/RiceChef/Rice Chef.mp4"
-        )
+        # We are also going to add a video node called 'Example Video'
         fancy_license = get_license(
             licenses.SPECIAL_PERMISSIONS,
             description="Special license for ricecooker fans only.",
             copyright_holder="The chef video makers",
         )
-        examplevideo = VideoNode(
+        examplevideo = ContentNode(
             title="Example Video",
             source_id="example-video",
-            files=[video_file],
             license=fancy_license,
+            uri="https://ia600209.us.archive.org/27/items/RiceChef/Rice Chef.mp4",
         )
-        # TODO: Create your video file here (use any url to a .mp4 file)
+        # uri alone can't express subtitles - add them explicitly, language is required
+        examplevideo.add_file(
+            SubtitleFile(
+                path="https://raw.githubusercontent.com/learningequality/ricecooker/main/examples/oldexamples/content/captions.vtt",
+                language="sw",
+            )
+        )
+        # TODO: Create your video node here (use any url to a .mp4 file)
 
-        # Finally, we are creating an audio file called 'Example Audio'
-        audio_file = AudioFile(
-            path="https://ia802508.us.archive.org/5/items/testmp3testfile/mpthreetest.mp3"
-        )
-        exampleaudio = AudioNode(
+        # Finally, we are creating an audio node called 'Example Audio'
+        exampleaudio = ContentNode(
             title="Example Audio",
             source_id="example-audio",
-            files=[audio_file],
             license=get_license(licenses.PUBLIC_DOMAIN),
+            uri="https://ia802508.us.archive.org/5/items/testmp3testfile/mpthreetest.mp3",
         )
-        # TODO: Create your audio file here (use any url to a .mp3 file)
+        # TODO: Create your audio node here (use any url to a .mp3 file)
 
         # Now that we have our files, let's add them to our channel
         channel.add_child(examplepdf)  # Adding 'Example PDF' to your channel

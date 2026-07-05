@@ -221,8 +221,9 @@ with open(indexhtmlpath, 'w') as indexfile:
 # 3. Zip it!                      (see https://youtu.be/BODSCrj9FHQ for a laugh)
 zippath = create_predictable_zip(webroot)
 ```
-You can then use this zippath as follows `zipfile = HTMLZipFile(path=zippath, ...)`
-and add the `zipfile` to a `HTML5AppNode` object using its `add_file` method.
+You can then use this zippath directly as the `uri` for a `ContentNode`:
+`ContentNode(..., uri=zippath)` — the pipeline recognizes the `.zip` extension
+as an HTML5 app.
 See [here](https://github.com/learningequality/sushi-chef-hplife/blob/550597c211dcaa325a5265c99dc7fbfc71d0b321/transform.py#L43-L72)
 for a full code sample.
 
@@ -267,8 +268,7 @@ To check if a file exists in the zipfile, use the `contains` method:
 zipper.contains('index.html')     # Returns True
 zipper.contains('css/style.css')  # Returns False
 ```
-You can then call `zipfile = HTMLZipFile(path=''./myzipfile.zip', ...)` and add
-the `zipfile` to a `HTML5AppNode` object using its `add_file` method.
+You can then pass `'./myzipfile.zip'` directly as the `uri` for a `ContentNode`.
 
 See the source code for more details:
 [ricecooker/utils/html_writer.py](https://github.com/learningequality/ricecooker/blob/master/ricecooker/utils/html_writer.py).

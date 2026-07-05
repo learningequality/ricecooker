@@ -18,8 +18,7 @@ tutorial and walk through and comment on the most important parts of the code.
 ```python
 #!/usr/bin/env python
 from ricecooker.chefs import SushiChef
-from ricecooker.classes.nodes import TopicNode, DocumentNode
-from ricecooker.classes.files import DocumentFile
+from ricecooker.classes.nodes import TopicNode, ContentNode
 from ricecooker.classes.licenses import get_license
 
 class SimpleChef(SushiChef):                                                 # (1)
@@ -36,30 +35,24 @@ class SimpleChef(SushiChef):                                                 # (
         channel = self.get_channel(**kwargs)                                 # (3)
         potato_topic = TopicNode(title="Potatoes!", source_id="patates")     # (4)
         channel.add_child(potato_topic)                                      # (5)
-        doc_node = DocumentNode(                                             # (6)
+        doc_node = ContentNode(                                              # (6)
             title='Growing potatoes',
             description='An article about growing potatoes on your rooftop.',
             source_id='inr/pdf/pubs/mafri-potatoe.pdf',
-            author=None,
-            language='en',                                                   # (7)
-            license=get_license('CC BY', copyright_holder='U. of Alberta'),  # (8)
-            files=[
-              DocumentFile(                                                  # (9)
-                path='https://www.gov.mb.ca/inr/pdf/pubs/mafri-potatoe.pdf', # (10)
-                language='en',                                               # (11)
-              )
-            ],
+            license=get_license('CC BY', copyright_holder='U. of Alberta'),  # (7)
+            language='en',                                                   # (8)
+            uri='https://www.gov.mb.ca/inr/pdf/pubs/mafri-potatoe.pdf',      # (9)
         )
         potato_topic.add_child(doc_node)
         return channel
 
-if __name__ == '__main__':                                                   # (12)
+if __name__ == '__main__':                                                   # (10)
     """
     Run this script on the command line using:
         python simple_chef.py  --token=YOURTOKENHERE9139139f3a23232
     """
     simple_chef = SimpleChef()
-    simple_chef.main()                                                       # (13)
+    simple_chef.main()                                                       # (11)
 
 ```
 
@@ -125,40 +118,41 @@ you to a structure that best first the needs of learners and teachers.
 
 
 ### Content nodes
-The `ricecooker` library provides classes like `DocumentNode`, `VideoNode`,
-`AudioNode`, etc., to store the metadata associate with content items.
-Each content node also has one or more files associated with it,
-`EPubFile`, `DocumentFile`, `VideoFile`, `AudioFile`, `ThumbnailFile`, etc.
+The canonical way to add a content item is `ContentNode(source_id, title, license, uri=...)`.
+Passing a local path or URL as `uri` hands it to the file pipeline (transfer → convert →
+extract_metadata), which infers the content's kind and format preset and builds the
+underlying file object automatically — you don't need to construct a file object yourself
+for the vast majority of content.
 
-Line (6) shows how to create a `DocumentNode` to store the metadata for a pdf file.
-The `title` and `description` attributes are set. We also set the `source_id`
-attribute to a unique identifier for this document. The document does not specify authors,
-so we set the `author` attribute to `None`.
+Line (6) shows how to create a `ContentNode` to store the metadata for a pdf file.
+The `title` and `description` attributes are set, and `source_id` is set to a unique
+identifier for this document.
 
-On (7), we set `language` attribute to the internal language code `en`, to indicate
-the content node is in English. We use the same language code later on line (11)
-to indicate the file contents are in English. The Python package `le-utils` defines
-the internal language codes used throughout the Kolibri platform (e.g. `en`, `es-MX`, and `zul`).
-To find the internal language code for a given language, you can locate it in the
-[lookup table](https://github.com/learningequality/le-utils/blob/master/le_utils/resources/languagelookup.json),
-or use one of the language lookup helper functions defined in `le_utils.constants.languages`.
-
-Line (8) shows how we set the `license` attribute to the appropriate instance of
+Line (7) shows how we set the `license` attribute to the appropriate instance of
 `ricecooker.classes.licenses.License`. All non-topic nodes must be assigned a
 license upon initialization. You can obtain the appropriate license object using
 the helper function `get_license` defined in `ricecooker.classes.licenses`.
 Use the predefined license ids given in `le_utils.constants.licenses` as the
 first argument to the `get_license` helper function.
 
+On (8), we set the `language` attribute to the internal language code `en`, to indicate
+the content node is in English. The Python package `le-utils` defines the internal
+language codes used throughout the Kolibri platform (e.g. `en`, `es-MX`, and `zul`).
+To find the internal language code for a given language, you can locate it in the
+[lookup table](https://github.com/learningequality/le-utils/blob/master/le_utils/resources/languagelookup.json),
+or use one of the language lookup helper functions defined in `le_utils.constants.languages`.
 
-### Files
-On lines (9, 10, and 11), we create a `DocumentFile` instance and set the appropriate
-`path` and `language` attributes. Note that `path` can be either a local filesystem path,
-or a web URL (as in the above example). Paths that point to web URLs will be
-downloaded automatically when the chef runs and cached locally. Note the default
-ricecooker behaviour is to cache downloaded files forever.
-Use the `--update` argument to bypass the cached and re-download all files.
-The `--update` must be used whenever files are modified but the path stays the same.
+Line (9) shows the `uri` attribute — the path or URL to the actual pdf file. `uri` can be
+either a local filesystem path or a web URL (as in the above example); URLs are downloaded
+automatically when the chef runs and cached locally. Note the default ricecooker behaviour
+is to cache downloaded files forever. Use the `--update` argument to bypass the cache and
+re-download all files. The `--update` must be used whenever files are modified but the path
+stays the same.
+
+The only cases `uri` alone can't express are exercises (`ExerciseNode` + questions) and
+video subtitles (`SubtitleFile`, which requires an explicit `language`) — see
+[Legacy / advanced node classes](../nodes.md#legacy-advanced-node-classes) and
+[Subtitle files](../files.md#subtitle-files).
 
 
 
