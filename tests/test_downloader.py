@@ -171,3 +171,67 @@ def test_pretextbook_css_fetch():
             / "material_symbols.woff"
         )
         assert font_path.stat().st_size > 0
+
+
+class _FakeResponse:
+    """Minimal requests.Response stand-in for an injected request_fn."""
+
+    def __init__(self, body, content_type="text/css"):
+        self.content = body.encode("utf-8") if isinstance(body, str) else body
+        self.headers = {"content-type": content_type}
+        self.status_code = 200
+        self.encoding = "utf-8"
+        self.url = None
+
+    @property
+    def text(self):
+        return self.content.decode(self.encoding or "utf-8")
+
+    def raise_for_status(self):
+        pass
+
+
+def test_css_import_bare_string_is_archived():
+    """A CSS @import written as a bare string is downloaded and rewritten.
+
+    ``@import "theme.css"`` references a stylesheet the same way
+    ``@import url("theme.css")`` does, but the rewriter only recognised the
+    ``url()`` form, so a bare-string import was neither downloaded nor relinked.
+    """
+    page_url = "https://example.org/index.html"
+    bodies = {
+        "https://example.org/main.css": '@import "theme.css";\nbody { color: red; }',
+        "https://example.org/theme.css": "h1 { color: blue; }",
+    }
+
+    def fake_request(url):
+        return _FakeResponse(bodies[url])
+
+    html = '<html><head><link rel="stylesheet" href="main.css"/></head></html>'
+
+    with tempfile.TemporaryDirectory() as download_root:
+        resource_urls = {}
+
+        def derive_filename(url):
+            return downloader.get_archive_filename(
+                url, page_url, download_root, resource_urls
+            )
+
+        downloader.download_static_assets(
+            html,
+            download_root,
+            "https://example.org/",
+            request_fn=fake_request,
+            derive_filename=derive_filename,
+            resource_urls=resource_urls,
+            relative_links=True,
+        )
+
+        root = Path(download_root)
+        # The imported stylesheet is downloaded to its archive path...
+        assert (root / "example.org" / "theme.css").is_file()
+        # ...and the @import in main.css now points at the local copy, not the
+        # original remote URL.
+        main_css = (root / "example.org" / "main.css").read_text()
+        assert "theme.css" in main_css
+        assert "https://example.org/theme.css" not in main_css
