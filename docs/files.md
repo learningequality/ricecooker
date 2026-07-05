@@ -112,9 +112,8 @@ video_node.add_file(YouTubeSubtitleFile(youtube_id=youtube_id, language="en"))
 
 Legacy / advanced: constructing file objects directly
 ------------------------------------------------------
-These classes are what the pipeline builds internally from `uri` — construct
-them directly only when you need `add_file()` for a case `uri` alone can't
-express, or need pipeline-internal details.
+Construct these classes directly only for the exceptions noted above
+(exercises, subtitles) or when you need pipeline-internal detail.
 
 ### Audio files
 Use the `AudioFile(DownloadFile)` class to store `mp3` files.

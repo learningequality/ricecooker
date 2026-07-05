@@ -95,9 +95,7 @@ dependency in `pyproject.toml`.
 Contributing to ricecooker itself
 ----------------------------------
 If you're contributing to `ricecooker` itself (not just writing a chef script),
-clone the repo and run `uv sync --group dev` to install all dev dependencies,
-`uv run --group test pytest` to run the test suite, and `uvx prek run --all-files`
-to lint before committing — see `AGENTS.md` for the full contributor quick start.
+see `AGENTS.md` for the contributor quick start.
 
 **Reporting issues**: If you run into problems or encounter an error in any of the above steps,
 please let us know by [opening an issue on github](https://github.com/learningequality/ricecooker/issues).

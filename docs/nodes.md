@@ -184,10 +184,9 @@ For your copy-paste convenience, here is the sample code for creating a content 
           uri='https://www.gov.mb.ca/inr/pdf/pubs/mafri-potatoe.pdf',
     )
 
-The pipeline infers the file(s), format preset, and content `kind` from `uri` —
-see [files.md](./files.md) and [concepts/introduction.md](./concepts/introduction.md#supported-content-kinds).
-`uri` accepts a URL or a local filesystem path, and the resource is downloaded
-for you automatically.
+`uri` accepts a URL or a local filesystem path — the pipeline downloads it and
+infers everything else automatically, as described in
+[concepts/introduction.md](./concepts/introduction.md#supported-content-kinds).
 
 Specify `derive_thumbnail=True` and leave thumbnail blank (`thumbnail=None`) to
 let Ricecooker automatically generate a thumbnail for the node based on its content.
@@ -309,11 +308,11 @@ subclasses used to require you to specify by hand. These classes remain
 supported and are not scheduled for removal, but are no longer the
 documented happy path.
 
-They remain useful when you need to attach files the pipeline can't infer
-from a single `uri` alone — e.g. a `VideoNode` with an attached `SubtitleFile`
-(see [files.md](./files.md#subtitle-files)) — though the same effect is
-achieved more simply with `ContentNode(uri=...)` plus `add_file(SubtitleFile(...))`,
-as shown in the [tutorial](tutorial/tutorial.html#step-6-add-content).
+There is no remaining functional advantage to using these classes over
+`ContentNode(uri=...)` — even the subtitle case (see
+[files.md](./files.md#subtitle-files)) is expressed more simply as
+`ContentNode(uri=...)` plus `add_file(SubtitleFile(...))`, as shown in the
+[tutorial](tutorial/tutorial.html#step-6-add-content).
 
 
 SlideshowNode nodes

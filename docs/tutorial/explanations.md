@@ -119,10 +119,11 @@ you to a structure that best first the needs of learners and teachers.
 
 ### Content nodes
 The canonical way to add a content item is `ContentNode(source_id, title, license, uri=...)`.
-Passing a local path or URL as `uri` hands it to the file pipeline (transfer → convert →
-extract_metadata), which infers the content's kind and format preset and builds the
-underlying file object automatically — you don't need to construct a file object yourself
-for the vast majority of content.
+Passing a local path or URL as `uri` downloads the resource and infers its kind, format
+preset, and underlying file object automatically — see
+[concepts/introduction.md](../concepts/introduction.md#supported-content-kinds) for how
+this inference works. You don't need to construct a file object yourself for the vast
+majority of content.
 
 Line (6) shows how to create a `ContentNode` to store the metadata for a pdf file.
 The `title` and `description` attributes are set, and `source_id` is set to a unique

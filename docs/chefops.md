@@ -44,14 +44,15 @@ This listing shows the `ricecooker` command line interface (CLI) arguments:
       --publish             Publish newly uploaded version of the channel.
       --sample SIZE         Upload a sample of SIZE nodes from the channel.
 
-**Staging is the default.** Ricecooker uploads a draft/staging tree by default,
-so a chef run never overwrites the channel's live main tree unless you pass
-`--deploy`. Use `--deploy` only when you intentionally want to overwrite the
-main tree.
-
 As you can tell, there are lot of arguments to choose from, and this is not even
 the complete list: you'll have to run `./sushichef.py -h` to see the latest version.
 Below is a short guide to some of the most important and useful ones arguments.
+
+
+### Staging vs. deploy
+Ricecooker uploads a draft/staging tree by default, so a chef run never
+overwrites the channel's live main tree unless you pass `--deploy`. Use
+`--deploy` only when you intentionally want to overwrite the main tree.
 
 
 ### Compression and thumbnail globals
