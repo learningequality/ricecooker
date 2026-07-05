@@ -826,15 +826,20 @@ class ContentNode(TreeNode):
     Attributes:
         uri (str): URI for the main file for this content node (optional)
         pipeline (FilePipeline): FilePipeline instance for handling uri processing (optional)
+        context (dict): extra context passed to the pipeline when processing uri, e.g.
+            {"subtitle_languages": ["en", "es"]} to also fetch YouTube subtitles (optional)
 
     See TreeNode and Node for inherited attributes.
     """
 
     required_presets = tuple()
 
-    def __init__(self, source_id, title, license, uri=None, pipeline=None, **kwargs):
+    def __init__(
+        self, source_id, title, license, uri=None, pipeline=None, context=None, **kwargs
+    ):
         self.uri = uri
         self._pipeline = pipeline
+        self.context = context or {}
         # Flag here to say that files haven't been processed.
         # Until files have been processed we can't be sure that the files are actually valid
         # for example, once we download a file we may discover it doesn't exist, that it's
@@ -916,7 +921,7 @@ class ContentNode(TreeNode):
     def _process_uri(self):
         try:
             file_metadata_list = self.pipeline.execute(
-                self.uri, skip_cache=config.UPDATE
+                self.uri, context=self.context, skip_cache=config.UPDATE
             )
         except (InvalidFileException, ExpectedFileException) as e:
             config.LOGGER.error(f"Error processing path: {self.uri} with error: {e}")
@@ -928,6 +933,9 @@ class ContentNode(TreeNode):
                 content_metadata.update(metadata_dict.pop("content_node_metadata"))
             # Remove path from metadata_dict as it is not needed for the File object
             metadata_dict.pop("path", None)
+            # Inherit the node's language unless the pipeline inferred one of its own
+            # (e.g. a subtitle language extracted from the file itself).
+            metadata_dict.setdefault("language", self.language)
             file_obj = File(**metadata_dict)
             self.add_file(file_obj)
         for key, value in content_metadata.items():

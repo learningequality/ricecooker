@@ -35,17 +35,6 @@ and pass in the command line argument ``--token=path/to/studiotoken.txt``.
 
 
 
-Video overview
---------------
-Watch this video tutorial to learn how to create a new content integration script and set the required
-channel metadata fields like ``CHANNEL_SOURCE_DOMAIN`` and ``CHANNEL_SOURCE_ID``.
-
-.. raw:: html
-
-   <iframe width="560" height="315" src="https://www.youtube.com/embed/tmCllZOzY0Q" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-   <div style="height:70px;">&nbsp;</div>
-
-
 Creating a sushichef script
 ---------------------------
 In a new folder on your computer, create a file called ``sushichef.py`` with the

@@ -142,6 +142,8 @@ language codes used throughout the Kolibri platform (e.g. `en`, `es-MX`, and `zu
 To find the internal language code for a given language, you can locate it in the
 [lookup table](https://github.com/learningequality/le-utils/blob/main/le_utils/resources/languagelookup.json),
 or use one of the language lookup helper functions defined in `le_utils.constants.languages`.
+This `language` is also inherited by the file the pipeline builds from `uri` — you
+don't need to set it again on a file object.
 
 Line (9) shows the `uri` attribute — the path or URL to the actual pdf file. `uri` can be
 either a local filesystem path or a web URL (as in the above example); URLs are downloaded

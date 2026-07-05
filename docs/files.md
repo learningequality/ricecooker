@@ -97,16 +97,17 @@ a given youtube language code is supported by `YouTubeSubtitleFile` and skip the
 ones that are not currently supported. Please let the LE content team know when
 you run into language codes that are not supported so we can add them.
 
-`YouTubeSubtitleFile` pairs with the `ContentNode(uri=...)` approach for YouTube
-videos: passing a YouTube URL as `uri` downloads the video, and `YouTubeSubtitleFile`
-downloads the caption track directly from YouTube — no local `.vtt` file needed:
+For the `ContentNode(uri=...)` approach, pass `subtitle_languages` in the `context`
+argument instead — it triggers the same YouTube caption download alongside the
+video, with no explicit `YouTubeSubtitleFile` or local `.vtt` file needed:
 ```
 video_node = ContentNode(
     source_id, title, license,
     uri=f"https://www.youtube.com/watch?v={youtube_id}",
+    context={"subtitle_languages": ["en", "es"]},
 )
-video_node.add_file(YouTubeSubtitleFile(youtube_id=youtube_id, language="en"))
 ```
+See [`YoutubeDownloadHandler`](https://github.com/learningequality/ricecooker/blob/main/ricecooker/utils/pipeline/transfer.py#L172) in the pipeline for how `subtitle_languages` is consumed.
 
 
 
