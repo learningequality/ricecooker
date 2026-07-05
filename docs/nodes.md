@@ -184,9 +184,8 @@ For your copy-paste convenience, here is the sample code for creating a content 
           uri='https://www.gov.mb.ca/inr/pdf/pubs/mafri-potatoe.pdf',
     )
 
-`uri` accepts a URL or a local filesystem path — the pipeline downloads it and
-infers everything else automatically, as described in
-[concepts/introduction.md](./concepts/introduction.md#supported-content-kinds).
+See the [Overview](#overview) above for how the pipeline infers kind, preset,
+and files from `uri`.
 
 Specify `derive_thumbnail=True` and leave thumbnail blank (`thumbnail=None`) to
 let Ricecooker automatically generate a thumbnail for the node based on its content.

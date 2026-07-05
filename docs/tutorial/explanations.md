@@ -152,9 +152,8 @@ is to cache downloaded files forever. Use the `--update` argument to bypass the 
 re-download all files. The `--update` must be used whenever files are modified but the path
 stays the same.
 
-The only cases `uri` alone can't express are exercises (`ExerciseNode` + questions) and
-video subtitles (`SubtitleFile`, which requires an explicit `language`) — see
-[Legacy / advanced node classes](../nodes.md#legacy-advanced-node-classes) and
+The two exceptions `uri` alone can't express are exercises and video subtitles —
+see [Legacy / advanced node classes](../nodes.md#legacy-advanced-node-classes) and
 [Subtitle files](../files.md#subtitle-files).
 
 
