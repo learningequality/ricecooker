@@ -1,7 +1,0 @@
-sphinx==8.2.3
-sphinx_rtd_theme
-recommonmark
-nbsphinx
-ipython
-sphinx-autobuild
-sphinx-notfound-page

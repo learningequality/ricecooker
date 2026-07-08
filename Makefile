@@ -78,11 +78,11 @@ docsclean:
 
 docs: ## generate Sphinx HTML documentation
 	$(MAKE) -C docs clean
-	uv run --with-requirements docs/requirements.txt $(MAKE) -C docs html
+	uv run --group docs $(MAKE) -C docs html
 
 latexdocs:
 	$(MAKE) -C docs clean
-	uv run --with-requirements docs/requirements.txt $(MAKE) -C docs latex
+	uv run --group docs $(MAKE) -C docs latex
 
 servedocs: docs ## compile the docs watching for changes
 	watchmedo shell-command -p '*.rst' -c '$(MAKE) -C docs html' -R -D .
