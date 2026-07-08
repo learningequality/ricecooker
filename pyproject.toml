@@ -72,6 +72,16 @@ dev = [
     {include-group = "test"},
     "ruff>=0.11",
 ]
+docs = [
+    "sphinx==8.2.3",
+    "sphinx_rtd_theme",
+    "recommonmark",
+    "nbsphinx",
+    "ipython",
+    "sphinx-autobuild",
+    "sphinx-notfound-page",
+    "sphinx-llm[gen]==0.4.1",
+]
 
 [tool.setuptools_scm]
 
@@ -83,8 +93,12 @@ include = ["ricecooker*"]
 environments = ["platform_python_implementation == 'CPython'"]
 # Update this date periodically to allow new dependency versions
 exclude-newer = "2026-03-24T00:00:00Z"
-# Exempt le-utils from the exclude-newer cooldown
-exclude-newer-package = { le-utils = "2099-12-31T00:00:00Z" }
+# Exempt le-utils and sphinx-llm from the exclude-newer cooldown
+exclude-newer-package = { le-utils = "2099-12-31T00:00:00Z", sphinx-llm = "2099-12-31T00:00:00Z" }
+
+[tool.uv.dependency-groups]
+# sphinx==8.2.3 requires Python >=3.11; docs are only ever built with the Python 3.11 pinned in .readthedocs.yml
+docs = { requires-python = ">=3.11" }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

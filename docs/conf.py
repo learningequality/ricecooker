@@ -48,6 +48,7 @@ extensions = [
     "nbsphinx",
     "sphinx_rtd_theme",
     "notfound.extension",
+    "sphinx_llm.txt",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -620,8 +621,15 @@ intersphinx_mapping = {
 }
 
 
-# Also accept .md files  (via https://github.com/rtfd/recommonmark)
-source_suffix = [".md", ".rst", ".ipynb"]
+# Also accept .md files (via https://github.com/rtfd/recommonmark) and .ipynb files (via nbsphinx).
+# Must be a dict, not a list: Sphinx's list-to-dict conversion maps every suffix to
+# "restructuredtext", which causes nbsphinx to defer .ipynb parser registration to that
+# incorrect default instead of registering its own "jupyter_notebook" parser.
+source_suffix = {
+    ".md": "markdown",
+    ".rst": "restructuredtext",
+    ".ipynb": "jupyter_notebook",
+}
 
 autodoc_default_options = {
     # Make sure that any autodoc declarations show the right members
