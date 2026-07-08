@@ -747,6 +747,37 @@ def test_automatic_resource_node_document(document_file):
     assert node.learning_activities == [learning_activities.READ]
 
 
+def test_automatic_resource_node_document_inherits_node_language(document_file):
+    node = ContentNode(
+        "test",
+        "test",
+        licenses.CC_BY,
+        uri=document_file.path,
+        pipeline=FilePipeline(),
+        copyright_holder="Demo Holdings",
+        language="en",
+    )
+    node.process_files()
+    assert all(f.language == "en" for f in node.files)
+
+
+def test_content_node_passes_context_to_pipeline():
+    mock_pipeline = MagicMock()
+    mock_pipeline.execute.return_value = []
+    node = ContentNode(
+        "test",
+        "test",
+        licenses.CC_BY,
+        uri="https://www.youtube.com/watch?v=abcdefghijk",
+        pipeline=mock_pipeline,
+        context={"subtitle_languages": ["en", "es"]},
+    )
+    node._process_uri()
+    mock_pipeline.execute.assert_called_once_with(
+        node.uri, context={"subtitle_languages": ["en", "es"]}, skip_cache=False
+    )
+
+
 def test_automatic_resource_node_epub(epub_file):
     node = ContentNode(
         "test",

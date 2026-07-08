@@ -51,7 +51,7 @@ Individual questions
   - `Source ID *`: This field is the link (foreign key) to the an exercise node, e.g. `exrc1`
   - `Question ID *`: A unique identifier for this question within the exercise, e.g. q1
   - `Question type *`: (str)  Question types are defined in
-    [le-utils](https://github.com/learningequality/le-utils/blob/master/le_utils/constants/exercises.py#L34).
+    [le-utils](https://github.com/learningequality/le-utils/blob/main/le_utils/constants/exercises.py#L34).
     The currently supported question types for the CSV workflow are:
       - `input_question`: Numeric input question, e.g. What is 2+2?
       - `single_selection`: Multiple choice questions where a single correct answer.

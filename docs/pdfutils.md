@@ -35,16 +35,16 @@ The output `chapters` is list of dictionaries with `title` and `path` attributes
       ...
     ]
 
-Use this information to create an individual `DocumentNode` for each PDF and store
+Use this information to create an individual `ContentNode` for each PDF and store
 them in a `TopicNode` that corresponds to the book:
 
-    from ricecooker.classes import nodes, files
+    from ricecooker.classes.nodes import ContentNode, TopicNode
 
-    book_node = nodes.TopicNode(title='Book title', description='Book description')
+    book_node = TopicNode(title='Book title', description='Book description')
     for chapter in chapters:
-        chapter_node = nodes.DocumentNode(
+        chapter_node = ContentNode(
             title=chapter['title'],
-            files=[files.DocumentFile(chapter['path'])],
+            uri=chapter['path'],
             ...
         )
         book_node.add_child(chapter_node)
@@ -130,7 +130,7 @@ tree of title and paths:
     ]
 
 You'll need to create a `TopicNode` for each chapter that has `children` and
-create a `DocumentNode` for each of the children of that chapter.
+create a `ContentNode` for each of the children of that chapter.
 
 
 

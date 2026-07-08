@@ -89,14 +89,17 @@ Step 5: Create a Subtopic
     |      | Your Subtopic
 
 
-Step 6: Create Files
---------------------
-1. Go to the next **TODO** in the sushichef.py file. Here, you will create a pdf file
-2. Copy/paste the example code and change ``examplepdf`` to ``mypdf``.
-   ``DocumentFile(...)`` will automatically download a pdf file from the given path.
-3. Set the ``source_id``, the ``title``, and the ``path`` (any url to a pdf file)
-4. Repeat steps 1-3 for video files and audio files.
-5. Finally, add your files to your channel (see last \*\* statements)
+Step 6: Add Content
+-------------------
+1. Go to the next **TODO** in the sushichef.py file. Here, you will create a pdf content node
+2. Copy/paste the example ``ContentNode(...)`` block and change ``examplepdf`` to ``mypdf``.
+3. Set the ``source_id``, the ``title``, and the ``uri`` (any URL to a ``.pdf`` file) —
+   the pipeline downloads the file and infers it's a document automatically.
+4. Repeat steps 1-3 for the video and audio content nodes.
+5. Finally, add your content nodes to your channel (see last \*\* statements)
+
+Note the video example also attaches a subtitle file — see the
+`explanations page <explanations.html>`__ for why ``uri`` alone can't express that case.
 
 ::
 

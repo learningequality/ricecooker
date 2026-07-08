@@ -32,7 +32,7 @@ pages that correctly include all necessary resources without extra code.
   * If you need to make modifications, call `create_zip_dir_for_page`, then modify
     the files in the directory it returns as needed. (Not modifying the original
      sources allows you to keep a clean copy at all times.) Finally, create a ZIP by
-    calling `ricecooker.utils.create_predictable_zip` and use the zip created
+    calling `ricecooker.utils.zip.create_predictable_zip` and use the zip created
     as a file for an HTML5 app node.
 
 Usage example:

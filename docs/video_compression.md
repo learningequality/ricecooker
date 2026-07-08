@@ -48,9 +48,6 @@ has the following transformations applied to it:
   - Scale the video to max-height of 480 pixels
   - Compress the video with CRF of 32 (constant rate factor)
 
-To overwrite these defaults, chef authors can pass the argument `ffmpeg_settings` (dict),
-when creating `VideoFile` object, and specify these options: `crf`, `max_height`, and `max_width`.
-
 
 
 Manual conversion

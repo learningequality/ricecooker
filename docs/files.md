@@ -6,6 +6,12 @@ we first compute `md5` hash of its contents (say `abcdef000000000000000000000000
 then store the file at the path `storage/a/b/abcdef00000000000000000000000000.pdf`.
 The same storage mechanism is used on Kolibri Studio and Kolibri applications.
 
+In most cases you won't construct file objects directly — passing `uri=` to
+`ContentNode` (see [nodes.md](./nodes.md) and [concepts/introduction.md](./concepts/introduction.md))
+builds the appropriate file object automatically. The classes below are used
+internally by the pipeline, or directly for the two cases `uri` can't express:
+exercises and video subtitles.
+
 
 File objects
 ------------
@@ -44,7 +50,7 @@ current working directory of the chef script, or the URL of a web resource.
 ### Language
 The Python package `le-utils` defines the internal language codes used throughout
 the Kolibri platform (e.g. `en`, `es-MX`, and `zul`). To find the internal language
-code for a given language, you can locate it in the [lookup table](https://github.com/learningequality/le-utils/blob/master/le_utils/resources/languagelookup.json),
+code for a given language, you can locate it in the [lookup table](https://github.com/learningequality/le-utils/blob/main/le_utils/resources/languagelookup.json),
 or use one of the language lookup helper functions defined in `le_utils.constants.languages`:
   - `getlang(<code>) --> lang_obj`: basic lookup used to ensure `<code>` is a valid
     internal language code (otherwise returns `None`).
@@ -58,8 +64,59 @@ See [languages][./languages.md] to read more about language codes.
 
 
 
-Audio files
------------
+Subtitle files
+--------------
+Video subtitles are the one case `uri` alone can't express — after creating a
+video with `ContentNode(uri=...)`, attach subtitles with
+`add_file(SubtitleFile(path=..., language=...))`; `language` is required.
+
+Subtitle files can be created using
+```
+subs_file = SubtitleFile(
+    path = "file:///path/to/file.vtt",
+    language = languages.getlang('en').code,
+)
+```
+Kolibri uses the `.vtt` subtitle format internally, but the following formats can
+be automatically converted: `.srt`, `.ttml`, `.scc`, `.dfxp`, and `.sami`.
+The subtitle format is inferred from the file extension of the `path` argument.
+Use the `subtitlesformat` keyword argument in cases where the path does not end
+on a format extension:
+```
+subs_file = SubtitleFile(
+    path = "http:/srtsubs.org/subs/29323923",
+    subtitlesformat = 'srt',                 # specify format because not in URL
+    language = languages.getlang('en').code,
+)
+```
+
+You can also get subtitles using `YouTubeSubtitleFile` which takes a `youtube_id`
+and youtube `language` code (may be different from internal language codes).
+Use the helper method `is_youtube_subtitle_file_supported_language` to test if
+a given youtube language code is supported by `YouTubeSubtitleFile` and skip the
+ones that are not currently supported. Please let the LE content team know when
+you run into language codes that are not supported so we can add them.
+
+For the `ContentNode(uri=...)` approach, pass `subtitle_languages` in the `context`
+argument instead — it triggers the same YouTube caption download alongside the
+video, with no explicit `YouTubeSubtitleFile` or local `.vtt` file needed:
+```
+video_node = ContentNode(
+    source_id, title, license,
+    uri=f"https://www.youtube.com/watch?v={youtube_id}",
+    context={"subtitle_languages": ["en", "es"]},
+)
+```
+See [`YoutubeDownloadHandler`](https://github.com/learningequality/ricecooker/blob/main/ricecooker/utils/pipeline/transfer.py#L172) in the pipeline for how `subtitle_languages` is consumed.
+
+
+
+Legacy / advanced: constructing file objects directly
+------------------------------------------------------
+Construct these classes directly only for the exceptions noted above
+(exercises, subtitles) or when you need pipeline-internal detail.
+
+### Audio files
 Use the `AudioFile(DownloadFile)` class to store `mp3` files.
 
 
@@ -69,8 +126,7 @@ Use the `AudioFile(DownloadFile)` class to store `mp3` files.
     )
 
 
-Document files
---------------
+### Document files
 Use the `DocumentFile` class to add PDF documents:
 
     document_file = DocumentFile(
@@ -87,18 +143,17 @@ Use the `EPubFile` class to add ePub documents:
 
 
 
-HTML files
--------------
-The `HTML5ZipFile` class is a generic zip container for web content like HTML, CSS,
-and JavaScript. To be a valid `HTML5ZipFile` file, the file must have a `index.html`
+### HTML files
+The `HTMLZipFile` class is a generic zip container for web content like HTML, CSS,
+and JavaScript. To be a valid `HTMLZipFile` file, the file must have a `index.html`
 in its root. The file `index.html` will be loaded within a sandboxed iframe when
 this content item is accessed on Kolibri.
 
 Chef authors are responsible for scraping the HTML and all the related JS, CSS,
 and images required to render the web content, and creating the zip file.
-Creating a `HTML5ZipFile` is then done using
+Creating a `HTMLZipFile` is then done using
 
-    document_file = HTML5ZipFile(
+    document_file = HTMLZipFile(
         path='/tmp/interactive_js_simulation.zip',
         language=getlang('en').code
     )
@@ -113,8 +168,7 @@ Use the `H5PFile` class to add [H5P](https://h5p.org/) files:
 
 
 
-Videos files
-------------
+### Videos files
 The following file classes can be added to the `VideoNode`s:
 
     class VideoFile(DownloadFile)
@@ -161,46 +215,22 @@ WebVideoFiles and YouTubeVideoFiles can also take in __download_settings__ (dict
 to determine how the video will be downloaded and __high_resolution__ (boolean)
 to determine what resolution to download.
 
-
-Subtitle files can be created using
-```
-subs_file = SubtitleFile(
-    path = "file:///path/to/file.vtt",
-    language = languages.getlang('en').code,
-)
-```
-Kolibri uses the `.vtt` subtitle format internally, but the following formats can
-be automatically converted: `.srt`, `.ttml`, `.scc`, `.dfxp`, and `.sami`.
-The subtitle format is inferred from the file extension of the `path` argument.
-Use the `subtitlesformat` keyword argument in cases where the path does not end
-on a format extension:
-```
-subs_file = SubtitleFile(
-    path = "http:/srtsubs.org/subs/29323923",
-    subtitlesformat = 'srt',                 # specify format because not in URL
-    language = languages.getlang('en').code,
-)
-```
-
-You can also get subtitles using `YouTubeSubtitleFile` which takes a `youtube_id`
-and youtube `language` code (may be different from internal language codes).
-Use the helper method `is_youtube_subtitle_file_supported_language` to test if
-a given youtube language code is supported by `YouTubeSubtitleFile` and skip the
-ones that are not currently supported. Please let the LE content team know when
-you run into language codes that are not supported so we can add them.
+See [Subtitle files](#subtitle-files) above for `SubtitleFile`/`YouTubeSubtitleFile`.
 
 
-
-Thumbnail files
----------------
+### Thumbnail files
 The class `ThumbnailFile` defined thumbnails that can be added to channel,
 topic nodes, and content nodes. The extensions `.png`, `.jpg`, and `.jpeg` and supported.
+
+In general it's recommended to add a thumbnail using the `thumbnail` attribute on
+`ChannelNode`/`TopicNode`/`ContentNode` (e.g. `ContentNode(..., thumbnail="path/or/url/to/image.png")`)
+rather than constructing a `ThumbnailFile` and calling `add_file()` — the `thumbnail`
+attribute accepts the same local path or URL and wraps it in a `ThumbnailFile` for you.
 
 The recommended size for thumbnail images is 400px by 225px (aspect ratio 16:9).
 
 
-SlideImageFile files
---------------------
+### SlideImageFile files
 The `SlideImageFile` class is used in conjunction with the `SlideshowNode` class
 to create powerpoint-like slideshow presentations.
 
@@ -231,11 +261,7 @@ Below are some general guidelines for handling video files:
       - Use max height of `480` for videos that work well in low resolution (most videos)
       - Use max height of `720` for high resolution videos (lectures with writing on board)
   - Ricecooker can handle the video compression for you if you specify the
-    `--compress` command line argument, or by setting the `ffmpeg_settings` property
-    when creating `VideoFile`s. The default values for `ffmpeg_settings` are as follows:
-    ```
-    ffmpeg_settings = {'crf':32, 'max_height':480 }
-    ```
+    `--compress` command line argument.
   - The `ffmpeg` setting `crf` stands for Constant Rate Factor and is very useful
     for controlling overall video quality. Setting `crf=24` produces high quality
     video (and possibly large file size), `crf=28` is a mid-range quality, and

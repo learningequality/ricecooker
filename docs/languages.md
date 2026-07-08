@@ -1,8 +1,8 @@
 Kolibri Language Codes
 ----------------------
 
-The file [le_utils/constants/languages.py](https://github.com/learningequality/le-utils/blob/master/le_utils/constants/languages.py)
-and the lookup table in [le_utils/resources/languagelookup.json](https://github.com/learningequality/le-utils/blob/master/le_utils/resources/languagelookup.json)
+The file [le_utils/constants/languages.py](https://github.com/learningequality/le-utils/blob/main/le_utils/constants/languages.py)
+and the lookup table in [le_utils/resources/languagelookup.json](https://github.com/learningequality/le-utils/blob/main/le_utils/resources/languagelookup.json)
 define the internal representation for languages codes used by Ricecooker, Kolibri,
 and Kolibri Studio to identify content items in different languages.
 
