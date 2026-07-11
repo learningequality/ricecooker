@@ -1498,6 +1498,142 @@ def test_file_upload_missing_storage_raises_descriptive_error(channel):
     assert storage_path in str(exc_info.value)
 
 
+def _make_upload_manager(channel, filename="test_file.mp4"):
+    manager = ChannelManager(channel)
+    file_data = MagicMock()
+    file_data.skip_upload = False
+    file_data.size = 1024
+    file_data.checksum = "abcdef1234567890"
+    file_data.original_filename = None
+    file_data.get_filename.return_value = filename
+    file_data.extension = "mp4"
+    file_data.get_preset.return_value = "video"
+    file_data.duration = 60
+    manager.file_map = {filename: file_data}
+    return manager, file_data
+
+
+def test_do_file_upload_resumable_uploads_chunks_to_session_uri(channel):
+    filename = "test_file.mp4"
+    content = b"test file content"
+    manager, file_data = _make_upload_manager(channel, filename)
+    file_data.size = len(content)
+
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
+        "resumable": True,
+        "uploadURL": "https://storage.googleapis.com/sess",
+        "alreadyUploaded": False,
+    }
+
+    with (
+        patch("builtins.open", mock_open(read_data=content)),
+        patch("ricecooker.config.get_storage_path", return_value="/tmp/test_file.mp4"),
+        patch("ricecooker.config.os.path.isfile", return_value=True),
+        patch(
+            "ricecooker.config.SESSION.post", return_value=mock_response
+        ) as mock_post,
+        patch("ricecooker.config.SESSION.put") as mock_studio_put,
+        patch(
+            "ricecooker.config.UPLOAD_SESSION.put",
+            return_value=MagicMock(status_code=200),
+        ) as mock_upload_put,
+    ):
+        manager.do_file_upload(filename)
+
+    assert mock_post.call_args.kwargs["json"]["resumable"] is True
+    mock_upload_put.assert_called_once()
+    call = mock_upload_put.call_args
+    assert call.args[0] == "https://storage.googleapis.com/sess"
+    assert call.kwargs["data"] == content
+    assert (
+        call.kwargs["headers"]["Content-Range"]
+        == f"bytes 0-{len(content) - 1}/{len(content)}"
+    )
+    mock_studio_put.assert_not_called()
+
+
+def test_do_file_upload_resumable_already_uploaded_skips(channel):
+    """Test that do_file_upload uploads nothing when Studio already has the file."""
+    filename = "test_file.mp4"
+    manager, file_data = _make_upload_manager(channel, filename)
+
+    mocked_open = mock_open(read_data=b"test file content")
+
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
+        "resumable": True,
+        "uploadURL": None,
+        "alreadyUploaded": True,
+    }
+
+    with (
+        patch("builtins.open", mocked_open),
+        patch("ricecooker.config.get_storage_path", return_value="/tmp/test_file.mp4"),
+        patch("ricecooker.config.os.path.isfile", return_value=True),
+        patch("ricecooker.config.SESSION.post", return_value=mock_response),
+        patch("ricecooker.config.UPLOAD_SESSION.put") as mock_upload_put,
+    ):
+        manager.do_file_upload(filename)
+
+    mock_upload_put.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "response_json",
+    [
+        # Studio signals non-resumable explicitly.
+        {
+            "resumable": False,
+            "uploadURL": "https://storage.googleapis.com/put",
+            "mimetype": "video/mp4",
+            "might_skip": False,
+        },
+        # Legacy Studio predating the feature: no 'resumable' key at all.
+        # Regression guard for the `.get("resumable")` fallback (a `[...]`
+        # lookup would KeyError here and fail every upload).
+        {
+            "uploadURL": "https://storage.googleapis.com/put",
+            "mimetype": "video/mp4",
+            "might_skip": False,
+        },
+    ],
+    ids=["resumable_false", "legacy_no_resumable_key"],
+)
+def test_do_file_upload_single_put_when_not_resumable(channel, response_json):
+    """do_file_upload keeps the single-PUT path (with Content-MD5) whenever the
+    response does not signal resumable, whether via resumable=False or a missing key."""
+    filename = "test_file.mp4"
+    manager, file_data = _make_upload_manager(channel, filename)
+
+    mocked_open = mock_open(read_data=b"test file content")
+
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = response_json
+
+    mock_put_response = MagicMock()
+    mock_put_response.status_code = 200
+
+    with (
+        patch("builtins.open", mocked_open),
+        patch("ricecooker.config.get_storage_path", return_value="/tmp/test_file.mp4"),
+        patch("ricecooker.config.os.path.isfile", return_value=True),
+        patch("ricecooker.config.SESSION.post", return_value=mock_response),
+        patch(
+            "ricecooker.config.SESSION.put", return_value=mock_put_response
+        ) as mock_put,
+        patch("ricecooker.config.UPLOAD_SESSION.put") as mock_upload_put,
+    ):
+        manager.do_file_upload(filename)
+
+    mock_put.assert_called_once()
+    assert "Content-MD5" in mock_put.call_args.kwargs["headers"]
+    mock_upload_put.assert_not_called()
+
+
 def test_add_nodes_checks_both_failed_files_and_validity(channel):
     """Test that add_nodes checks both for failed files and node validity."""
     # Create a manager
