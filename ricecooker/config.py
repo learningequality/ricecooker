@@ -16,7 +16,6 @@ from requests_file import FileAdapter
 from urllib3.util.retry import Retry
 
 UPDATE = False
-COMPRESS = False
 VIDEO_HEIGHT = None
 THUMBNAILS = False
 PUBLISH = False
