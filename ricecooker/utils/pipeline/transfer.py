@@ -450,3 +450,22 @@ class DownloadStageHandler(StageHandler):
                 raise InvalidFileException(f"{path} failed to transfer to storage")
 
         return metadata_list
+
+
+_download_stage = None
+
+
+def read(path):
+    """Fetch a URL or local path through the download stage; return its bytes.
+
+    Replaces the old ``downloader.read``. The old ``loadjs`` selenium/pyppeteer
+    render path is dropped (headless JS-render is a follow-up); the remaining
+    callers only fetched static bytes. Raises ``InvalidFileException`` if the
+    source cannot be fetched.
+    """
+    global _download_stage
+    if _download_stage is None:
+        _download_stage = DownloadStageHandler()
+    results = _download_stage.execute(path)
+    with open(results[0].path, "rb") as fh:
+        return fh.read()

@@ -1,7 +1,7 @@
 import os
 import zipfile
 
-from ricecooker.utils.downloader import read
+from ricecooker.utils.pipeline.transfer import read
 
 
 class HTMLWriter:

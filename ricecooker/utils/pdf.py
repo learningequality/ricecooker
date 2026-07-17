@@ -6,7 +6,7 @@ from PyPDF2.generic import Destination
 from PyPDF2.generic import NullObject
 from PyPDF2.utils import PdfReadError
 
-from ricecooker.utils.downloader import read
+from ricecooker.utils.pipeline.transfer import read
 
 
 class CustomDestination(Destination):
