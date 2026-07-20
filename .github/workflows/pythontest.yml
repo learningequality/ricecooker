@@ -64,7 +64,9 @@ jobs:
           # See: https://github.com/actions/runner-images/issues/9966
           if [[ "${{ matrix.python-version }}" != "3.13" ]]; then
             echo "Linking Homebrew python@3.13"
-            brew link --overwrite python@3.13
+            # Non-fatal: recent macOS runner images may not ship python@3.13 as a
+            # keg, so there is nothing to link. brew install below resolves its own deps.
+            brew link --overwrite python@3.13 || true
           else
             echo "Skipping Homebrew python@3.13 linking for Python 3.13 test."
           fi

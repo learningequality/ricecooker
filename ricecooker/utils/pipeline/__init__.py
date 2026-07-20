@@ -52,6 +52,12 @@ class FilePipeline(CompositeHandler):
         ExtractMetadataStageHandler,
     ]
 
+    def __init__(self, children=None, default_context=None):
+        super().__init__(children=children)
+        # Context merged into every execute() call — e.g. the compression
+        # settings the chef derives from its --compress flag.
+        self.default_context = default_context or {}
+
     def execute(
         self,
         path: str,
@@ -61,7 +67,8 @@ class FilePipeline(CompositeHandler):
         """
         Execute the pipeline for a given file path.
         """
-        context = context or {}
+        # Merge the pipeline defaults with the per-call context; the caller wins.
+        context = {**self.default_context, **(context or {})}
         file_metadata_list = [FileMetadata(path=path)]
         for handler in self._children:
             updated_file_metadata_list = []

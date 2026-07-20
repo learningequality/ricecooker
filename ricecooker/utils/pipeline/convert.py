@@ -12,7 +12,6 @@ import zipfile
 from abc import abstractmethod
 from contextlib import contextmanager
 from dataclasses import field
-from functools import partial
 from typing import Dict
 from typing import Optional
 from typing import Union
@@ -28,7 +27,6 @@ from PIL import UnidentifiedImageError
 from PyPDF2 import PdfFileReader
 from PyPDF2.utils import PdfReadError
 
-from ricecooker import config
 from ricecooker.exceptions import UnknownFileTypeError
 from ricecooker.utils.audio import AudioCompressionError
 from ricecooker.utils.audio import compress_audio
@@ -36,6 +34,8 @@ from ricecooker.utils.caching import generate_key
 from ricecooker.utils.pipeline.context import ContextMetadata
 from ricecooker.utils.pipeline.context import FileMetadata
 from ricecooker.utils.pipeline.exceptions import InvalidFileException
+from ricecooker.utils.references import DEFAULT_MAPPERS
+from ricecooker.utils.references import ReferenceMapper
 from ricecooker.utils.subtitles import build_subtitle_converter_from_file
 from ricecooker.utils.subtitles import InvalidSubtitleFormatError
 from ricecooker.utils.subtitles import InvalidSubtitleLanguageError
@@ -98,8 +98,8 @@ class VideoCompressionHandler(MediaCompressionHandler):
 
         if input_ext in self.SUPPORTED_VIDEO_EXTS:
             output_ext = input_ext
-            if not config.COMPRESS and not ffmpeg_settings:
-                # If we're not compressing, just validate the file.
+            if not ffmpeg_settings:
+                # No compression settings provided, just validate the file.
                 is_valid, error = validate_media_file(path)
                 if not is_valid:
                     raise InvalidFileException(
@@ -144,8 +144,8 @@ class AudioCompressionHandler(MediaCompressionHandler):
         ext = extract_path_ext(path)
 
         if ext in self.SUPPORTED_AUDIO_EXTS:
-            if not config.COMPRESS and not ffmpeg_settings:
-                # If we're not compressing, just validate the file.
+            if not ffmpeg_settings:
+                # No compression settings provided, just validate the file.
                 is_valid, error = validate_media_file(path)
                 if not is_valid:
                     raise InvalidFileException(
@@ -167,8 +167,14 @@ class ArchiveProcessingContextMetadata(ContextMetadata):
 class ArchiveProcessingBaseHandler(ExtensionMatchingHandler):
     CONTEXT_CLASS = ArchiveProcessingContextMetadata
 
+    # Mappers for finding and rewriting external references before
+    # create_predictable_zip seals the archive. Every archive format may embed
+    # HTML/CSS, so the generic web mappers are the default; a format with its own
+    # reference style (e.g. H5P) extends this with its own mapper.
+    REFERENCE_MAPPERS = DEFAULT_MAPPERS
+
     def get_cache_key(self, path, audio_settings=None, video_settings=None) -> str:
-        if not config.COMPRESS:
+        if not audio_settings and not video_settings:
             return super().get_cache_key(path)
         # Mirror the old compress_files_in_archive logic, which used:
         # generate_key("COMPRESSED", filename, settings=ffmpeg_settings)
@@ -194,28 +200,38 @@ class ArchiveProcessingBaseHandler(ExtensionMatchingHandler):
         pass
 
     def handle_file(self, path, audio_settings=None, video_settings=None):
+        # Imported here rather than at module level: archive_assets depends on
+        # this package's exceptions, so a top-level import would be circular.
+        from ricecooker.utils.archive_assets import ArchiveProcessor
+
         self.validate_archive(path)
 
         ext = extract_path_ext(path)
 
-        # Create partial for reading & compressing subfiles
-        file_converter = partial(
-            self._read_and_compress_archive_file,
-            audio_settings=audio_settings,
-            video_settings=video_settings,
-            ext=ext,
-        )
-        # create_predictable_zip will iterate over subfiles, call file_converter
-        processed_zip_path = create_predictable_zip(
-            path, file_converter=file_converter if config.COMPRESS else None
-        )
+        # Unzip into a temp dir, let the ArchiveProcessor download external refs
+        # and compress media in place, then reseal with create_predictable_zip.
+        # TemporaryDirectory removes the extracted (untrusted) content on exit,
+        # even on error.
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with zipfile.ZipFile(path) as zf:
+                zf.extractall(temp_dir)
 
-        with self.write_file(ext) as fh:
-            with open(processed_zip_path, "rb") as zf:
-                shutil.copyfileobj(zf, fh)
+            ArchiveProcessor(
+                temp_dir,
+                self.get_pipeline(),
+                convert_stage=self.parent,
+                mappers=self.REFERENCE_MAPPERS,
+                audio_settings=audio_settings,
+                video_settings=video_settings,
+            ).process()
 
-        # Clean up
-        os.unlink(processed_zip_path)
+            processed_zip_path = create_predictable_zip(temp_dir)
+
+            with self.write_file(ext) as fh:
+                with open(processed_zip_path, "rb") as zf:
+                    shutil.copyfileobj(zf, fh)
+
+            os.unlink(processed_zip_path)
 
     @contextmanager
     def open_and_verify_archive(self, path):
@@ -260,53 +276,6 @@ class ArchiveProcessingBaseHandler(ExtensionMatchingHandler):
                 f"File {path} is not a valid {self.FILE_TYPE} file, index.html is not well-formed."
             )
 
-    def _read_and_compress_archive_file(
-        self, filepath, reader, audio_settings=None, video_settings=None, ext=None
-    ):
-        extension = extract_path_ext(filepath, default_ext=ext)
-
-        # If it's mp4, webm, or mp3, compress it; else pass it through
-        if extension in {file_formats.MP4, file_formats.WEBM, file_formats.MP3}:
-            # read the original subfile bytes
-            original_bytes = reader(filepath)  # read raw data from the archive
-            with tempfile.NamedTemporaryFile(delete=False) as temp_in:
-                temp_in.write(original_bytes)
-                temp_in.flush()
-
-            try:
-                # Create a temp out for compressed result
-                with tempfile.NamedTemporaryFile(
-                    suffix=f".{extension}", delete=False
-                ) as temp_out:
-                    temp_out.close()
-
-                    if extension == file_formats.MP3:
-                        compress_audio(
-                            temp_in.name,
-                            temp_out.name,
-                            overwrite=True,
-                            **(audio_settings or {}),
-                        )
-                    else:
-                        compress_video(
-                            temp_in.name,
-                            temp_out.name,
-                            overwrite=True,
-                            **(video_settings or {}),
-                        )
-
-                    # read the compressed bytes
-                    with open(temp_out.name, "rb") as compressed_file:
-                        compressed_bytes = compressed_file.read()
-
-                return compressed_bytes
-            finally:
-                os.unlink(temp_in.name)
-                if os.path.exists(temp_out.name):
-                    os.unlink(temp_out.name)
-
-        return reader(filepath)
-
 
 class HTML5ConversionHandler(ArchiveProcessingBaseHandler):
     EXTENSIONS = {file_formats.HTML5}
@@ -317,9 +286,48 @@ class HTML5ConversionHandler(ArchiveProcessingBaseHandler):
             self._validate_index_html_body(zf, path)
 
 
+def _map_h5p_paths(data, fn, urls):
+    """Walk an H5P ``content.json`` structure, applying ``fn`` to ``path`` values.
+
+    Recurses dicts and lists. Every string under a ``"path"`` key is a resource
+    reference: recorded in ``urls`` and replaced with ``fn(value)``.
+    """
+    if isinstance(data, dict):
+        result = {}
+        for key, value in data.items():
+            if key == "path" and isinstance(value, str):
+                urls.append(value)
+                result[key] = fn(value)
+            else:
+                result[key] = _map_h5p_paths(value, fn, urls)
+        return result
+    if isinstance(data, list):
+        return [_map_h5p_paths(item, fn, urls) for item in data]
+    return data
+
+
+class H5PContentMapper(ReferenceMapper):
+    """Maps external ``path`` references in an H5P ``content/content.json``.
+
+    H5P stores references as ``path`` values in a JSON manifest at a fixed
+    location, so this mapper matches that one file by path rather than extension.
+    """
+
+    CONTENT_JSON = "content/content.json"
+
+    def handles(self, path: str) -> bool:
+        return path.replace(os.sep, "/") == self.CONTENT_JSON
+
+    def map(self, content: str, fn):
+        urls = []
+        data = _map_h5p_paths(json.loads(content), fn, urls)
+        return json.dumps(data, ensure_ascii=False), urls
+
+
 class H5PConversionHandler(ArchiveProcessingBaseHandler):
     EXTENSIONS = {file_formats.H5P}
     FILE_TYPE = "H5P"
+    REFERENCE_MAPPERS = DEFAULT_MAPPERS + (H5PContentMapper(),)
 
     def validate_archive(self, path: str):
         with self.open_and_verify_archive(path) as zf:

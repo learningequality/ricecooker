@@ -11,10 +11,11 @@ import socket
 import tempfile
 
 import requests
+from requests.adapters import HTTPAdapter
 from requests_file import FileAdapter
+from urllib3.util.retry import Retry
 
 UPDATE = False
-COMPRESS = False
 VIDEO_HEIGHT = None
 THUMBNAILS = False
 PUBLISH = False
@@ -204,8 +205,20 @@ FILECACHE_DIRECTORY = os.getenv(
 
 FAILED_FILES = []
 
-# Session for downloading files
+# Session for downloading files. Retry transient failures (connection resets,
+# read timeouts, 429/5xx) so a slow or briefly unavailable host does not fail
+# the download outright — parity with the retry adapter the old downloader.py
+# session mounted before it was removed.
 DOWNLOAD_SESSION = requests.Session()
+_download_retry = Retry(
+    total=3,
+    backoff_factor=1,
+    status_forcelist=(429, 500, 502, 503, 504),
+    allowed_methods=frozenset(["GET", "HEAD"]),
+    raise_on_status=False,
+)
+DOWNLOAD_SESSION.mount("http://", HTTPAdapter(max_retries=_download_retry))
+DOWNLOAD_SESSION.mount("https://", HTTPAdapter(max_retries=_download_retry))
 DOWNLOAD_SESSION.mount("file://", FileAdapter())
 
 # Environment variable indicating we should use a proxy for yt_dlp downloads

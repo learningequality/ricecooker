@@ -33,6 +33,19 @@ class Handler(ABC):
     def __init__(self):
         self.parent = None
 
+    def get_pipeline(self):
+        """Return the root handler of this tree — the pipeline it runs in.
+
+        Handlers are composed into a tree whose root is the ``FilePipeline``;
+        walking up the parent chain from any node reaches it. Reusing that
+        pipeline lets a nested fetch (e.g. an archive's external reference) run
+        through the same stages, config and caches as every other file.
+        """
+        node = self
+        while node.parent is not None:
+            node = node.parent
+        return node
+
     @abstractmethod
     def should_handle(self, path: str) -> bool:
         """Check if this handler should handle the given path"""
