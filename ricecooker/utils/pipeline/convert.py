@@ -40,6 +40,7 @@ from ricecooker.utils.pipeline.exceptions import InvalidFileException
 from ricecooker.utils.references import DEFAULT_MAPPERS
 from ricecooker.utils.references import ReferenceMapper
 from ricecooker.utils.references import sanitize_style_css
+from ricecooker.utils.references import strip_scripts
 from ricecooker.utils.subtitles import build_subtitle_converter_from_file
 from ricecooker.utils.subtitles import InvalidSubtitleFormatError
 from ricecooker.utils.subtitles import InvalidSubtitleLanguageError
@@ -68,18 +69,22 @@ class PandocConversionError(Exception):
 
 
 def sanitize_kpub_directory(temp_dir):
-    """Strip disallowed CSS from index.html in an extracted KPUB dir, in place."""
+    """Strip disallowed CSS and scripts from index.html in an extracted KPUB dir, in place."""
     index_path = os.path.join(temp_dir, "index.html")
     try:
         with open(index_path, encoding="utf-8") as fh:
             html = fh.read()
     except (OSError, UnicodeDecodeError):
         return
-    sanitized, removed = sanitize_style_css(html, KPUB_STYLE_ALLOWLIST)
+    html, removed = sanitize_style_css(html, KPUB_STYLE_ALLOWLIST)
+    # Hand-authored KPUBs already reject scripts in validate_archive; strip_scripts
+    # is here for the pandoc path, whose --standalone template can inject an html5shiv.
+    html, script_removed = strip_scripts(html)
+    removed += script_removed
     if removed:
         with open(index_path, "w", encoding="utf-8") as fh:
-            fh.write(sanitized)
-        LOGGER.info("KPUB sanitizer removed disallowed CSS: %s", ", ".join(removed))
+            fh.write(html)
+        LOGGER.info("KPUB sanitizer removed disallowed content: %s", ", ".join(removed))
 
 
 def _seal_directory_to_file(handler, temp_dir, ext):

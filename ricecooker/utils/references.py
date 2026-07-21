@@ -301,6 +301,26 @@ def sanitize_style_css(
     return _apply_edits(html, parser.edits), removed + parser.removed
 
 
+# An IE conditional comment can wrap a pandoc-injected html5shiv <script>; strip
+# both so a KPUB stays script-free regardless of which pandoc template generated it.
+_SCRIPT_RE = re.compile(r"<script\b[^>]*>.*?</script\s*>", re.IGNORECASE | re.DOTALL)
+_IE_CONDITIONAL_COMMENT_RE = re.compile(
+    r"<!--\[if[^\]]*\]>.*?<!\[endif\]-->", re.IGNORECASE | re.DOTALL
+)
+
+
+def strip_scripts(html: str) -> Tuple[str, List[str]]:
+    """Remove ``<script>`` elements and IE conditional comments from ``html``.
+
+    Returns ``(html, removed)`` — descriptors of what was stripped, empty if unchanged.
+    """
+    # Strip conditional comments first so the script they wrap is gone before the pass below.
+    html, n_comments = _IE_CONDITIONAL_COMMENT_RE.subn("", html)
+    html, n_scripts = _SCRIPT_RE.subn("", html)
+    removed = ["IE conditional comment"] * n_comments + ["<script> block"] * n_scripts
+    return html, removed
+
+
 class ReferenceMapper:
     """Detects and rewrites external resource references for one file type.
 

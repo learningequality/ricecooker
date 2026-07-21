@@ -174,3 +174,36 @@ class StyleSanitizerTest(unittest.TestCase):
             references._filter_css_declarations("color: red; margin: 0", {"color"}),
             ("color: red", ["margin"]),
         )
+
+
+class StripScriptsTest(unittest.TestCase):
+    """Remove ``<script>`` elements and IE conditional comments from KPUB HTML."""
+
+    def test_strip_script_element(self):
+        html = "<body><p>Hi</p><script>alert('x')</script></body>"
+        out, removed = references.strip_scripts(html)
+        self.assertNotIn("<script", out)
+        self.assertIn("<p>Hi</p>", out)
+        self.assertIn("<script> block", removed)
+
+    def test_strip_ie_conditional_html5shiv(self):
+        # The exact shape pandoc --standalone emits on some versions/platforms.
+        html = (
+            "<head>\n"
+            "  <!--[if lt IE 9]>\n"
+            '    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/'
+            '3.7.3/html5shiv-printshiv.min.js"></script>\n'
+            "  <![endif]-->\n"
+            "</head><body><p>Hi</p></body>"
+        )
+        out, removed = references.strip_scripts(html)
+        self.assertNotIn("<script", out)
+        self.assertNotIn("endif", out)
+        self.assertIn("<p>Hi</p>", out)
+        self.assertIn("IE conditional comment", removed)
+
+    def test_no_change_returns_empty_removed(self):
+        html = "<body><p>plain</p></body>"
+        out, removed = references.strip_scripts(html)
+        self.assertEqual(removed, [])
+        self.assertEqual(out, html)
