@@ -44,6 +44,18 @@ class FilePipeline(CompositeHandler):
     pipeline = FilePipeline(children=[download_stage, ConversionStageHandler(), ExtractMetadataStageHandler()])
     ```
     This will replace the default `DownloadStageHandler` with a new one that has a `DiskResourceHandler` as its only child.
+
+    Instead of a combined `default_context`, a stage's handler can be configured directly with init-time context:
+    ```python
+    from ricecooker.utils.pipeline import FilePipeline
+    from ricecooker.utils.pipeline.convert import ConversionStageHandler, VideoCompressionHandler
+    from ricecooker.utils.pipeline.extract_metadata import ExtractMetadataStageHandler
+    from ricecooker.utils.pipeline.transfer import DownloadStageHandler
+
+    convert = ConversionStageHandler(children=[VideoCompressionHandler(video_settings={"crf": 28})])
+    pipeline = FilePipeline(children=[DownloadStageHandler(), convert, ExtractMetadataStageHandler()])
+    ```
+    Context passed to `execute()` (and the pipeline's `default_context`) overrides a handler's init context.
     """
 
     DEFAULT_CHILDREN = [

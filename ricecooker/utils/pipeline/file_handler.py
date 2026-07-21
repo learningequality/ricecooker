@@ -120,9 +120,27 @@ class FileHandler(Handler):
     # Subclasses can define this list to specify which exceptions should be caught and reported
     HANDLED_EXCEPTIONS = []
 
-    def __init__(self):
+    def __init__(self, **context):
         super().__init__()
         self._thread_local = threading.local()
+        self._init_context = self._validate_init_context(context)
+
+    def _context_fields(self) -> set:
+        return set(get_type_hints(self.CONTEXT_CLASS).keys())
+
+    def _validate_init_context(self, context: Dict) -> Dict:
+        """Reject init context keys that aren't ``CONTEXT_CLASS`` fields."""
+        # Skip get_type_hints on the no-arg path; also tolerates CONTEXT_CLASS=None.
+        if not context:
+            return context
+        fields = self._context_fields()
+        unknown = set(context) - fields
+        if unknown:
+            raise TypeError(
+                f"{self.__class__.__name__} got unexpected context field(s): "
+                f"{sorted(unknown)}. Valid fields: {sorted(fields)}"
+            )
+        return context
 
     @property
     def _output_path(self):
@@ -135,8 +153,9 @@ class FileHandler(Handler):
         self._thread_local.output_path = value
 
     def _get_context(self, context: Optional[Dict] = None):
-        fields = set(get_type_hints(self.CONTEXT_CLASS).keys())
-        context = {k: v for k, v in (context or {}).items() if k in fields}
+        fields = self._context_fields()
+        merged = {**self._init_context, **(context or {})}
+        context = {k: v for k, v in merged.items() if k in fields}
         try:
             context = self.CONTEXT_CLASS(**context)
         except TypeError:
