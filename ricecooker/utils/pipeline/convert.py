@@ -6,6 +6,7 @@ both validate and convert files.
 import json
 import os
 import shutil
+import subprocess
 import tempfile
 import xml.etree.ElementTree as ET
 import zipfile
@@ -27,6 +28,7 @@ from PIL import UnidentifiedImageError
 from PyPDF2 import PdfFileReader
 from PyPDF2.utils import PdfReadError
 
+from ricecooker.config import LOGGER
 from ricecooker.exceptions import UnknownFileTypeError
 from ricecooker.utils.audio import AudioCompressionError
 from ricecooker.utils.audio import compress_audio
@@ -37,6 +39,7 @@ from ricecooker.utils.pipeline.context import FileMetadata
 from ricecooker.utils.pipeline.exceptions import InvalidFileException
 from ricecooker.utils.references import DEFAULT_MAPPERS
 from ricecooker.utils.references import ReferenceMapper
+from ricecooker.utils.references import sanitize_style_css
 from ricecooker.utils.subtitles import build_subtitle_converter_from_file
 from ricecooker.utils.subtitles import InvalidSubtitleFormatError
 from ricecooker.utils.subtitles import InvalidSubtitleLanguageError
@@ -51,6 +54,41 @@ from .file_handler import ExtensionMatchingHandler
 from .file_handler import StageHandler
 
 CONVERTIBLE_FORMATS = {p.id: p.convertible_formats for p in format_presets.PRESETLIST}
+
+# CSS properties permitted on inline ``style=`` attributes inside a KPUB.
+KPUB_STYLE_ALLOWLIST = {"text-align", "color", "background-color"}
+
+
+class PandocMissingError(Exception):
+    """Raised when the pandoc system binary is required but not installed."""
+
+
+class PandocConversionError(Exception):
+    """Raised when pandoc fails to convert a source document."""
+
+
+def sanitize_kpub_directory(temp_dir):
+    """Strip disallowed CSS from index.html in an extracted KPUB dir, in place."""
+    index_path = os.path.join(temp_dir, "index.html")
+    try:
+        with open(index_path, encoding="utf-8") as fh:
+            html = fh.read()
+    except (OSError, UnicodeDecodeError):
+        return
+    sanitized, removed = sanitize_style_css(html, KPUB_STYLE_ALLOWLIST)
+    if removed:
+        with open(index_path, "w", encoding="utf-8") as fh:
+            fh.write(sanitized)
+        LOGGER.info("KPUB sanitizer removed disallowed CSS: %s", ", ".join(removed))
+
+
+def _seal_directory_to_file(handler, temp_dir, ext):
+    """Zip ``temp_dir`` into a predictable archive and stream it into ``handler``'s output file."""
+    processed_zip_path = create_predictable_zip(temp_dir)
+    with handler.write_file(ext) as fh:
+        with open(processed_zip_path, "rb") as zf:
+            shutil.copyfileobj(zf, fh)
+    os.unlink(processed_zip_path)
 
 
 class VideoCompressionContextMetadata(ContextMetadata):
@@ -199,6 +237,10 @@ class ArchiveProcessingBaseHandler(ExtensionMatchingHandler):
     def validate_archive(self, path: str):
         pass
 
+    def pre_process(self, temp_dir):
+        """Hook run on the extracted archive dir before reference resolution. Default no-op."""
+        pass
+
     def handle_file(self, path, audio_settings=None, video_settings=None):
         # Imported here rather than at module level: archive_assets depends on
         # this package's exceptions, so a top-level import would be circular.
@@ -208,13 +250,15 @@ class ArchiveProcessingBaseHandler(ExtensionMatchingHandler):
 
         ext = extract_path_ext(path)
 
-        # Unzip into a temp dir, let the ArchiveProcessor download external refs
-        # and compress media in place, then reseal with create_predictable_zip.
-        # TemporaryDirectory removes the extracted (untrusted) content on exit,
-        # even on error.
+        # TemporaryDirectory removes the extracted (untrusted) content on exit, even on error.
         with tempfile.TemporaryDirectory() as temp_dir:
             with zipfile.ZipFile(path) as zf:
                 zf.extractall(temp_dir)
+
+            # pre_process runs before reference resolution: a url() inside a <style> block or
+            # a non-allowlisted style= would otherwise be downloaded, then orphaned when the
+            # sanitizer strips the content that referenced it.
+            self.pre_process(temp_dir)
 
             ArchiveProcessor(
                 temp_dir,
@@ -225,13 +269,7 @@ class ArchiveProcessingBaseHandler(ExtensionMatchingHandler):
                 video_settings=video_settings,
             ).process()
 
-            processed_zip_path = create_predictable_zip(temp_dir)
-
-            with self.write_file(ext) as fh:
-                with open(processed_zip_path, "rb") as zf:
-                    shutil.copyfileobj(zf, fh)
-
-            os.unlink(processed_zip_path)
+            _seal_directory_to_file(self, temp_dir, ext)
 
     @contextmanager
     def open_and_verify_archive(self, path):
@@ -415,6 +453,9 @@ class EPUBConversionHandler(ArchiveProcessingBaseHandler):
 class KPUBConversionHandler(ArchiveProcessingBaseHandler):
     EXTENSIONS = {file_formats.HTML5_ARTICLE}
     FILE_TYPE = "KPUB"
+
+    def pre_process(self, temp_dir):
+        sanitize_kpub_directory(temp_dir)
 
     def validate_archive(self, path: str):
         with self.open_and_verify_archive(path) as zf:
@@ -603,6 +644,47 @@ class SubtitleConversionHandler(ExtensionMatchingHandler):
         return FileMetadata(language=convert_lang_code)
 
 
+class DocumentConversionHandler(ExtensionMatchingHandler):
+    """Convert article-style documents to KPUB via pandoc, then sanitize."""
+
+    EXTENSIONS = {"docx", "odt", "rtf", "md", "markdown"}
+    HANDLED_EXCEPTIONS = [PandocConversionError]
+
+    def handle_file(self, path):
+        if shutil.which("pandoc") is None:
+            raise PandocMissingError(
+                "pandoc is required to convert documents (.docx/.odt/.rtf/.md/.markdown) "
+                "to KPUB. Install pandoc — see docs/installation.md."
+            )
+        # cwd=temp_dir below, so keep the input path absolute.
+        src = os.path.abspath(path)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            try:
+                subprocess.run(
+                    [
+                        "pandoc",
+                        src,
+                        "--standalone",
+                        "--mathml",
+                        "--extract-media=media",
+                        "-o",
+                        "index.html",
+                    ],
+                    cwd=temp_dir,
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                )
+            except subprocess.CalledProcessError as e:
+                raise PandocConversionError(
+                    f"pandoc failed to convert {path}: {e.stderr}"
+                )
+            # pandoc --extract-media localizes embedded media only; unlike an
+            # uploaded KPUB, remote <img> refs are not downloaded (out of scope).
+            sanitize_kpub_directory(temp_dir)
+            _seal_directory_to_file(self, temp_dir, file_formats.HTML5_ARTICLE)
+
+
 class ConversionStageHandler(StageHandler):
     STAGE = "CONVERT"
     DEFAULT_CHILDREN = [
@@ -614,6 +696,7 @@ class ConversionStageHandler(StageHandler):
         EPUBConversionHandler,
         H5PConversionHandler,
         HTML5ConversionHandler,
+        DocumentConversionHandler,
         KPUBConversionHandler,
         VideoCompressionHandler,
         AudioCompressionHandler,
