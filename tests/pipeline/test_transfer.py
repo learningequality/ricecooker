@@ -208,14 +208,14 @@ def test_gdrive_slideshow(mock_google_creds):
 @my_vcr.use_cassette
 def test_gdrive_doc(mock_google_creds):
     """
-    At the moment we are exporting Google Docs as PDFs
-    If we ever decide to update this, this test will need to be updated.
+    We export Google Docs as .docx so they flow through the pandoc-based
+    DocumentConversionHandler and become KPUB.
     """
     handler = GoogleDriveHandler()
     assert handler.should_handle(doc_link)
     file_metadata = handler.execute(doc_link)
     assert file_metadata is not None
-    assert file_metadata[0].filename.endswith("pdf")
+    assert file_metadata[0].filename.endswith("docx")
     assert file_metadata[0].original_filename == "This is a sample document"
 
 
