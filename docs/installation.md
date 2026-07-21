@@ -5,7 +5,8 @@ Ricecooker chef scripts are typically developed inside their own project, manage
 with [`uv`](https://docs.astral.sh/uv/). Add `ricecooker` as a dependency in your
 chef project's `pyproject.toml` and run `uv sync` to install it and its Python
 dependencies. You'll need Python 3.9-3.13 (matching `ricecooker`'s supported
-range), as well as some software for media file conversions (`ffmpeg` and `poppler`).
+range), as well as some software for file conversions: `ffmpeg` and `poppler` for
+media, and `pandoc` for converting documents (`.docx`, `.odt`, `.rtf`, `.md`) to KPUB.
 
 In the next fifteen minutes or so, we'll setup your computer with all these things
 so you can get started writing your first content integration scripts.
@@ -14,8 +15,9 @@ so you can get started writing your first content integration scripts.
 System prerequisites
 --------------------
 The first step will will be to make sure you have `python3` installed on your
-computer and two additional file conversion tools: `ffmpeg` for video compression,
-and the `poppler` library for manipulating PDFs.
+computer and three additional file conversion tools: `ffmpeg` for video compression,
+the `poppler` library for manipulating PDFs, and `pandoc` for converting article-style
+documents (`.docx`, `.odt`, `.rtf`, `.md`, `.markdown`) to KPUB.
 
 Jump to the specific instructions for your operating system, and be sure to try
 the *Checklist* commands to know the installation was successful.
@@ -24,22 +26,22 @@ the *Checklist* commands to know the installation was successful.
 ### Linux
 On a Debian or Ubuntu GNU/Linux, you can install the necessary packages using:
 
-    sudo apt-get install  git python3 ffmpeg poppler-utils
+    sudo apt-get install  git python3 ffmpeg poppler-utils pandoc
 
 You may need to adjust the package names for other Linux distributions (ContOS/Fedora/OpenSuSE).
 
 *Checklist*: verify your python version is between 3.9 and 3.13 by running `python3 --version`.
 If no `python3` command exists, then try `python --version`.
-Run the commands `ffmpeg -h` and `pdftoppm -h` to make sure they are available.
+Run the commands `ffmpeg -h`, `pdftoppm -h`, and `pandoc -v` to make sure they are available.
 
 
 ### Mac
 Mac OS X users can install the necessary software using [Homebrew](https://brew.sh/):
 
-    brew install  git python3 ffmpeg poppler
+    brew install  git python3 ffmpeg poppler pandoc
 
 *Checklist*: verify your python version is between 3.9 and 3.13 by running `python3 --version`.
-Also run the commands `ffmpeg -h` and `pdftoppm -h` to make sure they are available.
+Also run the commands `ffmpeg -h`, `pdftoppm -h`, and `pandoc -v` to make sure they are available.
 
 
 
@@ -66,6 +68,12 @@ several programs and make sure their `bin`-directories are added to the `Path` v
    Add the `bin` folder `poppler-0.xx.y\bin` to your Path variable.
      - *Checklist*: after installation, open a command terminal and type in
        `pdftoppm -h` to make sure the command `pdftoppm` is available.
+4. Install `pandoc` for converting documents to KPUB. The simplest option is the
+   MSI installer from [https://github.com/jgm/pandoc/releases](https://github.com/jgm/pandoc/releases),
+   which adds `pandoc` to your Path automatically; alternatively run
+   `choco install pandoc` if you use [Chocolatey](https://chocolatey.org/).
+     - *Checklist*: open a new command prompt and type in `pandoc -v` to make sure
+       the command `pandoc` is available on your Path.
 
 We recommend you also download and install Git from [https://git-scm.com/downloads](https://git-scm.com/downloads).
 Using git is not a requirement for the getting started, but it's a great tool to
