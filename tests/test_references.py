@@ -27,6 +27,14 @@ class ReferencesExternalUrlAndCssTest(unittest.TestCase):
         self.assertFalse(references.is_external_url("#frag"))
         self.assertFalse(references.is_external_url(""))
 
+    def test_is_data_uri(self):
+        self.assertTrue(references.is_data_uri("data:image/png;base64,AA"))
+        self.assertTrue(references.is_data_uri("data:font/woff2;base64,AA"))
+        self.assertTrue(references.is_data_uri("DATA:image/png;base64,AA"))
+        self.assertFalse(references.is_data_uri("images/a.png"))
+        self.assertFalse(references.is_data_uri("https://x/a.png"))
+        self.assertFalse(references.is_data_uri(""))
+
     def test_extract_css_urls(self):
         css = "a{background:url('bg.png')} @import 'fonts/f.css'; b{src:url(https://h/x.woff2)}"
         self.assertEqual(

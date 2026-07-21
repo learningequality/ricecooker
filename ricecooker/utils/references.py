@@ -35,6 +35,15 @@ def is_external_url(url: str) -> bool:
     return urlparse(url).scheme in ("http", "https")
 
 
+def is_data_uri(url: str) -> bool:
+    """True for ``data:`` URIs — inline resources single-file-cli emits.
+
+    Not "external" (no host to fetch), but localizable: the pipeline decodes
+    each to a real file so the archive resolves offline.
+    """
+    return url.strip().lower().startswith("data:")
+
+
 def _map_css_urls(css: str, fn: Callable[[str], str]) -> Tuple[str, List[str]]:
     """Walk every ``url(...)`` and bare-string ``@import`` reference in ``css``.
 

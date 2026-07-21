@@ -1377,18 +1377,27 @@ def test_subtitle_cache_keys_with_format(mock_filecache, subtitle_file):
     assert set(mock_filecache.cache.keys()) == expected_keys
 
 
-def test_html5_zip_cache_keys(mock_filecache, html_file):
-    """Test cache key generation for HTML5 zip processing"""
+def test_html5_zip_cache_keys(mock_filecache, html_file, html_filename):
+    """Test cache key generation for HTML5 zip processing.
+
+    The fixture inlines two ``data:image/gif`` assets, which CONVERT now
+    explodes into real files (issue #691). So the zip spine (DOWNLOAD →
+    CONVERT → EXTRACT_METADATA) is joined by a CONVERT key for each exploded
+    gif. CONVERT rewrites the archive, so its input filename is the downloaded
+    zip (``html_filename``) while EXTRACT runs on the rewritten zip.
+    """
     path = html_file.path
     html = HTMLZipFile(path)
     html.process_file()
 
-    expected_keys = {
-        f"DOWNLOAD:{path}",
-        f"CONVERT:{html.filename}",
-        f"EXTRACT_METADATA:{html.filename}",
+    keys = set(mock_filecache.cache.keys())
+    assert f"DOWNLOAD:{path}" in keys
+    assert f"CONVERT:{html_filename}" in keys
+    assert f"EXTRACT_METADATA:{html.filename}" in keys
+    gif_convert_keys = {
+        k for k in keys if k.startswith("CONVERT:") and k.endswith(".gif")
     }
-    assert set(mock_filecache.cache.keys()) == expected_keys
+    assert len(gif_convert_keys) == 2
 
 
 def test_base64_image_cache_keys(mock_filecache):
