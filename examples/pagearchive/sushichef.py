@@ -18,10 +18,8 @@ from ricecooker.classes.nodes import ContentNode
 from ricecooker.classes.nodes import TopicNode
 from ricecooker.utils.pipeline import make_page_archiving_pipeline
 
-# A small, stable, public single-page app used as the render target. TodoMVC's
-# React example is a classic minimal SPA (its HTML is a shell that JavaScript
-# fills in at runtime), so it exercises the headless-render path. Confirm the
-# exact path during the manual offline-render verification (see README.md).
+# A small, stable, public SPA render target (TodoMVC's React example). Confirm
+# the exact path during manual offline-render verification (see README.md).
 SPA_TARGET = "https://todomvc.com/examples/react/dist/"
 
 

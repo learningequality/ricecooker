@@ -640,8 +640,8 @@ class TestArchiveProcessor:
     def test_data_uri_exploded(self):
         """A ``data:`` URI is localized: decoded to a real file, ref rewritten.
 
-        Runs the real ``FilePipeline`` (no network needed — ``Base64FileHandler``
-        decodes the URI), so this exercises the true download/rewrite path.
+        Runs the real ``FilePipeline`` — ``Base64FileHandler`` decodes the URI,
+        so no network is needed.
         """
         data_uri = "data:image/png;base64," + base64.b64encode(_PNG_1x1).decode()
         files = {

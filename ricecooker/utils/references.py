@@ -36,12 +36,9 @@ def is_external_url(url: str) -> bool:
 
 
 def is_data_uri(url: str) -> bool:
-    """True for ``data:`` URIs — inline resources single-file-cli emits.
-
-    Not "external" (no host to fetch), but localizable: the pipeline decodes
-    each to a real file so the archive resolves offline.
-    """
-    return url.strip().lower().startswith("data:")
+    """True for ``data:`` URIs — not external, but localizable to a real file."""
+    # Slice before lower(): a data: ref inlines the whole asset, often megabytes.
+    return url[:64].strip().lower().startswith("data:")
 
 
 def _map_css_urls(css: str, fn: Callable[[str], str]) -> Tuple[str, List[str]]:

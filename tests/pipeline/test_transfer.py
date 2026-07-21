@@ -383,10 +383,8 @@ def test_base64_decodes_data_uri_extension(data_uri, suffix):
 
 
 def test_base64_malformed_payload_raises_invalidfileexception():
-    # The loose data-URI regex matches payloads that are not valid base64;
-    # decoding must degrade to InvalidFileException (which the archive
-    # processor catches to leave the reference unrewritten), not a raw
-    # binascii.Error that would crash the whole run.
+    # The loose data-URI regex matches non-base64 payloads; decoding must
+    # degrade to InvalidFileException (caught upstream), not a raw binascii.Error.
     handler = Base64FileHandler()
     with pytest.raises(InvalidFileException, match="Malformed base64"):
         handler.execute("data:image/png;base64,AAA")
@@ -489,8 +487,8 @@ def test_singlefile_render_handler_forwards_crawl_context():
 
 
 def test_singlefile_render_end_to_end_explosion():
-    # Build the page-archiving pipeline by explicit construction so this test
-    # is independent of the make_page_archiving_pipeline factory (Task 5).
+    # Build the pipeline explicitly so this test is independent of the
+    # make_page_archiving_pipeline factory.
     download_stage = DownloadStageHandler(
         children=[SingleFileRenderHandler()]
         + [cls() for cls in DownloadStageHandler.DEFAULT_CHILDREN]

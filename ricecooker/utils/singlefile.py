@@ -32,17 +32,15 @@ def render_page(
     """
     index_path = os.path.join(output_dir, "index.html")
 
-    # Keep all flag names/values and output naming in this single block so a
-    # correction against the real binary is a one-spot change (see Task 6).
+    # Flag names/values isolated here so a correction against the real binary
+    # (unavailable in CI) is a one-spot change.
     command = ["single-file", url]
     if crawl_max_depth > 1:
-        command.append("--crawl-links=true")
-        command.append("--crawl-max-depth={}".format(crawl_max_depth))
-        command.append(
-            "--crawl-inner-links-only={}".format(
-                "true" if crawl_inner_links_only else "false"
-            )
-        )
+        command += [
+            "--crawl-links=true",
+            "--crawl-max-depth={}".format(crawl_max_depth),
+            "--crawl-inner-links-only={}".format(str(crawl_inner_links_only).lower()),
+        ]
     if crawl_rewrite_rule:
         command.append("--crawl-rewrite-rule={}".format(crawl_rewrite_rule))
     if browser_executable_path:

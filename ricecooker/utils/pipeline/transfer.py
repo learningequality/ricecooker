@@ -431,18 +431,11 @@ class SingleFileRenderContextMetadata(ContextMetadata):
 
 
 class SingleFileRenderHandler(FileHandler):
-    """Render a JS/SPA page to a self-contained HTML5 zip via single-file-cli.
+    """Render a ``singlefile+http(s)://`` URI to an HTML5 zip via single-file-cli.
 
-    A non-default DOWNLOAD handler: page-archiving chefs enable it explicitly
-    (see ``make_page_archiving_pipeline``). It claims ``singlefile+http(s)://``
-    marker URIs, shells out to the ``single-file`` binary to render — and,
-    when ``crawl_max_depth > 1``, crawl — the target into inlined HTML, then
-    seals the output directory into an ``HTML5`` (``.zip``) archive. The CONVERT
-    stage's ``HTML5ConversionHandler`` then explodes the inlined ``data:``
-    assets into real files and rewrites their references.
-
-    Crawl depth and link scope reach the handler through ``CONTEXT_CLASS``,
-    matching the removed ``link_policy`` (see ``singlefile.render_page``).
+    Non-default DOWNLOAD handler (opt in via ``make_page_archiving_pipeline``).
+    Seals the rendered output into a ``.zip``; the CONVERT stage then explodes
+    the inlined ``data:`` assets into real files and rewrites their references.
     """
 
     CONTEXT_CLASS = SingleFileRenderContextMetadata
@@ -465,9 +458,8 @@ class SingleFileRenderHandler(FileHandler):
         with tempfile.TemporaryDirectory() as temp_dir:
             render_page(real_url, temp_dir, **context)
             zip_path = create_predictable_zip(temp_dir)
-            with self.write_file(file_formats.HTML5) as fh:
-                with open(zip_path, "rb") as zf:
-                    shutil.copyfileobj(zf, fh)
+            with self.write_file(file_formats.HTML5) as fh, open(zip_path, "rb") as zf:
+                shutil.copyfileobj(zf, fh)
             os.unlink(zip_path)
 
 

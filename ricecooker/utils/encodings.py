@@ -46,11 +46,8 @@ def ext_from_data_uri_mimetype(mimetype):
     mimetype = mimetype.lower()
     if mimetype in _DATA_URI_EXTENSIONS:
         return _DATA_URI_EXTENSIONS[mimetype]
-    # single-file-cli only inlines images and fonts as data: URIs, so restrict
-    # the guess_extension fallback to those. This keeps a non-asset mimetype
-    # (e.g. text/plain) rejected rather than decoded to a spurious file, and
-    # avoids depending on the platform-specific mimetypes registry for
-    # arbitrary types.
+    # Restrict the guess_extension fallback to image/font so a non-asset
+    # mimetype (e.g. text/plain) is rejected, not decoded to a spurious file.
     if not mimetype.startswith(("image/", "font/")):
         return None
     guessed = mimetypes.guess_extension(mimetype)
