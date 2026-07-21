@@ -1,21 +1,38 @@
+import base64
 import json
 import os
 import tempfile
+import zipfile
 from sys import platform
 from unittest.mock import patch
 
 import pytest
+from le_utils.constants import format_presets
 from vcr_config import my_vcr
 
+from ricecooker.utils.pipeline import FilePipeline
 from ricecooker.utils.pipeline.context import FileMetadata
+from ricecooker.utils.pipeline.convert import ConversionStageHandler
 from ricecooker.utils.pipeline.exceptions import InvalidFileException
+from ricecooker.utils.pipeline.extract_metadata import ExtractMetadataStageHandler
 from ricecooker.utils.pipeline.file_handler import FileHandler
+from ricecooker.utils.pipeline.transfer import Base64FileHandler
 from ricecooker.utils.pipeline.transfer import DiskResourceHandler
 from ricecooker.utils.pipeline.transfer import DownloadStageHandler
 from ricecooker.utils.pipeline.transfer import (
     get_filename_from_content_disposition_header,
 )
 from ricecooker.utils.pipeline.transfer import GoogleDriveHandler
+from ricecooker.utils.pipeline.transfer import SingleFileRenderHandler
+
+# A valid 1x1 PNG — single-file inlines binary assets as base64 ``data:`` URIs,
+# and the CONVERT stage needs a decodable image to explode.
+_PNG_1x1 = (
+    b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01"
+    b"\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89"
+    b"\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01"
+    b"\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82"
+)
 
 content_disposition_filename_cases = [
     ('Content-Disposition: attachment; filename="example.jpg"', "example.jpg"),
@@ -343,3 +360,172 @@ def test_download_stage_handler_catches_failed_transfer():
     # The handler should raise an InvalidFileException when the file isn't transferred to storage
     with pytest.raises(InvalidFileException, match="failed to transfer to storage"):
         download_handler.execute(dummy_url)
+
+
+def test_base64_should_handle():
+    handler = Base64FileHandler()
+    assert handler.should_handle("data:font/woff2;base64,AAAA") is True
+    assert handler.should_handle("https://x/a.png") is False
+
+
+@pytest.mark.parametrize(
+    "data_uri,suffix",
+    [
+        ("data:font/woff2;base64,AAAA", ".woff2"),
+        ("data:image/gif;base64,AAAA", ".gif"),
+        # image/jpeg maps to .jpg, not .jpeg.
+        ("data:image/jpeg;base64,AAAA", ".jpg"),
+    ],
+)
+def test_base64_decodes_data_uri_extension(data_uri, suffix):
+    result = Base64FileHandler().execute(data_uri)
+    assert result[0].filename.endswith(suffix)
+
+
+def test_base64_malformed_payload_raises_invalidfileexception():
+    # The loose data-URI regex matches payloads that are not valid base64;
+    # decoding must degrade to InvalidFileException (which the archive
+    # processor catches to leave the reference unrewritten), not a raw
+    # binascii.Error that would crash the whole run.
+    handler = Base64FileHandler()
+    with pytest.raises(InvalidFileException, match="Malformed base64"):
+        handler.execute("data:image/png;base64,AAA")
+
+
+def test_render_page_writes_index_and_passes_crawl_flags():
+    import ricecooker.utils.singlefile as singlefile
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        recorded = {}
+
+        def check_output(command, *args, **kwargs):
+            recorded["command"] = command
+            with open(os.path.join(tmpdir, "index.html"), "w") as f:
+                f.write("<html><body>hi</body></html>")
+            return b""
+
+        with patch.object(
+            singlefile.subprocess, "check_output", side_effect=check_output
+        ):
+            result = singlefile.render_page(
+                "https://spa.example/",
+                tmpdir,
+                crawl_max_depth=2,
+                crawl_inner_links_only=True,
+            )
+        assert result == os.path.join(tmpdir, "index.html")
+        assert os.path.exists(result)
+        command = recorded["command"]
+        assert "--crawl-links=true" in command
+        assert "--crawl-max-depth=2" in command
+        assert "--crawl-inner-links-only=true" in command
+
+
+def test_render_page_missing_binary_raises_singlefilerendererror():
+    import ricecooker.utils.singlefile as singlefile
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        with patch.object(
+            singlefile.subprocess, "check_output", side_effect=FileNotFoundError()
+        ):
+            with pytest.raises(singlefile.SingleFileRenderError, match="single-file"):
+                singlefile.render_page("https://spa.example/", tmpdir)
+
+
+def _fake_render_page(**expected_kwargs):
+    """Return a render_page stand-in that emits an index.html with a data: img.
+
+    The emitted body has real content (the <img>), which the CONVERT stage's
+    index.html body validation requires.
+    """
+    data_uri = "data:image/png;base64," + base64.b64encode(_PNG_1x1).decode()
+
+    def render_page(url, output_dir, **kwargs):
+        for key, value in expected_kwargs.items():
+            assert kwargs.get(key) == value
+        index_path = os.path.join(output_dir, "index.html")
+        with open(index_path, "w") as fh:
+            fh.write('<html><body><img src="{}"></body></html>'.format(data_uri))
+        return index_path
+
+    return render_page
+
+
+def test_singlefile_render_handler_should_handle():
+    handler = SingleFileRenderHandler()
+    assert handler.should_handle("singlefile+https://spa.example/") is True
+    assert handler.should_handle("https://spa.example/") is False
+    assert handler.should_handle("singlefile+ftp://x") is False
+
+
+def test_singlefile_render_handler_produces_zip():
+    handler = SingleFileRenderHandler()
+    with patch(
+        "ricecooker.utils.pipeline.transfer.render_page",
+        side_effect=_fake_render_page(),
+    ):
+        result = handler.execute("singlefile+https://spa.example/")
+    assert result[0].filename.endswith(".zip")
+    with zipfile.ZipFile(result[0].path) as zf:
+        index = zf.read("index.html").decode()
+    # The raw render (pre-CONVERT) still has the inlined data: URI.
+    assert "data:image/png" in index
+
+
+def test_singlefile_render_end_to_end_explosion():
+    # Build the page-archiving pipeline by explicit construction so this test
+    # is independent of the make_page_archiving_pipeline factory (Task 5).
+    download_stage = DownloadStageHandler(
+        children=[SingleFileRenderHandler()]
+        + [cls() for cls in DownloadStageHandler.DEFAULT_CHILDREN]
+    )
+    pipeline = FilePipeline(
+        children=[
+            download_stage,
+            ConversionStageHandler(),
+            ExtractMetadataStageHandler(),
+        ]
+    )
+    with patch(
+        "ricecooker.utils.pipeline.transfer.render_page",
+        side_effect=_fake_render_page(),
+    ):
+        result = pipeline.execute("singlefile+https://spa.example/")
+
+    assert result[0].preset == format_presets.HTML5_ZIP
+    with zipfile.ZipFile(result[0].path) as zf:
+        names = zf.namelist()
+        index = zf.read("index.html").decode()
+    # The inlined asset is exploded into a real file and the ref rewritten.
+    assert "data:image/png" not in index
+    pngs = [n for n in names if n.endswith(".png")]
+    assert len(pngs) == 1
+    assert 'src="{}"'.format(pngs[0]) in index
+
+
+def test_make_page_archiving_pipeline_handles_render_and_default_sources():
+    from ricecooker.utils.pipeline import make_page_archiving_pipeline
+
+    pipeline = make_page_archiving_pipeline()
+    # Render handler is active for marker URIs.
+    assert pipeline.should_handle("singlefile+https://spa.example/") is True
+    # Default children still claim ordinary sources.
+    assert pipeline.should_handle("https://example.com/x.pdf") is True
+
+
+def test_make_page_archiving_pipeline_forwards_default_context():
+    from ricecooker.utils.pipeline import make_page_archiving_pipeline
+
+    pipeline = make_page_archiving_pipeline(
+        default_context={"video_settings": {"crf": 30}}
+    )
+    assert pipeline.default_context == {"video_settings": {"crf": 30}}
+
+
+def test_build_file_pipeline_forwards_default_context():
+    from ricecooker.chefs import SushiChef
+
+    chef = SushiChef.__new__(SushiChef)
+    pipeline = chef.build_file_pipeline({"audio_settings": {"bit_rate": 96}})
+    assert isinstance(pipeline, FilePipeline)
+    assert pipeline.default_context == {"audio_settings": {"bit_rate": 96}}

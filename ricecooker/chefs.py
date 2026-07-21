@@ -462,6 +462,15 @@ class SushiChef(object):
             options (dict): extra key=value options given on command line
         """
 
+    def build_file_pipeline(self, default_context):
+        """Construct this run's FilePipeline.
+
+        Override to add custom stages or DOWNLOAD-stage handlers (e.g.
+        page-archiving); forward ``default_context`` so compression settings
+        still apply. See ``ricecooker.utils.pipeline.make_page_archiving_pipeline``.
+        """
+        return FilePipeline(default_context=default_context)
+
     def run(self, args, options):
         """
         This function calls uploadchannel which performs all the run steps:
@@ -495,7 +504,7 @@ class SushiChef(object):
             default_context["audio_settings"] = {
                 "bit_rate": 96,
             }
-        self.file_pipeline = FilePipeline(default_context=default_context)
+        self.file_pipeline = self.build_file_pipeline(default_context)
         self.auth = DomainSpecificAuth(self.DOMAIN_AUTH_HEADERS)
         # TODO(Kevin): move self.download_content() call here
         self.pre_run(args, options)

@@ -1,4 +1,5 @@
 import base64
+import binascii
 import hashlib
 import mimetypes
 import os
@@ -21,9 +22,12 @@ from requests.exceptions import Timeout
 
 from ricecooker import config
 from ricecooker.utils.caching import generate_key
-from ricecooker.utils.encodings import get_base64_encoding
+from ricecooker.utils.encodings import ext_from_data_uri_mimetype
+from ricecooker.utils.encodings import get_base64_data_uri
 from ricecooker.utils.paths import extract_path_ext
 from ricecooker.utils.pipeline.exceptions import InvalidFileException
+from ricecooker.utils.singlefile import render_page
+from ricecooker.utils.singlefile import SingleFileRenderError
 from ricecooker.utils.storage import get_hash
 from ricecooker.utils.youtube import get_language_with_alpha2_fallback
 from ricecooker.utils.youtube import YouTubeResource
@@ -397,7 +401,7 @@ class GoogleDriveHandler(WebResourceHandler):
 
 class Base64FileHandler(FileHandler):
     def should_handle(self, path: str) -> bool:
-        return bool(get_base64_encoding(path))
+        return bool(get_base64_data_uri(path))
 
     def get_cache_key(self, path: str) -> str:
         hashed_content = hashlib.md5()
@@ -405,13 +409,66 @@ class Base64FileHandler(FileHandler):
         return "ENCODED: {} (base64 encoded)".format(hashed_content.hexdigest())
 
     def handle_file(self, path: str):
-        encoding_match = get_base64_encoding(path)
-        extension = encoding_match.group(1)
-        # Prefer JPG over JPEG as a file extension
-        if extension == file_formats.JPEG:
-            extension = file_formats.JPG
+        encoding_match = get_base64_data_uri(path)
+        extension = ext_from_data_uri_mimetype(encoding_match.group(1))
+        if extension is None:
+            raise InvalidFileException(
+                f"Unsupported base64 data URI mimetype: {encoding_match.group(1)}"
+            )
+        try:
+            decoded = base64.decodebytes(encoding_match.group(2).encode("utf-8"))
+        except binascii.Error as e:
+            raise InvalidFileException(f"Malformed base64 data URI: {e}")
         with self.write_file(extension) as fh:
-            fh.write(base64.decodebytes(encoding_match.group(2).encode("utf-8")))
+            fh.write(decoded)
+
+
+class SingleFileRenderContextMetadata(ContextMetadata):
+    crawl_max_depth: int = 1
+    crawl_inner_links_only: bool = True
+    crawl_rewrite_rule: Optional[str] = None
+    browser_executable_path: Optional[str] = None
+
+
+class SingleFileRenderHandler(FileHandler):
+    """Render a JS/SPA page to a self-contained HTML5 zip via single-file-cli.
+
+    A non-default DOWNLOAD handler: page-archiving chefs enable it explicitly
+    (see ``make_page_archiving_pipeline``). It claims ``singlefile+http(s)://``
+    marker URIs, shells out to the ``single-file`` binary to render — and,
+    when ``crawl_max_depth > 1``, crawl — the target into inlined HTML, then
+    seals the output directory into an ``HTML5`` (``.zip``) archive. The CONVERT
+    stage's ``HTML5ConversionHandler`` then explodes the inlined ``data:``
+    assets into real files and rewrites their references.
+
+    Crawl depth and link scope reach the handler through ``CONTEXT_CLASS``,
+    matching the removed ``link_policy`` (see ``singlefile.render_page``).
+    """
+
+    CONTEXT_CLASS = SingleFileRenderContextMetadata
+
+    MARKER = "singlefile+"
+    MARKER_PREFIXES = (MARKER + "https://", MARKER + "http://")
+
+    HANDLED_EXCEPTIONS = [SingleFileRenderError]
+
+    def should_handle(self, path: str) -> bool:
+        return path.startswith(self.MARKER_PREFIXES)
+
+    def get_cache_key(self, path, **kwargs) -> str:
+        # Include the crawl settings so two depths/scopes of the same URL do
+        # not collide (mirrors MediaCompressionHandler.get_cache_key).
+        return generate_key("SINGLEFILE", self.normalize_path(path), settings=kwargs)
+
+    def handle_file(self, path, **context):
+        real_url = path[len(self.MARKER) :]
+        with tempfile.TemporaryDirectory() as temp_dir:
+            render_page(real_url, temp_dir, **context)
+            zip_path = create_predictable_zip(temp_dir)
+            with self.write_file(file_formats.HTML5) as fh:
+                with open(zip_path, "rb") as zf:
+                    shutil.copyfileobj(zf, fh)
+            os.unlink(zip_path)
 
 
 class DownloadStageHandler(StageHandler):

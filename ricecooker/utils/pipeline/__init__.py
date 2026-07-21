@@ -10,6 +10,7 @@ from .convert import ConversionStageHandler
 from .extract_metadata import ExtractMetadataStageHandler
 from .file_handler import CompositeHandler
 from .transfer import DownloadStageHandler
+from .transfer import SingleFileRenderHandler
 
 # Do this to prevent import of broken Windows filetype registry that makes guesstype not work.
 # https://www.thecodingforums.com/threads/mimetypes-guess_type-broken-in-windows-on-py2-7-and-python-3-x.952693/
@@ -107,3 +108,24 @@ class FilePipeline(CompositeHandler):
                     updated_file_metadata_list.append(file_metadata)
             file_metadata_list = updated_file_metadata_list
         return file_metadata_list
+
+
+def make_page_archiving_pipeline(default_context=None):
+    """A FilePipeline whose DOWNLOAD stage also renders ``singlefile+`` URIs.
+
+    The render handler is prepended to the default DOWNLOAD children; it only
+    claims ``singlefile+http(s)://`` URIs, so all other sources behave as usual.
+    Chefs opt in by overriding ``SushiChef.build_file_pipeline`` to return this.
+    """
+    download_stage = DownloadStageHandler(
+        children=[SingleFileRenderHandler()]
+        + [cls() for cls in DownloadStageHandler.DEFAULT_CHILDREN]
+    )
+    return FilePipeline(
+        children=[
+            download_stage,
+            ConversionStageHandler(),
+            ExtractMetadataStageHandler(),
+        ],
+        default_context=default_context or {},
+    )
