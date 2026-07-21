@@ -638,34 +638,19 @@ class TestArchiveProcessor:
             assert os.path.exists(resolved)
 
     def test_data_uri_exploded(self):
-        """A ``data:`` URI is localized: decoded to a real file, ref rewritten."""
+        """A ``data:`` URI is localized: decoded to a real file, ref rewritten.
+
+        Runs the real ``FilePipeline`` (no network needed — ``Base64FileHandler``
+        decodes the URI), so this exercises the true download/rewrite path.
+        """
         data_uri = "data:image/png;base64," + base64.b64encode(_PNG_1x1).decode()
-
-        class _StubPipeline:
-            """Decodes the data: URI to a real png and returns its metadata."""
-
-            def __init__(self, storage):
-                self._storage = storage
-
-            def execute(self, url, **kwargs):
-                _, _, b64 = url.partition(",")
-                out = os.path.join(self._storage, "decoded.png")
-                with open(out, "wb") as fh:
-                    fh.write(base64.b64decode(b64))
-                return [SimpleNamespace(path=out)]
-
-        with (
-            tempfile.TemporaryDirectory() as tmpdir,
-            tempfile.TemporaryDirectory() as storage,
-        ):
-            index_path = os.path.join(tmpdir, "index.html")
-            with open(index_path, "w") as fh:
-                fh.write('<html><body><img src="{}"></body></html>'.format(data_uri))
-            archive_assets.ArchiveProcessor(tmpdir, _StubPipeline(storage)).process()
-
-            pngs = [n for n in os.listdir(tmpdir) if n.endswith(".png")]
+        files = {
+            "index.html": '<html><body><img src="{}"></body></html>'.format(data_uri),
+        }
+        with _run_external_refs(files, {}) as (out_dir, _fetched):
+            pngs = [n for n in os.listdir(out_dir) if n.endswith(".png")]
             assert len(pngs) == 1
-            index = open(index_path).read()
+            index = open(os.path.join(out_dir, "index.html")).read()
             assert "data:image/png" not in index
             assert 'src="{}"'.format(pngs[0]) in index
 

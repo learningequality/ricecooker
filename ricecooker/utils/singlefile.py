@@ -1,9 +1,5 @@
-import logging
 import os
 import subprocess
-
-LOGGER = logging.getLogger("SingleFile")
-LOGGER.setLevel(logging.DEBUG)
 
 INSTALL_HINT = (
     "single-file binary not found. Install it with "

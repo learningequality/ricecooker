@@ -472,6 +472,22 @@ def test_singlefile_render_handler_produces_zip():
     assert "data:image/png" in index
 
 
+def test_singlefile_render_handler_forwards_crawl_context():
+    # Crawl depth/scope reach the handler only through CONTEXT_CLASS; without it
+    # every field silently defaults and the depth/scope config AC is a no-op.
+    # _fake_render_page asserts the kwargs render_page actually received.
+    handler = SingleFileRenderHandler()
+    with patch(
+        "ricecooker.utils.pipeline.transfer.render_page",
+        side_effect=_fake_render_page(crawl_max_depth=3, crawl_inner_links_only=False),
+    ):
+        result = handler.execute(
+            "singlefile+https://spa.example/",
+            context={"crawl_max_depth": 3, "crawl_inner_links_only": False},
+        )
+    assert result[0].filename.endswith(".zip")
+
+
 def test_singlefile_render_end_to_end_explosion():
     # Build the page-archiving pipeline by explicit construction so this test
     # is independent of the make_page_archiving_pipeline factory (Task 5).
