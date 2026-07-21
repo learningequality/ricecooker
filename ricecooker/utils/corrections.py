@@ -167,7 +167,7 @@ class CorretionsCsvFileExporter(object):
         file_path = self.csvfilepath
         if os.path.exists(file_path):
             print("Overwriting previous export", file_path)
-        with open(file_path, "w") as csv_file:
+        with open(file_path, "w", encoding="utf-8") as csv_file:
             csvwriter = csv.DictWriter(csv_file, CORRECTIONS_HEADER)
             csvwriter.writeheader()
 
@@ -231,7 +231,7 @@ class CorretionsCsvFileExporter(object):
             studio_dict["title"],
         )
         file_path = self.csvfilepath
-        with open(file_path, "a") as csv_file:
+        with open(file_path, "a", encoding="utf-8") as csv_file:
             csvwriter = csv.DictWriter(csv_file, CORRECTIONS_HEADER)
             title = studio_dict["title"]
             path_with_self = "/".join(path_tuple + [title])
@@ -243,7 +243,7 @@ class CorretionsCsvFileExporter(object):
 
     def write_content_row_from_studio_dict(self, path_tuple, studio_dict):
         file_path = self.csvfilepath
-        with open(file_path, "a") as csv_file:
+        with open(file_path, "a", encoding="utf-8") as csv_file:
             csvwriter = csv.DictWriter(csv_file, CORRECTIONS_HEADER)
             row = {}
             self.write_common_row_attributes_from_studio_dict(row, studio_dict)
@@ -263,7 +263,7 @@ def save_gsheet_to_local_csv(gsheet_id, gid, csvfilepath="corrections-import.csv
     print(SHEET_CSV_URL)
     response = requests.get(SHEET_CSV_URL)
     csv_data = response.content.decode("utf-8")
-    with open(csvfilepath, "w") as csvfile:
+    with open(csvfilepath, "w", encoding="utf-8") as csvfile:
         csvfile.write(csv_data)
         print("Succesfully saved " + csvfilepath)
     return csvfilepath
@@ -285,7 +285,7 @@ def _clean_dict(row):
 def load_corrections_from_csv(csvfilepath):
     csv_path = csvfilepath  # download_structure_csv()
     struct_list = []
-    with open(csv_path, "r") as csvfile:
+    with open(csv_path, "r", encoding="utf-8") as csvfile:
         reader = csv.DictReader(csvfile, fieldnames=CORRECTIONS_HEADER)
         next(reader)  # Skip Headers row
         for row in reader:
