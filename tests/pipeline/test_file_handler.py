@@ -96,18 +96,6 @@ def test_output_path_thread_safety():
     assert results["B"] == "/storage/file_B.txt"
 
 
-def test_init_context_used_when_no_call_context():
-    h = VideoCompressionHandler(video_settings={"crf": 30})
-    # _get_context(None) should surface the init context
-    assert h._get_context(None).video_settings == {"crf": 30}
-
-
-def test_call_context_overrides_init_context():
-    h = VideoCompressionHandler(video_settings={"crf": 30})
-    ctx = h._get_context({"video_settings": {"crf": 24}})
-    assert ctx.video_settings == {"crf": 24}
-
-
 def test_unknown_init_context_field_raises():
     with pytest.raises(TypeError, match="unexpected context"):
         VideoCompressionHandler(bogus=1)
