@@ -176,6 +176,21 @@ def test_gdrive_should_handle():
     assert handler.should_handle(channel_spreadsheet_link)
 
 
+def test_gdrive_forwards_init_context_to_super():
+    # No-arg construction is unchanged and init context defaults to empty.
+    handler = GoogleDriveHandler()
+    assert handler._init_context == {}
+    assert handler._drive_service is None
+
+
+def test_gdrive_init_context_validated_via_super():
+    # GoogleDriveHandler's CONTEXT_CLASS (base ContextMetadata) has no fields,
+    # so any init context is rejected -- but by super's validation, proving the
+    # custom __init__ forwards **context rather than swallowing it.
+    with pytest.raises(TypeError, match="unexpected context field"):
+        GoogleDriveHandler(default_ext="pdf")
+
+
 @my_vcr.use_cassette
 def test_gdrive_slideshow(mock_google_creds):
     """

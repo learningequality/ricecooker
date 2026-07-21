@@ -286,8 +286,8 @@ class GoogleDriveHandler(WebResourceHandler):
         "application/vnd.google-apps.drawing": "image/png",
     }
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, **context):
+        super().__init__(**context)
         self._drive_service = None
 
     @property
