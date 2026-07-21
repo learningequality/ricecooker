@@ -15,6 +15,7 @@ from ricecooker.utils.images import create_image_from_pdf_page
 from ricecooker.utils.images import create_image_from_zip
 from ricecooker.utils.images import create_tiled_image
 from ricecooker.utils.images import ThumbnailGenerationError
+from ricecooker.utils.paths import extract_path_ext
 from ricecooker.utils.pipeline import FilePipeline
 from ricecooker.utils.pipeline.convert import AudioCompressionHandler
 from ricecooker.utils.pipeline.convert import ImageConversionHandler
@@ -23,8 +24,7 @@ from ricecooker.utils.pipeline.convert import VideoCompressionHandler
 from ricecooker.utils.pipeline.exceptions import ExpectedFileException
 from ricecooker.utils.pipeline.exceptions import InvalidFileException
 from ricecooker.utils.pipeline.transfer import CatchAllWebResourceDownloadHandler
-from ricecooker.utils.utils import copy_file_to_storage
-from ricecooker.utils.utils import extract_path_ext
+from ricecooker.utils.storage import copy_file_to_storage
 from ricecooker.utils.videos import extract_thumbnail_from_video
 from ricecooker.utils.youtube import get_language_with_alpha2_fallback
 

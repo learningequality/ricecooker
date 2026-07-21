@@ -7,7 +7,6 @@ from unittest.mock import patch
 import pytest
 from le_utils.constants import file_formats
 
-from ricecooker.utils import utils
 from ricecooker.utils import youtube
 
 trees = {}
@@ -269,7 +268,7 @@ def test_get_subtitles():
 
 def test_non_youtube_url_error():
     url = "https://vimeo.com/238190750"
-    with pytest.raises(utils.VideoURLFormatError):
+    with pytest.raises(youtube.VideoURLFormatError):
         youtube.YouTubeResource(url)
 
 

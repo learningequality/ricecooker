@@ -22,9 +22,9 @@ from requests.exceptions import Timeout
 from ricecooker import config
 from ricecooker.utils.caching import generate_key
 from ricecooker.utils.encodings import get_base64_encoding
+from ricecooker.utils.paths import extract_path_ext
 from ricecooker.utils.pipeline.exceptions import InvalidFileException
-from ricecooker.utils.utils import extract_path_ext
-from ricecooker.utils.utils import get_hash
+from ricecooker.utils.storage import get_hash
 from ricecooker.utils.youtube import get_language_with_alpha2_fallback
 from ricecooker.utils.youtube import YouTubeResource
 
