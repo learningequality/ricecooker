@@ -670,7 +670,7 @@ class CsvMetadataProvider(MetadataProvider):
             return
         # print('Generating Content.csv rows folders and file in channeldir for path_tuple ', path_tuple, studio_dict['title'])
         file_path = get_metadata_file_path(self.channeldir, self.contentinfo)
-        with open(file_path, "a") as csv_file:
+        with open(file_path, "a", encoding="utf-8") as csv_file:
             csvwriter = csv.DictWriter(csv_file, CONTENT_INFO_HEADER)
             title = studio_dict["title"]
             path_with_self = "/".join(path_tuple + [title])
@@ -685,7 +685,7 @@ class CsvMetadataProvider(MetadataProvider):
 
     def write_exercice_row_from_studio_dict(self, path_tuple, studio_dict, source_id):
         file_path = get_metadata_file_path(self.channeldir, self.exercisesinfo)
-        with open(file_path, "a") as csv_file:
+        with open(file_path, "a", encoding="utf-8") as csv_file:
             csvwriter = csv.DictWriter(csv_file, EXERCISE_INFO_HEADER)
             exercise_row = {}
             self.write_commont_studio_dict_from_row(studio_dict, exercise_row)
@@ -768,7 +768,7 @@ class CsvMetadataProvider(MetadataProvider):
         if question_dict["type"] == "perseus_question":
             print("Skipping perseus_question -- not supported in CSV workflow.")
             return
-        with open(file_path, "a") as csv_file:
+        with open(file_path, "a", encoding="utf-8") as csv_file:
             csvwriter = csv.DictWriter(csv_file, EXERCISE_QUESTIONS_INFO_HEADER)
 
             def _safe_list_get(_list, idx, default):
@@ -864,7 +864,7 @@ class CsvMetadataProvider(MetadataProvider):
         """
         LOGGER.info("Generating Content.csv rows folders and file in channeldir")
         file_path = get_metadata_file_path(self.channeldir, self.contentinfo)
-        with open(file_path, "a") as csv_file:
+        with open(file_path, "a", encoding="utf-8") as csv_file:
             csvwriter = csv.DictWriter(csv_file, CONTENT_INFO_HEADER)
 
             channeldir = args["channeldir"]
@@ -962,7 +962,7 @@ class CsvMetadataProvider(MetadataProvider):
         """
         file_path = get_metadata_file_path(channeldir, filename)
         if not os.path.exists(file_path):
-            with open(file_path, "w") as csv_file:
+            with open(file_path, "w", encoding="utf-8") as csv_file:
                 csvwriter = csv.DictWriter(csv_file, header)
                 csvwriter.writeheader()
 
@@ -972,7 +972,7 @@ def _read_csv_lines(path):
     Opens CSV file `path` and returns list of rows.
     Pass output of this function to `csv.DictReader` for reading data.
     """
-    csv_file = open(path, "r")
+    csv_file = open(path, "r", encoding="utf-8")
     csv_lines_raw = csv_file.readlines()
     csv_lines_clean = [line for line in csv_lines_raw if len(line.strip()) > 0]
     return csv_lines_clean

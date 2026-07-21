@@ -1,11 +1,16 @@
+import logging
 import os
 import sys
 
 import pytest
+from mock import MagicMock
+from mock import mock_open
 from mock import patch
 from requests import PreparedRequest
 
 from ricecooker import chefs
+from ricecooker import config
+from ricecooker.utils import metadata_provider
 from ricecooker.utils.request_utils import DomainSpecificAuth
 
 settings = {"thumbnails": True, "compress": True}
@@ -143,3 +148,46 @@ def test_domain_auth_no_headers_for_non_matching_domain():
         assert (
             result.headers["Content-Type"] == "application/json"
         )  # existing header preserved
+
+
+@pytest.fixture
+def restore_logging():
+    yield
+    root = logging.getLogger()
+    for handler in list(root.handlers):
+        handler.close()
+        root.removeHandler(handler)
+    config._ERROR_LOG = None
+    config._MAIN_LOG = None
+    config.setup_logging()
+
+
+def test_setup_logging_file_handlers_use_utf8(tmp_path, restore_logging):
+    config.setup_logging(
+        main_log=str(tmp_path / "main.log"),
+        error_log=str(tmp_path / "err.log"),
+    )
+    file_handlers = [
+        h for h in logging.getLogger().handlers if isinstance(h, logging.FileHandler)
+    ]
+    assert file_handlers  # both file + error handlers present
+    assert all(h.encoding == "utf-8" for h in file_handlers)
+
+
+def test_setup_logging_reconfigures_streams_to_utf8(monkeypatch, restore_logging):
+    stdout, stderr = MagicMock(), MagicMock()
+    monkeypatch.setattr(sys, "stdout", stdout)
+    monkeypatch.setattr(sys, "stderr", stderr)
+    config.setup_logging()
+    for stream in (stdout, stderr):
+        stream.reconfigure.assert_called_once_with(
+            encoding="utf-8", errors="backslashreplace"
+        )
+
+
+def test_read_csv_lines_opens_utf8():
+    with patch(
+        "ricecooker.utils.metadata_provider.open", mock_open(read_data="row\n")
+    ) as mocked:
+        metadata_provider._read_csv_lines("some.csv")
+    mocked.assert_called_once_with("some.csv", "r", encoding="utf-8")

@@ -8,6 +8,7 @@ import logging.config
 import os
 import shutil
 import socket
+import sys
 import tempfile
 
 import requests
@@ -57,6 +58,17 @@ def setup_logging(level=logging.INFO, main_log=None, error_log=None, add_loggers
     """
     global _ERROR_LOG, _MAIN_LOG
 
+    # On Windows the default stdout/stderr codec is the locale codepage
+    # (cp1252), which raises UnicodeEncodeError on non-ASCII log messages
+    # such as Arabic node titles. Force UTF-8 where the stream supports it.
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            try:
+                reconfigure(encoding="utf-8", errors="backslashreplace")
+            except (ValueError, OSError):
+                pass
+
     if not error_log:
         error_log = _ERROR_LOG
     else:
@@ -83,6 +95,7 @@ def setup_logging(level=logging.INFO, main_log=None, error_log=None, add_loggers
             "class": "logging.FileHandler",
             "filename": main_log,
             "formatter": "simple_date",
+            "encoding": "utf-8",
         }
     if error_log:
         logger_handlers.append("error")
@@ -91,6 +104,7 @@ def setup_logging(level=logging.INFO, main_log=None, error_log=None, add_loggers
             "class": "logging.FileHandler",
             "filename": error_log,
             "formatter": "simple_date",
+            "encoding": "utf-8",
         }
 
     # The default configuration of a logger (used in below config)
