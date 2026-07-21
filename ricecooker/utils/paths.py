@@ -1,6 +1,7 @@
 import ntpath
 import os
 from pathlib import Path
+from urllib.parse import urlparse
 
 
 def dir_exists(filepath):
@@ -55,3 +56,33 @@ def build_path(levels):
     if not dir_exists(path):
         os.makedirs(path)
     return path
+
+
+def make_dir_if_needed(path):
+    """
+    Check if the dir exists, and if not, create it. If the directory exists, just return it
+    rather than throwing an error.
+
+    :param path: A string representing a directory on disk.
+    :return: A path to the directory that is guaranteed to exist.
+    """
+
+    if not os.path.exists(path):
+        os.makedirs(path)
+    return path
+
+
+def extract_path_ext(path, default_ext=None):
+    """
+    Extract file extension (without dot) from `path` or return `default_ext` if
+    path does not contain a valid extension.
+    """
+    path = urlparse(path).path
+    _, ext = os.path.splitext(path)
+    # Remove the leading "." from the extension
+    ext = ext[1:] if ext else ext
+    if not ext and default_ext:
+        ext = default_ext
+    if not ext:
+        raise ValueError("No extension in path {} and default_ext is None".format(path))
+    return ext.lower()

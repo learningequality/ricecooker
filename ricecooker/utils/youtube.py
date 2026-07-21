@@ -11,11 +11,20 @@ import langcodes
 import yt_dlp
 from le_utils.constants import languages
 
+from . import paths
 from . import proxy
-from . import utils
 
 LOGGER = logging.getLogger("YouTubeResource")
 LOGGER.setLevel(logging.DEBUG)
+
+
+class VideoURLFormatError(Exception):
+    def __init__(self, url, expected_format):
+        self.message = (
+            "The video at {} does not appear to be a proper {} video URL.".format(
+                url, expected_format
+            )
+        )
 
 
 NON_NETWORK_ERRORS = [
@@ -52,7 +61,7 @@ class YouTubeResource(object):
         :param url: URL of a YouTube resource. URL may point to a video, playlist or channel.
         """
         if "youtube.com" not in url and "youtu.be" not in url:
-            raise utils.VideoURLFormatError(url, "YouTube")
+            raise VideoURLFormatError(url, "YouTube")
         self.url = url
         self.subtitles = {}
         self.num_retries = 10
@@ -156,7 +165,7 @@ class YouTubeResource(object):
         """
         if base_path:
             download_dir = os.path.join(base_path, self.get_dir_name_from_url())
-            utils.make_dir_if_needed(download_dir)
+            paths.make_dir_if_needed(download_dir)
         else:
             download_dir = "."
 

@@ -18,8 +18,8 @@ from typing import Union
 from ricecooker import config
 from ricecooker.utils.caching import get_cache_data
 from ricecooker.utils.caching import set_cache_data
-from ricecooker.utils.utils import copy_file_to_storage
-from ricecooker.utils.utils import extract_path_ext
+from ricecooker.utils.paths import extract_path_ext
+from ricecooker.utils.storage import copy_file_to_storage
 
 from .context import ContextMetadata
 from .context import FileMetadata

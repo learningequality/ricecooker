@@ -24,7 +24,7 @@ from ricecooker.utils.pipeline.exceptions import InvalidFileException
 from .. import __version__
 from .. import config
 from ..exceptions import InvalidNodeException
-from ..utils.utils import is_valid_uuid_string
+from ..utils.validators import is_valid_uuid_string
 from .curriculum import LearningObjective
 from .files import ExtractedEPubThumbnailFile
 from .files import ExtractedHTMLZipThumbnailFile
