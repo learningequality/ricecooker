@@ -6,20 +6,25 @@ and the ricecooker pipeline for `data:`-URI localization and media conversion.
 
 ## How it works
 
-1. `SingleFileRenderHandler` is a built-in DOWNLOAD-stage handler, gated by the
-   `singlefile+` URI prefix — no custom pipeline wiring is needed.
-2. A `ContentNode` whose `uri` starts with `singlefile+` marks render intent.
+1. `SingleFileRenderHandler` is a built-in DOWNLOAD-stage handler. It sits after
+   the site-specific handlers and before the catch-all web handler, and a cached
+   HEAD request tells it which URLs serve HTML — no marker or custom pipeline
+   wiring is needed.
+2. A `ContentNode` whose `uri` is a plain HTML-page URL is rendered headlessly;
+   non-HTML resources still download as static bytes.
    `context={"crawl_max_depth": ..., "crawl_inner_links_only": ...}` controls
    crawl depth and link scope (parity with the old `link_policy`).
 3. The handler shells out to the `single-file` binary, which renders the page
    with Chromium and inlines assets as `data:` URIs.
-4. The CONVERT stage explodes each `data:` URI into a real file, converts /
+4. External `<a href>`/`<iframe src>` targets the crawl did not capture are made
+   inert so the offline archive never navigates out to the live web.
+5. The CONVERT stage explodes each `data:` URI into a real file, converts /
    compresses it, and rewrites the reference — yielding a real HTML5 zip.
 
 ## Prerequisites (page archiving only)
 
 The core `pip install ricecooker` does **not** require these; they are only
-needed for the `singlefile+` render handler:
+needed to render HTML pages headlessly:
 
 ```bash
 npm install -g single-file-cli

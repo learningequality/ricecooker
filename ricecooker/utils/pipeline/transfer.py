@@ -18,6 +18,7 @@ from requests.exceptions import ConnectionError
 from requests.exceptions import HTTPError
 from requests.exceptions import InvalidSchema
 from requests.exceptions import InvalidURL
+from requests.exceptions import RequestException
 from requests.exceptions import Timeout
 
 from ricecooker import config
@@ -26,6 +27,7 @@ from ricecooker.utils.encodings import ext_from_data_uri_mimetype
 from ricecooker.utils.encodings import get_base64_data_uri
 from ricecooker.utils.paths import extract_path_ext
 from ricecooker.utils.pipeline.exceptions import InvalidFileException
+from ricecooker.utils.references import neutralize_external_navigation
 from ricecooker.utils.singlefile import render_page
 from ricecooker.utils.singlefile import SingleFileRenderError
 from ricecooker.utils.storage import get_hash
@@ -34,6 +36,7 @@ from ricecooker.utils.youtube import YouTubeResource
 
 from .context import ContextMetadata
 from .context import FileMetadata
+from .convert import _seal_directory_to_file
 from .file_handler import FileHandler
 from .file_handler import StageHandler
 
@@ -430,23 +433,49 @@ class SingleFileRenderContextMetadata(ContextMetadata):
     browser_executable_path: Optional[str] = None
 
 
-class SingleFileRenderHandler(FileHandler):
-    """Render a ``singlefile+http(s)://`` URI to an HTML5 zip via single-file-cli.
+class SingleFileRenderHandler(WebResourceHandler):
+    """Render a URL that serves an HTML page into an HTML5 zip via single-file-cli.
 
-    Gated by the explicit ``singlefile+`` marker, so it only shells out to
-    single-file-cli/Chromium for URIs a chef deliberately marks — the core
-    install is unaffected.
+    ``should_handle`` does a cached HEAD request and claims a URL only when it
+    serves ``text/html``. No pip dependency is added — the ``single-file``/Chromium
+    binaries are shelled out to lazily and only for HTML URLs.
     """
 
     CONTEXT_CLASS = SingleFileRenderContextMetadata
 
-    MARKER = "singlefile+"
-    MARKER_PREFIXES = (MARKER + "https://", MARKER + "http://")
+    HTML_CONTENT_TYPES = ("text/html", "application/xhtml+xml")
 
     HANDLED_EXCEPTIONS = [SingleFileRenderError]
 
-    def should_handle(self, path: str) -> bool:
-        return path.startswith(self.MARKER_PREFIXES)
+    def __init__(self):
+        super().__init__()
+        # Memoize the HEAD content-type per URL: should_handle can be called more
+        # than once per URL (composite probe + FirstHandlerOnly dispatch), and we
+        # want at most one HEAD round-trip each.
+        self._content_type_cache = {}
+
+    def _content_type(self, url: str) -> str:
+        if url not in self._content_type_cache:
+            try:
+                response = config.DOWNLOAD_SESSION.head(
+                    url, allow_redirects=True, timeout=(30, 30)
+                )
+                content_type = response.headers.get("content-type", "")
+            except RequestException:
+                content_type = ""
+            self._content_type_cache[url] = (
+                content_type.split(";", 1)[0].strip().lower()
+            )
+        return self._content_type_cache[url]
+
+    def should_handle(self, url: str) -> bool:
+        try:
+            parsed = urlparse(url)
+        except ValueError:
+            return False
+        if parsed.scheme not in ("http", "https") or not parsed.netloc:
+            return False
+        return self._content_type(url) in self.HTML_CONTENT_TYPES
 
     def get_cache_key(self, path, **kwargs) -> str:
         # Include the crawl settings so two depths/scopes of the same URL do
@@ -454,23 +483,34 @@ class SingleFileRenderHandler(FileHandler):
         return generate_key("SINGLEFILE", self.normalize_path(path), settings=kwargs)
 
     def handle_file(self, path, **context):
-        real_url = path[len(self.MARKER) :]
         with tempfile.TemporaryDirectory() as temp_dir:
-            render_page(real_url, temp_dir, **context)
-            zip_path = create_predictable_zip(temp_dir)
-            with self.write_file(file_formats.HTML5) as fh, open(zip_path, "rb") as zf:
-                shutil.copyfileobj(zf, fh)
-            os.unlink(zip_path)
+            render_page(path, temp_dir, **context)
+            self._neutralize_navigation(temp_dir)
+            _seal_directory_to_file(self, temp_dir, file_formats.HTML5)
+
+    def _neutralize_navigation(self, directory):
+        """Apply neutralize_external_navigation to every rendered HTML page."""
+        for root, _dirs, files in os.walk(directory):
+            for name in files:
+                if not name.lower().endswith((".html", ".htm", ".xhtml")):
+                    continue
+                file_path = os.path.join(root, name)
+                with open(file_path, encoding="utf-8") as fh:
+                    html = fh.read()
+                rewritten = neutralize_external_navigation(html)
+                if rewritten != html:
+                    with open(file_path, "w", encoding="utf-8") as fh:
+                        fh.write(rewritten)
 
 
 class DownloadStageHandler(StageHandler):
     STAGE = "DOWNLOAD"
     DEFAULT_CHILDREN = [
-        # Gated by the singlefile+ marker (see should_handle), so its position
-        # among the children is irrelevant — no other source is affected.
-        SingleFileRenderHandler,
         YoutubeDownloadHandler,
         GoogleDriveHandler,
+        # After the site-specific handlers and before the catch-all: HTML pages
+        # render, everything else falls through to a static download.
+        SingleFileRenderHandler,
         CatchAllWebResourceDownloadHandler,
         DiskResourceHandler,
         Base64FileHandler,

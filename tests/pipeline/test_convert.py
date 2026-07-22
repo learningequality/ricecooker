@@ -531,7 +531,13 @@ def _fake_download_session(url_to_content):
             iter_content=lambda chunk_size=8192: iter([content]),
         )
 
-    with patch.object(config, "DOWNLOAD_SESSION", SimpleNamespace(get=get)):
+    def head(url, **kwargs):
+        # The render handler HEAD-probes every external ref to see if it is an
+        # HTML page; these fixtures are assets, so report a non-HTML type and let
+        # the catch-all download handler fetch them via get().
+        return SimpleNamespace(headers={"content-type": "application/octet-stream"})
+
+    with patch.object(config, "DOWNLOAD_SESSION", SimpleNamespace(get=get, head=head)):
         yield calls
 
 

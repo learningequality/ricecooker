@@ -192,9 +192,6 @@ class _HTMLReferenceRewriter(_SurgicalHTMLParser):
             self._style_depth += 1
         self._handle_tag(tag, attrs)
 
-    def handle_startendtag(self, tag, attrs):
-        self._handle_tag(tag, attrs)
-
     def handle_endtag(self, tag):
         if tag == "style" and self._style_depth > 0:
             self._style_depth -= 1
@@ -328,6 +325,56 @@ def strip_scripts(html: str) -> Tuple[str, List[str]]:
     html, n_scripts = _SCRIPT_RE.subn("", html)
     removed = ["IE conditional comment"] * n_comments + ["<script> block"] * n_scripts
     return html, removed
+
+
+# Navigation attribute -> the inert value it is rewritten to. ``<a href>`` to a
+# same-page fragment neither navigates away nor hits the network; a blank
+# ``<iframe src>`` loads nothing.
+_INERT_NAVIGATION = {"a": ("href", "#"), "iframe": ("src", "about:blank")}
+
+
+class _ExternalNavigationNeutralizer(_SurgicalHTMLParser):
+    """Collects edits neutralizing external ``<a>``/``<iframe>`` navigation."""
+
+    def _handle_tag(self, tag, attrs):
+        target = _INERT_NAVIGATION.get(tag)
+        if target is None:
+            return
+        raw_tag = self.get_starttag_text()
+        if raw_tag is None:
+            return
+        attr, inert = target
+        value = next((v or "" for name, v in attrs if name.lower() == attr), "")
+        if not is_external_url(value):
+            return
+        base = self._tag_offset(raw_tag)
+        if base < 0:
+            return
+        span = _attr_value_span(raw_tag, attr)
+        if span is None:
+            return
+        rel_start, rel_end, _value = span
+        self.edits.append((base + rel_start, base + rel_end, inert))
+
+    def handle_starttag(self, tag, attrs):
+        self._handle_tag(tag, attrs)
+
+    def handle_startendtag(self, tag, attrs):
+        self._handle_tag(tag, attrs)
+
+
+def neutralize_external_navigation(html: str) -> str:
+    """Make external ``<a href>``/``<iframe src>`` inert so an archive can't phone home.
+
+    Page-archive output renders offline in a sandboxed ``<iframe>`` with no
+    DOMPurify pass, so navigation still pointing at the live web would leak out at
+    runtime. Relative references to captured siblings (and ``data:`` frames the
+    pipeline explodes locally) are preserved.
+    """
+    neutralizer = _ExternalNavigationNeutralizer(html)
+    neutralizer.feed(html)
+    neutralizer.close()
+    return _apply_edits(html, neutralizer.edits)
 
 
 class ReferenceMapper:

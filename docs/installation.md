@@ -90,10 +90,11 @@ installation steps and also explains the adding-to-Path process.
 
 ### Optional: headless page archiving (single-file-cli)
 
-This is **only** needed if your chef archives a JavaScript/SPA page by marking a
-source URI with the `singlefile+https://` prefix (see the render handler and
-`examples/pagearchive/sushichef.py`). The core `ricecooker` install and every
-other file type work without it.
+This is **only** needed if your chef archives a JavaScript/SPA page — i.e. it
+adds a node whose source URL serves an HTML page (see the render handler and
+`examples/pagearchive/sushichef.py`). The DOWNLOAD stage detects such URLs and
+renders them headlessly; the core `ricecooker` install and every other file type
+work without it.
 
 Page archiving shells out to the [single-file-cli](https://github.com/gildas-lormeau/single-file-cli)
 Node binary, which drives a headless Chromium/Chrome to render the page. Install
