@@ -593,7 +593,20 @@ def valid_zip():
 
 @pytest.fixture
 def invalid_zip():
-    # Create a temporary zip file without index.html
+    # Create a temporary zip file without any HTML file
+    fd, path = tempfile.mkstemp(suffix=".zip")
+    os.close(fd)
+
+    with zipfile.ZipFile(path, "w") as zf:
+        zf.writestr("script.js", "console.log('test');")
+
+    yield path
+    os.unlink(path)
+
+
+@pytest.fixture
+def non_index_entry_zip():
+    # Create a temporary zip file whose only HTML file is not index.html
     fd, path = tempfile.mkstemp(suffix=".zip")
     os.close(fd)
 
@@ -631,16 +644,27 @@ def test_invalid_htmlzip_validation(invalid_zip):
 
     assert html_file.filename is None
     assert html_file.error is not None
-    assert "index.html" in html_file.error
+    assert "no HTML file" in html_file.error
+
+
+def test_non_index_entry_htmlzip_validation(non_index_entry_zip):
+    # A zip whose only HTML file is not index.html is valid; the entry
+    # point is detected and recorded in extra_fields.options.entry.
+    html_file = HTMLZipFile(non_index_entry_zip)
+    html_file.process_file()
+
+    assert html_file.filename is not None
+    assert html_file.error is None
 
 
 def test_nested_index_htmlzip_validation(nested_index_zip):
+    # A zip whose files all live under a common parent directory is
+    # denested so that index.html ends up at the root.
     html_file = HTMLZipFile(nested_index_zip)
     html_file.process_file()
 
-    assert html_file.filename is None
-    assert html_file.error is not None
-    assert "index.html" in html_file.error
+    assert html_file.filename is not None
+    assert html_file.error is None
 
 
 @pytest.mark.skip(
