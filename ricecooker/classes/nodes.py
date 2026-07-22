@@ -1,4 +1,5 @@
 # Node models to represent channel's tree
+import copy
 import json
 import re
 import uuid
@@ -238,6 +239,22 @@ class Node(object):
         assert isinstance(node, Node), "Child node must be a subclass of Node"
         node.parent = self
         self.children += [node]
+
+    def copy(self, parent=None):
+        """Return a recursive clone for placing this node under ``parent``.
+
+        Resets node_id/content_id so each placement derives a distinct node_id
+        from its own parent chain, while keeping source_id (and thus content_id)
+        identical. File objects are shared, not copied.
+        """
+        clone = copy.copy(self)
+        clone.parent = parent
+        clone.node_id = None
+        clone.content_id = None
+        clone.descendants = []
+        clone.files = list(self.files)
+        clone.children = [child.copy(parent=clone) for child in self.children]
+        return clone
 
     def add_file(self, file_to_add):
         """add_file: Add to node's associated files
