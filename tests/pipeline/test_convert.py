@@ -1,8 +1,10 @@
 """Tests for audio and video compression in archive files."""
 
+import base64
 import json
 import os
 import shutil
+import subprocess
 import tempfile
 import zipfile
 from contextlib import contextmanager
@@ -12,6 +14,7 @@ from unittest.mock import patch
 import pytest
 import requests
 from bs4 import BeautifulSoup
+from le_utils.constants import format_presets
 
 from ricecooker import config
 from ricecooker.classes.files import EPubFile
@@ -22,11 +25,13 @@ from ricecooker.utils.pipeline import FilePipeline
 from ricecooker.utils.pipeline.convert import _find_common_root
 from ricecooker.utils.pipeline.convert import _find_entry_html
 from ricecooker.utils.pipeline.convert import BloomConversionHandler
+from ricecooker.utils.pipeline.convert import DocumentConversionHandler
 from ricecooker.utils.pipeline.convert import EPUBConversionHandler
 from ricecooker.utils.pipeline.convert import H5PContentMapper
 from ricecooker.utils.pipeline.convert import H5PConversionHandler
 from ricecooker.utils.pipeline.convert import HTML5ConversionHandler
 from ricecooker.utils.pipeline.convert import KPUBConversionHandler
+from ricecooker.utils.pipeline.convert import PandocMissingError
 from ricecooker.utils.pipeline.exceptions import InvalidFileException
 from ricecooker.utils.references import DEFAULT_MAPPERS
 
@@ -367,6 +372,141 @@ class TestKPUBValidation:
                 f.write(b"not a zip file")
             with pytest.raises(InvalidFileException, match="(?i)zip"):
                 KPUBConversionHandler().validate_archive(path)
+
+
+class TestKPUBSanitization:
+    """Full-pipeline tests that KPUB CSS is sanitized in the produced archive."""
+
+    @contextmanager
+    def _run(self, index_html):
+        """Build a KPUB, run the pipeline, yield the produced ``index.html`` text."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, "test.kpub")
+            _create_archive(path, {"index.html": index_html})
+            result = FilePipeline(default_context={}).execute(path, skip_cache=True)
+            with zipfile.ZipFile(result[0].path) as zf:
+                yield zf.read("index.html").decode("utf-8")
+
+    def test_style_block_stripped(self):
+        html = "<html><head><style>p{color:red}</style></head><body><p>Hi</p></body></html>"
+        with self._run(html) as produced:
+            assert "<style" not in produced
+
+    def test_allowlisted_inline_style_survives(self):
+        html = '<html><body><p style="text-align:center">Hi</p></body></html>'
+        with self._run(html) as produced:
+            assert "text-align" in produced
+
+    def test_disallowed_inline_style_dropped(self):
+        html = '<html><body><p style="position:absolute">Hi</p></body></html>'
+        with self._run(html) as produced:
+            assert "position" not in produced
+
+    def test_mixed_inline_style_partial(self):
+        html = '<html><body><p style="color:red;position:absolute">Hi</p></body></html>'
+        with self._run(html) as produced:
+            assert "color" in produced
+            assert "position" not in produced
+
+    def test_sanitizer_logs_removed(self, caplog):
+        html = '<html><body><p style="position:absolute">Hi</p></body></html>'
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, "test.kpub")
+            _create_archive(path, {"index.html": html})
+            with caplog.at_level("INFO"):
+                result = FilePipeline(default_context={}).execute(path, skip_cache=True)
+            assert result is not None
+            assert any("position" in record.getMessage() for record in caplog.records)
+
+    def test_stripped_refs_are_not_downloaded(self):
+        # Sanitization runs before reference resolution, so a resource referenced
+        # only from content the sanitizer removes — a url() inside a <style> block
+        # or a dropped, non-allowlisted style= property — is never fetched, while a
+        # legitimate <img src> still is.
+        html = (
+            "<html><head><style>body{background:url(https://ex.com/bg.png)}</style></head>"
+            '<body><p style="background-image:url(https://ex.com/inline.png)">Hi</p>'
+            '<img src="https://ex.com/keep.png"></body></html>'
+        )
+        url_to_content = {
+            "https://ex.com/bg.png": _PNG_1x1,
+            "https://ex.com/inline.png": _PNG_1x1,
+            "https://ex.com/keep.png": _PNG_1x1,
+        }
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, "test.kpub")
+            _create_archive(path, {"index.html": html})
+            with _fake_download_session(url_to_content) as fetched:
+                FilePipeline(default_context={}).execute(path, skip_cache=True)
+        assert "https://ex.com/keep.png" in fetched
+        assert "https://ex.com/bg.png" not in fetched
+        assert "https://ex.com/inline.png" not in fetched
+
+
+def _make_source(tmpdir, ext, markdown):
+    """Build a source document in ``ext`` from markdown (pandoc is a system dep)."""
+    src = os.path.join(tmpdir, f"in.{ext}")
+    if ext in ("md", "markdown"):
+        with open(src, "w", encoding="utf-8") as f:
+            f.write(markdown)
+    else:
+        subprocess.run(
+            ["pandoc", "-f", "markdown", "-o", src],
+            input=markdown,
+            text=True,
+            check=True,
+        )
+    return src
+
+
+class TestDocumentConversion:
+    """Document (docx/odt/rtf/md/markdown) -> KPUB conversion via pandoc."""
+
+    @contextmanager
+    def _convert(self, ext, markdown):
+        """Convert a source doc through the pipeline, yield ``(result, ZipFile)``."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            src = _make_source(tmpdir, ext, markdown)
+            result = FilePipeline(default_context={}).execute(src, skip_cache=True)
+            with zipfile.ZipFile(result[0].path) as zf:
+                yield result, zf
+
+    @pytest.mark.parametrize("ext", ["docx", "odt", "rtf", "md", "markdown"])
+    def test_each_format_converts_to_kpub(self, ext):
+        with self._convert(ext, "# Title\n\nHello world") as (result, zf):
+            assert result[0].preset == format_presets.KPUB_ZIP
+            names = zf.namelist()
+            assert "index.html" in names
+            index = zf.read("index.html").decode("utf-8")
+            body = BeautifulSoup(index, "lxml").find("body")
+            assert body is not None
+            assert body.get_text(strip=True)
+            assert "<script" not in index
+            assert "<style" not in index
+            assert not any(n.lower().endswith((".js", ".css")) for n in names)
+
+    def test_math_becomes_mathml(self):
+        with self._convert("md", "# T\n\nInline $a^2+b^2$") as (_result, zf):
+            index = zf.read("index.html").decode("utf-8")
+            assert "<math" in index
+
+    def test_images_land_under_media(self):
+        data_uri = "data:image/png;base64," + base64.b64encode(_PNG_1x1).decode("ascii")
+        markdown = f"# T\n\n![alt]({data_uri})"
+        with self._convert("md", markdown) as (_result, zf):
+            names = zf.namelist()
+            assert any(n.startswith("media/") for n in names)
+            index = zf.read("index.html").decode("utf-8")
+            assert "media/" in index
+            assert "data:image/png" not in index
+
+    def test_pandoc_missing_raises(self):
+        # The missing-pandoc guard raises before the source path is read, so no
+        # real document is needed (building one would itself require pandoc).
+        handler = DocumentConversionHandler()
+        with patch("ricecooker.utils.pipeline.convert.shutil.which", return_value=None):
+            with pytest.raises(PandocMissingError, match="(?i)install"):
+                handler.handle_file("in.docx")
 
 
 @contextmanager

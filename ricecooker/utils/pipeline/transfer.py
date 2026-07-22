@@ -280,7 +280,7 @@ class GoogleDriveHandler(WebResourceHandler):
 
     # Mapping of Google Workspace MIME types to export formats
     GOOGLE_WORKSPACE_FORMATS = {
-        "application/vnd.google-apps.document": "application/pdf",
+        "application/vnd.google-apps.document": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         "application/vnd.google-apps.spreadsheet": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         "application/vnd.google-apps.presentation": "application/pdf",
         "application/vnd.google-apps.drawing": "image/png",

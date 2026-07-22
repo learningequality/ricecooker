@@ -63,6 +63,8 @@ class ReferencesHtmlTest(unittest.TestCase):
         '<img src="a.png">'
         '<img srcset="x-1.png 1x, x-2.png 2x">'
         '<script src="https://cdn/l.js"></script>'
+        '<iframe src="https://site/linked.html"></iframe>'
+        '<a href="https://site/doc.html">link</a>'
         "<div style=\"background:url('bg.png')\"></div>"
         "</body></html>"
     )
@@ -78,6 +80,11 @@ class ReferencesHtmlTest(unittest.TestCase):
         self.assertIn("bg.png", urls)
         self.assertIn("f.css", urls)
         self.assertNotIn("https://site/page", urls)
+        # Navigation references are page links, not offline resources: neither the
+        # ``<a href>`` nor the ``<iframe src>`` is fetched (so linked HTML never
+        # bypasses sanitization).
+        self.assertNotIn("https://site/doc.html", urls)
+        self.assertNotIn("https://site/linked.html", urls)
 
     def test_rewrite_html_urls(self):
         rewritten = references.HTMLMapper().rewrite(
@@ -129,3 +136,81 @@ class ReferencesHtmlTest(unittest.TestCase):
         self.assertIn('href="https://ex.com/page"', rewritten)
         # The whole document is byte-identical except for the single ref.
         self.assertEqual(rewritten, html.replace("https://ex.com/a.png", "a.png"))
+
+
+class StyleSanitizerTest(unittest.TestCase):
+    """Surgical CSS style sanitizer: strip ``<style>`` blocks, allowlist ``style=``."""
+
+    ALLOWLIST = {"text-align", "color", "background-color"}
+
+    def test_strip_style_block(self):
+        html = "<html><head><style>p{color:red}</style></head><body><p>Hi</p></body></html>"
+        out, removed = references.sanitize_style_css(html, self.ALLOWLIST)
+        self.assertNotIn("<style", out)
+        self.assertNotIn("p{color:red", out)
+        self.assertIn("<style> block", removed)
+
+    def test_allowlisted_style_survives(self):
+        html = '<p style="text-align: center">x</p>'
+        out, removed = references.sanitize_style_css(html, self.ALLOWLIST)
+        self.assertIn("text-align: center", out)
+        self.assertEqual(removed, [])
+
+    def test_disallowed_style_dropped(self):
+        html = '<p style="position: absolute">x</p>'
+        out, removed = references.sanitize_style_css(html, self.ALLOWLIST)
+        self.assertNotIn("position", out)
+        self.assertIn("style property 'position'", removed)
+
+    def test_mixed_style_keeps_allowlisted(self):
+        html = '<p style="color: red; position: absolute; text-align: left">x</p>'
+        out, removed = references.sanitize_style_css(html, self.ALLOWLIST)
+        self.assertIn("color: red", out)
+        self.assertIn("text-align: left", out)
+        self.assertNotIn("position", out)
+        self.assertIn("style property 'position'", removed)
+
+    def test_no_change_returns_empty_removed(self):
+        html = "<p>plain</p>"
+        out, removed = references.sanitize_style_css(html, self.ALLOWLIST)
+        self.assertEqual(removed, [])
+        self.assertEqual(out, html)
+
+    def test_filter_css_declarations(self):
+        self.assertEqual(
+            references._filter_css_declarations("color: red; margin: 0", {"color"}),
+            ("color: red", ["margin"]),
+        )
+
+
+class StripScriptsTest(unittest.TestCase):
+    """Remove ``<script>`` elements and IE conditional comments from KPUB HTML."""
+
+    def test_strip_script_element(self):
+        html = "<body><p>Hi</p><script>alert('x')</script></body>"
+        out, removed = references.strip_scripts(html)
+        self.assertNotIn("<script", out)
+        self.assertIn("<p>Hi</p>", out)
+        self.assertIn("<script> block", removed)
+
+    def test_strip_ie_conditional_html5shiv(self):
+        # The exact shape pandoc --standalone emits on some versions/platforms.
+        html = (
+            "<head>\n"
+            "  <!--[if lt IE 9]>\n"
+            '    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/'
+            '3.7.3/html5shiv-printshiv.min.js"></script>\n'
+            "  <![endif]-->\n"
+            "</head><body><p>Hi</p></body>"
+        )
+        out, removed = references.strip_scripts(html)
+        self.assertNotIn("<script", out)
+        self.assertNotIn("endif", out)
+        self.assertIn("<p>Hi</p>", out)
+        self.assertIn("IE conditional comment", removed)
+
+    def test_no_change_returns_empty_removed(self):
+        html = "<body><p>plain</p></body>"
+        out, removed = references.strip_scripts(html)
+        self.assertEqual(removed, [])
+        self.assertEqual(out, html)

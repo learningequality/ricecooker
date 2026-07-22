@@ -50,6 +50,7 @@ jobs:
           sudo apt-get -y -qq update
           sudo apt-get install -y ffmpeg
           sudo apt-get install -y poppler-utils
+          sudo apt-get install -y pandoc
         if: ${{ needs.pre_job.outputs.should_skip != 'true' && startsWith(matrix.os, 'ubuntu') }}
       - name: Cache Mac dependencies
         uses: actions/cache@v6.1.0
@@ -72,7 +73,7 @@ jobs:
           else
             echo "Skipping Homebrew python@3.13 linking for Python 3.13 test."
           fi
-          brew install ffmpeg poppler
+          brew install ffmpeg poppler pandoc
         if: needs.pre_job.outputs.should_skip != 'true' && matrix.os == 'macos-latest'
       - name: Windows dependencies cache
         id: windowscache
@@ -105,12 +106,22 @@ jobs:
           } else {
             Write-Output "Poppler already exists, skipping download"
           }
+
+          # Check and download Pandoc if needed
+          if (-not (Test-Path "$env:GITHUB_WORKSPACE\tools\pandoc-3.1.11\pandoc.exe")) {
+            Write-Output "Pandoc not found, downloading..."
+            curl.exe --output pandoc.zip -L https://github.com/jgm/pandoc/releases/download/3.1.11/pandoc-3.1.11-windows-x86_64.zip
+            7z x pandoc.zip -otools -y
+          } else {
+            Write-Output "Pandoc already exists, skipping download"
+          }
       - name: Set paths to Windows dependencies
         if: needs.pre_job.outputs.should_skip != 'true' && matrix.os == 'windows-latest'
         shell: pwsh
         run: |
           Add-Content -Path $env:GITHUB_PATH -Value "$env:GITHUB_WORKSPACE\tools\ffmpeg-master-latest-win64-gpl\bin" -Encoding utf8
           Add-Content -Path $env:GITHUB_PATH -Value "$env:GITHUB_WORKSPACE\tools\poppler-21.11.0\Library\bin" -Encoding utf8
+          Add-Content -Path $env:GITHUB_PATH -Value "$env:GITHUB_WORKSPACE\tools\pandoc-3.1.11" -Encoding utf8
       - name: Run tests
         if: ${{ needs.pre_job.outputs.should_skip != 'true' }}
         run: uv run --group test --extra google_drive pytest

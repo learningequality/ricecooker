@@ -12,7 +12,7 @@ uv run --group test pytest -k 'test_something'   # filter by test name
 uvx prek run --all-files            # lint (the ONLY way to run linting)
 ```
 
-**System dependencies:** `ffmpeg` and `poppler-utils`.
+**System dependencies:** `ffmpeg`, `poppler-utils`, and `pandoc` (document → KPUB conversion).
 
 ## Critical Gotchas
 
