@@ -246,7 +246,7 @@ def test_licenses(channel, topic, document, license_name, copyright_holder):
 
 
 def test_validate_topics(tree, invalid_tree):
-    assert tree.validate(), "Valid topic should pass validation"
+    assert tree.validate() is None, "Valid topic should pass validation"
 
     try:
         invalid_tree.validate()
@@ -328,7 +328,7 @@ def test_add_files_with_preset(channel):
     parent_node = build_tree_from_json(channel, [topic_node])
     topic_node = parent_node.children[0]
     html5_node = topic_node.children[0]
-    assert parent_node.validate()
+    parent_node.validate()
     assert parent_node
     assert parent_node.children[0]
     assert topic_node.kind == "topic"
@@ -384,7 +384,7 @@ def test_slideshow_node_via_files(channel):
     assert "slideshow_data" in slideshow_node.extra_fields, "missing slideshow_data key"
     slideshow_node.process_files()
     channel.add_child(slideshow_node)
-    assert channel.validate()
+    channel.validate()
     assert slideshow_node.to_dict()  # not ready yet bcs needs ot be part of tree...
 
 
@@ -422,7 +422,7 @@ def test_slideshow_node_via_add_file(channel):
     assert len(slideshow_node.files) == 3, "missing files"
 
     channel.add_child(slideshow_node)
-    assert channel.validate()
+    channel.validate()
 
 
 """ *********** CUSTOM NAVIGATION CONTENT NODE TESTS *********** """
@@ -460,7 +460,7 @@ def test_custom_navigation_node_via_files(channel):
     ), "missing custom navigation modality"
     custom_navigation_node.process_files()
     channel.add_child(custom_navigation_node)
-    assert channel.validate()
+    channel.validate()
     assert custom_navigation_node.to_dict()
 
 
@@ -497,7 +497,7 @@ def test_custom_navigation_node_via_add_file(channel):
     ), "missing custom navigation modality"
     custom_navigation_node.process_files()
     channel.add_child(custom_navigation_node)
-    assert channel.validate()
+    channel.validate()
     assert custom_navigation_node.to_dict()
 
 
@@ -533,7 +533,7 @@ def test_custom_navigation_channel_node_via_files():
     ), "missing custom navigation modality"
     custom_navigation_channel_node.set_thumbnail(thumbimg1)
     custom_navigation_channel_node.process_files()
-    assert custom_navigation_channel_node.validate()
+    custom_navigation_channel_node.validate()
     assert custom_navigation_channel_node.to_dict()
     assert custom_navigation_channel_node.to_dict()["thumbnail"] == thumbimg1.filename
     assert len(custom_navigation_channel_node.to_dict()["files"]) == 1
@@ -575,7 +575,7 @@ def test_custom_navigation_channel_node_via_add_file():
     ), "missing custom navigation modality"
     custom_navigation_channel_node.set_thumbnail(thumbimg1)
     custom_navigation_channel_node.process_files()
-    assert custom_navigation_channel_node.validate()
+    custom_navigation_channel_node.validate()
     assert custom_navigation_channel_node.to_dict()
     assert custom_navigation_channel_node.to_dict()["thumbnail"] == thumbimg1.filename
     assert len(custom_navigation_channel_node.to_dict()["files"]) == 1
@@ -594,7 +594,7 @@ def test_remote_content_node_with_no_overrides():
     assert remote_content_node
     assert remote_content_node.kind == "remotecontent"
     assert len(remote_content_node.files) == 0
-    assert remote_content_node.validate()
+    remote_content_node.validate()
     output = remote_content_node.to_dict()
     assert output.get("title") is None
     assert output.get("description") is None
@@ -610,7 +610,7 @@ def test_remote_content_node_with_basic_overrides():
     assert remote_content_node
     assert remote_content_node.kind == "remotecontent"
     assert len(remote_content_node.files) == 0
-    assert remote_content_node.validate()
+    remote_content_node.validate()
     output = remote_content_node.to_dict()
     assert output.get("title") == "My Title"
     assert output.get("description") == "My Description"
@@ -625,7 +625,7 @@ def test_remote_content_node_with_provider_override():
     assert remote_content_node
     assert remote_content_node.kind == "remotecontent"
     assert len(remote_content_node.files) == 0
-    assert remote_content_node.validate()
+    remote_content_node.validate()
     output = remote_content_node.to_dict()
     assert output.get("provider") == "Doctor Tibbles"
 
@@ -659,7 +659,7 @@ def test_remote_content_node_with_overridden_thumbnail():
         thumbnail=thumbimg1,
     )
     assert len(remote_content_node.files) == 1
-    assert remote_content_node.validate()
+    remote_content_node.validate()
     remote_content_node.process_files()
     output = remote_content_node.to_dict()
     assert output.get("files")[0]["filename"] == "d7ab03e4263fc374737d96ac2da156c1.jpg"
@@ -674,7 +674,7 @@ def test_remote_content_node_with_overridden_grade_levels():
     )
     assert remote_content_node
     assert remote_content_node.kind == "remotecontent"
-    assert remote_content_node.validate()
+    remote_content_node.validate()
     output = remote_content_node.to_dict()
     assert output.get("grade_levels") == grades
 
@@ -1056,10 +1056,10 @@ def test_validate_node_sets_error_attribute(channel):
     with patch("ricecooker.config.STRICT", False):
         result = manager.validate_node(mock_node)
 
-    # Check that _error was set and validate returned True
+    # Check that _error was set and validate_node returned None
     assert hasattr(mock_node, "_error")
     assert mock_node._error == "Test validation error"
-    assert result is True
+    assert result is None
 
 
 def test_process_node_handles_exceptions(channel):
