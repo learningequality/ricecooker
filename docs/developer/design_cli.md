@@ -112,8 +112,8 @@ There are three types of arguments involved in a chef run:
 
   - `args` (dict): command line args as parsed by the sushi chef class and its parents
     - SushiChef: the `SushiChef.__init__` method configures argparse for the following:
-        - `compress`, `download_attempts`, `prompt`, `publish`, `resume`,
-          `stage`, `step`, `thumbnails`, `token`, `update`, `verbose`, `warn`
+        - `compress`, `download_attempts`, `prompt`, `publish`,
+          `stage`, `thumbnails`, `token`, `update`, `verbose`, `warn`
     - MySushiChef: the chef's `__init__` method can define additional cli args
 
   - `options` (dict): additional [OPTIONS...] passed at the end of the command line

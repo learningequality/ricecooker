@@ -11,11 +11,7 @@ This listing shows the `ricecooker` command line interface (CLI) arguments:
 
     usage: sushichef.py  [-h] [--token TOKEN] [-u] [--debug] [-v] [--warn]
                             [--quiet] [--compress] [--thumbnails]
-                            [--download-attempts DOWNLOAD_ATTEMPTS] [--resume]
-                            [--step {INIT, CONSTRUCT_CHANNEL, CREATE_TREE,
-                                     DOWNLOAD_FILES, GET_FILE_DIFF, START_UPLOAD,
-                                     UPLOADING_FILES, UPLOAD_CHANNEL, PUBLISH_CHANNEL,
-                                     DONE, LAST}]
+                            [--download-attempts DOWNLOAD_ATTEMPTS]
                             [--prompt] [--deploy] [--publish] [--sample SIZE]
 
     required arguments:
@@ -32,11 +28,6 @@ This listing shows the `ricecooker` command line interface (CLI) arguments:
       --compress            Compress videos using ffmpeg -crf=32 -b:a 32k mono.
       --thumbnails          Automatically generate thumbnails for content nodes.
       --download-attempts N Maximum number of times to retry downloading files (default: 3).
-      --resume              Resume chef session from a specified step.
-      --step  {INIT, CONSTRUCT_CHANNEL, CREATE_TREE, DOWNLOAD_FILES,
-                GET_FILE_DIFF, START_UPLOAD, UPLOADING_FILES, UPLOAD_CHANNEL,
-                PUBLISH_CHANNEL, DONE, LAST}
-                            Step to resume progress from (use with --resume).
       --prompt              Prompt user to open the channel after the chef run.
       --deploy              Immediately deploy changes to channel's main tree.
                             This operation will overwrite the previous channel
@@ -66,7 +57,7 @@ This is required if you suspect the files on the source website have been update
 Note that some chef scripts implement their own caching mechanism, so you need
 to disable those caches as well if you want to make sure you're getting new content.
 Use the commands `rm -rf .webcache` to clear the webcache if it is present,
-and `rm -rf .ricecookerfilecache/* storage/* restore/*` to clean all ricecooker
+and `rm -rf .ricecookerfilecache/* storage/*` to clean all ricecooker
 directories and start from scratch.
 
 
