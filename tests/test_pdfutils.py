@@ -3,7 +3,7 @@ import re
 from tempfile import TemporaryDirectory
 
 import pytest
-from conftest import download_fixture_file
+from conftest import sample_path
 from PyPDF2 import PdfFileReader
 
 from ricecooker.utils.pdf import PDFParser  # SIT
@@ -34,14 +34,7 @@ def doc2_with_toc_path():
     """
     A PDF with lots of chapters.
     """
-    doc2_with_toc_path = os.path.join(
-        "tests", "testcontent", "downloaded", "Beyond-Good-and-Evil-Galbraithcolor.pdf"
-    )
-    download_fixture_file(
-        "https://s3-us-west-2.amazonaws.com/pressbooks-samplefiles/GalbraithColorTheme/Beyond-Good-and-Evil-Galbraithcolor.pdf",
-        doc2_with_toc_path,
-    )
-    return doc2_with_toc_path
+    return sample_path("Beyond-Good-and-Evil-Galbraithcolor.pdf")
 
 
 @pytest.fixture
@@ -49,13 +42,7 @@ def doc3_with_toc_path():
     """
     A Gutenberg textbook PDF with a chapter-subchapter structure.
     """
-    doc3_with_toc_path = os.path.join(
-        "tests", "testcontent", "downloaded", "41568-pdf.pdf"
-    )
-    download_fixture_file(
-        "https://www.gutenberg.org/files/41568/41568-pdf.pdf", doc3_with_toc_path
-    )
-    return doc3_with_toc_path
+    return sample_path("41568-pdf.pdf")
 
 
 # Chapters only

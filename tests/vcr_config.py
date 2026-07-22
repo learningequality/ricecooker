@@ -5,7 +5,7 @@ try:
 
     my_vcr = vcr.VCR(
         cassette_library_dir="tests/cassettes",
-        record_mode="new_episodes",
+        record_mode="none",
         path_transformer=vcr.VCR.ensure_suffix(".yaml"),
         filter_headers=["authorization"],
     )

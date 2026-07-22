@@ -1,0 +1,5 @@
+# Test fixtures are compared by content hash, so they must be byte-identical on
+# every platform. Disable end-of-line conversion so Windows checkouts don't
+# rewrite LF to CRLF and change the hash.
+tests/testcontent/samples/** -text
+tests/testcontent/exercises/le-logo.svg -text
