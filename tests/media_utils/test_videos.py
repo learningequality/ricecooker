@@ -4,153 +4,59 @@ import atexit
 import os
 import re
 import subprocess
-import sys
 import tempfile
+from unittest import mock
 
 import pytest
-import requests_cache
-from conftest import download_fixture_file
+from conftest import sample_path
 from le_utils.constants import format_presets
 
 from ricecooker.utils import videos
-
-# cache, so we don't keep requesting the full videos
-if sys.version_info[0] == 3:
-    requests_cache.install_cache("video_cache_py3")
-else:
-    requests_cache.install_cache("video_cache")
-
 
 # FIXTURES
 ################################################################################
 
 
-@pytest.fixture
-def low_res_video():
-    source_url = (
-        "https://archive.org/download/vd_is_for_everybody/vd_is_for_everybody_512kb.mp4"
-    )
-    local_path = os.path.abspath(
-        os.path.join(
-            os.path.dirname(__file__),
-            "..",
-            "testcontent",
-            "downloaded",
-            "low_res_video_media_test.mp4",
-        )
-    )
-    download_fixture_file(source_url, local_path)
-    assert os.path.exists(local_path)
-    f = open(local_path, "rb")
+def _closed_sample(*parts):
+    """Open and close a committed sample so tests can use its ``.name`` attribute."""
+    f = open(sample_path(*parts), "rb")
     f.close()
     return f  # returns a closed file descriptor which we use for name attribute
+
+
+@pytest.fixture
+def low_res_video():
+    return _closed_sample("low_res_sample.mp4")
 
 
 @pytest.fixture
 def high_res_video():
-    source_url = (
-        "https://ia800201.us.archive.org/7/items/"
-        "UnderConstructionFREEVideoBackgroundLoopHD1080p/"
-        "UnderConstruction%20-%20FREE%20Video%20Background%20Loop%20HD%201080p.mp4"
-    )
-    local_path = os.path.abspath(
-        os.path.join(
-            os.path.dirname(__file__),
-            "..",
-            "testcontent",
-            "downloaded",
-            "high_res_video_media_test.mp4",
-        )
-    )
-    download_fixture_file(source_url, local_path)
-    assert os.path.exists(local_path)
-    f = open(local_path, "rb")
-    f.close()
-    return f  # returns a closed file descriptor which we use for name attribute
+    return _closed_sample("high_res_sample.mp4")
 
 
 @pytest.fixture
 def low_res_video_webm():
-    source_url = "https://mirrors.creativecommons.org/movingimages/webm/CreativeCommonsPlusCommercial_240p.webm"
-    local_path = os.path.abspath(
-        os.path.join(
-            os.path.dirname(__file__),
-            "..",
-            "testcontent",
-            "downloaded",
-            "low_res_video_webm_media_test.mp4",
-        )
-    )
-    download_fixture_file(source_url, local_path)
-    assert os.path.exists(local_path)
-    f = open(local_path, "rb")
-    f.close()
-    return f  # returns a closed file descriptor which we use for name attribute
+    return _closed_sample("low_res_sample.webm")
 
 
 @pytest.fixture
 def high_res_video_webm():
-    source_url = "https://mirrors.creativecommons.org/movingimages/webm/CreativeCommonsPlusCommercial_720p.webm"
-    local_path = os.path.abspath(
-        os.path.join(
-            os.path.dirname(__file__),
-            "..",
-            "testcontent",
-            "downloaded",
-            "high_res_video_webm_media_test.mp4",
-        )
-    )
-    download_fixture_file(source_url, local_path)
-    assert os.path.exists(local_path)
-    f = open(local_path, "rb")
-    f.close()
-    return f  # returns a closed file descriptor which we use for name attribute
+    return _closed_sample("high_res_sample.webm")
 
 
 @pytest.fixture
 def low_res_ogv_video():
-    source_url = (
-        "https://archive.org/download/"
-        "UnderConstructionFREEVideoBackgroundLoopHD1080p/"
-        "UnderConstruction%20-%20FREE%20Video%20Background%20Loop%20HD%201080p.ogv"
-    )
-    local_path = os.path.abspath(
-        os.path.join(
-            os.path.dirname(__file__),
-            "..",
-            "testcontent",
-            "downloaded",
-            "high_res_video_ogv_media_test.mp4",
-        )
-    )
-    download_fixture_file(source_url, local_path)
-    assert os.path.exists(local_path)
-    f = open(local_path, "rb")
-    f.close()
-    return f  # returns a closed file descriptor which we use for name attribute
+    return _closed_sample("sample.ogv")
 
 
 @pytest.fixture
 def high_res_mov_video():
-    source_url = "https://ia800201.us.archive.org/7/items/UnderConstructionFREEVideoBackgroundLoopHD1080p/cold%20night.mov"
-    local_path = os.path.abspath(
-        os.path.join(
-            os.path.dirname(__file__),
-            "..",
-            "testcontent",
-            "downloaded",
-            "high_res_video_mov_media_test.mp4",
-        )
-    )
-    download_fixture_file(source_url, local_path)
-    assert os.path.exists(local_path)
-    f = open(local_path, "rb")
-    f.close()
-    return f  # returns a closed file descriptor which we use for name attribute
+    return _closed_sample("sample.mov")
 
 
 @pytest.fixture
 def bad_video():
+    # A tiny local garbage file; imported by test_thumbnails for its error path.
     with TempFile(suffix=".mp4") as f:
         f.write(b"novideohere. ffmpeg soshould error")
         f.flush()
@@ -245,10 +151,16 @@ class Test_compress_video:
             width, height = get_resolution(vout.name)
             assert height == 140, "should be 140 v resolution since max_height set"
 
-    def test_raises_for_bad_file(self, bad_video):
+    def test_raises_for_bad_file(self):
+        # ffmpeg failure is mocked so the error-mapping path is exercised without
+        # shelling out to a real encoder.
         with TempFile(suffix=".mp4") as vout:
-            with pytest.raises(videos.VideoCompressionError):
-                videos.compress_video(bad_video.name, vout.name, overwrite=True)
+            with mock.patch(
+                "ricecooker.utils.videos.subprocess.check_output",
+                side_effect=subprocess.CalledProcessError(1, "ffmpeg", b"bad input"),
+            ):
+                with pytest.raises(videos.VideoCompressionError):
+                    videos.compress_video("source.mp4", vout.name, overwrite=True)
 
     def test_default_compression_works_webm(self, high_res_video_webm):
         with TempFile(suffix=".webm") as vout:

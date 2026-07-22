@@ -11,7 +11,7 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import pytest
-from conftest import download_fixture_file
+from conftest import sample_path
 from le_utils.constants import file_formats
 from le_utils.constants import format_presets
 from le_utils.constants import languages
@@ -815,10 +815,6 @@ def test_bad_subtitles_raises(bad_subtitles_file):
     assert subs_file.process_file() is None
 
 
-PRESSURECOOKER_REPO_URL = "https://raw.githubusercontent.com/bjester/pressurecooker/"
-PRESSURECOOKER_FILES_URL_BASE = (
-    PRESSURECOOKER_REPO_URL + "pycaption/tests/files/subtitles/"
-)
 PRESSURECOOKER_SUBS_FIXTURES = [
     {
         "srcfilename": "basic.srt",
@@ -847,27 +843,13 @@ PRESSURECOOKER_SUBS_FIXTURES = [
 ]
 
 
-def download_fixture_files(fixtures_list):
+def resolve_fixture_files(fixtures_list):
     """
-    Downloads all the subtitles test files and return as list of fixutes dicts.
+    Resolve the committed subtitle test files and return as list of fixture dicts.
     """
     fixtures = []
     for fixture in fixtures_list:
-        srcfilename = fixture["srcfilename"]
-        # localpath = os.path.join("tests", "testcontent", "downloaded", srcfilename)
-        local_path = os.path.abspath(
-            os.path.join(
-                os.path.dirname(__file__), "testcontent", "downloaded", srcfilename
-            )
-        )
-
-        url = (
-            fixture["url"]
-            if "url" in fixture.keys()
-            else PRESSURECOOKER_FILES_URL_BASE + srcfilename
-        )
-        download_fixture_file(url, local_path)
-        fixture["localpath"] = local_path
+        fixture["localpath"] = sample_path("subtitles", fixture["srcfilename"])
         fixtures.append(fixture)
     return fixtures
 
@@ -875,9 +857,9 @@ def download_fixture_files(fixtures_list):
 @pytest.fixture
 def pressurecooker_test_files():
     """
-    Downloads all the subtitles test files and return as list of fixutes dicts.
+    Resolve all the subtitles test files and return as list of fixture dicts.
     """
-    return download_fixture_files(PRESSURECOOKER_SUBS_FIXTURES)
+    return resolve_fixture_files(PRESSURECOOKER_SUBS_FIXTURES)
 
 
 def test_convertible_subtitles_from_pressurecooker(pressurecooker_test_files):

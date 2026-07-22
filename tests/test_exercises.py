@@ -11,6 +11,7 @@ from le_utils.constants import exercises
 from le_utils.constants import format_presets
 from le_utils.constants import licenses
 from test_videos import _clear_ricecookerfilecache
+from vcr_config import my_vcr
 
 from ricecooker.classes.nodes import ExerciseNode
 from ricecooker.classes.nodes import InvalidNodeException
@@ -23,7 +24,6 @@ from ricecooker.config import STORAGE_DIRECTORY
 TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
 TESTCONTENT_DIR = os.path.join(TESTS_DIR, "testcontent")
 
-WAYBACK_PREFIX = "https://web.archive.org/web/20240621071535/"
 """ *********** EXERCISE FIXTURES *********** """
 
 
@@ -223,18 +223,16 @@ def test_MARKDOWN_IMAGE_REGEX_matches(sample_str, expected_matches):
 
 WEB_PREFIX = "${☣ CONTENTSTORAGE}/"
 
+# Committed image fixtures (bytes are identical to what the tests used to fetch
+# from the Wayback Machine, so the content hashes are unchanged) keep this test
+# offline and deterministic.
 image_texts_fixtures = [
     (
-        "{}https://learningequality.org/static/img/le-logo.svg".format(WAYBACK_PREFIX),
+        os.path.relpath(os.path.join(TESTCONTENT_DIR, "exercises", "le-logo.svg")),
         WEB_PREFIX + "52b097901664f83e6b7c92ae1af1721b.svg",
         "52b097901664f83e6b7c92ae1af1721b",
     ),
     (
-        "{}https://learningequality.org/static/img/no-wifi.png".format(WAYBACK_PREFIX),
-        WEB_PREFIX + "599aa896313be22dea6c0257772a464e.png",
-        "599aa896313be22dea6c0257772a464e",
-    ),
-    (  # slightly modified version of the above
         os.path.relpath(os.path.join(TESTCONTENT_DIR, "exercises", "no-wifi.png")),
         WEB_PREFIX + "599aa896313be22dea6c0257772a464e.png",
         "599aa896313be22dea6c0257772a464e",
@@ -352,6 +350,7 @@ with open(
 
 
 @pytest.mark.parametrize("item,image_hashes", perseus_test_data)
+@my_vcr.use_cassette
 def test_perseus_process_question(item, image_hashes):
     """
     Process a persues question and check that it finds all images, and returns

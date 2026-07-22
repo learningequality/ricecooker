@@ -9,12 +9,13 @@ repos:
     rev: v4.1.0
     hooks:
       - id: trailing-whitespace
+        exclude: '^tests/testcontent/samples/'
       - id: check-yaml
       - id: check-added-large-files
-        exclude: '^tests/cassettes'
+        exclude: '^tests/(cassettes|testcontent/samples)/'
       - id: debug-statements
       - id: end-of-file-fixer
-        exclude: '^.+?\.json$'
+        exclude: '(^.+?\.json$|^tests/testcontent/samples/)'
   - repo: https://github.com/google/yamlfmt
     rev: v0.14.0
     hooks:

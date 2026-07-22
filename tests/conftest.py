@@ -1,5 +1,6 @@
 import copy
 import glob
+import hashlib
 import os
 import shutil
 import uuid
@@ -8,7 +9,6 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import pytest
-import requests
 from le_utils.constants import content_kinds
 from le_utils.constants import exercises
 from le_utils.constants import licenses
@@ -355,23 +355,13 @@ def contentnode_no_source_id(title):
 
 
 @pytest.fixture
-def video_file():  # uses same file as test_videos.low_res_video fixture
-    source_url = (
-        "https://archive.org/download/vd_is_for_everybody/vd_is_for_everybody_512kb.mp4"
-    )
-    local_path = os.path.abspath(
-        os.path.join(
-            os.path.dirname(__file__), "testcontent", "downloaded", "low_res_video.mp4"
-        )
-    )
-    download_fixture_file(source_url, local_path)
-    assert os.path.exists(local_path)
-    return VideoFile(local_path)
+def video_file():  # uses same committed sample as test_videos.low_res_video fixture
+    return VideoFile(sample_path("low_res_sample.mp4"))
 
 
 @pytest.fixture
 def video_filename():
-    return "897d83a2e5389d454d37feb574587516.mp4"
+    return sample_hash_filename("low_res_sample.mp4")
 
 
 @pytest.fixture
@@ -479,23 +469,12 @@ def youtube_video_with_subs_dict():
 
 @pytest.fixture
 def audio_file():
-    source_url = (
-        "https://ia800203.us.archive.org/26/items/Bach_Original_works_and_transcriptions-6556"
-        "/Felipe_Sarro_-_08_-_Bach_Sinfonia_11_BWV_797.mp3"
-    )
-    local_path = os.path.abspath(
-        os.path.join(
-            os.path.dirname(__file__), "testcontent", "downloaded", "testaudio.mp3"
-        )
-    )
-    download_fixture_file(source_url, local_path)
-    assert os.path.exists(local_path)
-    return AudioFile(local_path)
+    return AudioFile(sample_path("sample_audio.mp3"))
 
 
 @pytest.fixture
 def audio_filename():
-    return "7f78f74d9428d6394fb8a2fbd095965a.mp3"
+    return sample_hash_filename("sample_audio.mp3")
 
 
 @pytest.fixture
@@ -555,21 +534,12 @@ def invalid_audio_file():
 
 @pytest.fixture
 def document_file():
-    source_url = "https://archive.org/download/manualzz-id-707752/707752.pdf"
-    local_path = os.path.abspath(
-        os.path.join(
-            os.path.dirname(__file__), "testcontent", "downloaded", "testdocument.pdf"
-        )
-    )
-
-    download_fixture_file(source_url, local_path)
-    assert os.path.exists(local_path)
-    return DocumentFile(local_path)
+    return DocumentFile(sample_path("sample_doc_with_toc.pdf"))
 
 
 @pytest.fixture
 def document_filename():
-    return "480fe2b9d6b10d8f4fc0ab4a68d787a0.pdf"
+    return sample_hash_filename("sample_doc_with_toc.pdf")
 
 
 @pytest.fixture
@@ -669,23 +639,12 @@ def invalid_epub_file():
 
 @pytest.fixture
 def html_file():
-    source_url = (
-        "https://studio.learningequality.org/content/storage/"
-        "e/d/ed494d6547b603b8ff22095cf5f5b624.zip"
-    )
-    local_path = os.path.abspath(
-        os.path.join(
-            os.path.dirname(__file__), "testcontent", "downloaded", "testhtml.zip"
-        )
-    )
-    download_fixture_file(source_url, local_path)
-    assert os.path.exists(local_path)
-    return HTMLZipFile(local_path)
+    return HTMLZipFile(sample_path("sample_html.zip"))
 
 
 @pytest.fixture
 def html_filename():
-    return "ed494d6547b603b8ff22095cf5f5b624.zip"
+    return sample_hash_filename("sample_html.zip")
 
 
 @pytest.fixture
@@ -990,39 +949,30 @@ def slideshow(slideshow_files, slideshow_data, channel):
     return slideshow
 
 
-# FIXTURE DOWNLOADING UTILS
+# FIXTURE FILE UTILS
 ################################################################################
 
+SAMPLES_DIR = os.path.join(os.path.dirname(__file__), "testcontent", "samples")
 
-def download_fixture_file(source_url, local_path):
-    """
-    Download fixture file `source_url` to `local_path` if not present already.
-    Skips the test on network failure to avoid leaving partial files that cause
-    cascading failures in subsequent tests.
-    """
-    if os.path.exists(local_path) and os.path.getsize(local_path) > 0:
-        return
-    # Write to a .tmp file first so a failed download never leaves an empty file
-    # at local_path (which would be mistaken for a valid file by subsequent tests).
-    tmp_path = local_path + ".tmp"
-    try:
-        response = requests.get(source_url, stream=True)
-        if response.status_code != 200:
-            pytest.skip(
-                "Fixture file with url: {} not found (status: {})".format(
-                    source_url, response.status_code
-                )
-            )
-        with open(tmp_path, "wb") as f:
-            for chunk in response.iter_content(chunk_size=1048576):
-                f.write(chunk)
-        os.replace(tmp_path, local_path)
-    except requests.RequestException:
-        if os.path.exists(tmp_path):
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-        pytest.skip(
-            "Network failure: could not download fixture from {}".format(source_url)
-        )
+
+def sample_path(*parts):
+    """Absolute path to a committed sample fixture under tests/testcontent/samples/."""
+    path = os.path.join(SAMPLES_DIR, *parts)
+    assert os.path.exists(path), "Missing committed sample fixture: {}".format(path)
+    return path
+
+
+def read_file_hash(local_path):
+    """md5 hex digest of a file's bytes -- the basis for Studio storage filenames."""
+    md5 = hashlib.md5()
+    with open(local_path, "rb") as f:
+        for chunk in iter(lambda: f.read(65536), b""):
+            md5.update(chunk)
+    return md5.hexdigest()
+
+
+def sample_hash_filename(*parts):
+    """Storage filename (``<md5>.<ext>``) a committed sample stores itself under."""
+    path = sample_path(*parts)
+    ext = os.path.splitext(path)[1]
+    return "{}{}".format(read_file_hash(path), ext)

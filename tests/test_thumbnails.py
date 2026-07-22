@@ -7,6 +7,7 @@ from test_tree import thumbnail_path  # noqa F401
 from test_tree import thumbnail_path_jpg  # noqa F401
 from test_videos import _clear_ricecookerfilecache
 from test_videos import low_res_video  # noqa F401
+from vcr_config import my_vcr
 
 from ricecooker import config
 from ricecooker.classes.files import ExtractedEPubThumbnailFile
@@ -98,6 +99,7 @@ class TestThumbnailSetting(object):
         thumbnail_filename = thumbnail_file.get_filename()
         assert thumbnail_filename == expected_thumbnail_filename, "Wrong thumbnail"
 
+    @my_vcr.use_cassette
     def test_set_thumbnail_from_url(self, low_res_video):  # noqa F811
         video_node = self.get_video_node(
             path=low_res_video.name, thumbnail=THUMBNAIL_URL
@@ -106,6 +108,7 @@ class TestThumbnailSetting(object):
         _ = video_node.process_files()
         self.check_correct_thumbnail(video_node)
 
+    @my_vcr.use_cassette
     def test_set_thumbnail_from_url_with_querystring(self, low_res_video):  # noqa F811
         url = THUMBNAIL_URL + "?querystringkey=querystringvalue"
         video_node = self.get_video_node(path=low_res_video.name, thumbnail=url)

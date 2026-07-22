@@ -2,18 +2,15 @@ from __future__ import print_function
 
 import atexit
 import os
+import subprocess
 import tempfile
+from unittest import mock
 
 import pytest
-import requests_cache
-from conftest import download_fixture_file
+from conftest import sample_path
 
 from ricecooker.utils import audio
 from ricecooker.utils import videos
-
-# cache, so we don't keep requesting the full audio
-requests_cache.install_cache("audio_cache")
-
 
 # FIXTURES
 ################################################################################
@@ -21,29 +18,9 @@ requests_cache.install_cache("audio_cache")
 
 @pytest.fixture
 def audio_file():
-    source_url = "https://archive.org/download/sound247/sound247.mp3"
-    local_path = os.path.abspath(
-        os.path.join(
-            os.path.dirname(__file__),
-            "..",
-            "testcontent",
-            "downloaded",
-            "audio_media_test.mp3",
-        )
-    )
-    download_fixture_file(source_url, local_path)
-    assert os.path.exists(local_path)
-    f = open(local_path, "rb")
+    f = open(sample_path("sample_audio.mp3"), "rb")
     f.close()
     return f  # returns a closed file descriptor which we use for name attribute
-
-
-@pytest.fixture
-def bad_audio():
-    with TempFile(suffix=".mp3") as f:
-        f.write(b"noaudiohere. ffmpeg soshould error")
-        f.flush()
-    return f  # returns a temporary file with a closed file descriptor
 
 
 # TESTS
@@ -58,10 +35,16 @@ class Test_compress_video:
             compressed_duration = videos.extract_duration_of_media(vout.name, "mp3")
             assert duration == compressed_duration
 
-    def test_raises_for_bad_file(self, bad_audio):
+    def test_raises_for_bad_file(self):
+        # ffmpeg failure is mocked so the error-mapping path is exercised without
+        # shelling out to a real encoder.
         with TempFile(suffix=".mp4") as vout:
-            with pytest.raises(audio.AudioCompressionError):
-                audio.compress_audio(bad_audio.name, vout.name, overwrite=True)
+            with mock.patch(
+                "ricecooker.utils.audio.subprocess.check_output",
+                side_effect=subprocess.CalledProcessError(1, "ffmpeg", b"bad input"),
+            ):
+                with pytest.raises(audio.AudioCompressionError):
+                    audio.compress_audio("source.mp3", vout.name, overwrite=True)
 
 
 # Helper class for cross-platform temporary files
