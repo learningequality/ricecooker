@@ -63,6 +63,8 @@ class ReferencesHtmlTest(unittest.TestCase):
         '<img src="a.png">'
         '<img srcset="x-1.png 1x, x-2.png 2x">'
         '<script src="https://cdn/l.js"></script>'
+        '<iframe src="https://site/linked.html"></iframe>'
+        '<a href="https://site/doc.html">link</a>'
         "<div style=\"background:url('bg.png')\"></div>"
         "</body></html>"
     )
@@ -78,6 +80,11 @@ class ReferencesHtmlTest(unittest.TestCase):
         self.assertIn("bg.png", urls)
         self.assertIn("f.css", urls)
         self.assertNotIn("https://site/page", urls)
+        # Navigation references are page links, not offline resources: neither the
+        # ``<a href>`` nor the ``<iframe src>`` is fetched (so linked HTML never
+        # bypasses sanitization).
+        self.assertNotIn("https://site/doc.html", urls)
+        self.assertNotIn("https://site/linked.html", urls)
 
     def test_rewrite_html_urls(self):
         rewritten = references.HTMLMapper().rewrite(

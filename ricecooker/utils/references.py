@@ -169,7 +169,10 @@ class _HTMLReferenceRewriter(_SurgicalHTMLParser):
         if base < 0:
             return
         attr_map = {name.lower(): (value or "") for name, value in attrs}
-        if "src" in attr_map:
+        # ``<iframe src>`` is a navigation reference (a page link, not an offline
+        # resource) — excluded like ``<a href>`` so linked HTML is never fetched
+        # and left unsanitized.
+        if "src" in attr_map and tag != "iframe":
             self._record("src", "url", raw_tag, base)
         if tag == "link" and _is_stylesheet_attrs(attr_map):
             self._record("href", "url", raw_tag, base)
