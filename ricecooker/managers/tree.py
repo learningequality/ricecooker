@@ -75,6 +75,33 @@ class ChannelManager:
                 self.file_map.update(data)
         return list(self.file_map.keys())
 
+    def deduplicate_shared_nodes(self):
+        """Clone nodes reused under multiple parents so each gets a distinct node_id (issue #354).
+
+        A shared node object would otherwise keep one cached node_id, so only its
+        last placement survives publish to Kolibri. Later cross-parent placements
+        are replaced with Node.copy() clones; content_id (from source_id) is shared.
+        """
+        self._deduplicate_recur(self.channel, set())
+
+    def _deduplicate_recur(self, node, seen):
+        seen.add(id(node))
+        local_seen = set()
+        new_children = []
+        for child in node.children:
+            if id(child) in local_seen:
+                # same-parent duplicate: leave untouched for validate() to reject
+                new_children.append(child)
+            elif id(child) in seen:
+                # cross-parent reuse: clone so this placement gets its own node_id
+                new_children.append(child.copy(parent=node))
+            else:
+                local_seen.add(id(child))
+                child.parent = node  # fix parent overwritten during construction
+                new_children.append(child)
+                self._deduplicate_recur(child, seen)
+        node.children = new_children
+
     def gather_tree_recur(self, nodes, node):
         # Process node's children
         for child_node in node.children:

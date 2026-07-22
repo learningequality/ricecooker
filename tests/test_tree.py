@@ -1302,3 +1302,108 @@ def test_add_nodes_checks_both_failed_files_and_validity(channel):
 
 
 # End generated tests
+
+
+""" *********** NODE COPY / DEDUP TESTS (issue #354) *********** """
+
+
+def _place_under_two_topics(channel, node):
+    """Add ``node`` under two sibling topics of ``channel``; return the topics."""
+    t1, t2 = TopicNode("t1", "T1"), TopicNode("t2", "T2")
+    channel.add_child(t1)
+    channel.add_child(t2)
+    t1.add_child(node)
+    t2.add_child(node)
+    return t1, t2
+
+
+def test_copy_resets_ids_and_parent(channel, topic, document):
+    channel.add_child(topic)
+    topic.add_child(document)
+    document.get_node_id()  # materialize + cache node_id/content_id on the original
+    clone = document.copy()
+    assert clone is not document
+    assert clone.parent is None
+    assert clone.node_id is None
+    assert clone.content_id is None
+    assert clone.source_id == document.source_id
+
+
+def test_copy_shares_file_objects(document):
+    clone = document.copy()
+    assert clone.files is not document.files  # new list container
+    assert set(map(id, clone.files)) == set(
+        map(id, document.files)
+    )  # same File objects
+    assert (
+        clone.thumbnail is document.thumbnail
+    )  # thumbnail object shared too (decision #1)
+
+
+def test_copy_clones_children_recursively(topic, document):
+    topic.add_child(document)
+    clone = topic.copy()
+    assert clone.children[0] is not document
+    assert clone.children[0].parent is clone
+    assert clone.children[0].source_id == document.source_id
+
+
+def test_dedup_clones_cross_parent_reuse(channel, document):
+    t1, t2 = _place_under_two_topics(channel, document)  # same object, two parents
+    ChannelManager(channel).deduplicate_shared_nodes()
+    placed1, placed2 = t1.children[0], t2.children[0]
+    assert placed1 is not placed2
+    assert (
+        placed1.parent is t1 and placed2.parent is t2
+    )  # kept placement's parent repaired (construction left it pointing at t2)
+    assert placed1.get_content_id() == placed2.get_content_id()  # shared content_id
+    assert placed1.get_node_id() != placed2.get_node_id()  # distinct node_id
+
+
+def test_dedup_shares_file_objects(channel, document):
+    t1, t2 = _place_under_two_topics(channel, document)
+    ChannelManager(channel).deduplicate_shared_nodes()
+    original_file_ids = set(map(id, t1.children[0].files))
+    assert set(map(id, t2.children[0].files)) == original_file_ids  # same File objects
+
+
+def test_dedup_clones_shared_subtree(channel, document):
+    shared = TopicNode("shared", "Shared")
+    shared.add_child(document)
+    t1, t2 = _place_under_two_topics(channel, shared)  # same subtree, two parents
+    ChannelManager(channel).deduplicate_shared_nodes()
+    s1, s2 = t1.children[0], t2.children[0]
+    assert s1 is not s2
+    assert s1.children[0] is not s2.children[0]  # descendants cloned too
+    assert s1.children[0].get_node_id() != s2.children[0].get_node_id()
+    assert s1.children[0].get_content_id() == s2.children[0].get_content_id()
+
+
+def test_dedup_no_spurious_clone(channel, document):
+    t1 = TopicNode("t1", "T1")
+    channel.add_child(t1)
+    t1.add_child(document)
+    original = t1.children[0]
+    ChannelManager(channel).deduplicate_shared_nodes()
+    assert t1.children[0] is original  # untouched when not reused
+
+
+def test_dedup_preserves_same_parent_error(channel, document):
+    t1 = TopicNode("t1", "T1")
+    channel.add_child(t1)
+    t1.add_child(document)
+    t1.add_child(document)  # same object twice under ONE parent
+    manager = ChannelManager(channel)
+    manager.deduplicate_shared_nodes()
+    assert len(t1.children) == 2 and t1.children[0] is t1.children[1]  # not cloned
+    with patch("ricecooker.config.STRICT", True):
+        with pytest.raises(InvalidNodeException):
+            manager.validate()
+
+
+def test_create_initial_tree_deduplicates_reused_node(channel, document):
+    from ricecooker.commands import create_initial_tree
+
+    t1, t2 = _place_under_two_topics(channel, document)
+    create_initial_tree(channel)
+    assert t1.children[0].get_node_id() != t2.children[0].get_node_id()

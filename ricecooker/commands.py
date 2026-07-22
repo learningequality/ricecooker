@@ -279,6 +279,9 @@ def create_initial_tree(channel):
     config.LOGGER.info("   Setting up initial channel structure... ")
     tree = ChannelManager(channel)
 
+    # Must run before validate() materializes node_ids/content_ids (issue #354).
+    tree.deduplicate_shared_nodes()
+
     # Make sure channel structure is valid
     config.LOGGER.info("   Validating channel structure...")
     channel.print_tree()
