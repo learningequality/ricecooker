@@ -1,22 +1,12 @@
 #!/usr/bin/env python
-"""Sample page-archiving chef.
-
-Renders a JS/SPA page with single-file-cli and seals it into an offline HTML5
-zip via the ricecooker pipeline. Enable the render path by overriding
-``build_file_pipeline`` to return ``make_page_archiving_pipeline`` and marking
-the source URI with the ``singlefile+`` prefix.
-
-Prerequisites (page archiving only — the core install does not need these):
-    npm install -g single-file-cli
-    plus a Chromium/Chrome browser on PATH (or pass --browser-executable-path
-    via the node ``context``).
-See docs/installation.md.
+"""Sample page-archiving chef: renders a JS/SPA page to an offline HTML5 zip via
+the built-in ``singlefile+`` DOWNLOAD handler. See README.md / docs/installation.md
+for the single-file-cli + Chromium prerequisites.
 """
 from ricecooker.chefs import SushiChef
 from ricecooker.classes.licenses import get_license
 from ricecooker.classes.nodes import ContentNode
 from ricecooker.classes.nodes import TopicNode
-from ricecooker.utils.pipeline import make_page_archiving_pipeline
 
 # A small, stable, public SPA render target (TodoMVC's React example). Confirm
 # the exact path during manual offline-render verification (see README.md).
@@ -31,11 +21,6 @@ class PageArchiveChef(SushiChef):
         "CHANNEL_LANGUAGE": "en",  # le_utils language code
         "CHANNEL_DESCRIPTION": "Headless page archiving via single-file-cli.",
     }
-
-    def build_file_pipeline(self, default_context):
-        # Opt in to the render handler; forward default_context so --compress
-        # settings still apply to the exploded assets.
-        return make_page_archiving_pipeline(default_context=default_context)
 
     def construct_channel(self, **kwargs):
         channel = self.get_channel(**kwargs)

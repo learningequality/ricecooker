@@ -6,8 +6,8 @@ and the ricecooker pipeline for `data:`-URI localization and media conversion.
 
 ## How it works
 
-1. `build_file_pipeline` returns `make_page_archiving_pipeline(...)`, which
-   prepends `SingleFileRenderHandler` to the DOWNLOAD stage.
+1. `SingleFileRenderHandler` is a built-in DOWNLOAD-stage handler, gated by the
+   `singlefile+` URI prefix — no custom pipeline wiring is needed.
 2. A `ContentNode` whose `uri` starts with `singlefile+` marks render intent.
    `context={"crawl_max_depth": ..., "crawl_inner_links_only": ...}` controls
    crawl depth and link scope (parity with the old `link_policy`).

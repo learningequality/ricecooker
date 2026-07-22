@@ -12,9 +12,7 @@ from vcr_config import my_vcr
 
 from ricecooker.utils.pipeline import FilePipeline
 from ricecooker.utils.pipeline.context import FileMetadata
-from ricecooker.utils.pipeline.convert import ConversionStageHandler
 from ricecooker.utils.pipeline.exceptions import InvalidFileException
-from ricecooker.utils.pipeline.extract_metadata import ExtractMetadataStageHandler
 from ricecooker.utils.pipeline.file_handler import FileHandler
 from ricecooker.utils.pipeline.transfer import Base64FileHandler
 from ricecooker.utils.pipeline.transfer import DiskResourceHandler
@@ -487,19 +485,9 @@ def test_singlefile_render_handler_forwards_crawl_context():
 
 
 def test_singlefile_render_end_to_end_explosion():
-    # Build the pipeline explicitly so this test is independent of the
-    # make_page_archiving_pipeline factory.
-    download_stage = DownloadStageHandler(
-        children=[SingleFileRenderHandler()]
-        + [cls() for cls in DownloadStageHandler.DEFAULT_CHILDREN]
-    )
-    pipeline = FilePipeline(
-        children=[
-            download_stage,
-            ConversionStageHandler(),
-            ExtractMetadataStageHandler(),
-        ]
-    )
+    # The render handler is a default DOWNLOAD child, so the stock pipeline
+    # renders singlefile+ markers and explodes their inlined data: assets.
+    pipeline = FilePipeline()
     with patch(
         "ricecooker.utils.pipeline.transfer.render_page",
         side_effect=_fake_render_page(),
@@ -517,29 +505,11 @@ def test_singlefile_render_end_to_end_explosion():
     assert 'src="{}"'.format(pngs[0]) in index
 
 
-def test_make_page_archiving_pipeline_handles_render_and_default_sources():
-    from ricecooker.utils.pipeline import make_page_archiving_pipeline
-
-    pipeline = make_page_archiving_pipeline()
+def test_default_pipeline_handles_render_marker_and_default_sources():
+    # The render handler ships in the default DOWNLOAD children, gated by the
+    # singlefile+ marker — no custom pipeline construction required.
+    pipeline = FilePipeline()
     # Render handler is active for marker URIs.
     assert pipeline.should_handle("singlefile+https://spa.example/") is True
     # Default children still claim ordinary sources.
     assert pipeline.should_handle("https://example.com/x.pdf") is True
-
-
-def test_make_page_archiving_pipeline_forwards_default_context():
-    from ricecooker.utils.pipeline import make_page_archiving_pipeline
-
-    pipeline = make_page_archiving_pipeline(
-        default_context={"video_settings": {"crf": 30}}
-    )
-    assert pipeline.default_context == {"video_settings": {"crf": 30}}
-
-
-def test_build_file_pipeline_forwards_default_context():
-    from ricecooker.chefs import SushiChef
-
-    chef = SushiChef.__new__(SushiChef)
-    pipeline = chef.build_file_pipeline({"audio_settings": {"bit_rate": 96}})
-    assert isinstance(pipeline, FilePipeline)
-    assert pipeline.default_context == {"audio_settings": {"bit_rate": 96}}

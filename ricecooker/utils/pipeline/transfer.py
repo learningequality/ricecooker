@@ -433,9 +433,9 @@ class SingleFileRenderContextMetadata(ContextMetadata):
 class SingleFileRenderHandler(FileHandler):
     """Render a ``singlefile+http(s)://`` URI to an HTML5 zip via single-file-cli.
 
-    Non-default DOWNLOAD handler (opt in via ``make_page_archiving_pipeline``).
-    Seals the rendered output into a ``.zip``; the CONVERT stage then explodes
-    the inlined ``data:`` assets into real files and rewrites their references.
+    Gated by the explicit ``singlefile+`` marker, so it only shells out to
+    single-file-cli/Chromium for URIs a chef deliberately marks — the core
+    install is unaffected.
     """
 
     CONTEXT_CLASS = SingleFileRenderContextMetadata
@@ -466,6 +466,9 @@ class SingleFileRenderHandler(FileHandler):
 class DownloadStageHandler(StageHandler):
     STAGE = "DOWNLOAD"
     DEFAULT_CHILDREN = [
+        # Gated by the singlefile+ marker (see should_handle), so its position
+        # among the children is irrelevant — no other source is affected.
+        SingleFileRenderHandler,
         YoutubeDownloadHandler,
         GoogleDriveHandler,
         CatchAllWebResourceDownloadHandler,
