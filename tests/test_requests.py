@@ -81,6 +81,6 @@ def invalid_tree_2(channel, topic, invalid_document):
 
 
 def test_validate(tree, invalid_tree, invalid_tree_2):
-    assert tree.validate(), "Tree should pass validation"
+    tree.validate()
     pytest.raises(InvalidNodeException, invalid_tree.validate)
     pytest.raises(InvalidNodeException, invalid_tree_2.validate)

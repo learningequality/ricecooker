@@ -33,6 +33,11 @@ def make_question(question_id):
     )
 
 
+def test_question_validate_returns_none():
+    """A valid question's validate() returns None (raises on failure)."""
+    assert make_question("qtest").validate() is None
+
+
 class TestLearningObjective:
     """Tests for the LearningObjective class."""
 
@@ -412,7 +417,7 @@ class TestUnitNodeValidation:
     def test_validates_valid_unit(self):
         """Valid unit passes validation."""
         unit = self._create_valid_unit()
-        assert unit.validate() is True
+        assert unit.validate() is None
 
     def test_fails_with_less_than_2_variant_a_questions(self):
         """Unit fails validation with less than 2 VARIANT_A questions."""

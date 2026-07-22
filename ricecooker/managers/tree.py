@@ -35,30 +35,24 @@ class ChannelManager:
         self.channel_id = None  # Will be set during early permission check
 
     def validate(self):
-        """validate: checks if tree structure is valid
-        Args: None
-        Returns: boolean indicating if tree is valid
-        """
+        """Validate every node in the tree. Raises InvalidNodeException in strict mode; returns None."""
         if not self.all_nodes:
             self.all_nodes = self.gather_tree_recur([], self.channel)
-        valid = True
         with concurrent.futures.ThreadPoolExecutor(
             max_workers=config.TASK_THREADS
         ) as executor:
-            for result in executor.map(self.validate_node, self.all_nodes):
-                valid = valid and result
-        return valid
+            for _ in executor.map(self.validate_node, self.all_nodes):
+                pass
 
     def validate_node(self, node):
         try:
-            return node.validate()
+            node.validate()
         except InvalidNodeException as e:
             if config.STRICT:
                 raise
             else:
                 node._error = str(e)
                 config.LOGGER.warning(node._error)
-        return True
 
     def process_tree(self):
         """

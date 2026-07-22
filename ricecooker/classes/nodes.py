@@ -430,10 +430,7 @@ class Node(object):
         self.license = license
 
     def _validate(self):  # noqa: C901
-        """validate: Makes sure node is valid
-        Args: None
-        Returns: boolean indicating if node is valid
-        """
+        """Validate the node. Raises InvalidNodeException on failure; returns None."""
         self._validate_values(self.source_id is None, "Must have a source_id")
 
         if self.__class__.kind is not None:
@@ -564,12 +561,10 @@ class Node(object):
                     f"Learner needs must be one of the following: {needs.NEEDSLIST}",
                 )
 
-        return True
-
     def validate(self):
         self.valid = False
-        self.valid = self._validate()
-        return self.valid
+        self._validate()
+        self.valid = True
 
     def get_metadata_dict(self, metadata: dict[str, any]) -> dict[str, any]:
         """
@@ -670,15 +665,12 @@ class ChannelNode(Node):
         }
 
     def _validate(self):
-        """validate: Makes sure channel is valid
-        Args: None
-        Returns: boolean indicating if channel is valid
-        """
+        """Validate the channel. Raises InvalidNodeException on failure; returns None."""
         self._validate_values(
             not isinstance(self.source_domain, str), "Channel domain must be a string"
         )
         self._validate_values(self.language is None, "Channel must have a language")
-        return super(ChannelNode, self)._validate()
+        super(ChannelNode, self)._validate()
 
 
 class TreeNode(Node):
@@ -875,10 +867,7 @@ class ContentNode(TreeNode):
             )
 
     def _validate(self):
-        """validate: Makes sure content node is valid
-        Args: None
-        Returns: boolean indicating if content node is valid
-        """
+        """Validate the content node. Raises InvalidNodeException on failure; returns None."""
         self._validate_values(self.license is None, "ContentNode must have a license")
         if self._files_processed:
             self._validate_values(self.kind is None, "No kind has been set")
@@ -916,7 +905,7 @@ class ContentNode(TreeNode):
                 self._validate_values(not has_default_file, "No default file")
         if self.uri:
             self._validate_uri()
-        return super(ContentNode, self)._validate()
+        super(ContentNode, self)._validate()
 
     def _process_uri(self):
         try:
@@ -1017,10 +1006,7 @@ class VideoNode(ContentNode):
         return None
 
     def _validate(self):
-        """validate: Makes sure video is valid
-        Args: None
-        Returns: boolean indicating if video is valid
-        """
+        """Validate the video. Raises InvalidNodeException on failure; returns None."""
 
         # Ensure that there is only one subtitle file per language code
         new_files = []
@@ -1042,7 +1028,7 @@ class VideoNode(ContentNode):
             else:
                 new_files.append(file)
         self.files = new_files
-        return super(VideoNode, self)._validate()
+        super(VideoNode, self)._validate()
 
 
 class AudioNode(ContentNode):
@@ -1244,19 +1230,14 @@ class ExerciseNode(ContentNode):
         self.extra_fields.update({"n": n_value})
 
     def _validate(self):
-        """validate: Makes sure exercise is valid
-        Args: None
-        Returns: boolean indicating if exercise is valid
-        """
+        """Validate the exercise. Raises InvalidNodeException on failure; returns None."""
 
         # Check if questions are correct
         self._validate_values(
             not self.questions, "Exercise does not have any questions"
         )
-        self._validate_values(
-            any(not q.validate() for q in self.questions),
-            "Exercise has invalid question",
-        )
+        for q in self.questions:
+            q.validate()
         self._validate_values(
             self.extra_fields["mastery_model"] not in MASTERY_MODELS,
             "Unrecognized mastery model {}".format(self.extra_fields["mastery_model"]),
@@ -1285,7 +1266,7 @@ class ExerciseNode(ContentNode):
 
         self.process_exercise_data()
 
-        return super(ExerciseNode, self)._validate()
+        super(ExerciseNode, self)._validate()
 
     def truncate_fields(self):
         for q in self.questions:
@@ -1488,7 +1469,7 @@ class StudioContentNode(TreeNode):
                         key
                     )
                 )
-        return super(StudioContentNode, self)._validate()
+        super(StudioContentNode, self)._validate()
 
     def to_dict(self):
         data = {
@@ -1638,9 +1619,7 @@ class UnitNode(_CurriculumNode):
         variant_a = []
         variant_b = []
         for question, variant, los in self.test_questions:
-            self._validate_values(
-                not question.validate(), "UnitNode has invalid question"
-            )
+            question.validate()
             if variant == VARIANT_A:
                 variant_a.append((question, los))
             else:
@@ -1691,7 +1670,7 @@ class UnitNode(_CurriculumNode):
                 "Each learning objective must have the same total number of questions",
             )
 
-        return super()._validate()
+        super()._validate()
 
     def _get_mastery_criteria(self):
         """Build mastery criteria dict for pre/post test."""

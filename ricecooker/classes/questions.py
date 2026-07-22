@@ -225,10 +225,7 @@ class BaseQuestion:
         return new_text, [exercise_image_file]
 
     def validate(self):
-        """validate: Makes sure question is valid
-        Args: None
-        Returns: boolean indicating if question is valid
-        """
+        """Validate the question. Raises AssertionError on failure; returns None."""
         assert self.id is not None, "Assumption Failed: Question must have an id"
         assert isinstance(self.question, str) or self.question is None, (
             "Assumption Failed: Question must be a string"
@@ -248,7 +245,6 @@ class BaseQuestion:
             assert isinstance(h, str), (
                 "Assumption Failed: Hint in hints list is not a string"
             )
-        return True
 
 
 class PerseusQuestion(BaseQuestion):
@@ -280,10 +276,7 @@ class PerseusQuestion(BaseQuestion):
         )
 
     def validate(self):
-        """validate: Makes sure perseus question is valid
-        Args: None
-        Returns: boolean indicating if perseus question is valid
-        """
+        """Validate the perseus question. Raises InvalidQuestionException on failure; returns None."""
         try:
             assert self.question == "", (
                 "Assumption Failed: Perseus question should not have a question"
@@ -297,7 +290,7 @@ class PerseusQuestion(BaseQuestion):
             assert self.hints == [], (
                 "Assumption Failed: Hints list should be empty for perseus question"
             )
-            return super(PerseusQuestion, self).validate()
+            super(PerseusQuestion, self).validate()
         except AssertionError:
             raise InvalidQuestionException(
                 "Invalid question: {0}".format(self.__dict__)
@@ -396,10 +389,7 @@ class MultipleSelectQuestion(BaseQuestion):
         )
 
     def validate(self):
-        """validate: Makes sure multiple selection question is valid
-        Args: None
-        Returns: boolean indicating if multiple selection question is valid
-        """
+        """Validate the multiple selection question. Raises InvalidQuestionException on failure; returns None."""
         try:
             assert self.question_type == exercises.MULTIPLE_SELECTION, (
                 "Assumption Failed: Question should be multiple selection type"
@@ -418,7 +408,7 @@ class MultipleSelectQuestion(BaseQuestion):
                 assert isinstance(h, str), (
                     "Assumption Failed: Hint in hint list is not a string"
                 )
-            return super(MultipleSelectQuestion, self).validate()
+            super(MultipleSelectQuestion, self).validate()
         except AssertionError:
             raise InvalidQuestionException(
                 "Invalid question: {0}".format(self.__dict__)
@@ -460,10 +450,7 @@ class SingleSelectQuestion(BaseQuestion):
         )
 
     def validate(self):
-        """validate: Makes sure single selection question is valid
-        Args: None
-        Returns: boolean indicating if single selection question is valid
-        """
+        """Validate the single selection question. Raises InvalidQuestionException on failure; returns None."""
         try:
             assert self.question_type == exercises.SINGLE_SELECTION, (
                 "Assumption Failed: Question should be single selection type"
@@ -487,7 +474,7 @@ class SingleSelectQuestion(BaseQuestion):
                 assert isinstance(h, str), (
                     "Assumption Failed: Hint in hints list is not a string"
                 )
-            return super(SingleSelectQuestion, self).validate()
+            super(SingleSelectQuestion, self).validate()
         except AssertionError:
             raise InvalidQuestionException(
                 "Invalid question: {0}".format(self.__dict__)
@@ -522,10 +509,7 @@ class InputQuestion(BaseQuestion):
         )
 
     def validate(self):
-        """validate: Makes sure input question is valid
-        Args: None
-        Returns: boolean indicating if input question is valid
-        """
+        """Validate the input question. Raises InvalidQuestionException on failure; returns None."""
         try:
             assert self.question_type == exercises.INPUT_QUESTION, (
                 "Assumption Failed: Question should be input answer type"
@@ -547,7 +531,7 @@ class InputQuestion(BaseQuestion):
                 assert isinstance(h, str), (
                     "Assumption Failed: Hint in hints list is not a string"
                 )
-            return super(InputQuestion, self).validate()
+            super(InputQuestion, self).validate()
         except AssertionError:
             raise InvalidQuestionException(
                 "Invalid question: {0}".format(self.__dict__)
