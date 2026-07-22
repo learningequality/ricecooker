@@ -91,8 +91,8 @@ include = ["ricecooker*"]
 [tool.uv]
 # Only resolve for CPython (vcrpy has urllib3<2 constraint on PyPy that conflicts)
 environments = ["platform_python_implementation == 'CPython'"]
-# Update this date periodically to allow new dependency versions
-exclude-newer = "2026-03-24T00:00:00Z"
+# Rolling 7-day cooldown: adopt new releases only once they've been out a week
+exclude-newer = "7 days"
 # Exempt le-utils and sphinx-llm from the exclude-newer cooldown
 exclude-newer-package = { le-utils = "2099-12-31T00:00:00Z", sphinx-llm = "2099-12-31T00:00:00Z" }
 
