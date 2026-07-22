@@ -81,7 +81,7 @@ class TutorialChef(SushiChef):
         # uri alone can't express subtitles - add them explicitly, language is required
         examplevideo.add_file(
             SubtitleFile(
-                path="https://raw.githubusercontent.com/learningequality/ricecooker/main/examples/oldexamples/content/captions.vtt",
+                path="https://raw.githubusercontent.com/learningequality/ricecooker/main/examples/tutorial/captions.vtt",
                 language="sw",
             )
         )
