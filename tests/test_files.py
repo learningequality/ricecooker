@@ -130,8 +130,17 @@ def test_download_filenames(
     assert video_file.process_file() == video_filename, (
         "Video file should have filename {}".format(video_filename)
     )
-    assert html_file.process_file() == html_filename, (
-        "HTML file should have filename {}".format(html_filename)
+    # sample_html.zip inlines a data: URI (in CSS/jquery-ui.css) that the
+    # pipeline now explodes into a real file (issue #691), so the archive is
+    # reprocessed on download. Its content-derived hash is platform-dependent
+    # (HTML rewriting + zip compression), so assert it is a .zip that differs
+    # from the raw download hash rather than pinning exact bytes.
+    processed_html_filename = html_file.process_file()
+    assert processed_html_filename.endswith(".zip"), (
+        "HTML file should be stored as a .zip, got {}".format(processed_html_filename)
+    )
+    assert processed_html_filename != html_filename, (
+        "data: URIs should have been exploded, changing the archive hash"
     )
     assert audio_file.process_file() == audio_filename, (
         "Audio file should have filename {}".format(audio_filename)
