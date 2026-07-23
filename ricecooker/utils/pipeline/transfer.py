@@ -431,14 +431,20 @@ class SingleFileRenderContextMetadata(ContextMetadata):
     crawl_inner_links_only: bool = True
     crawl_rewrite_rule: Optional[str] = None
     browser_executable_path: Optional[str] = None
+    # Auth for login-walled targets, forwarded to single-file's
+    # --browser-cookies-file / --http-header. The HEAD probe in should_handle has
+    # no per-URL context, so it authenticates separately via config.DOWNLOAD_SESSION.
+    browser_cookies_file: Optional[str] = None
+    http_headers: Optional[Dict[str, str]] = None
 
 
 class SingleFileRenderHandler(WebResourceHandler):
     """Render a URL that serves an HTML page into an HTML5 zip via single-file-cli.
 
     ``should_handle`` does a cached HEAD request and claims a URL only when it
-    serves ``text/html``. No pip dependency is added — the ``single-file``/Chromium
-    binaries are shelled out to lazily and only for HTML URLs.
+    serves HTML. No pip dependency is added — the ``single-file``/Chromium
+    binaries are shelled out to lazily and only for HTML URLs. For login-walled
+    targets see :class:`SingleFileRenderContextMetadata`.
     """
 
     CONTEXT_CLASS = SingleFileRenderContextMetadata

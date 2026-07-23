@@ -419,6 +419,32 @@ def test_render_page_writes_index_and_passes_crawl_flags():
         assert "--crawl-inner-links-only=true" in command
 
 
+def test_render_page_passes_auth_flags():
+    import ricecooker.utils.singlefile as singlefile
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        recorded = {}
+
+        def check_output(command, *args, **kwargs):
+            recorded["command"] = command
+            with open(os.path.join(tmpdir, "index.html"), "w") as f:
+                f.write("<html><body>hi</body></html>")
+            return b""
+
+        with patch.object(
+            singlefile.subprocess, "check_output", side_effect=check_output
+        ):
+            singlefile.render_page(
+                "https://locked.example/",
+                tmpdir,
+                browser_cookies_file="/tmp/cookies.txt",
+                http_headers={"Authorization": "Bearer tok"},
+            )
+        command = recorded["command"]
+        assert "--browser-cookies-file=/tmp/cookies.txt" in command
+        assert "--http-header=Authorization: Bearer tok" in command
+
+
 def test_render_page_missing_binary_raises_singlefilerendererror():
     import ricecooker.utils.singlefile as singlefile
 
@@ -548,6 +574,27 @@ def test_singlefile_render_handler_forwards_crawl_context():
         result = handler.execute(
             "https://spa.example/",
             context={"crawl_max_depth": 3, "crawl_inner_links_only": False},
+        )
+    assert result[0].filename.endswith(".zip")
+
+
+def test_singlefile_render_handler_forwards_auth_context():
+    # Login-wall auth reaches the render the same way crawl options do: through
+    # CONTEXT_CLASS. _fake_render_page asserts render_page got the auth kwargs.
+    handler = SingleFileRenderHandler()
+    with patch(
+        "ricecooker.utils.pipeline.transfer.render_page",
+        side_effect=_fake_render_page(
+            browser_cookies_file="/tmp/cookies.txt",
+            http_headers={"Authorization": "Bearer tok"},
+        ),
+    ):
+        result = handler.execute(
+            "https://locked.example/",
+            context={
+                "browser_cookies_file": "/tmp/cookies.txt",
+                "http_headers": {"Authorization": "Bearer tok"},
+            },
         )
     assert result[0].filename.endswith(".zip")
 

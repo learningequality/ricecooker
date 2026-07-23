@@ -20,6 +20,8 @@ def render_page(
     crawl_inner_links_only=True,
     crawl_rewrite_rule=None,
     browser_executable_path=None,
+    browser_cookies_file=None,
+    http_headers=None,
     timeout=120,
 ):
     """Render ``url`` into ``output_dir`` with the ``single-file`` binary.
@@ -29,6 +31,12 @@ def render_page(
     it. Returns the entry path. Raises :class:`SingleFileRenderError` on a
     non-zero exit, a missing binary, a timeout, or if no ``index.html`` is
     produced.
+
+    To capture pages behind a login wall, pass ``browser_cookies_file`` (a
+    cookies file in Netscape or JSON format exported from an authenticated
+    session) and/or ``http_headers`` (a ``{name: value}`` mapping, e.g. an
+    ``Authorization`` bearer token). These map to single-file's
+    ``--browser-cookies-file`` / ``--http-header`` options.
     """
     index_path = os.path.join(output_dir, "index.html")
 
@@ -45,6 +53,10 @@ def render_page(
         command.append("--crawl-rewrite-rule={}".format(crawl_rewrite_rule))
     if browser_executable_path:
         command.append("--browser-executable-path={}".format(browser_executable_path))
+    if browser_cookies_file:
+        command.append("--browser-cookies-file={}".format(browser_cookies_file))
+    for name, value in (http_headers or {}).items():
+        command.append("--http-header={}: {}".format(name, value))
     # Single-page [output] positional guarantees a top-level index.html.
     command.append(index_path)
 

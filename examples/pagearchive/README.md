@@ -33,6 +33,36 @@ npm install -g single-file-cli
 plus a Chromium/Chrome browser on `PATH`. If it is not on `PATH`, pass its
 location via the node `context`: `{"browser_executable_path": "/path/to/chrome"}`.
 
+## Authenticating login-walled sites
+
+Some targets sit behind a login wall. single-file authenticates the headless
+Chromium session via a cookies file (Netscape or JSON, exported from a browser
+where you are already logged in) and/or extra HTTP headers. Pass them through the
+node `context`:
+
+```python
+context={
+    "crawl_max_depth": 1,
+    "browser_cookies_file": "/path/to/cookies.txt",
+    "http_headers": {"Authorization": "Bearer <token>"},
+}
+```
+
+These forward to single-file's `--browser-cookies-file` / `--http-header`.
+
+The HTML-detection HEAD probe runs in `should_handle`, which has no per-URL
+`context`, so it authenticates separately: it uses the shared
+`ricecooker.config.DOWNLOAD_SESSION` (the session every ricecooker download goes
+through). Authenticate that session once before running the chef and the probe
+carries the same credentials:
+
+```python
+from ricecooker import config
+
+config.DOWNLOAD_SESSION.cookies.set("session", "<value>", domain="locked.example")
+config.DOWNLOAD_SESSION.headers.update({"Authorization": "Bearer <token>"})
+```
+
 ## Manual offline-render verification
 
 The `single-file` binary and Chromium are **not** available in CI, so the
