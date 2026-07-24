@@ -2215,6 +2215,7 @@ dependencies = [
     { name = "pypdf2", marker = "platform_python_implementation == 'CPython'" },
     { name = "requests", marker = "platform_python_implementation == 'CPython'" },
     { name = "requests-file", marker = "platform_python_implementation == 'CPython'" },
+    { name = "tomli", marker = "python_full_version < '3.11' and platform_python_implementation == 'CPython'" },
     { name = "urllib3", marker = "platform_python_implementation == 'CPython'" },
     { name = "yt-dlp", version = "2025.10.14", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10' and platform_python_implementation == 'CPython'" },
     { name = "yt-dlp", version = "2026.3.17", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10' and platform_python_implementation == 'CPython'" },
@@ -2283,6 +2284,7 @@ requires-dist = [
     { name = "requests", specifier = ">=2.11.1" },
     { name = "requests-file" },
     { name = "sentry-sdk", marker = "extra == 'sentry'", specifier = ">=2.32.0" },
+    { name = "tomli", marker = "python_full_version < '3.11'", specifier = ">=2.0.0" },
     { name = "urllib3", specifier = "==2.6.3" },
     { name = "yt-dlp", specifier = ">=2024.12.23" },
 ]
