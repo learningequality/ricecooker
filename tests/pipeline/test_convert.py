@@ -22,8 +22,6 @@ from ricecooker.classes.files import H5PFile
 from ricecooker.classes.files import HTMLZipFile
 from ricecooker.utils import archive_assets
 from ricecooker.utils.pipeline import FilePipeline
-from ricecooker.utils.pipeline.convert import _find_common_root
-from ricecooker.utils.pipeline.convert import _find_entry_html
 from ricecooker.utils.pipeline.convert import BloomConversionHandler
 from ricecooker.utils.pipeline.convert import DocumentConversionHandler
 from ricecooker.utils.pipeline.convert import EPUBConversionHandler
@@ -227,29 +225,6 @@ class TestHTML5EntryPoint:
             path = os.path.join(tmpdir, "test.zip")
             _create_archive(path, files)
             return HTML5ConversionHandler().execute(path, skip_cache=True)
-
-    def test_find_common_root(self):
-        assert _find_common_root([]) == ""
-        assert _find_common_root(["index.html"]) == ""
-        assert _find_common_root(["dist/index.html"]) == "dist"
-        assert _find_common_root(["a/b/x.html", "a/b/y.css"]) == "a/b"
-        assert _find_common_root(["a/b/x.html", "a/c/y.css"]) == "a"
-        assert _find_common_root(["a/x.html", "y.css"]) == ""
-
-    def test_find_entry_html(self):
-        # index.html at the root is preferred
-        assert _find_entry_html(["other.html", "index.html"]) == "index.html"
-        # then index.html relative to the common root
-        assert (
-            _find_entry_html(["dist/other.html", "dist/index.html"])
-            == "dist/index.html"
-        )
-        # then any index.html
-        assert _find_entry_html(["main.html", "sub/index.html"]) == "sub/index.html"
-        # then the shallowest html file
-        assert _find_entry_html(["b/page.html", "a.html"]) == "a.html"
-        # no html files at all
-        assert _find_entry_html(["style.css", "script.js"]) is None
 
     def test_no_html_file_rejected(self):
         with pytest.raises(InvalidFileException, match="(?i)no HTML file"):

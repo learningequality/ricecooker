@@ -51,6 +51,8 @@ from ricecooker.utils.videos import validate_media_file
 from ricecooker.utils.videos import VideoCompressionError
 from ricecooker.utils.youtube import get_language_with_alpha2_fallback
 from ricecooker.utils.zip import create_predictable_zip
+from ricecooker.utils.zip import find_common_root
+from ricecooker.utils.zip import find_html_entrypoint
 
 from .file_handler import ExtensionMatchingHandler
 from .file_handler import StageHandler
@@ -321,53 +323,6 @@ class ArchiveProcessingBaseHandler(ExtensionMatchingHandler):
             )
 
 
-def _find_common_root(names):
-    """Return the common parent directory shared by all file paths.
-
-    Ported from Studio's ``findCommonRoot`` (frontend/shared/utils/zipFile.js).
-    ``names`` are POSIX-style, non-directory archive member paths.
-    """
-    paths = [n.split("/")[:-1] for n in names]
-    if not paths:
-        return ""
-    if len(paths) == 1:
-        return "/".join(paths[0])
-    first = paths[0]
-    common = []
-    for i, part in enumerate(first):
-        for other in paths[1:]:
-            if i >= len(other) or other[i] != part:
-                return "/".join(common)
-        common.append(part)
-    return "/".join(common)
-
-
-def _find_entry_html(names):
-    """Return the archive member that is the HTML entry point, or None.
-
-    Ported from Studio's ``findFirstHtml`` (frontend/shared/utils/zipFile.js):
-    prefer ``index.html`` at the common-root-stripped root, then any
-    ``index.html``, then the shallowest / shortest-named ``.html`` file.
-    """
-    html_files = [n for n in names if n.lower().endswith(".html")]
-    if not html_files:
-        return None
-    common_root = _find_common_root(names)
-    prefix = common_root + "/" if common_root else ""
-    normalized = [
-        (n, n[len(prefix) :] if prefix and n.startswith(prefix) else n)
-        for n in html_files
-    ]
-    for original, norm in normalized:
-        if norm == "index.html":
-            return original
-    for original, norm in normalized:
-        if norm.split("/")[-1] == "index.html":
-            return original
-    normalized.sort(key=lambda t: (t[1].count("/"), len(t[1])))
-    return normalized[0][0]
-
-
 class HTML5ConversionHandler(ArchiveProcessingBaseHandler):
     EXTENSIONS = {file_formats.HTML5}
     FILE_TYPE = "HTML5"
@@ -396,7 +351,7 @@ class HTML5ConversionHandler(ArchiveProcessingBaseHandler):
     def validate_archive(self, path: str):
         with self.open_and_verify_archive(path) as zf:
             names = [n for n in zf.namelist() if not n.endswith("/")]
-            entry = _find_entry_html(names)
+            entry = find_html_entrypoint(names)
             if entry is None:
                 raise InvalidFileException(
                     f"File {path} is not a valid {self.FILE_TYPE} file, "
@@ -418,9 +373,9 @@ class HTML5ConversionHandler(ArchiveProcessingBaseHandler):
         except zipfile.BadZipFile:
             return path, None  # let validate_archive raise the standard error
 
-        common_root = _find_common_root(names)
+        common_root = find_common_root(names)
         if not common_root:
-            return path, _find_entry_html(names)
+            return path, find_html_entrypoint(names)
 
         prefix = common_root + "/"
         with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as tmp:
@@ -432,7 +387,7 @@ class HTML5ConversionHandler(ArchiveProcessingBaseHandler):
             for name in names:
                 zout.writestr(name[len(prefix) :], zin.read(name))
         denested_names = [n[len(prefix) :] for n in names]
-        return tmp_path, _find_entry_html(denested_names)
+        return tmp_path, find_html_entrypoint(denested_names)
 
 
 def _map_h5p_paths(data, fn, urls):
