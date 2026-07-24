@@ -1,26 +1,7 @@
 import math
 import re
-import sys
-import types
 
 from PIL import Image
-
-# Useful for very coarse version differentiation.
-PY2 = sys.version_info[0] == 2
-PY3 = sys.version_info[0] == 3
-
-if PY3:
-    string_types = (str,)
-    integer_types = (int,)
-    class_types = (type,)
-    text_type = str
-    binary_type = bytes
-else:
-    string_types = (basestring,)  # noqa: F821
-    integer_types = (int, long)  # noqa: F821
-    class_types = (type, types.ClassType)
-    text_type = unicode  # noqa: F821
-    binary_type = str
 
 # SmileyChris/easy-thumbnails is licensed under the BSD 3-Clause "New" or "Revised" License
 # Copyright (c) 2009, Chris Beaven
@@ -161,7 +142,7 @@ def scale_and_crop(  # noqa: C901
         diff_x = int(source_x - min(source_x, target_x))
         diff_y = int(source_y - min(source_y, target_y))
         if crop != "scale" and (diff_x or diff_y):
-            if isinstance(target, string_types):
+            if isinstance(target, str):
                 target = re.match(r"(\d+)?,(\d+)?$", target)
                 if target:
                     target = target.groups()
@@ -180,7 +161,7 @@ def scale_and_crop(  # noqa: C901
             box.append(int(min(source_x, box[0] + target_x)))
             box.append(int(min(source_y, box[1] + target_y)))
             # See if an edge cropping argument was provided.
-            edge_crop = isinstance(crop, string_types) and re.match(
+            edge_crop = isinstance(crop, str) and re.match(
                 r"(?:(-?)(\d+))?,(?:(-?)(\d+))?$", crop
             )
             if edge_crop and filter(None, edge_crop.groups()):

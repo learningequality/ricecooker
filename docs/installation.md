@@ -4,7 +4,7 @@ Installation
 Ricecooker chef scripts are typically developed inside their own project, managed
 with [`uv`](https://docs.astral.sh/uv/). Add `ricecooker` as a dependency in your
 chef project's `pyproject.toml` and run `uv sync` to install it and its Python
-dependencies. You'll need Python 3.9-3.13 (matching `ricecooker`'s supported
+dependencies. You'll need Python 3.10-3.14 (matching `ricecooker`'s supported
 range), as well as some software for file conversions: `ffmpeg` and `poppler` for
 media, and `pandoc` for converting documents (`.docx`, `.odt`, `.rtf`, `.md`) to KPUB.
 
@@ -30,7 +30,7 @@ On a Debian or Ubuntu GNU/Linux, you can install the necessary packages using:
 
 You may need to adjust the package names for other Linux distributions (ContOS/Fedora/OpenSuSE).
 
-*Checklist*: verify your python version is between 3.9 and 3.13 by running `python3 --version`.
+*Checklist*: verify your python version is between 3.10 and 3.14 by running `python3 --version`.
 If no `python3` command exists, then try `python --version`.
 Run the commands `ffmpeg -h`, `pdftoppm -h`, and `pandoc -v` to make sure they are available.
 
@@ -40,7 +40,7 @@ Mac OS X users can install the necessary software using [Homebrew](https://brew.
 
     brew install  git python3 ffmpeg poppler pandoc
 
-*Checklist*: verify your python version is between 3.9 and 3.13 by running `python3 --version`.
+*Checklist*: verify your python version is between 3.10 and 3.14 by running `python3 --version`.
 Also run the commands `ffmpeg -h`, `pdftoppm -h`, and `pandoc -v` to make sure they are available.
 
 
@@ -50,9 +50,9 @@ On windows the process is a little longer since we'll have to download and insta
 several programs and make sure their `bin`-directories are added to the `Path` variable:
 
 1. Download Python from [https://www.python.org/downloads/windows/](https://www.python.org/downloads/windows/).
-   Look under the **Python 3.9.x** heading and choose the "Windows x86-64 executable installer"
+   Look under a supported **Python 3.10.x** (or newer, up to 3.14) heading and choose the "Windows x86-64 executable installer"
    option to download the latest installer and follow usual installation steps.
-   During the installation, make sure to check the box **"Add Python 3.9 to path"**.
+   During the installation, make sure to check the box **"Add Python to PATH"**.
      - *Checklist*: after installation, open a new command prompt (`cmd.exe`) and
        type in `python --version` and `pip --version` to make sure the commands are available.
 2. Download `ffmpeg` from [https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip](https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip).
