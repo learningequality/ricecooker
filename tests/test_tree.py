@@ -19,6 +19,7 @@ from le_utils.constants.labels import resource_type
 from le_utils.constants.labels import subjects
 from le_utils.constants.languages import getlang
 
+from ricecooker import config
 from ricecooker.classes.files import DocumentFile
 from ricecooker.classes.files import HTMLZipFile
 from ricecooker.classes.files import SlideImageFile
@@ -35,6 +36,7 @@ from ricecooker.classes.nodes import RemoteContentNode
 from ricecooker.classes.nodes import SlideshowNode
 from ricecooker.classes.nodes import TopicNode
 from ricecooker.classes.nodes import TreeNode
+from ricecooker.exceptions import FileNotFoundException
 from ricecooker.exceptions import InvalidNodeException
 from ricecooker.managers.tree import ChannelManager
 from ricecooker.managers.tree import InsufficientStorageException
@@ -1233,6 +1235,7 @@ def test_file_upload_insufficient_storage(channel):
     with (
         patch("builtins.open", mocked_open),
         patch("ricecooker.config.get_storage_path", return_value="/tmp/test_file.mp4"),
+        patch("ricecooker.config.os.path.isfile", return_value=True),
         patch("ricecooker.config.SESSION.post", return_value=mock_response),
     ):
         # Check that InsufficientStorageException is raised
@@ -1240,6 +1243,22 @@ def test_file_upload_insufficient_storage(channel):
             InsufficientStorageException, match="You have run out of storage space."
         ):
             manager.do_file_upload(filename)
+
+
+def test_file_upload_missing_storage_raises_descriptive_error(channel):
+    """do_file_upload reports a cache/storage mismatch instead of a bare FileNotFoundError."""
+    manager = ChannelManager(channel)
+
+    filename = "0123456789abcdef0123456789abcdef.mp4"
+    file_data = MagicMock()
+    file_data.skip_upload = False
+    manager.file_map = {filename: file_data}
+
+    storage_path = config.get_storage_path(filename)
+    assert not os.path.isfile(storage_path)
+    with pytest.raises(FileNotFoundException) as exc_info:
+        manager.do_file_upload(filename)
+    assert storage_path in str(exc_info.value)
 
 
 def test_add_nodes_checks_both_failed_files_and_validity(channel):

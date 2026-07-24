@@ -15,6 +15,8 @@ from requests.adapters import HTTPAdapter
 from requests_file import FileAdapter
 from urllib3.util.retry import Retry
 
+from .exceptions import FileNotFoundException
+
 UPDATE = False
 VIDEO_HEIGHT = None
 THUMBNAILS = False
@@ -396,6 +398,23 @@ def get_storage_path(filename):
     if not os.path.exists(directory):
         os.makedirs(directory)
     return os.path.join(directory, filename)
+
+
+def get_existing_storage_path(filename):
+    """Like get_storage_path, but verify the file is actually present.
+
+    Raises FileNotFoundException when the .ricecookerfilecache references a
+    file that is no longer in storage/, so callers report the mismatch
+    descriptively instead of crashing with a bare FileNotFoundError.
+    """
+    path = get_storage_path(filename)
+    if not os.path.isfile(path):
+        raise FileNotFoundException(
+            f"Storage file missing: {path}. The .ricecookerfilecache references a file that is not present "
+            f"in storage/. Re-run the chef to re-download it (missing files are re-fetched automatically), "
+            f"or delete .ricecookerfilecache to force a full re-scan."
+        )
+    return path
 
 
 def authentication_url():
