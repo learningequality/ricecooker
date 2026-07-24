@@ -8,6 +8,55 @@ def _read_file(path):
         return f.read()
 
 
+def find_common_root(names):
+    """Return the common parent directory shared by all file paths.
+
+    Ported from Studio's ``findCommonRoot`` (frontend/shared/utils/zipFile.js).
+    ``names`` are POSIX-style, non-directory archive member paths.
+    """
+    paths = [n.split("/")[:-1] for n in names]
+    if not paths:
+        return ""
+    if len(paths) == 1:
+        return "/".join(paths[0])
+    first = paths[0]
+    common = []
+    for i, part in enumerate(first):
+        for other in paths[1:]:
+            if i >= len(other) or other[i] != part:
+                return "/".join(common)
+        common.append(part)
+    return "/".join(common)
+
+
+def find_html_entrypoint(names):
+    """Return the archive member that is the HTML entry point, or None.
+
+    Ported from Studio's ``findFirstHtml`` (frontend/shared/utils/zipFile.js):
+    prefer ``index.html`` at the common-root-stripped root, then any
+    ``index.html``, then the shallowest / shortest-named ``.html`` file.
+
+    ``names`` are POSIX-style archive member paths (as from ``namelist()``).
+    """
+    html_files = [n for n in names if n.lower().endswith(".html")]
+    if not html_files:
+        return None
+    common_root = find_common_root(names)
+    prefix = common_root + "/" if common_root else ""
+    normalized = [
+        (n, n[len(prefix) :] if prefix and n.startswith(prefix) else n)
+        for n in html_files
+    ]
+    for original, norm in normalized:
+        if norm == "index.html":
+            return original
+    for original, norm in normalized:
+        if norm.split("/")[-1] == "index.html":
+            return original
+    normalized.sort(key=lambda t: (t[1].count("/"), len(t[1])))
+    return normalized[0][0]
+
+
 def create_predictable_zip(path, entrypoint=None, file_converter=None):
     """
     Create a zip file with predictable sort order and metadata so that MD5 will
