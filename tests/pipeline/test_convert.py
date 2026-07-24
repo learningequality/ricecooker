@@ -14,6 +14,7 @@ from unittest.mock import patch
 import pytest
 import requests
 from bs4 import BeautifulSoup
+from le_utils.constants import content_kinds
 from le_utils.constants import format_presets
 
 from ricecooker import config
@@ -942,3 +943,76 @@ class TestSCORMClassifiers:
             "index_html": '<html><body><video src="clip.mp4"></video></body></html>',
         }
         assert single_media_member(leaf) == "clip.mp4"
+
+
+class TestKPUBPromotion:
+    """A static-article HTML5 zip is promoted to a KPUB; interactive stays HTML5."""
+
+    def _run(self, files):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, "test.zip")
+            _create_archive(path, files)
+            return FilePipeline(default_context={}).execute(path, skip_cache=True)
+
+    def test_static_article_promoted_to_kpub(self):
+        result = self._run(
+            {
+                "index.html": "<html><body><p>An article</p><img src='a.png'></body></html>"
+            }
+        )
+        assert result[0].preset == format_presets.KPUB_ZIP
+        assert result[0].filename.endswith(".kpub")
+        assert result[0].content_node_metadata["kind"] == content_kinds.DOCUMENT
+
+    def test_interactive_zip_stays_html5(self):
+        result = self._run(
+            {
+                "index.html": "<html><body><p>App</p><script src='app.js'></script></body></html>",
+                "app.js": "console.log('interactive');",
+            }
+        )
+        assert result[0].preset == format_presets.HTML5_ZIP
+        assert result[0].content_node_metadata["kind"] == content_kinds.HTML5
+
+    def test_inline_script_stays_html5(self):
+        result = self._run(
+            {"index.html": "<html><body><p>App</p><script>go();</script></body></html>"}
+        )
+        assert result[0].preset == format_presets.HTML5_ZIP
+
+    def test_scorm_boilerplate_only_stays_html5_due_to_js_member(self):
+        # A static SCO whose only script is a SCORM wrapper: the inline plumbing is
+        # discounted, but the physical wrapper .js member keeps it an HTML5 zip.
+        result = self._run(
+            {
+                "index.html": (
+                    "<html><body><p>Static SCO</p>"
+                    "<script src='SCORM_API_wrapper.js'></script></body></html>"
+                ),
+                "SCORM_API_wrapper.js": "function LMSInitialize(){}",
+            }
+        )
+        assert result[0].preset == format_presets.HTML5_ZIP
+
+    def test_css_member_stays_html5(self):
+        result = self._run(
+            {
+                "index.html": "<html><body><p>Styled</p></body></html>",
+                "style.css": "p{color:red}",
+            }
+        )
+        assert result[0].preset == format_presets.HTML5_ZIP
+
+    def test_kpub_disqualifiers_refactor_preserves_validation(self):
+        # The refactored KPUBConversionHandler still rejects a JS-bearing archive.
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, "test.kpub")
+            _create_archive(
+                path,
+                {
+                    "index.html": "<html><body><p>Hi</p></body></html>",
+                    "script.js": "x()",
+                },
+            )
+            with pytest.raises(InvalidFileException, match="(?i)javascript"):
+                KPUBConversionHandler().validate_archive(path)

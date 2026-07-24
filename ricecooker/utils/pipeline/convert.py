@@ -38,6 +38,7 @@ from ricecooker.utils.pipeline.context import ContentNodeMetadata
 from ricecooker.utils.pipeline.context import ContextMetadata
 from ricecooker.utils.pipeline.context import FileMetadata
 from ricecooker.utils.pipeline.exceptions import InvalidFileException
+from ricecooker.utils.pipeline.scorm import strip_scorm_boilerplate
 from ricecooker.utils.references import DEFAULT_MAPPERS
 from ricecooker.utils.references import ReferenceMapper
 from ricecooker.utils.references import sanitize_style_css
@@ -247,11 +248,27 @@ class ArchiveProcessingBaseHandler(ExtensionMatchingHandler):
         """Hook run on the extracted archive dir before reference resolution. Default no-op."""
         pass
 
-    def handle_file(self, path, audio_settings=None, video_settings=None):
+    def _process_archive_dir(self, temp_dir, audio_settings, video_settings):
+        """Run pre-processing and external-reference resolution over an extracted dir."""
         # Imported here rather than at module level: archive_assets depends on
         # this package's exceptions, so a top-level import would be circular.
         from ricecooker.utils.archive_assets import ArchiveProcessor
 
+        # pre_process runs before reference resolution: a url() inside a <style> block or
+        # a non-allowlisted style= would otherwise be downloaded, then orphaned when the
+        # sanitizer strips the content that referenced it.
+        self.pre_process(temp_dir)
+
+        ArchiveProcessor(
+            temp_dir,
+            self.get_pipeline(),
+            convert_stage=self.parent,
+            mappers=self.REFERENCE_MAPPERS,
+            audio_settings=audio_settings,
+            video_settings=video_settings,
+        ).process()
+
+    def handle_file(self, path, audio_settings=None, video_settings=None):
         self.validate_archive(path)
 
         ext = extract_path_ext(path)
@@ -261,19 +278,7 @@ class ArchiveProcessingBaseHandler(ExtensionMatchingHandler):
             with zipfile.ZipFile(path) as zf:
                 zf.extractall(temp_dir)
 
-            # pre_process runs before reference resolution: a url() inside a <style> block or
-            # a non-allowlisted style= would otherwise be downloaded, then orphaned when the
-            # sanitizer strips the content that referenced it.
-            self.pre_process(temp_dir)
-
-            ArchiveProcessor(
-                temp_dir,
-                self.get_pipeline(),
-                convert_stage=self.parent,
-                mappers=self.REFERENCE_MAPPERS,
-                audio_settings=audio_settings,
-                video_settings=video_settings,
-            ).process()
+            self._process_archive_dir(temp_dir, audio_settings, video_settings)
 
             _seal_directory_to_file(self, temp_dir, ext)
 
@@ -368,24 +373,89 @@ def _find_entry_html(names):
     return normalized[0][0]
 
 
+def kpub_disqualifiers(zf, entry="index.html", index_html=None):
+    """Return the reasons ``zf`` fails the KPUB criteria; empty list ⇒ it qualifies.
+
+    A KPUB is static prose: it must have a non-empty ``entry`` body and carry no
+    inline ``<script>``, ``.js`` member, or ``.css`` member. ``index_html`` lets a
+    caller judge already-transformed markup (e.g. SCORM boilerplate discounted)
+    while the physical member checks still run against ``zf``.
+    """
+    reasons = []
+    if index_html is None:
+        try:
+            index_html = zf.read(entry)
+        except KeyError:
+            return [f"{entry} is missing."]
+    if isinstance(index_html, bytes):
+        index_html = index_html.decode("utf-8", errors="replace")
+
+    try:
+        dom = html5lib.parse(index_html, namespaceHTMLElements=False)
+    except ParseError:
+        return [f"{entry} is not well-formed."]
+
+    body = dom.find("body")
+    if body is None:
+        reasons.append(f"{entry} is missing a body element.")
+    else:
+        body_children = [
+            c for c in body.iter() if isinstance(c.tag, str) and c.tag != "body"
+        ]
+        if not (body.text and body.text.strip()) and not body_children:
+            reasons.append(f"{entry} is empty.")
+
+    if next(dom.iter("script"), None) is not None:
+        reasons.append("inline JavaScript (<script> tags) is not allowed.")
+
+    names = zf.namelist()
+    if any(n.lower().endswith(".js") for n in names):
+        reasons.append("JavaScript files (.js) are not allowed.")
+    if any(n.lower().endswith(".css") for n in names):
+        reasons.append("external CSS files (.css) are not allowed.")
+
+    return reasons
+
+
 class HTML5ConversionHandler(ArchiveProcessingBaseHandler):
     EXTENSIONS = {file_formats.HTML5}
     FILE_TYPE = "HTML5"
 
+    def _qualifies_as_kpub(self, path, entry):
+        """A static-article HTML5 zip is promoted to a KPUB; anything with scripts,
+        JS/CSS members, or a non-root entry stays an HTML5 zip."""
+        if entry != "index.html":
+            return False
+        with zipfile.ZipFile(path) as zf:
+            # Discount SCORM plumbing before judging inline scripts; the wrapper
+            # .js members it leaves behind still disqualify a genuine SCORM package.
+            discounted = strip_scorm_boilerplate(
+                zf.read(entry).decode("utf-8", errors="replace")
+            )
+            return not kpub_disqualifiers(zf, entry, index_html=discounted)
+
     def handle_file(self, path, audio_settings=None, video_settings=None):
         prepared_path, entry = self._prepare_archive(path)
+        promote = False
         try:
-            super().handle_file(
-                prepared_path,
-                audio_settings=audio_settings,
-                video_settings=video_settings,
-            )
+            self.validate_archive(prepared_path)
+            promote = self._qualifies_as_kpub(prepared_path, entry)
+            with tempfile.TemporaryDirectory() as temp_dir:
+                with zipfile.ZipFile(prepared_path) as zf:
+                    zf.extractall(temp_dir)
+                self._process_archive_dir(temp_dir, audio_settings, video_settings)
+                if promote:
+                    sanitize_kpub_directory(temp_dir)
+                    _seal_directory_to_file(self, temp_dir, file_formats.HTML5_ARTICLE)
+                else:
+                    _seal_directory_to_file(self, temp_dir, file_formats.HTML5)
         finally:
             if prepared_path != path and os.path.exists(prepared_path):
                 os.unlink(prepared_path)
-        # Mirror Studio: when the entry point is not index.html at the root,
-        # record it in extra_fields.options.entry so Kolibri loads it.
-        if entry and entry != "index.html":
+        # A promoted KPUB always has an index.html entry, so no entry hint is needed.
+        # Mirror Studio otherwise: when the entry point is not index.html at the
+        # root, record it in extra_fields.options.entry so Kolibri loads it.
+        if not promote and entry and entry != "index.html":
             return FileMetadata(
                 content_node_metadata=ContentNodeMetadata(
                     extra_fields={"options": {"entry": entry}}
@@ -570,25 +640,11 @@ class KPUBConversionHandler(ArchiveProcessingBaseHandler):
 
     def validate_archive(self, path: str):
         with self.open_and_verify_archive(path) as zf:
-            dom = self._validate_index_html_body(zf, path)
-
-            # Check for inline <script> tags (parsed without namespaces)
-            for _ in dom.iter("script"):
+            reasons = kpub_disqualifiers(zf)
+            if reasons:
                 raise InvalidFileException(
-                    f"File {path} is not a valid KPUB file, inline JavaScript (<script> tags) is not allowed."
+                    f"File {path} is not a valid {self.FILE_TYPE} file, {reasons[0]}"
                 )
-
-            # Check for disallowed file types
-            for filename in zf.namelist():
-                lower_name = filename.lower()
-                if lower_name.endswith(".js"):
-                    raise InvalidFileException(
-                        f"File {path} is not a valid KPUB file, JavaScript files (.js) are not allowed."
-                    )
-                if lower_name.endswith(".css"):
-                    raise InvalidFileException(
-                        f"File {path} is not a valid KPUB file, external CSS files (.css) are not allowed."
-                    )
 
 
 class BloomConversionHandler(ArchiveProcessingBaseHandler):
