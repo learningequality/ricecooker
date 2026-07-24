@@ -186,7 +186,8 @@ class ChannelManager:
         file_data = self.file_map[filename]
         if file_data.skip_upload:
             return
-        with open(config.get_storage_path(filename), "rb") as file_obj:
+        storage_path = config.get_existing_storage_path(filename)
+        with open(storage_path, "rb") as file_obj:
             data = {
                 "size": file_data.size,
                 "checksum": file_data.checksum,

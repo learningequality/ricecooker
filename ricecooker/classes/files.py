@@ -114,7 +114,7 @@ class File(object):
 
     @property
     def size(self):
-        return os.path.getsize(config.get_storage_path(self.get_filename()))
+        return os.path.getsize(config.get_existing_storage_path(self.get_filename()))
 
     def truncate_fields(self):
         if (

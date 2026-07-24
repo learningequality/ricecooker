@@ -36,11 +36,42 @@ from ricecooker.classes.files import StudioFile
 from ricecooker.classes.files import SubtitleFile
 from ricecooker.classes.files import VideoFile
 from ricecooker.classes.files import YouTubeVideoFile
+from ricecooker.exceptions import FileNotFoundException
 from ricecooker.utils.audio import AudioCompressionError
 from ricecooker.utils.pipeline.convert import PDFValidationHandler
 from ricecooker.utils.pipeline.exceptions import InvalidFileException
 from ricecooker.utils.videos import VideoCompressionError
 from ricecooker.utils.zip import create_predictable_zip
+
+
+def test_get_existing_storage_path_missing_raises_descriptive_error():
+    missing = "0123456789abcdef0123456789abcdef.mp4"
+    storage_path = config.get_storage_path(missing)
+    assert not os.path.isfile(storage_path)
+    with pytest.raises(FileNotFoundException) as exc_info:
+        config.get_existing_storage_path(missing)
+    assert storage_path in str(exc_info.value)
+
+
+def test_get_existing_storage_path_present_returns_path(tmp_path):
+    present = "fedcba9876543210fedcba9876543210.mp4"
+    storage_path = config.get_storage_path(present)
+    with open(storage_path, "wb") as f:
+        f.write(b"data")
+    try:
+        assert config.get_existing_storage_path(present) == storage_path
+    finally:
+        os.remove(storage_path)
+
+
+def test_size_missing_storage_file_raises_descriptive_error():
+    # Simulates a .ricecookerfilecache entry whose storage/ file is gone.
+    missing = File(filename="0123456789abcdef0123456789abcdef.mp4")
+    storage_path = config.get_storage_path(missing.get_filename())
+    assert not os.path.isfile(storage_path)
+    with pytest.raises(FileNotFoundException) as exc_info:
+        _ = missing.size
+    assert storage_path in str(exc_info.value)
 
 
 @pytest.fixture
