@@ -1,7 +1,5 @@
 import os
 import re
-import signal
-import time
 import urllib
 from urllib.parse import unquote
 from urllib.parse import urlparse
@@ -9,10 +7,8 @@ from urllib.request import pathname2url
 
 import chardet
 import requests
-from selenium import webdriver
 
 from ricecooker.config import LOGGER
-from ricecooker.config import PHANTOMJS_PATH
 from ricecooker.config import STRICT
 
 from .caching import CacheControlAdapter
@@ -24,44 +20,6 @@ cache = FileCache(".webcache")
 basic_adapter = CacheControlAdapter(cache=cache)
 sess.mount("http://", basic_adapter)
 sess.mount("https://", basic_adapter)
-
-if PHANTOMJS_PATH is None:
-    PHANTOMJS_PATH = os.path.join(
-        os.getcwd(), "node_modules", "phantomjs-prebuilt", "bin", "phantomjs"
-    )
-
-
-class WebDriver(object):
-    def __init__(self, url, delay=1000):
-        self.url = url
-        self.delay = delay
-
-    def __enter__(self):
-        if not os.path.isfile(PHANTOMJS_PATH):
-            raise Exception(
-                "You must install phantomjs-prebuilt in the directory"
-                " you're running in with `npm install phantomjs-prebuilt`"
-                " or set the environment variable `PHANTOMJS_PATH`"
-            )
-        self.driver = webdriver.PhantomJS(executable_path=PHANTOMJS_PATH)
-        self.driver.get(self.url)
-        time.sleep(self.delay / 1000.0)
-        return self.driver
-
-    def __exit__(self, type, value, traceback):
-        # driver.quit() by itself doesn't suffice to fully terminate spawned
-        # PhantomJS processes:
-        # see https://github.com/seleniumhq/selenium/issues/767
-        self.driver.service.process.send_signal(signal.SIGTERM)
-        self.driver.quit()
-
-
-def get_generated_html_from_driver(driver, tagname="html"):
-    driver.execute_script(
-        "return document.getElementsByTagName('{tagname}')[0].innerHTML".format(
-            tagname=tagname
-        )
-    )
 
 
 def replace_links(  # noqa: C901
