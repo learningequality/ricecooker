@@ -1,11 +1,9 @@
 """Conservative classifiers for SCORM/IMSCP webcontent resources.
 
-The decomposition ladder promotes a resource off the default HTML5-zip rung only
-when its meaning survives stripping JS/CSS. SCORM packages bury real content
-under a layer of LMS-communication boilerplate (``pipwerks`` wrappers,
-``LMSInitialize``/``SetValue`` calls), so that boilerplate is discounted first —
-otherwise every SCO would look interactive. These are pure functions over
-already-read HTML strings and member-name lists; the caller does the zip I/O.
+SCORM buries real content under LMS-communication boilerplate (``pipwerks``
+wrappers, ``LMSInitialize``/``SetValue`` calls), so that boilerplate is
+discounted first — otherwise every SCO looks interactive. Pure functions over
+already-read HTML strings and member names; the caller does the zip I/O.
 """
 
 import re

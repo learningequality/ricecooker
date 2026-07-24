@@ -451,9 +451,8 @@ class HTML5ConversionHandler(ArchiveProcessingBaseHandler):
                 self._process_archive_dir(temp_dir, audio_settings, video_settings)
                 if promote:
                     sanitize_kpub_directory(temp_dir)
-                    _seal_directory_to_file(self, temp_dir, file_formats.HTML5_ARTICLE)
-                else:
-                    _seal_directory_to_file(self, temp_dir, file_formats.HTML5)
+                seal_ext = file_formats.HTML5_ARTICLE if promote else file_formats.HTML5
+                _seal_directory_to_file(self, temp_dir, seal_ext)
         finally:
             if prepared_path != path and os.path.exists(prepared_path):
                 os.unlink(prepared_path)
@@ -1040,15 +1039,12 @@ class IMSCPConversionHandler(ExtensionMatchingHandler):
     def _stage_leaf(self, node_dict, temp_dir, dest_dir):
         """Copy the resource's members into ``dest_dir`` (relative paths preserved),
         guaranteeing a root ``index.html`` entry."""
-        dest_root = os.path.abspath(dest_dir)
         for member in node_dict.get("files") or []:
             # Guard against a manifest path escaping the package (read side) or
             # the staging dir (write side).
             src = _contained_path(temp_dir, member)
-            dst = os.path.abspath(os.path.join(dest_dir, member))
-            if src is None or not os.path.isfile(src):
-                continue
-            if not dst.startswith(dest_root + os.sep):
+            dst = _contained_path(dest_dir, member)
+            if src is None or dst is None or not os.path.isfile(src):
                 continue
             os.makedirs(os.path.dirname(dst), exist_ok=True)
             shutil.copyfile(src, dst)

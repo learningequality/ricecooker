@@ -991,12 +991,10 @@ class ContentNode(TreeNode):
             if "content_node_metadata" in metadata_dict:
                 content_metadata.update(metadata_dict.pop("content_node_metadata"))
             file_metadata_dicts.append(metadata_dict)
-        # A tree-bearing pipeline result turns this node into a Topic/Folder subtree.
-        # Detect it on the presence of children (kind may have been clobbered to the
-        # package's own file kind by the extract stage) and skip the flat file/attr
-        # path entirely — the backing files belong to the descendant leaves, not here.
-        # A decomposer always emits a children list (possibly empty, when every
-        # resource was rejected), so detect on ``is not None`` rather than truthiness.
+        # Children present ⇒ this node becomes a Topic subtree whose files belong to
+        # the leaves, not here. Detect on ``is not None``: a decomposer emits [] when
+        # every resource was rejected, and kind may already be clobbered to the
+        # package's own file kind by the extract stage.
         children = content_metadata.get("children")
         if children is not None:
             self._expand_content_tree(children)
