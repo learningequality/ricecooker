@@ -12,7 +12,7 @@ repos:
         exclude: '^tests/testcontent/samples/'
       - id: check-yaml
       - id: check-added-large-files
-        exclude: '^tests/(cassettes|testcontent/samples)/'
+        exclude: '^tests/(cassettes|testcontent/(samples|imscp))/'
       - id: debug-statements
       - id: end-of-file-fixer
         exclude: '(^.+?\.json$|^tests/testcontent/samples/)'
