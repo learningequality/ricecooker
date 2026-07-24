@@ -844,3 +844,101 @@ class TestContentNodeMetadataTree:
 
         children = round_tripped.content_node_metadata["children"]
         assert children[0]["files"][0]["filename"] == "v.mp4"
+
+
+class TestSCORMClassifiers:
+    """SCORM-boilerplate discount + assessment / single-media classifiers."""
+
+    def test_strip_scorm_boilerplate(self):
+        from ricecooker.utils.pipeline.scorm import strip_scorm_boilerplate
+
+        html = (
+            "<html><body>"
+            '<script src="SCORM_API_wrapper.js"></script>'
+            "<script>pipwerks.SCORM.init();</script>"
+            '<script src="quiz-logic.js"></script>'
+            "<p>content</p></body></html>"
+        )
+        residual = strip_scorm_boilerplate(html)
+        assert "SCORM_API_wrapper.js" not in residual
+        assert "pipwerks" not in residual
+        assert "quiz-logic.js" in residual
+        assert "<p>content</p>" in residual
+
+    def test_assessment_hotpotatoes_generator(self):
+        from ricecooker.utils.pipeline.scorm import has_assessment_semantics
+
+        html = (
+            '<html><head><meta name="generator" content="Hot Potatoes 7"></head>'
+            "<body><p>Q1</p></body></html>"
+        )
+        assert has_assessment_semantics(html, ["quiz.htm"], {})
+
+    def test_assessment_hotpotatoes_global(self):
+        from ricecooker.utils.pipeline.scorm import has_assessment_semantics
+
+        html = "<html><body><script>var JQuiz={};</script></body></html>"
+        assert has_assessment_semantics(html, ["quiz.htm"], {})
+
+    def test_assessment_cmi_score_write(self):
+        from ricecooker.utils.pipeline.scorm import has_assessment_semantics
+
+        html = (
+            "<html><body>"
+            '<script>doLMSSetValue("cmi.core.score.raw", 80);</script>'
+            "</body></html>"
+        )
+        assert has_assessment_semantics(html, ["page.htm"], {})
+
+    def test_no_assessment_for_pure_boilerplate(self):
+        from ricecooker.utils.pipeline.scorm import has_assessment_semantics
+
+        html = (
+            "<html><body><p>An eXe article page.</p>"
+            '<script src="SCORM_API_wrapper.js"></script>'
+            '<script src="SCOFunctions.js"></script></body></html>'
+        )
+        assert not has_assessment_semantics(
+            html, ["SCORM_API_wrapper.js", "SCOFunctions.js"], {}
+        )
+
+    def test_single_media_member_returns_media(self):
+        from ricecooker.utils.pipeline.scorm import single_media_member
+
+        leaf = {
+            "index_file": "index.html",
+            "files": ["index.html", "video.mp4"],
+            "index_html": '<html><body><video src="video.mp4"></video></body></html>',
+        }
+        assert single_media_member(leaf) == "video.mp4"
+
+    def test_single_media_member_none_with_stylesheet(self):
+        from ricecooker.utils.pipeline.scorm import single_media_member
+
+        leaf = {
+            "index_file": "index.html",
+            "files": ["index.html", "video.mp4", "style.css"],
+            "index_html": '<html><body><video src="video.mp4"></video></body></html>',
+        }
+        assert single_media_member(leaf) is None
+
+    def test_single_media_member_none_with_two_media(self):
+        from ricecooker.utils.pipeline.scorm import single_media_member
+
+        leaf = {
+            "index_file": "index.html",
+            "files": ["index.html", "a.mp4", "b.mp4"],
+            "index_html": '<html><body><video src="a.mp4"></video></body></html>',
+        }
+        assert single_media_member(leaf) is None
+
+    def test_single_media_member_ignores_boilerplate(self):
+        from ricecooker.utils.pipeline.scorm import single_media_member
+
+        # A lone media file next to a discounted SCORM wrapper still qualifies.
+        leaf = {
+            "index_file": "index.html",
+            "files": ["index.html", "clip.mp4", "SCORM_API_wrapper.js"],
+            "index_html": '<html><body><video src="clip.mp4"></video></body></html>',
+        }
+        assert single_media_member(leaf) == "clip.mp4"
