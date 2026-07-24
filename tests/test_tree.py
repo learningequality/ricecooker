@@ -42,6 +42,8 @@ from ricecooker.managers.tree import ChannelManager
 from ricecooker.managers.tree import InsufficientStorageException
 from ricecooker.utils.jsontrees import build_tree_from_json
 from ricecooker.utils.pipeline import FilePipeline
+from ricecooker.utils.pipeline.context import ContentNodeMetadata
+from ricecooker.utils.pipeline.context import FileMetadata
 from ricecooker.utils.zip import create_predictable_zip
 
 """ *********** TOPIC FIXTURES *********** """
@@ -1426,3 +1428,82 @@ def test_create_initial_tree_deduplicates_reused_node(channel, document):
     t1, t2 = _place_under_two_topics(channel, document)
     create_initial_tree(channel)
     assert t1.children[0].get_node_id() != t2.children[0].get_node_id()
+
+
+""" *********** CONTENT NODE TREE EXPANSION TESTS *********** """
+
+
+def _tree_pipeline_stub(content_node_metadata):
+    """A pipeline whose execute() returns a single tree-bearing FileMetadata."""
+    stub = MagicMock()
+    stub.should_handle.return_value = True
+    stub.execute.return_value = [
+        FileMetadata(
+            filename="pkg.zip",
+            path="/tmp/pkg.zip",
+            content_node_metadata=content_node_metadata,
+        )
+    ]
+    return stub
+
+
+def test_imscp_tree_expands_into_descendant_nodes():
+    leaf_video = {
+        "source_id": "leaf-video",
+        "title": "A Video",
+        "kind": content_kinds.VIDEO,
+        "files": [{"filename": "v.mp4", "preset": format_presets.VIDEO_HIGH_RES}],
+    }
+    leaf_html5 = {
+        "source_id": "leaf-html5",
+        "title": "An App",
+        "kind": content_kinds.HTML5,
+        "files": [{"filename": "app.zip", "preset": format_presets.HTML5_ZIP}],
+    }
+    inner_topic = {
+        "source_id": "topic-1",
+        "title": "A Topic",
+        "children": [leaf_video, leaf_html5],
+    }
+    metadata = ContentNodeMetadata(kind=content_kinds.TOPIC, children=[inner_topic])
+
+    node = ContentNode(
+        source_id="root",
+        title="Pkg",
+        license=get_license("CC BY", copyright_holder="Demo Holdings"),
+        uri="pkg.zip",
+        pipeline=_tree_pipeline_stub(metadata),
+    )
+    node.process_files()
+
+    assert node.kind == content_kinds.TOPIC
+    assert node.files == []
+    assert len(node.children) == 1
+
+    topic = node.children[0]
+    assert isinstance(topic, TopicNode)
+    assert topic.source_id == "topic-1"
+    assert [c.kind for c in topic.children] == [
+        content_kinds.VIDEO,
+        content_kinds.HTML5,
+    ]
+
+    video_child = topic.children[0]
+    assert len(video_child.files) == 1
+    assert video_child.files[0].filename == "v.mp4"
+
+
+def test_non_tree_uri_still_produces_flat_node(html_file):
+    """A single html5 zip (no tree) stays one node with files and no children."""
+    node = ContentNode(
+        "flat",
+        "Flat",
+        licenses.CC_BY,
+        uri=html_file.path,
+        pipeline=FilePipeline(),
+        copyright_holder="Demo Holdings",
+    )
+    node.process_files()
+    assert node.kind == content_kinds.HTML5
+    assert node.children == []
+    assert len(node.files) >= 1

@@ -885,6 +885,11 @@ class ContentNode(TreeNode):
 
     def _validate(self):
         """Validate the content node. Raises InvalidNodeException on failure; returns None."""
+        # A ContentNode handed a tree becomes a topic (see _expand_content_tree); it has
+        # no files/license/uri of its own, so only the base TreeNode validation applies.
+        if self.kind == content_kinds.TOPIC:
+            super(ContentNode, self)._validate()
+            return
         self._validate_values(self.license is None, "ContentNode must have a license")
         if self._files_processed:
             self._validate_values(self.kind is None, "No kind has been set")
@@ -924,6 +929,53 @@ class ContentNode(TreeNode):
             self._validate_uri()
         super(ContentNode, self)._validate()
 
+    # File.__init__ has no **kwargs; any non-constructor key (path, license, ...)
+    # must be stripped before File(**d) or it raises TypeError.
+    _FILE_INIT_KEYS = frozenset(
+        {
+            "preset",
+            "language",
+            "default_ext",
+            "source_url",
+            "duration",
+            "original_filename",
+            "filename",
+        }
+    )
+
+    def _file_from_metadata(self, metadata_dict):
+        """Build a File from a file-metadata dict, tolerating extra keys."""
+        kwargs = {k: v for k, v in metadata_dict.items() if k in self._FILE_INIT_KEYS}
+        # Inherit the node's language unless the pipeline inferred one of its own
+        # (e.g. a subtitle language extracted from the file itself).
+        kwargs.setdefault("language", self.language)
+        return File(**kwargs)
+
+    def _apply_content_metadata(
+        self, node, metadata, skip=frozenset(), check_kind=False
+    ):
+        """Copy scalar content-node metadata onto ``node`` via setattr.
+
+        Structural keys (children/files) and any keys in ``skip`` (e.g. constructor
+        args already consumed) are ignored; ``extra_fields`` is merged, not replaced.
+        """
+        for key, value in metadata.items():
+            if key in ("children", "files") or key in skip:
+                continue
+            if key == "extra_fields":
+                node.extra_fields.update(value or {})
+            elif (
+                check_kind
+                and key == "kind"
+                and node.kind is not None
+                and node.kind != value
+            ):
+                raise InvalidNodeException(
+                    "Inferred kind is different from content node class kind."
+                )
+            else:
+                setattr(node, key, value)
+
     def _process_uri(self):
         try:
             file_metadata_list = self.pipeline.execute(
@@ -933,26 +985,67 @@ class ContentNode(TreeNode):
             config.LOGGER.error(f"Error processing path: {self.uri} with error: {e}")
             return None
         content_metadata = {}
+        file_metadata_dicts = []
         for file_metadata in file_metadata_list:
             metadata_dict = file_metadata.to_dict()
             if "content_node_metadata" in metadata_dict:
                 content_metadata.update(metadata_dict.pop("content_node_metadata"))
-            # Remove path from metadata_dict as it is not needed for the File object
-            metadata_dict.pop("path", None)
-            # Inherit the node's language unless the pipeline inferred one of its own
-            # (e.g. a subtitle language extracted from the file itself).
-            metadata_dict.setdefault("language", self.language)
-            file_obj = File(**metadata_dict)
-            self.add_file(file_obj)
-        for key, value in content_metadata.items():
-            if key == "extra_fields":
-                self.extra_fields.update(value)
-            else:
-                if key == "kind" and self.kind is not None and self.kind != value:
-                    raise InvalidNodeException(
-                        "Inferred kind is different from content node class kind."
-                    )
-                setattr(self, key, value)
+            file_metadata_dicts.append(metadata_dict)
+        # A tree-bearing pipeline result turns this node into a Topic/Folder subtree.
+        # Detect it on the presence of children (kind may have been clobbered to the
+        # package's own file kind by the extract stage) and skip the flat file/attr
+        # path entirely — the backing files belong to the descendant leaves, not here.
+        children = content_metadata.get("children")
+        if children:
+            self._expand_content_tree(children)
+            return
+        for metadata_dict in file_metadata_dicts:
+            self.add_file(self._file_from_metadata(metadata_dict))
+        self._apply_content_metadata(self, content_metadata, check_kind=True)
+
+    def _expand_content_tree(self, children):
+        """Expand a metadata tree into a Topic/Folder subtree of descendant nodes.
+
+        Descendants must self-process: ``ChannelManager.process_tree`` snapshots the
+        node list before running ``process_files()``, so children added here are never
+        visited by that walk and must be processed/validated in place.
+        """
+        self.kind = content_kinds.TOPIC
+        for child_dict in children:
+            child = self._build_descendant(child_dict)
+            self.add_child(child)
+            self._process_descendant(child)
+
+    def _process_descendant(self, node):
+        # Post-order: process leaves before the topics that contain them.
+        for grandchild in node.children:
+            self._process_descendant(grandchild)
+        node.process_files()
+        # ContentNode.process_files() already validates; topics do not, so validate them.
+        if isinstance(node, TopicNode):
+            node.validate()
+
+    def _build_descendant(self, node_dict):
+        """Build a TopicNode or leaf ContentNode (unprocessed) from a tree dict."""
+        if node_dict.get("children"):
+            topic = TopicNode(
+                source_id=node_dict["source_id"], title=node_dict["title"]
+            )
+            for child_dict in node_dict["children"]:
+                topic.add_child(self._build_descendant(child_dict))
+            return topic
+        node = ContentNode(
+            source_id=node_dict["source_id"],
+            title=node_dict["title"],
+            license=self.license,
+        )
+        for file_dict in node_dict.get("files") or []:
+            node.add_file(self._file_from_metadata(file_dict))
+        # source_id/title are already consumed by the constructor above.
+        self._apply_content_metadata(
+            node, node_dict, skip=frozenset({"source_id", "title"})
+        )
+        return node
 
     def process_files(self):
         if self.uri:
