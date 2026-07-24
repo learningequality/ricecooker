@@ -995,8 +995,10 @@ class ContentNode(TreeNode):
         # Detect it on the presence of children (kind may have been clobbered to the
         # package's own file kind by the extract stage) and skip the flat file/attr
         # path entirely — the backing files belong to the descendant leaves, not here.
+        # A decomposer always emits a children list (possibly empty, when every
+        # resource was rejected), so detect on ``is not None`` rather than truthiness.
         children = content_metadata.get("children")
-        if children:
+        if children is not None:
             self._expand_content_tree(children)
             return
         for metadata_dict in file_metadata_dicts:
@@ -1026,12 +1028,17 @@ class ContentNode(TreeNode):
             node.validate()
 
     def _build_descendant(self, node_dict):
-        """Build a TopicNode or leaf ContentNode (unprocessed) from a tree dict."""
-        if node_dict.get("children"):
+        """Build a TopicNode or leaf ContentNode (unprocessed) from a tree dict.
+
+        A topic carries no concrete leaf ``kind`` (only ``children``, possibly
+        empty); a leaf always names its ``kind``.
+        """
+        kind = node_dict.get("kind")
+        if kind is None or kind == content_kinds.TOPIC:
             topic = TopicNode(
                 source_id=node_dict["source_id"], title=node_dict["title"]
             )
-            for child_dict in node_dict["children"]:
+            for child_dict in node_dict.get("children") or []:
                 topic.add_child(self._build_descendant(child_dict))
             return topic
         node = ContentNode(

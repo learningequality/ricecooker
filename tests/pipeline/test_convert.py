@@ -1016,3 +1016,148 @@ class TestKPUBPromotion:
             )
             with pytest.raises(InvalidFileException, match="(?i)javascript"):
                 KPUBConversionHandler().validate_archive(path)
+
+
+_IMSCP_FIXTURE_DIR = os.path.join(
+    os.path.dirname(__file__), "..", "testcontent", "imscp"
+)
+
+
+def _iter_leaves(node):
+    """Yield the content-leaf dicts (kind + files) of a decomposed tree dict."""
+    children = node.get("children")
+    if children is not None:
+        for child in children:
+            yield from _iter_leaves(child)
+    elif node.get("kind"):
+        yield node
+
+
+def _build_single_resource_imscp(path, href, index_html, extra_files=None):
+    """Write a minimal one-resource IMSCP package for the media/KPUB rungs."""
+    files = {href: index_html}
+    file_entries = '<file href="{}"/>'.format(href)
+    for name, content in (extra_files or {}).items():
+        files[name] = content
+        file_entries += '<file href="{}"/>'.format(name)
+    files["imsmanifest.xml"] = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<manifest xmlns="http://www.imsproject.org/xsd/imscp_rootv1p1p2" '
+        'identifier="MAN">'
+        '<organizations default="ORG">'
+        '<organization identifier="ORG"><title>Org</title>'
+        '<item identifier="ITEM" identifierref="RES"><title>Leaf</title></item>'
+        "</organization></organizations>"
+        '<resources><resource identifier="RES" type="webcontent" href="{}">'
+        "{}</resource></resources>"
+        "</manifest>"
+    ).format(href, file_entries)
+    _create_archive(path, files)
+
+
+class TestIMSCPDecomposition:
+    """The IMSCP handler decomposes a package into a native node subtree."""
+
+    def _run(self, zip_name):
+        path = os.path.join(_IMSCP_FIXTURE_DIR, zip_name)
+        # Any external reference inside a resource fails gracefully (left
+        # unrewritten) instead of hitting the network, keeping the test hermetic.
+        with _fake_download_session({}):
+            result = FilePipeline().execute(path, skip_cache=True)
+        return result[0].content_node_metadata
+
+    def test_assessment_package_rejected(self):
+        # test_quiz is a HotPotatoes JQuiz SCO: its only leaf is rejected, so the
+        # tree keeps its topic scaffolding but has no promoted content leaf.
+        tree = self._run("test_quiz.zip")
+        assert list(_iter_leaves(tree)) == []
+
+    def test_eventos_leaves_are_html5_with_own_files(self):
+        tree = self._run("eventos.zip")
+        leaves = list(_iter_leaves(tree))
+        assert len(leaves) >= 5
+        # eXe SCORM wrappers are discounted, but residual jQuery/effects keep the
+        # pages interactive (HTML5), and their .js/.css members block KPUB.
+        assert all(leaf["kind"] == content_kinds.HTML5 for leaf in leaves)
+        presets = {f["preset"] for leaf in leaves for f in leaf["files"]}
+        assert presets == {format_presets.HTML5_ZIP}
+        # Each leaf is backed by its own sealed zip, not the shared package.
+        filenames = [f["filename"] for leaf in leaves for f in leaf["files"]]
+        assert len(filenames) == len(set(filenames))
+
+    def test_gitta_has_multiple_html5_leaves(self):
+        tree = self._run("gitta_ims.zip")
+        leaves = list(_iter_leaves(tree))
+        assert len(leaves) > 1
+        assert all(leaf["kind"] == content_kinds.HTML5 for leaf in leaves)
+        assert all(leaf["title"].strip() for leaf in leaves)
+
+    def test_synthetic_wrapped_media_becomes_video_node(self, video_file):
+        with open(video_file.path, "rb") as fh:
+            mp4 = fh.read()
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "media.zip")
+            _build_single_resource_imscp(
+                path,
+                "page.html",
+                "<html><body><video src='clip.mp4'></video></body></html>",
+                {"clip.mp4": mp4},
+            )
+            tree = (
+                FilePipeline().execute(path, skip_cache=True)[0].content_node_metadata
+            )
+        leaves = list(_iter_leaves(tree))
+        assert len(leaves) == 1
+        assert leaves[0]["kind"] == content_kinds.VIDEO
+        assert any(f["filename"].endswith(".mp4") for f in leaves[0]["files"])
+
+    def test_synthetic_static_article_becomes_kpub(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "kpub.zip")
+            _build_single_resource_imscp(
+                path,
+                "article.html",
+                "<html><body><h1>Title</h1><p>Prose here.</p>"
+                "<img src='logo.png'></body></html>",
+                {"logo.png": _PNG_1x1},
+            )
+            tree = (
+                FilePipeline().execute(path, skip_cache=True)[0].content_node_metadata
+            )
+        leaves = list(_iter_leaves(tree))
+        assert len(leaves) == 1
+        assert leaves[0]["kind"] == content_kinds.DOCUMENT
+        assert any(f["preset"] == format_presets.KPUB_ZIP for f in leaves[0]["files"])
+
+    def test_end_to_end_node_expansion(self):
+        # Ties Tasks 1-6 through the real consumer: a ContentNode whose uri is an
+        # IMSCP package expands into a TOPIC subtree of processed leaves.
+        from ricecooker.classes.licenses import get_license
+        from ricecooker.classes.nodes import ContentNode
+
+        path = os.path.join(_IMSCP_FIXTURE_DIR, "eventos.zip")
+        node = ContentNode(
+            source_id="eventos",
+            title="Eventos",
+            license=get_license("CC BY", copyright_holder="ESSI"),
+            uri=path,
+            pipeline=FilePipeline(),
+        )
+        with _fake_download_session({}):
+            node.process_files()
+        assert node.kind == content_kinds.TOPIC
+        assert node.files == []
+        # The manifest's single organization is the one top-level topic.
+        assert len(node.children) == 1
+
+        def leaf_nodes(n):
+            if n.kind == content_kinds.TOPIC:
+                for child in n.children:
+                    yield from leaf_nodes(child)
+            else:
+                yield n
+
+        leaves = list(leaf_nodes(node))
+        assert leaves
+        assert all(leaf.kind == content_kinds.HTML5 for leaf in leaves)
+        assert all(leaf.files for leaf in leaves)
