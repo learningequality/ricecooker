@@ -531,7 +531,13 @@ def _fake_download_session(url_to_content):
             iter_content=lambda chunk_size=8192: iter([content]),
         )
 
-    with patch.object(config, "DOWNLOAD_SESSION", SimpleNamespace(get=get)):
+    def head(url, **kwargs):
+        # The render handler HEAD-probes every external ref to see if it is an
+        # HTML page; these fixtures are assets, so report a non-HTML type and let
+        # the catch-all download handler fetch them via get().
+        return SimpleNamespace(headers={"content-type": "application/octet-stream"})
+
+    with patch.object(config, "DOWNLOAD_SESSION", SimpleNamespace(get=get, head=head)):
         yield calls
 
 
@@ -636,6 +642,23 @@ class TestArchiveProcessor:
             assert not new_path.startswith("../")
             resolved = os.path.normpath(os.path.join(out_dir, "content", new_path))
             assert os.path.exists(resolved)
+
+    def test_data_uri_exploded(self):
+        """A ``data:`` URI is localized: decoded to a real file, ref rewritten.
+
+        Runs the real ``FilePipeline`` — ``Base64FileHandler`` decodes the URI,
+        so no network is needed.
+        """
+        data_uri = "data:image/png;base64," + base64.b64encode(_PNG_1x1).decode()
+        files = {
+            "index.html": '<html><body><img src="{}"></body></html>'.format(data_uri),
+        }
+        with _run_external_refs(files, {}) as (out_dir, _fetched):
+            pngs = [n for n in os.listdir(out_dir) if n.endswith(".png")]
+            assert len(pngs) == 1
+            index = open(os.path.join(out_dir, "index.html")).read()
+            assert "data:image/png" not in index
+            assert 'src="{}"'.format(pngs[0]) in index
 
     def test_leaves_internal_refs(self):
         files = {

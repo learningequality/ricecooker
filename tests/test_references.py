@@ -27,6 +27,45 @@ class ReferencesExternalUrlAndCssTest(unittest.TestCase):
         self.assertFalse(references.is_external_url("#frag"))
         self.assertFalse(references.is_external_url(""))
 
+    def test_is_data_uri(self):
+        self.assertTrue(references.is_data_uri("data:image/png;base64,AA"))
+        self.assertTrue(references.is_data_uri("data:font/woff2;base64,AA"))
+        self.assertTrue(references.is_data_uri("DATA:image/png;base64,AA"))
+        self.assertFalse(references.is_data_uri("images/a.png"))
+        self.assertFalse(references.is_data_uri("https://x/a.png"))
+        self.assertFalse(references.is_data_uri(""))
+
+    def test_neutralize_external_navigation(self):
+        html = (
+            '<a href="https://external.example/page">out</a>'
+            '<a href="page2.html">sibling</a>'
+            "<a href='//cdn.example/p'>proto-rel</a>"
+            '<iframe src="https://cross.example/frame"></iframe>'
+            '<iframe src="frame.html"></iframe>'
+        )
+        result = references.neutralize_external_navigation(html)
+        # External navigation is made inert...
+        self.assertNotIn("https://external.example/page", result)
+        self.assertNotIn("//cdn.example/p", result)
+        self.assertNotIn("https://cross.example/frame", result)
+        self.assertIn('href="#"', result)
+        self.assertIn('src="about:blank"', result)
+        # ...while relative in-archive references are preserved.
+        self.assertIn('href="page2.html"', result)
+        self.assertIn('src="frame.html"', result)
+
+    def test_neutralize_external_navigation_preserves_data_frames(self):
+        # A same-origin frame single-file inlines as a data: URI must survive so
+        # the pipeline can later explode it to a local file.
+        html = '<iframe src="data:text/html,<b>hi</b>"></iframe>'
+        self.assertEqual(references.neutralize_external_navigation(html), html)
+
+    def test_neutralize_external_navigation_leaves_resource_refs(self):
+        # Only <a>/<iframe> navigation is touched; resource references (img src,
+        # stylesheet link) are the reference rewriter's concern, not ours.
+        html = '<img src="https://cdn.example/a.png"><link rel="stylesheet" href="https://cdn.example/a.css">'
+        self.assertEqual(references.neutralize_external_navigation(html), html)
+
     def test_extract_css_urls(self):
         css = "a{background:url('bg.png')} @import 'fonts/f.css'; b{src:url(https://h/x.woff2)}"
         self.assertEqual(

@@ -88,6 +88,31 @@ installation steps and also explains the adding-to-Path process.
 <div style="height:50px;">&nbsp;</div>
 
 
+### Optional: headless page archiving (single-file-cli)
+
+This is **only** needed if your chef archives a JavaScript/SPA page — i.e. it
+adds a node whose source URL serves an HTML page (see the render handler and
+`examples/pagearchive/sushichef.py`). The DOWNLOAD stage detects such URLs and
+renders them headlessly; the core `ricecooker` install and every other file type
+work without it.
+
+Page archiving shells out to the [single-file-cli](https://github.com/gildas-lormeau/single-file-cli)
+Node binary, which drives a headless Chromium/Chrome to render the page. Install
+both:
+
+- **single-file-cli** (needs [Node.js](https://nodejs.org/) — any recent LTS):
+
+      npm install -g single-file-cli
+
+- **Chromium or Chrome**: install via your OS package manager or from
+  [google.com/chrome](https://www.google.com/chrome/) — Linux:
+  `sudo apt-get install chromium` (or `chromium-browser`); Mac:
+  `brew install --cask google-chrome`; Windows: the Chrome installer. If the
+  browser is not on your `PATH`, pass its path to the node via
+  `context={"browser_executable_path": "..."}`.
+
+*Checklist*: run `single-file --help` to confirm the binary is available.
+
 
 Installing Ricecooker
 ---------------------

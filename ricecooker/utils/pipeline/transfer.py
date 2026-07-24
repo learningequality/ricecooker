@@ -1,4 +1,5 @@
 import base64
+import binascii
 import hashlib
 import mimetypes
 import os
@@ -17,19 +18,25 @@ from requests.exceptions import ConnectionError
 from requests.exceptions import HTTPError
 from requests.exceptions import InvalidSchema
 from requests.exceptions import InvalidURL
+from requests.exceptions import RequestException
 from requests.exceptions import Timeout
 
 from ricecooker import config
 from ricecooker.utils.caching import generate_key
-from ricecooker.utils.encodings import get_base64_encoding
+from ricecooker.utils.encodings import ext_from_data_uri_mimetype
+from ricecooker.utils.encodings import get_base64_data_uri
 from ricecooker.utils.paths import extract_path_ext
 from ricecooker.utils.pipeline.exceptions import InvalidFileException
+from ricecooker.utils.references import neutralize_external_navigation
+from ricecooker.utils.singlefile import render_page
+from ricecooker.utils.singlefile import SingleFileRenderError
 from ricecooker.utils.storage import get_hash
 from ricecooker.utils.youtube import get_language_with_alpha2_fallback
 from ricecooker.utils.youtube import YouTubeResource
 
 from .context import ContextMetadata
 from .context import FileMetadata
+from .convert import _seal_directory_to_file
 from .file_handler import FileHandler
 from .file_handler import StageHandler
 
@@ -397,7 +404,7 @@ class GoogleDriveHandler(WebResourceHandler):
 
 class Base64FileHandler(FileHandler):
     def should_handle(self, path: str) -> bool:
-        return bool(get_base64_encoding(path))
+        return bool(get_base64_data_uri(path))
 
     def get_cache_key(self, path: str) -> str:
         hashed_content = hashlib.md5()
@@ -405,13 +412,101 @@ class Base64FileHandler(FileHandler):
         return "ENCODED: {} (base64 encoded)".format(hashed_content.hexdigest())
 
     def handle_file(self, path: str):
-        encoding_match = get_base64_encoding(path)
-        extension = encoding_match.group(1)
-        # Prefer JPG over JPEG as a file extension
-        if extension == file_formats.JPEG:
-            extension = file_formats.JPG
+        encoding_match = get_base64_data_uri(path)
+        extension = ext_from_data_uri_mimetype(encoding_match.group(1))
+        if extension is None:
+            raise InvalidFileException(
+                f"Unsupported base64 data URI mimetype: {encoding_match.group(1)}"
+            )
+        try:
+            decoded = base64.decodebytes(encoding_match.group(2).encode("utf-8"))
+        except binascii.Error as e:
+            raise InvalidFileException(f"Malformed base64 data URI: {e}")
         with self.write_file(extension) as fh:
-            fh.write(base64.decodebytes(encoding_match.group(2).encode("utf-8")))
+            fh.write(decoded)
+
+
+class SingleFileRenderContextMetadata(ContextMetadata):
+    crawl_max_depth: int = 1
+    crawl_inner_links_only: bool = True
+    crawl_rewrite_rule: Optional[str] = None
+    browser_executable_path: Optional[str] = None
+    # Auth for login-walled targets, forwarded to single-file's
+    # --browser-cookies-file / --http-header. The HEAD probe in should_handle has
+    # no per-URL context, so it authenticates separately via config.DOWNLOAD_SESSION.
+    browser_cookies_file: Optional[str] = None
+    http_headers: Optional[Dict[str, str]] = None
+
+
+class SingleFileRenderHandler(WebResourceHandler):
+    """Render a URL that serves an HTML page into an HTML5 zip via single-file-cli.
+
+    ``should_handle`` does a cached HEAD request and claims a URL only when it
+    serves HTML. No pip dependency is added — the ``single-file``/Chromium
+    binaries are shelled out to lazily and only for HTML URLs. For login-walled
+    targets see :class:`SingleFileRenderContextMetadata`.
+    """
+
+    CONTEXT_CLASS = SingleFileRenderContextMetadata
+
+    HTML_CONTENT_TYPES = ("text/html", "application/xhtml+xml")
+
+    HANDLED_EXCEPTIONS = [SingleFileRenderError]
+
+    def __init__(self):
+        super().__init__()
+        # Memoize the HEAD content-type per URL: should_handle can be called more
+        # than once per URL (composite probe + FirstHandlerOnly dispatch), and we
+        # want at most one HEAD round-trip each.
+        self._content_type_cache = {}
+
+    def _content_type(self, url: str) -> str:
+        if url not in self._content_type_cache:
+            try:
+                response = config.DOWNLOAD_SESSION.head(
+                    url, allow_redirects=True, timeout=(30, 30)
+                )
+                content_type = response.headers.get("content-type", "")
+            except RequestException:
+                content_type = ""
+            self._content_type_cache[url] = (
+                content_type.split(";", 1)[0].strip().lower()
+            )
+        return self._content_type_cache[url]
+
+    def should_handle(self, url: str) -> bool:
+        try:
+            parsed = urlparse(url)
+        except ValueError:
+            return False
+        if parsed.scheme not in ("http", "https") or not parsed.netloc:
+            return False
+        return self._content_type(url) in self.HTML_CONTENT_TYPES
+
+    def get_cache_key(self, path, **kwargs) -> str:
+        # Include the crawl settings so two depths/scopes of the same URL do
+        # not collide (mirrors MediaCompressionHandler.get_cache_key).
+        return generate_key("SINGLEFILE", self.normalize_path(path), settings=kwargs)
+
+    def handle_file(self, path, **context):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            render_page(path, temp_dir, **context)
+            self._neutralize_navigation(temp_dir)
+            _seal_directory_to_file(self, temp_dir, file_formats.HTML5)
+
+    def _neutralize_navigation(self, directory):
+        """Apply neutralize_external_navigation to every rendered HTML page."""
+        for root, _dirs, files in os.walk(directory):
+            for name in files:
+                if not name.lower().endswith((".html", ".htm", ".xhtml")):
+                    continue
+                file_path = os.path.join(root, name)
+                with open(file_path, encoding="utf-8") as fh:
+                    html = fh.read()
+                rewritten = neutralize_external_navigation(html)
+                if rewritten != html:
+                    with open(file_path, "w", encoding="utf-8") as fh:
+                        fh.write(rewritten)
 
 
 class DownloadStageHandler(StageHandler):
@@ -419,6 +514,9 @@ class DownloadStageHandler(StageHandler):
     DEFAULT_CHILDREN = [
         YoutubeDownloadHandler,
         GoogleDriveHandler,
+        # After the site-specific handlers and before the catch-all: HTML pages
+        # render, everything else falls through to a static download.
+        SingleFileRenderHandler,
         CatchAllWebResourceDownloadHandler,
         DiskResourceHandler,
         Base64FileHandler,

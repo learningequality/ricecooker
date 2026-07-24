@@ -130,8 +130,17 @@ def test_download_filenames(
     assert video_file.process_file() == video_filename, (
         "Video file should have filename {}".format(video_filename)
     )
-    assert html_file.process_file() == html_filename, (
-        "HTML file should have filename {}".format(html_filename)
+    # sample_html.zip inlines a data: URI (in CSS/jquery-ui.css) that the
+    # pipeline now explodes into a real file (issue #691), so the archive is
+    # reprocessed on download. Its content-derived hash is platform-dependent
+    # (HTML rewriting + zip compression), so assert it is a .zip that differs
+    # from the raw download hash rather than pinning exact bytes.
+    processed_html_filename = html_file.process_file()
+    assert processed_html_filename.endswith(".zip"), (
+        "HTML file should be stored as a .zip, got {}".format(processed_html_filename)
+    )
+    assert processed_html_filename != html_filename, (
+        "data: URIs should have been exploded, changing the archive hash"
     )
     assert audio_file.process_file() == audio_filename, (
         "Audio file should have filename {}".format(audio_filename)
@@ -1377,18 +1386,27 @@ def test_subtitle_cache_keys_with_format(mock_filecache, subtitle_file):
     assert set(mock_filecache.cache.keys()) == expected_keys
 
 
-def test_html5_zip_cache_keys(mock_filecache, html_file):
-    """Test cache key generation for HTML5 zip processing"""
+def test_html5_zip_cache_keys(mock_filecache, html_file, html_filename):
+    """Test cache key generation for HTML5 zip processing.
+
+    The fixture inlines two ``data:image/gif`` assets, which CONVERT now
+    explodes into real files (issue #691). So the zip spine (DOWNLOAD →
+    CONVERT → EXTRACT_METADATA) is joined by a CONVERT key for each exploded
+    gif. CONVERT rewrites the archive, so its input filename is the downloaded
+    zip (``html_filename``) while EXTRACT runs on the rewritten zip.
+    """
     path = html_file.path
     html = HTMLZipFile(path)
     html.process_file()
 
-    expected_keys = {
-        f"DOWNLOAD:{path}",
-        f"CONVERT:{html.filename}",
-        f"EXTRACT_METADATA:{html.filename}",
+    keys = set(mock_filecache.cache.keys())
+    assert f"DOWNLOAD:{path}" in keys
+    assert f"CONVERT:{html_filename}" in keys
+    assert f"EXTRACT_METADATA:{html.filename}" in keys
+    gif_convert_keys = {
+        k for k in keys if k.startswith("CONVERT:") and k.endswith(".gif")
     }
-    assert set(mock_filecache.cache.keys()) == expected_keys
+    assert len(gif_convert_keys) == 2
 
 
 def test_base64_image_cache_keys(mock_filecache):

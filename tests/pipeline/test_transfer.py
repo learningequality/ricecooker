@@ -1,21 +1,38 @@
+import base64
 import json
 import os
 import tempfile
+import zipfile
 from sys import platform
+from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import pytest
+from le_utils.constants import format_presets
 from vcr_config import my_vcr
 
+from ricecooker import config
+from ricecooker.utils.pipeline import FilePipeline
 from ricecooker.utils.pipeline.context import FileMetadata
 from ricecooker.utils.pipeline.exceptions import InvalidFileException
 from ricecooker.utils.pipeline.file_handler import FileHandler
+from ricecooker.utils.pipeline.transfer import Base64FileHandler
 from ricecooker.utils.pipeline.transfer import DiskResourceHandler
 from ricecooker.utils.pipeline.transfer import DownloadStageHandler
 from ricecooker.utils.pipeline.transfer import (
     get_filename_from_content_disposition_header,
 )
 from ricecooker.utils.pipeline.transfer import GoogleDriveHandler
+from ricecooker.utils.pipeline.transfer import SingleFileRenderHandler
+
+# A valid 1x1 PNG — single-file inlines binary assets as base64 ``data:`` URIs,
+# and the CONVERT stage needs a decodable image to explode.
+_PNG_1x1 = (
+    b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01"
+    b"\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89"
+    b"\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01"
+    b"\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82"
+)
 
 content_disposition_filename_cases = [
     ('Content-Disposition: attachment; filename="example.jpg"', "example.jpg"),
@@ -343,3 +360,285 @@ def test_download_stage_handler_catches_failed_transfer():
     # The handler should raise an InvalidFileException when the file isn't transferred to storage
     with pytest.raises(InvalidFileException, match="failed to transfer to storage"):
         download_handler.execute(dummy_url)
+
+
+def test_base64_should_handle():
+    handler = Base64FileHandler()
+    assert handler.should_handle("data:font/woff2;base64,AAAA") is True
+    assert handler.should_handle("https://x/a.png") is False
+
+
+@pytest.mark.parametrize(
+    "data_uri,suffix",
+    [
+        ("data:font/woff2;base64,AAAA", ".woff2"),
+        ("data:image/gif;base64,AAAA", ".gif"),
+        # image/jpeg maps to .jpg, not .jpeg.
+        ("data:image/jpeg;base64,AAAA", ".jpg"),
+    ],
+)
+def test_base64_decodes_data_uri_extension(data_uri, suffix):
+    result = Base64FileHandler().execute(data_uri)
+    assert result[0].filename.endswith(suffix)
+
+
+def test_base64_malformed_payload_raises_invalidfileexception():
+    # The loose data-URI regex matches non-base64 payloads; decoding must
+    # degrade to InvalidFileException (caught upstream), not a raw binascii.Error.
+    handler = Base64FileHandler()
+    with pytest.raises(InvalidFileException, match="Malformed base64"):
+        handler.execute("data:image/png;base64,AAA")
+
+
+def test_render_page_writes_index_and_passes_crawl_flags():
+    import ricecooker.utils.singlefile as singlefile
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        recorded = {}
+
+        def check_output(command, *args, **kwargs):
+            recorded["command"] = command
+            with open(os.path.join(tmpdir, "index.html"), "w") as f:
+                f.write("<html><body>hi</body></html>")
+            return b""
+
+        with patch.object(
+            singlefile.subprocess, "check_output", side_effect=check_output
+        ):
+            result = singlefile.render_page(
+                "https://spa.example/",
+                tmpdir,
+                crawl_max_depth=2,
+                crawl_inner_links_only=True,
+            )
+        assert result == os.path.join(tmpdir, "index.html")
+        assert os.path.exists(result)
+        command = recorded["command"]
+        assert "--crawl-links=true" in command
+        assert "--crawl-max-depth=2" in command
+        assert "--crawl-inner-links-only=true" in command
+
+
+def test_render_page_passes_auth_flags():
+    import ricecooker.utils.singlefile as singlefile
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        recorded = {}
+
+        def check_output(command, *args, **kwargs):
+            recorded["command"] = command
+            with open(os.path.join(tmpdir, "index.html"), "w") as f:
+                f.write("<html><body>hi</body></html>")
+            return b""
+
+        with patch.object(
+            singlefile.subprocess, "check_output", side_effect=check_output
+        ):
+            singlefile.render_page(
+                "https://locked.example/",
+                tmpdir,
+                browser_cookies_file="/tmp/cookies.txt",
+                http_headers={"Authorization": "Bearer tok"},
+            )
+        command = recorded["command"]
+        assert "--browser-cookies-file=/tmp/cookies.txt" in command
+        assert "--http-header=Authorization: Bearer tok" in command
+
+
+def test_render_page_missing_binary_raises_singlefilerendererror():
+    import ricecooker.utils.singlefile as singlefile
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        with patch.object(
+            singlefile.subprocess, "check_output", side_effect=FileNotFoundError()
+        ):
+            with pytest.raises(singlefile.SingleFileRenderError, match="single-file"):
+                singlefile.render_page("https://spa.example/", tmpdir)
+
+
+def _fake_render_page(**expected_kwargs):
+    """Return a render_page stand-in that emits an index.html with a data: img.
+
+    The emitted body has real content (the <img>), which the CONVERT stage's
+    index.html body validation requires.
+    """
+    data_uri = "data:image/png;base64," + base64.b64encode(_PNG_1x1).decode()
+
+    def render_page(url, output_dir, **kwargs):
+        for key, value in expected_kwargs.items():
+            assert kwargs.get(key) == value
+        index_path = os.path.join(output_dir, "index.html")
+        with open(index_path, "w") as fh:
+            fh.write('<html><body><img src="{}"></body></html>'.format(data_uri))
+        return index_path
+
+    return render_page
+
+
+class _FakeHeadResponse:
+    def __init__(self, content_type):
+        self.headers = {"content-type": content_type}
+
+
+def _fake_head(content_types_by_url):
+    """A DOWNLOAD_SESSION.head stand-in returning a canned content-type per URL."""
+
+    def head(url, **kwargs):
+        return _FakeHeadResponse(content_types_by_url.get(url, ""))
+
+    return head
+
+
+def test_singlefile_render_handler_should_handle_detects_html():
+    # No marker: the handler claims a URL only when a HEAD says it serves HTML,
+    # so it can sit before the catch-all and render only HTML pages.
+    handler = SingleFileRenderHandler()
+    content_types = {
+        "https://spa.example/": "text/html; charset=utf-8",
+        "https://spa.example/report.pdf": "application/pdf",
+    }
+    with patch.object(
+        config.DOWNLOAD_SESSION, "head", side_effect=_fake_head(content_types)
+    ):
+        assert handler.should_handle("https://spa.example/") is True
+        # A non-HTML resource falls through to the catch-all download handler.
+        assert handler.should_handle("https://spa.example/report.pdf") is False
+    # Non-http(s) URIs never trigger a HEAD request.
+    assert handler.should_handle("ftp://x/") is False
+    assert handler.should_handle("data:image/png;base64,AA") is False
+
+
+def test_singlefile_render_handler_head_is_cached():
+    # should_handle is called repeatedly (composite probe + dispatch); the HEAD
+    # request must fire at most once per URL.
+    handler = SingleFileRenderHandler()
+    head = MagicMock(return_value=_FakeHeadResponse("text/html"))
+    with patch.object(config.DOWNLOAD_SESSION, "head", head):
+        assert handler.should_handle("https://spa.example/") is True
+        assert handler.should_handle("https://spa.example/") is True
+    assert head.call_count == 1
+
+
+def test_singlefile_render_handler_produces_zip():
+    handler = SingleFileRenderHandler()
+    with patch(
+        "ricecooker.utils.pipeline.transfer.render_page",
+        side_effect=_fake_render_page(),
+    ):
+        result = handler.execute("https://spa.example/")
+    assert result[0].filename.endswith(".zip")
+    with zipfile.ZipFile(result[0].path) as zf:
+        index = zf.read("index.html").decode()
+    # The raw render (pre-CONVERT) still has the inlined data: URI.
+    assert "data:image/png" in index
+
+
+def test_singlefile_render_handler_neutralizes_external_navigation():
+    # An offline archive must not phone home: external <a>/<iframe> are made inert
+    # before the archive is sealed. Relative in-archive refs are preserved.
+    body = (
+        '<a href="https://external.example/page">out</a>'
+        '<a href="page2.html">sibling</a>'
+        '<iframe src="https://cross.example/frame"></iframe>'
+    )
+
+    def render_page(url, output_dir, **kwargs):
+        with open(os.path.join(output_dir, "index.html"), "w") as fh:
+            fh.write("<html><body>{}</body></html>".format(body))
+        return os.path.join(output_dir, "index.html")
+
+    with patch(
+        "ricecooker.utils.pipeline.transfer.render_page", side_effect=render_page
+    ):
+        # Distinct URL so this render is not served from another test's cache.
+        result = SingleFileRenderHandler().execute("https://nav.example/")
+    with zipfile.ZipFile(result[0].path) as zf:
+        index = zf.read("index.html").decode()
+    assert "https://external.example/page" not in index
+    assert "https://cross.example/frame" not in index
+    assert 'href="#"' in index
+    assert 'src="about:blank"' in index
+    # The captured sibling page is still linked.
+    assert 'href="page2.html"' in index
+
+
+def test_singlefile_render_handler_forwards_crawl_context():
+    # Crawl depth/scope reach the handler only through CONTEXT_CLASS; without it
+    # every field silently defaults and the depth/scope config AC is a no-op.
+    # _fake_render_page asserts the kwargs render_page actually received.
+    handler = SingleFileRenderHandler()
+    with patch(
+        "ricecooker.utils.pipeline.transfer.render_page",
+        side_effect=_fake_render_page(crawl_max_depth=3, crawl_inner_links_only=False),
+    ):
+        result = handler.execute(
+            "https://spa.example/",
+            context={"crawl_max_depth": 3, "crawl_inner_links_only": False},
+        )
+    assert result[0].filename.endswith(".zip")
+
+
+def test_singlefile_render_handler_forwards_auth_context():
+    # Login-wall auth reaches the render the same way crawl options do: through
+    # CONTEXT_CLASS. _fake_render_page asserts render_page got the auth kwargs.
+    handler = SingleFileRenderHandler()
+    with patch(
+        "ricecooker.utils.pipeline.transfer.render_page",
+        side_effect=_fake_render_page(
+            browser_cookies_file="/tmp/cookies.txt",
+            http_headers={"Authorization": "Bearer tok"},
+        ),
+    ):
+        result = handler.execute(
+            "https://locked.example/",
+            context={
+                "browser_cookies_file": "/tmp/cookies.txt",
+                "http_headers": {"Authorization": "Bearer tok"},
+            },
+        )
+    assert result[0].filename.endswith(".zip")
+
+
+def test_singlefile_render_end_to_end_explosion():
+    # The render handler is a default DOWNLOAD child, so the stock pipeline
+    # renders HTML-page URLs and explodes their inlined data: assets.
+    pipeline = FilePipeline()
+    with (
+        patch(
+            "ricecooker.utils.pipeline.transfer.render_page",
+            side_effect=_fake_render_page(),
+        ),
+        patch.object(
+            config.DOWNLOAD_SESSION,
+            "head",
+            side_effect=_fake_head({"https://spa.example/": "text/html"}),
+        ),
+    ):
+        result = pipeline.execute("https://spa.example/")
+
+    assert result[0].preset == format_presets.HTML5_ZIP
+    with zipfile.ZipFile(result[0].path) as zf:
+        names = zf.namelist()
+        index = zf.read("index.html").decode()
+    # The inlined asset is exploded into a real file and the ref rewritten.
+    assert "data:image/png" not in index
+    pngs = [n for n in names if n.endswith(".png")]
+    assert len(pngs) == 1
+    assert 'src="{}"'.format(pngs[0]) in index
+
+
+def test_default_pipeline_renders_html_and_downloads_other_sources():
+    # The render handler ships in the default DOWNLOAD children and auto-detects
+    # HTML pages via HEAD — no marker, no custom pipeline construction.
+    pipeline = FilePipeline()
+    content_types = {
+        "https://spa.example/": "text/html",
+        "https://example.com/x.pdf": "application/pdf",
+    }
+    with patch.object(
+        config.DOWNLOAD_SESSION, "head", side_effect=_fake_head(content_types)
+    ):
+        # An HTML page is claimed by the render handler.
+        assert pipeline.should_handle("https://spa.example/") is True
+        # A non-HTML resource still routes to a default download handler.
+        assert pipeline.should_handle("https://example.com/x.pdf") is True
