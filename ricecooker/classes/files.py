@@ -10,9 +10,11 @@ from requests import HTTPError
 
 from ricecooker.utils.caching import FILECACHE
 from ricecooker.utils.caching import get_cache_filename
+from ricecooker.utils.images import ChromiumUnavailableError
 from ricecooker.utils.images import create_image_from_epub
 from ricecooker.utils.images import create_image_from_pdf_page
 from ricecooker.utils.images import create_image_from_zip
+from ricecooker.utils.images import create_image_from_zip_screenshot
 from ricecooker.utils.images import create_tiled_image
 from ricecooker.utils.images import ThumbnailGenerationError
 from ricecooker.utils.paths import extract_path_ext
@@ -564,7 +566,21 @@ class ExtractedHTMLZipThumbnailFile(ExtractedThumbnailFile):
     allowed_formats = HTMLZipFile.allowed_formats
 
     def extractor_fun(self, fpath_in, thumbpath_out, **kwargs):
+        try:
+            create_image_from_zip_screenshot(fpath_in, thumbpath_out, **kwargs)
+            return
+        except ChromiumUnavailableError:
+            pass
+        except ThumbnailGenerationError as err:
+            config.LOGGER.warning(
+                "\t    Screenshot render failed, falling back to biggest-image "
+                "heuristic: {}".format(err)
+            )
         create_image_from_zip(fpath_in, thumbpath_out, **kwargs)
+
+
+class ExtractedKPUBThumbnailFile(ExtractedHTMLZipThumbnailFile):
+    allowed_formats = {file_formats.HTML5_ARTICLE}
 
 
 class ExtractedVideoThumbnailFile(ExtractedThumbnailFile):

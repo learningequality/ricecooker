@@ -29,6 +29,7 @@ from ..utils.validators import is_valid_uuid_string
 from .curriculum import LearningObjective
 from .files import ExtractedEPubThumbnailFile
 from .files import ExtractedHTMLZipThumbnailFile
+from .files import ExtractedKPUBThumbnailFile
 from .files import ExtractedPdfThumbnailFile
 from .files import File
 from .files import SubtitleFile
@@ -1082,6 +1083,9 @@ class DocumentNode(ContentNode):
     def generate_thumbnail(self):
         pdf_files = [f for f in self.files if f.get_preset() == format_presets.DOCUMENT]
         epub_files = [f for f in self.files if f.get_preset() == format_presets.EPUB]
+        kpub_files = [
+            f for f in self.files if f.get_preset() == format_presets.KPUB_ZIP
+        ]
         if pdf_files:
             pdf_file = pdf_files[0]
             if pdf_file.filename and not pdf_file.error:
@@ -1092,6 +1096,11 @@ class DocumentNode(ContentNode):
             if epub_file.filename and not epub_file.error:
                 storage_path = config.get_storage_path(epub_file.filename)
                 return ExtractedEPubThumbnailFile(storage_path)
+        elif kpub_files:
+            kpub_file = kpub_files[0]
+            if kpub_file.filename and not kpub_file.error:
+                storage_path = config.get_storage_path(kpub_file.filename)
+                return ExtractedKPUBThumbnailFile(storage_path)
         return None
 
 

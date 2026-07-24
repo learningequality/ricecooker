@@ -2,6 +2,7 @@ import os
 
 import PIL
 import pytest  # noqa F401
+from le_utils.constants import format_presets
 from le_utils.constants import licenses
 from test_tree import thumbnail_path  # noqa F401
 from test_tree import thumbnail_path_jpg  # noqa F401
@@ -10,8 +11,10 @@ from test_videos import low_res_video  # noqa F401
 from vcr_config import my_vcr
 
 from ricecooker import config
+from ricecooker.classes.files import DownloadFile
 from ricecooker.classes.files import ExtractedEPubThumbnailFile
 from ricecooker.classes.files import ExtractedHTMLZipThumbnailFile
+from ricecooker.classes.files import ExtractedKPUBThumbnailFile
 from ricecooker.classes.files import ExtractedPdfThumbnailFile
 from ricecooker.classes.files import ExtractedVideoThumbnailFile
 from ricecooker.classes.files import ThumbnailFile
@@ -238,6 +241,15 @@ class TestThumbnailGeneration(object):
         filenames = node.process_files()
         assert len(filenames) == 2, "expected two filenames"
         self.check_has_thumbnail(node)
+
+    def test_generate_thumbnail_from_kpub(self):
+        node = DocumentNode(
+            "doc-src-id", "Document", licenses.PUBLIC_DOMAIN, thumbnail=None
+        )
+        kpub_file = DownloadFile("some.kpub", preset=format_presets.KPUB_ZIP)
+        kpub_file.filename = "test.kpub"
+        node.add_file(kpub_file)
+        assert isinstance(node.generate_thumbnail(), ExtractedKPUBThumbnailFile)
 
     def test_generate_thumbnail_from_video(self, video_file):
         node = VideoNode("vid-src-id", "Video", licenses.PUBLIC_DOMAIN, thumbnail=None)
