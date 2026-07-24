@@ -14,6 +14,7 @@ from unittest.mock import patch
 import pytest
 import requests
 from bs4 import BeautifulSoup
+from le_utils.constants import content_kinds
 from le_utils.constants import format_presets
 
 from ricecooker import config
@@ -22,6 +23,8 @@ from ricecooker.classes.files import H5PFile
 from ricecooker.classes.files import HTMLZipFile
 from ricecooker.utils import archive_assets
 from ricecooker.utils.pipeline import FilePipeline
+from ricecooker.utils.pipeline.context import ContentNodeMetadata
+from ricecooker.utils.pipeline.context import FileMetadata
 from ricecooker.utils.pipeline.convert import _find_common_root
 from ricecooker.utils.pipeline.convert import _find_entry_html
 from ricecooker.utils.pipeline.convert import BloomConversionHandler
@@ -818,3 +821,387 @@ class TestHandlerExternalRefIntegration:
             assert any(n.endswith(".png") for n in names)
             index = zf.read("index.html").decode("utf-8")
             assert "https://ex.com" not in index
+
+
+class TestContentNodeMetadataTree:
+    def test_tree_metadata_survives_to_dict_and_merge(self):
+        # A topic node carrying a nested tree of content-node dicts, each leaf
+        # dict carrying its own file-metadata dicts.
+        metadata = FileMetadata(
+            content_node_metadata=ContentNodeMetadata(
+                kind="topic",
+                children=[
+                    {
+                        "source_id": "a",
+                        "title": "A",
+                        "kind": "video",
+                        "files": [{"filename": "v.mp4", "preset": "high_res_video"}],
+                    }
+                ],
+            )
+        )
+
+        round_tripped = FileMetadata(**metadata.to_dict()).merge(FileMetadata())
+
+        children = round_tripped.content_node_metadata["children"]
+        assert children[0]["files"][0]["filename"] == "v.mp4"
+
+
+class TestSCORMClassifiers:
+    """SCORM-boilerplate discount + assessment / single-media classifiers."""
+
+    def test_strip_scorm_boilerplate(self):
+        from ricecooker.utils.pipeline.scorm import strip_scorm_boilerplate
+
+        html = (
+            "<html><body>"
+            '<script src="SCORM_API_wrapper.js"></script>'
+            "<script>pipwerks.SCORM.init();</script>"
+            '<script src="quiz-logic.js"></script>'
+            "<p>content</p></body></html>"
+        )
+        residual = strip_scorm_boilerplate(html)
+        assert "SCORM_API_wrapper.js" not in residual
+        assert "pipwerks" not in residual
+        assert "quiz-logic.js" in residual
+        assert "<p>content</p>" in residual
+
+    def test_assessment_hotpotatoes_generator(self):
+        from ricecooker.utils.pipeline.scorm import has_assessment_semantics
+
+        html = (
+            '<html><head><meta name="generator" content="Hot Potatoes 7"></head>'
+            "<body><p>Q1</p></body></html>"
+        )
+        assert has_assessment_semantics(html, ["quiz.htm"], {})
+
+    def test_assessment_hotpotatoes_global(self):
+        from ricecooker.utils.pipeline.scorm import has_assessment_semantics
+
+        html = "<html><body><script>var JQuiz={};</script></body></html>"
+        assert has_assessment_semantics(html, ["quiz.htm"], {})
+
+    def test_assessment_cmi_score_write(self):
+        from ricecooker.utils.pipeline.scorm import has_assessment_semantics
+
+        html = (
+            "<html><body>"
+            '<script>doLMSSetValue("cmi.core.score.raw", 80);</script>'
+            "</body></html>"
+        )
+        assert has_assessment_semantics(html, ["page.htm"], {})
+
+    def test_no_assessment_for_pure_boilerplate(self):
+        from ricecooker.utils.pipeline.scorm import has_assessment_semantics
+
+        html = (
+            "<html><body><p>An eXe article page.</p>"
+            '<script src="SCORM_API_wrapper.js"></script>'
+            '<script src="SCOFunctions.js"></script></body></html>'
+        )
+        assert not has_assessment_semantics(
+            html, ["SCORM_API_wrapper.js", "SCOFunctions.js"], {}
+        )
+
+    def test_no_assessment_for_boilerplate_lesson_status(self):
+        from ricecooker.utils.pipeline.scorm import has_assessment_semantics
+
+        # A content SCO reporting completion via inline SCORM plumbing is not an
+        # exercise: the boilerplate is discounted before the score grep, so the
+        # lesson_status write does not read as assessment (and the page is kept).
+        html = (
+            "<html><body><p>A lesson.</p>"
+            '<script>pipwerks.SCORM.set("cmi.core.lesson_status", "completed");</script>'
+            "</body></html>"
+        )
+        assert not has_assessment_semantics(html, [], {})
+
+    def test_assessment_from_masteryscore(self):
+        from ricecooker.utils.pipeline.scorm import has_assessment_semantics
+
+        # A mastery score on the item is an assessment signal on its own.
+        html = "<html><body><p>Quiz</p></body></html>"
+        assert has_assessment_semantics(html, [], {"masteryscore": "80"})
+
+    def test_single_media_member_returns_media(self):
+        from ricecooker.utils.pipeline.scorm import single_media_member
+
+        leaf = {
+            "index_file": "index.html",
+            "files": ["index.html", "video.mp4"],
+            "index_html": '<html><body><video src="video.mp4"></video></body></html>',
+        }
+        assert single_media_member(leaf) == "video.mp4"
+
+    def test_single_media_member_none_with_stylesheet(self):
+        from ricecooker.utils.pipeline.scorm import single_media_member
+
+        leaf = {
+            "index_file": "index.html",
+            "files": ["index.html", "video.mp4", "style.css"],
+            "index_html": '<html><body><video src="video.mp4"></video></body></html>',
+        }
+        assert single_media_member(leaf) is None
+
+    def test_single_media_member_none_with_two_media(self):
+        from ricecooker.utils.pipeline.scorm import single_media_member
+
+        leaf = {
+            "index_file": "index.html",
+            "files": ["index.html", "a.mp4", "b.mp4"],
+            "index_html": '<html><body><video src="a.mp4"></video></body></html>',
+        }
+        assert single_media_member(leaf) is None
+
+    def test_single_media_member_ignores_boilerplate(self):
+        from ricecooker.utils.pipeline.scorm import single_media_member
+
+        # A lone media file next to a discounted SCORM wrapper still qualifies.
+        leaf = {
+            "index_file": "index.html",
+            "files": ["index.html", "clip.mp4", "SCORM_API_wrapper.js"],
+            "index_html": '<html><body><video src="clip.mp4"></video></body></html>',
+        }
+        assert single_media_member(leaf) == "clip.mp4"
+
+
+class TestKPUBPromotion:
+    """A static-article HTML5 zip is promoted to a KPUB; interactive stays HTML5."""
+
+    def _run(self, files):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, "test.zip")
+            _create_archive(path, files)
+            return FilePipeline(default_context={}).execute(path, skip_cache=True)
+
+    def test_static_article_promoted_to_kpub(self):
+        result = self._run(
+            {
+                "index.html": "<html><body><p>An article</p><img src='a.png'></body></html>"
+            }
+        )
+        assert result[0].preset == format_presets.KPUB_ZIP
+        assert result[0].filename.endswith(".kpub")
+        assert result[0].content_node_metadata["kind"] == content_kinds.DOCUMENT
+
+    def test_interactive_zip_stays_html5(self):
+        result = self._run(
+            {
+                "index.html": "<html><body><p>App</p><script src='app.js'></script></body></html>",
+                "app.js": "console.log('interactive');",
+            }
+        )
+        assert result[0].preset == format_presets.HTML5_ZIP
+        assert result[0].content_node_metadata["kind"] == content_kinds.HTML5
+
+    def test_inline_script_stays_html5(self):
+        result = self._run(
+            {"index.html": "<html><body><p>App</p><script>go();</script></body></html>"}
+        )
+        assert result[0].preset == format_presets.HTML5_ZIP
+
+    def test_scorm_boilerplate_only_stays_html5_due_to_js_member(self):
+        # A static SCO whose only script is a SCORM wrapper: the inline plumbing is
+        # discounted, but the physical wrapper .js member keeps it an HTML5 zip.
+        result = self._run(
+            {
+                "index.html": (
+                    "<html><body><p>Static SCO</p>"
+                    "<script src='SCORM_API_wrapper.js'></script></body></html>"
+                ),
+                "SCORM_API_wrapper.js": "function LMSInitialize(){}",
+            }
+        )
+        assert result[0].preset == format_presets.HTML5_ZIP
+
+    def test_css_member_stays_html5(self):
+        result = self._run(
+            {
+                "index.html": "<html><body><p>Styled</p></body></html>",
+                "style.css": "p{color:red}",
+            }
+        )
+        assert result[0].preset == format_presets.HTML5_ZIP
+
+    def test_kpub_disqualifiers_refactor_preserves_validation(self):
+        # The refactored KPUBConversionHandler still rejects a JS-bearing archive.
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, "test.kpub")
+            _create_archive(
+                path,
+                {
+                    "index.html": "<html><body><p>Hi</p></body></html>",
+                    "script.js": "x()",
+                },
+            )
+            with pytest.raises(InvalidFileException, match="(?i)javascript"):
+                KPUBConversionHandler().validate_archive(path)
+
+
+_IMSCP_FIXTURE_DIR = os.path.join(
+    os.path.dirname(__file__), "..", "testcontent", "imscp"
+)
+
+
+def _iter_leaves(node):
+    """Yield the content-leaf dicts (kind + files) of a decomposed tree dict."""
+    children = node.get("children")
+    if children is not None:
+        for child in children:
+            yield from _iter_leaves(child)
+    elif node.get("kind"):
+        yield node
+
+
+def _build_single_resource_imscp(path, href, index_html, extra_files=None):
+    """Write a minimal one-resource IMSCP package for the media/KPUB rungs."""
+    files = {href: index_html}
+    file_entries = '<file href="{}"/>'.format(href)
+    for name, content in (extra_files or {}).items():
+        files[name] = content
+        file_entries += '<file href="{}"/>'.format(name)
+    files["imsmanifest.xml"] = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<manifest xmlns="http://www.imsproject.org/xsd/imscp_rootv1p1p2" '
+        'identifier="MAN">'
+        '<organizations default="ORG">'
+        '<organization identifier="ORG"><title>Org</title>'
+        '<item identifier="ITEM" identifierref="RES"><title>Leaf</title></item>'
+        "</organization></organizations>"
+        '<resources><resource identifier="RES" type="webcontent" href="{}">'
+        "{}</resource></resources>"
+        "</manifest>"
+    ).format(href, file_entries)
+    _create_archive(path, files)
+
+
+class TestIMSCPDecomposition:
+    """The IMSCP handler decomposes a package into a native node subtree."""
+
+    def _run(self, zip_name):
+        path = os.path.join(_IMSCP_FIXTURE_DIR, zip_name)
+        # Any external reference inside a resource fails gracefully (left
+        # unrewritten) instead of hitting the network, keeping the test hermetic.
+        with _fake_download_session({}):
+            result = FilePipeline().execute(path, skip_cache=True)
+        return result[0].content_node_metadata
+
+    def test_assessment_package_rejected(self):
+        # test_quiz is a HotPotatoes JQuiz SCO: its only leaf is rejected, so the
+        # tree keeps its topic scaffolding but has no promoted content leaf.
+        tree = self._run("test_quiz.zip")
+        assert list(_iter_leaves(tree)) == []
+
+    def test_eventos_leaves_are_html5_with_own_files(self):
+        tree = self._run("eventos.zip")
+        leaves = list(_iter_leaves(tree))
+        assert len(leaves) >= 5
+        # eXe SCORM wrappers are discounted, but residual jQuery/effects keep the
+        # pages interactive (HTML5), and their .js/.css members block KPUB.
+        assert all(leaf["kind"] == content_kinds.HTML5 for leaf in leaves)
+        presets = {f["preset"] for leaf in leaves for f in leaf["files"]}
+        assert presets == {format_presets.HTML5_ZIP}
+        # Each leaf is backed by its own sealed zip, not the shared package.
+        filenames = [f["filename"] for leaf in leaves for f in leaf["files"]]
+        assert len(filenames) == len(set(filenames))
+
+    def test_gitta_has_multiple_html5_leaves(self):
+        tree = self._run("gitta_ims.zip")
+        leaves = list(_iter_leaves(tree))
+        assert len(leaves) > 1
+        assert all(leaf["kind"] == content_kinds.HTML5 for leaf in leaves)
+        assert all(leaf["title"].strip() for leaf in leaves)
+
+    def test_synthetic_wrapped_media_becomes_video_node(self, video_file):
+        with open(video_file.path, "rb") as fh:
+            mp4 = fh.read()
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "media.zip")
+            _build_single_resource_imscp(
+                path,
+                "page.html",
+                "<html><body><video src='clip.mp4'></video></body></html>",
+                {"clip.mp4": mp4},
+            )
+            tree = (
+                FilePipeline().execute(path, skip_cache=True)[0].content_node_metadata
+            )
+        leaves = list(_iter_leaves(tree))
+        assert len(leaves) == 1
+        assert leaves[0]["kind"] == content_kinds.VIDEO
+        assert any(f["filename"].endswith(".mp4") for f in leaves[0]["files"])
+
+    def test_synthetic_static_article_becomes_kpub(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "kpub.zip")
+            _build_single_resource_imscp(
+                path,
+                "article.html",
+                "<html><body><h1>Title</h1><p>Prose here.</p>"
+                "<img src='logo.png'></body></html>",
+                {"logo.png": _PNG_1x1},
+            )
+            tree = (
+                FilePipeline().execute(path, skip_cache=True)[0].content_node_metadata
+            )
+        leaves = list(_iter_leaves(tree))
+        assert len(leaves) == 1
+        assert leaves[0]["kind"] == content_kinds.DOCUMENT
+        assert any(f["preset"] == format_presets.KPUB_ZIP for f in leaves[0]["files"])
+
+    def test_manifest_href_traversal_is_rejected(self):
+        # A manifest whose href points outside the extracted package (a hostile
+        # ../ traversal) must not read that file into the decomposed output: the
+        # resource is dropped, so the topic tree carries no content leaf.
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "evil.zip")
+            manifest = (
+                '<?xml version="1.0" encoding="UTF-8"?>'
+                '<manifest xmlns="http://www.imsproject.org/xsd/imscp_rootv1p1p2" '
+                'identifier="MAN">'
+                '<organizations default="ORG">'
+                '<organization identifier="ORG"><title>Org</title>'
+                '<item identifier="ITEM" identifierref="RES"><title>Leaf</title></item>'
+                "</organization></organizations>"
+                '<resources><resource identifier="RES" type="webcontent" '
+                'href="../../../../../../../../etc/passwd"></resource></resources>'
+                "</manifest>"
+            )
+            _create_archive(path, {"imsmanifest.xml": manifest})
+            tree = (
+                FilePipeline().execute(path, skip_cache=True)[0].content_node_metadata
+            )
+        assert list(_iter_leaves(tree)) == []
+
+    def test_end_to_end_node_expansion(self):
+        # Ties Tasks 1-6 through the real consumer: a ContentNode whose uri is an
+        # IMSCP package expands into a TOPIC subtree of processed leaves.
+        from ricecooker.classes.licenses import get_license
+        from ricecooker.classes.nodes import ContentNode
+
+        path = os.path.join(_IMSCP_FIXTURE_DIR, "eventos.zip")
+        node = ContentNode(
+            source_id="eventos",
+            title="Eventos",
+            license=get_license("CC BY", copyright_holder="ESSI"),
+            uri=path,
+            pipeline=FilePipeline(),
+        )
+        with _fake_download_session({}):
+            node.process_files()
+        assert node.kind == content_kinds.TOPIC
+        assert node.files == []
+        # The manifest's single organization is the one top-level topic.
+        assert len(node.children) == 1
+
+        def leaf_nodes(n):
+            if n.kind == content_kinds.TOPIC:
+                for child in n.children:
+                    yield from leaf_nodes(child)
+            else:
+                yield n
+
+        leaves = list(leaf_nodes(node))
+        assert leaves
+        assert all(leaf.kind == content_kinds.HTML5 for leaf in leaves)
+        assert all(leaf.files for leaf in leaves)

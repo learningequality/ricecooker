@@ -616,7 +616,11 @@ def test_singlefile_render_end_to_end_explosion():
     ):
         result = pipeline.execute("https://spa.example/")
 
-    assert result[0].preset == format_presets.HTML5_ZIP
+    # The rendered page reduces to static content (a body with one <img>, no
+    # scripts/JS/CSS), so the HTML5 handler promotes it to a KPUB — the same
+    # "any HTML5 zip meeting the criteria becomes a KPUB" branch used by the
+    # IMSCP decomposition ladder. The data: explosion still happens either way.
+    assert result[0].preset == format_presets.KPUB_ZIP
     with zipfile.ZipFile(result[0].path) as zf:
         names = zf.namelist()
         index = zf.read("index.html").decode()

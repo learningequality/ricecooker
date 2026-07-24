@@ -21,6 +21,7 @@ from xml.etree import ElementTree
 import filetype
 import html5lib
 from html5lib.html5parser import ParseError
+from le_utils.constants import content_kinds
 from le_utils.constants import file_formats
 from le_utils.constants import format_presets
 from PIL import Image
@@ -33,11 +34,16 @@ from ricecooker.exceptions import UnknownFileTypeError
 from ricecooker.utils.audio import AudioCompressionError
 from ricecooker.utils.audio import compress_audio
 from ricecooker.utils.caching import generate_key
+from ricecooker.utils.imscp import is_qti_resource
+from ricecooker.utils.imscp import parse_imscp_manifest
 from ricecooker.utils.paths import extract_path_ext
 from ricecooker.utils.pipeline.context import ContentNodeMetadata
 from ricecooker.utils.pipeline.context import ContextMetadata
 from ricecooker.utils.pipeline.context import FileMetadata
 from ricecooker.utils.pipeline.exceptions import InvalidFileException
+from ricecooker.utils.pipeline.scorm import has_assessment_semantics
+from ricecooker.utils.pipeline.scorm import single_media_member
+from ricecooker.utils.pipeline.scorm import strip_scorm_boilerplate
 from ricecooker.utils.references import DEFAULT_MAPPERS
 from ricecooker.utils.references import ReferenceMapper
 from ricecooker.utils.references import sanitize_style_css
@@ -247,11 +253,27 @@ class ArchiveProcessingBaseHandler(ExtensionMatchingHandler):
         """Hook run on the extracted archive dir before reference resolution. Default no-op."""
         pass
 
-    def handle_file(self, path, audio_settings=None, video_settings=None):
+    def _process_archive_dir(self, temp_dir, audio_settings, video_settings):
+        """Run pre-processing and external-reference resolution over an extracted dir."""
         # Imported here rather than at module level: archive_assets depends on
         # this package's exceptions, so a top-level import would be circular.
         from ricecooker.utils.archive_assets import ArchiveProcessor
 
+        # pre_process runs before reference resolution: a url() inside a <style> block or
+        # a non-allowlisted style= would otherwise be downloaded, then orphaned when the
+        # sanitizer strips the content that referenced it.
+        self.pre_process(temp_dir)
+
+        ArchiveProcessor(
+            temp_dir,
+            self.get_pipeline(),
+            convert_stage=self.parent,
+            mappers=self.REFERENCE_MAPPERS,
+            audio_settings=audio_settings,
+            video_settings=video_settings,
+        ).process()
+
+    def handle_file(self, path, audio_settings=None, video_settings=None):
         self.validate_archive(path)
 
         ext = extract_path_ext(path)
@@ -261,19 +283,7 @@ class ArchiveProcessingBaseHandler(ExtensionMatchingHandler):
             with zipfile.ZipFile(path) as zf:
                 zf.extractall(temp_dir)
 
-            # pre_process runs before reference resolution: a url() inside a <style> block or
-            # a non-allowlisted style= would otherwise be downloaded, then orphaned when the
-            # sanitizer strips the content that referenced it.
-            self.pre_process(temp_dir)
-
-            ArchiveProcessor(
-                temp_dir,
-                self.get_pipeline(),
-                convert_stage=self.parent,
-                mappers=self.REFERENCE_MAPPERS,
-                audio_settings=audio_settings,
-                video_settings=video_settings,
-            ).process()
+            self._process_archive_dir(temp_dir, audio_settings, video_settings)
 
             _seal_directory_to_file(self, temp_dir, ext)
 
@@ -368,24 +378,88 @@ def _find_entry_html(names):
     return normalized[0][0]
 
 
+def kpub_disqualifiers(zf, entry="index.html", index_html=None):
+    """Return the reasons ``zf`` fails the KPUB criteria; empty list ⇒ it qualifies.
+
+    A KPUB is static prose: it must have a non-empty ``entry`` body and carry no
+    inline ``<script>``, ``.js`` member, or ``.css`` member. ``index_html`` lets a
+    caller judge already-transformed markup (e.g. SCORM boilerplate discounted)
+    while the physical member checks still run against ``zf``.
+    """
+    reasons = []
+    if index_html is None:
+        try:
+            index_html = zf.read(entry)
+        except KeyError:
+            return [f"{entry} is missing."]
+    if isinstance(index_html, bytes):
+        index_html = index_html.decode("utf-8", errors="replace")
+
+    try:
+        dom = html5lib.parse(index_html, namespaceHTMLElements=False)
+    except ParseError:
+        return [f"{entry} is not well-formed."]
+
+    body = dom.find("body")
+    if body is None:
+        reasons.append(f"{entry} is missing a body element.")
+    else:
+        body_children = [
+            c for c in body.iter() if isinstance(c.tag, str) and c.tag != "body"
+        ]
+        if not (body.text and body.text.strip()) and not body_children:
+            reasons.append(f"{entry} is empty.")
+
+    if next(dom.iter("script"), None) is not None:
+        reasons.append("inline JavaScript (<script> tags) is not allowed.")
+
+    names = zf.namelist()
+    if any(n.lower().endswith(".js") for n in names):
+        reasons.append("JavaScript files (.js) are not allowed.")
+    if any(n.lower().endswith(".css") for n in names):
+        reasons.append("external CSS files (.css) are not allowed.")
+
+    return reasons
+
+
 class HTML5ConversionHandler(ArchiveProcessingBaseHandler):
     EXTENSIONS = {file_formats.HTML5}
     FILE_TYPE = "HTML5"
 
+    def _qualifies_as_kpub(self, path, entry):
+        """A static-article HTML5 zip is promoted to a KPUB; anything with scripts,
+        JS/CSS members, or a non-root entry stays an HTML5 zip."""
+        if entry != "index.html":
+            return False
+        with zipfile.ZipFile(path) as zf:
+            # Discount SCORM plumbing before judging inline scripts; the wrapper
+            # .js members it leaves behind still disqualify a genuine SCORM package.
+            discounted = strip_scorm_boilerplate(
+                zf.read(entry).decode("utf-8", errors="replace")
+            )
+            return not kpub_disqualifiers(zf, entry, index_html=discounted)
+
     def handle_file(self, path, audio_settings=None, video_settings=None):
         prepared_path, entry = self._prepare_archive(path)
+        promote = False
         try:
-            super().handle_file(
-                prepared_path,
-                audio_settings=audio_settings,
-                video_settings=video_settings,
-            )
+            self.validate_archive(prepared_path)
+            promote = self._qualifies_as_kpub(prepared_path, entry)
+            with tempfile.TemporaryDirectory() as temp_dir:
+                with zipfile.ZipFile(prepared_path) as zf:
+                    zf.extractall(temp_dir)
+                self._process_archive_dir(temp_dir, audio_settings, video_settings)
+                if promote:
+                    sanitize_kpub_directory(temp_dir)
+                seal_ext = file_formats.HTML5_ARTICLE if promote else file_formats.HTML5
+                _seal_directory_to_file(self, temp_dir, seal_ext)
         finally:
             if prepared_path != path and os.path.exists(prepared_path):
                 os.unlink(prepared_path)
-        # Mirror Studio: when the entry point is not index.html at the root,
-        # record it in extra_fields.options.entry so Kolibri loads it.
-        if entry and entry != "index.html":
+        # A promoted KPUB always has an index.html entry, so no entry hint is needed.
+        # Mirror Studio otherwise: when the entry point is not index.html at the
+        # root, record it in extra_fields.options.entry so Kolibri loads it.
+        if not promote and entry and entry != "index.html":
             return FileMetadata(
                 content_node_metadata=ContentNodeMetadata(
                     extra_fields={"options": {"entry": entry}}
@@ -570,25 +644,11 @@ class KPUBConversionHandler(ArchiveProcessingBaseHandler):
 
     def validate_archive(self, path: str):
         with self.open_and_verify_archive(path) as zf:
-            dom = self._validate_index_html_body(zf, path)
-
-            # Check for inline <script> tags (parsed without namespaces)
-            for _ in dom.iter("script"):
+            reasons = kpub_disqualifiers(zf)
+            if reasons:
                 raise InvalidFileException(
-                    f"File {path} is not a valid KPUB file, inline JavaScript (<script> tags) is not allowed."
+                    f"File {path} is not a valid {self.FILE_TYPE} file, {reasons[0]}"
                 )
-
-            # Check for disallowed file types
-            for filename in zf.namelist():
-                lower_name = filename.lower()
-                if lower_name.endswith(".js"):
-                    raise InvalidFileException(
-                        f"File {path} is not a valid KPUB file, JavaScript files (.js) are not allowed."
-                    )
-                if lower_name.endswith(".css"):
-                    raise InvalidFileException(
-                        f"File {path} is not a valid KPUB file, external CSS files (.css) are not allowed."
-                    )
 
 
 class BloomConversionHandler(ArchiveProcessingBaseHandler):
@@ -796,6 +856,205 @@ class DocumentConversionHandler(ExtensionMatchingHandler):
             _seal_directory_to_file(self, temp_dir, file_formats.HTML5_ARTICLE)
 
 
+# Presets whose files ride alongside a primary file (thumbnails, subtitles); they
+# never define a node's kind.
+SUPPLEMENTARY_PRESETS = frozenset(
+    p.id for p in format_presets.PRESETLIST if p.supplementary
+)
+
+
+def _content_node_field(content_node_metadata, key):
+    """Read ``key`` off a ContentNodeMetadata that may be an object or a dict.
+
+    A sub-pipeline result carries it as a dict (``merge`` round-trips through
+    ``to_dict``); a freshly built one is the dataclass.
+    """
+    if content_node_metadata is None:
+        return None
+    if isinstance(content_node_metadata, dict):
+        return content_node_metadata.get(key)
+    return getattr(content_node_metadata, key, None)
+
+
+def _summarize_leaf(sub):
+    """Reduce a sub-pipeline result to ``(kind, file dicts, extra_fields)``.
+
+    The node's kind/extra_fields come from its primary (non-supplementary) file;
+    every file dict is retained so the leaf is backed by its own sealed files.
+    """
+    files = [fm.to_dict() for fm in sub]
+    for fm in sub:
+        if fm.preset in SUPPLEMENTARY_PRESETS:
+            continue
+        return (
+            _content_node_field(fm.content_node_metadata, "kind"),
+            files,
+            _content_node_field(fm.content_node_metadata, "extra_fields"),
+        )
+    return None, files, None
+
+
+def _contained_path(root, member):
+    """Resolve ``member`` under ``root``; return the path, or None if it escapes.
+
+    Manifest hrefs/file paths are untrusted — a ``../`` traversal must not let a
+    package read files from outside its extracted directory into the decomposed
+    output (the staging copy already guards its write side the same way).
+    """
+    root_abs = os.path.abspath(root)
+    target = os.path.abspath(os.path.join(root_abs, member))
+    if target != root_abs and not target.startswith(root_abs + os.sep):
+        return None
+    return target
+
+
+class IMSCPConversionHandler(ExtensionMatchingHandler):
+    """Decompose an IMS Content Package (incl. SCORM) into a native node subtree.
+
+    The ``imsmanifest.xml`` drives a topic tree; each webcontent resource is
+    classified up a conservative ladder — native media, else HTML5/KPUB zip —
+    with assessment resources rejected. Every surviving leaf re-enters the
+    pipeline to be sealed into its own file, so no leaf is backed by the whole
+    package zip. Registered before ``HTML5ConversionHandler`` (which claims any
+    ``.zip``) so IMSCP packages are decomposed rather than wrapped whole.
+    """
+
+    EXTENSIONS = {file_formats.HTML5}
+
+    def should_handle(self, path):
+        try:
+            if extract_path_ext(path) != file_formats.HTML5:
+                return False
+            with zipfile.ZipFile(path) as zf:
+                return "imsmanifest.xml" in zf.namelist()
+        except (ValueError, zipfile.BadZipFile):
+            return False
+
+    def handle_file(self, path, audio_settings=None, video_settings=None):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with zipfile.ZipFile(path) as zf:
+                zf.extractall(temp_dir)
+            manifest = parse_imscp_manifest(temp_dir)
+            children = self._build_nodes(manifest.get("children"), temp_dir)
+        return FileMetadata(
+            content_node_metadata=ContentNodeMetadata(
+                kind=content_kinds.TOPIC,
+                title=manifest.get("title"),
+                children=children,
+            )
+        )
+
+    def _build_nodes(self, nodes, temp_dir):
+        built = [self._build_node(node, temp_dir) for node in nodes or []]
+        return [node for node in built if node is not None]
+
+    def _build_node(self, node_dict, temp_dir):
+        if node_dict.get("children"):
+            # A topic whose leaves were all rejected keeps its (empty) folder.
+            return {
+                "source_id": node_dict["source_id"],
+                "title": node_dict.get("title") or node_dict["source_id"],
+                "children": self._build_nodes(node_dict["children"], temp_dir),
+            }
+        return self._build_leaf(node_dict, temp_dir)
+
+    def _build_leaf(self, node_dict, temp_dir):
+        source_id = node_dict.get("source_id")
+        # QTI assessment items are rejected here per the decomposition design;
+        # per-item QTI ingestion is deferred to #337. Recognising them by their
+        # spec-defined ``imsqti_`` type keeps the rejection intentional.
+        if is_qti_resource(node_dict.get("type")):
+            LOGGER.warning("IMSCP: rejecting QTI resource %s", source_id)
+            return None
+        if node_dict.get("type") != "webcontent" or not node_dict.get("index_file"):
+            LOGGER.warning(
+                "IMSCP: skipping unsupported resource %s (type=%s)",
+                source_id,
+                node_dict.get("type"),
+            )
+            return None
+
+        index_path = _contained_path(temp_dir, node_dict["index_file"])
+        if index_path is None:
+            LOGGER.warning(
+                "IMSCP: skipping resource %s, index path escapes package: %s",
+                source_id,
+                node_dict.get("index_file"),
+            )
+            return None
+        try:
+            with open(index_path, "rb") as fh:
+                index_html = fh.read().decode("utf-8", errors="replace")
+        except OSError:
+            LOGGER.warning(
+                "IMSCP: skipping resource %s, index file missing: %s",
+                source_id,
+                node_dict.get("index_file"),
+            )
+            return None
+
+        members = node_dict.get("files") or []
+        if has_assessment_semantics(index_html, members, node_dict):
+            LOGGER.warning("IMSCP: rejecting assessment resource %s", source_id)
+            return None
+
+        media = single_media_member({**node_dict, "index_html": index_html})
+        if media:
+            media_path = _contained_path(temp_dir, media)
+            if media_path is None:
+                LOGGER.warning(
+                    "IMSCP: skipping resource %s, media path escapes package: %s",
+                    source_id,
+                    media,
+                )
+                return None
+            sub = self.get_pipeline().execute(media_path)
+        else:
+            sub = self._process_html5_leaf(node_dict, temp_dir)
+        if not sub:
+            LOGGER.warning("IMSCP: skipping resource %s, produced no files", source_id)
+            return None
+
+        kind, files, extra_fields = _summarize_leaf(sub)
+        leaf = {
+            "source_id": source_id,
+            "title": node_dict.get("title") or source_id,
+            "kind": kind,
+            "files": files,
+        }
+        if extra_fields:
+            leaf["extra_fields"] = extra_fields
+        return leaf
+
+    def _process_html5_leaf(self, node_dict, temp_dir):
+        """Seal the resource's own members into a zip and process it as HTML5/KPUB."""
+        with tempfile.TemporaryDirectory() as staging:
+            self._stage_leaf(node_dict, temp_dir, staging)
+            zip_path = create_predictable_zip(staging)
+        try:
+            return self.get_pipeline().execute(zip_path)
+        finally:
+            os.unlink(zip_path)
+
+    def _stage_leaf(self, node_dict, temp_dir, dest_dir):
+        """Copy the resource's members into ``dest_dir`` (relative paths preserved),
+        guaranteeing a root ``index.html`` entry."""
+        for member in node_dict.get("files") or []:
+            # Guard against a manifest path escaping the package (read side) or
+            # the staging dir (write side).
+            src = _contained_path(temp_dir, member)
+            dst = _contained_path(dest_dir, member)
+            if src is None or dst is None or not os.path.isfile(src):
+                continue
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            shutil.copyfile(src, dst)
+        index_dst = os.path.join(dest_dir, "index.html")
+        if not os.path.isfile(index_dst):
+            index_src = _contained_path(temp_dir, node_dict["index_file"])
+            if index_src and os.path.isfile(index_src):
+                shutil.copyfile(index_src, index_dst)
+
+
 class ConversionStageHandler(StageHandler):
     STAGE = "CONVERT"
     DEFAULT_CHILDREN = [
@@ -806,6 +1065,7 @@ class ConversionStageHandler(StageHandler):
         BloomConversionHandler,
         EPUBConversionHandler,
         H5PConversionHandler,
+        IMSCPConversionHandler,
         HTML5ConversionHandler,
         DocumentConversionHandler,
         KPUBConversionHandler,
