@@ -35,6 +35,8 @@ class ContentNodeMetadata:
     source_id: Optional[str] = None
     kind: Optional[str] = None
     extra_fields: Optional[dict] = None
+    children: Optional[list] = None
+    files: Optional[list] = None
 
 
 def _recursive_update(target, source):

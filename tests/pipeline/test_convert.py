@@ -22,6 +22,8 @@ from ricecooker.classes.files import H5PFile
 from ricecooker.classes.files import HTMLZipFile
 from ricecooker.utils import archive_assets
 from ricecooker.utils.pipeline import FilePipeline
+from ricecooker.utils.pipeline.context import ContentNodeMetadata
+from ricecooker.utils.pipeline.context import FileMetadata
 from ricecooker.utils.pipeline.convert import _find_common_root
 from ricecooker.utils.pipeline.convert import _find_entry_html
 from ricecooker.utils.pipeline.convert import BloomConversionHandler
@@ -818,3 +820,27 @@ class TestHandlerExternalRefIntegration:
             assert any(n.endswith(".png") for n in names)
             index = zf.read("index.html").decode("utf-8")
             assert "https://ex.com" not in index
+
+
+class TestContentNodeMetadataTree:
+    def test_tree_metadata_survives_to_dict_and_merge(self):
+        # A topic node carrying a nested tree of content-node dicts, each leaf
+        # dict carrying its own file-metadata dicts.
+        metadata = FileMetadata(
+            content_node_metadata=ContentNodeMetadata(
+                kind="topic",
+                children=[
+                    {
+                        "source_id": "a",
+                        "title": "A",
+                        "kind": "video",
+                        "files": [{"filename": "v.mp4", "preset": "high_res_video"}],
+                    }
+                ],
+            )
+        )
+
+        round_tripped = FileMetadata(**metadata.to_dict()).merge(FileMetadata())
+
+        children = round_tripped.content_node_metadata["children"]
+        assert children[0]["files"][0]["filename"] == "v.mp4"
