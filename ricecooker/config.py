@@ -168,9 +168,6 @@ except (ValueError, TypeError):
 
 CURRENT_CWD = os.getcwd()
 
-# Allow users to choose which phantomjs they use
-PHANTOMJS_PATH = os.getenv("PHANTOMJS_PATH", None)
-
 # URL for authenticating user on Kolibri Studio
 AUTHENTICATION_URL = "{domain}/api/internal/authenticate_user_internal"
 
