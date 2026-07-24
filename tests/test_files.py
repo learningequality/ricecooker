@@ -53,7 +53,7 @@ def test_get_existing_storage_path_missing_raises_descriptive_error():
     assert storage_path in str(exc_info.value)
 
 
-def test_get_existing_storage_path_present_returns_path(tmp_path):
+def test_get_existing_storage_path_present_returns_path():
     present = "fedcba9876543210fedcba9876543210.mp4"
     storage_path = config.get_storage_path(present)
     with open(storage_path, "wb") as f:

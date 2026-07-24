@@ -19,6 +19,7 @@ from le_utils.constants.labels import resource_type
 from le_utils.constants.labels import subjects
 from le_utils.constants.languages import getlang
 
+from ricecooker import config
 from ricecooker.classes.files import DocumentFile
 from ricecooker.classes.files import HTMLZipFile
 from ricecooker.classes.files import SlideImageFile
@@ -1251,14 +1252,13 @@ def test_file_upload_missing_storage_raises_descriptive_error(channel):
     filename = "0123456789abcdef0123456789abcdef.mp4"
     file_data = MagicMock()
     file_data.skip_upload = False
-    file_data.get_filename.return_value = filename
     manager.file_map = {filename: file_data}
 
-    missing_path = "/tmp/does-not-exist/0123456789abcdef0123456789abcdef.mp4"
-    with patch("ricecooker.config.get_storage_path", return_value=missing_path):
-        with pytest.raises(FileNotFoundException) as exc_info:
-            manager.do_file_upload(filename)
-    assert missing_path in str(exc_info.value)
+    storage_path = config.get_storage_path(filename)
+    assert not os.path.isfile(storage_path)
+    with pytest.raises(FileNotFoundException) as exc_info:
+        manager.do_file_upload(filename)
+    assert storage_path in str(exc_info.value)
 
 
 def test_add_nodes_checks_both_failed_files_and_validity(channel):
