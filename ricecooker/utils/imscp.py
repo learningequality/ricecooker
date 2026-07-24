@@ -96,6 +96,13 @@ def _walk_items(elem):
     if title:
         node["title"] = title
 
+    # ``<adlcp:masteryscore>`` is a child element of the item (not an attribute),
+    # so it is not captured by the attrib copy above. Surface it for the
+    # assessment classifier, which treats a mastery score as an exercise signal.
+    mastery = _element_text(elem.find("{*}masteryscore"))
+    if mastery:
+        node["masteryscore"] = mastery
+
     children = [_walk_items(item) for item in elem.findall("{*}item")]
     if children:
         node["children"] = children
@@ -123,7 +130,12 @@ def _collect_resources(item, resources, index=1):
             for key, value in resource.attrib.items():
                 item[_strip_ns(key)] = value
             if resource.get("type") == "webcontent":
-                item["index_file"] = resource.get("href")
+                href = resource.get("href")
+                if href:
+                    # ``index_file`` must carry the same ``xml:base`` offset that
+                    # _derive_files applies to the resource's members, or it will
+                    # not resolve to a real extracted path.
+                    item["index_file"] = (resource.get(XML_BASE) or "") + href
                 item["files"] = _derive_files(resource, resources)
                 item.setdefault("scormtype", None)
 
@@ -136,7 +148,10 @@ def _derive_files(resource, resources, seen=None):
     base = resource.get(XML_BASE) or ""
     files = []
     for fe in resource.findall("{*}file"):
-        path = base + fe.get("href")
+        href = fe.get("href")
+        if not href:
+            continue
+        path = base + href
         if path not in seen:
             seen.add(path)
             files.append(path)

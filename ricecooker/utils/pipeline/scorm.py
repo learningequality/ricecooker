@@ -116,11 +116,13 @@ def has_assessment_semantics(index_html, member_names, item):
         return True
     if any(g.lower() in lower for g in HOTPOTATOES_GLOBALS):
         return True
-    if item.get("masteryscore") or item.get("adlcp:masteryscore"):
+    if item.get("masteryscore"):
         return True
-    # The wrapper .js members reference cmi.* as part of the API; grep only the
-    # index's own scripts so that plumbing does not read as assessment.
-    return bool(SCORM_SCORE_RE.search(index_html))
+    # Discount SCORM API boilerplate before grepping for a score/status write:
+    # a plain content SCO reports cmi.core.lesson_status on unload as part of that
+    # plumbing, and must not be mistaken for an exercise. Only the index's own
+    # scripts are inspected — wrapper .js members reference cmi.* as API surface.
+    return bool(SCORM_SCORE_RE.search(strip_scorm_boilerplate(index_html)))
 
 
 def _references(tag, media_name):

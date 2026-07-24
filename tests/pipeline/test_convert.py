@@ -903,6 +903,26 @@ class TestSCORMClassifiers:
             html, ["SCORM_API_wrapper.js", "SCOFunctions.js"], {}
         )
 
+    def test_no_assessment_for_boilerplate_lesson_status(self):
+        from ricecooker.utils.pipeline.scorm import has_assessment_semantics
+
+        # A content SCO reporting completion via inline SCORM plumbing is not an
+        # exercise: the boilerplate is discounted before the score grep, so the
+        # lesson_status write does not read as assessment (and the page is kept).
+        html = (
+            "<html><body><p>A lesson.</p>"
+            '<script>pipwerks.SCORM.set("cmi.core.lesson_status", "completed");</script>'
+            "</body></html>"
+        )
+        assert not has_assessment_semantics(html, [], {})
+
+    def test_assessment_from_masteryscore(self):
+        from ricecooker.utils.pipeline.scorm import has_assessment_semantics
+
+        # A mastery score on the item is an assessment signal on its own.
+        html = "<html><body><p>Quiz</p></body></html>"
+        assert has_assessment_semantics(html, [], {"masteryscore": "80"})
+
     def test_single_media_member_returns_media(self):
         from ricecooker.utils.pipeline.scorm import single_media_member
 
