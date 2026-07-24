@@ -1149,6 +1149,30 @@ class TestIMSCPDecomposition:
         assert leaves[0]["kind"] == content_kinds.DOCUMENT
         assert any(f["preset"] == format_presets.KPUB_ZIP for f in leaves[0]["files"])
 
+    def test_manifest_href_traversal_is_rejected(self):
+        # A manifest whose href points outside the extracted package (a hostile
+        # ../ traversal) must not read that file into the decomposed output: the
+        # resource is dropped, so the topic tree carries no content leaf.
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "evil.zip")
+            manifest = (
+                '<?xml version="1.0" encoding="UTF-8"?>'
+                '<manifest xmlns="http://www.imsproject.org/xsd/imscp_rootv1p1p2" '
+                'identifier="MAN">'
+                '<organizations default="ORG">'
+                '<organization identifier="ORG"><title>Org</title>'
+                '<item identifier="ITEM" identifierref="RES"><title>Leaf</title></item>'
+                "</organization></organizations>"
+                '<resources><resource identifier="RES" type="webcontent" '
+                'href="../../../../../../../../etc/passwd"></resource></resources>'
+                "</manifest>"
+            )
+            _create_archive(path, {"imsmanifest.xml": manifest})
+            tree = (
+                FilePipeline().execute(path, skip_cache=True)[0].content_node_metadata
+            )
+        assert list(_iter_leaves(tree)) == []
+
     def test_end_to_end_node_expansion(self):
         # Ties Tasks 1-6 through the real consumer: a ContentNode whose uri is an
         # IMSCP package expands into a TOPIC subtree of processed leaves.

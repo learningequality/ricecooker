@@ -894,6 +894,20 @@ def _summarize_leaf(sub):
     return None, files, None
 
 
+def _contained_path(root, member):
+    """Resolve ``member`` under ``root``; return the path, or None if it escapes.
+
+    Manifest hrefs/file paths are untrusted — a ``../`` traversal must not let a
+    package read files from outside its extracted directory into the decomposed
+    output (the staging copy already guards its write side the same way).
+    """
+    root_abs = os.path.abspath(root)
+    target = os.path.abspath(os.path.join(root_abs, member))
+    if target != root_abs and not target.startswith(root_abs + os.sep):
+        return None
+    return target
+
+
 class IMSCPConversionHandler(ExtensionMatchingHandler):
     """Decompose an IMS Content Package (incl. SCORM) into a native node subtree.
 
@@ -954,7 +968,14 @@ class IMSCPConversionHandler(ExtensionMatchingHandler):
             )
             return None
 
-        index_path = os.path.join(temp_dir, node_dict["index_file"])
+        index_path = _contained_path(temp_dir, node_dict["index_file"])
+        if index_path is None:
+            LOGGER.warning(
+                "IMSCP: skipping resource %s, index path escapes package: %s",
+                source_id,
+                node_dict.get("index_file"),
+            )
+            return None
         try:
             with open(index_path, "rb") as fh:
                 index_html = fh.read().decode("utf-8", errors="replace")
@@ -973,7 +994,15 @@ class IMSCPConversionHandler(ExtensionMatchingHandler):
 
         media = single_media_member({**node_dict, "index_html": index_html})
         if media:
-            sub = self.get_pipeline().execute(os.path.join(temp_dir, media))
+            media_path = _contained_path(temp_dir, media)
+            if media_path is None:
+                LOGGER.warning(
+                    "IMSCP: skipping resource %s, media path escapes package: %s",
+                    source_id,
+                    media,
+                )
+                return None
+            sub = self.get_pipeline().execute(media_path)
         else:
             sub = self._process_html5_leaf(node_dict, temp_dir)
         if not sub:
@@ -1006,16 +1035,21 @@ class IMSCPConversionHandler(ExtensionMatchingHandler):
         guaranteeing a root ``index.html`` entry."""
         dest_root = os.path.abspath(dest_dir)
         for member in node_dict.get("files") or []:
-            src = os.path.join(temp_dir, member)
+            # Guard against a manifest path escaping the package (read side) or
+            # the staging dir (write side).
+            src = _contained_path(temp_dir, member)
             dst = os.path.abspath(os.path.join(dest_dir, member))
-            # Guard against a manifest href escaping the staging dir.
-            if not os.path.isfile(src) or not dst.startswith(dest_root + os.sep):
+            if src is None or not os.path.isfile(src):
+                continue
+            if not dst.startswith(dest_root + os.sep):
                 continue
             os.makedirs(os.path.dirname(dst), exist_ok=True)
             shutil.copyfile(src, dst)
         index_dst = os.path.join(dest_dir, "index.html")
         if not os.path.isfile(index_dst):
-            shutil.copyfile(os.path.join(temp_dir, node_dict["index_file"]), index_dst)
+            index_src = _contained_path(temp_dir, node_dict["index_file"])
+            if index_src and os.path.isfile(index_src):
+                shutil.copyfile(index_src, index_dst)
 
 
 class ConversionStageHandler(StageHandler):
