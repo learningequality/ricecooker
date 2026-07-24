@@ -140,10 +140,18 @@ def _collect_resources(item, resources, index=1):
                 item.setdefault("scormtype", None)
 
 
-def _derive_files(resource, resources, seen=None):
+def _derive_files(resource, resources, seen=None, visited=None):
     """Own ``<file>`` members plus flattened ``<dependency>`` files, order-preserving."""
     if seen is None:
         seen = set()
+    # Track resources already on the dependency chain so a cyclic <dependency>
+    # (A→B→A, possible in a malformed/untrusted manifest) cannot recurse forever.
+    if visited is None:
+        visited = set()
+    identifier = resource.get("identifier")
+    if identifier in visited:
+        return []
+    visited.add(identifier)
 
     base = resource.get(XML_BASE) or ""
     files = []
@@ -159,6 +167,6 @@ def _derive_files(resource, resources, seen=None):
     for dep in resource.findall("{*}dependency"):
         dep_resource = resources.get(dep.get("identifierref"))
         if dep_resource is not None:
-            files.extend(_derive_files(dep_resource, resources, seen))
+            files.extend(_derive_files(dep_resource, resources, seen, visited))
 
     return files

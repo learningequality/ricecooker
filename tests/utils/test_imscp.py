@@ -145,3 +145,24 @@ def test_masteryscore_element_surfaced(tmp_path):
     )
     leaf = parse_imscp_manifest(str(tmp_path))["children"][0]["children"][0]
     assert leaf["masteryscore"] == "80"
+
+
+def test_cyclic_dependency_does_not_recurse_forever(tmp_path):
+    # A malformed/untrusted manifest with a <dependency> cycle (A→B→A) must not
+    # send file derivation into unbounded recursion; each member appears once.
+    _write_manifest(
+        str(tmp_path),
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<manifest xmlns="http://www.imsproject.org/xsd/imscp_rootv1p1p2" identifier="M">'
+        '<organizations default="ORG"><organization identifier="ORG"><title>Org</title>'
+        '<item identifier="IT" identifierref="A"><title>Leaf</title></item>'
+        "</organization></organizations>"
+        "<resources>"
+        '<resource identifier="A" type="webcontent" href="a.html">'
+        '<file href="a.html"/><dependency identifierref="B"/></resource>'
+        '<resource identifier="B" type="webcontent" href="b.html">'
+        '<file href="b.html"/><dependency identifierref="A"/></resource>'
+        "</resources></manifest>",
+    )
+    leaf = parse_imscp_manifest(str(tmp_path))["children"][0]["children"][0]
+    assert leaf["files"] == ["a.html", "b.html"]
