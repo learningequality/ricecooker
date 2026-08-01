@@ -66,7 +66,7 @@ test = [
     "pytest-env==1.1.5",
     "vcrpy==8.2.1; python_version >='3.10'",
     "mock==5.2.0",
-    "responses==0.25.8",
+    "responses==0.26.2",
 ]
 dev = [
     {include-group = "test"},
