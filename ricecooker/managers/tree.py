@@ -6,6 +6,7 @@ import sys
 
 from requests.exceptions import RequestException
 
+from ricecooker.exceptions import ChannelIncompleteError
 from ricecooker.exceptions import InvalidNodeException
 
 from .. import config
@@ -28,6 +29,10 @@ class ChannelManager:
         self.channel = channel  # Channel to process
         self.uploaded_files = []
         self.failed_node_builds = {}
+        # Whole add_nodes requests that never landed on Studio. Unlike a single
+        # failed node, each of these takes every descendant of the request with
+        # it, so the channel must not be committed while any are outstanding.
+        self.failed_batches = []
         self.failed_uploads = {}
         self.file_map = {}
         self.all_nodes = []
@@ -301,6 +306,14 @@ class ChannelManager:
 
         self.add_nodes(root, self.channel)
         self.check_failed()
+        if self.failed_batches:
+            # Committing now would stage a channel with whole subtrees missing
+            # and nothing but a warning to say so.
+            raise ChannelIncompleteError(
+                "{} node batch(es) failed to upload, so parts of the channel "
+                "tree are missing. Refusing to commit. Re-run the chef to "
+                "retry; downloaded files are cached.".format(len(self.failed_batches))
+            )
         channel_id, channel_link = self.commit_channel(channel_id)
         end_time = datetime.now()
         config.LOGGER.info(
@@ -314,6 +327,16 @@ class ChannelManager:
             self.truncate_fields(child)
 
     def check_failed(self):
+        if self.failed_batches:
+            config.LOGGER.error(
+                "ERROR: {} node batch(es) failed to upload. Every node under "
+                "them is missing from the channel:".format(len(self.failed_batches))
+            )
+            for root_id in self.failed_batches:
+                batch = self.failed_node_builds.get(root_id, {})
+                config.LOGGER.error(
+                    "\tunder {}: {}".format(root_id, batch.get("error"))
+                )
         if len(self.failed_node_builds) > 0:
             config.LOGGER.warning("WARNING: The following nodes could not be created:")
             for node_id in self.failed_node_builds:
@@ -376,6 +399,10 @@ class ChannelManager:
             ]
             for chunk in chunks:
                 payload_children = []
+                # Only children that actually go into the payload get a node_id
+                # back in `root_ids`, so only they can be recursed into. Skipped
+                # children don't exist on Studio; their subtrees have no parent.
+                sent_children = []
 
                 for child in chunk:
                     failed = [
@@ -405,6 +432,7 @@ class ChannelManager:
                             }
                     else:
                         payload_children.append(child.to_dict())
+                        sent_children.append(child)
                 payload = {"root_id": root_id, "content_data": payload_children}
 
                 response = config.SESSION.post(
@@ -416,19 +444,25 @@ class ChannelManager:
                         "error": response.reason,
                         "content": response.content,
                     }
+                    self.failed_batches.append(root_id)
                 else:
                     response_json = json.loads(response._content.decode("utf-8"))
-                    self.node_count_dict["upload_count"] += len(chunk)
+                    self.node_count_dict["upload_count"] += len(sent_children)
 
-                    if response_json["root_ids"].get(child.get_node_id().hex):
-                        for child in chunk:
-                            self.add_nodes(
-                                response_json["root_ids"].get(child.get_node_id().hex),
-                                child,
-                                indent + 1,
-                            )
-        except ConnectionError as ce:
-            self.failed_node_builds[root_id] = {"node": current_node, "error": ce}
+                    root_ids = response_json["root_ids"]
+                    for child in sent_children:
+                        child_root_id = root_ids.get(child.get_node_id().hex)
+                        if child_root_id:
+                            self.add_nodes(child_root_id, child, indent + 1)
+        except RequestException as e:
+            # requests' ConnectionError is not a subclass of the builtin of the
+            # same name, so bare `except ConnectionError` caught none of what
+            # SESSION.post actually raises. RequestException is the base of
+            # ConnectionError, Timeout, SSLError and ChunkedEncodingError, all of
+            # which are transport failures that belong in failed_node_builds
+            # rather than crashing the run mid-upload.
+            self.failed_node_builds[root_id] = {"node": current_node, "error": e}
+            self.failed_batches.append(root_id)
 
     def commit_channel(self, channel_id):
         """commit_channel: commits channel to Kolibri Studio
