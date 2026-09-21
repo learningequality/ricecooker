@@ -1439,6 +1439,8 @@ def test_add_nodes_handles_server_error(channel):
     # A non-200 loses every node under root_id, so it is a batch failure.
     assert [b["root_id"] for b in manager.failed_batches] == ["root_id"]
     assert manager.failed_node_builds["root_id"]["content"] == b"Server error"
+    # check_failed() reads the body off the batch entry, so pin it there too.
+    assert manager.failed_batches[0]["content"] == b"Server error"
 
 
 def test_file_upload_insufficient_storage(channel):
