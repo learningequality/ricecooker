@@ -1,6 +1,7 @@
 """Tests for tree construction"""
 
 import json
+import logging
 import os
 import tempfile
 import uuid
@@ -1300,6 +1301,27 @@ def test_add_nodes_does_not_post_a_chunk_with_no_sendable_children(channel):
     # Reported as an individual node, and the channel can still be committed.
     assert "skipped_hex" in manager.failed_node_builds
     assert manager.failed_batches == []
+
+
+def test_check_failed_logs_the_response_body_for_a_batch_failure(channel, caplog):
+    """Studio's response body has to reach the operator.
+
+    The HTTP reason phrase is the same for every 500; the body is the only
+    thing that distinguishes one from another.
+    """
+    manager = ChannelManager(channel)
+    manager._record_failed_batch(
+        "root_id",
+        MagicMock(),
+        "Internal Server Error",
+        content=b"node 4821 rejected, bad license id",
+    )
+
+    with caplog.at_level(logging.ERROR, logger=config.LOGGER.name):
+        manager.check_failed()
+
+    assert "Internal Server Error" in caplog.text
+    assert "node 4821 rejected" in caplog.text
 
 
 def test_upload_tree_refuses_to_commit_when_a_node_batch_failed(channel):

@@ -352,6 +352,10 @@ class ChannelManager:
                 config.LOGGER.error(
                     "\tunder {}: {}".format(batch["root_id"], batch["error"])
                 )
+                if "content" in batch:
+                    # Studio's response body is the only thing separating one
+                    # 500 from another, so it belongs on the batch line.
+                    config.LOGGER.error("\t\t{}".format(batch["content"][:80]))
         # Batch failures are reported above; don't repeat them as node warnings.
         batch_root_ids = {batch["root_id"] for batch in self.failed_batches}
         node_builds = {
