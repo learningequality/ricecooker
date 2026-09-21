@@ -81,9 +81,6 @@ class ChannelIncompleteError(Exception):
     takes every descendant of that request with it.
     """
 
-    def __init__(self, *args, **kwargs):
-        Exception.__init__(self, *args, **kwargs)
-
 
 class RemoteConfigError(Exception):
     """RemoteConfigError: raised when --remote config cannot be resolved"""

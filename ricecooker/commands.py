@@ -9,6 +9,7 @@ from requests.exceptions import HTTPError
 from . import __version__
 from . import config
 from .classes.nodes import ChannelNode
+from .exceptions import ChannelIncompleteError
 from .managers.tree import ChannelManager
 from .utils.slack import send_slack_notification
 
@@ -140,7 +141,13 @@ def uploadchannel(  # noqa: C901
     # Create channel on Kolibri Studio
     config.LOGGER.info("")
     config.LOGGER.info("Creating channel...")
-    channel_link, channel_id = create_tree(tree)
+    try:
+        channel_link, channel_id = create_tree(tree)
+    except ChannelIncompleteError as e:
+        # check_failed() has already reported which batches were lost; a
+        # traceback on top of that report tells the operator nothing more.
+        config.LOGGER.error(str(e))
+        sys.exit(1)
 
     # Publish tree if flag is set to True
     if config.PUBLISH:

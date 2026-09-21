@@ -1206,36 +1206,100 @@ def test_add_nodes_recurses_into_siblings_of_a_skipped_last_child(channel):
     assert manager.node_count_dict["upload_count"] == 2
 
 
-def test_add_nodes_handles_connection_error(channel):
-    """Test that add_nodes handles ConnectionError."""
-    # Create a manager
+@pytest.mark.parametrize(
+    "exception",
+    [
+        # requests' ConnectionError is not a subclass of the builtin of the same
+        # name; both must reach the `except RequestException` handler.
+        RequestsConnectionError("Connection refused"),
+        ReadTimeout("Read timed out"),
+    ],
+    ids=["connection_error", "read_timeout"],
+)
+def test_add_nodes_handles_transport_errors(channel, exception):
+    """Transport failures are recorded as batch failures, not raised."""
     manager = ChannelManager(channel)
     manager.node_count_dict = {"upload_count": 0, "total_count": 10}
 
-    # Create a valid child node
     valid_child = MagicMock()
     valid_child.valid = True
+    valid_child.files = []
     valid_child.to_dict.return_value = {"id": "valid_id", "title": "Valid Node"}
 
-    # Create a parent node with the child
     parent_node = MagicMock()
     parent_node.title = "Parent"
     parent_node.children = [valid_child]
 
-    # requests raises its own ConnectionError, which is NOT a subclass of the
-    # builtin of the same name -- so the handler must catch the requests one.
-    with patch(
-        "ricecooker.config.SESSION.post",
-        side_effect=RequestsConnectionError("Connection refused"),
-    ):
+    with patch("ricecooker.config.SESSION.post", side_effect=exception):
         manager.add_nodes("root_id", parent_node)
 
-    # Check that the error was registered in failed_node_builds
     assert "root_id" in manager.failed_node_builds
     assert manager.failed_node_builds["root_id"]["node"] == parent_node
-    assert isinstance(
-        manager.failed_node_builds["root_id"]["error"], RequestsConnectionError
-    )
+    assert manager.failed_node_builds["root_id"]["error"] is exception
+    assert manager.failed_batches == [
+        {"root_id": "root_id", "node": parent_node, "error": exception}
+    ]
+
+
+def test_add_nodes_records_a_child_missing_from_root_ids(channel):
+    """A sent child that Studio returns no id for must not be dropped quietly.
+
+    The POST succeeds but the response carries no id for the child, so its
+    subtree cannot be placed. That has to be recorded, or it is the same silent
+    loss this change exists to prevent.
+    """
+    manager = ChannelManager(channel)
+    manager.node_count_dict = {"upload_count": 0, "total_count": 2}
+
+    child = MagicMock()
+    child.valid = True
+    child.files = []
+    child.children = []
+    child.to_dict.return_value = {"id": "sent_hex"}
+    child.get_node_id.return_value = MagicMock(hex="sent_hex")
+
+    parent_node = MagicMock()
+    parent_node.title = "Parent"
+    parent_node.children = [child]
+
+    # 200, but root_ids omits the child we sent.
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response._content = json.dumps({"root_ids": {}}).encode("utf-8")
+
+    with patch("ricecooker.config.SESSION.post", return_value=mock_response):
+        manager.add_nodes("root_id", parent_node)
+
+    assert [b["root_id"] for b in manager.failed_batches] == ["sent_hex"]
+    assert "sent_hex" in manager.failed_node_builds
+
+
+def test_add_nodes_does_not_post_a_chunk_with_no_sendable_children(channel):
+    """An all-skipped chunk carries nothing, so it must not be sent.
+
+    Posting an empty content_data risks a non-200 turning a set of individual
+    node failures into a refusal to commit the whole channel.
+    """
+    manager = ChannelManager(channel)
+    manager.node_count_dict = {"upload_count": 0, "total_count": 1}
+
+    skipped = MagicMock()
+    skipped.valid = False
+    skipped.files = []
+    skipped._error = "did not validate"
+    skipped.get_node_id.return_value = MagicMock(hex="skipped_hex")
+
+    parent_node = MagicMock()
+    parent_node.title = "Parent"
+    parent_node.children = [skipped]
+
+    with patch("ricecooker.config.SESSION.post") as post:
+        manager.add_nodes("root_id", parent_node)
+
+    post.assert_not_called()
+    # Reported as an individual node, and the channel can still be committed.
+    assert "skipped_hex" in manager.failed_node_builds
+    assert manager.failed_batches == []
 
 
 def test_upload_tree_refuses_to_commit_when_a_node_batch_failed(channel):
@@ -1265,7 +1329,7 @@ def test_upload_tree_refuses_to_commit_when_a_node_batch_failed(channel):
         with pytest.raises(ChannelIncompleteError):
             manager.upload_tree()
 
-    assert manager.failed_batches == ["root"]
+    assert [b["root_id"] for b in manager.failed_batches] == ["root"]
     # The commit endpoint must never have been called.
     assert all(
         call.args[0] != config.finish_channel_url() for call in post.call_args_list
@@ -1321,54 +1385,6 @@ def test_upload_tree_still_commits_when_only_one_node_failed(channel):
     assert config.finish_channel_url() in committed
 
 
-def test_add_nodes_records_a_failed_batch_on_server_error(channel):
-    """A non-200 from add_nodes is a whole-batch failure, not a per-node one."""
-    child = MagicMock()
-    child.valid = True
-    child.files = []
-    child.to_dict.return_value = {"id": "valid_id"}
-
-    parent_node = MagicMock()
-    parent_node.title = "Parent"
-    parent_node.children = [child]
-
-    mock_response = MagicMock()
-    mock_response.status_code = 500
-    mock_response.reason = "Internal Server Error"
-    mock_response.content = b"Server error"
-
-    manager = ChannelManager(channel)
-    manager.node_count_dict = {"upload_count": 0, "total_count": 1}
-    with patch("ricecooker.config.SESSION.post", return_value=mock_response):
-        manager.add_nodes("root_id", parent_node)
-
-    assert manager.failed_batches == ["root_id"]
-
-
-def test_add_nodes_handles_read_timeout(channel):
-    """A read timeout mid-upload is recorded, not raised out of add_nodes."""
-    manager = ChannelManager(channel)
-    manager.node_count_dict = {"upload_count": 0, "total_count": 10}
-
-    valid_child = MagicMock()
-    valid_child.valid = True
-    valid_child.files = []
-    valid_child.to_dict.return_value = {"id": "valid_id", "title": "Valid Node"}
-
-    parent_node = MagicMock()
-    parent_node.title = "Parent"
-    parent_node.children = [valid_child]
-
-    with patch(
-        "ricecooker.config.SESSION.post",
-        side_effect=ReadTimeout("Read timed out"),
-    ):
-        manager.add_nodes("root_id", parent_node)
-
-    assert "root_id" in manager.failed_node_builds
-    assert isinstance(manager.failed_node_builds["root_id"]["error"], ReadTimeout)
-
-
 def test_add_nodes_handles_server_error(channel):
     """Test that add_nodes handles server error responses."""
     # Create a manager
@@ -1398,6 +1414,8 @@ def test_add_nodes_handles_server_error(channel):
     assert "root_id" in manager.failed_node_builds
     assert manager.failed_node_builds["root_id"]["node"] == parent_node
     assert manager.failed_node_builds["root_id"]["error"] == "Internal Server Error"
+    # A non-200 loses every node under root_id, so it is a batch failure.
+    assert [b["root_id"] for b in manager.failed_batches] == ["root_id"]
     assert manager.failed_node_builds["root_id"]["content"] == b"Server error"
 
 
