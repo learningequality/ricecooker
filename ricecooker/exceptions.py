@@ -71,6 +71,17 @@ class InvalidQuestionException(Exception):
         Exception.__init__(self, *args, **kwargs)
 
 
+class ChannelIncompleteError(Exception):
+    """ChannelIncompleteError: raised when whole batches of nodes failed to
+    upload, so committing would stage a channel with subtrees missing.
+
+    Distinct from an individual node failing to build (a bad file, a node that
+    did not validate): those are reported and the channel is still committed.
+    This is raised only when an entire add_nodes request never landed, which
+    takes every descendant of that request with it.
+    """
+
+
 class RemoteConfigError(Exception):
     """RemoteConfigError: raised when --remote config cannot be resolved"""
 

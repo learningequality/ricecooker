@@ -126,6 +126,14 @@ The final step happens in the function `tree.upload_tree()`, which repeatedly
 calls the `add_nodes` method to upload the json metadata to Kolibri Studio,
 and finally calls the `commit_channel` to finalize the process.
 
+If an individual node cannot be created -- because one of its files failed to
+download or upload, or because it did not validate -- that node is reported at
+the end of the step and the rest of the channel is still committed. If a whole
+`add_nodes` request fails, however, every node beneath it is missing from the
+channel, so the chef reports the failure and raises `ChannelIncompleteError`
+rather than committing a channel with gaps in it. Re-running the chef retries
+the upload; downloaded files are served from the local cache.
+
 At the end of this chef step the complete channel (files, tree structure, and metadata)
 is now on Studio. By default, the content is uploaded to a `staging` tree of the
 channel, which is something like a "draft version" of the channel that is hidden
