@@ -49,7 +49,7 @@ Becoming a ricecooker developer
 -------------------------------
 
 Ready to contribute? In order to work on the `ricecooker` code you'll first need
-to have [Python 3.9+](https://www.python.org/downloads/) on your computer.
+to have [Python 3.10+](https://www.python.org/downloads/) on your computer.
 
 Here are the steps for setting up `ricecooker` for local development:
 
@@ -131,7 +131,7 @@ Before you submit a pull request, check that it meets these guidelines:
 2. If the pull request adds functionality, the docs should be updated. Put
    your new functionality into a function with a docstring, and add the
    feature to the list in `README.md`.
-3. The pull request should work for Python 3.9+. Check the GitHub Actions CI
+3. The pull request should work for Python 3.10+. Check the GitHub Actions CI
    and make sure that the tests pass for all supported Python versions.
 
 

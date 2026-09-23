@@ -13,5 +13,5 @@ try:
 except PackageNotFoundError:
     __version__ = "0.0.0.dev0"
 
-if sys.version_info < (3, 9, 0):
-    raise RuntimeError("Ricecooker only supports Python 3.9+")
+if sys.version_info < (3, 10, 0):
+    raise RuntimeError("Ricecooker only supports Python 3.10+")

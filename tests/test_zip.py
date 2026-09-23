@@ -4,6 +4,7 @@ import tempfile
 
 import pytest
 
+from ricecooker.utils import zip as zip_module
 from ricecooker.utils.zip import create_predictable_zip
 from ricecooker.utils.zip import find_common_root
 from ricecooker.utils.zip import find_html_entrypoint
@@ -78,6 +79,21 @@ def test_predictable_zip(case_name, case):
         assert md5 == case["expected_md5"], f"MD5 mismatch for {case_name}"
     finally:
         cleanup(temp_dir)
+
+
+@pytest.mark.parametrize(
+    "attribute,value",
+    [
+        # CPython 3.14+ advertises zlib-ng with a dedicated constant...
+        ("ZLIBNG_VERSION", "2.2.5"),
+        # ...older interpreters only report it in the zlib-compat version string.
+        ("ZLIB_RUNTIME_VERSION", "1.3.1.zlib-ng"),
+    ],
+)
+def test_refuses_to_build_archives_on_zlib_ng(monkeypatch, tmp_path, attribute, value):
+    monkeypatch.setattr(zip_module.zlib, attribute, value, raising=False)
+    with pytest.raises(RuntimeError, match="zlib-ng"):
+        create_predictable_zip(str(tmp_path))
 
 
 def test_order_independence():

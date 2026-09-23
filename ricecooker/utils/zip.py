@@ -1,6 +1,7 @@
 import os
 import tempfile
 import zipfile
+import zlib
 
 
 def _read_file(path):
@@ -57,6 +58,27 @@ def find_html_entrypoint(names):
     return normalized[0][0]
 
 
+def _assert_reference_zlib():
+    """
+    Refuse to build predictable zips on interpreters linked against zlib-ng.
+
+    zlib-ng emits different DEFLATE bytes than zlib at every level and strategy, and
+    predictable-zip MD5s are pinned in Studio's JavaScript and already in use for
+    deduplication. CPython 3.14 exposes ``zlib.ZLIBNG_VERSION``; older builds only
+    advertise it as ``1.3.1.zlib-ng`` in ``ZLIB_RUNTIME_VERSION``.
+    """
+    zlibng_version = getattr(zlib, "ZLIBNG_VERSION", None)
+    if zlibng_version is None and "zlib-ng" in zlib.ZLIB_RUNTIME_VERSION:
+        zlibng_version = zlib.ZLIB_RUNTIME_VERSION
+    if zlibng_version is not None:
+        raise RuntimeError(
+            "This interpreter's zlib is backed by zlib-ng {}, which compresses to "
+            "different bytes than the reference zlib, so archives built here would "
+            "not match the file hashes Kolibri Studio expects. Use a Python built "
+            "against regular zlib (on Windows, 3.13 or earlier).".format(zlibng_version)
+        )
+
+
 def create_predictable_zip(path, entrypoint=None, file_converter=None):
     """
     Create a zip file with predictable sort order and metadata so that MD5 will
@@ -66,6 +88,7 @@ def create_predictable_zip(path, entrypoint=None, file_converter=None):
         entrypoint (str or None): if specified, a relative file path in the zip to serve as the first page to load
     Returns: path (str) to the output zip file
     """
+    _assert_reference_zlib()
     extension = "zip"
     # if path is a directory, recursively enumerate all the files under the directory
     if os.path.isdir(path):
