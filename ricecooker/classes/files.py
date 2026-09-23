@@ -187,6 +187,8 @@ class DownloadFile(File):
         self.path = path.strip()
         self.context = {
             "default_ext": self.default_ext,
+            # A File's class fixes its format.
+            "preserve_kind": True,
         }
         self.context.update(context or {})
         super(DownloadFile, self).__init__(**kwargs)

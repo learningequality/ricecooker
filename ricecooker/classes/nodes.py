@@ -1092,9 +1092,13 @@ class ContentNode(TreeNode):
             self.add_file(self._file_from_metadata(file_metadata))
 
     def _process_uri(self):
+        context = self.context
+        if type(self).kind is not None:
+            # A typed node cannot become a folder or change kind.
+            context = {"preserve_kind": True, **context}
         try:
             file_metadata_list = self.pipeline.execute(
-                self.uri, context=self.context, skip_cache=config.UPDATE
+                self.uri, context=context, skip_cache=config.UPDATE
             )
         except (InvalidFileException, ExpectedFileException) as e:
             config.LOGGER.error(f"Error processing path: {self.uri} with error: {e}")

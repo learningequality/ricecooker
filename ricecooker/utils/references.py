@@ -309,7 +309,10 @@ def sanitize_style_css(
 
 # An IE conditional comment can wrap a pandoc-injected html5shiv <script>; strip
 # both so a KPUB stays script-free regardless of which pandoc template generated it.
-_SCRIPT_RE = re.compile(r"<script\b[^>]*>.*?</script\s*>", re.IGNORECASE | re.DOTALL)
+# One ``<script ...>...</script>``; group 1 = attributes, group 2 = body.
+SCRIPT_TAG_RE = re.compile(
+    r"<script\b([^>]*)>(.*?)</script\s*>", re.IGNORECASE | re.DOTALL
+)
 _IE_CONDITIONAL_COMMENT_RE = re.compile(
     r"<!--\[if[^\]]*\]>.*?<!\[endif\]-->", re.IGNORECASE | re.DOTALL
 )
@@ -322,9 +325,40 @@ def strip_scripts(html: str) -> Tuple[str, List[str]]:
     """
     # Strip conditional comments first so the script they wrap is gone before the pass below.
     html, n_comments = _IE_CONDITIONAL_COMMENT_RE.subn("", html)
-    html, n_scripts = _SCRIPT_RE.subn("", html)
+    html, n_scripts = SCRIPT_TAG_RE.subn("", html)
     removed = ["IE conditional comment"] * n_comments + ["<script> block"] * n_scripts
     return html, removed
+
+
+class _StylesheetLinkStripper(_SurgicalHTMLParser):
+    """Records edits deleting every ``<link>`` that references a stylesheet."""
+
+    def _handle_tag(self, tag, attrs):
+        if tag != "link":
+            return
+        raw_tag = self.get_starttag_text()
+        if raw_tag is None:
+            return
+        base = self._tag_offset(raw_tag)
+        if base < 0:
+            return
+        if not _is_stylesheet_attrs({k.lower(): v or "" for k, v in attrs}):
+            return
+        self.edits.append((base, base + len(raw_tag), ""))
+
+    def handle_starttag(self, tag, attrs):
+        self._handle_tag(tag, attrs)
+
+    def handle_startendtag(self, tag, attrs):
+        self._handle_tag(tag, attrs)
+
+
+def strip_stylesheet_links(html: str) -> str:
+    """Remove stylesheet ``<link>`` elements from ``html``."""
+    parser = _StylesheetLinkStripper(html)
+    parser.feed(html)
+    parser.close()
+    return _apply_edits(html, parser.edits)
 
 
 # Navigation attribute -> the inert value it is rewritten to. ``<a href>`` to a

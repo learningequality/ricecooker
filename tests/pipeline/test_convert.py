@@ -14,12 +14,15 @@ from unittest.mock import patch
 import pytest
 import requests
 from bs4 import BeautifulSoup
+from le_utils.constants import content_kinds
 from le_utils.constants import format_presets
 
 from ricecooker import config
 from ricecooker.classes.files import EPubFile
 from ricecooker.classes.files import H5PFile
 from ricecooker.classes.files import HTMLZipFile
+from ricecooker.classes.licenses import get_license
+from ricecooker.classes.nodes import HTML5AppNode
 from ricecooker.utils import archive_assets
 from ricecooker.utils.pipeline import FilePipeline
 from ricecooker.utils.pipeline.convert import BloomConversionHandler
@@ -250,7 +253,7 @@ class TestHTML5EntryPoint:
         results = self._execute(
             {
                 "dist/index.html": self.VALID_HTML,
-                "dist/css/style.css": "body { color: red; }",
+                "dist/js/app.js": "console.log('hello');",
             }
         )
         # The common root is stripped, so index.html ends up at the root
@@ -259,7 +262,7 @@ class TestHTML5EntryPoint:
         with zipfile.ZipFile(results[0].path) as zf:
             names = set(zf.namelist())
         assert "index.html" in names
-        assert "css/style.css" in names
+        assert "js/app.js" in names
 
     def test_nested_non_index_entry_denested_and_recorded(self):
         results = self._execute({"dist/app.html": self.VALID_HTML})
@@ -283,9 +286,14 @@ class TestKPUBValidation:
     def test_valid_archive(self):
         self._validate({"index.html": "<html><body><p>Hello world</p></body></html>"})
 
-    def test_missing_index_html(self):
-        with pytest.raises(InvalidFileException, match="(?i)index.html"):
-            self._validate({"content.html": "<html><body><p>Hello</p></body></html>"})
+    def test_non_index_entry_point_accepted(self):
+        # Kolibri's KPUB renderer honours extra_fields.options.entry, so the
+        # entry point need not be a root index.html.
+        self._validate({"content.html": "<html><body><p>Hello</p></body></html>"})
+
+    def test_no_html_file_rejected(self):
+        with pytest.raises(InvalidFileException, match="(?i)no HTML file"):
+            self._validate({"notes.txt": "no markup here"})
 
     def test_javascript_rejected(self):
         with pytest.raises(InvalidFileException, match="(?i)javascript"):
@@ -793,3 +801,157 @@ class TestHandlerExternalRefIntegration:
             assert any(n.endswith(".png") for n in names)
             index = zf.read("index.html").decode("utf-8")
             assert "https://ex.com" not in index
+
+
+class TestKPUBPromotion:
+    """A static-article HTML5 zip is promoted to a KPUB; interactive stays HTML5."""
+
+    def _run(self, files, context=None):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, "test.zip")
+            _create_archive(path, files)
+            return FilePipeline(default_context={}).execute(
+                path, context=context, skip_cache=True
+            )
+
+    @pytest.mark.parametrize("via_file", [True, False])
+    def test_legacy_html5_apis_keep_static_zip_html5(self, via_file):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, "test.zip")
+            _create_archive(
+                path, {"index.html": "<html><body><p>An article</p></body></html>"}
+            )
+            source = {"files": [HTMLZipFile(path)]} if via_file else {"uri": path}
+            node = HTML5AppNode(
+                source_id="static",
+                title="Static",
+                license=get_license("CC BY", copyright_holder="Holder"),
+                pipeline=FilePipeline(),
+                **source,
+            )
+            node.process_files()
+        assert [f.get_preset() for f in node.files] == [format_presets.HTML5_ZIP]
+
+    def test_static_article_promoted_to_kpub(self):
+        result = self._run(
+            {
+                "index.html": "<html><body><p>An article</p><img src='a.png'></body></html>"
+            }
+        )
+        assert result[0].preset == format_presets.KPUB_ZIP
+        assert result[0].filename.endswith(".kpub")
+        assert result[0].content_node_metadata["kind"] == content_kinds.DOCUMENT
+
+    def test_interactive_zip_stays_html5(self):
+        result = self._run(
+            {
+                "index.html": "<html><body><p>App</p><script src='app.js'></script></body></html>",
+                "app.js": "console.log('interactive');",
+            }
+        )
+        assert result[0].preset == format_presets.HTML5_ZIP
+        assert result[0].content_node_metadata["kind"] == content_kinds.HTML5
+
+    @pytest.mark.parametrize(
+        "files",
+        [
+            {
+                "index.html": "<html><body><p>App</p><script>go();</script></body></html>"
+            },
+            # A content function sharing an LMS API name is not plumbing.
+            {
+                "index.html": "<html><body><button onclick='Initialize()'>Go</button>"
+                "<script>function Initialize(){alert(1);}</script></body></html>"
+            },
+            # Neither is content code alongside an LMS call.
+            {
+                "index.html": "<html><body><p id='x'>SCO</p><script>LMSInitialize('');"
+                "document.getElementById('x').innerHTML='Hi';</script></body></html>"
+            },
+            # Any page's script counts, not just the entry's.
+            {
+                "index.html": "<html><body><a href='p2.html'>Next</a></body></html>",
+                "p2.html": "<html><body><script>go();</script></body></html>",
+            },
+        ],
+    )
+    def test_content_scripts_stay_html5(self, files):
+        result = self._run(files)
+        assert result[0].preset == format_presets.HTML5_ZIP
+
+    def test_non_utf8_page_stays_html5_unaltered(self):
+        index = (
+            "<html><head><meta charset='iso-8859-1'></head>"
+            "<body><p>Educación</p></body></html>"
+        ).encode("latin-1")
+        result = self._run({"index.html": index})
+        assert result[0].preset == format_presets.HTML5_ZIP
+        with zipfile.ZipFile(result[0].path) as zf:
+            assert zf.read("index.html") == index
+
+    def test_inline_lms_plumbing_stripped_and_promoted(self):
+        result = self._run(
+            {
+                "index.html": "<html><body><p>Static SCO</p>"
+                "<script>LMSInitialize('');</script></body></html>"
+            }
+        )
+        assert result[0].preset == format_presets.KPUB_ZIP
+
+    def test_scorm_boilerplate_stripped_and_promoted(self):
+        # A static SCO whose only script is a SCORM wrapper: the plumbing carries
+        # no content, so it is stripped and the page becomes a KPUB.
+        result = self._run(
+            {
+                "index.html": (
+                    "<html><body><p>Static SCO</p>"
+                    "<script src='SCORM_API_wrapper.js'></script></body></html>"
+                ),
+                "SCORM_API_wrapper.js": "function LMSInitialize(){}",
+            }
+        )
+        assert result[0].preset == format_presets.KPUB_ZIP
+        with zipfile.ZipFile(result[0].path) as zf:
+            assert zf.namelist() == ["index.html"]
+
+    def test_css_member_stripped_and_promoted(self):
+        # Unnecessary styling is not a reason to ship a whole HTML5 zip.
+        result = self._run(
+            {
+                "index.html": (
+                    "<html><head><link rel='stylesheet' href='style.css'></head>"
+                    "<body><p>Styled</p></body></html>"
+                ),
+                "style.css": "p{color:red}",
+            }
+        )
+        assert result[0].preset == format_presets.KPUB_ZIP
+        with zipfile.ZipFile(result[0].path) as zf:
+            assert zf.namelist() == ["index.html"]
+            assert "style.css" not in zf.read("index.html").decode("utf-8")
+
+    def test_downloaded_external_css_stripped_on_promotion(self):
+        # Promotion is judged after reference resolution, so a stylesheet that was
+        # downloaded into the archive is stripped rather than sealed into a .kpub.
+        with _fake_download_session({"https://ex.com/s.css": b"p{color:red}"}):
+            result = self._run(
+                {
+                    "index.html": (
+                        "<html><head>"
+                        "<link rel='stylesheet' href='https://ex.com/s.css'>"
+                        "</head><body><p>Prose</p></body></html>"
+                    )
+                }
+            )
+        assert result[0].preset == format_presets.KPUB_ZIP
+        with zipfile.ZipFile(result[0].path) as zf:
+            assert not any(n.endswith(".css") for n in zf.namelist())
+
+    def test_non_index_entry_promoted_with_entry_hint(self):
+        # A KPUB may name its entry point, so a static article at another path is
+        # promoted and the entry recorded for the renderer.
+        result = self._run({"article.html": "<html><body><p>Prose</p></body></html>"})
+        assert result[0].preset == format_presets.KPUB_ZIP
+        assert result[0].content_node_metadata["extra_fields"] == {
+            "options": {"entry": "article.html"}
+        }

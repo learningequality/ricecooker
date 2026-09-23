@@ -616,7 +616,8 @@ def test_singlefile_render_end_to_end_explosion():
     ):
         result = pipeline.execute("https://spa.example/")
 
-    assert result[0].preset == format_presets.HTML5_ZIP
+    # The rendered page has no scripts, so the HTML5 handler promotes it to a KPUB.
+    assert result[0].preset == format_presets.KPUB_ZIP
     with zipfile.ZipFile(result[0].path) as zf:
         names = zf.namelist()
         index = zf.read("index.html").decode()

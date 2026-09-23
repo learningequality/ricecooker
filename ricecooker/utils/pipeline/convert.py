@@ -42,6 +42,9 @@ from ricecooker.utils.references import DEFAULT_MAPPERS
 from ricecooker.utils.references import ReferenceMapper
 from ricecooker.utils.references import sanitize_style_css
 from ricecooker.utils.references import strip_scripts
+from ricecooker.utils.references import strip_stylesheet_links
+from ricecooker.utils.scorm import boilerplate_script_members
+from ricecooker.utils.scorm import strip_scorm_boilerplate
 from ricecooker.utils.subtitles import build_subtitle_converter_from_file
 from ricecooker.utils.subtitles import InvalidSubtitleFormatError
 from ricecooker.utils.subtitles import InvalidSubtitleLanguageError
@@ -71,21 +74,29 @@ class PandocConversionError(Exception):
     """Raised when pandoc fails to convert a source document."""
 
 
-def sanitize_kpub_directory(temp_dir):
-    """Strip disallowed CSS and scripts from index.html in an extracted KPUB dir, in place."""
-    index_path = os.path.join(temp_dir, "index.html")
-    try:
-        with open(index_path, encoding="utf-8") as fh:
-            html = fh.read()
-    except (OSError, UnicodeDecodeError):
-        return
+def sanitize_kpub_html(html):
+    """Strip disallowed CSS and scripts from a KPUB entry document.
+
+    Returns ``(html, removed)`` — descriptors of what was stripped, empty if unchanged.
+    """
     html, removed = sanitize_style_css(html, KPUB_STYLE_ALLOWLIST)
     # Hand-authored KPUBs already reject scripts in validate_archive; strip_scripts
     # is here for the pandoc path, whose --standalone template can inject an html5shiv.
     html, script_removed = strip_scripts(html)
-    removed += script_removed
+    return html, removed + script_removed
+
+
+def sanitize_kpub_directory(temp_dir, entry="index.html"):
+    """Sanitize a KPUB's entry document in place."""
+    entry_path = os.path.join(temp_dir, entry)
+    try:
+        with open(entry_path, encoding="utf-8") as fh:
+            html = fh.read()
+    except (OSError, UnicodeDecodeError):
+        return
+    html, removed = sanitize_kpub_html(html)
     if removed:
-        with open(index_path, "w", encoding="utf-8") as fh:
+        with open(entry_path, "w", encoding="utf-8") as fh:
             fh.write(html)
         LOGGER.info("KPUB sanitizer removed disallowed content: %s", ", ".join(removed))
 
@@ -242,19 +253,26 @@ class ArchiveProcessingBaseHandler(ExtensionMatchingHandler):
         pass
 
     @abstractmethod
-    def validate_archive(self, path: str):
+    def validate_archive(self, path: str, entry=None):
         pass
 
-    def pre_process(self, temp_dir):
+    def pre_process(self, temp_dir, entry):
         """Hook run on the extracted archive dir before reference resolution. Default no-op."""
         pass
 
-    def handle_file(self, path, audio_settings=None, video_settings=None):
+    def seal_ext(self, temp_dir, ext, entry=None):
+        """Extension the processed dir is sealed as. Override to re-classify the output."""
+        return ext
+
+    def _convert_archive(
+        self, path, audio_settings, video_settings, entry=None, **seal_kwargs
+    ):
+        """Validate, extract, process and seal the archive at ``path``."""
         # Imported here rather than at module level: archive_assets depends on
         # this package's exceptions, so a top-level import would be circular.
         from ricecooker.utils.archive_assets import ArchiveProcessor
 
-        self.validate_archive(path)
+        self.validate_archive(path, entry)
 
         ext = extract_path_ext(path)
 
@@ -266,7 +284,7 @@ class ArchiveProcessingBaseHandler(ExtensionMatchingHandler):
             # pre_process runs before reference resolution: a url() inside a <style> block or
             # a non-allowlisted style= would otherwise be downloaded, then orphaned when the
             # sanitizer strips the content that referenced it.
-            self.pre_process(temp_dir)
+            self.pre_process(temp_dir, entry)
 
             ArchiveProcessor(
                 temp_dir,
@@ -277,7 +295,12 @@ class ArchiveProcessingBaseHandler(ExtensionMatchingHandler):
                 video_settings=video_settings,
             ).process()
 
-            _seal_directory_to_file(self, temp_dir, ext)
+            _seal_directory_to_file(
+                self, temp_dir, self.seal_ext(temp_dir, ext, entry, **seal_kwargs)
+            )
+
+    def handle_file(self, path, audio_settings=None, video_settings=None):
+        self._convert_archive(path, audio_settings, video_settings)
 
     @contextmanager
     def open_and_verify_archive(self, path):
@@ -297,43 +320,98 @@ class ArchiveProcessingBaseHandler(ExtensionMatchingHandler):
                 f"File {zf.filename} is not a valid {self.FILE_TYPE} file, {filepath} is missing."
             )
 
-    def _validate_index_html_body(self, zf, path, index_path="index.html"):
-        """Validate that the entry HTML exists and has a non-empty body."""
-        index_html = self.read_file_from_archive(zf, index_path)
+
+def _parse_entry(html, entry):
+    """Parse ``html``; return ``(dom, reason)``, with ``reason`` None when the body is usable."""
+    try:
+        dom = html5lib.parse(html, namespaceHTMLElements=False)
+    except ParseError:
+        return None, f"{entry} is not well-formed."
+    return dom, _empty_body_reason(dom, entry)
+
+
+def _empty_body_reason(dom, entry):
+    """Why ``dom`` has no usable body, or None when it has one."""
+    body = dom.find("body")
+    if body is None:
+        return f"{entry} is missing a body element."
+    # For some reason it seems like comments don't get a string tag attribute.
+    body_children = [
+        c for c in body.iter() if isinstance(c.tag, str) and c.tag != "body"
+    ]
+    if not (body.text and body.text.strip()) and not body_children:
+        return f"{entry} is empty."
+    return None
+
+
+def _kpub_disqualifier(names, index_html, entry):
+    """The first reason a KPUB candidate fails the criteria; None ⇒ it qualifies.
+
+    A KPUB is static prose: a non-empty ``entry`` body, no inline ``<script>``, no
+    ``.js``/``.css`` member. ``index_html`` is separate from ``names`` so a caller
+    can judge already-transformed markup against the members that will ship.
+    """
+    if index_html is None:
+        return f"{entry} is missing."
+    dom, reason = _parse_entry(index_html, entry)
+    if reason:
+        return reason
+    if next(dom.iter("script"), None) is not None:
+        return "inline JavaScript (<script> tags) is not allowed."
+    if any(n.lower().endswith(".js") for n in names):
+        return "JavaScript files (.js) are not allowed."
+    if any(n.lower().endswith(".css") for n in names):
+        return "external CSS files (.css) are not allowed."
+    return None
+
+
+def _has_script(html):
+    if "<script" not in html.lower():
+        return False
+    return (
+        next(html5lib.parse(html, namespaceHTMLElements=False).iter("script"), None)
+        is not None
+    )
+
+
+def _archive_member_names(directory):
+    """Every file in ``directory``, as archive-style paths relative to it."""
+    return [
+        os.path.relpath(os.path.join(dirpath, name), directory).replace(os.sep, "/")
+        for dirpath, _, filenames in os.walk(directory)
+        for name in filenames
+    ]
+
+
+class WebArchiveContextMetadata(ArchiveProcessingContextMetadata):
+    # The entry point, as an archive member path; detected when unset.
+    entry: Optional[str] = None
+
+
+class WebArchiveConversionHandler(ArchiveProcessingBaseHandler):
+    """Zip of web content that Kolibri serves from an HTML entry point.
+
+    Denests a single-root zip (mirroring Studio's ``cleanHTML5Zip``) and records
+    an entry point other than a root ``index.html`` for the renderer.
+    """
+
+    CONTEXT_CLASS = WebArchiveContextMetadata
+
+    def get_cache_key(self, path, entry=None, **kwargs) -> str:
+        key = super().get_cache_key(path, **kwargs)
+        return f"{key}:entry={entry}" if entry else key
+
+    def entry_point(self, names):
+        """The archive member Kolibri should load, or None when there is no HTML."""
+        return find_html_entrypoint([n for n in names if not n.endswith("/")])
+
+    def handle_file(
+        self, path, audio_settings=None, video_settings=None, entry=None, **seal_kwargs
+    ):
+        prepared_path, entry = self._prepare_archive(path, entry)
         try:
-            dom = html5lib.parse(index_html, namespaceHTMLElements=False)
-            body = dom.find("body")
-            if body is None:
-                raise InvalidFileException(
-                    f"File {path} is not a valid {self.FILE_TYPE} file, {index_path} is missing a body element."
-                )
-            # Check that the body has at least one child element
-            # for some reason it seems like comments don't get a string tag attribute
-            body_children = [
-                c for c in body.iter() if isinstance(c.tag, str) and c.tag != "body"
-            ]
-            if not (body.text and body.text.strip()) and not body_children:
-                raise InvalidFileException(
-                    f"File {path} is not a valid {self.FILE_TYPE} file, {index_path} is empty."
-                )
-            return dom
-        except ParseError:
-            raise InvalidFileException(
-                f"File {path} is not a valid {self.FILE_TYPE} file, {index_path} is not well-formed."
-            )
-
-
-class HTML5ConversionHandler(ArchiveProcessingBaseHandler):
-    EXTENSIONS = {file_formats.HTML5}
-    FILE_TYPE = "HTML5"
-
-    def handle_file(self, path, audio_settings=None, video_settings=None):
-        prepared_path, entry = self._prepare_archive(path)
-        try:
-            super().handle_file(
-                prepared_path,
-                audio_settings=audio_settings,
-                video_settings=video_settings,
+            self._convert_archive(
+                prepared_path, audio_settings, video_settings, entry, **seal_kwargs
             )
         finally:
             if prepared_path != path and os.path.exists(prepared_path):
@@ -348,21 +426,33 @@ class HTML5ConversionHandler(ArchiveProcessingBaseHandler):
             )
         return None
 
-    def validate_archive(self, path: str):
+    def validate_archive(self, path: str, entry=None):
         with self.open_and_verify_archive(path) as zf:
-            names = [n for n in zf.namelist() if not n.endswith("/")]
-            entry = find_html_entrypoint(names)
+            entry = entry or self.entry_point(zf.namelist())
             if entry is None:
                 raise InvalidFileException(
                     f"File {path} is not a valid {self.FILE_TYPE} file, "
                     "no HTML file was found in the archive."
                 )
-            self._validate_index_html_body(zf, path, entry)
+            self._validate_entry(zf, path, entry)
 
-    def _prepare_archive(self, path):
+    def entry_disqualifier(self, names, html, entry):
+        """Why the entry point is unusable, or None. Default: it lacks a body."""
+        return _parse_entry(html, entry)[1]
+
+    def _validate_entry(self, zf, path, entry):
+        reason = self.entry_disqualifier(
+            zf.namelist(), self.read_file_from_archive(zf, entry), entry
+        )
+        if reason:
+            raise InvalidFileException(
+                f"File {path} is not a valid {self.FILE_TYPE} file, {reason}"
+            )
+
+    def _prepare_archive(self, path, entry=None):
         """Denest a zip whose files all share a common parent directory
         (mirroring Studio's ``cleanHTML5Zip``), and return the path to use
-        along with the detected HTML entry point.
+        along with the HTML entry point: ``entry`` rebased, else detected.
 
         Returns ``(path, entry)`` unchanged when there is nothing to strip;
         otherwise returns the path to a denested temporary zip.
@@ -375,7 +465,7 @@ class HTML5ConversionHandler(ArchiveProcessingBaseHandler):
 
         common_root = find_common_root(names)
         if not common_root:
-            return path, find_html_entrypoint(names)
+            return path, entry or self.entry_point(names)
 
         prefix = common_root + "/"
         with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as tmp:
@@ -386,8 +476,70 @@ class HTML5ConversionHandler(ArchiveProcessingBaseHandler):
         ):
             for name in names:
                 zout.writestr(name[len(prefix) :], zin.read(name))
-        denested_names = [n[len(prefix) :] for n in names]
-        return tmp_path, find_html_entrypoint(denested_names)
+        if entry:
+            return tmp_path, entry[len(prefix) :] if entry.startswith(prefix) else entry
+        return tmp_path, self.entry_point([n[len(prefix) :] for n in names])
+
+
+class HTML5ContextMetadata(WebArchiveContextMetadata):
+    # Set by callers that fixed the kind (a typed File or node): no KPUB
+    # promotion, no IMSCP decomposition.
+    preserve_kind: bool = False
+
+
+class HTML5ConversionHandler(WebArchiveConversionHandler):
+    EXTENSIONS = {file_formats.HTML5}
+    FILE_TYPE = "HTML5"
+    CONTEXT_CLASS = HTML5ContextMetadata
+
+    def get_cache_key(self, path, preserve_kind=False, **kwargs) -> str:
+        key = super().get_cache_key(path, **kwargs)
+        return key if preserve_kind else f"{key}:promote"
+
+    def seal_ext(self, temp_dir, ext, entry=None, preserve_kind=False):
+        if not preserve_kind and self._promote_to_kpub(temp_dir, entry):
+            return file_formats.HTML5_ARTICLE
+        return ext
+
+    def _promote_to_kpub(self, temp_dir, entry):
+        """Rewrite a static-article HTML5 zip into a KPUB in place; True on promotion.
+
+        SCORM plumbing and stylesheets are stripped rather than disqualifying:
+        neither is content. Genuine scripting on any page keeps the zip HTML5.
+        Judged after reference resolution, so downloaded assets count too.
+        """
+        names = _archive_member_names(temp_dir)
+        strippable = set(boilerplate_script_members(names)) | {
+            name for name in names if name.lower().endswith(".css")
+        }
+        kept = [name for name in names if name not in strippable]
+        # Cheap name check first: most HTML5 apps ship their own .js.
+        if any(name.lower().endswith(".js") for name in kept):
+            return False
+        pages = {}
+        for name in names:
+            if not name.lower().endswith((".html", ".htm")):
+                continue
+            try:
+                with open(os.path.join(temp_dir, name), encoding="utf-8") as fh:
+                    pages[name] = strip_scorm_boilerplate(fh.read())
+            except (OSError, UnicodeDecodeError):
+                # Re-encoding a non-UTF-8 page would corrupt it.
+                return False
+        if _kpub_disqualifier(kept, pages.get(entry), entry) is not None:
+            return False
+        if any(_has_script(html) for name, html in pages.items() if name != entry):
+            return False
+
+        for name, html in pages.items():
+            html = strip_stylesheet_links(html)
+            if name == entry:
+                html, _removed = sanitize_kpub_html(html)
+            with open(os.path.join(temp_dir, name), "w", encoding="utf-8") as fh:
+                fh.write(html)
+        for name in strippable:
+            os.unlink(os.path.join(temp_dir, name))
+        return True
 
 
 def _map_h5p_paths(data, fn, urls):
@@ -433,7 +585,7 @@ class H5PConversionHandler(ArchiveProcessingBaseHandler):
     FILE_TYPE = "H5P"
     REFERENCE_MAPPERS = DEFAULT_MAPPERS + (H5PContentMapper(),)
 
-    def validate_archive(self, path: str):
+    def validate_archive(self, path: str, entry=None):
         with self.open_and_verify_archive(path) as zf:
             h5p_json = self.read_file_from_archive(zf, "h5p.json")
             try:
@@ -509,48 +661,29 @@ class EPUBConversionHandler(ArchiveProcessingBaseHandler):
                 f"File {path} is not a valid EPUB file, OPF file is not well-formed."
             )
 
-    def validate_archive(self, path: str):
+    def validate_archive(self, path: str, entry=None):
         with self.open_and_verify_archive(path) as zf:
             self._validate_mimetype(zf, path)
             opf_path = self._get_opf_path(zf, path)
             self._validate_opf(zf, path, opf_path)
 
 
-class KPUBConversionHandler(ArchiveProcessingBaseHandler):
+class KPUBConversionHandler(WebArchiveConversionHandler):
     EXTENSIONS = {file_formats.HTML5_ARTICLE}
     FILE_TYPE = "KPUB"
 
-    def pre_process(self, temp_dir):
-        sanitize_kpub_directory(temp_dir)
+    def pre_process(self, temp_dir, entry):
+        sanitize_kpub_directory(temp_dir, entry)
 
-    def validate_archive(self, path: str):
-        with self.open_and_verify_archive(path) as zf:
-            dom = self._validate_index_html_body(zf, path)
-
-            # Check for inline <script> tags (parsed without namespaces)
-            for _ in dom.iter("script"):
-                raise InvalidFileException(
-                    f"File {path} is not a valid KPUB file, inline JavaScript (<script> tags) is not allowed."
-                )
-
-            # Check for disallowed file types
-            for filename in zf.namelist():
-                lower_name = filename.lower()
-                if lower_name.endswith(".js"):
-                    raise InvalidFileException(
-                        f"File {path} is not a valid KPUB file, JavaScript files (.js) are not allowed."
-                    )
-                if lower_name.endswith(".css"):
-                    raise InvalidFileException(
-                        f"File {path} is not a valid KPUB file, external CSS files (.css) are not allowed."
-                    )
+    def entry_disqualifier(self, names, html, entry):
+        return _kpub_disqualifier(names, html, entry)
 
 
 class BloomConversionHandler(ArchiveProcessingBaseHandler):
     EXTENSIONS = {file_formats.BLOOMPUB, file_formats.BLOOMD}
     FILE_TYPE = "Bloom"
 
-    def validate_archive(self, path: str):
+    def validate_archive(self, path: str, entry=None):
         with self.open_and_verify_archive(path) as zf:
             # Check meta.json exists and is valid
             meta = self.read_file_from_archive(zf, "meta.json")
