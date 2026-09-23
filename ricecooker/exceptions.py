@@ -82,25 +82,24 @@ class ChannelIncompleteError(Exception):
     """
 
 
-class RemoteConfigError(Exception):
+class RemoteError(Exception):
+    """RemoteError: base of every --remote failure; messages start with remote:"""
+
+
+class RemoteConfigError(RemoteError):
     """RemoteConfigError: raised when --remote config cannot be resolved"""
 
-    def __init__(self, *args, **kwargs):
-        Exception.__init__(self, *args, **kwargs)
 
-
-class RemoteTransportError(Exception):
+class RemoteTransportError(RemoteError):
     """RemoteTransportError: raised when a local ssh/rsync invocation fails"""
 
-    def __init__(self, *args, **kwargs):
-        Exception.__init__(self, *args, **kwargs)
 
-
-class RemoteSessionError(Exception):
+class RemoteSessionError(RemoteError):
     """RemoteSessionError: raised when a tmux command on the box fails"""
 
-    def __init__(self, *args, **kwargs):
-        Exception.__init__(self, *args, **kwargs)
+
+class RemoteDriverError(RemoteError):
+    """RemoteDriverError: raised when the box cannot run a --remote chef"""
 
 
 def raise_for_invalid_channel(channel):

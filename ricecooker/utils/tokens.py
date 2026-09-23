@@ -20,14 +20,14 @@ def get_env(envvar):
         return os.environ[envvar]
 
 
-def get_content_curation_token(args_token):
+def get_content_curation_token(args_token, interactive=True):
     """
     Get the token through one of four possible ways. Input `args_token` can be
     1. path to a token-containing file (path)
     2. actual token (str) in which case there's nothing to get just pass along
     3. `#` (default value when no --token is given on command line)
     3a. if environment variable STUDIO_TOKEN exists, we'll use that
-    3b. else we prompt the user interactively
+    3b. else we prompt the user interactively, or return None if not `interactive`
     """
     if args_token != "#":  # retrieval methods 1, 2
         if os.path.isfile(args_token):
@@ -37,7 +37,7 @@ def get_content_curation_token(args_token):
             return args_token
     else:  # retrieval strategies 3
         token = get_env("STUDIO_TOKEN") or get_env("CONTENT_CURATION_TOKEN")
-        if token is not None:
+        if token is not None or not interactive:
             return token  # 3a
         else:
             return prompt_token(config.DOMAIN)  # 3b

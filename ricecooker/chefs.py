@@ -29,6 +29,12 @@ from .utils.metadata_provider import DEFAULT_CHANNEL_INFO_FILENAME
 from .utils.metadata_provider import DEFAULT_CONTENT_INFO_FILENAME
 from .utils.metadata_provider import DEFAULT_EXERCISE_QUESTIONS_INFO_FILENAME
 from .utils.metadata_provider import DEFAULT_EXERCISES_INFO_FILENAME
+from .utils.remote.driver import chef_argv
+from .utils.remote.driver import client_flag
+from .utils.remote.driver import env_name
+from .utils.remote.driver import env_pair
+from .utils.remote.driver import forwarded_env
+from .utils.remote.driver import run_remotely
 from .utils.tokens import get_content_curation_token
 from .utils.youtube import YouTubePlaylistUtils
 from .utils.youtube import YouTubeVideoUtils
@@ -179,6 +185,32 @@ class SushiChef(object):
                 " Uploading a staging tree is now the default behavior. Use --deploy to upload to the main tree."
             ),
         )
+        parser.add_argument(
+            "--remote",
+            nargs="?",
+            const="",
+            metavar="NAME",
+            help=(
+                "Run on a remote box; NAME picks a profile in"
+                " ~/.config/ricecooker/remote.toml (default: its `default`)."
+            ),
+        )
+        parser.add_argument(
+            "--env",
+            action="append",
+            default=[],
+            type=env_pair,
+            metavar="KEY=VALUE",
+            help="With --remote: set KEY in the chef's environment on the box (repeatable).",
+        )
+        parser.add_argument(
+            "--env-pass",
+            action="append",
+            default=[],
+            type=env_name,
+            metavar="KEY",
+            help="With --remote: forward KEY from this environment (repeatable).",
+        )
 
         # [OPTIONS] --- extra key=value options are supported, but do not appear in help
 
@@ -223,7 +255,9 @@ class SushiChef(object):
             args (dict): chef command line arguments
             options (dict): extra key=value options given on command line
         """
-        args_namespace, options_list = self.arg_parser.parse_known_args()
+        # --remote=NAME only, so a bare --remote cannot swallow the command.
+        argv = [a + "=" if client_flag(a) == "--remote" else a for a in sys.argv[1:]]
+        args_namespace, options_list = self.arg_parser.parse_known_args(argv)
         args = args_namespace.__dict__
 
         # Handle case when command is not specified but key=value options are
@@ -256,15 +290,12 @@ class SushiChef(object):
                 "Agruments --quiet, --warn, and --debug cannot be used together."
             )
 
-        if args["command"] == "uploadchannel":
-            # Make sure token is provided. There are four ways to specify:
-            #  1. --token=path to token-containing file
-            #  2. --token=140fefe...1f3
-            # when --token is not given on the command line, it default to # and
-            #  3. we look for environment variable STUDIO_TOKEN
-            #  4. else prompt user
-            # If ALL of these fail, this call will raise and chef run will stop.
-            args["token"] = get_content_curation_token(args["token"])
+        if (args["env"] or args["env_pass"]) and args["remote"] is None:
+            raise InvalidUsageException(
+                "Arguments --env and --env-pass require --remote."
+            )
+
+        self._resolve_token(args)
 
         # Parse additional keyword arguments from `options_list`
         options = {}
@@ -282,6 +313,21 @@ class SushiChef(object):
         self.options = options
 
         return args, options
+
+    def _resolve_token(self, args):
+        remote = args["remote"] is not None
+        if remote or args["command"] == "uploadchannel":
+            # Make sure token is provided. There are four ways to specify:
+            #  1. --token=path to token-containing file
+            #  2. --token=140fefe...1f3
+            # when --token is not given on the command line, it default to # and
+            #  3. we look for environment variable STUDIO_TOKEN
+            #  4. else prompt user
+            # If ALL of these fail, this call will raise and chef run will stop.
+            # Under --remote, 4 is skipped: the box's own STUDIO_TOKEN applies.
+            args["token"] = get_content_curation_token(
+                args["token"], interactive=not remote
+            )
 
     def config_logger(self, args, options):
         """
@@ -506,6 +552,11 @@ class SushiChef(object):
         Main entry point that content integration scripts should call.
         """
         args, options = self.parse_args_and_options()
+        if args["remote"] is not None:
+            env = forwarded_env(args["token"], args["env"], args["env_pass"])
+            sys.exit(
+                run_remotely(chef_argv(sys.argv), env, remote=args["remote"] or None)
+            )
         self.config_logger(args, options)
         self.run(args, options)
 

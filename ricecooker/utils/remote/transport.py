@@ -7,15 +7,17 @@ from pathlib import Path
 from ricecooker.exceptions import RemoteTransportError
 
 BOOKKEEPING_DIR = ".ricecooker-remote"
+VENV_DIR = ".venv"
 
 # --exclude, not --filter=P: P still uploads a local copy and deletes inside it.
+# Anchored to the chef root: a nested pkg/storage/ is chef code.
 BOX_MANAGED = (
-    ".venv/",
-    BOOKKEEPING_DIR + "/",
-    "storage/",
-    "restore/",
-    "chefdata/",
-    "logs/",
+    VENV_DIR,
+    BOOKKEEPING_DIR,
+    "storage",
+    "restore",
+    "chefdata",
+    "logs",
 )
 
 
@@ -27,7 +29,7 @@ def sync_argv(profile, chef_dir) -> list:
     return (
         # --delete-after: the receiver applies its own .gitignore, stale under delete-during.
         ["rsync", "-a", "--delete", "--delete-after", "--filter=:- .gitignore"]
-        + [f"--exclude={p}" for p in BOX_MANAGED]
+        + [f"--exclude=/{d}/" for d in BOX_MANAGED]
         + [f"--filter=P {p}" for p in profile.protect]
         + [f"--exclude={p}" for p in profile.exclude]
         + [f"{chef_dir}/", f"{profile.ssh}:{remote_chef_dir(profile)}/"]

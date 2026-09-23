@@ -1,12 +1,8 @@
 import io
 import os
-import shutil
 import signal
 import subprocess
 import sys
-import tempfile
-import threading
-import time
 from datetime import datetime
 from pathlib import Path
 
@@ -23,20 +19,6 @@ from ricecooker.utils.remote.session import SessionStatus
 from ricecooker.utils.remote.transport import RunResult
 from ricecooker.utils.remote.transport import Transport
 
-
-def _tmux_can_run():
-    if os.name == "nt" or not shutil.which("tmux"):
-        return False
-    try:
-        fds = os.openpty()
-    except OSError:  # tmux panes need a pty; some sandboxes deny /dev/ptmx
-        return False
-    for fd in fds:
-        os.close(fd)
-    return True
-
-
-needs_tmux = pytest.mark.skipif(not _tmux_can_run(), reason="needs tmux and a pty")
 TARGET = "=ricecooker-my-chef:"
 ATTACH = """
 import sys
@@ -54,19 +36,6 @@ def tmux(*args):
     return subprocess.run(["tmux", *args], capture_output=True, text=True)
 
 
-@pytest.fixture(autouse=True)
-def isolated_tmux(monkeypatch):
-    # Short path: the socket must fit in sun_path (104 bytes on macOS).
-    tmpdir = tempfile.mkdtemp(prefix="rc-tmux-")
-    monkeypatch.setenv("TMUX_TMPDIR", tmpdir)
-    # Else tmux talks to the developer's server.
-    monkeypatch.delenv("TMUX", raising=False)
-    yield
-    if shutil.which("tmux"):
-        tmux("kill-server")
-    shutil.rmtree(tmpdir, ignore_errors=True)
-
-
 def make_session(box, name="my-chef"):
     (box / name).mkdir(exist_ok=True)
     profile = RemoteProfile(
@@ -75,26 +44,17 @@ def make_session(box, name="my-chef"):
     return Session(Transport(profile))
 
 
-def wait_until(predicate, timeout=10):
-    deadline = time.monotonic() + timeout
-    while not predicate():
-        if time.monotonic() > deadline:
-            return False
-        time.sleep(0.05)
-    return True
-
-
 def non_empty(path):
     return path.exists() and path.read_text() != ""
 
 
-@needs_tmux
-def test_status_without_session_is_none(box):
+def test_status_without_session_is_none(box, tmux_server):
     assert make_session(box).status() == SessionStatus(NO_SESSION)
 
 
-@needs_tmux
-def test_create_runs_command_in_chef_dir_and_reports_live_since_start(box):
+def test_create_runs_command_in_chef_dir_and_reports_live_since_start(
+    box, tmux_server, wait_until
+):
     s = make_session(box)
     before = datetime.now().replace(microsecond=0)
     s.create(["sh", "-c", "pwd > where; exec sleep 30"])
@@ -106,8 +66,7 @@ def test_create_runs_command_in_chef_dir_and_reports_live_since_start(box):
     assert Path(where.read_text().strip()).resolve() == (box / "my-chef").resolve()
 
 
-@needs_tmux
-def test_create_refuses_while_session_exists(box):
+def test_create_refuses_while_session_exists(box, tmux_server):
     s = make_session(box)
     s.create(["sleep", "30"])
     with pytest.raises(RemoteSessionError):
@@ -115,8 +74,7 @@ def test_create_refuses_while_session_exists(box):
     assert s.status().state == LIVE
 
 
-@needs_tmux
-def test_create_passes_args_ending_in_semicolon_verbatim(box):
+def test_create_passes_args_ending_in_semicolon_verbatim(box, tmux_server, wait_until):
     make_session(box).create(
         ["sh", "-c", 'printf "%s|" "$@" > args', "sh", "a\\;", "b;"]
     )
@@ -125,22 +83,36 @@ def test_create_passes_args_ending_in_semicolon_verbatim(box):
     assert args.read_text() == "a\\;|b;|"
 
 
-@needs_tmux
-def test_dotted_chef_name_is_found(box):
+def test_create_sets_env_on_session_verbatim(box, tmux_server):
+    make_session(box).create(["sleep", "30"], env={"RC_VALUE": "a b;"})
+    # A trailing ";" unescaped is dropped by tmux.
+    shown = tmux("show-environment", "-t", TARGET, "RC_VALUE").stdout
+    assert shown == "RC_VALUE=a b;\n"
+
+
+@pytest.mark.parametrize("name", ["my-chef", "it's a chef"])
+def test_create_pipes_pane_output_to_log(box, name, tmux_server, wait_until):
+    s = make_session(box, name)
+    s.create(["sh", "-c", "echo piped-output"])
+    log = Path(s.log_path)
+    assert wait_until(lambda: log.exists() and "piped-output" in log.read_text())
+
+
+def test_dotted_chef_name_is_found(box, tmux_server):
     s = make_session(box, "my.chef")
     s.create(["sleep", "30"])
     assert s.status().state == LIVE
 
 
-@needs_tmux
-def test_prefix_of_live_chef_name_sees_no_session(box):
+def test_prefix_of_live_chef_name_sees_no_session(box, tmux_server):
     make_session(box, "foobar").create(["sleep", "30"])
     assert make_session(box, "foo").status().state == NO_SESSION
 
 
-@needs_tmux
 @pytest.mark.parametrize("code", [0, 3])
-def test_finished_pane_lingers_with_exit_code_and_output(box, code):
+def test_finished_pane_lingers_with_exit_code_and_output(
+    box, code, tmux_server, wait_until
+):
     s = make_session(box)
     s.create(["sh", "-c", f"echo chef-output; exit {code}"])
     assert wait_until(lambda: s.status().state == FINISHED)
@@ -149,9 +121,24 @@ def test_finished_pane_lingers_with_exit_code_and_output(box, code):
     # -S -: the "Pane is dead" line scrolls the output into history.
     assert "chef-output" in tmux("capture-pane", "-p", "-S", "-", "-t", TARGET).stdout
 
+    # No client attached: the recorder's detach must not replace the code.
+    # Empty until tmux reaps the pane, which can trail pane_dead.
+    def dead_status():
+        return tmux(
+            "display-message", "-p", "-t", TARGET, "#{pane_dead_status}"
+        ).stdout.strip()
 
-@needs_tmux
-def test_recorder_killed_after_leftover_code_finishes_without_code(box):
+    assert wait_until(dead_status)
+    assert dead_status() == str(code)
+    log = Path(s.log_path)
+    # pipe-pane creates the log asynchronously.
+    assert wait_until(lambda: log.exists() and "chef-output" in log.read_text())
+    assert "no current client" not in log.read_text()
+
+
+def test_recorder_killed_after_leftover_code_finishes_without_code(
+    box, tmux_server, wait_until
+):
     s = make_session(box)
     bookkeeping = Path(s.bookkeeping_dir)
     bookkeeping.mkdir()
@@ -164,8 +151,7 @@ def test_recorder_killed_after_leftover_code_finishes_without_code(box):
     assert s.status().exit_code is None
 
 
-@needs_tmux
-def test_ctrl_c_finishes_pane_with_sigint_code(box):
+def test_ctrl_c_finishes_pane_with_sigint_code(box, tmux_server, wait_until):
     s = make_session(box)
     s.create(["sh", "-c", "touch started; exec sleep 30"])
     assert wait_until((box / "my-chef" / "started").exists)
@@ -174,11 +160,10 @@ def test_ctrl_c_finishes_pane_with_sigint_code(box):
     assert s.status().exit_code == 130
 
 
-@needs_tmux
 @pytest.mark.parametrize(
     "command, state", [(["sleep", "30"], LIVE), (["sh", "-c", "exit 3"], FINISHED)]
 )
-def test_kill_tears_down_session(box, command, state):
+def test_kill_tears_down_session(box, command, state, tmux_server, wait_until):
     s = make_session(box)
     s.create(command)
     assert wait_until(lambda: s.status().state == state)
@@ -208,32 +193,40 @@ def test_attach_without_tty_refuses_with_distinct_code(box, monkeypatch, capsys)
     assert capsys.readouterr().err.startswith("remote:")
 
 
-def drain(fd):
-    try:
-        while os.read(fd, 1024):
-            pass
-    except OSError:
-        pass
+@pytest.fixture
+def attach_in_pty(box, spawn_in_pty):
+    return lambda: spawn_in_pty([sys.executable, "-c", ATTACH, str(box)])
 
 
-@needs_tmux
-def test_attach_from_terminal_joins_session_until_detached(box):
+def has_client():
+    return tmux("list-clients", "-t", TARGET).stdout.strip()
+
+
+def test_attach_from_terminal_joins_session_until_detached(
+    box, tmux_server, wait_until, attach_in_pty
+):
     make_session(box).create(["sleep", "30"])
-    parent_fd, child_fd = os.openpty()
-    child = subprocess.Popen(
-        [sys.executable, "-c", ATTACH, str(box)],
-        stdin=child_fd,
-        stdout=child_fd,
-        stderr=child_fd,
-        env={**os.environ, "TERM": "xterm"},
-    )
-    os.close(child_fd)
-    # Unread output fills the pty buffer and blocks tmux.
-    threading.Thread(target=drain, args=(parent_fd,), daemon=True).start()
-    try:
-        assert wait_until(lambda: tmux("list-clients", "-t", TARGET).stdout.strip())
-        tmux("detach-client", "-s", TARGET)
-        assert child.wait(timeout=10) == 0
-    finally:
-        child.kill()
-        os.close(parent_fd)
+    child = attach_in_pty()
+    assert wait_until(has_client)
+    tmux("detach-client", "-s", TARGET)
+    assert child.wait(timeout=10) == 0
+
+
+def test_attached_client_returns_when_command_finishes(
+    box, tmux_server, wait_until, attach_in_pty
+):
+    s = make_session(box)
+    s.create(["sh", "-c", "until [ -e go ]; do sleep 0.1; done; exit 3"])
+    child = attach_in_pty()
+    assert wait_until(has_client)
+    assert s.exit_code() is None
+    (box / "my-chef" / "go").touch()
+    assert child.wait(timeout=10) == 0
+    assert s.exit_code() == 3
+
+
+def test_attach_to_finished_pane_returns(box, tmux_server, wait_until, attach_in_pty):
+    s = make_session(box)
+    s.create(["sh", "-c", "exit 3"])
+    assert wait_until(lambda: s.status().state == FINISHED)
+    assert attach_in_pty().wait(timeout=10) == 0

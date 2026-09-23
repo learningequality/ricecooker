@@ -3,6 +3,7 @@ import re
 import sys
 from dataclasses import dataclass
 from datetime import datetime
+from shlex import quote
 from typing import Optional
 
 from ricecooker.exceptions import RemoteSessionError
@@ -14,14 +15,17 @@ LIVE = "live"
 FINISHED = "finished"
 NOT_A_TTY = 64  # sysexits EX_USAGE; distinct from tmux (1) and ssh (255) failures
 
-# sh -c script; args: <bookkeeping dir> <command...>.
+# sh -c script; args: <bookkeeping dir> <tmux target> <command...>.
 # Cleared here, not before new-session: a refused duplicate create must not
 # erase a finished pane's code.
 # `trap : INT` keeps this shell alive through Ctrl-C; the command still gets SIGINT.
 # Write-then-rename so status() never reads a half-written file.
 RECORD_EXIT = (
-    'd=$1; shift; mkdir -p "$d"; rm -f "$d/exitcode"; trap : INT; "$@"; '
-    'echo $? > "$d/exitcode.tmp"; mv "$d/exitcode.tmp" "$d/exitcode"'
+    'd=$1 t=$2; shift 2; mkdir -p "$d"; rm -f "$d/exitcode"; trap : INT; "$@"; '
+    'rc=$?; echo $rc > "$d/exitcode.tmp"; mv "$d/exitcode.tmp" "$d/exitcode"; '
+    # After the mv: a returning attach is the driver's cue to read exitcode.
+    # Fails with no client attached; the pane must still exit with the code.
+    'tmux detach-client -s "$t" 2>/dev/null; exit $rc'
 )
 
 
@@ -30,6 +34,11 @@ class SessionStatus:
     state: str
     started: Optional[datetime] = None
     exit_code: Optional[int] = None
+
+
+def tmux_literal(arg) -> str:
+    # tmux ends a command at any argument ending in ";"; "\;" keeps it literal.
+    return arg[:-1] + "\\;" if arg.endswith(";") else arg
 
 
 def session_name(profile) -> str:
@@ -43,12 +52,22 @@ class Session:
         self.name = session_name(transport.profile)
         self.chef_dir = remote_chef_dir(transport.profile)
         self.bookkeeping_dir = posixpath.join(self.chef_dir, BOOKKEEPING_DIR)
+        self.log_path = posixpath.join(self.bookkeeping_dir, "session.log")
         # "=": exact match, or "ricecooker-foo" finds "ricecooker-foobar".
         self.target = f"={self.name}:"
 
-    def create(self, command) -> None:
-        # tmux ends a command at any argument ending in ";"; "\;" keeps it literal.
-        command = [a[:-1] + "\\;" if a.endswith(";") else a for a in command]
+    def create(self, command, env=None) -> None:
+        set_env = []
+        for key, value in (env or {}).items():
+            set_env += [
+                ";",
+                "set-environment",
+                "-t",
+                self.target,
+                key,
+                tmux_literal(value),
+            ]
+        bookkeeping, log = quote(self.bookkeeping_dir), quote(self.log_path)
         self._ssh(
             "tmux",
             "new-session",
@@ -62,14 +81,24 @@ class Session:
             RECORD_EXIT,
             "sh",
             self.bookkeeping_dir,
-            *command,
-            # Same invocation: a second round trip lets a fast command close the pane.
+            self.target,
+            *map(tmux_literal, command),
+            # Same invocation: the command starts at new-session, so a second
+            # round trip lets it read show-environment before the env is set,
+            # or a fast command close the pane.
             ";",
             "set-option",
             "-t",
             self.target,
             "remain-on-exit",
             "on",
+            *set_env,
+            # Run by /bin/sh; this mkdir races the pane's own.
+            ";",
+            "pipe-pane",
+            "-t",
+            self.target,
+            f"mkdir -p {bookkeeping} && exec cat > {log}",
         )
 
     def status(self) -> SessionStatus:
@@ -90,12 +119,14 @@ class Session:
         started = datetime.fromtimestamp(int(created))
         if dead != "1":
             return SessionStatus(LIVE, started=started)
-        # 1: the recorder died before writing a code.
+        return SessionStatus(FINISHED, started=started, exit_code=self.exit_code())
+
+    def exit_code(self) -> Optional[int]:
+        # 1: still running, or the recorder died before writing a code.
         code = self._ssh(
             "cat", posixpath.join(self.bookkeeping_dir, "exitcode"), ok=(0, 1)
         )
-        exit_code = None if code.returncode else int(code.stdout)
-        return SessionStatus(FINISHED, started=started, exit_code=exit_code)
+        return None if code.returncode else int(code.stdout)
 
     def attach(self) -> int:
         if not sys.stdin.isatty():
@@ -105,7 +136,19 @@ class Session:
             )
             return NOT_A_TTY
         return self.transport.ssh(
-            ["tmux", "attach-session", "-t", self.target], tty=True
+            [
+                "tmux",
+                "attach-session",
+                "-t",
+                self.target,
+                # A run that ended before this client arrived would hold it.
+                ";",
+                "if-shell",
+                "-F",
+                "#{pane_dead}",
+                "detach-client",
+            ],
+            tty=True,
         ).returncode
 
     def kill(self) -> None:
