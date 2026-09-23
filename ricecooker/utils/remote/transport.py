@@ -6,10 +6,12 @@ from pathlib import Path
 
 from ricecooker.exceptions import RemoteTransportError
 
+BOOKKEEPING_DIR = ".ricecooker-remote"
+
 # --exclude, not --filter=P: P still uploads a local copy and deletes inside it.
 BOX_MANAGED = (
     ".venv/",
-    ".ricecooker-remote/",
+    BOOKKEEPING_DIR + "/",
     "storage/",
     "restore/",
     "chefdata/",

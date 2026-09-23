@@ -27,28 +27,6 @@ needs_rsync = pytest.mark.skipif(not _has_gnu_rsync(), reason="needs GNU rsync 3
 needs_sh = pytest.mark.skipif(os.name == "nt", reason="ssh shim needs sh")
 
 
-SSH_SHIM = """#!/bin/sh
-# Plays the box locally: drop ssh options and the host, run the command like sshd.
-while [ "${1#-}" != "$1" ]; do shift; done
-shift
-exec sh -c "$*"
-"""
-
-
-@pytest.fixture
-def box(tmp_path, monkeypatch):
-    bin_dir = tmp_path / "bin"
-    bin_dir.mkdir()
-    shim = bin_dir / "ssh"
-    shim.write_text(SSH_SHIM)
-    shim.chmod(0o755)
-    monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
-    monkeypatch.delenv("RSYNC_RSH", raising=False)
-    root = tmp_path / "box"
-    root.mkdir()
-    return root
-
-
 @pytest.fixture
 def laptop(tmp_path):
     d = tmp_path / "laptop"

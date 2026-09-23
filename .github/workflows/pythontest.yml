@@ -57,6 +57,7 @@ jobs:
           sudo apt-get install -y ffmpeg
           sudo apt-get install -y poppler-utils
           sudo apt-get install -y pandoc
+          sudo apt-get install -y tmux
         if: ${{ needs.pre_job.outputs.should_skip != 'true' && startsWith(matrix.os, 'ubuntu') }}
       - name: Cache Mac dependencies
         uses: actions/cache@v6.1.0
