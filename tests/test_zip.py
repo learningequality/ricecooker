@@ -1,6 +1,7 @@
 import hashlib
 import os
 import tempfile
+import zipfile
 
 import pytest
 
@@ -107,6 +108,19 @@ def test_order_independence():
     finally:
         cleanup(temp_dir1)
         cleanup(temp_dir2)
+
+
+def test_directory_members_sort_by_posix_path():
+    # On Windows "a\\x.txt" sorts after "a0.txt"; "a/x.txt" sorts before it.
+    temp_dir = create_test_files({"a/x.txt": "x", "a0.txt": "0"})
+    try:
+        zip_path = create_predictable_zip(temp_dir)
+        with zipfile.ZipFile(zip_path) as zf:
+            names = zf.namelist()
+        os.remove(zip_path)
+        assert names == ["a/x.txt", "a0.txt"]
+    finally:
+        cleanup(temp_dir)
 
 
 @pytest.mark.parametrize(
