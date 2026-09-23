@@ -5,6 +5,7 @@ both validate and convert files.
 
 import json
 import os
+import posixpath
 import shutil
 import subprocess
 import tempfile
@@ -33,10 +34,19 @@ from ricecooker.exceptions import UnknownFileTypeError
 from ricecooker.utils.audio import AudioCompressionError
 from ricecooker.utils.audio import compress_audio
 from ricecooker.utils.caching import generate_key
+from ricecooker.utils.imscp import collapse_single_children
+from ricecooker.utils.imscp import contained_path
+from ricecooker.utils.imscp import IMSCP_MANIFEST
+from ricecooker.utils.imscp import IMSCPPackage
+from ricecooker.utils.imscp import is_qti_resource
+from ricecooker.utils.imscp import lom_content_fields
+from ricecooker.utils.imscp import node_content_fields
+from ricecooker.utils.imscp import parse_imscp_manifest
 from ricecooker.utils.paths import extract_path_ext
 from ricecooker.utils.pipeline.context import ContentNodeMetadata
 from ricecooker.utils.pipeline.context import ContextMetadata
 from ricecooker.utils.pipeline.context import FileMetadata
+from ricecooker.utils.pipeline.exceptions import ExpectedFileException
 from ricecooker.utils.pipeline.exceptions import InvalidFileException
 from ricecooker.utils.references import DEFAULT_MAPPERS
 from ricecooker.utils.references import ReferenceMapper
@@ -44,6 +54,8 @@ from ricecooker.utils.references import sanitize_style_css
 from ricecooker.utils.references import strip_scripts
 from ricecooker.utils.references import strip_stylesheet_links
 from ricecooker.utils.scorm import boilerplate_script_members
+from ricecooker.utils.scorm import has_assessment_semantics
+from ricecooker.utils.scorm import single_media_member
 from ricecooker.utils.scorm import strip_scorm_boilerplate
 from ricecooker.utils.subtitles import build_subtitle_converter_from_file
 from ricecooker.utils.subtitles import InvalidSubtitleFormatError
@@ -884,6 +896,210 @@ class DocumentConversionHandler(ExtensionMatchingHandler):
             _seal_directory_to_file(self, temp_dir, file_formats.HTML5_ARTICLE)
 
 
+# Presets whose files ride alongside a primary file (thumbnails, subtitles); they
+# never define a node's kind.
+_SUPPLEMENTARY_PRESETS = frozenset(
+    p.id for p in format_presets.PRESETLIST if p.supplementary
+)
+
+
+def _summarize_leaf(sub):
+    """Reduce a sub-pipeline result to ``(kind, file dicts, extra_fields)``.
+
+    The node's kind/extra_fields come from its primary (non-supplementary) file;
+    every file dict is retained so the leaf is backed by its own sealed files.
+    """
+    files = [fm.to_dict() for fm in sub]
+    for fm in sub:
+        if fm.preset in _SUPPLEMENTARY_PRESETS:
+            continue
+        # merge() round-trips through to_dict(), so this is always a plain dict.
+        metadata = fm.content_node_metadata or {}
+        return metadata.get("kind"), files, metadata.get("extra_fields")
+    return None, files, None
+
+
+def _manifest_member(names):
+    """The package's ``imsmanifest.xml`` member, at the root or under a single wrapping folder."""
+    if IMSCP_MANIFEST in names:
+        return IMSCP_MANIFEST
+    common_root = find_common_root([n for n in names if not n.endswith("/")])
+    nested = f"{common_root}/{IMSCP_MANIFEST}" if common_root else None
+    return nested if nested in names else None
+
+
+class IMSCPConversionHandler(HTML5ConversionHandler):
+    """Decompose an IMS Content Package (incl. SCORM) into a native node subtree.
+
+    Every surviving leaf re-enters the pipeline to be sealed into its own file, so
+    no leaf is backed by the whole package zip. Must be registered before
+    ``HTML5ConversionHandler``, which claims any ``.zip``.
+    """
+
+    def should_handle(self, path):
+        if not super().should_handle(path):
+            return False
+        try:
+            with zipfile.ZipFile(path) as zf:
+                return _manifest_member(zf.namelist()) is not None
+        except (OSError, zipfile.BadZipFile):
+            return False
+
+    def handle_file(
+        self,
+        path,
+        audio_settings=None,
+        video_settings=None,
+        entry=None,
+        preserve_kind=False,
+    ):
+        if preserve_kind:
+            return super().handle_file(
+                path, audio_settings, video_settings, entry, preserve_kind=True
+            )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with zipfile.ZipFile(path) as zf:
+                ims_dir = os.path.join(
+                    temp_dir, posixpath.dirname(_manifest_member(zf.namelist()))
+                )
+                zf.extractall(temp_dir)
+            try:
+                manifest = parse_imscp_manifest(ims_dir)
+            except ET.ParseError as e:
+                raise InvalidFileException(
+                    f"File {path} is not a valid IMSCP package, its {IMSCP_MANIFEST} could not be parsed: {e}"
+                )
+            children = self._build_nodes(
+                manifest.get("children"), IMSCPPackage(ims_dir)
+            )
+        if not children:
+            raise InvalidFileException(
+                f"File {path} is not a valid IMSCP package, every resource was rejected."
+            )
+        # Package-level LOM rides on the topmost node.
+        tree = collapse_single_children(
+            {**lom_content_fields(manifest), "children": children}
+        )
+        if "children" not in tree:
+            # A lone resource, which the declaring node becomes.
+            tree = {"children": [tree]}
+        return FileMetadata(content_node_metadata=ContentNodeMetadata(**tree))
+
+    def _build_nodes(self, nodes, package):
+        built = [self._build_node(node, package) for node in nodes or []]
+        return [node for node in built if node is not None]
+
+    def _build_node(self, node_dict, package):
+        if node_dict.get("children"):
+            children = self._build_nodes(node_dict["children"], package)
+            if not children:
+                LOGGER.warning(
+                    "IMSCP: skipping topic %s, every resource was rejected",
+                    node_dict.get("source_id"),
+                )
+                return None
+            return {**node_content_fields(node_dict), "children": children}
+        return self._build_leaf(node_dict, package)
+
+    def _build_leaf(self, node_dict, package):
+        source_id = node_dict.get("source_id")
+        # QTI ingestion is deferred to #337, so assessment items are rejected here.
+        if is_qti_resource(node_dict.get("type")):
+            LOGGER.warning("IMSCP: rejecting QTI resource %s", source_id)
+            return None
+        if node_dict.get("type") != "webcontent" or not node_dict.get("index_file"):
+            LOGGER.warning(
+                "IMSCP: skipping unsupported resource %s (type=%s)",
+                source_id,
+                node_dict.get("type"),
+            )
+            return None
+
+        index_path = contained_path(package.directory, node_dict["index_file"])
+        if index_path is None:
+            LOGGER.warning(
+                "IMSCP: skipping resource %s, index path escapes package: %s",
+                source_id,
+                node_dict.get("index_file"),
+            )
+            return None
+        try:
+            with open(index_path, "rb") as fh:
+                index_html = fh.read().decode("utf-8", errors="replace")
+        except OSError:
+            LOGGER.warning(
+                "IMSCP: skipping resource %s, index file missing: %s",
+                source_id,
+                node_dict.get("index_file"),
+            )
+            return None
+
+        if has_assessment_semantics(index_html, node_dict.get("masteryscore")):
+            LOGGER.warning("IMSCP: rejecting assessment resource %s", source_id)
+            return None
+
+        sub = self._process_leaf(node_dict, package, index_html)
+        if not sub:
+            LOGGER.warning("IMSCP: skipping resource %s, produced no files", source_id)
+            return None
+
+        kind, files, extra_fields = _summarize_leaf(sub)
+        if kind is None:
+            # The tree expander reads a kind-less leaf as an empty folder, so
+            # drop it loudly instead.
+            LOGGER.warning(
+                "IMSCP: skipping resource %s, no content kind could be inferred",
+                source_id,
+            )
+            return None
+
+        leaf = {**node_content_fields(node_dict), "kind": kind, "files": files}
+        if extra_fields:
+            leaf["extra_fields"] = extra_fields
+        return leaf
+
+    def _process_leaf(self, node_dict, package, index_html):
+        """Run the resource up the ladder and return its sub-pipeline result.
+
+        A resource reducing to one wrapped media file is processed as that file;
+        everything else is sealed into its own HTML5 zip, which the HTML5 handler
+        may promote to a KPUB. An unusable resource returns ``None``, dropping just
+        that leaf and leaving the rest of the package to decompose.
+        """
+        source_id = node_dict.get("source_id")
+        media = single_media_member(
+            index_html, node_dict["index_file"], node_dict.get("files") or []
+        )
+        media_path = contained_path(package.directory, media) if media else None
+        if media and media_path is None:
+            LOGGER.warning(
+                "IMSCP: skipping resource %s, media path escapes package: %s",
+                source_id,
+                media,
+            )
+            return None
+        try:
+            if media_path:
+                return self.get_pipeline().execute(media_path)
+            return self._process_html5_leaf(node_dict, package)
+        except (InvalidFileException, ExpectedFileException) as e:
+            LOGGER.warning(
+                "IMSCP: skipping resource %s, could not process: %s", source_id, e
+            )
+            return None
+
+    def _process_html5_leaf(self, node_dict, package):
+        """Seal the resource's own members into a zip and process it as HTML5/KPUB."""
+        index_file = posixpath.normpath(node_dict["index_file"])
+        with tempfile.TemporaryDirectory() as staging:
+            package.stage([index_file] + list(node_dict.get("files") or []), staging)
+            zip_path = create_predictable_zip(staging)
+        try:
+            return self.get_pipeline().execute(zip_path, context={"entry": index_file})
+        finally:
+            os.unlink(zip_path)
+
+
 class ConversionStageHandler(StageHandler):
     STAGE = "CONVERT"
     DEFAULT_CHILDREN = [
@@ -894,6 +1110,7 @@ class ConversionStageHandler(StageHandler):
         BloomConversionHandler,
         EPUBConversionHandler,
         H5PConversionHandler,
+        IMSCPConversionHandler,
         HTML5ConversionHandler,
         DocumentConversionHandler,
         KPUBConversionHandler,
