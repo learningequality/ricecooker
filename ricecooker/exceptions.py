@@ -89,5 +89,12 @@ class RemoteConfigError(Exception):
         Exception.__init__(self, *args, **kwargs)
 
 
+class RemoteTransportError(Exception):
+    """RemoteTransportError: raised when a local ssh/rsync invocation fails"""
+
+    def __init__(self, *args, **kwargs):
+        Exception.__init__(self, *args, **kwargs)
+
+
 def raise_for_invalid_channel(channel):
     pass
