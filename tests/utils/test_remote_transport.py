@@ -1,4 +1,7 @@
 import ast
+import os
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -7,89 +10,175 @@ import pytest
 from ricecooker.exceptions import RemoteTransportError
 from ricecooker.utils.remote import transport
 from ricecooker.utils.remote.config import RemoteProfile
-from ricecooker.utils.remote.transport import pull_argv
 from ricecooker.utils.remote.transport import RunResult
-from ricecooker.utils.remote.transport import ssh_argv
 from ricecooker.utils.remote.transport import subprocess_runner
-from ricecooker.utils.remote.transport import sync_argv
 from ricecooker.utils.remote.transport import Transport
 
-PROFILE = RemoteProfile(
-    ssh="box",
-    remote_root="/srv/chefs",
-    name="my-chef",
-    protect=["credentials.json", "secrets/"],
-    exclude=["*.tmp"],
-)
+
+def _has_gnu_rsync():
+    if not shutil.which("rsync"):
+        return False
+    out = subprocess.run(["rsync", "--version"], capture_output=True, text=True).stdout
+    return out.startswith("rsync  version 3")
 
 
-def test_sync_argv_exact(tmp_path):
-    assert sync_argv(PROFILE, tmp_path) == [
-        "rsync",
-        "-a",
-        "--delete",
-        "--delete-after",
-        "--filter=:- .gitignore",
-        "--exclude=.venv/",
-        "--exclude=.ricecooker-remote/",
-        "--exclude=storage/",
-        "--exclude=restore/",
-        "--exclude=chefdata/",
-        "--exclude=logs/",
-        "--filter=P credentials.json",
-        "--filter=P secrets/",
-        "--exclude=*.tmp",
-        f"{tmp_path}/",
-        "box:/srv/chefs/my-chef/",
-    ]
+# openrsync (macOS) lacks per-directory merge filters; Windows has no rsync.
+needs_rsync = pytest.mark.skipif(not _has_gnu_rsync(), reason="needs GNU rsync 3.x")
+needs_sh = pytest.mark.skipif(os.name == "nt", reason="ssh shim needs sh")
 
 
-def test_pull_argv_exact():
-    assert pull_argv(PROFILE, "chefdata/trees", "out") == [
-        "rsync",
-        "-a",
-        "box:/srv/chefs/my-chef/chefdata/trees",
-        "out",
-    ]
+SSH_SHIM = """#!/bin/sh
+# Plays the box locally: drop ssh options and the host, run the command like sshd.
+while [ "${1#-}" != "$1" ]; do shift; done
+shift
+exec sh -c "$*"
+"""
 
 
-def test_ssh_argv_quotes_command():
-    assert ssh_argv(PROFILE, ["sh", "-c", "cd /srv/x && uv sync"]) == [
-        "ssh",
-        "box",
-        "sh -c 'cd /srv/x && uv sync'",
-    ]
+@pytest.fixture
+def box(tmp_path, monkeypatch):
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    shim = bin_dir / "ssh"
+    shim.write_text(SSH_SHIM)
+    shim.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
+    monkeypatch.delenv("RSYNC_RSH", raising=False)
+    root = tmp_path / "box"
+    root.mkdir()
+    return root
 
 
-def test_ssh_argv_tty_form():
-    assert ssh_argv(
-        PROFILE, ["tmux", "attach", "-t", "ricecooker-my-chef"], tty=True
-    ) == ["ssh", "-t", "box", "tmux attach -t ricecooker-my-chef"]
+@pytest.fixture
+def laptop(tmp_path):
+    d = tmp_path / "laptop"
+    d.mkdir()
+    return d
 
 
-class RecordingRunner:
-    def __init__(self, result=RunResult(0)):
-        self.result = result
-        self.calls = []
+def make_transport(box, chef_dir, protect=(), exclude=()):
+    profile = RemoteProfile(
+        ssh="box",
+        remote_root=str(box),
+        name="my-chef",
+        protect=list(protect),
+        exclude=list(exclude),
+    )
+    return Transport(profile, chef_dir=chef_dir)
 
-    def __call__(self, argv, capture):
-        self.calls.append((argv, capture))
-        return self.result
+
+def write(path, text="x"):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text)
 
 
-EXIT_3_ARGV = [
-    sys.executable,
-    "-c",
-    "import sys; sys.stdout.write('out'); sys.stderr.write('err'); sys.exit(3)",
-]
+def tree(root):
+    return sorted(str(p.relative_to(root)) for p in root.rglob("*") if p.is_file())
+
+
+@needs_rsync
+def test_sync_mirrors_chef_dir_into_remote_chef_dir(box, laptop):
+    write(laptop / "chef.py", "new!")
+    write(laptop / "pkg" / "mod.py")
+    write(box / "my-chef" / "chef.py", "old")
+    write(box / "my-chef" / "stale.py")
+    write(box / "my-chef" / "chefdata" / "tree.json")
+    make_transport(box, laptop).sync()
+    assert tree(box / "my-chef") == ["chef.py", "chefdata/tree.json", "pkg/mod.py"]
+    assert (box / "my-chef" / "chef.py").read_text() == "new!"
+    assert tree(laptop) == ["chef.py", "pkg/mod.py"]
+
+
+@needs_rsync
+def test_sync_neither_uploads_nor_deletes_box_managed_dirs(box, laptop):
+    for managed in transport.BOX_MANAGED:
+        write(laptop / managed / "laptop-only")
+        write(box / "my-chef" / managed / "box-only")
+    make_transport(box, laptop).sync()
+    assert tree(box / "my-chef") == sorted(
+        f"{m}box-only" for m in transport.BOX_MANAGED
+    )
+
+
+@needs_rsync
+def test_sync_skips_gitignored_and_keeps_box_copy(box, laptop):
+    write(laptop / ".gitignore", "*.log\n")
+    write(laptop / "debug.log")
+    write(box / "my-chef" / "run.log")
+    make_transport(box, laptop).sync()
+    assert tree(box / "my-chef") == [".gitignore", "run.log"]
+
+
+@needs_rsync
+def test_sync_newly_gitignored_box_dir_survives(box, laptop):
+    write(laptop / ".gitignore", "")
+    make_transport(box, laptop).sync()
+    write(box / "my-chef" / "secrets" / "key")
+    write(laptop / ".gitignore", "secrets/\n")
+    make_transport(box, laptop).sync()
+    assert (box / "my-chef" / "secrets" / "key").exists()
+
+
+@needs_rsync
+def test_sync_protect_keeps_box_copy_and_exclude_skips_upload(box, laptop):
+    write(laptop / "credentials.json", "laptop")
+    write(laptop / "scratch.tmp")
+    write(box / "my-chef" / "credentials.json", "box")
+    write(box / "my-chef" / "secrets" / "key")
+    t = make_transport(
+        box, laptop, protect=["credentials.json", "secrets/"], exclude=["*.tmp"]
+    )
+    t.sync()
+    assert tree(box / "my-chef") == ["credentials.json", "secrets/key"]
+
+
+@needs_rsync
+def test_sync_default_chef_dir_is_cwd(box, laptop, monkeypatch):
+    write(laptop / "chef.py")
+    monkeypatch.chdir(laptop)
+    make_transport(box, None).sync()
+    assert tree(box) == ["my-chef/chef.py"]
+
+
+@needs_rsync
+def test_pull_fetches_path_relative_to_remote_chef_dir(box, laptop):
+    write(box / "my-chef" / "chefdata" / "trees" / "a.json", "tree")
+    make_transport(box, laptop).pull("chefdata/trees", laptop / "out")
+    assert (laptop / "out" / "trees" / "a.json").read_text() == "tree"
+
+
+@needs_rsync
+def test_rsync_failure_raises_with_rsync_stderr(box, laptop):
+    with pytest.raises(RemoteTransportError) as exc:
+        make_transport(box, laptop).pull("nope", laptop / "out")
+    assert str(exc.value).startswith("remote:")
+    assert "rsync:" in str(exc.value)
+
+
+@needs_sh
+def test_ssh_args_reach_remote_shell_intact(box, laptop):
+    result = make_transport(box, laptop).ssh(
+        ["printf", "%s|", "a b", "it's", "$HOME", "x;y"]
+    )
+    assert result.stdout == "a b|it's|$HOME|x;y|"
+
+
+@needs_sh
+def test_ssh_tty_leaves_terminal_attached(box, laptop):
+    assert make_transport(box, laptop).ssh(
+        ["printf", "attached"], tty=True
+    ) == RunResult(0)
+
+
+@needs_sh
+def test_ssh_nonzero_is_returned_not_raised(box, laptop):
+    assert make_transport(box, laptop).ssh(["sh", "-c", "exit 1"]).returncode == 1
 
 
 def test_subprocess_runner_captures_streams_and_exit_code():
-    assert subprocess_runner(EXIT_3_ARGV, capture=True) == RunResult(3, "out", "err")
-
-
-def test_subprocess_runner_uncaptured_streams_are_empty_strings():
-    assert subprocess_runner(EXIT_3_ARGV, capture=False) == RunResult(3, "", "")
+    code = "import sys; sys.stdout.write('out'); sys.stderr.write('err'); sys.exit(3)"
+    result = subprocess_runner([sys.executable, "-c", code], capture=True)
+    assert result == RunResult(3, "out", "err")
 
 
 def test_subprocess_runner_missing_binary_is_remote_error():
@@ -97,44 +186,6 @@ def test_subprocess_runner_missing_binary_is_remote_error():
         subprocess_runner(["ricecooker-no-such-binary-xyz"], capture=True)
     assert str(exc.value).startswith("remote:")
     assert "ricecooker-no-such-binary-xyz" in str(exc.value)
-
-
-def test_transport_routes_every_operation_through_runner(tmp_path):
-    fake = RecordingRunner()
-    t = Transport(PROFILE, chef_dir=tmp_path, runner=fake)
-    t.sync()
-    t.pull("logs/", "out")
-    t.ssh(["command", "-v", "uv"])
-    t.ssh(["tmux", "attach"], tty=True)
-    assert fake.calls == [
-        (sync_argv(PROFILE, tmp_path), True),
-        (pull_argv(PROFILE, "logs/", "out"), True),
-        (ssh_argv(PROFILE, ["command", "-v", "uv"]), True),
-        (ssh_argv(PROFILE, ["tmux", "attach"], tty=True), False),
-    ]
-
-
-def test_transport_default_chef_dir_is_cwd(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    fake = RecordingRunner()
-    Transport(PROFILE, runner=fake).sync()
-    assert fake.calls == [(sync_argv(PROFILE, Path.cwd()), True)]
-
-
-@pytest.mark.parametrize(
-    "operation", [lambda t: t.sync(), lambda t: t.pull("x", "y")], ids=["sync", "pull"]
-)
-def test_transport_rsync_failure_raises_with_stderr(operation):
-    fake = RecordingRunner(RunResult(23, "", "rsync: link_stat failed"))
-    with pytest.raises(RemoteTransportError) as exc:
-        operation(Transport(PROFILE, runner=fake))
-    assert str(exc.value).startswith("remote:")
-    assert "rsync: link_stat failed" in str(exc.value)
-
-
-def test_transport_ssh_nonzero_is_returned_not_raised():
-    fake = RecordingRunner(RunResult(1))
-    assert Transport(PROFILE, runner=fake).ssh(["tmux", "has-session"]) == RunResult(1)
 
 
 def _violations(path):
