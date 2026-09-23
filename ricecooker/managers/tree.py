@@ -62,11 +62,18 @@ class ChannelManager:
         """
         if not self.all_nodes:
             self.all_nodes = self.gather_tree_recur([], self.channel)
+        processed = set(map(id, self.all_nodes))
         with concurrent.futures.ThreadPoolExecutor(
             max_workers=config.TASK_THREADS
         ) as executor:
             for data in executor.map(self.process_node, self.all_nodes):
                 self.file_map.update(data)
+        # A decomposed package (IMSCP) grows processed descendants during process_files().
+        # Only collect those: node_files() re-runs a failed file's pipeline.
+        self.all_nodes = self.gather_tree_recur([], self.channel)
+        for node in self.all_nodes:
+            if id(node) not in processed:
+                self.file_map.update(self.node_files(node))
         return list(self.file_map.keys())
 
     def deduplicate_shared_nodes(self):
@@ -118,7 +125,10 @@ class ChannelManager:
             else:
                 node._error = str(e)
                 config.LOGGER.warning(node._error)
+        return self.node_files(node)
 
+    def node_files(self, node):
+        """Map each of ``node``'s processed filenames to its File."""
         output = {}
 
         for node_file in node.files:

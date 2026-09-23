@@ -70,7 +70,9 @@ class File(object):
         duration=None,
         original_filename=None,
         filename=None,
+        **kwargs,
     ):
+        # Extra keys are tolerated so a pipeline file-metadata dict splats in.
         self.preset = preset
         self.set_language(language)
         self.default_ext = default_ext or self.default_ext
