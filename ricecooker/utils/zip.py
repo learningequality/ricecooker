@@ -96,7 +96,8 @@ def create_predictable_zip(path, entrypoint=None, file_converter=None):
 
         for root, directories, filenames in os.walk(path):
             paths += [
-                os.path.join(root, filename)[len(path) + 1 :] for filename in filenames
+                os.path.join(root, filename)[len(path) + 1 :].replace(os.sep, "/")
+                for filename in filenames
             ]
 
         def reader(x):
