@@ -56,10 +56,12 @@ def is_qti_resource(resource_type):
 def parse_imscp_manifest(ims_dir):
     """Parse ``imsmanifest.xml`` in ``ims_dir`` into the manifest tree.
 
-    Returns ``{"metadata", "children": [node, ...]}``
+    Returns ``{"metadata", "children": [node, ...], "qti_resources"}``
     where each ``node`` is a topic (``{"source_id", "title", "children"}``) or a
     webcontent leaf (``{"source_id", "title", "type", "index_file", "href",
     "files"}``). ``files`` are archive-member paths relative to ``ims_dir``.
+    ``qti_resources`` lists every QTI resource as a leaf, in manifest order,
+    whether or not an organization references it.
     Only the default organization is read; the others restructure the same resources.
     """
     root = _read_manifest(os.path.join(ims_dir, IMSCP_MANIFEST))
@@ -82,7 +84,13 @@ def parse_imscp_manifest(ims_dir):
         _collect_resources(node, resources, ims_dir)
         children.append(node)
 
-    return {"metadata": metadata, "children": children}
+    qti_resources = [
+        _resolve_resource({"source_id": identifier}, resource, resources, ims_dir)
+        for identifier, resource in resources.items()
+        if is_qti_resource(resource.get("type"))
+    ]
+
+    return {"metadata": metadata, "children": children, "qti_resources": qti_resources}
 
 
 def _default_organization(root):
@@ -354,11 +362,14 @@ def _resolve_resource(item, resource, resources, ims_dir):
         if metadata:
             item["metadata"] = metadata
     # Other resource types are rejected downstream.
-    if resource.get("type") == "webcontent":
+    resource_type = resource.get("type")
+    if resource_type == "webcontent" or is_qti_resource(resource_type):
         href = resource.get("href")
         if href:
             item["index_file"] = (resource.get(XML_BASE) or "") + _href_path(href)
+    if resource_type == "webcontent":
         item["files"] = _derive_files(resource, resources)
+    return item
 
 
 def _derive_files(resource, resources, seen=None, visited=None):

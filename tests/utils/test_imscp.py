@@ -74,6 +74,25 @@ def test_xml_base_applied_to_index_file(tmp_path):
     assert leaf["files"] == ["course/content/start.html"]
 
 
+def test_qti_resources_listed_without_an_organization(tmp_path):
+    # QTI packages have no organization; their resources are found by type.
+    _write_manifest(
+        str(tmp_path),
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<manifest xmlns="http://www.imsglobal.org/xsd/qti/qtiv3p0/imscp_v1p1" identifier="M">'
+        '<organizations/><resources xml:base="qti/">'
+        '<resource identifier="T" type="imsqti_test_xmlv3p0" href="t.xml"><file href="t.xml"/></resource>'
+        '<resource identifier="W" type="webcontent" href="p.html"><file href="p.html"/></resource>'
+        '<resource identifier="A" type="imsqti_item_xmlv3p0" href="items/a.xml"><file href="items/a.xml"/></resource>'
+        "</resources></manifest>",
+    )
+    qti_resources = parse_imscp_manifest(str(tmp_path))["qti_resources"]
+    assert [(r["source_id"], r["type"], r["index_file"]) for r in qti_resources] == [
+        ("T", "imsqti_test_xmlv3p0", "qti/t.xml"),
+        ("A", "imsqti_item_xmlv3p0", "qti/items/a.xml"),
+    ]
+
+
 def test_only_default_organization_read(tmp_path):
     _write_manifest(
         str(tmp_path),
