@@ -11,6 +11,7 @@ The detailed information for content developers (chef authors) is presented here
    exercises
    languages
    chefops
+   remote
 
 
 Code examples
