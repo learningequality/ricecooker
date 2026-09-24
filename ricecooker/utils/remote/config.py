@@ -12,12 +12,14 @@ except ModuleNotFoundError:  # Python < 3.11
 
 CHEF_CONFIG_FILENAME = ".ricecooker-remote.toml"
 DEFAULT_GLOBAL_CONFIG_PATH = Path.home() / ".config" / "ricecooker" / "remote.toml"
+RICECOOKER_SOURCES = (None, "local")
 
 
 @dataclass
 class HostProfile:
     ssh: str
     remote_root: str
+    ricecooker_source: Optional[str] = None
 
 
 @dataclass
@@ -40,6 +42,7 @@ class RemoteProfile:
     name: str
     protect: list
     exclude: list
+    ricecooker_source: Optional[str] = None
 
 
 def _read_toml(path) -> dict:
@@ -53,11 +56,21 @@ def load_global_config(path) -> GlobalConfig:
         return GlobalConfig(profiles={}, default=None)
     data = _read_toml(path)
     default = data.pop("default", None)
-    profiles = {
-        name: HostProfile(ssh=table["ssh"], remote_root=table["remote_root"])
-        for name, table in data.items()
-        if isinstance(table, dict)
-    }
+    profiles = {}
+    for name, table in data.items():
+        if not isinstance(table, dict):
+            continue
+        source = table.get("ricecooker_source")
+        if source not in RICECOOKER_SOURCES:
+            raise RemoteConfigError(
+                f'remote: profile "{name}" in {path} has ricecooker_source = '
+                f'{source!r}; the only supported value is "local".'
+            )
+        profiles[name] = HostProfile(
+            ssh=table["ssh"],
+            remote_root=table["remote_root"],
+            ricecooker_source=source,
+        )
     return GlobalConfig(profiles=profiles, default=default)
 
 
@@ -107,4 +120,5 @@ def resolve_profile(remote=None, chef_dir=None, global_path=None) -> RemoteProfi
         name=chef.name,
         protect=chef.protect,
         exclude=chef.exclude,
+        ricecooker_source=host.ricecooker_source,
     )

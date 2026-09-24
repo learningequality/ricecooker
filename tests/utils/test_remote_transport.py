@@ -1,7 +1,5 @@
 import ast
 import os
-import shutil
-import subprocess
 import sys
 from pathlib import Path
 
@@ -14,24 +12,7 @@ from ricecooker.utils.remote.transport import RunResult
 from ricecooker.utils.remote.transport import subprocess_runner
 from ricecooker.utils.remote.transport import Transport
 
-
-def _has_gnu_rsync():
-    if not shutil.which("rsync"):
-        return False
-    out = subprocess.run(["rsync", "--version"], capture_output=True, text=True).stdout
-    return out.startswith("rsync  version 3")
-
-
-# openrsync (macOS) lacks per-directory merge filters; Windows has no rsync.
-needs_rsync = pytest.mark.skipif(not _has_gnu_rsync(), reason="needs GNU rsync 3.x")
 needs_sh = pytest.mark.skipif(os.name == "nt", reason="ssh shim needs sh")
-
-
-@pytest.fixture
-def laptop(tmp_path):
-    d = tmp_path / "laptop"
-    d.mkdir()
-    return d
 
 
 def make_transport(box, chef_dir, protect=(), exclude=()):
@@ -54,8 +35,7 @@ def tree(root):
     return sorted(str(p.relative_to(root)) for p in root.rglob("*") if p.is_file())
 
 
-@needs_rsync
-def test_sync_mirrors_chef_dir_into_remote_chef_dir(box, laptop):
+def test_sync_mirrors_chef_dir_into_remote_chef_dir(box, laptop, gnu_rsync):
     write(laptop / "chef.py", "new!")
     write(laptop / "pkg" / "mod.py")
     write(box / "my-chef" / "chef.py", "old")
@@ -67,19 +47,26 @@ def test_sync_mirrors_chef_dir_into_remote_chef_dir(box, laptop):
     assert tree(laptop) == ["chef.py", "pkg/mod.py"]
 
 
-@needs_rsync
-def test_sync_neither_uploads_nor_deletes_box_managed_dirs(box, laptop):
+def test_sync_neither_uploads_nor_deletes_box_managed_dirs(box, laptop, gnu_rsync):
     for managed in transport.BOX_MANAGED:
         write(laptop / managed / "laptop-only")
         write(box / "my-chef" / managed / "box-only")
     make_transport(box, laptop).sync()
     assert tree(box / "my-chef") == sorted(
-        f"{m}box-only" for m in transport.BOX_MANAGED
+        f"{m}/box-only" for m in transport.BOX_MANAGED
     )
 
 
-@needs_rsync
-def test_sync_skips_gitignored_and_keeps_box_copy(box, laptop):
+def test_sync_uploads_nested_dirs_named_like_box_managed(box, laptop, gnu_rsync):
+    for managed in transport.BOX_MANAGED:
+        write(laptop / "pkg" / managed / "data.py")
+    make_transport(box, laptop).sync()
+    assert tree(box / "my-chef") == sorted(
+        f"pkg/{m}/data.py" for m in transport.BOX_MANAGED
+    )
+
+
+def test_sync_skips_gitignored_and_keeps_box_copy(box, laptop, gnu_rsync):
     write(laptop / ".gitignore", "*.log\n")
     write(laptop / "debug.log")
     write(box / "my-chef" / "run.log")
@@ -87,8 +74,7 @@ def test_sync_skips_gitignored_and_keeps_box_copy(box, laptop):
     assert tree(box / "my-chef") == [".gitignore", "run.log"]
 
 
-@needs_rsync
-def test_sync_newly_gitignored_box_dir_survives(box, laptop):
+def test_sync_newly_gitignored_box_dir_survives(box, laptop, gnu_rsync):
     write(laptop / ".gitignore", "")
     make_transport(box, laptop).sync()
     write(box / "my-chef" / "secrets" / "key")
@@ -97,8 +83,7 @@ def test_sync_newly_gitignored_box_dir_survives(box, laptop):
     assert (box / "my-chef" / "secrets" / "key").exists()
 
 
-@needs_rsync
-def test_sync_protect_keeps_box_copy_and_exclude_skips_upload(box, laptop):
+def test_sync_protect_keeps_box_copy_and_exclude_skips_upload(box, laptop, gnu_rsync):
     write(laptop / "credentials.json", "laptop")
     write(laptop / "scratch.tmp")
     write(box / "my-chef" / "credentials.json", "box")
@@ -110,23 +95,20 @@ def test_sync_protect_keeps_box_copy_and_exclude_skips_upload(box, laptop):
     assert tree(box / "my-chef") == ["credentials.json", "secrets/key"]
 
 
-@needs_rsync
-def test_sync_default_chef_dir_is_cwd(box, laptop, monkeypatch):
+def test_sync_default_chef_dir_is_cwd(box, laptop, monkeypatch, gnu_rsync):
     write(laptop / "chef.py")
     monkeypatch.chdir(laptop)
     make_transport(box, None).sync()
     assert tree(box) == ["my-chef/chef.py"]
 
 
-@needs_rsync
-def test_pull_fetches_path_relative_to_remote_chef_dir(box, laptop):
+def test_pull_fetches_path_relative_to_remote_chef_dir(box, laptop, gnu_rsync):
     write(box / "my-chef" / "chefdata" / "trees" / "a.json", "tree")
     make_transport(box, laptop).pull("chefdata/trees", laptop / "out")
     assert (laptop / "out" / "trees" / "a.json").read_text() == "tree"
 
 
-@needs_rsync
-def test_rsync_failure_raises_with_rsync_stderr(box, laptop):
+def test_rsync_failure_raises_with_rsync_stderr(box, laptop, gnu_rsync):
     with pytest.raises(RemoteTransportError) as exc:
         make_transport(box, laptop).pull("nope", laptop / "out")
     assert str(exc.value).startswith("remote:")

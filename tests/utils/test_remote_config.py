@@ -105,6 +105,32 @@ def test_resolved_profile_carries_chef_settings(tmp_path):
     assert prof.exclude == ["*.tmp"]
 
 
+def test_ricecooker_source_comes_from_host_profile(tmp_path):
+    gp = tmp_path / "remote.toml"
+    gp.write_text(
+        '[box1]\nssh = "a"\nremote_root = "/one"\nricecooker_source = "local"\n'
+        '[box2]\nssh = "b"\nremote_root = "/two"\n'
+    )
+    chef = tmp_path / "chef"
+    chef.mkdir()
+    one = resolve_profile(remote="box1", chef_dir=chef, global_path=gp)
+    two = resolve_profile(remote="box2", chef_dir=chef, global_path=gp)
+    assert one.ricecooker_source == "local"
+    assert two.ricecooker_source is None
+
+
+def test_unknown_ricecooker_source_raises(tmp_path):
+    gp = tmp_path / "remote.toml"
+    gp.write_text(
+        '[box1]\nssh = "a"\nremote_root = "/one"\nricecooker_source = "git"\n'
+    )
+    with pytest.raises(RemoteConfigError) as exc:
+        resolve_profile(remote="box1", chef_dir=tmp_path, global_path=gp)
+    msg = str(exc.value)
+    assert msg.startswith("remote:")
+    assert "ricecooker_source" in msg
+
+
 def test_no_profile_configured_raises_with_example(tmp_path):
     gp = tmp_path / "remote.toml"
     gp.write_text("")  # no default, no profiles
