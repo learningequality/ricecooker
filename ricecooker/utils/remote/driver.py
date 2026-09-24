@@ -17,6 +17,7 @@ from ricecooker.exceptions import RemoteError
 from ricecooker.utils.remote.config import resolve_profile
 from ricecooker.utils.remote.session import FINISHED
 from ricecooker.utils.remote.session import LIVE
+from ricecooker.utils.remote.session import live_chefs
 from ricecooker.utils.remote.session import NOT_A_TTY
 from ricecooker.utils.remote.session import Session
 from ricecooker.utils.remote.transport import remote_chef_dir
@@ -33,15 +34,21 @@ SOURCE_DIR = ".ricecooker-src"
 RELEASED_RICECOOKER = "ricecooker"
 BOX_ENV = "$HOME/.config/ricecooker/remote-env"
 LOOSE_BOX_ENV = "remote-env"
+REQUIRED_TOOLS = ("uv", "tmux", "base64")
 
-# sh -c script; $1: shared file cache. Prints each tool the box lacks, and
-# remote-env if group or others have any access to it.
-# The mkdir -p also creates a missing remote_root, which rsync would not.
-PREFLIGHT = (
-    'for t in uv tmux base64; do command -v "$t" >/dev/null || echo "$t"; done; '
-    f'mkdir -p "$1" || exit; f="{BOX_ENV}"; [ -f "$f" ] || exit 0; '
-    f'case $(ls -ln "$f") in ?[r-][w-][x-]------*) ;; *) echo {LOOSE_BOX_ENV};; esac'
+# sh -c script; args: binaries. Prints each one not on the box's PATH.
+MISSING_TOOLS = 'for t; do command -v "$t" >/dev/null || echo "$t"; done'
+
+# Prints remote-env if group or others have any access to it.
+CHECK_BOX_ENV = (
+    f'f="{BOX_ENV}"; if [ -f "$f" ]; then '
+    f'case $(ls -ln "$f") in ?[r-][w-][x-]------*) ;; *) echo {LOOSE_BOX_ENV};; esac; fi'
 )
+
+# sh -c script; args: <shared file cache> <tools...>. Prints each tool the box
+# lacks, and remote-env if it is too open.
+# The mkdir -p also creates a missing remote_root, which rsync would not.
+PREFLIGHT = f'd=$1; shift; {MISSING_TOOLS}; mkdir -p "$d" || exit; {CHECK_BOX_ENV}'
 
 # sh -c script; args: <bookkeeping dir> <venv> <digest> <build> <names> <chef argv...>.
 # Box-owned env first, then the session env (client --env/--env-pass/token) over it.
@@ -133,9 +140,19 @@ def filecache_dir(profile) -> str:
     return posixpath.join(profile.remote_root, FILECACHE_DIR)
 
 
+def default_venv_dir(profile) -> str:
+    return posixpath.join(profile.remote_root, DEFAULT_VENV)
+
+
+def uses_default_venv(profile, chef_dir) -> bool:
+    manifests = ("pyproject.toml", "requirements.txt")
+    has_manifest = any((Path(chef_dir) / m).exists() for m in manifests)
+    return not (has_manifest or profile.ricecooker_source)
+
+
 def preflight(transport) -> None:
     result = transport.ssh(
-        ["sh", "-c", PREFLIGHT, "sh", filecache_dir(transport.profile)]
+        ["sh", "-c", PREFLIGHT, "sh", filecache_dir(transport.profile), *REQUIRED_TOOLS]
     )
     if result.returncode:
         raise RemoteDriverError(
@@ -170,9 +187,9 @@ def script_argv(argv, chef_dir) -> list:
 def plan_venv(profile, chef_dir, source_dir=None) -> Venv:
     pyproject = Path(chef_dir) / "pyproject.toml"
     requirements = Path(chef_dir) / "requirements.txt"
-    shared = not (pyproject.exists() or requirements.exists() or source_dir)
+    shared = uses_default_venv(profile, chef_dir)
     if shared:
-        path = posixpath.join(profile.remote_root, DEFAULT_VENV)
+        path = default_venv_dir(profile)
     else:
         path = posixpath.join(remote_chef_dir(profile), VENV_DIR)
     venv = quote(path)
@@ -249,21 +266,48 @@ def _reattach_hint(session) -> str:
     )
 
 
+def _refuse_shared_rewrite(transport, venv, source) -> None:
+    """Refuse to rewrite what other chefs under remote_root run from.
+    Only called while this chef isn't live, so every live chef is another."""
+    profile = transport.profile
+    shared_venv = uses_default_venv(profile, transport.chef_dir)
+    if source is None and not shared_venv:
+        return
+    running = live_chefs(transport)
+    if not running:
+        return
+    if source is not None:
+        rewritten = posixpath.join(profile.remote_root, SOURCE_DIR)
+    else:
+        digest_file = posixpath.join(venv.path, ".ricecooker-digest")
+        # 1: no venv built yet.
+        current = transport.ssh(["cat", digest_file])
+        if current.returncode == 0 and current.stdout.strip() == venv.digest:
+            return
+        rewritten = venv.path
+    raise RemoteDriverError(
+        f"remote: {', '.join(running)} running on {profile.ssh} from "
+        f"{rewritten}; not rewriting it under them."
+    )
+
+
 def _start(session, argv, env) -> None:
     transport = session.transport
     profile = transport.profile
-    transport.sync()
     source = None
     if profile.ricecooker_source == "local":
         source = ricecooker_checkout()
-        sync_source(transport, source)
     venv = plan_venv(profile, transport.chef_dir, source)
+    _refuse_shared_rewrite(transport, venv, source)
+    transport.sync()
+    if source is not None:
+        sync_source(transport, source)
     env = {"RICECOOKER_FILECACHE": filecache_dir(profile), **env}
     encoded = {k: base64.b64encode(v.encode()).decode() for k, v in env.items()}
     session.create(chef_command(session, venv, argv, env), encoded)
 
 
-def _finish(session, code) -> int:
+def finish(session, code) -> int:
     if code == NOT_A_TTY:
         _say(_reattach_hint(session))
         return code
@@ -318,7 +362,7 @@ def run_remotely(
                 session.kill()
             # Only here: a live chef must not be synced under.
             _start(session, argv, env)
-        return _finish(session, session.attach())
+        return finish(session, session.attach())
     except RemoteError as e:
         print(e, file=sys.stderr)
         return 1

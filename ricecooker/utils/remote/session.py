@@ -13,6 +13,7 @@ from ricecooker.utils.remote.transport import remote_chef_dir
 NO_SESSION = "none"
 LIVE = "live"
 FINISHED = "finished"
+SESSION_PREFIX = "ricecooker-"
 NOT_A_TTY = 64  # sysexits EX_USAGE; distinct from tmux (1) and ssh (255) failures
 
 # sh -c script; args: <bookkeeping dir> <tmux target> <command...>.
@@ -27,6 +28,9 @@ RECORD_EXIT = (
     # Fails with no client attached; the pane must still exit with the code.
     'tmux detach-client -s "$t" 2>/dev/null; exit $rc'
 )
+
+# Tab-separated: a chef dir may contain spaces.
+LIVE_PANES = "#{session_name}\t#{session_path}\t#{pane_dead}"
 
 
 @dataclass(frozen=True)
@@ -43,7 +47,30 @@ def tmux_literal(arg) -> str:
 
 def session_name(profile) -> str:
     # tmux 3.1+ rewrites "." and ":" in session names to "_"; 3.0 rejects them.
-    return "ricecooker-" + re.sub(r"[.:]", "_", profile.name)
+    return SESSION_PREFIX + re.sub(r"[.:]", "_", profile.name)
+
+
+def live_chefs(transport) -> list:
+    """Chefs with a live run under the profile's remote_root; all share its
+    file cache, default venv and ricecooker source."""
+    # 1: no tmux server.
+    result = transport.ssh(["tmux", "list-panes", "-a", "-F", LIVE_PANES])
+    if result.returncode not in (0, 1):
+        raise RemoteSessionError(
+            f"remote: tmux exited {result.returncode}\n{result.stderr}"
+        )
+    root = posixpath.normpath(transport.profile.remote_root)
+    chefs = []
+    for line in result.stdout.splitlines():
+        name, path, dead = line.split("\t")
+        path = posixpath.normpath(path)
+        if (
+            name.startswith(SESSION_PREFIX)
+            and dead != "1"
+            and posixpath.dirname(path) == root
+        ):
+            chefs.append(posixpath.basename(path))
+    return sorted(set(chefs))
 
 
 class Session:

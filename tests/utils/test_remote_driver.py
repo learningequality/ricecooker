@@ -1,5 +1,6 @@
 import base64
 import hashlib
+import io
 import json
 import os
 import shutil
@@ -8,6 +9,7 @@ import sys
 from pathlib import Path
 
 import pytest
+from test_remote_session import make_session
 
 import ricecooker
 from ricecooker.exceptions import RemoteDriverError
@@ -17,10 +19,12 @@ from ricecooker.utils.remote.config import resolve_profile
 from ricecooker.utils.remote.driver import chef_command
 from ricecooker.utils.remote.driver import plan_venv
 from ricecooker.utils.remote.driver import preflight
+from ricecooker.utils.remote.driver import REQUIRED_TOOLS
 from ricecooker.utils.remote.driver import run_remotely
 from ricecooker.utils.remote.driver import script_argv
 from ricecooker.utils.remote.driver import sync_source
 from ricecooker.utils.remote.session import LIVE
+from ricecooker.utils.remote.session import NOT_A_TTY
 from ricecooker.utils.remote.session import Session
 from ricecooker.utils.remote.transport import RunResult
 from ricecooker.utils.remote.transport import subprocess_runner
@@ -28,7 +32,6 @@ from ricecooker.utils.remote.transport import Transport
 
 needs_sh = pytest.mark.skipif(os.name == "nt", reason="ssh shim needs sh")
 needs_uv = pytest.mark.skipif(not shutil.which("uv"), reason="needs uv")
-BOX_TOOLS = ("uv", "tmux", "base64")
 
 CHEF = """\
 import hashlib, json, os, sys, time
@@ -160,9 +163,9 @@ def test_unreachable_box_fails_with_ssh_stderr(laptop, capsys):
 
 
 @needs_sh
-@pytest.mark.parametrize("missing", BOX_TOOLS)
+@pytest.mark.parametrize("missing", REQUIRED_TOOLS)
 def test_missing_box_tool_fails_before_sync(box, laptop, monkeypatch, capsys, missing):
-    box_tools(box, monkeypatch, set(BOX_TOOLS) - {missing})
+    box_tools(box, monkeypatch, set(REQUIRED_TOOLS) - {missing})
     assert run_remotely_from(laptop, box) == 1
     err = capsys.readouterr().err
     assert err.startswith("remote:")
@@ -172,7 +175,7 @@ def test_missing_box_tool_fails_before_sync(box, laptop, monkeypatch, capsys, mi
 
 @needs_sh
 def test_preflight_creates_missing_remote_root(box, monkeypatch):
-    box_tools(box, monkeypatch, BOX_TOOLS)
+    box_tools(box, monkeypatch, REQUIRED_TOOLS)
     preflight(Transport(make_profile(box / "fresh" / "root")))
     assert (box / "fresh" / "root" / ".ricecookerfilecache").is_dir()
 
@@ -182,7 +185,7 @@ def test_preflight_creates_missing_remote_root(box, monkeypatch):
 def test_preflight_refuses_box_env_file_open_to_others(
     box, monkeypatch, tmp_path, mode, refused
 ):
-    box_tools(box, monkeypatch, BOX_TOOLS)
+    box_tools(box, monkeypatch, REQUIRED_TOOLS)
     monkeypatch.setenv("HOME", str(tmp_path))
     env_file = tmp_path / ".config" / "ricecooker" / "remote-env"
     env_file.parent.mkdir(parents=True)
@@ -449,6 +452,47 @@ def test_failed_venv_build_reports_uv_tail_and_keeps_session(box, laptop, remote
     assert "no-such-package-xyz" in client.output
     assert "chef log:" not in client.output
     assert tmux("has-session", "-t", TARGET).returncode == 0
+
+
+@needs_sh
+@needs_uv
+@pytest.mark.usefixtures("gnu_rsync", "tmux_server")
+def test_local_source_sync_refuses_while_another_chef_under_root_runs(
+    box, laptop, capsys
+):
+    write_chef(laptop)
+    config = write_global_config(laptop.parent / "remote.toml", box)
+    with open(config, "a") as f:
+        f.write('ricecooker_source = "local"\n')
+    make_session(box, "other-chef").create(["sleep", "30"])
+    argv = [str(laptop / "chef.py")]
+    assert run_remotely(argv, {}, chef_dir=laptop, global_path=config) == 1
+    assert capsys.readouterr().err.startswith("remote: other-chef running")
+    assert not (box / ".ricecooker-src").exists()
+    assert tmux("has-session", "-t", TARGET).returncode == 1
+
+
+@needs_sh
+@needs_uv
+@pytest.mark.usefixtures("gnu_rsync", "tmux_server")
+@pytest.mark.parametrize("same_digest", [True, False])
+def test_default_venv_rebuild_refused_while_another_chef_under_root_runs(
+    box, laptop, capsys, monkeypatch, same_digest
+):
+    # Not a terminal: a started run returns instead of attaching.
+    monkeypatch.setattr(sys, "stdin", io.StringIO())
+    write_chef(laptop)
+    digest = plan_venv(make_profile(box, "laptop"), laptop).digest
+    digest_file = box / ".default-venv" / ".ricecooker-digest"
+    digest_file.parent.mkdir()
+    digest_file.write_text(f"{digest if same_digest else 'old'}\n")
+    make_session(box, "other-chef").create(["sleep", "30"])
+    assert run_remotely_from(laptop, box) == (NOT_A_TTY if same_digest else 1)
+    started = tmux("has-session", "-t", TARGET).returncode == 0
+    assert started == same_digest
+    if not same_digest:
+        assert capsys.readouterr().err.startswith("remote: other-chef running")
+        assert digest_file.read_text() == "old\n"
 
 
 E2E_BOX = os.environ.get("RICECOOKER_REMOTE_E2E")

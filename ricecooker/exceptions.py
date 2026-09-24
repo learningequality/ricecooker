@@ -102,5 +102,9 @@ class RemoteDriverError(RemoteError):
     """RemoteDriverError: raised when the box cannot run a --remote chef"""
 
 
+class RemoteCliError(RemoteError):
+    """RemoteCliError: raised when a `remote` subcommand cannot complete"""
+
+
 def raise_for_invalid_channel(channel):
     pass
