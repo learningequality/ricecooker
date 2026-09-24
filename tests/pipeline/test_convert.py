@@ -4,6 +4,7 @@ import base64
 import json
 import os
 import posixpath
+import re
 import shutil
 import subprocess
 import tempfile
@@ -1266,13 +1267,13 @@ def _build_single_resource_imscp(
 _QTI3 = "http://www.imsglobal.org/xsd/imsqtiasi_v3p0"
 
 
-def _qti_item(identifier, body=""):
+def _qti_item(identifier, body="", head=""):
     return (
         f'<qti-assessment-item xmlns="{_QTI3}" identifier="{identifier}" title="{identifier}" '
         'adaptive="false" time-dependent="false">'
         '<qti-response-declaration identifier="RESPONSE" cardinality="single" base-type="identifier">'
         "<qti-correct-response><qti-value>A</qti-value></qti-correct-response>"
-        f"</qti-response-declaration><qti-item-body>{body}"
+        f"</qti-response-declaration>{head}<qti-item-body>{body}"
         '<qti-choice-interaction response-identifier="RESPONSE" max-choices="1">'
         '<qti-simple-choice identifier="A">A</qti-simple-choice></qti-choice-interaction>'
         '</qti-item-body><qti-response-processing template="https://purl.imsglobal.org/spec/qti/v3p0/rptemplates/match_correct"/>'
@@ -2186,3 +2187,78 @@ class TestQTIIngestion:
         )
         (leaf,) = tree["children"]
         assert self._ids(leaf) == ["a", "b"]
+
+    def test_item_images_are_stored_and_rewritten(self):
+        items = {
+            "items/a.xml": _qti_item(
+                "a", '<img src="../images/pic.png" srcset="../images/pic.png 2x"/>'
+            ),
+            "items/b.xml": _qti_item(
+                "b", '<object data="../images/pic.png" type="image/png"/>'
+            ),
+        }
+        tree = self._ingest(
+            [("A", _QTI_ITEM, "items/a.xml"), ("B", _QTI_ITEM, "items/b.xml")],
+            {**items, "images/pic.png": _PNG_1x1},
+        )
+        (leaf,) = tree["children"]
+        filenames = set()
+        for question, original in zip(leaf["questions"], items.values()):
+            assert [f["preset"] for f in question["files"]] == [
+                format_presets.EXERCISE_IMAGE
+            ]
+            filename = question["files"][0]["filename"]
+            assert re.match(r"^[0-9a-f]{32}\.png$", filename)
+            assert os.path.isfile(config.get_storage_path(filename))
+            assert question["raw_data"] == original.replace(
+                "../images/pic.png", filename
+            )
+            filenames.add(filename)
+        assert len(filenames) == 1
+
+    @pytest.mark.parametrize(
+        "body",
+        [
+            '<audio src="../media/a.mp3"/>',
+            '<img src="../images/missing.png"/>',
+            '<img src="../../../../etc/x.png"/>',
+        ],
+    )
+    def test_items_with_unusable_media_are_rejected(self, caplog, body):
+        tree = self._ingest(
+            [("OK", _QTI_ITEM, "items/ok.xml"), ("BAD", _QTI_ITEM, "items/bad.xml")],
+            {
+                "items/ok.xml": _qti_item("ok"),
+                "items/bad.xml": _qti_item("bad", body),
+                "media/a.mp3": b"ID3",
+            },
+        )
+        (leaf,) = tree["children"]
+        assert self._ids(leaf) == ["ok"]
+        assert any("items/bad.xml" in r.getMessage() for r in caplog.records)
+
+    def test_item_stylesheets_are_stripped(self):
+        stylesheets = (
+            '<qti-stylesheet href="../css/style.css" type="text/css"/>'
+            '<qti-stylesheet href="https://example.org/s.css" type="text/css"></qti-stylesheet>'
+        )
+        tree = self._ingest(
+            [("A", _QTI_ITEM, "items/a.xml")],
+            {"items/a.xml": _qti_item("a", head=stylesheets), "css/style.css": "p {}"},
+        )
+        (leaf,) = tree["children"]
+        (question,) = leaf["questions"]
+        assert question["raw_data"] == _qti_item("a")
+        assert question["files"] == []
+
+    def test_links_and_inline_data_are_left_alone(self):
+        item = _qti_item(
+            "a",
+            '<a href="https://example.org/x">x</a><a href="mailto:a@b.c">m</a>'
+            '<a href="#top">t</a><img src="data:image/png;base64,iVBORw0KGgo="/>',
+        )
+        tree = self._ingest([("A", _QTI_ITEM, "a.xml")], {"a.xml": item})
+        (leaf,) = tree["children"]
+        (question,) = leaf["questions"]
+        assert question["raw_data"] == item
+        assert question["files"] == []

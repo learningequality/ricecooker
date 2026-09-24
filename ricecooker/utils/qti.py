@@ -2,15 +2,24 @@
 
 import os
 import posixpath
+from functools import partial
+from urllib.parse import urlparse
 
 from le_utils.constants import content_kinds
 from le_utils.constants import exercises
+from le_utils.constants import format_presets
 from le_utils.constants import modalities
 from lxml import etree
 
 from ricecooker.config import LOGGER
 from ricecooker.utils.imscp import contained_path
 from ricecooker.utils.imscp import node_content_fields
+from ricecooker.utils.paths import extract_path_ext
+from ricecooker.utils.pipeline.convert import ImageConversionHandler
+from ricecooker.utils.pipeline.convert import SVGValidationHandler
+from ricecooker.utils.pipeline.exceptions import ExpectedFileException
+from ricecooker.utils.pipeline.exceptions import InvalidFileException
+from ricecooker.utils.references import QTIMapper
 from ricecooker.utils.references import resolve_reference
 
 QTI3_NAMESPACE = "http://www.imsglobal.org/xsd/imsqtiasi_v3p0"
@@ -36,6 +45,31 @@ def read_qti3(package_dir, member, tag):
     if root.tag != f"{{{QTI3_NAMESPACE}}}{tag}":
         raise ValueError(f"is not a QTI 3.0 <{tag}> (only QTI 3.0 is supported)")
     return root
+
+
+def strip_unschematized(item):
+    """Drop ``<qti-stylesheet>`` elements, which Kolibri does not render, from ``item``, in place."""
+    for elem in list(item.iter(f"{{{QTI3_NAMESPACE}}}qti-stylesheet")):
+        _remove(elem)
+
+
+def _remove(elem):
+    """Remove ``elem`` and its subtree, keeping its tail text."""
+    parent = elem.getparent()
+    if elem.tail:
+        previous = elem.getprevious()
+        if previous is None:
+            parent.text = (parent.text or "") + elem.tail
+        else:
+            previous.tail = (previous.tail or "") + elem.tail
+    parent.remove(elem)
+
+
+def media_member(item_member, ref):
+    """Package path of media ``ref`` in ``item_member``; ``None`` for URLs and fragments."""
+    if urlparse(ref).scheme:
+        return None
+    return resolve_reference(item_member, ref)
 
 
 def assessment_item_members(package_dir, test_member, root, seen=None):
@@ -65,11 +99,16 @@ def assessment_item_members(package_dir, test_member, root, seen=None):
 class QTIExerciseBuilder:
     """Build the QTI 3.0 tests and items of one IMSCP package into exercise node dicts."""
 
+    IMAGE_EXTENSIONS = (
+        ImageConversionHandler.EXTENSIONS | SVGValidationHandler.EXTENSIONS
+    )
+
     def __init__(self, package, pipeline):
         self.package = package
         self.pipeline = pipeline
-        # Tests often share items: build each once per package.
+        # Tests often share items and items share images: build each once per package.
         self.questions = {}
+        self.images = {}
 
     def exercises(self, manifest):
         """One exercise per QTI test, else one holding every loose item."""
@@ -149,7 +188,7 @@ class QTIExerciseBuilder:
         if member not in self.questions:
             try:
                 self.questions[member] = self._build_question(member)
-            except ValueError as e:
+            except (ValueError, InvalidFileException, ExpectedFileException) as e:
                 LOGGER.warning("IMSCP: rejecting QTI item %s: %s", member, e)
                 self.questions[member] = None
         return self.questions[member]
@@ -160,5 +199,35 @@ class QTIExerciseBuilder:
         # Seeds the question's assessment id.
         if not identifier:
             raise ValueError("has no identifier")
-        raw_data = etree.tostring(item, encoding="unicode")
-        return {"id": identifier, "raw_data": raw_data, "files": []}
+        strip_unschematized(item)
+        files = []
+        raw_data, _ = QTIMapper().map(
+            etree.tostring(item, encoding="unicode"),
+            partial(self._image_filename, member, files),
+        )
+        return {"id": identifier, "raw_data": raw_data, "files": files}
+
+    def _image_filename(self, member, files, ref):
+        """Storage filename of image ``ref`` in item ``member``, added to ``files``; URLs and fragments unchanged."""
+        media = media_member(member, ref)
+        if media is None:
+            return ref
+        image = self._image(media, ref)
+        if image not in files:
+            files.append(image)
+        return image["filename"]
+
+    def _image(self, media, ref):
+        """The cached file dict for image ``media``, which item markup references as ``ref``."""
+        if media not in self.images:
+            path = contained_path(self.package.directory, media)
+            if path is None or not os.path.isfile(path):
+                raise ValueError(f"references missing media {ref}")
+            if extract_path_ext(path) not in self.IMAGE_EXTENSIONS:
+                raise ValueError(f"references non-image media {ref}")
+            file_metadata = self.pipeline.execute(path)[0]
+            self.images[media] = {
+                **file_metadata.to_dict(),
+                "preset": format_presets.EXERCISE_IMAGE,
+            }
+        return self.images[media]

@@ -51,7 +51,6 @@ from ricecooker.utils.pipeline.context import ContextMetadata
 from ricecooker.utils.pipeline.context import FileMetadata
 from ricecooker.utils.pipeline.exceptions import ExpectedFileException
 from ricecooker.utils.pipeline.exceptions import InvalidFileException
-from ricecooker.utils.qti import QTIExerciseBuilder
 from ricecooker.utils.references import DEFAULT_MAPPERS
 from ricecooker.utils.references import ReferenceMapper
 from ricecooker.utils.references import sanitize_style_css
@@ -1018,6 +1017,9 @@ class IMSCPConversionHandler(HTML5ConversionHandler):
             package = IMSCPPackage(ims_dir)
             nodes = self._build_nodes(manifest.get("children"), package, settings)
             sealed = self._seal_pending(_pending_leaves(nodes), package, settings)
+            # qti imports this module's image handlers.
+            from ricecooker.utils.qti import QTIExerciseBuilder
+
             qti_exercises = QTIExerciseBuilder(package, self.get_pipeline()).exercises(
                 manifest
             )
