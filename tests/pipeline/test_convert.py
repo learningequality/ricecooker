@@ -2070,12 +2070,109 @@ _QTI_QUIZ_FIELDS = {
 }
 
 
+_SVG_1x1 = '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>'
+
+
+def _quiz_content_node(path, **kwargs):
+    return ContentNode(
+        source_id="pkg",
+        title="Pkg",
+        license=get_license("CC BY", copyright_holder="Holder"),
+        uri=path,
+        pipeline=FilePipeline(),
+        **kwargs,
+    )
+
+
+def _quiz_node(resources, files, **node_kwargs):
+    """Process a QTI package declared as a ContentNode; return it and the files to upload."""
+    with _qti_package(resources, files) as path:
+        node = _quiz_content_node(path, **node_kwargs)
+        channel = ChannelNode("qti-channel", "example.org", "Channel")
+        channel.add_child(node)
+        files_to_upload = ChannelManager(channel).process_tree()
+    return node, files_to_upload
+
+
+def _question_filenames(node):
+    return [f.get_filename() for q in node.questions for f in q.files]
+
+
+def _one_test_package(test="t", image=("pic.png", _PNG_1x1)):
+    """A test of item ``a``, showing ``image``, then item ``b``."""
+    image_name, image_data = image
+    return (
+        [(test.upper(), _QTI_TEST, f"{test}.xml")],
+        {
+            f"{test}.xml": _qti_test(
+                test, _qti_refs(f"items/{test}-a.xml", f"items/{test}-b.xml")
+            ),
+            f"items/{test}-a.xml": _qti_item(
+                f"{test}-a", f'<p><img src="../images/{image_name}" alt=""/></p>'
+            ),
+            f"items/{test}-b.xml": _qti_item(f"{test}-b"),
+            f"images/{image_name}": image_data,
+        },
+    )
+
+
 class TestQTIIngestion:
     def _ingest(self, resources, files):
         with _qti_package(resources, files) as path:
             return (
                 FilePipeline().execute(path, skip_cache=True)[0].content_node_metadata
             )
+
+    def test_single_test_package_becomes_a_practice_quiz(self):
+        node, files_to_upload = _quiz_node(*_one_test_package())
+        assert node.kind == content_kinds.EXERCISE
+        assert node.children == []
+        assert node.extra_fields == {**_QTI_QUIZ_FIELDS, "m": 2, "n": 2}
+        with_image, without_image = node.to_dict()["questions"]
+        assert [with_image["type"], without_image["type"]] == [exercises.QTI] * 2
+        (filename,) = _question_filenames(node)
+        assert filename in files_to_upload
+        assert [f["filename"] for f in with_image["files"]] == [filename]
+        assert f'<img src="{filename}" alt=""/>' in with_image["raw_data"]
+        assert without_image["raw_data"] == _qti_item("t-b")
+
+    @pytest.mark.parametrize("test_count", [1, 2])
+    def test_chef_exercise_settings_override_every_exercise(self, test_count):
+        packages = [
+            _one_test_package("t1"),
+            _one_test_package("t2", image=("pic.svg", _SVG_1x1)),
+        ][:test_count]
+        resources, files = [], {}
+        for package_resources, package_files in packages:
+            resources += package_resources
+            files.update(package_files)
+        node, files_to_upload = _quiz_node(
+            resources,
+            files,
+            extra_fields={
+                "mastery_model": exercises.M_OF_N,
+                "m": 1,
+                "n": 2,
+                "options": {"modality": None, "entry": "start"},
+            },
+        )
+        quizzes = node.children or [node]
+        assert len(quizzes) == test_count
+        for quiz in quizzes:
+            assert quiz.kind == content_kinds.EXERCISE
+            assert quiz.extra_fields["mastery_model"] == exercises.M_OF_N
+            assert (quiz.extra_fields["m"], quiz.extra_fields["n"]) == (1, 2)
+            assert quiz.extra_fields["options"] == {"entry": "start"}
+            (filename,) = _question_filenames(quiz)
+            assert filename in files_to_upload
+
+    def test_unknown_mastery_model_is_invalid(self):
+        with _qti_package(*_one_test_package()) as path:
+            node = _quiz_content_node(path, extra_fields={"mastery_model": "bogus"})
+            with pytest.raises(
+                InvalidNodeException, match="Unrecognized mastery model"
+            ):
+                node.process_files()
 
     @staticmethod
     def _ids(leaf):
