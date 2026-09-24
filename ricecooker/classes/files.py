@@ -70,7 +70,9 @@ class File(object):
         duration=None,
         original_filename=None,
         filename=None,
+        **kwargs,
     ):
+        # Extra keys are tolerated so a pipeline file-metadata dict splats in.
         self.preset = preset
         self.set_language(language)
         self.default_ext = default_ext or self.default_ext
@@ -185,6 +187,8 @@ class DownloadFile(File):
         self.path = path.strip()
         self.context = {
             "default_ext": self.default_ext,
+            # A File's class fixes its format.
+            "preserve_kind": True,
         }
         self.context.update(context or {})
         super(DownloadFile, self).__init__(**kwargs)

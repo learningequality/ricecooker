@@ -182,9 +182,48 @@ class Node(object):
         self.learner_needs = learner_needs or []
         self.role = role
 
+        self._set_license_fields(license, copyright_holder, license_description)
+
+    # License data lives on the node's License object, so it cannot be setattr'd.
+    _LICENSE_METADATA_KEYS = ("license", "copyright_holder", "license_description")
+
+    def _set_license_fields(
+        self, license=None, copyright_holder=None, license_description=None
+    ):
+        """Set the node's License, filling unsupplied fields from its current one."""
+        current = self.license
+        if license is None:
+            license = current
+        if isinstance(license, License) and (copyright_holder or license_description):
+            # Rights without a license type refine the existing license.
+            current = license
+            license = license.license_id
+        if current is not None:
+            copyright_holder = copyright_holder or current.copyright_holder
+            license_description = license_description or current.description
         self.set_license(
             license, copyright_holder=copyright_holder, description=license_description
         )
+
+    def set_metadata(self, metadata):
+        """Apply constructor-style metadata fields to an already-built node.
+
+        Only supplied keys are touched: ``extra_fields`` merges rather than
+        replaces, license fields go through ``set_license``.
+        """
+        metadata = dict(metadata)
+        self.extra_fields.update(metadata.pop("extra_fields", None) or {})
+        if "language" in metadata:
+            self.set_language(metadata.pop("language"))
+        license_fields = {
+            key: metadata.pop(key)
+            for key in self._LICENSE_METADATA_KEYS
+            if key in metadata
+        }
+        if license_fields:
+            self._set_license_fields(**license_fields)
+        for key, value in metadata.items():
+            setattr(self, key, value)
 
     def set_language(self, language):
         """Set self.language to internal lang. repr. code from str or Language object."""
@@ -700,6 +739,113 @@ class TreeNode(Node):
     See Node for inherited attributes.
     """
 
+    # Content-node metadata keys describing a node's shape, not its own fields.
+    STRUCTURAL_METADATA_KEYS = frozenset({"children", "files", "kind"})
+
+    # Fields inherited from the subtree root when the metadata is silent.
+    INHERITED_METADATA_KEYS = ("language",)
+
+    @classmethod
+    def own_metadata_fields(cls, metadata):
+        """The node's own fields in ``metadata``, less the keys describing its shape."""
+        return {
+            key: value
+            for key, value in metadata.items()
+            if key not in cls.STRUCTURAL_METADATA_KEYS
+        }
+
+    @classmethod
+    def from_metadata(cls, metadata, **inherited):
+        """Build a node, and its descendants, from a content-node metadata dict.
+
+        ``kind`` picks the class: absent or ``topic`` gives a folder, anything else
+        a leaf. Every other non-structural key is a constructor argument.
+        """
+        node_class = (
+            TopicNode
+            if metadata.get("kind", content_kinds.TOPIC) == content_kinds.TOPIC
+            else ContentNode
+        )
+        kwargs = {
+            key: value
+            for key, value in inherited.items()
+            if key in node_class.INHERITED_METADATA_KEYS
+        }
+        kwargs.update(cls.own_metadata_fields(metadata))
+        # Manifest identifiers are only unique within their package.
+        if inherited.get("source_id_namespace"):
+            kwargs["source_id"] = "{}/{}".format(
+                inherited["source_id_namespace"], kwargs["source_id"]
+            )
+        node = node_class(**kwargs)
+        # kind is a class attribute, not a constructor argument.
+        node.kind = metadata.get("kind") or node_class.kind
+        node.add_metadata_content(metadata, inherited)
+        return node
+
+    def add_metadata_children(self, metadata, inherited):
+        """Attach the descendants ``metadata`` describes."""
+        for child_metadata in metadata.get("children") or []:
+            self.add_child(self.from_metadata(child_metadata, **inherited))
+
+    def add_metadata_content(self, metadata, inherited):
+        """Attach what ``metadata`` hangs off this node. A folder takes children."""
+        self.add_metadata_children(metadata, inherited)
+
+    def expand_metadata_tree(self, metadata):
+        """Become the folder of the subtree ``metadata`` describes.
+
+        A decomposer (IMSCP/SCORM) returns a tree of content-node metadata in place
+        of a file, so the node it was declared on holds the tree as descendants. A
+        tree of one leaf needs no folder, so the node becomes that leaf.
+        """
+        children = metadata.get("children") or []
+        fields = self.own_metadata_fields(metadata)
+        is_lone_leaf = (
+            len(children) == 1
+            and children[0].get("kind", content_kinds.TOPIC) != content_kinds.TOPIC
+        )
+        if is_lone_leaf:
+            fields.update(self.own_metadata_fields(children[0]))
+        # The chef's fields win; the manifest fills gaps. Its license overrides.
+        fields = {
+            key: value
+            for key, value in fields.items()
+            if key in self._LICENSE_METADATA_KEYS
+            or key == "extra_fields"
+            or not getattr(self, key, None)
+        }
+        self.set_metadata(fields)
+        if is_lone_leaf:
+            self.kind = children[0]["kind"]
+            self.add_metadata_content(children[0], {})
+            return
+        self.kind = content_kinds.TOPIC
+        self.add_metadata_children(
+            metadata,
+            {
+                "language": self.language,
+                "license": self.license,
+                "source_id_namespace": self.source_id,
+            },
+        )
+        for child in self.children:
+            child.process_metadata_subtree()
+
+    def process_metadata_subtree(self):
+        """Process and validate a metadata-built node and its descendants, leaves first.
+
+        Descendants must process themselves: ``ChannelManager.process_tree``
+        snapshots the node list before calling ``process_files()``, so nodes added
+        during that call are never reached by its walk.
+        """
+        for child in self.children:
+            child.process_metadata_subtree()
+        self.process_files()
+        # ContentNode.process_files() already validates a leaf.
+        if self.kind == content_kinds.TOPIC:
+            self.validate()
+
     def get_domain_namespace(self):
         if not self.domain_ns:
             self.domain_ns = self.parent.get_domain_namespace()
@@ -886,6 +1032,11 @@ class ContentNode(TreeNode):
 
     def _validate(self):
         """Validate the content node. Raises InvalidNodeException on failure; returns None."""
+        # A node expanded into a folder has no files, license or uri of its own.
+        # Typed nodes never expand (CustomNavigationNode is a TOPIC-kind leaf).
+        if type(self).kind is None and self.kind == content_kinds.TOPIC:
+            super(ContentNode, self)._validate()
+            return
         self._validate_values(self.license is None, "ContentNode must have a license")
         if self._files_processed:
             self._validate_values(self.kind is None, "No kind has been set")
@@ -925,35 +1076,56 @@ class ContentNode(TreeNode):
             self._validate_uri()
         super(ContentNode, self)._validate()
 
+    # A leaf inherits the package's license as well as its language.
+    INHERITED_METADATA_KEYS = ("language", "license")
+
+    def _file_from_metadata(self, metadata):
+        """Build a File from pipeline file metadata, inheriting the node's language.
+
+        The pipeline's own language wins where it inferred one (e.g. a subtitle's).
+        """
+        return File(**{"language": self.language, **metadata})
+
+    def add_metadata_content(self, metadata, inherited):
+        """A leaf is backed by its own processed files, not by descendants."""
+        for file_metadata in metadata.get("files") or []:
+            self.add_file(self._file_from_metadata(file_metadata))
+
     def _process_uri(self):
+        context = self.context
+        if type(self).kind is not None:
+            # A typed node cannot become a folder or change kind.
+            context = {"preserve_kind": True, **context}
         try:
             file_metadata_list = self.pipeline.execute(
-                self.uri, context=self.context, skip_cache=config.UPDATE
+                self.uri, context=context, skip_cache=config.UPDATE
             )
         except (InvalidFileException, ExpectedFileException) as e:
             config.LOGGER.error(f"Error processing path: {self.uri} with error: {e}")
             return None
         content_metadata = {}
+        file_metadata_dicts = []
         for file_metadata in file_metadata_list:
             metadata_dict = file_metadata.to_dict()
             if "content_node_metadata" in metadata_dict:
                 content_metadata.update(metadata_dict.pop("content_node_metadata"))
-            # Remove path from metadata_dict as it is not needed for the File object
-            metadata_dict.pop("path", None)
-            # Inherit the node's language unless the pipeline inferred one of its own
-            # (e.g. a subtitle language extracted from the file itself).
-            metadata_dict.setdefault("language", self.language)
-            file_obj = File(**metadata_dict)
-            self.add_file(file_obj)
-        for key, value in content_metadata.items():
-            if key == "extra_fields":
-                self.extra_fields.update(value)
-            else:
-                if key == "kind" and self.kind is not None and self.kind != value:
-                    raise InvalidNodeException(
-                        "Inferred kind is different from content node class kind."
-                    )
-                setattr(self, key, value)
+            file_metadata_dicts.append(metadata_dict)
+        # Children ⇒ this node is a decomposed subtree's folder; its files belong
+        # to the leaves. Test children, not kind: the extract stage may have
+        # overwritten kind.
+        if content_metadata.get("children") is not None:
+            self.expand_metadata_tree(content_metadata)
+            return
+        for metadata_dict in file_metadata_dicts:
+            self.add_file(self._file_from_metadata(metadata_dict))
+        if (
+            self.kind is not None
+            and content_metadata.get("kind", self.kind) != self.kind
+        ):
+            raise InvalidNodeException(
+                "Inferred kind is different from content node class kind."
+            )
+        self.set_metadata(content_metadata)
 
     def process_files(self):
         if self.uri:

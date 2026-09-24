@@ -32,9 +32,12 @@ class ContentNodeMetadata:
     accessibility_labels: Optional[list[str]] = None
     learner_needs: Optional[list[str]] = None
     role: Optional[str] = None
+    language: Optional[str] = None
+    tags: Optional[list[str]] = None
     source_id: Optional[str] = None
     kind: Optional[str] = None
     extra_fields: Optional[dict] = None
+    children: Optional[list] = None
 
 
 def _recursive_update(target, source):
