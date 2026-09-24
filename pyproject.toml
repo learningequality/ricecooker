@@ -43,6 +43,7 @@ dependencies = [
     "filetype>=1.1.0",
     "urllib3==2.6.3",
     "langcodes[data]==3.5.1",
+    "lxml>=4.9",
     "tomli>=2.0.0; python_version < '3.11'",
 ]
 

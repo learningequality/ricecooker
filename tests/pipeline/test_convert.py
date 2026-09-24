@@ -21,8 +21,10 @@ import requests
 from bs4 import BeautifulSoup
 from cachecontrol.caches.file_cache import FileCache
 from le_utils.constants import content_kinds
+from le_utils.constants import exercises
 from le_utils.constants import format_presets
 from le_utils.constants import licenses
+from le_utils.constants import modalities
 from le_utils.constants.labels import learning_activities
 from le_utils.constants.labels import resource_type
 
@@ -1261,6 +1263,65 @@ def _build_single_resource_imscp(
     _create_archive(path, {root + name: content for name, content in files.items()})
 
 
+_QTI3 = "http://www.imsglobal.org/xsd/imsqtiasi_v3p0"
+
+
+def _qti_item(identifier, body=""):
+    return (
+        f'<qti-assessment-item xmlns="{_QTI3}" identifier="{identifier}" title="{identifier}" '
+        'adaptive="false" time-dependent="false">'
+        '<qti-response-declaration identifier="RESPONSE" cardinality="single" base-type="identifier">'
+        "<qti-correct-response><qti-value>A</qti-value></qti-correct-response>"
+        f"</qti-response-declaration><qti-item-body>{body}"
+        '<qti-choice-interaction response-identifier="RESPONSE" max-choices="1">'
+        '<qti-simple-choice identifier="A">A</qti-simple-choice></qti-choice-interaction>'
+        '</qti-item-body><qti-response-processing template="https://purl.imsglobal.org/spec/qti/v3p0/rptemplates/match_correct"/>'
+        "</qti-assessment-item>"
+    )
+
+
+def _qti_refs(*hrefs, tag="qti-assessment-item-ref"):
+    return "".join(
+        f'<{tag} identifier="ref{i}" href="{href}"/>' for i, href in enumerate(hrefs)
+    )
+
+
+def _qti_test(identifier, refs_xml):
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        f'<qti-assessment-test xmlns="{_QTI3}" identifier="{identifier}" title="{identifier}">'
+        '<qti-test-part identifier="P" navigation-mode="linear" submission-mode="individual">'
+        f'<qti-assessment-section identifier="S" title="S" visible="true">{refs_xml}'
+        "</qti-assessment-section></qti-test-part></qti-assessment-test>"
+    )
+
+
+_QTI2_ITEM = (
+    '<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p1" identifier="old" '
+    'title="old" adaptive="false" timeDependent="false"/>'
+)
+
+
+@contextmanager
+def _qti_package(resources, files):
+    """Zip ``files`` under a QTI manifest of ``(identifier, type, href)`` resources."""
+    manifest = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<manifest xmlns="http://www.imsglobal.org/xsd/qti/qtiv3p0/imscp_v1p1" '
+        'identifier="MAN"><organizations/><resources>{}</resources></manifest>'
+    ).format(
+        "".join(
+            f'<resource identifier="{identifier}" type="{type_}" href="{href}">'
+            f'<file href="{href}"/></resource>'
+            for identifier, type_, href in resources
+        )
+    )
+    with tempfile.TemporaryDirectory() as tmp:
+        path = os.path.join(tmp, "package.zip")
+        _create_archive(path, {"imsmanifest.xml": manifest, **files})
+        yield path
+
+
 _ARTICLE_HTML = "<html><body><h1>Title</h1><p>Prose.</p></body></html>"
 
 # Per-item LOM covering every mapped section: general, educational, rights and
@@ -1997,3 +2058,131 @@ class TestIMSCPDecomposition:
         tree = _decompose_package([*_VIDEO_RESOURCES, _SCO3], files, pipeline)
         assert list(_leaves_by_title(tree)) == ["SCO3"]
         assert _dependency_filenames(tree) == set()
+
+
+_QTI_TEST = "imsqti_test_xmlv3p0"
+_QTI_ITEM = "imsqti_item_xmlv3p0"
+_QTI_QUIZ_FIELDS = {
+    "mastery_model": exercises.DO_ALL,
+    "randomize": False,
+    "options": {"modality": modalities.QUIZ},
+}
+
+
+class TestQTIIngestion:
+    def _ingest(self, resources, files):
+        with _qti_package(resources, files) as path:
+            return (
+                FilePipeline().execute(path, skip_cache=True)[0].content_node_metadata
+            )
+
+    @staticmethod
+    def _ids(leaf):
+        return [q["id"] for q in leaf["questions"]]
+
+    def test_each_test_becomes_an_exercise_in_test_order(self):
+        tree = self._ingest(
+            [
+                ("T1", _QTI_TEST, "tests/t.xml"),
+                ("T2", _QTI_TEST, "t2.xml"),
+                ("A", _QTI_ITEM, "items/a.xml"),
+                ("B", _QTI_ITEM, "items/b.xml"),
+            ],
+            {
+                "tests/t.xml": _qti_test(
+                    "t", _qti_refs("../items/b.xml", "../items/a.xml")
+                ),
+                "t2.xml": _qti_test("t2", _qti_refs("items/a.xml")),
+                "items/a.xml": _qti_item("a"),
+                "items/b.xml": _qti_item("b"),
+            },
+        )
+        leaves = tree["children"]
+        assert [leaf["title"] for leaf in leaves] == ["t", "t2"]
+        assert all(leaf["kind"] == content_kinds.EXERCISE for leaf in leaves)
+        assert [self._ids(leaf) for leaf in leaves] == [["b", "a"], ["a"]]
+        assert all(leaf["extra_fields"] == _QTI_QUIZ_FIELDS for leaf in leaves)
+
+    def test_loose_items_become_one_exercise(self):
+        tree = self._ingest(
+            [("A", _QTI_ITEM, "a.xml"), ("B", _QTI_ITEM, "b.xml")],
+            {"a.xml": _qti_item("a"), "b.xml": _qti_item("b")},
+        )
+        (leaf,) = tree["children"]
+        assert self._ids(leaf) == ["a", "b"]
+
+    def test_item_byte_order_mark_is_dropped(self):
+        tree = self._ingest(
+            [("A", _QTI_ITEM, "a.xml")],
+            {
+                "a.xml": b'\xef\xbb\xbf<?xml version="1.0" encoding="UTF-8"?>'
+                + _qti_item("a").encode("utf-8")
+            },
+        )
+        (leaf,) = tree["children"]
+        (question,) = leaf["questions"]
+        assert question["raw_data"] == _qti_item("a")
+
+    def test_section_refs_are_followed_once(self):
+        section = (
+            f'<qti-assessment-section xmlns="{_QTI3}" identifier="s" title="s" visible="true">'
+            f"{_qti_refs('../items/b.xml')}"
+            f"{_qti_refs('s.xml', tag='qti-assessment-section-ref')}"
+            "</qti-assessment-section>"
+        )
+        tree = self._ingest(
+            [("T", _QTI_TEST, "t.xml")],
+            {
+                "t.xml": _qti_test(
+                    "t",
+                    _qti_refs("items/a.xml")
+                    + _qti_refs("sections/s.xml", tag="qti-assessment-section-ref"),
+                ),
+                "sections/s.xml": section,
+                "items/a.xml": _qti_item("a"),
+                "items/b.xml": _qti_item("b"),
+            },
+        )
+        (leaf,) = tree["children"]
+        assert self._ids(leaf) == ["a", "b"]
+
+    def test_non_qti3_items_are_rejected_by_name(self, caplog):
+        tree = self._ingest(
+            [
+                ("A", _QTI_ITEM, "a.xml"),
+                ("OLD", "imsqti_item_xmlv2p1", "items/old.xml"),
+            ],
+            {"a.xml": _qti_item("a"), "items/old.xml": _QTI2_ITEM},
+        )
+        (leaf,) = tree["children"]
+        assert self._ids(leaf) == ["a"]
+        assert any(
+            "items/old.xml" in r.getMessage() and "QTI 3.0" in r.getMessage()
+            for r in caplog.records
+        )
+
+    @pytest.mark.parametrize("resource_type", ["imsqti_item_xmlv2p1", "imsqti_xmlv1p2"])
+    def test_pre_qti3_only_package_is_rejected(self, resource_type):
+        with pytest.raises(InvalidFileException, match="every resource was rejected"):
+            self._ingest(
+                [("OLD", resource_type, "items/old.xml")],
+                {"items/old.xml": _QTI2_ITEM},
+            )
+
+    def test_repeated_item_ids_are_kept_once(self):
+        tree = self._ingest(
+            [("T", _QTI_TEST, "t.xml")],
+            {
+                "t.xml": _qti_test(
+                    "t",
+                    _qti_refs(
+                        "items/a.xml", "items/a.xml", "items/copy.xml", "items/b.xml"
+                    ),
+                ),
+                "items/a.xml": _qti_item("a"),
+                "items/copy.xml": _qti_item("a"),
+                "items/b.xml": _qti_item("b"),
+            },
+        )
+        (leaf,) = tree["children"]
+        assert self._ids(leaf) == ["a", "b"]

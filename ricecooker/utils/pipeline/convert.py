@@ -51,6 +51,7 @@ from ricecooker.utils.pipeline.context import ContextMetadata
 from ricecooker.utils.pipeline.context import FileMetadata
 from ricecooker.utils.pipeline.exceptions import ExpectedFileException
 from ricecooker.utils.pipeline.exceptions import InvalidFileException
+from ricecooker.utils.qti import QTIExerciseBuilder
 from ricecooker.utils.references import DEFAULT_MAPPERS
 from ricecooker.utils.references import ReferenceMapper
 from ricecooker.utils.references import sanitize_style_css
@@ -971,8 +972,9 @@ class IMSCPConversionHandler(HTML5ConversionHandler):
     """Decompose an IMS Content Package (incl. SCORM) into a native node subtree.
 
     Every surviving leaf re-enters the pipeline to be sealed into its own file, so
-    no leaf is backed by the whole package zip. Must be registered before
-    ``HTML5ConversionHandler``, which claims any ``.zip``.
+    no leaf is backed by the whole package zip. QTI 3.0 tests and items become
+    exercises. Must be registered before ``HTML5ConversionHandler``, which
+    claims any ``.zip``.
     """
 
     def should_handle(self, path):
@@ -1016,7 +1018,10 @@ class IMSCPConversionHandler(HTML5ConversionHandler):
             package = IMSCPPackage(ims_dir)
             nodes = self._build_nodes(manifest.get("children"), package, settings)
             sealed = self._seal_pending(_pending_leaves(nodes), package, settings)
-        children = self._finish_nodes(nodes, sealed)
+            qti_exercises = QTIExerciseBuilder(package, self.get_pipeline()).exercises(
+                manifest
+            )
+        children = self._finish_nodes(nodes, sealed) + qti_exercises
         if not children:
             raise InvalidFileException(
                 f"File {path} is not a valid IMSCP package, every resource was rejected."
@@ -1063,9 +1068,8 @@ class IMSCPConversionHandler(HTML5ConversionHandler):
 
     def _build_leaf(self, node_dict, package, settings):
         source_id = node_dict.get("source_id")
-        # QTI ingestion is deferred to #337, so assessment items are rejected here.
+        # Built from <resources> by QTIExerciseBuilder.
         if is_qti_resource(node_dict.get("type")):
-            LOGGER.warning("IMSCP: rejecting QTI resource %s", source_id)
             return None
         if node_dict.get("type") != "webcontent" or not node_dict.get("index_file"):
             LOGGER.warning(
