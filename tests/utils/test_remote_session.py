@@ -122,14 +122,12 @@ def test_finished_pane_lingers_with_exit_code_and_output(
     assert "chef-output" in tmux("capture-pane", "-p", "-S", "-", "-t", TARGET).stdout
 
     # No client attached: the recorder's detach must not replace the code.
-    # Empty until tmux reaps the pane, which can trail pane_dead.
-    def dead_status():
-        return tmux(
-            "display-message", "-p", "-t", TARGET, "#{pane_dead_status}"
-        ).stdout.strip()
-
-    assert wait_until(dead_status)
-    assert dead_status() == str(code)
+    # tmux < 3.6 can drop the pane's SIGCHLD (tmux#4559), leaving
+    # pane_dead_status empty. run-shell returns only after tmux's waitpid
+    # loop reaps its job, which reaps the pane too.
+    tmux("run-shell", "true")
+    dead = tmux("display-message", "-p", "-t", TARGET, "#{pane_dead_status}")
+    assert dead.stdout.strip() == str(code)
     log = Path(s.log_path)
     # pipe-pane creates the log asynchronously.
     assert wait_until(lambda: log.exists() and "chef-output" in log.read_text())
