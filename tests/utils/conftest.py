@@ -14,23 +14,75 @@ tty=
 while [ "${1#-}" != "$1" ]; do [ "$1" = -t ] && tty=1; shift; done
 shift
 # Without -t, sshd gives the command no terminal.
-[ -z "$tty" ] && [ -t 0 ] && exec sh -c "$*" </dev/null
-exec sh -c "$*"
+if [ -z "$tty" ] && [ -t 0 ]; then sh -c "$*" </dev/null; else sh -c "$*"; fi
+rc=$?
+# Logout under KillUserProcesses=yes kills this session's tmux server; one started by
+# systemd-run lives in user@.service, which outlives logout only while the user lingers.
+s=$RC_FAKE_LOGIND kup=
+[ -e "$s/settings" ] && read -r kup < "$s/settings"
+case $kup in *true*)
+    { [ -e "$s/linger" ] && tmux show-environment -g RC_FAKE_SCOPE; } >/dev/null 2>&1 ||
+        tmux kill-server 2>/dev/null ;;
+esac
+exit $rc
 """
+
+# Play logind from $RC_FAKE_LOGIND: settings holds busctl's lines for the kill settings
+# (absent: no systemd), linger marks the user lingering, deny refuses enable-linger.
+FAKE_LOGIND = {
+    "busctl": """#!/bin/sh
+s=$RC_FAKE_LOGIND
+if [ ! -e "$s/settings" ]; then
+    echo "Failed to connect to bus: No such file or directory" >&2
+    exit 1
+fi
+case "$*" in
+*KillUserProcesses*) while IFS= read -r l; do echo "$l"; done < "$s/settings" ;;
+*) if [ -e "$s/linger" ]; then echo '{"type":"b","data":true}'
+   else echo '{"type":"b","data":false}'; fi ;;
+esac
+""",
+    "loginctl": """#!/bin/sh
+if [ -e "$RC_FAKE_LOGIND/deny" ]; then
+    echo "Could not enable linger: Access denied" >&2
+    exit 1
+fi
+: > "$RC_FAKE_LOGIND/linger"
+""",
+    # RC_FAKE_SCOPE marks a tmux server started here; the ssh shim spares it at logout.
+    "systemd-run": """#!/bin/sh
+if [ -e "$RC_FAKE_LOGIND/no-user-manager" ]; then
+    echo "Failed to connect to bus: No medium found" >&2
+    exit 1
+fi
+while [ "${1#-}" != "$1" ]; do shift; done
+RC_FAKE_SCOPE=1 exec "$@"
+""",
+    "pkcheck": '#!/bin/sh\n[ ! -e "$RC_FAKE_LOGIND/deny" ]\n',
+}
 
 
 @pytest.fixture
-def box(tmp_path, monkeypatch):
+def box(tmp_path, monkeypatch, tmux_tmpdir):  # The shim runs tmux at logout.
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
-    shim = bin_dir / "ssh"
-    shim.write_text(SSH_SHIM)
-    shim.chmod(0o755)
+    for name, text in {"ssh": SSH_SHIM, **FAKE_LOGIND}.items():
+        script = bin_dir / name
+        script.write_text(text)
+        script.chmod(0o755)
+    (tmp_path / "logind").mkdir()
+    # Else box tests read, and may enable linger on, the host's logind.
+    monkeypatch.setenv("RC_FAKE_LOGIND", str(tmp_path / "logind"))
     monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
     monkeypatch.delenv("RSYNC_RSH", raising=False)
     root = tmp_path / "box"
     root.mkdir()
     return root
+
+
+@pytest.fixture
+def logind(box):
+    return box.parent / "logind"
 
 
 @pytest.fixture
@@ -54,17 +106,22 @@ def _tmux_can_run():
 
 
 @pytest.fixture
-def tmux_server(monkeypatch):
-    if not _tmux_can_run():
-        pytest.skip("needs tmux and a pty")
+def tmux_tmpdir(monkeypatch):
     # Short path: the socket must fit in sun_path (104 bytes on macOS).
     tmpdir = tempfile.mkdtemp(prefix="rc-tmux-")
     monkeypatch.setenv("TMUX_TMPDIR", tmpdir)
     # Else tmux talks to the developer's server.
     monkeypatch.delenv("TMUX", raising=False)
     yield
-    subprocess.run(["tmux", "kill-server"], capture_output=True)
+    if shutil.which("tmux"):
+        subprocess.run(["tmux", "kill-server"], capture_output=True)
     shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+@pytest.fixture
+def tmux_server(tmux_tmpdir):
+    if not _tmux_can_run():
+        pytest.skip("needs tmux and a pty")
 
 
 @functools.cache

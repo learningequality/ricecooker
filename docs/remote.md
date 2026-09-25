@@ -31,6 +31,13 @@ sourced by `sh`. Runs are refused if group or others can access it:
     echo 'STUDIO_TOKEN=...' > ~/.config/ricecooker/remote-env
     chmod 600 ~/.config/ricecooker/remote-env
 
+On a box whose logind kills a user's processes at logout (`KillUserProcesses=yes`), a
+run outlives its ssh connection only while the user lingers. `--remote` enables that
+with `loginctl enable-linger` on its first run. Where the box's polkit forbids it, runs
+are refused until an admin runs, once:
+
+    sudo loginctl enable-linger <user>
+
 *Checklist*: run `python chef.py remote doctor` from the chef dir.
 
 
@@ -78,4 +85,4 @@ Every command takes `--remote NAME`.
   - `shell`: open a login shell in the box's chef dir.
   - `cache info`: show the shared file cache's path, entry count and size.
   - `cache clear`: delete the shared file cache; refused while any chef under `remote_root` runs.
-  - `doctor`: report which box dependencies are missing, whether `remote-env` is readable by other users, and whether the chef runs in the shared default venv.
+  - `doctor`: report which box dependencies are missing, whether `remote-env` is readable by other users, whether the chef runs in the shared default venv, and whether runs would die at logout.

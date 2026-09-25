@@ -83,7 +83,7 @@ class Session:
         # "=": exact match, or "ricecooker-foo" finds "ricecooker-foobar".
         self.target = f"={self.name}:"
 
-    def create(self, command, env=None) -> None:
+    def create(self, command, env=None, launcher=()) -> None:
         set_env = []
         for key, value in (env or {}).items():
             set_env += [
@@ -96,6 +96,7 @@ class Session:
             ]
         bookkeeping, log = quote(self.bookkeeping_dir), quote(self.log_path)
         self._ssh(
+            *launcher,
             "tmux",
             "new-session",
             "-d",
