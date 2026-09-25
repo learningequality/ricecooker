@@ -185,7 +185,7 @@ def authenticate_user(token):
         return user["username"], token
     except HTTPError:
         config.LOGGER.error("Studio token rejected by server " + auth_endpoint)
-        sys.exit()
+        sys.exit(1)
 
 
 def check_version_number():
