@@ -34,6 +34,7 @@ from ricecooker.classes.licenses import get_license
 from ricecooker.classes.nodes import ChannelNode
 from ricecooker.classes.nodes import ContentNode
 from ricecooker.classes.nodes import HTML5AppNode
+from ricecooker.exceptions import InvalidNodeException
 from ricecooker.managers.tree import ChannelManager
 from ricecooker.utils import archive_assets
 from ricecooker.utils import caching
@@ -1571,6 +1572,13 @@ class TestIMSCPDecomposition:
     def test_assessment_resource_rejected(self, index_html, item_xml):
         with pytest.raises(InvalidFileException, match="every resource was rejected"):
             self._decompose("page.html", index_html, item_xml=item_xml)
+
+    def test_rejected_package_node_carries_pipeline_error(self):
+        with pytest.raises(InvalidNodeException, match="every resource was rejected"):
+            _expanded_node(
+                get_license(licenses.PUBLIC_DOMAIN),
+                item_xml="<adlcp:masteryscore>80</adlcp:masteryscore>",
+            )
 
     def test_gitta_has_multiple_html5_leaves(self):
         tree = self._run("gitta_ims.zip")

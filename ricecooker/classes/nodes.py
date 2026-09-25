@@ -1102,7 +1102,7 @@ class ContentNode(TreeNode):
             )
         except (InvalidFileException, ExpectedFileException) as e:
             config.LOGGER.error(f"Error processing path: {self.uri} with error: {e}")
-            return None
+            return str(e)
         content_metadata = {}
         file_metadata_dicts = []
         for file_metadata in file_metadata_list:
@@ -1128,13 +1128,20 @@ class ContentNode(TreeNode):
         self.set_metadata(content_metadata)
 
     def process_files(self):
-        if self.uri:
-            self._process_uri()
+        uri_error = self._process_uri() if self.uri else None
         filenames = super().process_files()
         # Now that we have set all the metadata, and files, we validate the node
         # again to ensure that the metadata is valid
         self._files_processed = True
-        self.validate()
+        try:
+            self.validate()
+        except InvalidNodeException as e:
+            # A failed file surfaces only as a missing kind or preset.
+            sources = [(self.uri, uri_error)] + [(f, f.error) for f in self.files]
+            errors = [f"{source}: {error}" for source, error in sources if error]
+            if not errors:
+                raise
+            raise InvalidNodeException(", ".join([str(e), *errors])) from e
         return filenames
 
     def to_dict(self):
