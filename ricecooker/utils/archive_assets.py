@@ -27,6 +27,7 @@ from ricecooker.utils.pipeline.exceptions import InvalidFileException
 from ricecooker.utils.references import DEFAULT_MAPPERS
 from ricecooker.utils.references import is_data_uri
 from ricecooker.utils.references import is_external_url
+from ricecooker.utils.references import mapper_for
 
 
 class ArchiveProcessor:
@@ -47,8 +48,11 @@ class ArchiveProcessor:
         mappers=DEFAULT_MAPPERS,
         audio_settings=None,
         video_settings=None,
+        members=None,
     ):
         self.directory = directory
+        # Archive paths the download pass starts from; every file when None.
+        self.members = members
         self.pipeline = pipeline
         # The pipeline's CONVERT stage, used directly for the media-compression
         # pass. The constructing handler is itself a CONVERT-stage child, so it
@@ -93,7 +97,11 @@ class ArchiveProcessor:
     def _download_external_refs(self):
         """Reference-led walk: fetch every external ref so it resolves offline."""
         self.worklist = deque()
-        for abspath in self._walk_files():
+        if self.members is None:
+            paths = self._walk_files()
+        else:
+            paths = (os.path.join(self.directory, member) for member in self.members)
+        for abspath in paths:
             mapper = self._mapper_for(abspath)
             if mapper is not None:
                 self.worklist.append((abspath, mapper))
@@ -107,11 +115,7 @@ class ArchiveProcessor:
         Mappers match on the archive-relative path, so path-keyed mappers such as
         H5P's ``content/content.json`` resolve correctly.
         """
-        rel_path = os.path.relpath(abspath, self.directory)
-        for mapper in self.mappers:
-            if mapper.handles(rel_path):
-                return mapper
-        return None
+        return mapper_for(os.path.relpath(abspath, self.directory), self.mappers)
 
     def _process_file(self, source_path, mapper):
         """Download ``source_path``'s external refs and rewrite them in place."""

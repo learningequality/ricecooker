@@ -3,18 +3,23 @@
 import base64
 import json
 import os
+import posixpath
 import shutil
 import subprocess
 import tempfile
 import zipfile
+from collections import defaultdict
 from contextlib import contextmanager
 from types import SimpleNamespace
 from unittest.mock import patch
 from urllib.parse import unquote
+from urllib.parse import urljoin
+from urllib.parse import urlsplit
 
 import pytest
 import requests
 from bs4 import BeautifulSoup
+from cachecontrol.caches.file_cache import FileCache
 from le_utils.constants import content_kinds
 from le_utils.constants import format_presets
 from le_utils.constants import licenses
@@ -31,6 +36,9 @@ from ricecooker.classes.nodes import ContentNode
 from ricecooker.classes.nodes import HTML5AppNode
 from ricecooker.managers.tree import ChannelManager
 from ricecooker.utils import archive_assets
+from ricecooker.utils import caching
+from ricecooker.utils.archive_dependencies import SharedAssetExtractor
+from ricecooker.utils.imscp import IMSCPPackage
 from ricecooker.utils.pipeline import FilePipeline
 from ricecooker.utils.pipeline.convert import BloomConversionHandler
 from ricecooker.utils.pipeline.convert import DocumentConversionHandler
@@ -41,7 +49,13 @@ from ricecooker.utils.pipeline.convert import HTML5ConversionHandler
 from ricecooker.utils.pipeline.convert import KPUBConversionHandler
 from ricecooker.utils.pipeline.convert import PandocMissingError
 from ricecooker.utils.pipeline.exceptions import InvalidFileException
+from ricecooker.utils.references import CSSMapper
 from ricecooker.utils.references import DEFAULT_MAPPERS
+from ricecooker.utils.references import is_data_uri
+from ricecooker.utils.references import is_external_url
+from ricecooker.utils.references import mapper_for
+from ricecooker.utils.zip import create_predictable_zip
+from ricecooker.utils.zip import directory_member_names
 
 # A valid 1x1 PNG, small enough to inline but real enough to pass the CONVERT
 # stage's image verification (so external image refs survive download -> convert).
@@ -662,6 +676,239 @@ class TestArchiveProcessor:
             assert 'src="images/local.png"' in index
 
 
+def _zipcontent_target(zip_name, member, ref):
+    """``(zip, member)`` Kolibri's zipcontent serves for ``ref`` in ``member`` of ``zip_name``, else None."""
+    parts = urlsplit(urljoin(f"/zipcontent/{zip_name}/{member}", ref)).path.split(
+        "/", 3
+    )
+    if len(parts) < 4 or parts[1] != "zipcontent":
+        return None
+    return parts[2], unquote(parts[3])
+
+
+def _as_bytes(files):
+    return {
+        name: content.encode("utf-8") if isinstance(content, str) else content
+        for name, content in files.items()
+    }
+
+
+def _write_tree(directory, files):
+    for member, content in _as_bytes(files).items():
+        path = os.path.join(directory, member)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "wb") as fh:
+            fh.write(content)
+
+
+def _read_tree(directory):
+    """``{member: bytes}`` for every file under ``directory``."""
+    tree = {}
+    for name in directory_member_names(directory):
+        with open(os.path.join(directory, name), "rb") as fh:
+            tree[name] = fh.read()
+    return tree
+
+
+def _refs(directory, member):
+    """The references ``member`` of ``directory`` makes, in order."""
+    with open(os.path.join(directory, member), encoding="utf-8") as fh:
+        content = fh.read()
+    return mapper_for(member).extract(content)
+
+
+def _tempdir_is_case_insensitive():
+    with tempfile.TemporaryDirectory() as tmp:
+        probe = os.path.join(tmp, "probe")
+        open(probe, "wb").close()
+        return os.path.exists(os.path.join(tmp, "PROBE"))
+
+
+# These fixtures hold paths differing only in case, which collide on macOS and Windows.
+_needs_case_sensitive_fs = pytest.mark.skipif(
+    _tempdir_is_case_insensitive(),
+    reason="temp dir is case-insensitive",
+)
+
+
+@contextmanager
+def _shared_extraction(files, leaves, outside=None):
+    """Extract what ``leaves`` (key -> members, entry first) of a package of ``files`` share into ``dep.zip``.
+
+    Yields ``(leaf_dirs, dep, rewritten)``: each leaf dir holds the members the
+    leaf keeps, and ``dep`` is the dependency dir as ``{member: bytes}``.
+    ``outside`` files are written beside the package.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        _write_tree(tmp, outside or {})
+        package = IMSCPPackage(os.path.join(tmp, "package"))
+        _write_tree(package.directory, files)
+        closures = {key: package.closure(members) for key, members in leaves.items()}
+        extractor = SharedAssetExtractor(
+            package, {key: (closures[key], leaves[key][0]) for key in leaves}
+        )
+        dep_dir = os.path.join(tmp, "dep")
+        os.makedirs(dep_dir)
+        selected = extractor.select(dep_dir)
+        leaf_dirs = {key: os.path.join(tmp, "leaves", key) for key in leaves}
+        rewritten = set()
+        for key, closure in closures.items():
+            paths = {m: m for m in closure if m not in extractor.shared(key)}
+            package.copy(paths, leaf_dirs[key])
+            if selected and extractor.rewrite(key, leaf_dirs[key], paths, "dep.zip"):
+                rewritten.add(key)
+        yield leaf_dirs, _read_tree(dep_dir), rewritten
+
+
+class TestSharedAssetExtractor:
+    def test_css_referencing_unshared_image_stays(self):
+        files = {}
+        for key, bg in (("a", b"A"), ("b", b"B")):
+            files[f"{key}/index.html"] = (
+                '<link rel="stylesheet" href="site.css"><script src="../lib/x.js"></script>'
+            )
+            files[f"{key}/site.css"] = "body{background:url(bg.png)}"
+            files[f"{key}/bg.png"] = bg
+        files["lib/x.js"] = "X"
+        leaves = {"a": ["a/index.html"], "b": ["b/index.html"]}
+        with _shared_extraction(files, leaves) as (leaf_dirs, dep, _rewritten):
+            assert list(dep) == ["lib/x.js"]
+            for key, directory in leaf_dirs.items():
+                tree = _read_tree(directory)
+                for member in (f"{key}/site.css", f"{key}/bg.png"):
+                    assert tree[member] == _as_bytes(files)[member]
+
+    def test_css_stays_when_copies_reference_different_bytes(self):
+        specs = {"a": ("x", b"A"), "b": ("y", b"B"), "c": ("x", b"A"), "d": ("y", b"B")}
+        files = {}
+        for key, (folder, bg) in specs.items():
+            files[f"{key}/index.html"] = (
+                f'<link rel="stylesheet" href="{folder}/site.css">'
+            )
+            files[f"{key}/{folder}/site.css"] = "body{background:url(bg.png)}"
+            files[f"{key}/{folder}/bg.png"] = bg
+        leaves = {key: [f"{key}/index.html"] for key in specs}
+        with _shared_extraction(files, leaves) as (leaf_dirs, dep, _rewritten):
+            assert sorted(dep) == ["a/x/bg.png", "b/y/bg.png"]
+            for key, (folder, bg) in specs.items():
+                css = f"{key}/{folder}/site.css"
+                assert os.path.exists(os.path.join(leaf_dirs[key], css))
+                (ref,) = _refs(leaf_dirs[key], css)
+                zip_name, member = _zipcontent_target("leaf.zip", css, ref)
+                assert zip_name == "dep.zip"
+                assert dep[member] == bg
+
+    def test_moved_css_points_at_canonical_copy(self):
+        page = '<link rel="stylesheet" href="../s/site.css"><img src="../p/bg.png">'
+        files = {
+            "a/index.html": page,
+            "b/index.html": page,
+            "s/site.css": "body{background:url(../q/bg.png)}",
+            "p/bg.png": _PNG_1x1,
+            "q/bg.png": _PNG_1x1,
+        }
+        leaves = {"a": ["a/index.html"], "b": ["b/index.html"]}
+        with _shared_extraction(files, leaves) as (_dirs, dep, _rewritten):
+            assert sorted(dep) == ["p/bg.png", "s/site.css"]
+            (ref,) = CSSMapper().extract(dep["s/site.css"].decode("utf-8"))
+            assert posixpath.normpath(posixpath.join("s", ref)) == "p/bg.png"
+
+    def test_rewritten_ref_keeps_encoding_query_and_fragment(self):
+        page = '<img src="../img/my%20pic.png?v=2#top">'
+        files = {"a/index.html": page, "b/index.html": page, "img/my pic.png": _PNG_1x1}
+        leaves = {"a": ["a/index.html"], "b": ["b/index.html"]}
+        with _shared_extraction(files, leaves) as (leaf_dirs, _dep, _rw):
+            (ref,) = _refs(leaf_dirs["a"], "a/index.html")
+            parts = urlsplit(ref)
+            assert (parts.query, parts.fragment) == ("v=2", "top")
+            assert _zipcontent_target("leaf.zip", "a/index.html", ref) == (
+                "dep.zip",
+                "img/my pic.png",
+            )
+
+    def test_reference_escaping_the_package_is_ignored(self):
+        files = {
+            "a/index.html": '<link rel="stylesheet" href="../site.css">',
+            "b/index.html": '<link rel="stylesheet" href="../site.css">',
+            "site.css": "body{background:url(../evil.png)}",
+        }
+        leaves = {"a": ["a/index.html"], "b": ["b/index.html"]}
+        with _shared_extraction(files, leaves, {"evil.png": b"EVIL"}) as (
+            leaf_dirs,
+            dep,
+            _rewritten,
+        ):
+            assert dep == {}
+            evil = os.path.join(
+                os.path.dirname(os.path.dirname(leaf_dirs["a"])), "evil.png"
+            )
+            with open(evil, "rb") as fh:
+                assert fh.read() == b"EVIL"
+            for key, directory in leaf_dirs.items():
+                members = [f"{key}/index.html", "site.css"]
+                assert _read_tree(directory) == {
+                    m: _as_bytes(files)[m] for m in members
+                }
+
+    @_needs_case_sensitive_fs
+    def test_paths_differing_in_case_stay_apart(self):
+        files = {"img/h.png": b"X", "IMG/h.png": b"Y"}
+        for key, folder in (("a", "img"), ("b", "IMG"), ("c", "img"), ("d", "IMG")):
+            files[f"{key}/index.html"] = f'<img src="../{folder}/h.png">'
+        leaves = {key: [f"{key}/index.html"] for key in "abcd"}
+        with _shared_extraction(files, leaves) as (leaf_dirs, dep, rewritten):
+            assert dep == {"img/h.png": b"X"}
+            for key in ("b", "d"):
+                assert _read_tree(leaf_dirs[key])["IMG/h.png"] == b"Y"
+            assert rewritten == {"a", "c"}
+
+    @_needs_case_sensitive_fs
+    def test_file_and_directory_at_one_path_stay_apart(self):
+        files = {"lib": b"X", "LIB/h.png": b"Y"}
+        for key, ref in (
+            ("a", "lib"),
+            ("b", "LIB/h.png"),
+            ("c", "lib"),
+            ("d", "LIB/h.png"),
+        ):
+            files[f"{key}/index.html"] = f'<img src="../{ref}">'
+        leaves = {key: [f"{key}/index.html"] for key in "abcd"}
+        with _shared_extraction(files, leaves) as (leaf_dirs, dep, rewritten):
+            assert dep == {"lib": b"X"}
+            for key in ("b", "d"):
+                assert _read_tree(leaf_dirs[key])["LIB/h.png"] == b"Y"
+            assert rewritten == {"a", "c"}
+
+    def test_html_pages_never_move(self):
+        frameset = '<frameset><frame src="../nav.html"></frameset>'
+        files = {
+            "a/index.html": frameset,
+            "b/index.html": frameset,
+            "nav.html": '<a href="p.html">P</a>',
+            "p.html": "<p>P</p>",
+        }
+        leaves = {key: [f"{key}/index.html", "nav.html", "p.html"] for key in "ab"}
+        with _shared_extraction(files, leaves) as (leaf_dirs, dep, _rw):
+            assert dep == {}
+            for directory in leaf_dirs.values():
+                assert {"nav.html", "p.html"} <= set(_read_tree(directory))
+
+    def test_leaf_with_non_utf8_page_sits_out(self):
+        files = {
+            "a/index.html": '<script src="../lib/x.js"></script>',
+            "b/index.html": '<script src="../lib/x.js"></script>',
+            "b/p2.html": "caf\xe9".encode("latin-1"),
+            "lib/x.js": "X",
+        }
+        leaves = {"a": ["a/index.html"], "b": ["b/index.html", "b/p2.html"]}
+        with _shared_extraction(files, leaves) as (leaf_dirs, dep, _rewritten):
+            assert dep == {}
+            members = ["b/index.html", "b/p2.html", "lib/x.js"]
+            assert _read_tree(leaf_dirs["b"]) == {
+                m: _as_bytes(files)[m] for m in members
+            }
+
+
 class TestH5PContentMapper:
     """H5P ``content.json`` ``path`` extraction/rewriting.
 
@@ -1039,6 +1286,192 @@ _CONTENT_PROVIDER_XML = (
 )
 
 
+def _build_imscp(path, resources, files):
+    """Write a package of ``files`` with one item per ``(identifier, href, extra hrefs)`` resource."""
+    items = "".join(
+        '<item identifier="ITEM_{0}" identifierref="{0}"><title>{0}</title></item>'.format(
+            identifier
+        )
+        for identifier, _href, _extra in resources
+    )
+    declared = "".join(
+        '<resource identifier="{}" type="webcontent" href="{}">{}</resource>'.format(
+            identifier,
+            href,
+            "".join('<file href="{}"/>'.format(h) for h in [href, *extra]),
+        )
+        for identifier, href, extra in resources
+    )
+    manifest = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<manifest xmlns="http://www.imsproject.org/xsd/imscp_rootv1p1p2" identifier="MAN">'
+        '<organizations default="ORG"><organization identifier="ORG"><title>Org</title>'
+        "{}</organization></organizations><resources>{}</resources></manifest>"
+    ).format(items, declared)
+    _create_archive(path, {**files, "imsmanifest.xml": manifest})
+
+
+def _zip_refs(path):
+    """``(member, ref)`` for every local reference a mapped member of the zip at ``path`` makes."""
+    with zipfile.ZipFile(path) as zf:
+        for member in zf.namelist():
+            mapper = mapper_for(member)
+            if mapper is None:
+                continue
+            for ref in mapper.extract(zf.read(member).decode("utf-8")):
+                if is_external_url(ref) or is_data_uri(ref) or not urlsplit(ref).path:
+                    continue
+                yield member, ref
+
+
+def _unresolved_references(zips):
+    """``(zip, member, ref)`` for each ref in ``zips`` ({filename: path}) zipcontent can't serve from them."""
+    namelists = {}
+    for name, path in zips.items():
+        with zipfile.ZipFile(path) as zf:
+            namelists[name] = set(zf.namelist())
+    unresolved = []
+    for name, path in zips.items():
+        for member, ref in _zip_refs(path):
+            target = _zipcontent_target(name, member, ref)
+            if target is None or target[1] not in namelists.get(target[0], ()):
+                unresolved.append((name, member, ref))
+    return unresolved
+
+
+def _reachable(zips, zip_name, member):
+    """``(zip, member)`` pairs zipcontent serves by following refs from ``member`` of ``zip_name``."""
+    refs = {name: defaultdict(list) for name in zips}
+    for name, path in zips.items():
+        for source, ref in _zip_refs(path):
+            refs[name][source].append(ref)
+    seen = set()
+    pending = [(zip_name, member)]
+    while pending:
+        name, source = pending.pop()
+        for ref in refs.get(name, {}).get(source, ()):
+            target = _zipcontent_target(name, source, ref)
+            if target is not None and target not in seen:
+                seen.add(target)
+                pending.append(target)
+    return seen
+
+
+def _page(body, head=""):
+    return f"<html><head>{head}</head><body>{body}</body></html>"
+
+
+_SCO1 = ("SCO1", "sco1/index.html", ["sco1/private.png", "sco1/unused.txt"])
+_SCO2 = ("SCO2", "sco2/pages/page.html", ["sco2/unused.txt"])
+_SCO3 = ("SCO3", "sco3/index.html", ["sco3/app.js"])
+_STATIC = ("STATIC", "static/article.html", [])
+_SHARED_RESOURCES = [_SCO1, _SCO2, _STATIC]
+_SHARED_FILES = {
+    "sco1/index.html": _page(
+        '<p>One.</p><img src="private.png">',
+        '<link rel="stylesheet" href="../css/site.css"><script src="../lib/jquery.js"></script>',
+    ),
+    "sco1/private.png": b"PRIVATE",
+    "sco1/unused.txt": "unused",
+    "sco2/pages/page.html": _page(
+        "<p>Two.</p>",
+        '<link rel="stylesheet" href="../../css/site.css"><script src="../../lib2/jquery.js"></script>',
+    ),
+    "sco2/unused.txt": "unused",
+    "sco3/index.html": _page("<p>Three.</p>", '<script src="app.js"></script>'),
+    "sco3/app.js": "/* app */",
+    "static/article.html": _page(
+        '<h1>Static</h1><p>Prose.</p><img src="../img/bg.png">'
+    ),
+    "css/site.css": "body{background:url(../img/bg.png)}",
+    "img/bg.png": _PNG_1x1,
+    "lib/jquery.js": "/* jquery */",
+    "lib2/jquery.js": "/* jquery */",
+}
+
+
+def _decompose_package(resources, files, pipeline=None, downloads=None):
+    with tempfile.TemporaryDirectory() as tmp:
+        path = os.path.join(tmp, "package.zip")
+        _build_imscp(path, resources, files)
+        # skip_cache doesn't reach the per-leaf runs, so give them a fresh cache.
+        cache = FileCache(os.path.join(tmp, "cache"), forever=True)
+        with (
+            _fake_download_session(downloads or {}),
+            patch.object(caching, "FILECACHE", cache),
+        ):
+            result = (pipeline or FilePipeline()).execute(path, skip_cache=True)
+    return result[0].content_node_metadata
+
+
+def _leaves_by_title(tree):
+    return {leaf["title"]: leaf for leaf in _tree_dict_leaves(tree)}
+
+
+def _filenames(leaf):
+    return {f["filename"] for f in leaf["files"]}
+
+
+def _primary_file(leaf):
+    """The file dict of the zip ``leaf`` is sealed into."""
+    (primary,) = [
+        f for f in leaf["files"] if f["preset"] != format_presets.HTML5_DEPENDENCY_ZIP
+    ]
+    return primary
+
+
+def _primary_members(leaf):
+    return _zip_members(_primary_file(leaf)["path"])
+
+
+def _tree_files(tree):
+    return [f for leaf in _tree_dict_leaves(tree) for f in leaf["files"]]
+
+
+def _tree_zips(tree):
+    """``{filename: storage path}`` of every file ``tree``'s leaves carry."""
+    return {f["filename"]: f["path"] for f in _tree_files(tree)}
+
+
+def _dependency_filenames(tree):
+    return {
+        f["filename"]
+        for f in _tree_files(tree)
+        if f["preset"] == format_presets.HTML5_DEPENDENCY_ZIP
+    }
+
+
+def _dependency_filename(tree):
+    """The one dependency zip ``tree``'s leaves share."""
+    filenames = _dependency_filenames(tree)
+    assert len(filenames) == 1, filenames
+    return filenames.pop()
+
+
+def _zip_members(path):
+    with zipfile.ZipFile(path) as zf:
+        return {name: zf.read(name) for name in zf.namelist()}
+
+
+_VIDEO_FILES = {
+    "v1/index.html": _page(
+        '<p>v1</p><video src="../media/clip.mp4"></video><video src="own.mp4"></video>',
+        '<script src="../lib/jquery.js"></script>',
+    ),
+    "v2/index.html": _page(
+        '<p>v2</p><video src="../media/clip.mp4"></video>',
+        '<script src="../lib/jquery.js"></script>',
+    ),
+    "v1/own.mp4": b"OWN",
+    "media/clip.mp4": b"CLIP",
+    "lib/jquery.js": "/* jquery */",
+}
+_VIDEO_RESOURCES = [
+    ("V1", "v1/index.html", ["v1/own.mp4"]),
+    ("V2", "v2/index.html", []),
+]
+
+
 def _expanded_node(chef_license, copyright_holder=True, item_xml=None):
     """Expand a one-article LOM package through ContentNode, which becomes the article."""
     if item_xml is None:
@@ -1149,15 +1582,21 @@ class TestIMSCPDecomposition:
         # gitta's resources declare no <file> members at all and their entry
         # points sit deep in the package, so a leaf sealed from the manifest
         # alone would be an unstyled orphan page. The assets each entry
-        # references are staged with it, and the entry is recorded for Kolibri.
-        leaf = leaves[0]
-        entry = leaf["extra_fields"]["options"]["entry"]
-        assert entry.endswith(".html") and "/" in entry
-        with zipfile.ZipFile(leaf["files"][0]["path"]) as zf:
-            names = zf.namelist()
-        assert entry in names
-        assert any(n.endswith(".css") for n in names)
-        assert any(n.endswith((".gif", ".png", ".jpg")) for n in names)
+        # references are staged with it, and every leaf shares the templates.
+        dependency = _dependency_filename(tree)
+        assert all(dependency in _filenames(leaf) for leaf in leaves)
+        zips = _tree_zips(tree)
+        assert _unresolved_references(zips) == []
+
+        entry = (
+            leaves[0].get("extra_fields", {}).get("options", {}).get("entry")
+            or "index.html"
+        )
+        assert entry in _primary_members(leaves[0])
+        leaf_zip = _primary_file(leaves[0])["filename"]
+        reached = {member for _zip, member in _reachable(zips, leaf_zip, entry)}
+        assert any(m.endswith(".css") for m in reached)
+        assert any(m.endswith((".gif", ".png", ".jpg")) for m in reached)
 
     def test_wrapped_media_becomes_a_media_node(self, video_file):
         with open(video_file.path, "rb") as fh:
@@ -1410,11 +1849,121 @@ class TestIMSCPDecomposition:
         leaves = node.get_non_topic_descendants()
         assert leaves
         assert all(leaf.kind == content_kinds.HTML5 for leaf in leaves)
-        # eXe's residual jQuery/effects and .js/.css members keep pages off KPUB.
-        assert {f.get_preset() for leaf in leaves for f in leaf.files} == {
-            format_presets.HTML5_ZIP
-        }
+        # eXe's residual jQuery/effects and .js/.css members keep pages off KPUB,
+        # and those shared assets ship once, in a dependency zip every leaf carries.
+        presets = {format_presets.HTML5_ZIP, format_presets.HTML5_DEPENDENCY_ZIP}
+        assert all({f.get_preset() for f in leaf.files} == presets for leaf in leaves)
+        files = [f for leaf in leaves for f in leaf.files]
         # Each leaf is backed by its own sealed zip, not the shared package.
-        leaf_filenames = [f.get_filename() for leaf in leaves for f in leaf.files]
+        filenames = {preset: [] for preset in presets}
+        for f in files:
+            filenames[f.get_preset()].append(f.get_filename())
+        leaf_filenames = filenames[format_presets.HTML5_ZIP]
         assert len(leaf_filenames) == len(set(leaf_filenames))
-        assert set(leaf_filenames) <= set(files_to_upload)
+        assert len(set(filenames[format_presets.HTML5_DEPENDENCY_ZIP])) == 1
+        assert {f.get_filename() for f in files} <= set(files_to_upload)
+
+    def test_shared_assets_move_to_one_dependency_zip(self):
+        tree = _decompose_package(_SHARED_RESOURCES, _SHARED_FILES)
+        leaves = _leaves_by_title(tree)
+        dependency = _dependency_filename(tree)
+        assert dependency in _filenames(leaves["SCO1"])
+        assert dependency in _filenames(leaves["SCO2"])
+        assert dependency not in _filenames(leaves["STATIC"])
+        assert sorted(_zip_members(_tree_zips(tree)[dependency])) == [
+            "css/site.css",
+            "img/bg.png",
+            "lib/jquery.js",
+        ]
+        sco1 = _primary_members(leaves["SCO1"])
+        assert "unused.txt" in sco1 and "private.png" in sco1
+        assert "unused.txt" in _primary_members(leaves["SCO2"])
+
+    def test_every_reference_resolves_through_zipcontent(self):
+        tree = _decompose_package(_SHARED_RESOURCES, _SHARED_FILES)
+        zips = _tree_zips(tree)
+        assert _unresolved_references(zips) == []
+        dependency = _dependency_filename(tree)
+        leaves = _leaves_by_title(tree)
+        for title in ("SCO1", "SCO2"):
+            leaf_zip = _primary_file(leaves[title])
+            assert any(
+                _zipcontent_target(leaf_zip["filename"], member, ref)[0] == dependency
+                for member, ref in _zip_refs(leaf_zip["path"])
+            )
+
+    def test_kpub_leaf_keeps_its_assets(self):
+        tree = _decompose_package(_SHARED_RESOURCES, _SHARED_FILES)
+        kpub = _primary_file(_leaves_by_title(tree)["STATIC"])
+        assert "img/bg.png" in _zip_members(kpub["path"])
+        alone = _decompose_package([_STATIC], _SHARED_FILES)
+        alone_kpub = _primary_file(_leaves_by_title(alone)["STATIC"])
+        assert alone_kpub["filename"] == kpub["filename"]
+
+    @pytest.mark.parametrize("resources", [[_SCO1], [_SCO1, _SCO3]])
+    def test_no_dependency_zip_without_sharing(self, resources):
+        tree = _decompose_package(resources, _SHARED_FILES)
+        assert _dependency_filenames(tree) == set()
+        sco1 = _primary_members(_leaves_by_title(tree)["SCO1"])
+        assert {"lib/jquery.js", "css/site.css", "img/bg.png"} <= set(sco1)
+
+    def test_shared_media_staged_once(self):
+        with tempfile.TemporaryDirectory() as root:
+            copies = []
+
+            def counting_zip(path, *args, **kwargs):
+                tree = _read_tree(root)
+                copies.append(sum(content == b"CLIP" for content in tree.values()))
+                return create_predictable_zip(path, *args, **kwargs)
+
+            with (
+                patch.object(tempfile, "tempdir", root),
+                patch(
+                    "ricecooker.utils.pipeline.convert.create_predictable_zip",
+                    side_effect=counting_zip,
+                ),
+            ):
+                tree = _decompose_package(_VIDEO_RESOURCES, _VIDEO_FILES)
+        assert _dependency_filename(tree)
+        # The extracted package's copy, plus the dependency dir's until it seals.
+        assert max(copies) == 2
+
+    def test_shared_media_compressed_once(self):
+        def stub(input_path, output_path, **kwargs):
+            with open(input_path, "rb") as src, open(output_path, "wb") as dst:
+                dst.write(src.read() + b"|compressed")
+
+        pipeline = FilePipeline(default_context={"video_settings": {"crf": 32}})
+        with patch(
+            "ricecooker.utils.pipeline.convert.compress_video", side_effect=stub
+        ):
+            tree = _decompose_package(_VIDEO_RESOURCES, _VIDEO_FILES, pipeline)
+        dependency = _zip_members(_tree_zips(tree)[_dependency_filename(tree)])
+        assert dependency["media/clip.mp4"].count(b"|compressed") == 1
+        v1 = _primary_members(_leaves_by_title(tree)["V1"])
+        assert v1["own.mp4"].count(b"|compressed") == 1
+
+    def test_downloaded_cdn_asset_is_shared(self):
+        url = "https://cdn.example.org/lib.js"
+        files = {
+            f"{folder}/index.html": _page(
+                f"<p>{folder}</p>", f'<script src="{url}"></script>'
+            )
+            for folder in ("cdn1", "cdn2")
+        }
+        resources = [("CDN1", "cdn1/index.html", []), ("CDN2", "cdn2/index.html", [])]
+        tree = _decompose_package(resources, files, downloads={url: b"lib"})
+        dependency = _dependency_filename(tree)
+        zips = _tree_zips(tree)
+        assert list(_zip_members(zips[dependency]).values()) == [b"lib"]
+        for leaf in _tree_dict_leaves(tree):
+            assert b"lib" not in _primary_members(leaf).values()
+        assert _unresolved_references(zips) == []
+
+    def test_shared_media_compression_failure_keeps_other_leaves(self):
+        pipeline = FilePipeline(default_context={"video_settings": {"crf": 32}})
+        files = {**_VIDEO_FILES, **_SHARED_FILES}
+        # ffmpeg can't compress the fixture's placeholder bytes.
+        tree = _decompose_package([*_VIDEO_RESOURCES, _SCO3], files, pipeline)
+        assert list(_leaves_by_title(tree)) == ["SCO3"]
+        assert _dependency_filenames(tree) == set()

@@ -8,13 +8,16 @@ spans are spliced, so a re-serialization pass cannot corrupt third-party
 archives. Standard library only.
 """
 
+import posixpath
 import re
 from html.parser import HTMLParser
 from typing import Callable
 from typing import Dict
 from typing import List
+from typing import Optional
 from typing import Set
 from typing import Tuple
+from urllib.parse import unquote
 from urllib.parse import urlparse
 
 CSS_URL_RE = re.compile(r"url\(['\"]?(.*?)['\"]?\)")
@@ -39,6 +42,27 @@ def is_data_uri(url: str) -> bool:
     """True for ``data:`` URIs — not external, but localizable to a real file."""
     # Slice before lower(): a data: ref inlines the whole asset, often megabytes.
     return url[:64].strip().lower().startswith("data:")
+
+
+def split_reference(ref: str) -> Tuple[str, str]:
+    """``(path, suffix)``: ``ref``'s still-encoded path and its ``?query``/``#fragment`` tail."""
+    end = min((i for i in (ref.find("?"), ref.find("#")) if i >= 0), default=len(ref))
+    return ref[:end], ref[end:]
+
+
+def resolve_reference(member: str, ref: str) -> Optional[str]:
+    """The archive path ``ref`` names from ``member``; None for external, ``data:`` and fragment-only refs.
+
+    The result may start with ``../``, so callers confine it.
+    """
+    if is_external_url(ref) or is_data_uri(ref):
+        return None
+    path = unquote(split_reference(ref)[0])
+    if not path:
+        return None
+    return posixpath.normpath(
+        posixpath.join(posixpath.dirname(member), path).replace("\\", "/")
+    )
 
 
 def _map_css_urls(css: str, fn: Callable[[str], str]) -> Tuple[str, List[str]]:
@@ -458,3 +482,7 @@ class CSSMapper(ReferenceMapper):
 # Generic web defaults, mirroring kolibri-zip's ``defaultFilePathMappers``. A
 # format with its own reference style (e.g. H5P) extends this with its own mapper.
 DEFAULT_MAPPERS = (HTMLMapper(), CSSMapper())
+
+
+def mapper_for(path: str, mappers=DEFAULT_MAPPERS):
+    return next((mapper for mapper in mappers if mapper.handles(path)), None)

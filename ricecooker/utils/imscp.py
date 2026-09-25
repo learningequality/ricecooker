@@ -18,9 +18,9 @@ from xml.etree import ElementTree as ET
 
 import chardet
 
-from ricecooker.utils.references import DEFAULT_MAPPERS
-from ricecooker.utils.references import is_data_uri
-from ricecooker.utils.references import is_external_url
+from ricecooker.utils.references import mapper_for
+from ricecooker.utils.references import resolve_reference
+from ricecooker.utils.references import split_reference
 from ricecooker.utils.SCORM_metadata import metadata_dict_to_content_node_fields
 
 LOGGER = logging.getLogger(__name__)
@@ -138,7 +138,7 @@ def _lom_child(elem, name):
 
 def _href_path(href):
     """The package path a manifest ``href`` (a URI reference) names."""
-    return unquote(href.split("#")[0].split("?")[0])
+    return unquote(split_reference(href)[0])
 
 
 def _element_text(elem):
@@ -431,68 +431,65 @@ def collapse_single_children(node):
 
 
 class IMSCPPackage:
-    """An extracted package, staging each resource into its own directory.
+    """An extracted package, resolving which of its files each resource needs.
 
     A resource's ``<file>`` list is under-declared often enough that the assets
-    its members reference are staged too, bounded to files present in the package.
+    its members reference are included too, bounded to files present in the package.
     Navigation links are not followed, so a leaf never absorbs what it links to.
     """
 
     def __init__(self, directory):
         self.directory = directory
-        # Shared assets are staged into many leaves; the package never changes.
+        # Shared assets are in many leaves' closures; the package never changes.
         self._references = {}
 
-    def stage(self, members, dest_dir):
-        """Copy ``members`` and their reference closure into ``dest_dir``, paths preserved."""
-        staged = set()
+    def closure(self, members):
+        """``members`` and the package files they reference, transitively, in discovery order."""
+        found = {}
         pending = deque()
         for member in members:
-            self._stage_member(member, dest_dir, staged, pending)
+            self._add_member(member, found, pending)
         while pending:
-            member, mapper = pending.popleft()
-            member_dir = posixpath.dirname(member)
-            for ref in self._member_references(member, mapper):
-                self._stage_member(
-                    posixpath.join(member_dir, ref), dest_dir, staged, pending
-                )
+            member = pending.popleft()
+            for path in self.references(member) or ():
+                self._add_member(path, found, pending)
+        return list(found)
 
-    def _stage_member(self, member, dest_dir, staged, pending):
-        member = posixpath.normpath(member.replace("\\", "/"))
-        if member in staged:
-            return
-        # Staging the manifest would make the leaf a package, decomposing forever.
-        if member == IMSCP_MANIFEST:
-            return
-        # Manifest paths are untrusted: reject a ``../`` escape either way.
-        src = contained_path(self.directory, member)
-        dst = contained_path(dest_dir, member)
-        if src is None or dst is None or not os.path.isfile(src):
-            return
-        os.makedirs(os.path.dirname(dst), exist_ok=True)
-        shutil.copyfile(src, dst)
-        staged.add(member)
-        mapper = next((m for m in DEFAULT_MAPPERS if m.handles(member)), None)
-        if mapper is not None:
-            pending.append((member, mapper))
+    def copy(self, paths, dest_dir):
+        """Copy each package member in ``paths`` (member -> dest path) under ``dest_dir``."""
+        for member, path in paths.items():
+            dst = contained_path(dest_dir, path)
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            shutil.copyfile(contained_path(self.directory, member), dst)
 
-    def _member_references(self, member, mapper):
-        """The package-local paths an HTML/CSS ``member`` references."""
+    def references(self, member):
+        """The package-local paths an HTML/CSS ``member`` references; None when unreadable."""
         if member not in self._references:
-            self._references[member] = self._extract_references(member, mapper)
+            self._references[member] = self._extract_references(member)
         return self._references[member]
 
-    def _extract_references(self, member, mapper):
+    def _add_member(self, member, found, pending):
+        member = posixpath.normpath(member.replace("\\", "/"))
+        if member in found:
+            return
+        # Including the manifest would make the leaf a package, decomposing forever.
+        if member == IMSCP_MANIFEST:
+            return
+        # Manifest paths are untrusted: reject a ``../`` escape.
+        src = contained_path(self.directory, member)
+        if src is None or not os.path.isfile(src):
+            return
+        found[member] = None
+        pending.append(member)
+
+    def _extract_references(self, member):
+        mapper = mapper_for(member)
+        if mapper is None:
+            return []
         try:
             with open(contained_path(self.directory, member), encoding="utf-8") as fh:
                 content = fh.read()
         except (OSError, UnicodeDecodeError):
-            return []
-        refs = []
-        for ref in mapper.extract(content):
-            if is_external_url(ref) or is_data_uri(ref):
-                continue
-            ref = _href_path(ref)
-            if ref:
-                refs.append(ref)
-        return refs
+            return None
+        paths = (resolve_reference(member, ref) for ref in mapper.extract(content))
+        return [path for path in paths if path is not None]
