@@ -2,6 +2,8 @@
 
 import os
 import posixpath
+import threading
+from functools import lru_cache
 from functools import partial
 from urllib.parse import urlparse
 
@@ -25,6 +27,25 @@ from ricecooker.utils.references import resolve_reference
 QTI3_NAMESPACE = "http://www.imsglobal.org/xsd/imsqtiasi_v3p0"
 QTI_TEST_TYPE_PREFIX = "imsqti_test_"
 QTI_ITEM_TYPE_PREFIX = "imsqti_item_"
+
+# Studio's vendored item schema (learningequality/studio@3bdac307), so an item that
+# passes here passes Studio's validate_qti_item.
+ITEM_SCHEMA_PATH = os.path.join(
+    os.path.dirname(__file__), "qti_xsd", "imsqti_itemv3p0p1_v1p0.xsd"
+)
+# validate() writes to the schema's shared error_log; tree processing is threaded.
+_VALIDATION_LOCK = threading.Lock()
+# The schema's targetNamespaces: QTI, MathML, SSML, XInclude and xml:.
+ITEM_NAMESPACES = frozenset(
+    (
+        QTI3_NAMESPACE,
+        "http://www.w3.org/1998/Math/MathML",
+        "http://www.w3.org/2001/10/synthesis",
+        "http://www.w3.org/2001/XInclude",
+        "http://www.w3.org/XML/1998/namespace",
+    )
+)
+_STYLESHEET_TAG = f"{{{QTI3_NAMESPACE}}}qti-stylesheet"
 _ITEM_REF_TAG = f"{{{QTI3_NAMESPACE}}}qti-assessment-item-ref"
 _SECTION_REF_TAG = f"{{{QTI3_NAMESPACE}}}qti-assessment-section-ref"
 _PARSER = etree.XMLParser(resolve_entities=False, no_network=True, load_dtd=False)
@@ -48,9 +69,23 @@ def read_qti3(package_dir, member, tag):
 
 
 def strip_unschematized(item):
-    """Drop ``<qti-stylesheet>`` elements, which Kolibri does not render, from ``item``, in place."""
-    for elem in list(item.iter(f"{{{QTI3_NAMESPACE}}}qti-stylesheet")):
-        _remove(elem)
+    """Drop markup the item schema cannot validate from ``item``, in place.
+
+    That is ``<qti-stylesheet>``, which Kolibri does not render, and elements and
+    attributes outside the schema's namespaces, which its ``any`` wildcards reject.
+    """
+    for elem in list(item.iter(etree.Element)):
+        if elem.tag == _STYLESHEET_TAG or _is_foreign(elem.tag):
+            _remove(elem)
+            continue
+        for name in [name for name in elem.attrib if _is_foreign(name)]:
+            del elem.attrib[name]
+    etree.cleanup_namespaces(item)
+
+
+def _is_foreign(name):
+    namespace = etree.QName(name).namespace
+    return namespace is not None and namespace not in ITEM_NAMESPACES
 
 
 def _remove(elem):
@@ -63,6 +98,21 @@ def _remove(elem):
         else:
             previous.tail = (previous.tail or "") + elem.tail
     parent.remove(elem)
+
+
+@lru_cache(maxsize=1)
+def _item_schema():
+    return etree.XMLSchema(etree.parse(ITEM_SCHEMA_PATH))
+
+
+def validate_qti_item(item):
+    """Raise ``ValueError`` naming the first schema error if ``item`` is not a valid QTI 3.0 item."""
+    schema = _item_schema()
+    with _VALIDATION_LOCK:
+        if schema.validate(item):
+            return
+        error = schema.error_log[0]
+    raise ValueError(f"fails the QTI 3.0 schema at line {error.line}: {error.message}")
 
 
 def media_member(item_member, ref):
@@ -195,17 +245,15 @@ class QTIExerciseBuilder:
 
     def _build_question(self, member):
         item = read_qti3(self.package.directory, member, "qti-assessment-item")
-        identifier = item.get("identifier")
-        # Seeds the question's assessment id.
-        if not identifier:
-            raise ValueError("has no identifier")
         strip_unschematized(item)
+        # Studio fails the whole channel commit on one schema-invalid item.
+        validate_qti_item(item)
         files = []
         raw_data, _ = QTIMapper().map(
             etree.tostring(item, encoding="unicode"),
             partial(self._image_filename, member, files),
         )
-        return {"id": identifier, "raw_data": raw_data, "files": files}
+        return {"id": item.get("identifier"), "raw_data": raw_data, "files": files}
 
     def _image_filename(self, member, files, ref):
         """Storage filename of image ``ref`` in item ``member``, added to ``files``; URLs and fragments unchanged."""

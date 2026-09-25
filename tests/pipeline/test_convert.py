@@ -2288,10 +2288,11 @@ class TestQTIIngestion:
     def test_item_images_are_stored_and_rewritten(self):
         items = {
             "items/a.xml": _qti_item(
-                "a", '<img src="../images/pic.png" srcset="../images/pic.png 2x"/>'
+                "a",
+                '<p><img src="../images/pic.png" srcset="../images/pic.png 2x" alt=""/></p>',
             ),
             "items/b.xml": _qti_item(
-                "b", '<object data="../images/pic.png" type="image/png"/>'
+                "b", '<p><object data="../images/pic.png" type="image/png"/></p>'
             ),
         }
         tree = self._ingest(
@@ -2317,8 +2318,8 @@ class TestQTIIngestion:
         "body",
         [
             '<audio src="../media/a.mp3"/>',
-            '<img src="../images/missing.png"/>',
-            '<img src="../../../../etc/x.png"/>',
+            '<p><img src="../images/missing.png" alt=""/></p>',
+            '<p><img src="../../../../etc/x.png" alt=""/></p>',
         ],
     )
     def test_items_with_unusable_media_are_rejected(self, caplog, body):
@@ -2348,11 +2349,53 @@ class TestQTIIngestion:
         assert question["raw_data"] == _qti_item("a")
         assert question["files"] == []
 
+    def test_schema_invalid_items_are_rejected(self, caplog):
+        tree = self._ingest(
+            [("OK", _QTI_ITEM, "ok.xml"), ("BAD", _QTI_ITEM, "bad.xml")],
+            {
+                "ok.xml": _qti_item("ok"),
+                # qti-rubric-block requires a use attribute.
+                "bad.xml": _qti_item(
+                    "bad",
+                    '<qti-rubric-block view="candidate"><p>r</p></qti-rubric-block>',
+                ),
+            },
+        )
+        (leaf,) = tree["children"]
+        assert self._ids(leaf) == ["ok"]
+        assert any(
+            "bad.xml" in r.getMessage() and "'use' is required" in r.getMessage()
+            for r in caplog.records
+        )
+
+    def test_foreign_namespace_markup_is_stripped(self):
+        calculator = (
+            "<qti-calculator><qti-calculator-type>basic</qti-calculator-type>"
+            "<qti-description>Basic</qti-description></qti-calculator>"
+        )
+        foreign = (
+            '<dep:dep-calculator xmlns:dep="http://example.org/dep" dep:mode="basic"/>'
+        )
+        item = _qti_item(
+            "a",
+            head=f"<qti-companion-materials-info>{foreign}{calculator}</qti-companion-materials-info>",
+        ).replace(
+            "<qti-item-body>",
+            '<qti-item-body xmlns:x="http://example.org/x" x:flag="1">',
+        )
+        tree = self._ingest([("A", _QTI_ITEM, "a.xml")], {"a.xml": item})
+        (leaf,) = tree["children"]
+        (question,) = leaf["questions"]
+        assert question["raw_data"] == _qti_item(
+            "a",
+            head=f"<qti-companion-materials-info>{calculator}</qti-companion-materials-info>",
+        )
+
     def test_links_and_inline_data_are_left_alone(self):
         item = _qti_item(
             "a",
-            '<a href="https://example.org/x">x</a><a href="mailto:a@b.c">m</a>'
-            '<a href="#top">t</a><img src="data:image/png;base64,iVBORw0KGgo="/>',
+            '<p><a href="https://example.org/x">x</a><a href="mailto:a@b.c">m</a>'
+            '<a href="#top">t</a><img src="data:image/png;base64,iVBORw0KGgo=" alt=""/></p>',
         )
         tree = self._ingest([("A", _QTI_ITEM, "a.xml")], {"a.xml": item})
         (leaf,) = tree["children"]
