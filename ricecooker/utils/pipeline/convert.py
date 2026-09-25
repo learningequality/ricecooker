@@ -1008,11 +1008,14 @@ class IMSCPConversionHandler(HTML5ConversionHandler):
                 raise InvalidFileException(
                     f"File {path} is not a valid IMSCP package, its {IMSCP_MANIFEST} could not be parsed: {e}"
                 )
+            # Every leaf compresses its media like the package would.
+            settings = {
+                "audio_settings": audio_settings or {},
+                "video_settings": video_settings or {},
+            }
             package = IMSCPPackage(ims_dir)
-            nodes = self._build_nodes(manifest.get("children"), package)
-            sealed = self._seal_pending(
-                _pending_leaves(nodes), package, audio_settings, video_settings
-            )
+            nodes = self._build_nodes(manifest.get("children"), package, settings)
+            sealed = self._seal_pending(_pending_leaves(nodes), package, settings)
         children = self._finish_nodes(nodes, sealed)
         if not children:
             raise InvalidFileException(
@@ -1027,17 +1030,17 @@ class IMSCPConversionHandler(HTML5ConversionHandler):
             tree = {"children": [tree]}
         return FileMetadata(content_node_metadata=ContentNodeMetadata(**tree))
 
-    def _build_nodes(self, nodes, package):
-        built = [self._build_node(node, package) for node in nodes or []]
+    def _build_nodes(self, nodes, package, settings):
+        built = [self._build_node(node, package, settings) for node in nodes or []]
         return [node for node in built if node is not None]
 
-    def _build_node(self, node_dict, package):
+    def _build_node(self, node_dict, package, settings):
         if node_dict.get("children"):
             return {
                 **node_content_fields(node_dict),
-                "children": self._build_nodes(node_dict["children"], package),
+                "children": self._build_nodes(node_dict["children"], package, settings),
             }
-        return self._build_leaf(node_dict, package)
+        return self._build_leaf(node_dict, package, settings)
 
     def _finish_nodes(self, nodes, sealed):
         finished = [self._finish_node(node, sealed) for node in nodes]
@@ -1058,7 +1061,7 @@ class IMSCPConversionHandler(HTML5ConversionHandler):
             return None
         return {**node, "children": children}
 
-    def _build_leaf(self, node_dict, package):
+    def _build_leaf(self, node_dict, package, settings):
         source_id = node_dict.get("source_id")
         # QTI ingestion is deferred to #337, so assessment items are rejected here.
         if is_qti_resource(node_dict.get("type")):
@@ -1110,9 +1113,9 @@ class IMSCPConversionHandler(HTML5ConversionHandler):
                 media,
             )
             return None
-        return self._leaf_from_pipeline(node_dict, media_path)
+        return self._leaf_from_pipeline(node_dict, media_path, settings)
 
-    def _seal_pending(self, pending, package, audio_settings, video_settings):
+    def _seal_pending(self, pending, package, settings):
         """Move what the HTML5 leaves share into a dependency zip, then seal each leaf into its own zip."""
         pending = list(pending)
         members = {m for leaf in pending for m in package.closure(leaf.members)}
@@ -1129,7 +1132,7 @@ class IMSCPConversionHandler(HTML5ConversionHandler):
             if self._kpub_plan(package.directory, leaf.entry, closures[leaf]) is None
         }
         extractor = SharedAssetExtractor(package, html5)
-        dependency = self._extract_dependency(extractor, audio_settings, video_settings)
+        dependency = self._extract_dependency(extractor, settings)
         sealed = {}
         for leaf in pending:
             shared = extractor.shared(leaf) if dependency else set()
@@ -1146,18 +1149,22 @@ class IMSCPConversionHandler(HTML5ConversionHandler):
                 sealed[leaf] = self._seal_leaf(
                     leaf,
                     directory,
-                    {"entry": paths[leaf.entry], "preserve_kind": leaf in html5},
+                    {
+                        **settings,
+                        "entry": paths[leaf.entry],
+                        "preserve_kind": leaf in html5,
+                    },
                     extra_files=[dependency] if references else (),
                 )
         return sealed
 
-    def _extract_dependency(self, extractor, audio_settings, video_settings):
+    def _extract_dependency(self, extractor, settings):
         """Store what ``extractor``'s leaves share as one dependency zip; its file dict, or None."""
         with tempfile.TemporaryDirectory() as dep_dir:
             if not extractor.select(dep_dir):
                 return None
             try:
-                self._process_directory(dep_dir, audio_settings, video_settings)
+                self._process_directory(dep_dir, **settings)
             except (InvalidFileException, ExpectedFileException) as e:
                 # Leaves stage their own copies instead.
                 LOGGER.warning(

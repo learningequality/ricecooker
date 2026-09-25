@@ -1390,7 +1390,7 @@ _SHARED_FILES = {
 }
 
 
-def _decompose_package(resources, files, pipeline=None, downloads=None):
+def _decompose_package(resources, files, pipeline=None, downloads=None, context=None):
     with tempfile.TemporaryDirectory() as tmp:
         path = os.path.join(tmp, "package.zip")
         _build_imscp(path, resources, files)
@@ -1400,7 +1400,9 @@ def _decompose_package(resources, files, pipeline=None, downloads=None):
             _fake_download_session(downloads or {}),
             patch.object(caching, "FILECACHE", cache),
         ):
-            result = (pipeline or FilePipeline()).execute(path, skip_cache=True)
+            result = (pipeline or FilePipeline()).execute(
+                path, context=context, skip_cache=True
+            )
     return result[0].content_node_metadata
 
 
@@ -1928,20 +1930,40 @@ class TestIMSCPDecomposition:
         # The extracted package's copy, plus the dependency dir's until it seals.
         assert max(copies) == 2
 
-    def test_shared_media_compressed_once(self):
+    def test_package_compression_settings_reach_every_leaf(self):
         def stub(input_path, output_path, **kwargs):
             with open(input_path, "rb") as src, open(output_path, "wb") as dst:
-                dst.write(src.read() + b"|compressed")
+                dst.write(src.read() + b"|crf=%d" % kwargs["crf"])
 
-        pipeline = FilePipeline(default_context={"video_settings": {"crf": 32}})
+        context = {"video_settings": {"crf": 32}}
         with patch(
             "ricecooker.utils.pipeline.convert.compress_video", side_effect=stub
         ):
-            tree = _decompose_package(_VIDEO_RESOURCES, _VIDEO_FILES, pipeline)
+            tree = _decompose_package(_VIDEO_RESOURCES, _VIDEO_FILES, context=context)
         dependency = _zip_members(_tree_zips(tree)[_dependency_filename(tree)])
-        assert dependency["media/clip.mp4"].count(b"|compressed") == 1
+        assert dependency["media/clip.mp4"] == b"CLIP|crf=32"
         v1 = _primary_members(_leaves_by_title(tree)["V1"])
-        assert v1["own.mp4"].count(b"|compressed") == 1
+        assert v1["own.mp4"] == b"OWN|crf=32"
+
+    def test_wrapped_media_gets_package_compression_settings(self, video_file):
+        with open(video_file.path, "rb") as fh:
+            mp4 = fh.read()
+        files = {
+            "m/page.html": _page("<video src='clip.mp4'></video>"),
+            "m/clip.mp4": mp4,
+        }
+        context = {"video_settings": {"crf": 40}}
+        tree = _decompose_package(
+            [("MEDIA", "m/page.html", ["m/clip.mp4"])], files, context=context
+        )
+        (leaf,) = _tree_dict_leaves(tree)
+        (expected,) = [
+            f.filename
+            for f in FilePipeline().execute(
+                video_file.path, context=context, skip_cache=True
+            )
+        ]
+        assert _filenames(leaf) == {expected}
 
     def test_downloaded_cdn_asset_is_shared(self):
         url = "https://cdn.example.org/lib.js"
