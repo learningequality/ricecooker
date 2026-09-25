@@ -26,7 +26,7 @@ classifiers = [
 ]
 dependencies = [
     "requests>=2.11.1",
-    "le_utils>=0.2.14",
+    "le_utils>=0.2.18",
     "requests_file",
     "beautifulsoup4>=4.6.3,<4.9.0",
     "yt-dlp>=2024.12.23",
@@ -43,6 +43,7 @@ dependencies = [
     "filetype>=1.1.0",
     "urllib3==2.6.3",
     "langcodes[data]==3.5.1",
+    "lxml>=4.9",
     "tomli>=2.0.0; python_version < '3.11'",
 ]
 

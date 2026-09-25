@@ -350,6 +350,19 @@ class PerseusQuestion(BaseQuestion):
         return [f.filename for f in self.files]
 
 
+class QTIQuestion(BaseQuestion):
+    """A QTI 3.0 item whose media refs are already ``<checksum>.<ext>``, backed by ``files``."""
+
+    def __init__(self, id, raw_data, files=None, **kwargs):
+        super().__init__(id, "", exercises.QTI, raw_data=raw_data, **kwargs)
+        for file in files or []:
+            file.assessment_item = self
+            self.files.append(file)
+
+    def process_question(self):
+        return [f.filename for f in self.files]
+
+
 class MultipleSelectQuestion(BaseQuestion):
     """Model representing multiple select questions
 

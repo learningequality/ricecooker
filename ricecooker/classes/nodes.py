@@ -35,11 +35,13 @@ from .files import File
 from .files import SubtitleFile
 from .files import YouTubeSubtitleFile
 from .licenses import License
+from .questions import QTIQuestion
 from .questions import VARIANT_A
 from .questions import VARIANT_B
 
 MASTERY_MODELS = [id for id, name in exercises.MASTERY_MODELS]
 ROLES = [id for id, name in roles.choices]
+EXERCISE_SETTING_KEYS = ("mastery_model", "m", "n", "randomize", "options")
 PRESET_LOOKUP = {p.id: p for p in format_presets.PRESETLIST}
 
 
@@ -740,7 +742,7 @@ class TreeNode(Node):
     """
 
     # Content-node metadata keys describing a node's shape, not its own fields.
-    STRUCTURAL_METADATA_KEYS = frozenset({"children", "files", "kind"})
+    STRUCTURAL_METADATA_KEYS = frozenset({"children", "files", "kind", "questions"})
 
     # Fields inherited from the subtree root when the metadata is silent.
     INHERITED_METADATA_KEYS = ("language",)
@@ -815,10 +817,12 @@ class TreeNode(Node):
             or key == "extra_fields"
             or not getattr(self, key, None)
         }
+        # Read before set_metadata, where the package's extra_fields overwrite the chef's.
+        settings = _exercise_settings(self.extra_fields)
         self.set_metadata(fields)
         if is_lone_leaf:
             self.kind = children[0]["kind"]
-            self.add_metadata_content(children[0], {})
+            self.add_metadata_content(children[0], {"exercise_settings": settings})
             return
         self.kind = content_kinds.TOPIC
         self.add_metadata_children(
@@ -827,6 +831,7 @@ class TreeNode(Node):
                 "language": self.language,
                 "license": self.license,
                 "source_id_namespace": self.source_id,
+                "exercise_settings": settings,
             },
         )
         for child in self.children:
@@ -1037,6 +1042,8 @@ class ContentNode(TreeNode):
         if type(self).kind is None and self.kind == content_kinds.TOPIC:
             super(ContentNode, self)._validate()
             return
+        if self.kind == content_kinds.EXERCISE:
+            self._validate_exercise()
         self._validate_values(self.license is None, "ContentNode must have a license")
         if self._files_processed:
             self._validate_values(self.kind is None, "No kind has been set")
@@ -1076,6 +1083,74 @@ class ContentNode(TreeNode):
             self._validate_uri()
         super(ContentNode, self)._validate()
 
+    def process_exercise_data(self):
+        mastery_model = self.extra_fields["mastery_model"]
+
+        # Keep original m/n values or other n/m values if specified
+        m_value = self.extra_fields.get("m") or self.extra_fields.get("n")
+        n_value = self.extra_fields.get("n") or self.extra_fields.get("m")
+
+        if m_value:
+            m_value = int(m_value)
+        if n_value:
+            n_value = int(n_value)
+
+        # Update mastery model if parameters were not provided
+        if mastery_model == exercises.M_OF_N:
+            m_value = m_value or max(min(5, len(self.questions)), 1)
+            n_value = n_value or max(min(5, len(self.questions)), 1)
+        elif mastery_model == exercises.DO_ALL:
+            m_value = n_value = max(len(self.questions), 1)
+        elif mastery_model == exercises.NUM_CORRECT_IN_A_ROW_10:
+            m_value = n_value = 10
+        elif mastery_model == exercises.NUM_CORRECT_IN_A_ROW_5:
+            m_value = n_value = 5
+        elif mastery_model == exercises.NUM_CORRECT_IN_A_ROW_3:
+            m_value = n_value = 3
+        elif mastery_model == exercises.NUM_CORRECT_IN_A_ROW_2:
+            m_value = n_value = 2
+        elif mastery_model == exercises.SKILL_CHECK:
+            m_value = n_value = 1
+
+        self.extra_fields.update({"m": m_value})
+        self.extra_fields.update({"n": n_value})
+
+    def _validate_exercise(self):
+        """Validate the exercise. Raises InvalidNodeException on failure; returns None."""
+        self._validate_values(
+            not self.questions, "Exercise does not have any questions"
+        )
+        for q in self.questions:
+            q.validate()
+        mastery_model = self.extra_fields.get("mastery_model")
+        self._validate_values(
+            mastery_model not in MASTERY_MODELS,
+            "Unrecognized mastery model {}".format(mastery_model),
+        )
+        if mastery_model == exercises.M_OF_N:
+            self._validate_values(
+                "m" not in self.extra_fields, "M of N mastery model is missing M value"
+            )
+            self._validate_values(
+                "n" not in self.extra_fields, "M of N mastery model is missing N value"
+            )
+            try:
+                int(self.extra_fields["m"])
+            except ValueError:
+                self._validate_values(
+                    True,
+                    "M must be an integer coerceable value",
+                )
+            try:
+                int(self.extra_fields["n"])
+            except ValueError:
+                self._validate_values(
+                    True,
+                    "N must be an integer coerceable value",
+                )
+
+        self.process_exercise_data()
+
     # A leaf inherits the package's license as well as its language.
     INHERITED_METADATA_KEYS = ("language", "license")
 
@@ -1087,9 +1162,30 @@ class ContentNode(TreeNode):
         return File(**{"language": self.language, **metadata})
 
     def add_metadata_content(self, metadata, inherited):
-        """A leaf is backed by its own processed files, not by descendants."""
+        """A leaf is backed by its own processed files and questions, not by descendants."""
         for file_metadata in metadata.get("files") or []:
             self.add_file(self._file_from_metadata(file_metadata))
+        if metadata.get("questions"):
+            self.questions = [
+                QTIQuestion(
+                    q["id"],
+                    q["raw_data"],
+                    files=[self._file_from_metadata(f) for f in q["files"]],
+                )
+                for q in metadata["questions"]
+            ]
+            self._apply_exercise_settings(inherited.get("exercise_settings") or {})
+
+    def _apply_exercise_settings(self, settings):
+        settings = dict(settings)
+        options = {
+            **(self.extra_fields.get("options") or {}),
+            **(settings.pop("options", None) or {}),
+        }
+        if "modality" in options and options["modality"] is None:
+            # A plain exercise, not a practice quiz.
+            del options["modality"]
+        self.extra_fields.update(settings, options=options)
 
     def _process_uri(self):
         context = self.context
@@ -1283,6 +1379,13 @@ class DocumentNode(ContentNode):
         return None
 
 
+def _exercise_settings(extra_fields):
+    """The chef's exercise settings, which win over a decomposed package's defaults."""
+    return {
+        key: extra_fields[key] for key in EXERCISE_SETTING_KEYS if key in extra_fields
+    }
+
+
 def _set_entrypoint(entrypoint, kwargs):
     if entrypoint:
         kwargs["extra_fields"] = kwargs.get("extra_fields", {})
@@ -1401,77 +1504,6 @@ class ExerciseNode(ContentNode):
 
         config.LOGGER.info("\t*** Images for {} have been processed".format(self.title))
         return downloaded
-
-    def process_exercise_data(self):
-        mastery_model = self.extra_fields["mastery_model"]
-
-        # Keep original m/n values or other n/m values if specified
-        m_value = self.extra_fields.get("m") or self.extra_fields.get("n")
-        n_value = self.extra_fields.get("n") or self.extra_fields.get("m")
-
-        if m_value:
-            m_value = int(m_value)
-        if n_value:
-            n_value = int(n_value)
-
-        # Update mastery model if parameters were not provided
-        if mastery_model == exercises.M_OF_N:
-            m_value = m_value or max(min(5, len(self.questions)), 1)
-            n_value = n_value or max(min(5, len(self.questions)), 1)
-        elif mastery_model == exercises.DO_ALL:
-            m_value = n_value = max(len(self.questions), 1)
-        elif mastery_model == exercises.NUM_CORRECT_IN_A_ROW_10:
-            m_value = n_value = 10
-        elif mastery_model == exercises.NUM_CORRECT_IN_A_ROW_5:
-            m_value = n_value = 5
-        elif mastery_model == exercises.NUM_CORRECT_IN_A_ROW_3:
-            m_value = n_value = 3
-        elif mastery_model == exercises.NUM_CORRECT_IN_A_ROW_2:
-            m_value = n_value = 2
-        elif mastery_model == exercises.SKILL_CHECK:
-            m_value = n_value = 1
-
-        self.extra_fields.update({"m": m_value})
-        self.extra_fields.update({"n": n_value})
-
-    def _validate(self):
-        """Validate the exercise. Raises InvalidNodeException on failure; returns None."""
-
-        # Check if questions are correct
-        self._validate_values(
-            not self.questions, "Exercise does not have any questions"
-        )
-        for q in self.questions:
-            q.validate()
-        self._validate_values(
-            self.extra_fields["mastery_model"] not in MASTERY_MODELS,
-            "Unrecognized mastery model {}".format(self.extra_fields["mastery_model"]),
-        )
-        if self.extra_fields["mastery_model"] == exercises.M_OF_N:
-            self._validate_values(
-                "m" not in self.extra_fields, "M of N mastery model is missing M value"
-            )
-            self._validate_values(
-                "n" not in self.extra_fields, "M of N mastery model is missing N value"
-            )
-            try:
-                int(self.extra_fields["m"])
-            except ValueError:
-                self._validate_values(
-                    True,
-                    "M must be an integer coerceable value",
-                )
-            try:
-                int(self.extra_fields["n"])
-            except ValueError:
-                self._validate_values(
-                    True,
-                    "N must be an integer coerceable value",
-                )
-
-        self.process_exercise_data()
-
-        super(ExerciseNode, self)._validate()
 
     def truncate_fields(self):
         for q in self.questions:

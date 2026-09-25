@@ -120,9 +120,10 @@ def _compile_attr_value_re(attr: str) -> "re.Pattern":
     )
 
 
-# Only these four attributes are ever located (see _HTMLReferenceRewriter._handle_tag).
+# Only these attributes are ever located (see the rewriters' _handle_tag).
 _ATTR_VALUE_RES = {
-    attr: _compile_attr_value_re(attr) for attr in ("src", "href", "srcset", "style")
+    attr: _compile_attr_value_re(attr)
+    for attr in ("src", "href", "data", "srcset", "style")
 }
 
 
@@ -199,6 +200,9 @@ class _HTMLReferenceRewriter(_SurgicalHTMLParser):
         if base < 0:
             return
         attr_map = {name.lower(): (value or "") for name, value in attrs}
+        self._record_tag(tag, attr_map, raw_tag, base)
+
+    def _record_tag(self, tag: str, attr_map: Dict[str, str], raw_tag: str, base: int):
         # ``<iframe src>`` is a navigation reference (a page link, not an offline
         # resource) — excluded like ``<a href>`` so linked HTML is never fetched
         # and left unsanitized.
@@ -232,6 +236,17 @@ class _HTMLReferenceRewriter(_SurgicalHTMLParser):
         self.edits.append((start, start + len(data), replacement))
 
 
+class _QTIReferenceRewriter(_HTMLReferenceRewriter):
+    """Every element's ``src``/``href``/``data``/``srcset``, as Studio's ``get_qti_media_references`` reads them."""
+
+    def _record_tag(self, tag: str, attr_map: Dict[str, str], raw_tag: str, base: int):
+        for attr in ("src", "href", "data"):
+            if attr in attr_map:
+                self._record(attr, "url", raw_tag, base)
+        if "srcset" in attr_map:
+            self._record("srcset", "srcset", raw_tag, base)
+
+
 def _apply_edits(text: str, edits: List[Tuple[int, int, str]]) -> str:
     """Splice ``(start, end, replacement)`` edits into ``text`` in one pass."""
     parts = []
@@ -246,15 +261,17 @@ def _apply_edits(text: str, edits: List[Tuple[int, int, str]]) -> str:
     return "".join(parts)
 
 
-def _map_html_urls(html: str, fn: Callable[[str], str]) -> Tuple[str, List[str]]:
-    """Walk every resource reference in ``html``, applying ``fn`` to each.
+def _map_html_urls(
+    html: str, fn: Callable[[str], str], rewriter_class=_HTMLReferenceRewriter
+) -> Tuple[str, List[str]]:
+    """Walk every resource reference ``rewriter_class`` detects in ``html``, applying ``fn`` to each.
 
-    Detects ``src`` on any element, stylesheet ``link[href]``, ``srcset``, inline
-    ``style`` attributes and ``<style>`` block text. Rewriting is surgical: only
-    the matched reference spans are replaced, so the rest of the document
+    By default detects ``src`` on any element, stylesheet ``link[href]``, ``srcset``,
+    inline ``style`` attributes and ``<style>`` block text. Rewriting is surgical:
+    only the matched reference spans are replaced, so the rest of the document
     (whitespace, inline scripts, tag casing) is byte-for-byte preserved.
     """
-    rewriter = _HTMLReferenceRewriter(html, fn)
+    rewriter = rewriter_class(html, fn)
     rewriter.feed(html)
     rewriter.close()
     return _apply_edits(html, rewriter.edits), rewriter.urls
@@ -468,6 +485,16 @@ class HTMLMapper(ReferenceMapper):
 
     def map(self, content: str, fn: Callable[[str], str]) -> Tuple[str, List[str]]:
         return _map_html_urls(content, fn)
+
+
+class QTIMapper(ReferenceMapper):
+    """References in a QTI item: ``src``/``href``/``data``/``srcset`` on every element.
+
+    No ``EXTENSIONS``: QTI items are ``.xml``, which ``HTMLMapper`` already claims.
+    """
+
+    def map(self, content: str, fn: Callable[[str], str]) -> Tuple[str, List[str]]:
+        return _map_html_urls(content, fn, _QTIReferenceRewriter)
 
 
 class CSSMapper(ReferenceMapper):
