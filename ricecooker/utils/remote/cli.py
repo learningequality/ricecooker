@@ -11,6 +11,8 @@ from ricecooker.utils.remote.driver import CHECK_BOX_ENV
 from ricecooker.utils.remote.driver import default_venv_dir
 from ricecooker.utils.remote.driver import filecache_dir
 from ricecooker.utils.remote.driver import finish
+from ricecooker.utils.remote.driver import kills_on_logout
+from ricecooker.utils.remote.driver import logind_state
 from ricecooker.utils.remote.driver import LOOSE_BOX_ENV
 from ricecooker.utils.remote.driver import MISSING_TOOLS
 from ricecooker.utils.remote.driver import preflight
@@ -30,6 +32,12 @@ from ricecooker.utils.remote.transport import Transport
 CACHE_INFO = (
     '[ -d "$1" ] || { echo 0 0; exit; }; '
     'echo "$(find "$1" -type f ! -name "*.lock" | wc -l) $(du -sk "$1" | cut -f1)"'
+)
+
+# sh -c script. Exits 0 only if polkit lets this user enable their own linger;
+# pkcheck's 2 needs authentication, which a non-interactive ssh can't give.
+CAN_SELF_LINGER = (
+    "exec pkcheck --action-id org.freedesktop.login1.set-self-linger --process $$"
 )
 
 # Reported name -> binary on the box's PATH.
@@ -120,6 +128,27 @@ def attach(transport, args) -> int:
     return finish(session, session.attach())
 
 
+def _report_logout_kill(transport) -> bool:
+    """Report logind's kill at logout, if it applies; True if runs would die of it."""
+    state = logind_state(transport)
+    if not kills_on_logout(state):
+        return False
+    user = state["User"]
+    if state.get("Linger"):
+        print(f"KillUserProcesses: {user} lingers, so runs outlive logout.")
+        return False
+    if transport.ssh(["sh", "-c", CAN_SELF_LINGER]).returncode == 0:
+        print(
+            f"KillUserProcesses: --remote enables linger for {user} on its first run."
+        )
+        return False
+    print(
+        "KillUserProcesses: runs would die at logout; "
+        f"run `sudo loginctl enable-linger {user}` on the box."
+    )
+    return True
+
+
 def doctor(transport, args) -> int:
     profile = transport.profile
     # Not preflight: doctor reports, it never creates remote_root.
@@ -135,7 +164,8 @@ def doctor(transport, args) -> int:
             f"{profile.name} has no pyproject.toml or requirements.txt; it runs in "
             f"{default_venv_dir(profile)} with released ricecooker."
         )
-    return 1 if missing else 0
+    runs_die = _report_logout_kill(transport)
+    return 1 if missing or runs_die else 0
 
 
 def build_parser() -> argparse.ArgumentParser:

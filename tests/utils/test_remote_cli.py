@@ -5,6 +5,8 @@ from pathlib import Path
 import pytest
 from test_remote_driver import attached_clients
 from test_remote_driver import box_tools
+from test_remote_driver import box_user
+from test_remote_driver import KILL
 from test_remote_driver import needs_sh
 from test_remote_driver import needs_uv
 from test_remote_driver import write_global_config
@@ -251,6 +253,26 @@ def test_doctor_reports_box_env_open_to_other_users(
     env_file.chmod(mode)
     assert run_cli(laptop, box, "doctor") == (1 if refused else 0)
     assert ("chmod 600" in capsys.readouterr().out) == refused
+
+
+@needs_sh
+@pytest.mark.parametrize(
+    "lingering,denied,code", [(True, True, 0), (False, False, 0), (False, True, 1)]
+)
+def test_doctor_reports_linger_needed_by_logind_kill(
+    box, laptop, logind, monkeypatch, capsys, lingering, denied, code
+):
+    box_tools(box, monkeypatch, DEPENDENCIES.values())
+    monkeypatch.setenv("HOME", str(box.parent / "home"))
+    (logind / "settings").write_text(KILL)
+    if lingering:
+        (logind / "linger").touch()
+    if denied:
+        (logind / "deny").touch()
+    assert run_cli(laptop, box, "doctor") == code
+    fix = f"sudo loginctl enable-linger {box_user()}"
+    assert (fix in capsys.readouterr().out) == (code == 1)
+    assert (logind / "linger").exists() == lingering
 
 
 @needs_sh

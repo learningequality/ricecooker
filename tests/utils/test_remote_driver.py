@@ -17,6 +17,7 @@ from ricecooker.utils.remote import driver
 from ricecooker.utils.remote.config import RemoteProfile
 from ricecooker.utils.remote.config import resolve_profile
 from ricecooker.utils.remote.driver import chef_command
+from ricecooker.utils.remote.driver import outlive_logout
 from ricecooker.utils.remote.driver import plan_venv
 from ricecooker.utils.remote.driver import preflight
 from ricecooker.utils.remote.driver import REQUIRED_TOOLS
@@ -32,6 +33,7 @@ from ricecooker.utils.remote.transport import Transport
 
 needs_sh = pytest.mark.skipif(os.name == "nt", reason="ssh shim needs sh")
 needs_uv = pytest.mark.skipif(not shutil.which("uv"), reason="needs uv")
+needs_tmux = pytest.mark.skipif(not shutil.which("tmux"), reason="needs tmux")
 
 CHEF = """\
 import hashlib, json, os, sys, time
@@ -130,11 +132,26 @@ def synced(box, laptop, name="my-chef", **kwargs):
     return profile, transport
 
 
+def box_user() -> str:
+    # Not the pwd module: it would break collection on Windows.
+    return subprocess.run(["id", "-un"], capture_output=True, text=True).stdout.strip()
+
+
+def logind_settings(kill, only=(), exclude=()) -> str:
+    """busctl's lines for KillUserProcesses, KillOnlyUsers, KillExcludeUsers."""
+    lines = [{"type": "b", "data": kill}]
+    lines += [{"type": "as", "data": list(users)} for users in (only, exclude)]
+    return "".join(json.dumps(line, separators=(",", ":")) + "\n" for line in lines)
+
+
+KILL = logind_settings(True)
+
+
 def box_tools(box, monkeypatch, present):
-    """Restrict the box's PATH to the ssh shim, sh, mkdir, ls and stubs for `present`."""
+    """Restrict the box's PATH to the ssh shim, sh, mkdir, ls, id and stubs for `present`."""
     tools = box.parent / "tools"
     tools.mkdir()
-    for name in ("sh", "mkdir", "ls"):
+    for name in ("sh", "mkdir", "ls", "id"):
         (tools / name).symlink_to(shutil.which(name))
     for name in present:
         stub = tools / name
@@ -196,6 +213,49 @@ def test_preflight_refuses_box_env_file_open_to_others(
             preflight(Transport(make_profile(box)))
     else:
         preflight(Transport(make_profile(box)))
+
+
+@needs_sh
+@pytest.mark.parametrize(
+    "kill,only,exclude,lingering,enabled",
+    [
+        (None, [], [], False, False),
+        (False, [], [], False, False),
+        (True, [], [], False, True),
+        (True, [], [], True, False),
+        (True, [], ["{user}"], False, False),
+        (False, ["{user}"], [], False, True),
+        (True, ["someone-else"], [], False, False),
+    ],
+)
+def test_linger_enabled_only_where_logind_kills_on_logout(
+    box, logind, capsys, kill, only, exclude, lingering, enabled
+):
+    user = box_user()
+    only, exclude = ([u.format(user=user) for u in us] for us in (only, exclude))
+    if kill is not None:
+        (logind / "settings").write_text(logind_settings(kill, only, exclude))
+    if lingering:
+        (logind / "linger").touch()
+    outlive_logout(Transport(make_profile(box)))
+    assert (logind / "linger").exists() == (lingering or enabled)
+    assert ("enabled linger" in capsys.readouterr().err) == enabled
+
+
+@needs_sh
+@pytest.mark.parametrize(
+    "failure,box_stderr",
+    [("deny", "Access denied"), ("no-user-manager", "Failed to connect to bus")],
+)
+def test_logind_kill_refusal_names_admin_linger_fix(box, logind, failure, box_stderr):
+    (logind / "settings").write_text(KILL)
+    (logind / failure).touch()
+    with pytest.raises(RemoteDriverError) as refused:
+        outlive_logout(Transport(make_profile(box)))
+    message = str(refused.value)
+    assert message.startswith("remote:")
+    assert f"`sudo loginctl enable-linger {box_user()}`" in message
+    assert box_stderr in message
 
 
 def test_script_outside_chef_dir_fails_before_contacting_box(tmp_path, laptop, capsys):
@@ -340,6 +400,11 @@ def lifecycle(test):
 
 
 @pytest.fixture
+def kill_user_processes(logind):
+    (logind / "settings").write_text(KILL)
+
+
+@pytest.fixture
 def chef_dir(box):
     return box / "laptop"
 
@@ -358,6 +423,7 @@ def remote(box, laptop, spawn_in_pty):
 
 
 @lifecycle
+@pytest.mark.usefixtures("kill_user_processes")
 def test_fresh_run_exits_with_chef_code_and_prints_logs(
     box, chef_dir, remote, wait_until
 ):
@@ -402,6 +468,7 @@ def test_live_session_is_attached_without_restart_or_sync(
 
 
 @lifecycle
+@pytest.mark.usefixtures("kill_user_processes")
 def test_detach_exits_zero_with_reattach_hint(box, remote, wait_until):
     client = remote("0", "wait")
     assert wait_until(lambda: attached_clients() == 1, timeout=30)
@@ -470,6 +537,20 @@ def test_local_source_sync_refuses_while_another_chef_under_root_runs(
     assert capsys.readouterr().err.startswith("remote: other-chef running")
     assert not (box / ".ricecooker-src").exists()
     assert tmux("has-session", "-t", TARGET).returncode == 1
+
+
+@needs_sh
+@needs_uv
+@needs_tmux
+def test_run_refused_before_sync_when_linger_cannot_be_enabled(
+    box, laptop, logind, capsys
+):
+    write_chef(laptop, "pyproject.toml", PYPROJECT)
+    (logind / "settings").write_text(KILL)
+    (logind / "deny").touch()
+    assert run_remotely_from(laptop, box) == 1
+    assert "sudo loginctl enable-linger" in capsys.readouterr().err
+    assert not (box / "laptop").exists()
 
 
 @needs_sh

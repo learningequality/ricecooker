@@ -2,6 +2,7 @@ import argparse
 import base64
 import dataclasses
 import hashlib
+import json
 import os
 import posixpath
 import re
@@ -49,6 +50,18 @@ CHECK_BOX_ENV = (
 # lacks, and remote-env if it is too open.
 # The mkdir -p also creates a missing remote_root, which rsync would not.
 PREFLIGHT = f'd=$1; shift; {MISSING_TOOLS}; mkdir -p "$d" || exit; {CHECK_BOX_ENV}'
+
+# sh -c script. Prints the user, then, where logind answers, a JSON line per property.
+# Not `loginctl show-session`: its GetAll fails whole if any manager property does
+# (BootLoaderEntries on Bluefin, systemd 259).
+MANAGER_KEYS = ("KillUserProcesses", "KillOnlyUsers", "KillExcludeUsers")
+LOGIND = (
+    "id -un; L=org.freedesktop.login1; "
+    "busctl --json=short get-property $L /org/freedesktop/login1 $L.Manager "
+    f"{' '.join(MANAGER_KEYS)} && "
+    "busctl --json=short get-property $L /org/freedesktop/login1/user/self $L.User Linger; :"
+)
+SCOPE = ("systemd-run", "--user", "--scope")
 
 # sh -c script; args: <bookkeeping dir> <venv> <digest> <build> <names> <chef argv...>.
 # Box-owned env first, then the session env (client --env/--env-pass/token) over it.
@@ -155,10 +168,7 @@ def preflight(transport) -> None:
         ["sh", "-c", PREFLIGHT, "sh", filecache_dir(transport.profile), *REQUIRED_TOOLS]
     )
     if result.returncode:
-        raise RemoteDriverError(
-            f"remote: ssh {transport.profile.ssh} exited {result.returncode}\n"
-            f"{result.stderr}"
-        )
+        raise _ssh_failed(transport, result)
     missing = result.stdout.split()
     if LOOSE_BOX_ENV in missing:
         raise RemoteDriverError(
@@ -170,6 +180,60 @@ def preflight(transport) -> None:
             f"remote: {transport.profile.ssh} lacks {', '.join(missing)}; "
             "install it on the box."
         )
+
+
+def _ssh_failed(transport, result) -> RemoteDriverError:
+    return RemoteDriverError(
+        f"remote: ssh {transport.profile.ssh} exited {result.returncode}\n"
+        f"{result.stderr}"
+    )
+
+
+def logind_state(transport) -> dict:
+    result = transport.ssh(["sh", "-c", LOGIND])
+    if result.returncode:
+        raise _ssh_failed(transport, result)
+    user, *values = result.stdout.splitlines()
+    state = {"User": user}
+    # Fewer lines: the read stopped early, so those keys stay unset.
+    state.update(
+        zip((*MANAGER_KEYS, "Linger"), (json.loads(v)["data"] for v in values))
+    )
+    return state
+
+
+def kills_on_logout(state) -> bool:
+    # logind.conf(5): KillExcludeUsers, then KillOnlyUsers, then KillUserProcesses.
+    user = state["User"]
+    if user in state.get("KillExcludeUsers", []):
+        return False
+    only = state.get("KillOnlyUsers", [])
+    if only:
+        return user in only
+    return state.get("KillUserProcesses", False)
+
+
+def outlive_logout(transport) -> tuple:
+    """The launcher that keeps a tmux server started over ssh alive past logout."""
+    state = logind_state(transport)
+    if not kills_on_logout(state):
+        return ()
+    user = state["User"]
+    ssh = transport.profile.ssh
+    refusal = (
+        f"remote: runs on {ssh} would die at logout (KillUserProcesses); "
+        f"run `sudo loginctl enable-linger {user}` on it.\n"
+    )
+    # Without linger, user@.service, and the scope in it, stops at the user's last logout.
+    if not state.get("Linger"):
+        result = transport.ssh(["loginctl", "enable-linger", user])
+        if result.returncode:
+            raise RemoteDriverError(refusal + result.stderr)
+        _say(f"enabled linger for {user} on {ssh} so runs outlive logout")
+    result = transport.ssh([*SCOPE, "true"])
+    if result.returncode:
+        raise RemoteDriverError(refusal + result.stderr)
+    return SCOPE
 
 
 def script_argv(argv, chef_dir) -> list:
@@ -299,12 +363,13 @@ def _start(session, argv, env) -> None:
         source = ricecooker_checkout()
     venv = plan_venv(profile, transport.chef_dir, source)
     _refuse_shared_rewrite(transport, venv, source)
+    launcher = outlive_logout(transport)
     transport.sync()
     if source is not None:
         sync_source(transport, source)
     env = {"RICECOOKER_FILECACHE": filecache_dir(profile), **env}
     encoded = {k: base64.b64encode(v.encode()).decode() for k, v in env.items()}
-    session.create(chef_command(session, venv, argv, env), encoded)
+    session.create(chef_command(session, venv, argv, env), encoded, launcher)
 
 
 def finish(session, code) -> int:
