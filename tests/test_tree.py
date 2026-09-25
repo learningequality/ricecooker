@@ -10,6 +10,7 @@ from unittest.mock import mock_open
 from unittest.mock import patch
 
 import pytest
+from conftest import sample_path
 from le_utils.constants import content_kinds
 from le_utils.constants import file_types
 from le_utils.constants import format_presets
@@ -754,6 +755,37 @@ def test_automatic_resource_node_document(document_file):
     assert node.learning_activities == [learning_activities.READ]
 
 
+@pytest.mark.parametrize("node_class", [ContentNode, DocumentNode])
+def test_uri_node_failure_carries_pipeline_error(node_class):
+    node = node_class(
+        "test",
+        "test",
+        licenses.CC_BY,
+        uri=sample_path("broken.pdf"),
+        pipeline=FilePipeline(),
+        copyright_holder="Demo Holdings",
+    )
+    with pytest.raises(InvalidNodeException, match="Could not read malformed PDF file"):
+        node.process_files()
+
+
+def test_file_node_failure_carries_each_file_error(invalid_document_file):
+    node = DocumentNode(
+        "test",
+        "test",
+        licenses.CC_BY,
+        copyright_holder="Demo Holdings",
+        files=[DocumentFile(sample_path("broken.pdf")), invalid_document_file],
+    )
+    with pytest.raises(InvalidNodeException) as excinfo:
+        node.process_files()
+
+    message = str(excinfo.value)
+    assert "Could not read malformed PDF file" in message
+    assert sample_path("broken.pdf") in message
+    assert invalid_document_file.path in message
+
+
 def test_automatic_resource_node_document_inherits_node_language(document_file):
     node = ContentNode(
         "test",
@@ -1101,6 +1133,28 @@ def test_process_node_handles_exceptions(channel):
     assert hasattr(mock_node, "_error")
     assert mock_node._error == "Test value error"
     assert result == {}
+
+
+def test_process_node_warning_carries_pipeline_error(channel, caplog):
+    node = ContentNode(
+        "test",
+        "test",
+        licenses.CC_BY,
+        uri=sample_path("broken.pdf"),
+        pipeline=FilePipeline(),
+        copyright_holder="Demo Holdings",
+    )
+    with (
+        patch("ricecooker.config.STRICT", False),
+        caplog.at_level(logging.WARNING, logger=config.LOGGER.name),
+    ):
+        ChannelManager(channel).process_node(node)
+
+    assert any(
+        r.levelno == logging.WARNING
+        and "Could not read malformed PDF file" in r.getMessage()
+        for r in caplog.records
+    )
 
 
 def test_add_nodes_skips_invalid_nodes(channel):
