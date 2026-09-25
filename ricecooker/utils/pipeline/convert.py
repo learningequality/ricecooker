@@ -13,6 +13,7 @@ import xml.etree.ElementTree as ET
 import zipfile
 from abc import abstractmethod
 from contextlib import contextmanager
+from dataclasses import dataclass
 from dataclasses import field
 from typing import Dict
 from typing import Optional
@@ -29,8 +30,10 @@ from PIL import UnidentifiedImageError
 from PyPDF2 import PdfFileReader
 from PyPDF2.utils import PdfReadError
 
+from ricecooker import config
 from ricecooker.config import LOGGER
 from ricecooker.exceptions import UnknownFileTypeError
+from ricecooker.utils.archive_dependencies import SharedAssetExtractor
 from ricecooker.utils.audio import AudioCompressionError
 from ricecooker.utils.audio import compress_audio
 from ricecooker.utils.caching import generate_key
@@ -57,6 +60,7 @@ from ricecooker.utils.scorm import boilerplate_script_members
 from ricecooker.utils.scorm import has_assessment_semantics
 from ricecooker.utils.scorm import single_media_member
 from ricecooker.utils.scorm import strip_scorm_boilerplate
+from ricecooker.utils.storage import copy_file_to_storage
 from ricecooker.utils.subtitles import build_subtitle_converter_from_file
 from ricecooker.utils.subtitles import InvalidSubtitleFormatError
 from ricecooker.utils.subtitles import InvalidSubtitleLanguageError
@@ -66,6 +70,7 @@ from ricecooker.utils.videos import validate_media_file
 from ricecooker.utils.videos import VideoCompressionError
 from ricecooker.utils.youtube import get_language_with_alpha2_fallback
 from ricecooker.utils.zip import create_predictable_zip
+from ricecooker.utils.zip import directory_member_names
 from ricecooker.utils.zip import find_common_root
 from ricecooker.utils.zip import find_html_entrypoint
 
@@ -276,14 +281,31 @@ class ArchiveProcessingBaseHandler(ExtensionMatchingHandler):
         """Extension the processed dir is sealed as. Override to re-classify the output."""
         return ext
 
-    def _convert_archive(
-        self, path, audio_settings, video_settings, entry=None, **seal_kwargs
+    def _process_directory(
+        self, directory, audio_settings=None, video_settings=None, members=None
     ):
-        """Validate, extract, process and seal the archive at ``path``."""
+        """Localize and compress the extracted archive in ``directory`` in place.
+
+        ``members`` limits the download pass to those archive paths.
+        """
         # Imported here rather than at module level: archive_assets depends on
         # this package's exceptions, so a top-level import would be circular.
         from ricecooker.utils.archive_assets import ArchiveProcessor
 
+        ArchiveProcessor(
+            directory,
+            self.get_pipeline(),
+            convert_stage=self.parent,
+            mappers=self.REFERENCE_MAPPERS,
+            audio_settings=audio_settings,
+            video_settings=video_settings,
+            members=members,
+        ).process()
+
+    def _convert_archive(
+        self, path, audio_settings, video_settings, entry=None, **seal_kwargs
+    ):
+        """Validate, extract, process and seal the archive at ``path``."""
         self.validate_archive(path, entry)
 
         ext = extract_path_ext(path)
@@ -298,14 +320,7 @@ class ArchiveProcessingBaseHandler(ExtensionMatchingHandler):
             # sanitizer strips the content that referenced it.
             self.pre_process(temp_dir, entry)
 
-            ArchiveProcessor(
-                temp_dir,
-                self.get_pipeline(),
-                convert_stage=self.parent,
-                mappers=self.REFERENCE_MAPPERS,
-                audio_settings=audio_settings,
-                video_settings=video_settings,
-            ).process()
+            self._process_directory(temp_dir, audio_settings, video_settings)
 
             _seal_directory_to_file(
                 self, temp_dir, self.seal_ext(temp_dir, ext, entry, **seal_kwargs)
@@ -384,15 +399,6 @@ def _has_script(html):
         next(html5lib.parse(html, namespaceHTMLElements=False).iter("script"), None)
         is not None
     )
-
-
-def _archive_member_names(directory):
-    """Every file in ``directory``, as archive-style paths relative to it."""
-    return [
-        os.path.relpath(os.path.join(dirpath, name), directory).replace(os.sep, "/")
-        for dirpath, _, filenames in os.walk(directory)
-        for name in filenames
-    ]
 
 
 class WebArchiveContextMetadata(ArchiveProcessingContextMetadata):
@@ -514,35 +520,11 @@ class HTML5ConversionHandler(WebArchiveConversionHandler):
         return ext
 
     def _promote_to_kpub(self, temp_dir, entry):
-        """Rewrite a static-article HTML5 zip into a KPUB in place; True on promotion.
-
-        SCORM plumbing and stylesheets are stripped rather than disqualifying:
-        neither is content. Genuine scripting on any page keeps the zip HTML5.
-        Judged after reference resolution, so downloaded assets count too.
-        """
-        names = _archive_member_names(temp_dir)
-        strippable = set(boilerplate_script_members(names)) | {
-            name for name in names if name.lower().endswith(".css")
-        }
-        kept = [name for name in names if name not in strippable]
-        # Cheap name check first: most HTML5 apps ship their own .js.
-        if any(name.lower().endswith(".js") for name in kept):
+        """Rewrite a static-article HTML5 zip into a KPUB in place; True on promotion."""
+        plan = self._kpub_plan(temp_dir, entry)
+        if plan is None:
             return False
-        pages = {}
-        for name in names:
-            if not name.lower().endswith((".html", ".htm")):
-                continue
-            try:
-                with open(os.path.join(temp_dir, name), encoding="utf-8") as fh:
-                    pages[name] = strip_scorm_boilerplate(fh.read())
-            except (OSError, UnicodeDecodeError):
-                # Re-encoding a non-UTF-8 page would corrupt it.
-                return False
-        if _kpub_disqualifier(kept, pages.get(entry), entry) is not None:
-            return False
-        if any(_has_script(html) for name, html in pages.items() if name != entry):
-            return False
-
+        pages, strippable = plan
         for name, html in pages.items():
             html = strip_stylesheet_links(html)
             if name == entry:
@@ -552,6 +534,39 @@ class HTML5ConversionHandler(WebArchiveConversionHandler):
         for name in strippable:
             os.unlink(os.path.join(temp_dir, name))
         return True
+
+    def _kpub_plan(self, temp_dir, entry, names=None):
+        """``(pages, strippable)`` when the extracted zip is a static article, else None.
+
+        SCORM plumbing and stylesheets are stripped rather than disqualifying:
+        neither is content. Genuine scripting on any page keeps the zip HTML5.
+        Judged after reference resolution, so downloaded assets count too.
+        ``names`` limits the judgement to those members of ``temp_dir``.
+        """
+        if names is None:
+            names = directory_member_names(temp_dir)
+        strippable = set(boilerplate_script_members(names)) | {
+            name for name in names if name.lower().endswith(".css")
+        }
+        kept = [name for name in names if name not in strippable]
+        # Cheap name check first: most HTML5 apps ship their own .js.
+        if any(name.lower().endswith(".js") for name in kept):
+            return None
+        pages = {}
+        for name in names:
+            if not name.lower().endswith((".html", ".htm")):
+                continue
+            try:
+                with open(os.path.join(temp_dir, name), encoding="utf-8") as fh:
+                    pages[name] = strip_scorm_boilerplate(fh.read())
+            except (OSError, UnicodeDecodeError):
+                # Re-encoding a non-UTF-8 page would corrupt it.
+                return None
+        if _kpub_disqualifier(kept, pages.get(entry), entry) is not None:
+            return None
+        if any(_has_script(html) for name, html in pages.items() if name != entry):
+            return None
+        return pages, strippable
 
 
 def _map_h5p_paths(data, fn, urls):
@@ -928,6 +943,30 @@ def _manifest_member(names):
     return nested if nested in names else None
 
 
+@dataclass(eq=False)
+class _PendingLeaf:
+    """An HTML5 resource that seals only after its package's dependency zip."""
+
+    node_dict: dict
+
+    @property
+    def entry(self):
+        return posixpath.normpath(self.node_dict["index_file"])
+
+    @property
+    def members(self):
+        return [self.entry] + list(self.node_dict.get("files") or [])
+
+
+def _pending_leaves(nodes):
+    """``nodes``' pending leaves, depth-first (manifest order)."""
+    for node in nodes:
+        if isinstance(node, _PendingLeaf):
+            yield node
+        else:
+            yield from _pending_leaves(node.get("children", ()))
+
+
 class IMSCPConversionHandler(HTML5ConversionHandler):
     """Decompose an IMS Content Package (incl. SCORM) into a native node subtree.
 
@@ -969,9 +1008,15 @@ class IMSCPConversionHandler(HTML5ConversionHandler):
                 raise InvalidFileException(
                     f"File {path} is not a valid IMSCP package, its {IMSCP_MANIFEST} could not be parsed: {e}"
                 )
-            children = self._build_nodes(
-                manifest.get("children"), IMSCPPackage(ims_dir)
-            )
+            # Every leaf compresses its media like the package would.
+            settings = {
+                "audio_settings": audio_settings or {},
+                "video_settings": video_settings or {},
+            }
+            package = IMSCPPackage(ims_dir)
+            nodes = self._build_nodes(manifest.get("children"), package, settings)
+            sealed = self._seal_pending(_pending_leaves(nodes), package, settings)
+        children = self._finish_nodes(nodes, sealed)
         if not children:
             raise InvalidFileException(
                 f"File {path} is not a valid IMSCP package, every resource was rejected."
@@ -985,23 +1030,38 @@ class IMSCPConversionHandler(HTML5ConversionHandler):
             tree = {"children": [tree]}
         return FileMetadata(content_node_metadata=ContentNodeMetadata(**tree))
 
-    def _build_nodes(self, nodes, package):
-        built = [self._build_node(node, package) for node in nodes or []]
+    def _build_nodes(self, nodes, package, settings):
+        built = [self._build_node(node, package, settings) for node in nodes or []]
         return [node for node in built if node is not None]
 
-    def _build_node(self, node_dict, package):
+    def _build_node(self, node_dict, package, settings):
         if node_dict.get("children"):
-            children = self._build_nodes(node_dict["children"], package)
-            if not children:
-                LOGGER.warning(
-                    "IMSCP: skipping topic %s, every resource was rejected",
-                    node_dict.get("source_id"),
-                )
-                return None
-            return {**node_content_fields(node_dict), "children": children}
-        return self._build_leaf(node_dict, package)
+            return {
+                **node_content_fields(node_dict),
+                "children": self._build_nodes(node_dict["children"], package, settings),
+            }
+        return self._build_leaf(node_dict, package, settings)
 
-    def _build_leaf(self, node_dict, package):
+    def _finish_nodes(self, nodes, sealed):
+        finished = [self._finish_node(node, sealed) for node in nodes]
+        return [node for node in finished if node is not None]
+
+    def _finish_node(self, node, sealed):
+        """Swap in ``node``'s sealed leaves, pruning a topic left without any."""
+        if isinstance(node, _PendingLeaf):
+            return sealed[node]
+        if "children" not in node:
+            return node
+        children = self._finish_nodes(node["children"], sealed)
+        if not children:
+            LOGGER.warning(
+                "IMSCP: skipping topic %s, every resource was rejected",
+                node["source_id"],
+            )
+            return None
+        return {**node, "children": children}
+
+    def _build_leaf(self, node_dict, package, settings):
         source_id = node_dict.get("source_id")
         # QTI ingestion is deferred to #337, so assessment items are rejected here.
         if is_qti_resource(node_dict.get("type")):
@@ -1038,7 +1098,110 @@ class IMSCPConversionHandler(HTML5ConversionHandler):
             LOGGER.warning("IMSCP: rejecting assessment resource %s", source_id)
             return None
 
-        sub = self._process_leaf(node_dict, package, index_html)
+        # A resource reducing to one wrapped media file is processed as that file;
+        # everything else waits to be sealed into its own HTML5 zip.
+        media = single_media_member(
+            index_html, node_dict["index_file"], node_dict.get("files") or []
+        )
+        if not media:
+            return _PendingLeaf(node_dict)
+        media_path = contained_path(package.directory, media)
+        if media_path is None:
+            LOGGER.warning(
+                "IMSCP: skipping resource %s, media path escapes package: %s",
+                source_id,
+                media,
+            )
+            return None
+        return self._leaf_from_pipeline(node_dict, media_path, settings)
+
+    def _seal_pending(self, pending, package, settings):
+        """Move what the HTML5 leaves share into a dependency zip, then seal each leaf into its own zip."""
+        pending = list(pending)
+        members = {m for leaf in pending for m in package.closure(leaf.members)}
+        # Download-only, before indexing: identical CDN downloads are md5-named,
+        # so they dedup too. Leaf media compress at seal time.
+        self._process_directory(package.directory, members=members)
+        # Downloading rewrote references, so drop the cached ones.
+        package = IMSCPPackage(package.directory)
+        closures = {leaf: package.closure(leaf.members) for leaf in pending}
+        # kolibri-zip renders a KPUB self-contained, so it keeps its assets.
+        html5 = {
+            leaf: (closures[leaf], leaf.entry)
+            for leaf in pending
+            if self._kpub_plan(package.directory, leaf.entry, closures[leaf]) is None
+        }
+        extractor = SharedAssetExtractor(package, html5)
+        dependency = self._extract_dependency(extractor, settings)
+        sealed = {}
+        for leaf in pending:
+            shared = extractor.shared(leaf) if dependency else set()
+            own = [m for m in closures[leaf] if m not in shared]
+            # Denested as the HTML5 handler would, so refs count ../ from the
+            # paths the leaf zip will hold.
+            root = find_common_root(own)
+            paths = {m: m[len(root) + 1 :] if root else m for m in own}
+            with tempfile.TemporaryDirectory() as directory:
+                package.copy(paths, directory)
+                references = dependency is not None and extractor.rewrite(
+                    leaf, directory, paths, dependency["filename"]
+                )
+                sealed[leaf] = self._seal_leaf(
+                    leaf,
+                    directory,
+                    {
+                        **settings,
+                        "entry": paths[leaf.entry],
+                        "preserve_kind": leaf in html5,
+                    },
+                    extra_files=[dependency] if references else (),
+                )
+        return sealed
+
+    def _extract_dependency(self, extractor, settings):
+        """Store what ``extractor``'s leaves share as one dependency zip; its file dict, or None."""
+        with tempfile.TemporaryDirectory() as dep_dir:
+            if not extractor.select(dep_dir):
+                return None
+            try:
+                self._process_directory(dep_dir, **settings)
+            except (InvalidFileException, ExpectedFileException) as e:
+                # Leaves stage their own copies instead.
+                LOGGER.warning(
+                    "IMSCP: not sharing assets, could not process them: %s", e
+                )
+                return None
+            zip_path = create_predictable_zip(dep_dir)
+        try:
+            filename = copy_file_to_storage(zip_path, ext=file_formats.HTML5)
+        finally:
+            os.unlink(zip_path)
+        return FileMetadata(
+            filename=filename,
+            path=config.get_storage_path(filename),
+            preset=format_presets.HTML5_DEPENDENCY_ZIP,
+        ).to_dict()
+
+    def _seal_leaf(self, leaf, directory, context, extra_files):
+        """Zip ``directory`` and process it as HTML5, which may promote it to a KPUB."""
+        zip_path = create_predictable_zip(directory)
+        try:
+            return self._leaf_from_pipeline(
+                leaf.node_dict, zip_path, context, extra_files
+            )
+        finally:
+            os.unlink(zip_path)
+
+    def _leaf_from_pipeline(self, node_dict, path, context=None, extra_files=()):
+        """The leaf ``path`` backs, or ``None`` to drop just that leaf and keep decomposing."""
+        source_id = node_dict.get("source_id")
+        try:
+            sub = self.get_pipeline().execute(path, context=context)
+        except (InvalidFileException, ExpectedFileException) as e:
+            LOGGER.warning(
+                "IMSCP: skipping resource %s, could not process: %s", source_id, e
+            )
+            return None
         if not sub:
             LOGGER.warning("IMSCP: skipping resource %s, produced no files", source_id)
             return None
@@ -1053,51 +1216,14 @@ class IMSCPConversionHandler(HTML5ConversionHandler):
             )
             return None
 
-        leaf = {**node_content_fields(node_dict), "kind": kind, "files": files}
+        leaf = {
+            **node_content_fields(node_dict),
+            "kind": kind,
+            "files": files + list(extra_files),
+        }
         if extra_fields:
             leaf["extra_fields"] = extra_fields
         return leaf
-
-    def _process_leaf(self, node_dict, package, index_html):
-        """Run the resource up the ladder and return its sub-pipeline result.
-
-        A resource reducing to one wrapped media file is processed as that file;
-        everything else is sealed into its own HTML5 zip, which the HTML5 handler
-        may promote to a KPUB. An unusable resource returns ``None``, dropping just
-        that leaf and leaving the rest of the package to decompose.
-        """
-        source_id = node_dict.get("source_id")
-        media = single_media_member(
-            index_html, node_dict["index_file"], node_dict.get("files") or []
-        )
-        media_path = contained_path(package.directory, media) if media else None
-        if media and media_path is None:
-            LOGGER.warning(
-                "IMSCP: skipping resource %s, media path escapes package: %s",
-                source_id,
-                media,
-            )
-            return None
-        try:
-            if media_path:
-                return self.get_pipeline().execute(media_path)
-            return self._process_html5_leaf(node_dict, package)
-        except (InvalidFileException, ExpectedFileException) as e:
-            LOGGER.warning(
-                "IMSCP: skipping resource %s, could not process: %s", source_id, e
-            )
-            return None
-
-    def _process_html5_leaf(self, node_dict, package):
-        """Seal the resource's own members into a zip and process it as HTML5/KPUB."""
-        index_file = posixpath.normpath(node_dict["index_file"])
-        with tempfile.TemporaryDirectory() as staging:
-            package.stage([index_file] + list(node_dict.get("files") or []), staging)
-            zip_path = create_predictable_zip(staging)
-        try:
-            return self.get_pipeline().execute(zip_path, context={"entry": index_file})
-        finally:
-            os.unlink(zip_path)
 
 
 class ConversionStageHandler(StageHandler):

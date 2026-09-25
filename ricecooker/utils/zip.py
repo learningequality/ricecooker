@@ -58,6 +58,15 @@ def find_html_entrypoint(names):
     return normalized[0][0]
 
 
+def directory_member_names(directory):
+    """Every file in ``directory``, as archive-style paths relative to it."""
+    return [
+        os.path.relpath(os.path.join(dirpath, name), directory).replace(os.sep, "/")
+        for dirpath, _, filenames in os.walk(directory)
+        for name in filenames
+    ]
+
+
 def _assert_reference_zlib():
     """
     Refuse to build predictable zips on interpreters linked against zlib-ng.
@@ -92,13 +101,7 @@ def create_predictable_zip(path, entrypoint=None, file_converter=None):
     extension = "zip"
     # if path is a directory, recursively enumerate all the files under the directory
     if os.path.isdir(path):
-        paths = []
-
-        for root, directories, filenames in os.walk(path):
-            paths += [
-                os.path.join(root, filename)[len(path) + 1 :].replace(os.sep, "/")
-                for filename in filenames
-            ]
+        paths = directory_member_names(path)
 
         def reader(x):
             return _read_file(os.path.join(path, x))
