@@ -313,6 +313,31 @@ def test_disk_transfer_file_protocol():
     )
 
 
+def test_disk_transfer_recopies_edited_file(tmp_path):
+    source = tmp_path / "notes.txt"
+    handler = DiskResourceHandler()
+
+    source.write_text("first draft")
+    handler.execute(str(source))
+    source.write_text("second draft")
+    result = handler.execute(str(source))[0]
+
+    with open(result.path) as fh:
+        assert fh.read() == "second draft"
+
+
+def test_disk_transfer_reuses_unchanged_file(tmp_path):
+    source = tmp_path / "notes.txt"
+    source.write_text("first draft")
+    handler = DiskResourceHandler()
+
+    handler.execute(str(source))
+    with patch.object(handler, "handle_file") as handle_file:
+        handler.execute(str(source))
+
+    handle_file.assert_not_called()
+
+
 def test_disk_transfer_non_file_protocol():
     """Test that non-file protocols are left unchanged."""
     path = "http://example.com/path/to/file.jpg"

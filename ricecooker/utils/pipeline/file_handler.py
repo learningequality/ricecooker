@@ -222,7 +222,7 @@ class FileHandler(Handler):
     def get_cache_key(self, path, **kwargs) -> str:
         return f"{self.STAGE}:{self.normalize_path(path)}"
 
-    def cached_file_outdated(self, filename):
+    def cached_file_outdated(self, path, filename):
         return False
 
     def get_file_kwargs(self, context: ContextMetadata) -> list[Dict]:
@@ -250,7 +250,7 @@ class FileHandler(Handler):
             if (
                 file_metadata
                 and not skip_cache
-                and not self.cached_file_outdated(file_metadata["filename"])
+                and not self.cached_file_outdated(path, file_metadata["filename"])
             ):
                 file_metadata["path"] = config.get_storage_path(
                     file_metadata["filename"]

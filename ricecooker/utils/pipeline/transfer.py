@@ -73,12 +73,11 @@ class DiskResourceHandler(FileHandler):
     def should_handle(self, path):
         return os.path.exists(self._normalize_path(path))
 
-    def cached_file_outdated(self, filename):
-        path = config.get_storage_path(filename)
+    def cached_file_outdated(self, path, filename):
         if not os.path.exists(config.get_storage_path(filename)):
             return True
-        hash = get_hash(path)
-        return not hash or not filename.startswith(hash)
+        # Cached by path, so a file edited in place must be copied again
+        return not filename.startswith(get_hash(self._normalize_path(path)))
 
     def handle_file(self, path, default_ext=None):
         path = self._normalize_path(path)
@@ -105,7 +104,7 @@ class WebResourceHandler(FileHandler):
         except ValueError:
             return False
 
-    def cached_file_outdated(self, filename):
+    def cached_file_outdated(self, path, filename):
         return not os.path.exists(config.get_storage_path(filename))
 
 
