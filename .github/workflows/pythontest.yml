@@ -17,16 +17,23 @@ jobs:
     runs-on: ubuntu-latest
     # Map a step output to a job output
     outputs:
-      should_skip: ${{ steps.skip_check.outputs.should_skip }}
+      python: ${{ steps.filter.outputs.python }}
     steps:
-      - id: skip_check
-        uses: fkirc/skip-duplicate-actions@master
+      # paths-filter needs a checkout to diff push events
+      - uses: actions/checkout@v7.0.1
+      - id: filter
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         with:
-          github_token: ${{ github.token }}
-          paths: '["**.py", "pyproject.toml", "uv.lock", ".github/workflows/pythontest.yml"]'
+          filters: |
+            python:
+              - '**.py'
+              - 'pyproject.toml'
+              - 'uv.lock'
+              - '.github/workflows/pythontest.yml'
   unit_test:
     name: Python unit tests
     needs: pre_job
+    if: ${{ needs.pre_job.outputs.python == 'true' }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -41,11 +48,9 @@ jobs:
             python-version: '3.14'
     steps:
       - uses: actions/checkout@v7.0.1
-        if: ${{ needs.pre_job.outputs.should_skip != 'true' }}
         with:
           fetch-depth: 0
       - name: Set up uv
-        if: ${{ needs.pre_job.outputs.should_skip != 'true' }}
         uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
@@ -58,15 +63,15 @@ jobs:
           sudo apt-get install -y poppler-utils
           sudo apt-get install -y pandoc
           sudo apt-get install -y tmux
-        if: ${{ needs.pre_job.outputs.should_skip != 'true' && startsWith(matrix.os, 'ubuntu') }}
+        if: ${{ startsWith(matrix.os, 'ubuntu') }}
       - name: Cache Mac dependencies
         uses: actions/cache@v6.1.0
-        if: needs.pre_job.outputs.should_skip != 'true' && matrix.os == 'macos-latest'
+        if: matrix.os == 'macos-latest'
         with:
           path: ~/Library/Caches/Homebrew
           key: ${{ runner.os }}-brew-${{ hashFiles('.github/workflows/pythontest.yml') }}
       - name: Unlink Homebrew Python 3.13 if not testing 3.13
-        if: needs.pre_job.outputs.should_skip != 'true' && matrix.os == 'macos-latest' && matrix.python-version != '3.13'
+        if: matrix.os == 'macos-latest' && matrix.python-version != '3.13'
         run: brew unlink python@3.13 || true
       - name: Install Mac dependencies
         run: |
@@ -81,16 +86,16 @@ jobs:
             echo "Skipping Homebrew python@3.13 linking for Python 3.13 test."
           fi
           brew install ffmpeg poppler pandoc
-        if: needs.pre_job.outputs.should_skip != 'true' && matrix.os == 'macos-latest'
+        if: matrix.os == 'macos-latest'
       - name: Windows dependencies cache
         id: windowscache
-        if: needs.pre_job.outputs.should_skip != 'true' && matrix.os == 'windows-latest'
+        if: matrix.os == 'windows-latest'
         uses: actions/cache@v6.1.0
         with:
           path: ${{ github.workspace }}\tools
           key: ${{ runner.os }}-${{ matrix.python-version }}-tools-${{ hashFiles('.github/workflows/pythontest.yml') }}
       - name: Download Windows dependencies if needed
-        if: needs.pre_job.outputs.should_skip != 'true' && matrix.os == 'windows-latest'
+        if: matrix.os == 'windows-latest'
         shell: pwsh
         run: |
           # Create tools directory if it doesn't exist
@@ -123,12 +128,23 @@ jobs:
             Write-Output "Pandoc already exists, skipping download"
           }
       - name: Set paths to Windows dependencies
-        if: needs.pre_job.outputs.should_skip != 'true' && matrix.os == 'windows-latest'
+        if: matrix.os == 'windows-latest'
         shell: pwsh
         run: |
           Add-Content -Path $env:GITHUB_PATH -Value "$env:GITHUB_WORKSPACE\tools\ffmpeg-master-latest-win64-gpl\bin" -Encoding utf8
           Add-Content -Path $env:GITHUB_PATH -Value "$env:GITHUB_WORKSPACE\tools\poppler-21.11.0\Library\bin" -Encoding utf8
           Add-Content -Path $env:GITHUB_PATH -Value "$env:GITHUB_WORKSPACE\tools\pandoc-3.1.11" -Encoding utf8
       - name: Run tests
-        if: ${{ needs.pre_job.outputs.should_skip != 'true' }}
         run: uv run --group test --extra google_drive pytest
+  # Single stable required check: a skipped matrix job reports no per-combination checks.
+  required_checks:
+    name: Python tests
+    needs:
+      - pre_job
+      - unit_test
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail if any needed job failed or was cancelled
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: exit 1
