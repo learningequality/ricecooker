@@ -164,7 +164,7 @@ def wait_until():
 class PtyProcess:
     """A child on a pty, as a terminal user runs it; its output is kept."""
 
-    def __init__(self, argv, cwd=None):
+    def __init__(self, argv, cwd=None, term="xterm"):
         self.fd, child_fd = os.openpty()
         self.proc = subprocess.Popen(
             argv,
@@ -172,7 +172,7 @@ class PtyProcess:
             stdout=child_fd,
             stderr=child_fd,
             cwd=cwd,
-            env={**os.environ, "TERM": "xterm"},
+            env={**os.environ, "TERM": term},
         )
         os.close(child_fd)
         self._chunks = []
@@ -206,8 +206,8 @@ class PtyProcess:
 def spawn_in_pty():
     started = []
 
-    def spawn(argv, cwd=None):
-        started.append(PtyProcess(argv, cwd))
+    def spawn(argv, cwd=None, term="xterm"):
+        started.append(PtyProcess(argv, cwd, term))
         return started[-1]
 
     yield spawn

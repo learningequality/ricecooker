@@ -391,8 +391,12 @@ def tmux(*args):
     return subprocess.run(["tmux", *args], capture_output=True, text=True)
 
 
+def client_terms() -> list:
+    return tmux("list-clients", "-t", TARGET, "-F", "#{client_termname}").stdout.split()
+
+
 def attached_clients() -> int:
-    return len(tmux("list-clients", "-t", TARGET).stdout.splitlines())
+    return len(client_terms())
 
 
 def lifecycle(test):
@@ -415,9 +419,9 @@ def remote(box, laptop, spawn_in_pty):
     write_chef(laptop, "pyproject.toml", PYPROJECT)
     config = write_global_config(laptop.parent / "remote.toml", box)
 
-    def start(*args, env=None):
+    def start(*args, env=None, term="xterm"):
         client = [sys.executable, "-c", CLIENT, str(config), json.dumps(env or {})]
-        return spawn_in_pty(client + ["chef.py", *args], cwd=laptop)
+        return spawn_in_pty(client + ["chef.py", *args], cwd=laptop, term=term)
 
     return start
 
@@ -438,6 +442,11 @@ def test_fresh_run_exits_with_chef_code_and_prints_logs(
     assert run["RICECOOKER_FILECACHE"] == str(box / ".ricecookerfilecache")
     assert run["argv"] == ["chef.py", "3"]
     assert "venv build failed" not in client.output
+
+
+@lifecycle
+def test_unknown_term_attaches_and_exits_with_chef_code(remote):
+    assert remote("3", term="rc-no-such-term").wait() == 3
 
 
 @lifecycle

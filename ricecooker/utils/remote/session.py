@@ -29,6 +29,10 @@ RECORD_EXIT = (
     'tmux detach-client -s "$t" 2>/dev/null; exit $rc'
 )
 
+# sh -c script; args: <command...>. ssh -t sends the laptop's TERM, and tmux
+# won't attach under one the box has no terminfo for.
+KNOWN_TERM = 'infocmp "$TERM" >/dev/null 2>&1 || export TERM=xterm-256color; exec "$@"'
+
 # Tab-separated: a chef dir may contain spaces.
 LIVE_PANES = "#{session_name}\t#{session_path}\t#{pane_dead}"
 
@@ -162,6 +166,10 @@ class Session:
             return NOT_A_TTY
         return self.transport.ssh(
             [
+                "sh",
+                "-c",
+                KNOWN_TERM,
+                "sh",
                 "tmux",
                 "attach-session",
                 "-t",
