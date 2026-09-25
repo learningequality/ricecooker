@@ -124,6 +124,12 @@ def test_ssh_args_reach_remote_shell_intact(box, laptop):
 
 
 @needs_sh
+def test_ssh_input_reaches_remote_command_stdin(box, laptop):
+    payload = "one\nit's $HOME;\n"
+    assert make_transport(box, laptop).ssh(["cat"], input=payload).stdout == payload
+
+
+@needs_sh
 def test_ssh_tty_leaves_terminal_attached(box, laptop):
     assert make_transport(box, laptop).ssh(
         ["printf", "attached"], tty=True

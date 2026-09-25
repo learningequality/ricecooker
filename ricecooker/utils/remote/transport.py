@@ -52,9 +52,9 @@ class RunResult:
     stderr: str = ""
 
 
-def subprocess_runner(argv, capture) -> RunResult:
+def subprocess_runner(argv, capture, input=None) -> RunResult:
     try:
-        proc = subprocess.run(argv, capture_output=capture, text=True)
+        proc = subprocess.run(argv, capture_output=capture, text=True, input=input)
     except FileNotFoundError:
         raise RemoteTransportError(
             f"remote: '{argv[0]}' is not installed on this machine"
@@ -63,7 +63,7 @@ def subprocess_runner(argv, capture) -> RunResult:
 
 
 class Transport:
-    """runner: any callable (argv: list[str], capture: bool) -> RunResult."""
+    """runner: any callable (argv: list[str], capture: bool, input: str | None) -> RunResult."""
 
     def __init__(self, profile, chef_dir=None, runner=subprocess_runner):
         self.profile = profile
@@ -76,8 +76,10 @@ class Transport:
     def pull(self, remote_path, dest=".") -> RunResult:
         return self._rsync(pull_argv(self.profile, remote_path, dest))
 
-    def ssh(self, command, tty=False) -> RunResult:
-        return self.runner(ssh_argv(self.profile, command, tty), capture=not tty)
+    def ssh(self, command, tty=False, input=None) -> RunResult:
+        return self.runner(
+            ssh_argv(self.profile, command, tty), capture=not tty, input=input
+        )
 
     def _rsync(self, argv) -> RunResult:
         result = self.runner(argv, capture=True)

@@ -68,25 +68,28 @@ def test_create_runs_command_in_chef_dir_and_reports_live_since_start(
 
 def test_create_refuses_while_session_exists(box, tmux_server):
     s = make_session(box)
-    s.create(["sleep", "30"])
+    s.create(["sleep", "30"], env={"RC_VALUE": "first"})
     with pytest.raises(RemoteSessionError):
-        s.create(["sleep", "30"])
+        s.create(["sleep", "30"], env={"RC_VALUE": "second"})
     assert s.status().state == LIVE
-
-
-def test_create_passes_args_ending_in_semicolon_verbatim(box, tmux_server, wait_until):
-    make_session(box).create(
-        ["sh", "-c", 'printf "%s|" "$@" > args', "sh", "a\\;", "b;"]
-    )
-    args = box / "my-chef" / "args"
-    assert wait_until(lambda: non_empty(args))
-    assert args.read_text() == "a\\;|b;|"
-
-
-def test_create_sets_env_on_session_verbatim(box, tmux_server):
-    make_session(box).create(["sleep", "30"], env={"RC_VALUE": "a b;"})
-    # A trailing ";" unescaped is dropped by tmux.
     shown = tmux("show-environment", "-t", TARGET, "RC_VALUE").stdout
+    assert shown == "RC_VALUE=first\n"
+
+
+def test_create_passes_args_verbatim(box, tmux_server, wait_until):
+    args = ["a\\;", "b;", "%if", "~/x", "it's", "$HOME", "#c", "x\n  #y", ""]
+    make_session(box).create(["sh", "-c", 'printf "%s|" "$@" > args', "sh", *args])
+    out = box / "my-chef" / "args"
+    assert wait_until(lambda: non_empty(out))
+    assert out.read_text() == "".join(a + "|" for a in args)
+
+
+@pytest.mark.parametrize("name", ["my-chef", "it's a chef"])
+def test_create_sets_env_on_session_verbatim(box, name, tmux_server):
+    s = make_session(box, name)
+    s.create(["sleep", "30"], env={"RC_VALUE": "a b;"})
+    # Unquoted, tmux would take the trailing ";" as a command separator.
+    shown = tmux("show-environment", "-t", s.target, "RC_VALUE").stdout
     assert shown == "RC_VALUE=a b;\n"
 
 
@@ -171,7 +174,7 @@ def test_kill_tears_down_session(box, command, state, tmux_server, wait_until):
 
 
 def test_status_on_unreachable_box_raises_with_ssh_stderr():
-    def unreachable(argv, capture):
+    def unreachable(argv, capture, input=None):
         return RunResult(
             255, stderr="ssh: connect to host box port 22: Connection refused"
         )

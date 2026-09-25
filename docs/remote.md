@@ -21,7 +21,7 @@ Add a profile per box to `~/.config/ricecooker/remote.toml`:
 
 Box setup
 ---------
-The box needs `rsync`, `uv`, `tmux`, `base64`, and the chef's own dependencies
+The box needs `rsync`, `uv`, `tmux` 3.1+, `base64`, and the chef's own dependencies
 (see [Installation](installation.md)).
 
 Box secrets go in `~/.config/ricecooker/remote-env` on the box as `KEY=VALUE` lines,

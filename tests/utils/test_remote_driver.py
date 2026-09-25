@@ -170,7 +170,7 @@ def run_remotely_from(laptop, root, script=None, runner=subprocess_runner):
 def test_unreachable_box_fails_with_ssh_stderr(laptop, capsys):
     ssh_error = "ssh: connect to host box port 22: Connection refused\n"
 
-    def unreachable(argv, capture):
+    def unreachable(argv, capture, input=None):
         return RunResult(255, stderr=ssh_error)
 
     assert run_remotely_from(laptop, "/srv", runner=unreachable) == 1
@@ -261,7 +261,7 @@ def test_logind_kill_refusal_names_admin_linger_fix(box, logind, failure, box_st
 def test_script_outside_chef_dir_fails_before_contacting_box(tmp_path, laptop, capsys):
     calls = []
 
-    def recorder(argv, capture):
+    def recorder(argv, capture, input=None):
         calls.append(argv)
         return RunResult(0)
 
@@ -506,6 +506,38 @@ def test_client_env_overrides_box_env_and_stays_off_disk(
     on_disk = [p for p in box.rglob("*") if p.is_file() and not p.is_symlink()]
     forms = (b"s3cret-tok", base64.b64encode(b"s3cret-tok"))
     assert [p for p in on_disk if any(f in p.read_bytes() for f in forms)] == []
+
+
+def command_lines(skip_pid) -> list:
+    lines = []
+    for path in Path("/proc").glob("[0-9]*/cmdline"):
+        if path.parent.name != str(skip_pid):
+            try:
+                lines.append(path.read_bytes())
+            except OSError:  # exited since the glob
+                pass
+    return lines
+
+
+@lifecycle
+@pytest.mark.skipif(not Path("/proc/self/cmdline").exists(), reason="needs /proc")
+def test_client_env_stays_off_box_command_lines(chef_dir, remote, ssh_log, wait_until):
+    env = {"STUDIO_TOKEN": "tok-5d0f3a", "OVERRIDE": "client-SECRET-9a2b"}
+    forms = [
+        f for v in env.values() for f in (v.encode(), base64.b64encode(v.encode()))
+    ]
+    client = remote("0", "wait", env=env)
+
+    def leaks():
+        # Not the client: this test hands it the env on its argv.
+        return [c for c in command_lines(client.proc.pid) if any(f in c for f in forms)]
+
+    assert wait_until(lambda: seen(chef_dir) and attached_clients(), timeout=30)
+    assert leaks() == []
+    (chef_dir / "go").touch()
+    assert client.wait() == 0
+    assert leaks() == []
+    assert not any(f in ssh_log.read_bytes() for f in forms)
 
 
 @lifecycle

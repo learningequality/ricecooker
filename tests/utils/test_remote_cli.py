@@ -82,7 +82,7 @@ def test_cache_clear_refuses_while_any_chef_under_root_runs(
 def test_unreachable_box_fails_with_ssh_stderr(laptop, capsys):
     ssh_error = "ssh: connect to host box port 22: Connection refused\n"
 
-    def unreachable(argv, capture):
+    def unreachable(argv, capture, input=None):
         return RunResult(255, stderr=ssh_error)
 
     assert run_cli(laptop, "/srv", "cache", "info", runner=unreachable) == 1
