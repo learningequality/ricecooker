@@ -30,7 +30,12 @@ def sync_argv(profile, chef_dir) -> list:
         # --delete-after: the receiver applies its own .gitignore, stale under delete-during.
         ["rsync", "-a", "--delete", "--delete-after", "--filter=:- .gitignore"]
         + [f"--exclude=/{d}/" for d in BOX_MANAGED]
-        + [f"--filter=P {p}" for p in profile.protect]
+        # P <dir>/ guards only the entry: rsync deletes inside it once the laptop has the dir.
+        + [
+            f"--filter=P {q}"
+            for p in profile.protect
+            for q in (p, p.rstrip("/") + "/**")
+        ]
         + [f"--exclude={p}" for p in profile.exclude]
         + [f"{chef_dir}/", f"{profile.ssh}:{remote_chef_dir(profile)}/"]
     )
