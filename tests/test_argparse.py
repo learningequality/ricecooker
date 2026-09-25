@@ -170,6 +170,14 @@ def test_env_flags_without_remote_are_usage_errors(studio_token):
         chef_arg_parser("./chef.py --token=t --env A=1")
 
 
+@pytest.mark.parametrize(
+    "cli_input", ["./chef.py -u remote", "./chef.py -u remote sync"]
+)
+def test_remote_after_other_args_is_usage_error(studio_token, cli_input):
+    with pytest.raises(InvalidUsageException):
+        chef_arg_parser(cli_input)
+
+
 def test_main_hands_remote_run_off_without_running_chef(
     handed_off, tmp_path, monkeypatch
 ):

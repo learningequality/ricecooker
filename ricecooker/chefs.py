@@ -29,6 +29,7 @@ from .utils.metadata_provider import DEFAULT_CHANNEL_INFO_FILENAME
 from .utils.metadata_provider import DEFAULT_CONTENT_INFO_FILENAME
 from .utils.metadata_provider import DEFAULT_EXERCISE_QUESTIONS_INFO_FILENAME
 from .utils.metadata_provider import DEFAULT_EXERCISES_INFO_FILENAME
+from .utils.remote.cli import run_remote_command
 from .utils.remote.driver import chef_argv
 from .utils.remote.driver import client_flag
 from .utils.remote.driver import env_name
@@ -105,7 +106,7 @@ class SushiChef(object):
             "command",
             nargs="?",
             default="uploadchannel",
-            help="Desired action: dryrun or uploadchannel (default).",
+            help='Desired action: dryrun, uploadchannel (default), or remote (first argument; see "remote -h").',
         )
         parser.add_argument(
             "--token",
@@ -270,6 +271,9 @@ class SushiChef(object):
             # a key=value options pair was incorrectly recognized as the command
             args["command"] = "uploadchannel"
             options_list.append(command_arg)  # put command_arg where it belongs
+        # main() dispatches only a leading remote; anything else here would upload.
+        if args["command"] == "remote":
+            raise InvalidUsageException("remote must be the first argument.")
 
         # Print CLI deprecation warnings info
         if args["stage_deprecated"]:
@@ -551,6 +555,9 @@ class SushiChef(object):
         """
         Main entry point that content integration scripts should call.
         """
+        # Before the chef's parser, so chef-added required args and -h cannot intercept it.
+        if sys.argv[1:2] == ["remote"]:
+            sys.exit(run_remote_command(sys.argv[2:], script=sys.argv[0]))
         args, options = self.parse_args_and_options()
         if args["remote"] is not None:
             env = forwarded_env(args["token"], args["env"], args["env_pass"])

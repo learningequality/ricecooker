@@ -134,12 +134,4 @@ or `sushichef.py ...` on Windows.
 
 Long running tasks
 ------------------
-Certain chefs that require lots of downloads and video transcoding take a long
-time to complete so it is best to run them on a dedicated server for this purpose.
-  - Connect to the remove server via `ssh`
-  - Clone the sushi chef git repository in the `/data` folder on the server
-  - Run the chef script as follows `nohup <chef cmd> &`, where `<chef cmd>`
-    is contains the entire script name and command line options,
-    e.g. `./sushichef.py --token=... --thumbnails lang=fr`.
-  - By default `nohup` logs stderr and stdout output to a file called `nohup.out`
-    in the current working directory. Use `tail -f nohup.out` to follow this log file.
+To run a long chef on a dedicated server, see [Running chefs on a remote box](remote.md).
