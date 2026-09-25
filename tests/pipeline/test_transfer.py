@@ -331,11 +331,13 @@ def test_disk_transfer_reuses_unchanged_file(tmp_path):
     source.write_text("first draft")
     handler = DiskResourceHandler()
 
-    handler.execute(str(source))
-    with patch.object(handler, "handle_file") as handle_file:
-        handler.execute(str(source))
+    first = handler.execute(str(source))[0]
+    # Backdate the stored copy so a re-copy would show up as a new mtime
+    os.utime(first.path, (0, 0))
+    second = handler.execute(str(source))[0]
 
-    handle_file.assert_not_called()
+    assert second.path == first.path
+    assert os.path.getmtime(second.path) == 0
 
 
 def test_disk_transfer_non_file_protocol():
