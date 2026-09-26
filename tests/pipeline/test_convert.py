@@ -1473,14 +1473,23 @@ def _leaves_by_title(tree):
     return {leaf["title"]: leaf for leaf in _tree_dict_leaves(tree)}
 
 
+_THUMBNAIL_PRESETS = {p.id for p in format_presets.PRESETLIST if p.thumbnail}
+
+
+def _content_files(files):
+    return [f for f in files if f["preset"] not in _THUMBNAIL_PRESETS]
+
+
 def _filenames(leaf):
-    return {f["filename"] for f in leaf["files"]}
+    return {f["filename"] for f in _content_files(leaf["files"])}
 
 
 def _primary_file(leaf):
     """The file dict of the zip ``leaf`` is sealed into."""
     (primary,) = [
-        f for f in leaf["files"] if f["preset"] != format_presets.HTML5_DEPENDENCY_ZIP
+        f
+        for f in _content_files(leaf["files"])
+        if f["preset"] != format_presets.HTML5_DEPENDENCY_ZIP
     ]
     return primary
 
@@ -1490,7 +1499,9 @@ def _primary_members(leaf):
 
 
 def _tree_files(tree):
-    return [f for leaf in _tree_dict_leaves(tree) for f in leaf["files"]]
+    return [
+        f for leaf in _tree_dict_leaves(tree) for f in _content_files(leaf["files"])
+    ]
 
 
 def _tree_zips(tree):
@@ -1924,8 +1935,11 @@ class TestIMSCPDecomposition:
         # eXe's residual jQuery/effects and .js/.css members keep pages off KPUB,
         # and those shared assets ship once, in a dependency zip every leaf carries.
         presets = {format_presets.HTML5_ZIP, format_presets.HTML5_DEPENDENCY_ZIP}
-        assert all({f.get_preset() for f in leaf.files} == presets for leaf in leaves)
-        files = [f for leaf in leaves for f in leaf.files]
+        files = [f for leaf in leaves for f in leaf.files if not f.is_thumbnail()]
+        assert all(
+            {f.get_preset() for f in leaf.files if not f.is_thumbnail()} == presets
+            for leaf in leaves
+        )
         # Each leaf is backed by its own sealed zip, not the shared package.
         filenames = {preset: [] for preset in presets}
         for f in files:
@@ -1933,7 +1947,8 @@ class TestIMSCPDecomposition:
         leaf_filenames = filenames[format_presets.HTML5_ZIP]
         assert len(leaf_filenames) == len(set(leaf_filenames))
         assert len(set(filenames[format_presets.HTML5_DEPENDENCY_ZIP])) == 1
-        assert {f.get_filename() for f in files} <= set(files_to_upload)
+        all_files = [f for leaf in leaves for f in leaf.files]
+        assert {f.get_filename() for f in all_files} <= set(files_to_upload)
 
     def test_shared_assets_move_to_one_dependency_zip(self):
         tree = _decompose_package(_SHARED_RESOURCES, _SHARED_FILES)
@@ -2028,9 +2043,12 @@ class TestIMSCPDecomposition:
         )
         (leaf,) = _tree_dict_leaves(tree)
         (expected,) = [
-            f.filename
-            for f in FilePipeline().execute(
-                video_file.path, context=context, skip_cache=True
+            f["filename"]
+            for f in _content_files(
+                f.to_dict()
+                for f in FilePipeline().execute(
+                    video_file.path, context=context, skip_cache=True
+                )
             )
         ]
         assert _filenames(leaf) == {expected}

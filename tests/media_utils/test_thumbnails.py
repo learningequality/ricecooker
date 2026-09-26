@@ -1,6 +1,10 @@
 import os
+import sys
 import zipfile
+from contextlib import contextmanager
 from io import BytesIO
+from types import SimpleNamespace
+from unittest.mock import patch
 
 import PIL
 import pytest
@@ -41,24 +45,17 @@ def make_no_image_zip(path, entry="index.html"):
     return path
 
 
-def make_fake_chromium_run(png_bytes):
-    """
-    Return a fake ``subprocess.run`` that writes ``png_bytes`` to the path given by
-    the ``--screenshot=`` argument in ``cmd`` and records the invoked command.
-    """
+def make_fake_render(png_bytes):
+    """Return a fake ``render_html_screenshot`` that writes ``png_bytes`` and records each rendered URL in ``.calls``."""
     calls = []
 
-    def fake_run(cmd, *args, **kwargs):
-        calls.append(cmd)
-        for arg in cmd:
-            if arg.startswith("--screenshot="):
-                shot_path = arg[len("--screenshot=") :]
-                with open(shot_path, "wb") as f:
-                    f.write(png_bytes)
-        return None
+    def fake_render(url, shot_path):
+        calls.append(url)
+        with open(shot_path, "wb") as f:
+            f.write(png_bytes)
 
-    fake_run.calls = calls
-    return fake_run
+    fake_render.calls = calls
+    return fake_render
 
 
 def make_png_bytes(size=(1600, 900)):
@@ -67,13 +64,42 @@ def make_png_bytes(size=(1600, 900)):
     return buf.getvalue()
 
 
+def make_fake_playwright(launches):
+    """A stand-in ``playwright.sync_api`` module that records each ``chromium.launch`` kwargs in ``launches``."""
+
+    class Page:
+        def goto(self, url, **kwargs):
+            pass
+
+        def screenshot(self, path):
+            with open(path, "wb") as f:
+                f.write(make_png_bytes())
+
+    class Browser:
+        def new_page(self, **kwargs):
+            return Page()
+
+        def close(self):
+            pass
+
+    class Chromium:
+        def launch(self, **kwargs):
+            launches.append(kwargs)
+            return Browser()
+
+    @contextmanager
+    def sync_playwright():
+        yield SimpleNamespace(chromium=Chromium())
+
+    return SimpleNamespace(Error=Exception, sync_playwright=sync_playwright)
+
+
 @pytest.fixture
 def fake_chromium(monkeypatch):
-    """Patch the render path to a fake Chromium that writes a PNG; returns the fake run (with ``.calls``)."""
-    fake_run = make_fake_chromium_run(make_png_bytes())
-    monkeypatch.setattr(images, "find_chromium_binary", lambda: "/fake/chromium")
-    monkeypatch.setattr(images.subprocess, "run", fake_run)
-    return fake_run
+    """Patch the render path to a fake browser that writes a PNG; returns the fake render (with ``.calls``)."""
+    fake_render = make_fake_render(make_png_bytes())
+    monkeypatch.setattr(images, "render_html_screenshot", fake_render)
+    return fake_render
 
 
 # TESTS
@@ -130,6 +156,44 @@ class Test_pdf_thumbnail_generation(BaseThumbnailGeneratorTestCase):
         images.create_image_from_pdf_page(input_file, output_file, crop="smart")
         self.check_16_9_format(output_file)
 
+    def _render_mocked_page(self, tmpdir, native_width_px=None, **kwargs):
+        output_file = tmpdir.join("thumbnail.png").strpath
+        page = PIL.Image.new("RGB", (160, 90))
+        with patch(
+            "ricecooker.utils.images.convert_from_path", return_value=[page]
+        ) as mock_convert:
+            with patch(
+                "ricecooker.utils.images._pdf_page_width_px",
+                return_value=native_width_px,
+            ):
+                images.create_image_from_pdf_page("fake.pdf", output_file, **kwargs)
+        assert os.path.exists(output_file)
+        return mock_convert.call_args.kwargs
+
+    def test_max_width_caps_oversized_page(self, tmpdir):
+        kwargs = self._render_mocked_page(tmpdir, native_width_px=4250, max_width=1000)
+        assert kwargs["size"] == (1000, None)
+
+    def test_max_width_does_not_upscale_small_page(self, tmpdir):
+        kwargs = self._render_mocked_page(tmpdir, native_width_px=600, max_width=1000)
+        assert kwargs["size"] is None
+
+    def test_max_width_applied_when_page_size_unreadable(self, tmpdir):
+        kwargs = self._render_mocked_page(tmpdir, native_width_px=None, max_width=1000)
+        assert kwargs["size"] == (1000, None)
+
+    def test_no_max_width_renders_at_full_size(self, tmpdir):
+        kwargs = self._render_mocked_page(tmpdir)
+        assert kwargs["size"] is None
+
+    def test_pdf_page_width_px_reads_real_pdf(self):
+        input_file = os.path.join(files_dir, "generate_thumbnail", "sample.pdf")
+        width = images._pdf_page_width_px(input_file, page_number=0, dpi=500)
+        assert width is not None and width > 0
+
+    def test_pdf_page_width_px_returns_none_for_unreadable(self):
+        assert images._pdf_page_width_px("fake.pdf", page_number=0, dpi=500) is None
+
     def test_raises_for_missing_file(self, tmpdir):
         input_file = os.path.join(files_dir, "file_that_does_not_exist.pdf")
         assert not os.path.exists(input_file)
@@ -175,21 +239,47 @@ class Test_html_zip_thumbnail_generation(BaseThumbnailGeneratorTestCase):
 
 
 class Test_html_zip_screenshot_thumbnail_generation(BaseThumbnailGeneratorTestCase):
-    def test_find_chromium_binary_env_override(self, tmpdir, monkeypatch):
-        fake_binary = tmpdir.join("chromium").strpath
-        with open(fake_binary, "w") as f:
-            f.write("")
-        monkeypatch.setenv("RICECOOKER_CHROMIUM_PATH", fake_binary)
-        assert images.find_chromium_binary() == fake_binary
+    @pytest.mark.real_browser
+    def test_render_unavailable_without_playwright(self, tmpdir, monkeypatch):
+        monkeypatch.setitem(sys.modules, "playwright.sync_api", None)
+        with pytest.raises(images.ChromiumUnavailableError):
+            images.render_html_screenshot(
+                "file:///index.html", tmpdir.join("out.png").strpath
+            )
 
-        monkeypatch.delenv("RICECOOKER_CHROMIUM_PATH", raising=False)
-        monkeypatch.setattr(images.shutil, "which", lambda *a, **k: None)
-        assert images.find_chromium_binary() is None
+    @pytest.mark.real_browser
+    def test_render_launches_env_executable(self, tmpdir, monkeypatch):
+        launches = []
+        monkeypatch.setitem(
+            sys.modules, "playwright.sync_api", make_fake_playwright(launches)
+        )
+        monkeypatch.setenv("RICECOOKER_CHROMIUM_PATH", "/opt/chrome")
+        images.render_html_screenshot(
+            "file:///index.html", tmpdir.join("out.png").strpath
+        )
+        monkeypatch.delenv("RICECOOKER_CHROMIUM_PATH")
+        images.render_html_screenshot(
+            "file:///index.html", tmpdir.join("out.png").strpath
+        )
+        assert [launch["executable_path"] for launch in launches] == [
+            "/opt/chrome",
+            None,
+        ]
 
-    def test_screenshot_raises_when_chromium_absent(self, tmpdir, monkeypatch):
+    @pytest.mark.real_browser
+    def test_render_with_real_browser(self, tmpdir):
         input_file = make_no_image_zip(tmpdir.join("noimg.zip").strpath)
         output_file = tmpdir.join("out.png").strpath
-        monkeypatch.setattr(images, "find_chromium_binary", lambda: None)
+        try:
+            images.create_image_from_zip_screenshot(input_file, output_file)
+        except images.ChromiumUnavailableError as e:
+            pytest.skip(str(e))
+        self.check_is_png_file(output_file)
+        self.check_16_9_format(output_file)
+
+    def test_screenshot_raises_when_chromium_absent(self, tmpdir):
+        input_file = make_no_image_zip(tmpdir.join("noimg.zip").strpath)
+        output_file = tmpdir.join("out.png").strpath
         with pytest.raises(images.ChromiumUnavailableError):
             images.create_image_from_zip_screenshot(input_file, output_file)
 
@@ -206,19 +296,16 @@ class Test_html_zip_screenshot_thumbnail_generation(BaseThumbnailGeneratorTestCa
         )
         output_file = tmpdir.join("out.png").strpath
         images.create_image_from_zip_screenshot(input_file, output_file)
-        url_arg = fake_chromium.calls[0][-1]
+        url_arg = fake_chromium.calls[0]
         assert url_arg.startswith("file://")
         assert url_arg.endswith("reader/start.html")
 
 
 class Test_html_zip_extractor_fun(BaseThumbnailGeneratorTestCase):
-    def test_htmlzip_extractor_falls_back_when_chromium_absent(
-        self, tmpdir, monkeypatch
-    ):
+    def test_htmlzip_extractor_falls_back_when_chromium_absent(self, tmpdir):
         input_file = os.path.join(files_dir, "generate_thumbnail", "sample.zip")
         assert os.path.exists(input_file)
         output_file = tmpdir.join("out.png").strpath
-        monkeypatch.setattr(images, "find_chromium_binary", lambda: None)
         ExtractedHTMLZipThumbnailFile(input_file).extractor_fun(input_file, output_file)
         self.check_is_png_file(output_file)
 

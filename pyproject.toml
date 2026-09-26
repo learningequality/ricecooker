@@ -50,6 +50,7 @@ dependencies = [
 [project.optional-dependencies]
 google_drive = ["google-api-python-client", "google-auth"]
 sentry = ["sentry-sdk>=2.32.0"]
+screenshots = ["playwright<2"]
 
 [project.scripts]
 corrections = "ricecooker.utils.corrections:correctionsmain"
@@ -97,6 +98,9 @@ docs = { requires-python = ">=3.11" }
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 norecursedirs = ["docs", "examples", "resources"]
+markers = [
+    "real_browser: use the real Playwright renderer instead of the test default that disables it",
+]
 env = [
     "RICECOOKER_STORAGE=./.pytest_storage",
     "RICECOOKER_FILECACHE=./.pytest_filecache",
