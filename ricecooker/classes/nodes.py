@@ -25,6 +25,7 @@ from ricecooker.utils.pipeline.exceptions import InvalidFileException
 from .. import __version__
 from .. import config
 from ..exceptions import InvalidNodeException
+from ..exceptions import InvalidQuestionException
 from ..utils.validators import is_valid_uuid_string
 from .curriculum import LearningObjective
 from .files import ExtractedEPubThumbnailFile
@@ -472,6 +473,12 @@ class Node(object):
     def _validate_values(self, assertion, error_message):
         if assertion:
             raise InvalidNodeException(f"{self}: {error_message}")
+
+    def _validate_question(self, question):
+        try:
+            question.validate()
+        except InvalidQuestionException as e:
+            self._validate_values(True, f"question {question.source_id}: {e}")
 
     def infer_learning_activities(self):
         # learning_activities can be set to a default based on the kind if not provided directly
@@ -1121,7 +1128,7 @@ class ContentNode(TreeNode):
             not self.questions, "Exercise does not have any questions"
         )
         for q in self.questions:
-            q.validate()
+            self._validate_question(q)
         mastery_model = self.extra_fields.get("mastery_model")
         self._validate_values(
             mastery_model not in MASTERY_MODELS,
@@ -1856,7 +1863,7 @@ class UnitNode(_CurriculumNode):
         variant_a = []
         variant_b = []
         for question, variant, los in self.test_questions:
-            question.validate()
+            self._validate_question(question)
             if variant == VARIANT_A:
                 variant_a.append((question, los))
             else:

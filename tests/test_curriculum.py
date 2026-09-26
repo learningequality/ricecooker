@@ -546,6 +546,29 @@ class TestUnitNodeValidation:
         ):
             unit.validate()
 
+    def test_fails_with_invalid_question(self):
+        unit = UnitNode(source_id="unit-1", title="Math Unit")
+        lo = LearningObjective("Understand addition")
+        lesson = LessonNode(source_id="lesson-1", title="Lesson 1")
+        unit.add_child(lesson, [lo])
+
+        bad = SingleSelectQuestion(
+            id="bad",
+            question="What is 1 + 1?",
+            correct_answer="2",
+            all_answers=["2", "2"],
+        )
+        unit.add_question(bad, VARIANT_A, [lo])
+        unit.add_question(make_question("q2"), VARIANT_A, [lo])
+        unit.add_question(make_question("q3"), VARIANT_B, [lo])
+        unit.add_question(make_question("q4"), VARIANT_B, [lo])
+
+        with pytest.raises(
+            InvalidNodeException,
+            match="question bad: Assumption Failed: Single selection question should have only one correct answer",
+        ):
+            unit.validate()
+
 
 class TestUnitNodeSerialization:
     """Tests for UnitNode serialization methods."""
