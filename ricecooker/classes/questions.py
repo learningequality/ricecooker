@@ -225,7 +225,13 @@ class BaseQuestion:
         return new_text, [exercise_image_file]
 
     def validate(self):
-        """Validate the question. Raises AssertionError on failure; returns None."""
+        """Validate the question. Raises InvalidQuestionException on failure; returns None."""
+        try:
+            self._validate()
+        except AssertionError as e:
+            raise InvalidQuestionException(str(e)) from e
+
+    def _validate(self):
         assert self.id is not None, "Assumption Failed: Question must have an id"
         assert isinstance(self.question, str) or self.question is None, (
             "Assumption Failed: Question must be a string"
@@ -275,26 +281,20 @@ class PerseusQuestion(BaseQuestion):
             **kwargs,
         )
 
-    def validate(self):
-        """Validate the perseus question. Raises InvalidQuestionException on failure; returns None."""
-        try:
-            assert self.question == "", (
-                "Assumption Failed: Perseus question should not have a question"
-            )
-            assert self.question_type == exercises.PERSEUS_QUESTION, (
-                "Assumption Failed: Question should be perseus type"
-            )
-            assert self.answers == [], (
-                "Assumption Failed: Answer list should be empty for perseus question"
-            )
-            assert self.hints == [], (
-                "Assumption Failed: Hints list should be empty for perseus question"
-            )
-            super(PerseusQuestion, self).validate()
-        except AssertionError:
-            raise InvalidQuestionException(
-                "Invalid question: {0}".format(self.__dict__)
-            )
+    def _validate(self):
+        assert self.question == "", (
+            "Assumption Failed: Perseus question should not have a question"
+        )
+        assert self.question_type == exercises.PERSEUS_QUESTION, (
+            "Assumption Failed: Question should be perseus type"
+        )
+        assert self.answers == [], (
+            "Assumption Failed: Answer list should be empty for perseus question"
+        )
+        assert self.hints == [], (
+            "Assumption Failed: Hints list should be empty for perseus question"
+        )
+        super(PerseusQuestion, self)._validate()
 
     def _replace_image(self, match):
         protocol = match.group("protocol")
@@ -401,31 +401,25 @@ class MultipleSelectQuestion(BaseQuestion):
             id, question, exercises.MULTIPLE_SELECTION, answers, **kwargs
         )
 
-    def validate(self):
-        """Validate the multiple selection question. Raises InvalidQuestionException on failure; returns None."""
-        try:
-            assert self.question_type == exercises.MULTIPLE_SELECTION, (
-                "Assumption Failed: Question should be multiple selection type"
+    def _validate(self):
+        assert self.question_type == exercises.MULTIPLE_SELECTION, (
+            "Assumption Failed: Question should be multiple selection type"
+        )
+        assert len(self.answers) > 0, (
+            "Assumption Failed: Multiple selection question should have answers"
+        )
+        for a in self.answers:
+            assert "answer" in a and isinstance(a["answer"], str), (
+                "Assumption Failed: Answer in answer list is not a string"
             )
-            assert len(self.answers) > 0, (
-                "Assumption Failed: Multiple selection question should have answers"
+            assert "correct" in a and isinstance(a["correct"], bool), (
+                "Assumption Failed: Correct indicator is not a boolean in answer list"
             )
-            for a in self.answers:
-                assert "answer" in a and isinstance(a["answer"], str), (
-                    "Assumption Failed: Answer in answer list is not a string"
-                )
-                assert "correct" in a and isinstance(a["correct"], bool), (
-                    "Assumption Failed: Correct indicator is not a boolean in answer list"
-                )
-            for h in self.hints:
-                assert isinstance(h, str), (
-                    "Assumption Failed: Hint in hint list is not a string"
-                )
-            super(MultipleSelectQuestion, self).validate()
-        except AssertionError:
-            raise InvalidQuestionException(
-                "Invalid question: {0}".format(self.__dict__)
+        for h in self.hints:
+            assert isinstance(h, str), (
+                "Assumption Failed: Hint in hint list is not a string"
             )
+        super(MultipleSelectQuestion, self)._validate()
 
 
 class SingleSelectQuestion(BaseQuestion):
@@ -462,36 +456,30 @@ class SingleSelectQuestion(BaseQuestion):
             id, question, exercises.SINGLE_SELECTION, answers, **kwargs
         )
 
-    def validate(self):
-        """Validate the single selection question. Raises InvalidQuestionException on failure; returns None."""
-        try:
-            assert self.question_type == exercises.SINGLE_SELECTION, (
-                "Assumption Failed: Question should be single selection type"
+    def _validate(self):
+        assert self.question_type == exercises.SINGLE_SELECTION, (
+            "Assumption Failed: Question should be single selection type"
+        )
+        assert len(self.answers) > 0, (
+            "Assumption Failed: Single selection question should have answers"
+        )
+        correct_answers = 0
+        for a in self.answers:
+            assert "answer" in a and isinstance(a["answer"], str), (
+                "Assumption Failed: Answer in answer list is not a string"
             )
-            assert len(self.answers) > 0, (
-                "Assumption Failed: Multiple selection question should have answers"
+            assert "correct" in a and isinstance(a["correct"], bool), (
+                "Assumption Failed: Correct indicator is not a boolean in answer list"
             )
-            correct_answers = 0
-            for a in self.answers:
-                assert "answer" in a and isinstance(a["answer"], str), (
-                    "Assumption Failed: Answer in answer list is not a string"
-                )
-                assert "correct" in a and isinstance(a["correct"], bool), (
-                    "Assumption Failed: Correct indicator is not a boolean in answer list"
-                )
-                correct_answers += 1 if a["correct"] else 0
-            assert correct_answers == 1, (
-                "Assumption Failed: Single selection question should have only one correct answer"
+            correct_answers += 1 if a["correct"] else 0
+        assert correct_answers == 1, (
+            "Assumption Failed: Single selection question should have only one correct answer"
+        )
+        for h in self.hints:
+            assert isinstance(h, str), (
+                "Assumption Failed: Hint in hints list is not a string"
             )
-            for h in self.hints:
-                assert isinstance(h, str), (
-                    "Assumption Failed: Hint in hints list is not a string"
-                )
-            super(SingleSelectQuestion, self).validate()
-        except AssertionError:
-            raise InvalidQuestionException(
-                "Invalid question: {0}".format(self.__dict__)
-            )
+        super(SingleSelectQuestion, self)._validate()
 
 
 class InputQuestion(BaseQuestion):
@@ -521,31 +509,23 @@ class InputQuestion(BaseQuestion):
             id, question, exercises.INPUT_QUESTION, answers, **kwargs
         )
 
-    def validate(self):
-        """Validate the input question. Raises InvalidQuestionException on failure; returns None."""
-        try:
-            assert self.question_type == exercises.INPUT_QUESTION, (
-                "Assumption Failed: Question should be input answer type"
-            )
-            assert len(self.answers) > 0, (
-                "Assumption Failed: Multiple selection question should have answers"
-            )
-            for a in self.answers:
-                assert "answer" in a, (
-                    "Assumption Failed: Answers must have an answer field"
+    def _validate(self):
+        assert self.question_type == exercises.INPUT_QUESTION, (
+            "Assumption Failed: Question should be input answer type"
+        )
+        assert len(self.answers) > 0, (
+            "Assumption Failed: Input question should have answers"
+        )
+        for a in self.answers:
+            assert "answer" in a, "Assumption Failed: Answers must have an answer field"
+            try:
+                float(a["answer"])
+            except ValueError:
+                assert False, "Assumption Failed: Answer {} must be numeric".format(
+                    a["answer"]
                 )
-                try:
-                    float(a["answer"])
-                except ValueError:
-                    assert False, "Assumption Failed: Answer {} must be numeric".format(
-                        a["answer"]
-                    )
-            for h in self.hints:
-                assert isinstance(h, str), (
-                    "Assumption Failed: Hint in hints list is not a string"
-                )
-            super(InputQuestion, self).validate()
-        except AssertionError:
-            raise InvalidQuestionException(
-                "Invalid question: {0}".format(self.__dict__)
+        for h in self.hints:
+            assert isinstance(h, str), (
+                "Assumption Failed: Hint in hints list is not a string"
             )
+        super(InputQuestion, self)._validate()

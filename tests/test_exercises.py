@@ -16,10 +16,14 @@ from vcr_config import my_vcr
 from ricecooker.classes.nodes import ExerciseNode
 from ricecooker.classes.nodes import InvalidNodeException
 from ricecooker.classes.questions import BaseQuestion
+from ricecooker.classes.questions import InputQuestion
 from ricecooker.classes.questions import MARKDOWN_IMAGE_REGEX
+from ricecooker.classes.questions import MultipleSelectQuestion
 from ricecooker.classes.questions import PerseusQuestion
+from ricecooker.classes.questions import QTIQuestion
 from ricecooker.classes.questions import SingleSelectQuestion
 from ricecooker.config import STORAGE_DIRECTORY
+from ricecooker.exceptions import InvalidQuestionException
 
 TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
 TESTCONTENT_DIR = os.path.join(TESTS_DIR, "testcontent")
@@ -170,6 +174,26 @@ def test_exercise_extra_fields_float(exercise):
     assert exercise.extra_fields["n"] == 5
 
     exercise.validate()
+
+
+invalid_questions = [
+    (
+        SingleSelectQuestion("q1", "Q", "2", ["2", "2"]),
+        "Single selection question should have only one correct answer",
+    ),
+    (InputQuestion("q2", "Q", ["abc"]), "Answer abc must be numeric"),
+    (
+        MultipleSelectQuestion("q3", "Q", ["A"], ["A", "B"], hints=[1]),
+        "Hint in hint list is not a string",
+    ),
+    (QTIQuestion("q4", "<x/>", hints=5), "Hints must be a list"),
+]
+
+
+@pytest.mark.parametrize("question,message", invalid_questions)
+def test_invalid_question_raises_with_assertion_message(question, message):
+    with pytest.raises(InvalidQuestionException, match=message):
+        question.validate()
 
 
 ################################################################################

@@ -9,7 +9,6 @@ from le_utils.constants import content_kinds
 from ricecooker.classes.nodes import ChannelNode
 from ricecooker.classes.nodes import TopicNode
 from ricecooker.exceptions import InvalidNodeException
-from ricecooker.exceptions import InvalidQuestionException
 
 """ *********** CHANNEL TESTS *********** """
 
@@ -68,7 +67,11 @@ def test_validate(
     pytest.raises(InvalidNodeException, html_invalid_files.process_files)
     pytest.raises(InvalidNodeException, html_invalid_zip.process_files)
     exercise.validate()
-    pytest.raises(InvalidQuestionException, exercise_invalid_question.validate)
+    with pytest.raises(
+        InvalidNodeException,
+        match="question question_2: Assumption Failed: Answer Answer must be numeric",
+    ):
+        exercise_invalid_question.validate()
 
 
 """ *********** ALT DOMAIN TESTS *********** """
