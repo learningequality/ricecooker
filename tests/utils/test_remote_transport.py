@@ -95,6 +95,25 @@ def test_sync_protect_keeps_box_copy_and_exclude_skips_upload(box, laptop, gnu_r
     assert tree(box / "my-chef") == ["credentials.json", "secrets/key"]
 
 
+@pytest.mark.parametrize("pattern", ["/data/", "data"])
+def test_sync_protect_keeps_box_only_files_in_dir_laptop_also_has(
+    box, laptop, gnu_rsync, pattern
+):
+    write(laptop / "data" / "seed.txt", "laptop")
+    write(laptop / "data" / "sub" / "seed.txt")
+    write(box / "my-chef" / "data" / "seed.txt", "box")
+    write(box / "my-chef" / "data" / "boxonly.txt")
+    write(box / "my-chef" / "data" / "sub" / "boxonly.txt")
+    make_transport(box, laptop, protect=[pattern]).sync()
+    assert tree(box / "my-chef") == [
+        "data/boxonly.txt",
+        "data/seed.txt",
+        "data/sub/boxonly.txt",
+        "data/sub/seed.txt",
+    ]
+    assert (box / "my-chef" / "data" / "seed.txt").read_text() == "laptop"
+
+
 def test_sync_default_chef_dir_is_cwd(box, laptop, monkeypatch, gnu_rsync):
     write(laptop / "chef.py")
     monkeypatch.chdir(laptop)
