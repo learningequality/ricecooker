@@ -401,6 +401,72 @@ class GoogleDriveHandler(WebResourceHandler):
         )
 
 
+class BoxHandler(WebResourceHandler):
+    """Handles downloading from Box shared links"""
+
+    def __init__(self, **context):
+        super().__init__(**context)
+        self._client = None
+
+    @property
+    def HANDLED_EXCEPTIONS(self):
+        try:
+            from box_sdk_gen import BoxAPIError
+        except ImportError:
+            return []
+        return [BoxAPIError]
+
+    @property
+    def client(self):
+        if self._client is None:
+            try:
+                from box_sdk_gen import BoxCCGAuth
+                from box_sdk_gen import BoxClient
+                from box_sdk_gen import CCGConfig
+            except ImportError:
+                raise RuntimeError(
+                    "Box downloads require the boxsdk library\n"
+                    "Please install ricecooker using `pip install ricecooker[box]` to include required dependencies"
+                )
+            if not (
+                config.BOX_CLIENT_ID
+                and config.BOX_CLIENT_SECRET
+                and config.BOX_ENTERPRISE_ID
+            ):
+                raise RuntimeError(
+                    "Box downloads require client credentials.\n"
+                    "Please set BOX_CLIENT_ID, BOX_CLIENT_SECRET, and BOX_ENTERPRISE_ID environment variables."
+                )
+            ccg_config = CCGConfig(
+                client_id=config.BOX_CLIENT_ID,
+                client_secret=config.BOX_CLIENT_SECRET,
+                enterprise_id=config.BOX_ENTERPRISE_ID,
+            )
+            self._client = BoxClient(auth=BoxCCGAuth(config=ccg_config))
+        return self._client
+
+    def should_handle(self, url):
+        try:
+            parsed = urlparse(url)
+            host = parsed.hostname or ""
+        except ValueError:
+            return False
+        is_box_host = host == "box.com" or host.endswith(".box.com")
+        return is_box_host and parsed.path.startswith("/s/")
+
+    def handle_file(self, path):
+        boxapi = f"shared_link={path}"
+        file_info = self.client.shared_links_files.find_file_for_shared_link(
+            boxapi, fields=["name"]
+        )
+        ext = os.path.splitext(file_info.name)[1][1:].lower()
+        with self.write_file(ext) as fh:
+            self.client.downloads.download_file_to_output_stream(
+                file_info.id, fh, boxapi=boxapi
+            )
+        return FileMetadata(original_filename=file_info.name)
+
+
 class Base64FileHandler(FileHandler):
     def should_handle(self, path: str) -> bool:
         return bool(get_base64_data_uri(path))
@@ -513,6 +579,7 @@ class DownloadStageHandler(StageHandler):
     DEFAULT_CHILDREN = [
         YoutubeDownloadHandler,
         GoogleDriveHandler,
+        BoxHandler,
         # After the site-specific handlers and before the catch-all: HTML pages
         # render, everything else falls through to a static download.
         SingleFileRenderHandler,
