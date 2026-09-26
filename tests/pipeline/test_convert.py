@@ -1297,9 +1297,28 @@ def _qti_test(identifier, refs_xml):
     )
 
 
-_QTI2_ITEM = (
-    '<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p1" identifier="old" '
-    'title="old" adaptive="false" timeDependent="false"/>'
+def _qti2_item(identifier, body="", head="", version="v2p1"):
+    """The QTI 2.x twin of ``_qti_item``."""
+    namespace = f"http://www.imsglobal.org/xsd/imsqti_{version}"
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        f'<assessmentItem xmlns="{namespace}" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
+        f'xsi:schemaLocation="{namespace} http://www.imsglobal.org/xsd/qti/qti{version}/imsqti_{version}.xsd" '
+        f'identifier="{identifier}" title="{identifier}" adaptive="false" timeDependent="false">'
+        '<responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier">'
+        "<correctResponse><value>A</value></correctResponse>"
+        f"</responseDeclaration>{head}<itemBody>{body}"
+        '<choiceInteraction responseIdentifier="RESPONSE" maxChoices="1">'
+        '<simpleChoice identifier="A">A</simpleChoice></choiceInteraction>'
+        f'</itemBody><responseProcessing template="http://www.imsglobal.org/question/qti_{version}/rptemplates/match_correct"/>'
+        "</assessmentItem>"
+    )
+
+
+# HTML <label> shares its name with qti-label; MathML must keep its own names.
+_QTI2_BODY = (
+    '<p><label>L</label><math xmlns="http://www.w3.org/1998/Math/MathML"><mi>x</mi></math>'
+    '<img src="../images/pic.png" alt=""/></p>'
 )
 
 
@@ -2116,6 +2135,94 @@ def _one_test_package(test="t", image=("pic.png", _PNG_1x1)):
     )
 
 
+def _qti2_test_package(version):
+    """A QTI 2.x test of item ``a``, showing an image, then item ``b`` via a section ref."""
+    namespace = f"http://www.imsglobal.org/xsd/imsqti_{version}"
+    return (
+        [("T", f"imsqti_test_xml{version}", "t.xml")],
+        {
+            "t.xml": (
+                f'<assessmentTest xmlns="{namespace}" identifier="t" title="t">'
+                '<testPart identifier="P" navigationMode="linear" submissionMode="individual">'
+                '<assessmentSection identifier="S" title="S" visible="true">'
+                '<assessmentItemRef identifier="A" href="items/a.xml"/>'
+                '<assessmentSectionRef identifier="R" href="sections/s.xml"/>'
+                "</assessmentSection></testPart></assessmentTest>"
+            ),
+            "sections/s.xml": (
+                f'<assessmentSection xmlns="{namespace}" identifier="S2" title="S2" visible="true">'
+                '<assessmentItemRef identifier="B" href="../items/b.xml"/></assessmentSection>'
+            ),
+            "items/a.xml": _qti2_item(
+                "a",
+                _QTI2_BODY,
+                head='<stylesheet href="../css/s.css" type="text/css"/>',
+                version=version,
+            ),
+            "items/b.xml": _qti2_item("b", version=version),
+            "images/pic.png": _PNG_1x1,
+        },
+    )
+
+
+# Hand-written QTI 2.1 items, one per interaction type and item construct; the
+# IMS examples' licence is unclear. Each file's identifier is its name.
+_QTI2_FIXTURE_DIR = os.path.join(os.path.dirname(__file__), "..", "testcontent", "qti2")
+_QTI2_CONVERTED = [
+    "associate",
+    "choice",
+    "custom",
+    "drawing",
+    "end_attempt",
+    "extended_text",
+    "feedback",
+    "gap_match",
+    "graphic_associate",
+    "graphic_gap_match",
+    "graphic_order",
+    "hotspot",
+    "hottext",
+    "inline_choice",
+    "match",
+    "math",
+    "modal_feedback",
+    "order",
+    "position_object",
+    "rubric",
+    "select_point",
+    "slider",
+    "template",
+    "text_entry",
+    "upload",
+]
+_QTI2_REJECTED = [
+    # The source is invalid: id must be unique.
+    ("duplicate_id", "'note' is not a valid value"),
+    ("media", "references non-image media"),
+]
+
+
+def _qti2_fixture(name, version):
+    with open(os.path.join(_QTI2_FIXTURE_DIR, f"{name}.xml"), encoding="utf-8") as f:
+        return f.read().replace("v2p1", version)
+
+
+def _qti2_fixture_package(name, version):
+    """Fixture ``name`` as a ``version`` item beside the 3.0 item ``ok``."""
+    return (
+        [
+            ("OK", _QTI_ITEM, "ok.xml"),
+            ("ITEM", f"imsqti_item_xml{version}", "item.xml"),
+        ],
+        {
+            "ok.xml": _qti_item("ok"),
+            "item.xml": _qti2_fixture(name, version),
+            "images/pic.png": _PNG_1x1,
+            "media/clip.mp3": b"ID3",
+        },
+    )
+
+
 class TestQTIIngestion:
     def _ingest(self, resources, files):
         with _qti_package(resources, files) as path:
@@ -2244,28 +2351,96 @@ class TestQTIIngestion:
         (leaf,) = tree["children"]
         assert self._ids(leaf) == ["a", "b"]
 
-    def test_non_qti3_items_are_rejected_by_name(self, caplog):
+    def test_unsupported_qti_items_are_rejected_by_name(self, caplog):
         tree = self._ingest(
             [
                 ("A", _QTI_ITEM, "a.xml"),
-                ("OLD", "imsqti_item_xmlv2p1", "items/old.xml"),
+                ("OLD", "imsqti_item_xmlv2p0", "items/old.xml"),
             ],
-            {"a.xml": _qti_item("a"), "items/old.xml": _QTI2_ITEM},
+            {
+                "a.xml": _qti_item("a"),
+                "items/old.xml": _qti2_item("old", version="v2p0"),
+            },
         )
         (leaf,) = tree["children"]
         assert self._ids(leaf) == ["a"]
         assert any(
-            "items/old.xml" in r.getMessage() and "QTI 3.0" in r.getMessage()
+            "items/old.xml" in r.getMessage()
+            and "QTI 2.1, 2.2 or 3.0" in r.getMessage()
             for r in caplog.records
         )
 
-    @pytest.mark.parametrize("resource_type", ["imsqti_item_xmlv2p1", "imsqti_xmlv1p2"])
-    def test_pre_qti3_only_package_is_rejected(self, resource_type):
+    @pytest.mark.parametrize("resource_type", ["imsqti_item_xmlv2p0", "imsqti_xmlv1p2"])
+    def test_unsupported_qti_only_package_is_rejected(self, resource_type):
         with pytest.raises(InvalidFileException, match="every resource was rejected"):
             self._ingest(
                 [("OLD", resource_type, "items/old.xml")],
-                {"items/old.xml": _QTI2_ITEM},
+                {"items/old.xml": _qti2_item("old", version="v2p0")},
             )
+
+    @pytest.mark.parametrize("version", ["v2p1", "v2p2"])
+    def test_qti2_package_is_converted_to_qti3(self, version):
+        node, files_to_upload = _quiz_node(*_qti2_test_package(version))
+        with_image, plain = node.to_dict()["questions"]
+        assert [with_image["type"], plain["type"]] == [exercises.QTI] * 2
+        (filename,) = _question_filenames(node)
+        assert filename in files_to_upload
+        assert with_image["raw_data"] == _qti_item(
+            "a", _QTI2_BODY.replace("../images/pic.png", filename)
+        )
+        assert plain["raw_data"] == _qti_item("b")
+
+    @pytest.mark.parametrize(
+        "name, version",
+        [(name, v) for name in _QTI2_CONVERTED for v in ("v2p1", "v2p2")]
+        + [("html5", "v2p2")],
+    )
+    def test_qti2_constructs_are_converted(self, name, version):
+        (leaf,) = self._ingest(*_qti2_fixture_package(name, version))["children"]
+        assert self._ids(leaf) == ["ok", name]
+
+    @pytest.mark.parametrize("version", ["v2p1", "v2p2"])
+    @pytest.mark.parametrize("name, reason", _QTI2_REJECTED)
+    def test_qti2_constructs_are_rejected(self, caplog, name, reason, version):
+        (leaf,) = self._ingest(*_qti2_fixture_package(name, version))["children"]
+        assert self._ids(leaf) == ["ok"]
+        assert any(
+            f"{name} (item.xml)" in r.getMessage() and reason in r.getMessage()
+            for r in caplog.records
+        )
+
+    def test_qti2_feedback_and_rubric_content_is_wrapped(self):
+        (leaf,) = self._ingest(*_qti2_fixture_package("modal_feedback", "v2p1"))[
+            "children"
+        ]
+        raw_data = leaf["questions"][1]["raw_data"]
+        assert (
+            '<qti-modal-feedback outcome-identifier="FEEDBACK" identifier="A" show-hide="show">'
+            "<qti-content-body>Correct.</qti-content-body></qti-modal-feedback>"
+        ) in raw_data
+        assert (
+            "<qti-content-body>\n        <p>It is an <em>oblate spheroid</em>.</p>\n    </qti-content-body>"
+            in raw_data
+        )
+        (leaf,) = self._ingest(*_qti2_fixture_package("rubric", "v2p1"))["children"]
+        raw_data = leaf["questions"][1]["raw_data"]
+        assert (
+            '<qti-rubric-block view="scorer tutor" use="instructions"><qti-content-body>'
+            "Award one mark for any mention of rain.</qti-content-body></qti-rubric-block>"
+        ) in raw_data
+
+    @pytest.mark.parametrize(
+        "resource_type, warned",
+        [("imsqti_responseprocessing_xmlv2p1", False), ("imsqti_xmlv1p2", True)],
+    )
+    def test_only_unsupported_qti_versions_are_warned_about(
+        self, caplog, resource_type, warned
+    ):
+        self._ingest(
+            [("A", _QTI_ITEM, "a.xml"), ("AUX", resource_type, "aux.xml")],
+            {"a.xml": _qti_item("a"), "aux.xml": "<x/>"},
+        )
+        assert any("AUX" in r.getMessage() for r in caplog.records) == warned
 
     def test_repeated_item_ids_are_kept_once(self):
         tree = self._ingest(

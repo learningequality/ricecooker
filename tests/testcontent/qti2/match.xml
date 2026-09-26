@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p1 http://www.imsglobal.org/xsd/qti/qtiv2p1/imsqti_v2p1.xsd"
+    identifier="match" title="Match" adaptive="false" timeDependent="false">
+    <responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="directedPair">
+        <correctResponse><value>A X</value><value>B Y</value></correctResponse>
+        <mapping defaultValue="0">
+            <mapEntry mapKey="A X" mappedValue="1"/>
+            <mapEntry mapKey="B Y" mappedValue="1"/>
+        </mapping>
+    </responseDeclaration>
+    <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float"/>
+    <itemBody>
+        <matchInteraction responseIdentifier="RESPONSE" shuffle="true" maxAssociations="2">
+            <prompt>Match each country to its capital.</prompt>
+            <simpleMatchSet>
+                <simpleAssociableChoice identifier="A" matchMax="1">France</simpleAssociableChoice>
+                <simpleAssociableChoice identifier="B" matchMax="1">Italy</simpleAssociableChoice>
+            </simpleMatchSet>
+            <simpleMatchSet>
+                <simpleAssociableChoice identifier="X" matchMax="1">Paris</simpleAssociableChoice>
+                <simpleAssociableChoice identifier="Y" matchMax="1">Rome</simpleAssociableChoice>
+            </simpleMatchSet>
+        </matchInteraction>
+    </itemBody>
+    <responseProcessing template="http://www.imsglobal.org/question/qti_v2p1/rptemplates/map_response"/>
+</assessmentItem>

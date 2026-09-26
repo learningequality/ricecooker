@@ -1,9 +1,7 @@
-"""QTI 3.0 for the IMSCP handler: read items and tests, build them into exercises."""
+"""Build the QTI tests and items of an IMSCP package into exercises."""
 
 import os
 import posixpath
-import threading
-from functools import lru_cache
 from functools import partial
 from urllib.parse import urlparse
 
@@ -21,98 +19,19 @@ from ricecooker.utils.pipeline.convert import ImageConversionHandler
 from ricecooker.utils.pipeline.convert import SVGValidationHandler
 from ricecooker.utils.pipeline.exceptions import ExpectedFileException
 from ricecooker.utils.pipeline.exceptions import InvalidFileException
+from ricecooker.utils.qti.items import QTI3_NAMESPACE
+from ricecooker.utils.qti.items import strip_unschematized
+from ricecooker.utils.qti.items import validate_qti_item
+from ricecooker.utils.qti.upgrade import QTI_RESOURCE_VERSIONS
+from ricecooker.utils.qti.upgrade import read_qti
+from ricecooker.utils.qti.upgrade import SUPPORTED_VERSIONS
 from ricecooker.utils.references import QTIMapper
 from ricecooker.utils.references import resolve_reference
 
-QTI3_NAMESPACE = "http://www.imsglobal.org/xsd/imsqtiasi_v3p0"
 QTI_TEST_TYPE_PREFIX = "imsqti_test_"
 QTI_ITEM_TYPE_PREFIX = "imsqti_item_"
-
-# Studio's vendored item schema (learningequality/studio@3bdac307), so an item that
-# passes here passes Studio's validate_qti_item.
-ITEM_SCHEMA_PATH = os.path.join(
-    os.path.dirname(__file__), "qti_xsd", "imsqti_itemv3p0p1_v1p0.xsd"
-)
-# validate() writes to the schema's shared error_log; tree processing is threaded.
-_VALIDATION_LOCK = threading.Lock()
-# The schema's targetNamespaces: QTI, MathML, SSML, XInclude and xml:.
-ITEM_NAMESPACES = frozenset(
-    (
-        QTI3_NAMESPACE,
-        "http://www.w3.org/1998/Math/MathML",
-        "http://www.w3.org/2001/10/synthesis",
-        "http://www.w3.org/2001/XInclude",
-        "http://www.w3.org/XML/1998/namespace",
-    )
-)
-_STYLESHEET_TAG = f"{{{QTI3_NAMESPACE}}}qti-stylesheet"
 _ITEM_REF_TAG = f"{{{QTI3_NAMESPACE}}}qti-assessment-item-ref"
 _SECTION_REF_TAG = f"{{{QTI3_NAMESPACE}}}qti-assessment-section-ref"
-_PARSER = etree.XMLParser(resolve_entities=False, no_network=True, load_dtd=False)
-
-
-def read_qti3(package_dir, member, tag):
-    """Parse ``member`` as a QTI 3.0 ``<tag>``; return its root element.
-
-    Raises ``ValueError`` saying why the file is unusable.
-    """
-    path = contained_path(package_dir, member)
-    if path is None or not os.path.isfile(path):
-        raise ValueError("is missing or outside the package")
-    try:
-        root = etree.parse(path, _PARSER).getroot()
-    except etree.XMLSyntaxError as e:
-        raise ValueError(f"is not well-formed XML: {e.msg}")
-    if root.tag != f"{{{QTI3_NAMESPACE}}}{tag}":
-        raise ValueError(f"is not a QTI 3.0 <{tag}> (only QTI 3.0 is supported)")
-    return root
-
-
-def strip_unschematized(item):
-    """Drop markup the item schema cannot validate from ``item``, in place.
-
-    That is ``<qti-stylesheet>``, which Kolibri does not render, and elements and
-    attributes outside the schema's namespaces, which its ``any`` wildcards reject.
-    """
-    for elem in list(item.iter(etree.Element)):
-        if elem.tag == _STYLESHEET_TAG or _is_foreign(elem.tag):
-            _remove(elem)
-            continue
-        for name in [name for name in elem.attrib if _is_foreign(name)]:
-            del elem.attrib[name]
-    etree.cleanup_namespaces(item)
-
-
-def _is_foreign(name):
-    namespace = etree.QName(name).namespace
-    return namespace is not None and namespace not in ITEM_NAMESPACES
-
-
-def _remove(elem):
-    """Remove ``elem`` and its subtree, keeping its tail text."""
-    parent = elem.getparent()
-    if elem.tail:
-        previous = elem.getprevious()
-        if previous is None:
-            parent.text = (parent.text or "") + elem.tail
-        else:
-            previous.tail = (previous.tail or "") + elem.tail
-    parent.remove(elem)
-
-
-@lru_cache(maxsize=1)
-def _item_schema():
-    return etree.XMLSchema(etree.parse(ITEM_SCHEMA_PATH))
-
-
-def validate_qti_item(item):
-    """Raise ``ValueError`` naming the first schema error if ``item`` is not a valid QTI 3.0 item."""
-    schema = _item_schema()
-    with _VALIDATION_LOCK:
-        if schema.validate(item):
-            return
-        error = schema.error_log[0]
-    raise ValueError(f"fails the QTI 3.0 schema at line {error.line}: {error.message}")
 
 
 def media_member(item_member, ref):
@@ -138,7 +57,7 @@ def assessment_item_members(package_dir, test_member, root, seen=None):
         elif member not in seen:
             seen.add(member)
             try:
-                section = read_qti3(package_dir, member, "qti-assessment-section")
+                section = read_qti(package_dir, member, "qti-assessment-section")
             except ValueError as e:
                 LOGGER.warning("IMSCP: skipping QTI section %s: %s", member, e)
                 continue
@@ -147,7 +66,7 @@ def assessment_item_members(package_dir, test_member, root, seen=None):
 
 
 class QTIExerciseBuilder:
-    """Build the QTI 3.0 tests and items of one IMSCP package into exercise node dicts."""
+    """Build the QTI tests and items of one IMSCP package into exercise node dicts."""
 
     IMAGE_EXTENSIONS = (
         ImageConversionHandler.EXTENSIONS | SVGValidationHandler.EXTENSIONS
@@ -184,17 +103,18 @@ class QTIExerciseBuilder:
                 tests.append({**resource, "index_file": member})
             elif resource["type"].startswith(QTI_ITEM_TYPE_PREFIX):
                 items.append(member)
-            elif "v3p0" not in resource["type"]:
+            elif not any(v in resource["type"] for v in QTI_RESOURCE_VERSIONS):
                 LOGGER.warning(
-                    "IMSCP: skipping QTI resource %s: only QTI 3.0 is supported",
+                    "IMSCP: skipping QTI resource %s: only %s is supported",
                     resource["source_id"],
+                    SUPPORTED_VERSIONS,
                 )
         return tests, items
 
     def _build_test_exercise(self, test):
         member = test["index_file"]
         try:
-            root = read_qti3(self.package.directory, member, "qti-assessment-test")
+            root = read_qti(self.package.directory, member, "qti-assessment-test")
         except ValueError as e:
             LOGGER.warning("IMSCP: rejecting QTI test %s: %s", member, e)
             return None
@@ -236,15 +156,19 @@ class QTIExerciseBuilder:
     def _question(self, member):
         """The cached question for item ``member``; ``None`` if the item is rejected."""
         if member not in self.questions:
+            item = None
             try:
-                self.questions[member] = self._build_question(member)
+                item = read_qti(self.package.directory, member, "qti-assessment-item")
+                self.questions[member] = self._build_question(member, item)
             except (ValueError, InvalidFileException, ExpectedFileException) as e:
-                LOGGER.warning("IMSCP: rejecting QTI item %s: %s", member, e)
+                name = (
+                    member if item is None else f"{item.get('identifier')} ({member})"
+                )
+                LOGGER.warning("IMSCP: rejecting QTI item %s: %s", name, e)
                 self.questions[member] = None
         return self.questions[member]
 
-    def _build_question(self, member):
-        item = read_qti3(self.package.directory, member, "qti-assessment-item")
+    def _build_question(self, member, item):
         strip_unschematized(item)
         # Studio fails the whole channel commit on one schema-invalid item.
         validate_qti_item(item)

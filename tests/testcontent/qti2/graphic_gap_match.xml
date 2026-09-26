@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p1 http://www.imsglobal.org/xsd/qti/qtiv2p1/imsqti_v2p1.xsd"
+    identifier="graphic_gap_match" title="Graphic gap match" adaptive="false" timeDependent="false">
+    <responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="directedPair">
+        <correctResponse><value>G A</value></correctResponse>
+    </responseDeclaration>
+    <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float"/>
+    <itemBody>
+        <graphicGapMatchInteraction responseIdentifier="RESPONSE">
+            <prompt>Drag the label onto the image.</prompt>
+            <object type="image/png" data="images/pic.png" width="2" height="2"/>
+            <gapImg identifier="G" matchMax="1">
+                <object type="image/png" data="images/pic.png" width="1" height="1"/>
+            </gapImg>
+            <associableHotspot identifier="A" shape="rect" coords="0,0,1,1" matchMax="1"/>
+        </graphicGapMatchInteraction>
+    </itemBody>
+    <responseProcessing template="http://www.imsglobal.org/question/qti_v2p1/rptemplates/match_correct"/>
+</assessmentItem>

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p2 http://www.imsglobal.org/xsd/qti/qtiv2p2/imsqti_v2p2.xsd"
+    identifier="html5" title="HTML5" adaptive="false" timeDependent="false">
+    <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier">
+        <correctResponse><value>A</value></correctResponse>
+    </responseDeclaration>
+    <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float"/>
+    <itemBody>
+        <figure>
+            <img src="images/pic.png" alt="A pixel"/>
+            <figcaption>One <ruby>漢<rp>(</rp><rt>kan</rt><rp>)</rp></ruby> pixel.</figcaption>
+        </figure>
+        <choiceInteraction responseIdentifier="RESPONSE" maxChoices="1" aria-label="Answers">
+            <prompt dir="rtl">ما هو <bdi>X</bdi>؟</prompt>
+            <simpleChoice identifier="A">One</simpleChoice>
+            <simpleChoice identifier="B">Two</simpleChoice>
+        </choiceInteraction>
+    </itemBody>
+    <responseProcessing template="http://www.imsglobal.org/question/qti_v2p2/rptemplates/match_correct"/>
+</assessmentItem>

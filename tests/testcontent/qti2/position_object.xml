@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p1 http://www.imsglobal.org/xsd/qti/qtiv2p1/imsqti_v2p1.xsd"
+    identifier="position_object" title="Position object" adaptive="false" timeDependent="false">
+    <responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="point"/>
+    <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float"/>
+    <itemBody>
+        <positionObjectStage>
+            <object type="image/png" data="images/pic.png" width="2" height="2"/>
+            <positionObjectInteraction responseIdentifier="RESPONSE" maxChoices="2">
+                <object type="image/png" data="images/pic.png" width="1" height="1"/>
+            </positionObjectInteraction>
+        </positionObjectStage>
+    </itemBody>
+</assessmentItem>

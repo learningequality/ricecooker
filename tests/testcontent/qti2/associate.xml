@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p1 http://www.imsglobal.org/xsd/qti/qtiv2p1/imsqti_v2p1.xsd"
+    identifier="associate" title="Associate" adaptive="false" timeDependent="false">
+    <responseDeclaration identifier="RESPONSE" cardinality="multiple" baseType="pair">
+        <correctResponse><value>A B</value></correctResponse>
+        <mapping defaultValue="0"><mapEntry mapKey="A B" mappedValue="1"/></mapping>
+    </responseDeclaration>
+    <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float"/>
+    <itemBody>
+        <associateInteraction responseIdentifier="RESPONSE" shuffle="true" maxAssociations="1">
+            <prompt>Pair the synonyms.</prompt>
+            <simpleAssociableChoice identifier="A" matchMax="1">big</simpleAssociableChoice>
+            <simpleAssociableChoice identifier="B" matchMax="1">large</simpleAssociableChoice>
+            <simpleAssociableChoice identifier="C" matchMax="1">small</simpleAssociableChoice>
+        </associateInteraction>
+    </itemBody>
+    <responseProcessing template="http://www.imsglobal.org/question/qti_v2p1/rptemplates/map_response"/>
+</assessmentItem>
