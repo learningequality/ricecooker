@@ -4,6 +4,7 @@ import base64
 import hashlib
 import os.path
 import tempfile
+import threading
 import zipfile
 from io import BytesIO
 from shutil import copyfile
@@ -40,6 +41,8 @@ from ricecooker.exceptions import FileNotFoundException
 from ricecooker.utils.audio import AudioCompressionError
 from ricecooker.utils.pipeline.convert import PDFValidationHandler
 from ricecooker.utils.pipeline.exceptions import InvalidFileException
+from ricecooker.utils.storage import copy_file_to_storage
+from ricecooker.utils.storage import get_hash
 from ricecooker.utils.videos import VideoCompressionError
 from ricecooker.utils.zip import create_predictable_zip
 
@@ -62,6 +65,31 @@ def test_get_existing_storage_path_present_returns_path():
         assert config.get_existing_storage_path(present) == storage_path
     finally:
         os.remove(storage_path)
+
+
+def test_stored_file_never_appears_partial(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "STORAGE_DIRECTORY", str(tmp_path / "storage"))
+    src = tmp_path / "big.bin"
+    src.write_bytes(os.urandom(8 << 20))
+    dest = config.get_storage_path(f"{get_hash(src)}.bin")
+    writer = threading.Thread(target=copy_file_to_storage, args=(str(src),))
+    writer.start()
+    sizes = set()
+    while writer.is_alive():
+        if os.path.exists(dest):
+            sizes.add(os.path.getsize(dest))
+    writer.join()
+    assert sizes <= {src.stat().st_size}
+    assert os.listdir(os.path.dirname(dest)) == [os.path.basename(dest)]
+
+
+def test_storing_a_file_held_open_succeeds(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "STORAGE_DIRECTORY", str(tmp_path / "storage"))
+    src = tmp_path / "doc.pdf"
+    src.write_bytes(b"%PDF-1.4\n")
+    filename = copy_file_to_storage(str(src))
+    with open(config.get_storage_path(filename), "rb"):
+        assert copy_file_to_storage(str(src)) == filename
 
 
 def test_size_missing_storage_file_raises_descriptive_error():
