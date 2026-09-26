@@ -42,6 +42,7 @@ from ricecooker.classes.nodes import TopicNode
 from ricecooker.classes.nodes import VideoNode
 from ricecooker.classes.questions import InputQuestion
 from ricecooker.classes.questions import SingleSelectQuestion
+from ricecooker.utils import images
 
 # GLOBAL TEST SETUP/TEARDOWN UTILS
 ################################################################################
@@ -81,6 +82,17 @@ def global_fixture():
         except OSError:
             # Don't fail a test just because we failed to cleanup
             pass
+
+
+@pytest.fixture(autouse=True)
+def no_real_browser(request, monkeypatch):
+    if request.node.get_closest_marker("real_browser"):
+        return
+
+    def unavailable(url, shot_path):
+        raise images.ChromiumUnavailableError("Browser rendering is disabled in tests.")
+
+    monkeypatch.setattr(images, "render_html_screenshot", unavailable)
 
 
 # Monkey patch VCRHTTPResponse to handle kwargs that are not compatible with BufferIO

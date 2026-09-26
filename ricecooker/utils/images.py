@@ -1,7 +1,5 @@
 import os
 import pathlib
-import shutil
-import subprocess
 import tempfile
 import zipfile
 from io import BytesIO
@@ -113,35 +111,46 @@ def create_image_from_zip(htmlfile, fpath_out, crop="smart"):
         raise ThumbnailGenerationError("Fail on zip {} {}".format(htmlfile, e))
 
 
-CHROMIUM_BINARY_NAMES = [
-    "chromium",
-    "chromium-browser",
-    "google-chrome",
-    "google-chrome-stable",
-    "chrome",
-]
+SCREENSHOT_VIEWPORT = {"width": 1600, "height": 900}
+SCREENSHOT_TIMEOUT_MS = 30000
 
 
-def find_chromium_binary():
-    """Return a Chromium/Chrome binary path, or None. Honors ``RICECOOKER_CHROMIUM_PATH``, else searches PATH."""
-    env_path = os.environ.get("RICECOOKER_CHROMIUM_PATH")
-    if env_path:
-        return env_path
-    for name in CHROMIUM_BINARY_NAMES:
-        path = shutil.which(name)
-        if path:
-            return path
-    return None
+def render_html_screenshot(url, shot_path):
+    """Load ``url`` in headless Chromium via Playwright and save a viewport screenshot to ``shot_path``.
+
+    Raises ChromiumUnavailableError when Playwright or its browser is missing. ``RICECOOKER_CHROMIUM_PATH`` overrides the browser executable.
+    """
+    try:
+        from playwright.sync_api import Error as PlaywrightError
+        from playwright.sync_api import sync_playwright
+    except ImportError as e:
+        raise ChromiumUnavailableError(
+            "Playwright is not installed; install ricecooker[screenshots]."
+        ) from e
+    with sync_playwright() as p:
+        try:
+            browser = p.chromium.launch(
+                executable_path=os.environ.get("RICECOOKER_CHROMIUM_PATH") or None
+            )
+        except PlaywrightError as e:
+            raise ChromiumUnavailableError(
+                "Could not launch Chromium; run `playwright install chromium`: {}".format(
+                    e
+                )
+            ) from e
+        try:
+            page = browser.new_page(viewport=SCREENSHOT_VIEWPORT)
+            page.goto(url, wait_until="networkidle", timeout=SCREENSHOT_TIMEOUT_MS)
+            page.screenshot(path=shot_path)
+        finally:
+            browser.close()
 
 
 def create_image_from_zip_screenshot(htmlfile, fpath_out, crop="smart"):
     """Render the html5 zip's entry point in headless Chromium and write a screenshot thumbnail to ``fpath_out``.
 
-    Raises ChromiumUnavailableError if no binary is found (callers fall back), ThumbnailGenerationError on render failure.
+    Raises ChromiumUnavailableError if no browser is available (callers fall back), ThumbnailGenerationError on render failure.
     """
-    binary = find_chromium_binary()
-    if binary is None:
-        raise ChromiumUnavailableError("No Chromium/Chrome binary found.")
     try:
         with (
             tempfile.TemporaryDirectory() as temp_dir,
@@ -154,31 +163,12 @@ def create_image_from_zip_screenshot(htmlfile, fpath_out, crop="smart"):
                 )
             zf.extractall(temp_dir)
             entry_abspath = os.path.join(temp_dir, *entry.split("/"))
-            profile_dir = os.path.join(temp_dir, "_chromium_profile")
             shot_path = os.path.join(temp_dir, "shot.png")
-            url = pathlib.Path(entry_abspath).as_uri()
-            cmd = [
-                binary,
-                "--headless=new",
-                "--no-sandbox",
-                "--disable-gpu",
-                "--hide-scrollbars",
-                "--force-device-scale-factor=1",
-                "--window-size=1600,900",
-                "--virtual-time-budget=8000",
-                "--user-data-dir={}".format(profile_dir),
-                "--screenshot={}".format(shot_path),
-                url,
-            ]
-            subprocess.run(cmd, capture_output=True, timeout=60, check=True)
-            if not os.path.exists(shot_path):
-                raise ThumbnailGenerationError(
-                    "Chromium produced no screenshot for {}.".format(htmlfile)
-                )
+            render_html_screenshot(pathlib.Path(entry_abspath).as_uri(), shot_path)
             img = Image.open(shot_path)
             img = scale_and_crop_thumbnail(img, crop=crop)
             img.save(fpath_out)
-    except ThumbnailGenerationError:
+    except (ThumbnailGenerationError, ChromiumUnavailableError):
         raise
     except Exception as e:
         raise ThumbnailGenerationError("Fail on zip {} {}".format(htmlfile, e))
@@ -336,4 +326,4 @@ class ThumbnailGenerationError(Exception):
 
 
 class ChromiumUnavailableError(Exception):
-    """Raised when no Chromium/Chrome binary is available, so callers can fall back to a non-render thumbnail path."""
+    """Raised when no Chromium browser is available, so callers can fall back to a non-render thumbnail path."""

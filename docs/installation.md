@@ -116,6 +116,18 @@ both:
 *Checklist*: run `single-file --help` to confirm the binary is available.
 
 
+### Optional: rendered HTML5 thumbnails (Playwright)
+
+HTML5 and KPUB thumbnails are screenshots of the rendered page when Playwright's
+Chromium is available; otherwise the largest image in the zip is used. Install
+the extra and its browser:
+
+    uv add "ricecooker[screenshots]"
+    uv run playwright install chromium
+
+To use a different Chromium/Chrome, set `RICECOOKER_CHROMIUM_PATH` to its executable.
+
+
 Installing Ricecooker
 ---------------------
 Create a `pyproject.toml` for your chef project (or use an existing one), then run:
