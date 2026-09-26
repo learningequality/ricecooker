@@ -11,6 +11,18 @@ from ricecooker.utils.qti.items import _item_schema
 from ricecooker.utils.qti.items import _PARSER
 from ricecooker.utils.qti.items import QTI3_NAMESPACE
 
+_CONTENT_BODY_TAG = f"{{{QTI3_NAMESPACE}}}qti-content-body"
+_RUBRIC_BLOCK_TAG = f"{{{QTI3_NAMESPACE}}}qti-rubric-block"
+# 3.0 holds these elements' content in a <qti-content-body>; 2.x holds it directly.
+_CONTENT_BODY_PARENTS = tuple(
+    f"{{{QTI3_NAMESPACE}}}{name}"
+    for name in (
+        "qti-modal-feedback",
+        "qti-feedback-block",
+        "qti-rubric-block",
+        "qti-template-block",
+    )
+)
 _QTI3_RPTEMPLATES = "https://purl.imsglobal.org/spec/qti/v3p0/rptemplates/"
 _QTI2_RPTEMPLATES = re.compile(
     r"^https?://www\.imsglobal\.org/question/qti_v2p[12]/rptemplates/"
@@ -65,6 +77,13 @@ class QTI2Converter(QTIConverter):
         converted.extend(list(root))
         for elem in converted.iter(f"{{{source}}}*"):
             self._rename(elem)
+        for elem in list(converted.iter(*_CONTENT_BODY_PARENTS)):
+            body = etree.SubElement(elem, _CONTENT_BODY_TAG)
+            body.text, elem.text = elem.text, None
+            body.extend(elem[:-1])
+            if elem.tag == _RUBRIC_BLOCK_TAG:
+                # 3.0 requires use; 2.x rubric blocks are instructions to their view.
+                elem.set("use", elem.get("use", "instructions"))
         etree.cleanup_namespaces(converted)
         return converted
 

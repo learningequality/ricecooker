@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p1 http://www.imsglobal.org/xsd/qti/qtiv2p1/imsqti_v2p1.xsd"
+    identifier="math" title="MathML" adaptive="false" timeDependent="false">
+    <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier">
+        <correctResponse><value>A</value></correctResponse>
+    </responseDeclaration>
+    <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float"/>
+    <templateDeclaration identifier="N" cardinality="single" baseType="integer" mathVariable="true"/>
+    <templateProcessing>
+        <setTemplateValue identifier="N"><randomInteger min="2" max="5"/></setTemplateValue>
+    </templateProcessing>
+    <itemBody>
+        <choiceInteraction responseIdentifier="RESPONSE" maxChoices="1">
+            <prompt>Simplify
+                <math xmlns="http://www.w3.org/1998/Math/MathML"><mfrac><msup><mi>x</mi><mi>N</mi></msup><mi>x</mi></mfrac></math></prompt>
+            <simpleChoice identifier="A"><math xmlns="http://www.w3.org/1998/Math/MathML"><msup><mi>x</mi><mrow><mi>N</mi><mo>-</mo><mn>1</mn></mrow></msup></math></simpleChoice>
+            <simpleChoice identifier="B"><math xmlns="http://www.w3.org/1998/Math/MathML"><mi>x</mi></math></simpleChoice>
+        </choiceInteraction>
+    </itemBody>
+    <responseProcessing template="http://www.imsglobal.org/question/qti_v2p1/rptemplates/match_correct"/>
+</assessmentItem>

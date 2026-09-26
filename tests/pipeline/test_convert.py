@@ -2165,6 +2165,64 @@ def _qti2_test_package(version):
     )
 
 
+# Hand-written QTI 2.1 items, one per interaction type and item construct; the
+# IMS examples' licence is unclear. Each file's identifier is its name.
+_QTI2_FIXTURE_DIR = os.path.join(os.path.dirname(__file__), "..", "testcontent", "qti2")
+_QTI2_CONVERTED = [
+    "associate",
+    "choice",
+    "custom",
+    "drawing",
+    "end_attempt",
+    "extended_text",
+    "feedback",
+    "gap_match",
+    "graphic_associate",
+    "graphic_gap_match",
+    "graphic_order",
+    "hotspot",
+    "hottext",
+    "inline_choice",
+    "match",
+    "math",
+    "modal_feedback",
+    "order",
+    "position_object",
+    "rubric",
+    "select_point",
+    "slider",
+    "template",
+    "text_entry",
+    "upload",
+]
+_QTI2_REJECTED = [
+    # The source is invalid: id must be unique.
+    ("duplicate_id", "'note' is not a valid value"),
+    ("media", "references non-image media"),
+]
+
+
+def _qti2_fixture(name, version):
+    with open(os.path.join(_QTI2_FIXTURE_DIR, f"{name}.xml"), encoding="utf-8") as f:
+        return f.read().replace("v2p1", version)
+
+
+def _qti2_fixture_package(name, version):
+    """Fixture ``name`` as a ``version`` item beside the 3.0 item ``ok``."""
+    return (
+        [
+            ("OK", _QTI_ITEM, "ok.xml"),
+            ("ITEM", f"imsqti_item_xml{version}", "item.xml"),
+        ],
+        {
+            "ok.xml": _qti_item("ok"),
+            "item.xml": _qti2_fixture(name, version),
+            "images/pic.png": _PNG_1x1,
+            "media/clip.mp3": b"ID3",
+        },
+    )
+
+
 class TestQTIIngestion:
     def _ingest(self, resources, files):
         with _qti_package(resources, files) as path:
@@ -2333,6 +2391,45 @@ class TestQTIIngestion:
         assert plain["raw_data"] == _qti_item("b")
 
     @pytest.mark.parametrize(
+        "name, version",
+        [(name, v) for name in _QTI2_CONVERTED for v in ("v2p1", "v2p2")]
+        + [("html5", "v2p2")],
+    )
+    def test_qti2_constructs_are_converted(self, name, version):
+        (leaf,) = self._ingest(*_qti2_fixture_package(name, version))["children"]
+        assert self._ids(leaf) == ["ok", name]
+
+    @pytest.mark.parametrize("version", ["v2p1", "v2p2"])
+    @pytest.mark.parametrize("name, reason", _QTI2_REJECTED)
+    def test_qti2_constructs_are_rejected(self, caplog, name, reason, version):
+        (leaf,) = self._ingest(*_qti2_fixture_package(name, version))["children"]
+        assert self._ids(leaf) == ["ok"]
+        assert any(
+            f"{name} (item.xml)" in r.getMessage() and reason in r.getMessage()
+            for r in caplog.records
+        )
+
+    def test_qti2_feedback_and_rubric_content_is_wrapped(self):
+        (leaf,) = self._ingest(*_qti2_fixture_package("modal_feedback", "v2p1"))[
+            "children"
+        ]
+        raw_data = leaf["questions"][1]["raw_data"]
+        assert (
+            '<qti-modal-feedback outcome-identifier="FEEDBACK" identifier="A" show-hide="show">'
+            "<qti-content-body>Correct.</qti-content-body></qti-modal-feedback>"
+        ) in raw_data
+        assert (
+            "<qti-content-body>\n        <p>It is an <em>oblate spheroid</em>.</p>\n    </qti-content-body>"
+            in raw_data
+        )
+        (leaf,) = self._ingest(*_qti2_fixture_package("rubric", "v2p1"))["children"]
+        raw_data = leaf["questions"][1]["raw_data"]
+        assert (
+            '<qti-rubric-block view="scorer tutor" use="instructions"><qti-content-body>'
+            "Award one mark for any mention of rain.</qti-content-body></qti-rubric-block>"
+        ) in raw_data
+
+    @pytest.mark.parametrize(
         "resource_type, warned",
         [("imsqti_responseprocessing_xmlv2p1", False), ("imsqti_xmlv1p2", True)],
     )
@@ -2443,27 +2540,6 @@ class TestQTIIngestion:
         assert self._ids(leaf) == ["ok"]
         assert any(
             "bad.xml" in r.getMessage() and "'use' is required" in r.getMessage()
-            for r in caplog.records
-        )
-
-    def test_unconvertible_qti2_item_is_rejected_by_identifier(self, caplog):
-        tree = self._ingest(
-            [
-                ("OK", "imsqti_item_xmlv2p1", "items/q1.xml"),
-                ("BAD", "imsqti_item_xmlv2p1", "items/q2.xml"),
-            ],
-            {
-                "items/q1.xml": _qti2_item("ok"),
-                # QTI 3.0 requires qti-rubric-block's use attribute; 2.x does not.
-                "items/q2.xml": _qti2_item(
-                    "legacy", '<rubricBlock view="candidate"><p>r</p></rubricBlock>'
-                ),
-            },
-        )
-        (leaf,) = tree["children"]
-        assert self._ids(leaf) == ["ok"]
-        assert any(
-            "legacy" in r.getMessage() and "'use' is required" in r.getMessage()
             for r in caplog.records
         )
 

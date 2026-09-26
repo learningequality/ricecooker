@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p1 http://www.imsglobal.org/xsd/qti/qtiv2p1/imsqti_v2p1.xsd"
+    identifier="rubric" title="Rubric" adaptive="false" timeDependent="false">
+    <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="string"/>
+    <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float"/>
+    <itemBody>
+        <rubricBlock view="candidate">
+            <p>Answer in one sentence.</p>
+        </rubricBlock>
+        <rubricBlock view="scorer tutor">Award one mark for any mention of rain.</rubricBlock>
+        <extendedTextInteraction responseIdentifier="RESPONSE">
+            <prompt>Why do rivers flood?</prompt>
+        </extendedTextInteraction>
+    </itemBody>
+</assessmentItem>

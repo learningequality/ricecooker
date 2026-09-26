@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p1 http://www.imsglobal.org/xsd/qti/qtiv2p1/imsqti_v2p1.xsd"
+    identifier="template" title="Template" adaptive="false" timeDependent="false">
+    <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="integer"/>
+    <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float"/>
+    <templateDeclaration identifier="A" cardinality="single" baseType="integer" mathVariable="true"/>
+    <templateDeclaration identifier="B" cardinality="single" baseType="integer" mathVariable="true"/>
+    <templateDeclaration identifier="SUM" cardinality="single" baseType="integer" mathVariable="true"/>
+    <templateDeclaration identifier="HINT" cardinality="single" baseType="identifier"/>
+    <templateProcessing>
+        <setTemplateValue identifier="A"><randomInteger min="1" max="9"/></setTemplateValue>
+        <setTemplateValue identifier="B"><randomInteger min="1" max="9"/></setTemplateValue>
+        <setTemplateValue identifier="SUM"><sum><variable identifier="A"/><variable identifier="B"/></sum></setTemplateValue>
+        <setTemplateValue identifier="HINT"><baseValue baseType="identifier">show</baseValue></setTemplateValue>
+        <templateConstraint><lt><variable identifier="SUM"/><baseValue baseType="integer">15</baseValue></lt></templateConstraint>
+        <setCorrectResponse identifier="RESPONSE"><variable identifier="SUM"/></setCorrectResponse>
+    </templateProcessing>
+    <itemBody>
+        <p>What is <printedVariable identifier="A"/> plus <printedVariable identifier="B"/>?
+            <textEntryInteraction responseIdentifier="RESPONSE" expectedLength="2"/>
+            <templateInline templateIdentifier="HINT" identifier="show" showHide="show">(A whole number.)</templateInline></p>
+        <templateBlock templateIdentifier="HINT" identifier="show" showHide="show">
+            <p>Count on from the larger number.</p>
+        </templateBlock>
+    </itemBody>
+    <responseProcessing template="http://www.imsglobal.org/question/qti_v2p1/rptemplates/match_correct"/>
+</assessmentItem>

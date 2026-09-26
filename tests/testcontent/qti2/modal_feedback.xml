@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p1 http://www.imsglobal.org/xsd/qti/qtiv2p1/imsqti_v2p1.xsd"
+    identifier="modal_feedback" title="Modal feedback" adaptive="false" timeDependent="false">
+    <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier">
+        <correctResponse><value>A</value></correctResponse>
+    </responseDeclaration>
+    <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float"/>
+    <outcomeDeclaration identifier="FEEDBACK" cardinality="single" baseType="identifier"/>
+    <itemBody>
+        <choiceInteraction responseIdentifier="RESPONSE" maxChoices="1">
+            <prompt>Is the Earth round?</prompt>
+            <simpleChoice identifier="A">Yes</simpleChoice>
+            <simpleChoice identifier="B">No</simpleChoice>
+        </choiceInteraction>
+    </itemBody>
+    <responseProcessing>
+        <responseCondition>
+            <responseIf>
+                <match><variable identifier="RESPONSE"/><correct identifier="RESPONSE"/></match>
+                <setOutcomeValue identifier="SCORE"><baseValue baseType="float">1</baseValue></setOutcomeValue>
+            </responseIf>
+        </responseCondition>
+        <setOutcomeValue identifier="FEEDBACK"><variable identifier="RESPONSE"/></setOutcomeValue>
+    </responseProcessing>
+    <modalFeedback outcomeIdentifier="FEEDBACK" identifier="A" showHide="show">Correct.</modalFeedback>
+    <modalFeedback outcomeIdentifier="FEEDBACK" identifier="B" showHide="show" title="Try again">
+        <p>It is an <em>oblate spheroid</em>.</p>
+    </modalFeedback>
+</assessmentItem>
