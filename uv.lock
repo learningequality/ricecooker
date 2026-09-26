@@ -107,6 +107,19 @@ css = [
 ]
 
 [[package]]
+name = "boxsdk"
+version = "10.15.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "requests" },
+    { name = "requests-toolbelt" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/49/f9/28c72cf61e3c2bbe5bc271d11e56384c8c1d5119aba3722cfbbf0f1e5772/boxsdk-10.15.0.tar.gz", hash = "sha256:18646c024a771751111ba8bab5209ab089a02ccdfeb9787cbda94558dc372804", size = 294708, upload-time = "2026-09-09T11:08:05.416Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/9c/e1/e1660680eeb3083207bbb3ad8c4b0d4b16bd1a940ce911cecf89e0efec37/boxsdk-10.15.0-py3-none-any.whl", hash = "sha256:578216025e2ad876efbe2ed3e8fe20a1bef8f3feed175ac8ff18af0e59fd02c9", size = 624762, upload-time = "2026-09-09T11:08:03.796Z" },
+]
+
+[[package]]
 name = "cachecontrol"
 version = "0.14.3"
 source = { registry = "https://pypi.org/simple" }
@@ -2206,6 +2219,9 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+box = [
+    { name = "boxsdk" },
+]
 google-drive = [
     { name = "google-api-python-client" },
     { name = "google-auth" },
@@ -2241,6 +2257,7 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "beautifulsoup4", specifier = ">=4.6.3,<4.9.0" },
+    { name = "boxsdk", marker = "extra == 'box'", specifier = ">=10" },
     { name = "cachecontrol", extras = ["filecache"], specifier = "==0.14.3" },
     { name = "chardet", specifier = "==5.2.0" },
     { name = "colorlog", specifier = ">=4.1.0,<6.13" },
@@ -2264,7 +2281,7 @@ requires-dist = [
     { name = "urllib3", specifier = "==2.6.3" },
     { name = "yt-dlp", specifier = ">=2024.12.23" },
 ]
-provides-extras = ["google-drive", "sentry"]
+provides-extras = ["google-drive", "box", "sentry"]
 
 [package.metadata.requires-dev]
 dev = [

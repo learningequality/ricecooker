@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 import pytest
 from le_utils.constants import format_presets
+from vcr_config import box_vcr
 from vcr_config import my_vcr
 
 from ricecooker import config
@@ -17,6 +18,7 @@ from ricecooker.utils.pipeline.context import FileMetadata
 from ricecooker.utils.pipeline.exceptions import InvalidFileException
 from ricecooker.utils.pipeline.file_handler import FileHandler
 from ricecooker.utils.pipeline.transfer import Base64FileHandler
+from ricecooker.utils.pipeline.transfer import BoxHandler
 from ricecooker.utils.pipeline.transfer import DiskResourceHandler
 from ricecooker.utils.pipeline.transfer import DownloadStageHandler
 from ricecooker.utils.pipeline.transfer import (
@@ -284,6 +286,55 @@ def test_gdrive_channel_spreadsheet(mock_google_creds):
     assert file_metadata is not None
     assert file_metadata[0].filename.endswith("xlsx")
     assert file_metadata[0].original_filename == "Channel spreadsheet"
+
+
+# Shared from https://app.box.com/s/d7wax7wg6bborzk8l0cjz9anws1ghsf6 on the Learning Equality Box account.
+# To re-record, delete the cassette and run with real BOX_CLIENT_ID, BOX_CLIENT_SECRET, and BOX_ENTERPRISE_ID.
+box_audio_link = "https://app.box.com/s/8nkrjotu27q6ol6ouaqb901dfdnbspym"
+
+
+@pytest.fixture
+def box_creds(monkeypatch):
+    if not os.environ.get("BOX_CLIENT_ID"):
+        for name in ("BOX_CLIENT_ID", "BOX_CLIENT_SECRET", "BOX_ENTERPRISE_ID"):
+            monkeypatch.setattr(config, name, "mock")
+
+
+@pytest.mark.parametrize(
+    "url, expected",
+    [
+        (box_audio_link, True),
+        ("https://acme.app.box.com/s/abc123", True),
+        ("https://acme.box.com/s/abc123", True),
+        ("https://app.box.com/folder/123", False),
+        ("https://www.dropbox.com/s/abc123/file.pdf", False),
+        ("https://xbox.com/s/abc123", False),
+        ("not-a-url", False),
+    ],
+)
+def test_box_should_handle(url, expected):
+    assert BoxHandler().should_handle(url) is expected
+
+
+@box_vcr.use_cassette
+def test_box_audio(box_creds):
+    result = FilePipeline().execute(box_audio_link, skip_cache=True)
+
+    assert result[0].preset == format_presets.AUDIO
+    assert result[0].original_filename == "audio_media_test.mp3"
+    assert result[0].duration
+
+
+def test_box_requires_credentials(monkeypatch):
+    monkeypatch.setattr(config, "BOX_CLIENT_ID", None)
+    with pytest.raises(RuntimeError, match="BOX_CLIENT_ID"):
+        BoxHandler().execute(box_audio_link, skip_cache=True)
+
+
+def test_box_requires_sdk():
+    with patch.dict("sys.modules", {"box_sdk_gen": None}):
+        with pytest.raises(RuntimeError, match=r"ricecooker\[box\]"):
+            BoxHandler().execute(box_audio_link, skip_cache=True)
 
 
 def test_disk_transfer_file_protocol():
