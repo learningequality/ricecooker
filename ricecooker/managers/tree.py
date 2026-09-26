@@ -8,6 +8,7 @@ from requests.exceptions import RequestException
 
 from ricecooker.exceptions import ChannelIncompleteError
 from ricecooker.exceptions import InvalidNodeException
+from ricecooker.utils.resumable_upload import resumable_upload
 
 from .. import config
 
@@ -212,6 +213,7 @@ class ChannelManager:
                 "file_format": file_data.extension,
                 "preset": file_data.get_preset(),
                 "duration": file_data.duration,
+                "resumable": True,
             }
             # Workaround for a bug in the Studio upload URL endpoint, whereby
             # it does not currently use the passed in file_format as the default
@@ -224,6 +226,16 @@ class ChannelManager:
                 raise InsufficientStorageException("You have run out of storage space.")
             if url_response.status_code == 200:
                 response_data = url_response.json()
+                if response_data.get("resumable"):
+                    if response_data.get("alreadyUploaded"):
+                        return
+                    resumable_upload(
+                        config.UPLOAD_SESSION,
+                        response_data["uploadURL"],
+                        file_obj,
+                        file_data.size,
+                    )
+                    return
                 upload_url = response_data["uploadURL"]
                 content_type = response_data["mimetype"]
                 might_skip = response_data["might_skip"]
