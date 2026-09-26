@@ -15,6 +15,7 @@ from ricecooker import __version__
 from ricecooker.exceptions import InvalidUsageException
 from ricecooker.exceptions import RemoteDriverError
 from ricecooker.exceptions import RemoteError
+from ricecooker.utils.remote.config import relative_script
 from ricecooker.utils.remote.config import resolve_profile
 from ricecooker.utils.remote.session import FINISHED
 from ricecooker.utils.remote.session import LIVE
@@ -30,6 +31,7 @@ from ricecooker.utils.remote.transport import VENV_DIR
 ENV_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 
 FILECACHE_DIR = ".ricecookerfilecache"
+STORAGE_DIR = ".ricecooker-storage"
 DEFAULT_VENV = ".default-venv"
 SOURCE_DIR = ".ricecooker-src"
 RELEASED_RICECOOKER = "ricecooker"
@@ -153,6 +155,10 @@ def filecache_dir(profile) -> str:
     return posixpath.join(profile.remote_root, FILECACHE_DIR)
 
 
+def storage_dir(profile) -> str:
+    return posixpath.join(profile.remote_root, STORAGE_DIR)
+
+
 def default_venv_dir(profile) -> str:
     return posixpath.join(profile.remote_root, DEFAULT_VENV)
 
@@ -234,18 +240,6 @@ def outlive_logout(transport) -> tuple:
     if result.returncode:
         raise RemoteDriverError(refusal + result.stderr)
     return SCOPE
-
-
-def script_argv(argv, chef_dir) -> list:
-    script = Path(argv[0]).resolve()
-    try:
-        relative = script.relative_to(Path(chef_dir).resolve())
-    except ValueError:
-        raise RemoteDriverError(
-            f"remote: {argv[0]} is outside the chef dir {chef_dir}; "
-            "only the chef dir is synced to the box."
-        )
-    return [relative.as_posix(), *argv[1:]]
 
 
 def plan_venv(profile, chef_dir, source_dir=None) -> Venv:
@@ -367,7 +361,11 @@ def _start(session, argv, env) -> None:
     transport.sync()
     if source is not None:
         sync_source(transport, source)
-    env = {"RICECOOKER_FILECACHE": filecache_dir(profile), **env}
+    env = {
+        "RICECOOKER_FILECACHE": filecache_dir(profile),
+        "RICECOOKER_STORAGE": storage_dir(profile),
+        **env,
+    }
     encoded = {k: base64.b64encode(v.encode()).decode() for k, v in env.items()}
     session.create(chef_command(session, venv, argv, env), encoded, launcher)
 
@@ -406,8 +404,8 @@ def run_remotely(
 ) -> int:
     chef_dir = Path.cwd() if chef_dir is None else Path(chef_dir)
     try:
-        profile = resolve_profile(remote, chef_dir, global_path)
-        argv = script_argv(argv, chef_dir)
+        profile = resolve_profile(argv[0], remote, chef_dir, global_path)
+        argv = [relative_script(argv[0], chef_dir), *argv[1:]]
         transport = Transport(profile, chef_dir, runner)
         preflight(transport)
         session = Session(transport)

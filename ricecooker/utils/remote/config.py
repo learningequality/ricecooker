@@ -88,7 +88,20 @@ def load_chef_config(chef_dir) -> ChefConfig:
     )
 
 
-def resolve_profile(remote=None, chef_dir=None, global_path=None) -> RemoteProfile:
+def relative_script(script, chef_dir) -> str:
+    try:
+        relative = Path(script).resolve().relative_to(Path(chef_dir).resolve())
+    except ValueError:
+        raise RemoteConfigError(
+            f"remote: {script} is outside the chef dir {chef_dir}; "
+            "only the chef dir is synced to the box."
+        )
+    return relative.as_posix()
+
+
+def resolve_profile(
+    script, remote=None, chef_dir=None, global_path=None
+) -> RemoteProfile:
     chef_dir = Path.cwd() if chef_dir is None else Path(chef_dir)
     global_path = DEFAULT_GLOBAL_CONFIG_PATH if global_path is None else global_path
 
@@ -114,10 +127,13 @@ def resolve_profile(remote=None, chef_dir=None, global_path=None) -> RemoteProfi
 
     host = gc.profiles[host_name]
     chef = load_chef_config(chef_dir)
+    script_name = (
+        relative_script(script, chef_dir).removesuffix(".py").replace("/", "-")
+    )
     return RemoteProfile(
         ssh=host.ssh,
         remote_root=host.remote_root,
-        name=chef.name,
+        name=f"{chef.name}-{script_name}",
         protect=chef.protect,
         exclude=chef.exclude,
         ricecooker_source=host.ricecooker_source,

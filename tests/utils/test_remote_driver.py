@@ -6,6 +6,10 @@ import os
 import shutil
 import subprocess
 import sys
+import threading
+from functools import partial
+from http.server import SimpleHTTPRequestHandler
+from http.server import ThreadingHTTPServer
 from pathlib import Path
 
 import pytest
@@ -22,7 +26,6 @@ from ricecooker.utils.remote.driver import plan_venv
 from ricecooker.utils.remote.driver import preflight
 from ricecooker.utils.remote.driver import REQUIRED_TOOLS
 from ricecooker.utils.remote.driver import run_remotely
-from ricecooker.utils.remote.driver import script_argv
 from ricecooker.utils.remote.driver import sync_source
 from ricecooker.utils.remote.session import LIVE
 from ricecooker.utils.remote.session import NOT_A_TTY
@@ -88,8 +91,8 @@ def make_profile(box, name="my-chef", **kwargs):
     )
 
 
-def write_chef(laptop, manifest=None, text=""):
-    (laptop / "chef.py").write_text(CHEF)
+def write_chef(laptop, manifest=None, text="", chef=CHEF):
+    (laptop / "chef.py").write_text(chef)
     if manifest:
         (laptop / manifest).write_text(text)
 
@@ -187,7 +190,7 @@ def test_missing_box_tool_fails_before_sync(box, laptop, monkeypatch, capsys, mi
     err = capsys.readouterr().err
     assert err.startswith("remote:")
     assert missing in err
-    assert not (box / "laptop").exists()
+    assert not (box / "laptop-chef").exists()
 
 
 @needs_sh
@@ -269,11 +272,6 @@ def test_script_outside_chef_dir_fails_before_contacting_box(tmp_path, laptop, c
     assert run_remotely_from(laptop, "/srv", script, runner=recorder) == 1
     assert capsys.readouterr().err.startswith("remote:")
     assert calls == []
-
-
-def test_script_path_is_made_relative_to_chef_dir(laptop):
-    argv = script_argv([str(laptop / "sub" / "chef.py"), "dryrun"], laptop)
-    assert argv == ["sub/chef.py", "dryrun"]
 
 
 def box_run(test):
@@ -379,7 +377,7 @@ def test_failed_venv_build_keeps_uv_output_and_skips_chef(box, laptop):
     assert "no-such-package-xyz" in log.read_text()
 
 
-TARGET = "=ricecooker-laptop:"
+TARGET = "=ricecooker-laptop-chef:"
 CLIENT = """
 import json, sys
 from ricecooker.utils.remote.driver import run_remotely
@@ -410,7 +408,7 @@ def kill_user_processes(logind):
 
 @pytest.fixture
 def chef_dir(box):
-    return box / "laptop"
+    return box / "laptop-chef"
 
 
 @pytest.fixture
@@ -419,9 +417,9 @@ def remote(box, laptop, spawn_in_pty):
     write_chef(laptop, "pyproject.toml", PYPROJECT)
     config = write_global_config(laptop.parent / "remote.toml", box)
 
-    def start(*args, env=None, term="xterm"):
+    def start(*args, env=None, term="xterm", script="chef.py", cwd=None):
         client = [sys.executable, "-c", CLIENT, str(config), json.dumps(env or {})]
-        return spawn_in_pty(client + ["chef.py", *args], cwd=laptop, term=term)
+        return spawn_in_pty(client + [script, *args], cwd=cwd or laptop, term=term)
 
     return start
 
@@ -442,6 +440,41 @@ def test_fresh_run_exits_with_chef_code_and_prints_logs(
     assert run["RICECOOKER_FILECACHE"] == str(box / ".ricecookerfilecache")
     assert run["argv"] == ["chef.py", "3"]
     assert "venv build failed" not in client.output
+
+
+DOWNLOAD_CHEF = """\
+import sys
+from ricecooker.utils.pipeline.transfer import CatchAllWebResourceDownloadHandler
+from ricecooker.utils.pipeline.transfer import DownloadStageHandler
+
+# Static download only: the HTML probe's HEAD would retry against the stopped origin.
+DownloadStageHandler(children=[CatchAllWebResourceDownloadHandler()]).execute(sys.argv[1])
+"""
+
+
+@lifecycle
+def test_chef_reuses_another_chefs_download_offline(laptop, remote, tmp_path):
+    origin = tmp_path / "origin"
+    origin.mkdir()
+    (origin / "doc.pdf").write_bytes(b"%PDF-1.4\n")
+    server = ThreadingHTTPServer(
+        ("127.0.0.1", 0), partial(SimpleHTTPRequestHandler, directory=str(origin))
+    )
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    url = f"http://127.0.0.1:{server.server_port}/doc.pdf"
+    # The box venv has no dependencies and uv is offline; this checkout stands in.
+    path = [str(Path(ricecooker.__file__).parents[1]), *sys.path]
+    env = {"PYTHONPATH": os.pathsep.join(path)}
+    chefs = [laptop.parent / name for name in ("dl1", "dl2")]
+    for chef in chefs:
+        chef.mkdir()
+        write_chef(chef, "pyproject.toml", PYPROJECT, chef=DOWNLOAD_CHEF)
+    try:
+        assert remote(url, env=env, cwd=chefs[0]).wait(timeout=90) == 0
+    finally:
+        server.shutdown()
+        server.server_close()
+    assert remote(url, env=env, cwd=chefs[1]).wait(timeout=90) == 0
 
 
 @lifecycle
@@ -477,6 +510,24 @@ def test_live_session_is_attached_without_restart_or_sync(
 
 
 @lifecycle
+def test_scripts_in_one_chef_dir_run_concurrently_in_own_sessions(
+    box, laptop, remote, wait_until
+):
+    for s in "ab":
+        (laptop / "scripts" / s).mkdir(parents=True)
+        (laptop / "scripts" / s / "chef.py").write_text(CHEF)
+    a_dir, b_dir = (box / f"laptop-scripts-{s}-chef" for s in "ab")
+    a = remote("3", "wait", script="scripts/a/chef.py")
+    assert wait_until(lambda: seen(a_dir), timeout=30)
+    b = remote("5", "wait", script="scripts/b/chef.py")
+    assert wait_until(lambda: seen(b_dir), timeout=30)
+    for d in (a_dir, b_dir):
+        (d / "go").touch()
+    assert (a.wait(), b.wait()) == (3, 5)
+    assert "already running" not in b.output
+
+
+@lifecycle
 @pytest.mark.usefixtures("kill_user_processes")
 def test_detach_exits_zero_with_reattach_hint(box, remote, wait_until):
     client = remote("0", "wait")
@@ -484,7 +535,7 @@ def test_detach_exits_zero_with_reattach_hint(box, remote, wait_until):
     tmux("detach-client", "-s", TARGET)
     assert client.wait() == 0
     assert "--remote" in client.output
-    session = Session(Transport(make_profile(box, "laptop")))
+    session = Session(Transport(make_profile(box, "laptop-chef")))
     assert session.status().state == LIVE
 
 
@@ -591,7 +642,7 @@ def test_run_refused_before_sync_when_linger_cannot_be_enabled(
     (logind / "deny").touch()
     assert run_remotely_from(laptop, box) == 1
     assert "sudo loginctl enable-linger" in capsys.readouterr().err
-    assert not (box / "laptop").exists()
+    assert not (box / "laptop-chef").exists()
 
 
 @needs_sh
@@ -604,7 +655,7 @@ def test_default_venv_rebuild_refused_while_another_chef_under_root_runs(
     # Not a terminal: a started run returns instead of attaching.
     monkeypatch.setattr(sys, "stdin", io.StringIO())
     write_chef(laptop)
-    digest = plan_venv(make_profile(box, "laptop"), laptop).digest
+    digest = plan_venv(make_profile(box, "laptop-chef"), laptop).digest
     digest_file = box / ".default-venv" / ".ricecooker-digest"
     digest_file.parent.mkdir()
     digest_file.write_text(f"{digest if same_digest else 'old'}\n")
@@ -652,11 +703,15 @@ def test_e2e_real_chef_on_localhost_box(tmp_path, laptop, spawn_in_pty, source):
         assert run.wait(timeout=600) == 0
         assert "e2e-ran" in run.output
         if source:
-            ran = json.loads((root / "laptop" / "chefdata" / "e2e.json").read_text())
+            ran = json.loads(
+                (root / "laptop-chef" / "chefdata" / "e2e.json").read_text()
+            )
             source_dir = (root / ".ricecooker-src").resolve()
             assert Path(ran["file"]).resolve().is_relative_to(source_dir)
             assert ran["version"] == ricecooker.__version__
-        assert list((root / "laptop" / "logs").glob("*.log"))
+        assert list((root / "laptop-chef" / "logs").glob("*.log"))
     finally:
-        profile = resolve_profile(chef_dir=laptop, global_path=config)
+        profile = resolve_profile(
+            laptop / "chef.py", chef_dir=laptop, global_path=config
+        )
         Session(Transport(profile)).kill()

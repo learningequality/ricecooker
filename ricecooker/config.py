@@ -395,8 +395,7 @@ def get_storage_path(filename):
         os.path.join(STORAGE_DIRECTORY, filename[0], filename[1])
     )
     # Make storage directory for downloaded files if it doesn't already exist
-    if not os.path.exists(directory):
-        os.makedirs(directory)
+    os.makedirs(directory, exist_ok=True)
     return os.path.join(directory, filename)
 
 

@@ -43,14 +43,18 @@ are refused until an admin runs, once:
 
 Per-chef config
 ---------------
+Each chef script gets its own box dir under `remote_root`, tmux session and venv, named
+`<name>-<script path>` with `.py` dropped and `/` as `-`: from `library/`,
+`scripts/a/chef.py` is `library-scripts-a-chef`.
+
 An optional `.ricecooker-remote.toml` in the chef dir:
 
-    name = "my-chef"            # box dir under remote_root; defaults to the chef dir's name
+    name = "my-chef"            # first part of each script's name; defaults to the chef dir's name
     protect = ["/data/"]        # never deleted on the box; a laptop copy still overwrites it
     exclude = ["/scratch/"]     # never uploaded
 
 Files matched by `.gitignore` are skipped. `.venv`, `.ricecooker-remote`, `storage`,
-`restore`, `chefdata` and `logs` never sync; fetch them with `remote pull`.
+`restore`, `chefdata` and `logs` never sync; fetch all but `storage` with `remote pull`.
 
 
 Running a chef
@@ -68,11 +72,12 @@ Run from the chef dir; the cwd is what syncs, and a chef script outside it is re
     ricecooker. It is rebuilt only when that manifest changes.
   - A start that would rebuild `.default-venv` or re-sync `.ricecooker-src` is refused
     while another chef under `remote_root` runs.
-  - Each chef has one run at a time: re-running while it is live attaches instead.
+  - Each script has one run at a time: re-running while it is live attaches instead.
   - Detach with `Ctrl-b d`; `Ctrl-C` interrupts the chef.
   - A laptop `TERM` the box has no terminfo for (e.g. Ghostty's `xterm-ghostty`) attaches as `xterm-256color`.
   - The client prints the log paths and exits with the chef's exit code, or 0 on detach.
-  - All chefs on a box share the file cache at `<remote_root>/.ricecookerfilecache`.
+  - All chefs on a box share the file cache at `<remote_root>/.ricecookerfilecache` and downloads
+    at `<remote_root>/.ricecooker-storage`, so a file one chef downloaded is reused by the others without a fetch.
 
 
 `remote` subcommands
@@ -80,10 +85,10 @@ Run from the chef dir; the cwd is what syncs, and a chef script outside it is re
 Run as `python chef.py remote <command>`; `remote` must be the first argument.
 Every command takes `--remote NAME`.
 
-  - `attach`: attach to the chef's session.
-  - `sync`: sync the chef dir; refused while a run is live.
-  - `pull <remote-path> [dest]`: copy a path relative to the box's chef dir to `dest` (default `.`).
-  - `shell`: open a login shell in the box's chef dir.
-  - `cache info`: show the shared file cache's path, entry count and size.
-  - `cache clear`: delete the shared file cache; refused while any chef under `remote_root` runs.
+  - `attach`: attach to the script's session.
+  - `sync`: sync the chef dir to the script's box dir; refused while a run is live.
+  - `pull <remote-path> [dest]`: copy a path relative to the script's box dir to `dest` (default `.`).
+  - `shell`: open a login shell in the script's box dir.
+  - `cache info`: show the shared file cache's and storage's paths, entry counts and sizes.
+  - `cache clear`: delete the shared file cache and storage; refused while any chef under `remote_root` runs.
   - `doctor`: report which box dependencies are missing, whether `remote-env` is readable by other users, whether the chef runs in the shared default venv, and whether runs would die at logout.

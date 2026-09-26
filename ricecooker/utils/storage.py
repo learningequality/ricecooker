@@ -1,5 +1,7 @@
 import hashlib
+import os
 import shutil
+import tempfile
 
 from ricecooker import config
 from ricecooker.utils.paths import extract_path_ext
@@ -23,9 +25,20 @@ def copy_file_to_storage(srcfilename, ext=None):
 
     hash = get_hash(srcfilename)
     filename = "{}.{}".format(hash, ext)
-    try:
-        shutil.copy(srcfilename, config.get_storage_path(filename))
-    except shutil.SameFileError:
+    dest = config.get_storage_path(filename)
+    # The name is the content hash, so an existing file is already right;
+    # replacing one another thread holds open fails on Windows.
+    if os.path.exists(dest):
         return filename
-
+    # Write-then-rename: chefs sharing storage may read a file while another stores it.
+    fd, tmp = tempfile.mkstemp(
+        dir=os.path.dirname(dest), prefix=filename, suffix=".tmp"
+    )
+    os.close(fd)
+    try:
+        shutil.copy(srcfilename, tmp)
+        os.replace(tmp, dest)
+    finally:
+        if os.path.exists(tmp):
+            os.remove(tmp)
     return filename
