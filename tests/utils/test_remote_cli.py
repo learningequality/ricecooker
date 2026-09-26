@@ -21,7 +21,9 @@ from ricecooker.utils.remote.transport import RunResult
 
 def run_cli(laptop, root, *argv, **kwargs):
     config = write_global_config(laptop.parent / "remote.toml", root)
-    return run_remote_command(list(argv), chef_dir=laptop, global_path=config, **kwargs)
+    return run_remote_command(
+        list(argv), laptop / "chef.py", chef_dir=laptop, global_path=config, **kwargs
+    )
 
 
 @needs_sh
@@ -29,10 +31,11 @@ def test_cache_info_counts_entries_not_locks(box, laptop, capsys):
     entry_dir = box / ".ricecookerfilecache" / "a" / "b" / "c" / "d" / "e"
     for name in ("abcde1", "abcde1.lock", "abcde2"):
         write(entry_dir / name)
+    write(box / ".ricecooker-storage" / "a" / "b" / "ab1.pdf")
     assert run_cli(laptop, box, "cache", "info") == 0
-    lines = capsys.readouterr().out.splitlines()
-    assert f"path: {box}/.ricecookerfilecache" in lines
-    assert "entries: 2" in lines
+    out = capsys.readouterr().out
+    assert f"{box}/.ricecookerfilecache: 2 entries," in out
+    assert f"{box}/.ricecooker-storage: 1 entries," in out
 
 
 @needs_sh
@@ -45,20 +48,25 @@ def test_cache_commands_use_selected_profile(box, laptop, capsys, extra, selecte
         f'[b]\nssh = "box"\nremote_root = "{box}/b"\n'
     )
     argv = ["cache", "info", *extra]
-    assert run_remote_command(argv, chef_dir=laptop, global_path=config) == 0
+    code = run_remote_command(argv, laptop / "chef.py", laptop, global_path=config)
+    assert code == 0
     out = capsys.readouterr().out.splitlines()
-    assert f"path: {box}/{selected}/.ricecookerfilecache" in out
+    assert out[0].startswith(f"{box}/{selected}/.ricecookerfilecache: ")
 
 
 @needs_sh
 @pytest.mark.usefixtures("tmux_server")
-def test_cache_clear_empties_only_the_shared_cache(box, laptop, capsys):
+def test_cache_clear_empties_shared_cache_and_storage_only(box, laptop, capsys):
     write(box / ".ricecookerfilecache" / "a" / "entry")
-    keep = box / "my-chef" / "storage" / "keep"
+    write(box / ".ricecooker-storage" / "a" / "b" / "ab1.pdf")
+    keep = box / "my-chef" / "chefdata" / "keep"
     write(keep)
     assert run_cli(laptop, box, "cache", "clear") == 0
+    capsys.readouterr()
     assert run_cli(laptop, box, "cache", "info") == 0
-    assert "entries: 0" in capsys.readouterr().out.splitlines()
+    out = capsys.readouterr().out
+    assert f"{box}/.ricecookerfilecache: 0 entries," in out
+    assert f"{box}/.ricecooker-storage: 0 entries," in out
     assert keep.exists()
 
 
@@ -69,12 +77,15 @@ def test_cache_clear_refuses_while_any_chef_under_root_runs(
     box, laptop, capsys, other_root, refused
 ):
     entry = box / ".ricecookerfilecache" / "a" / "entry"
-    write(entry)
+    stored = box / ".ricecooker-storage" / "a" / "b" / "ab1.pdf"
+    for path in (entry, stored):
+        write(path)
     root = box / "other-root" if other_root else box
     root.mkdir(exist_ok=True)
     make_session(root, "other-chef").create(["sleep", "30"])
     assert run_cli(laptop, box, "cache", "clear") == (1 if refused else 0)
     assert entry.exists() == refused
+    assert stored.exists() == refused
     if refused:
         err = capsys.readouterr().err
         assert err.startswith("remote: other-chef running")
@@ -98,7 +109,7 @@ def test_unreachable_box_fails_with_ssh_stderr(laptop, capsys):
 def test_sync_uploads_chef_dir_to_fresh_box(box, laptop):
     write(laptop / "chef.py")
     assert run_cli(laptop, box / "fresh" / "root", "sync") == 0
-    assert (box / "fresh" / "root" / "laptop" / "chef.py").exists()
+    assert (box / "fresh" / "root" / "laptop-chef" / "chef.py").exists()
 
 
 @needs_sh
@@ -106,11 +117,11 @@ def test_sync_uploads_chef_dir_to_fresh_box(box, laptop):
 @pytest.mark.usefixtures("gnu_rsync", "tmux_server")
 def test_sync_refuses_while_chef_runs(box, laptop, capsys):
     write(laptop / "chef.py", "new")
-    write(box / "laptop" / "chef.py", "old")
-    make_session(box, "laptop").create(["sleep", "30"])
+    write(box / "laptop-chef" / "chef.py", "old")
+    make_session(box, "laptop-chef").create(["sleep", "30"])
     assert run_cli(laptop, box, "sync") == 1
     assert capsys.readouterr().err.startswith("remote:")
-    assert (box / "laptop" / "chef.py").read_text() == "old"
+    assert (box / "laptop-chef" / "chef.py").read_text() == "old"
 
 
 @pytest.mark.usefixtures("gnu_rsync")
@@ -118,7 +129,7 @@ def test_sync_refuses_while_chef_runs(box, laptop, capsys):
 def test_pull_fetches_path_relative_to_chef_dir(
     box, laptop, tmp_path, monkeypatch, explicit_dest
 ):
-    write(box / "laptop" / "chefdata" / "trees" / "a.json", "tree")
+    write(box / "laptop-chef" / "chefdata" / "trees" / "a.json", "tree")
     out = tmp_path / "out"
     out.mkdir()
     if explicit_dest:
@@ -132,9 +143,9 @@ def test_pull_fetches_path_relative_to_chef_dir(
 
 @pytest.mark.usefixtures("gnu_rsync")
 def test_pull_with_trailing_slash_copies_contents(box, laptop, tmp_path):
-    write(box / "laptop" / "storage" / "a.zip", "zip")
+    write(box / "laptop-chef" / "logs" / "a.zip", "zip")
     out = tmp_path / "out"
-    assert run_cli(laptop, box, "pull", "storage/", str(out)) == 0
+    assert run_cli(laptop, box, "pull", "logs/", str(out)) == 0
     assert (out / "a.zip").read_text() == "zip"
 
 
@@ -152,7 +163,7 @@ def test_pull_of_missing_path_fails_with_rsync_stderr(box, laptop, tmp_path, cap
 )
 def test_pull_refuses_path_outside_chef_dir(box, laptop, tmp_path, capsys, remote_path):
     write(box / "secret", "secret")
-    (box / "laptop").mkdir()
+    (box / "laptop-chef").mkdir()
     out = tmp_path / "out"
     out.mkdir()
     assert run_cli(laptop, box, "pull", remote_path.format(box=box), str(out)) == 1
@@ -163,13 +174,13 @@ def test_pull_refuses_path_outside_chef_dir(box, laptop, tmp_path, capsys, remot
 CLI = """
 import sys
 from ricecooker.utils.remote.cli import run_remote_command
-sys.exit(run_remote_command(sys.argv[2:], global_path=sys.argv[1]))
+sys.exit(run_remote_command(sys.argv[3:], sys.argv[2], global_path=sys.argv[1]))
 """
 
 
-def cli_argv(laptop, root, *argv):
+def cli_argv(laptop, root, *argv, script="chef.py"):
     config = write_global_config(laptop.parent / "remote.toml", root)
-    return [sys.executable, "-c", CLI, str(config), *argv]
+    return [sys.executable, "-c", CLI, str(config), script, *argv]
 
 
 @needs_sh
@@ -177,7 +188,8 @@ def cli_argv(laptop, root, *argv):
 def test_shell_opens_in_remote_chef_dir(box, laptop, tmp_path, monkeypatch, name):
     if name != "laptop":
         (laptop / ".ricecooker-remote.toml").write_text(f'name = "{name}"\n')
-    (box / name).mkdir()
+    box_dir = box / f"{name}-chef"
+    box_dir.mkdir()
     home = tmp_path / "home"
     home.mkdir()
     monkeypatch.setenv("SHELL", "/bin/sh")
@@ -190,8 +202,8 @@ def test_shell_opens_in_remote_chef_dir(box, laptop, tmp_path, monkeypatch, name
         capture_output=True,
     )
     assert result.returncode == 7, result.stderr
-    where = (box / name / "where").read_text().strip()
-    assert Path(where).resolve() == (box / name).resolve()
+    where = (box_dir / "where").read_text().strip()
+    assert Path(where).resolve() == box_dir.resolve()
 
 
 @pytest.mark.usefixtures("tmux_server")
@@ -201,14 +213,24 @@ def test_shell_opens_in_remote_chef_dir(box, laptop, tmp_path, monkeypatch, name
 def test_attach_joins_live_session_and_exits_with_chef_code(
     box, laptop, spawn_in_pty, wait_until, term, attached_as
 ):
-    make_session(box, "laptop").create(
+    make_session(box, "laptop-chef").create(
         ["sh", "-c", "until [ -e go ]; do sleep 0.1; done; exit 3"]
     )
     client = spawn_in_pty(cli_argv(laptop, box, "attach"), cwd=laptop, term=term)
     assert wait_until(lambda: attached_clients() > 0)
     assert client_terms() == [attached_as]
-    (box / "laptop" / "go").touch()
+    (box / "laptop-chef" / "go").touch()
     assert client.wait() == 3
+
+
+@pytest.mark.usefixtures("tmux_server")
+def test_attach_joins_the_scripts_own_session(box, laptop, spawn_in_pty):
+    for s, code in (("a", 3), ("b", 5)):
+        make_session(box, f"laptop-scripts-{s}-chef").create(
+            ["sh", "-c", f"exit {code}"]
+        )
+    argv = cli_argv(laptop, box, "attach", script="scripts/b/chef.py")
+    assert spawn_in_pty(argv, cwd=laptop).wait() == 5
 
 
 @pytest.mark.usefixtures("tmux_server")
@@ -299,7 +321,9 @@ def test_doctor_reports_shared_default_venv(
     config = write_global_config(laptop.parent / "remote.toml", box)
     if source:
         config.write_text(config.read_text() + f'ricecooker_source = "{source}"\n')
-    run_remote_command(["doctor"], chef_dir=laptop, global_path=config)
+    run_remote_command(
+        ["doctor"], laptop / "chef.py", chef_dir=laptop, global_path=config
+    )
     assert (str(box / ".default-venv") in capsys.readouterr().out) == shared
 
 
@@ -339,8 +363,23 @@ def run_chef(*argv, cwd):
 def test_chef_script_runs_remote_before_its_own_parser(box, laptop, chef_script):
     result = run_chef("chef.py", "remote", "cache", "info", cwd=laptop)
     assert result.returncode == 0, result.stderr
-    assert f"path: {box}/.ricecookerfilecache" in result.stdout.splitlines()
+    assert result.stdout.startswith(f"{box}/.ricecookerfilecache: ")
     assert not (laptop / "ran").exists()
+
+
+@pytest.mark.usefixtures("gnu_rsync")
+def test_chef_script_remote_pull_reads_its_own_box_dir(
+    box, laptop, tmp_path, chef_script
+):
+    for s in "ab":
+        write(laptop / "scripts" / s / "chef.py", CHEF)
+        write(box / f"laptop-scripts-{s}-chef" / "chefdata" / "who", s)
+    out = tmp_path / "out"
+    out.mkdir()
+    argv = ["scripts/b/chef.py", "remote", "pull", "chefdata/who", str(out)]
+    result = run_chef(*argv, cwd=laptop)
+    assert result.returncode == 0, result.stderr
+    assert (out / "who").read_text() == "b"
 
 
 @needs_sh

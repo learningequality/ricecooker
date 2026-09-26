@@ -17,7 +17,7 @@ from ricecooker.utils.remote.driver import LOOSE_BOX_ENV
 from ricecooker.utils.remote.driver import MISSING_TOOLS
 from ricecooker.utils.remote.driver import preflight
 from ricecooker.utils.remote.driver import REQUIRED_TOOLS
-from ricecooker.utils.remote.driver import script_argv
+from ricecooker.utils.remote.driver import storage_dir
 from ricecooker.utils.remote.driver import uses_default_venv
 from ricecooker.utils.remote.session import LIVE
 from ricecooker.utils.remote.session import live_chefs
@@ -27,11 +27,12 @@ from ricecooker.utils.remote.transport import remote_chef_dir
 from ricecooker.utils.remote.transport import subprocess_runner
 from ricecooker.utils.remote.transport import Transport
 
-# sh -c script; $1: shared file cache. Prints "<entries> <KiB>".
+# sh -c script; args: shared dirs. Prints "<entries> <KiB>" per dir.
 # filelock < 3.21 leaves a .lock beside every entry.
 CACHE_INFO = (
-    '[ -d "$1" ] || { echo 0 0; exit; }; '
-    'echo "$(find "$1" -type f ! -name "*.lock" | wc -l) $(du -sk "$1" | cut -f1)"'
+    'for d; do [ -d "$d" ] || { echo 0 0; continue; }; '
+    'echo "$(find "$d" -type f ! -name "*.lock" | wc -l) $(du -sk "$d" | cut -f1)"; '
+    "done"
 )
 
 # sh -c script. Exits 0 only if polkit lets this user enable their own linger;
@@ -64,25 +65,32 @@ def _ssh(transport, *argv, ok=(0,)):
     return result
 
 
+def _shared_dirs(profile):
+    return [filecache_dir(profile), storage_dir(profile)]
+
+
 def cache_info(transport, args) -> int:
-    path = filecache_dir(transport.profile)
+    paths = _shared_dirs(transport.profile)
+    out = _ssh(transport, "sh", "-c", CACHE_INFO, "sh", *paths).stdout
     # wc -l pads its count on macOS.
-    entries, size = _ssh(transport, "sh", "-c", CACHE_INFO, "sh", path).stdout.split()
-    print(f"path: {path}\nentries: {entries}\nsize: {size} KiB")
+    for path, line in zip(paths, out.splitlines()):
+        entries, size = line.split()
+        print(f"{path}: {entries} entries, {size} KiB")
     return 0
 
 
 def cache_clear(transport, args) -> int:
     profile = transport.profile
-    path = filecache_dir(profile)
+    paths = _shared_dirs(profile)
     running = live_chefs(transport)
     if running:
         raise RemoteCliError(
             f"remote: {', '.join(running)} running on {profile.ssh} under "
             f"{profile.remote_root}; not clearing the cache they share."
         )
-    _ssh(transport, "rm", "-rf", path)
-    print(f"cleared {path}")
+    _ssh(transport, "rm", "-rf", *paths)
+    for path in paths:
+        print(f"cleared {path}")
     return 0
 
 
@@ -188,15 +196,13 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def run_remote_command(
-    argv, chef_dir=None, runner=subprocess_runner, global_path=None, script=None
+    argv, script, chef_dir=None, runner=subprocess_runner, global_path=None
 ) -> int:
     args = build_parser().parse_args(argv)
     chef_dir = Path.cwd() if chef_dir is None else Path(chef_dir)
     try:
-        if script is not None:
-            # Refuses a script outside the chef dir, as --remote does.
-            script_argv([script], chef_dir)
-        profile = resolve_profile(args.remote, chef_dir, global_path)
+        # Refuses a script outside the chef dir, as --remote does.
+        profile = resolve_profile(script, args.remote, chef_dir, global_path)
         transport = Transport(profile, chef_dir, runner)
         return args.func(transport, args)
     except RemoteError as e:

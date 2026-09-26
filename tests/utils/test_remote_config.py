@@ -77,9 +77,31 @@ def test_remote_arg_beats_default(tmp_path):
     )
     chef = tmp_path / "chef"
     chef.mkdir()
-    prof = resolve_profile(remote="box2", chef_dir=chef, global_path=gp)
+    prof = resolve_profile(
+        chef / "chef.py", remote="box2", chef_dir=chef, global_path=gp
+    )
     assert (prof.ssh, prof.remote_root) == ("b", "/two")
-    assert prof.name == "chef"
+    assert prof.name == "chef-chef"
+
+
+@pytest.mark.parametrize(
+    "script, name",
+    [
+        ("chef.py", "library-chef"),
+        ("sushichef.py", "library-sushichef"),
+        ("scripts/a/chef.py", "library-scripts-a-chef"),
+        ("./scripts/a/chef.py", "library-scripts-a-chef"),
+        ("{chef}/scripts/a/chef.py", "library-scripts-a-chef"),
+    ],
+)
+def test_name_is_chef_dir_name_then_script_path(tmp_path, monkeypatch, script, name):
+    gp = tmp_path / "remote.toml"
+    gp.write_text('default = "box1"\n[box1]\nssh = "a"\nremote_root = "/one"\n')
+    chef = tmp_path / "library"
+    chef.mkdir()
+    monkeypatch.chdir(chef)
+    prof = resolve_profile(script.format(chef=chef), global_path=gp)
+    assert prof.name == name
 
 
 def test_falls_back_to_global_default(tmp_path):
@@ -87,7 +109,7 @@ def test_falls_back_to_global_default(tmp_path):
     gp.write_text('default = "box1"\n[box1]\nssh = "a"\nremote_root = "/one"\n')
     chef = tmp_path / "chef"
     chef.mkdir()
-    prof = resolve_profile(chef_dir=chef, global_path=gp)
+    prof = resolve_profile(chef / "chef.py", chef_dir=chef, global_path=gp)
     assert prof.ssh == "a"
 
 
@@ -99,8 +121,9 @@ def test_resolved_profile_carries_chef_settings(tmp_path):
     (chef / CHEF_CONFIG_FILENAME).write_text(
         'name = "cn"\nprotect = ["secret"]\nexclude = ["*.tmp"]\n'
     )
-    prof = resolve_profile(chef_dir=chef, global_path=gp)
-    assert prof.name == "cn"
+    script = chef / "scripts" / "a" / "chef.py"
+    prof = resolve_profile(script, chef_dir=chef, global_path=gp)
+    assert prof.name == "cn-scripts-a-chef"
     assert prof.protect == ["secret"]
     assert prof.exclude == ["*.tmp"]
 
@@ -113,8 +136,12 @@ def test_ricecooker_source_comes_from_host_profile(tmp_path):
     )
     chef = tmp_path / "chef"
     chef.mkdir()
-    one = resolve_profile(remote="box1", chef_dir=chef, global_path=gp)
-    two = resolve_profile(remote="box2", chef_dir=chef, global_path=gp)
+    one = resolve_profile(
+        chef / "chef.py", remote="box1", chef_dir=chef, global_path=gp
+    )
+    two = resolve_profile(
+        chef / "chef.py", remote="box2", chef_dir=chef, global_path=gp
+    )
     assert one.ricecooker_source == "local"
     assert two.ricecooker_source is None
 
@@ -125,7 +152,9 @@ def test_unknown_ricecooker_source_raises(tmp_path):
         '[box1]\nssh = "a"\nremote_root = "/one"\nricecooker_source = "git"\n'
     )
     with pytest.raises(RemoteConfigError) as exc:
-        resolve_profile(remote="box1", chef_dir=tmp_path, global_path=gp)
+        resolve_profile(
+            tmp_path / "chef.py", remote="box1", chef_dir=tmp_path, global_path=gp
+        )
     msg = str(exc.value)
     assert msg.startswith("remote:")
     assert "ricecooker_source" in msg
@@ -135,7 +164,7 @@ def test_no_profile_configured_raises_with_example(tmp_path):
     gp = tmp_path / "remote.toml"
     gp.write_text("")  # no default, no profiles
     with pytest.raises(RemoteConfigError) as exc:
-        resolve_profile(chef_dir=tmp_path, global_path=gp)
+        resolve_profile(tmp_path / "chef.py", chef_dir=tmp_path, global_path=gp)
     msg = str(exc.value)
     assert msg.startswith("remote:")
     assert "remote_root" in msg and "ssh" in msg
@@ -145,7 +174,9 @@ def test_unknown_remote_names_missing_profile(tmp_path):
     gp = tmp_path / "remote.toml"
     gp.write_text('[box1]\nssh = "a"\nremote_root = "/one"\n')
     with pytest.raises(RemoteConfigError) as exc:
-        resolve_profile(remote="ghost", chef_dir=tmp_path, global_path=gp)
+        resolve_profile(
+            tmp_path / "chef.py", remote="ghost", chef_dir=tmp_path, global_path=gp
+        )
     msg = str(exc.value)
     assert msg.startswith("remote:")
     assert "ghost" in msg
@@ -156,5 +187,5 @@ def test_profiles_defined_but_no_default_raises(tmp_path):
     gp = tmp_path / "remote.toml"
     gp.write_text('[box1]\nssh = "a"\nremote_root = "/one"\n')
     with pytest.raises(RemoteConfigError) as exc:
-        resolve_profile(chef_dir=tmp_path, global_path=gp)
+        resolve_profile(tmp_path / "chef.py", chef_dir=tmp_path, global_path=gp)
     assert str(exc.value).startswith("remote:")
