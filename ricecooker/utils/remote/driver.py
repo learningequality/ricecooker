@@ -65,7 +65,7 @@ SCOPE = ("systemd-run", "--user", "--scope")
 
 # sh -c script; args: <bookkeeping dir> <venv> <digest> <build> <names> <chef argv...>.
 # Box-owned env first, then the session env (client --env/--env-pass/token) over it.
-# Session env values are base64: tmux 3.4 stores a `$` in a command argument as `\$`.
+# Session env values are base64: $(tmux show-environment) would strip trailing newlines.
 # The trailing x keeps a value's trailing newlines from $(...).
 # venv.log survives only this run's failed build; the driver prints its tail.
 # chef-started exists only once this run's chef starts.

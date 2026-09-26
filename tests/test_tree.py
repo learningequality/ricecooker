@@ -10,6 +10,7 @@ from unittest.mock import mock_open
 from unittest.mock import patch
 
 import pytest
+import requests
 from conftest import sample_path
 from le_utils.constants import content_kinds
 from le_utils.constants import file_types
@@ -1717,3 +1718,17 @@ def test_create_initial_tree_deduplicates_reused_node(channel, document):
     t1, t2 = _place_under_two_topics(channel, document)
     create_initial_tree(channel)
     assert t1.children[0].get_node_id() != t2.children[0].get_node_id()
+
+
+def test_rejected_studio_token_exits_nonzero():
+    from ricecooker.commands import authenticate_user
+
+    rejected = requests.Response()
+    rejected.status_code = 401
+    with (
+        patch.dict(config.SESSION.headers),
+        patch("ricecooker.config.SESSION.post", return_value=rejected),
+    ):
+        with pytest.raises(SystemExit) as exited:
+            authenticate_user("bad-token")
+    assert exited.value.code not in (None, 0)

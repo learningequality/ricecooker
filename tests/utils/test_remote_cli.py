@@ -6,6 +6,7 @@ import pytest
 from test_remote_driver import attached_clients
 from test_remote_driver import box_tools
 from test_remote_driver import box_user
+from test_remote_driver import client_terms
 from test_remote_driver import KILL
 from test_remote_driver import needs_sh
 from test_remote_driver import needs_uv
@@ -82,7 +83,7 @@ def test_cache_clear_refuses_while_any_chef_under_root_runs(
 def test_unreachable_box_fails_with_ssh_stderr(laptop, capsys):
     ssh_error = "ssh: connect to host box port 22: Connection refused\n"
 
-    def unreachable(argv, capture):
+    def unreachable(argv, capture, input=None):
         return RunResult(255, stderr=ssh_error)
 
     assert run_cli(laptop, "/srv", "cache", "info", runner=unreachable) == 1
@@ -194,14 +195,18 @@ def test_shell_opens_in_remote_chef_dir(box, laptop, tmp_path, monkeypatch, name
 
 
 @pytest.mark.usefixtures("tmux_server")
+@pytest.mark.parametrize(
+    "term, attached_as", [("xterm", "xterm"), ("rc-no-such-term", "xterm-256color")]
+)
 def test_attach_joins_live_session_and_exits_with_chef_code(
-    box, laptop, spawn_in_pty, wait_until
+    box, laptop, spawn_in_pty, wait_until, term, attached_as
 ):
     make_session(box, "laptop").create(
         ["sh", "-c", "until [ -e go ]; do sleep 0.1; done; exit 3"]
     )
-    client = spawn_in_pty(cli_argv(laptop, box, "attach"), cwd=laptop)
+    client = spawn_in_pty(cli_argv(laptop, box, "attach"), cwd=laptop, term=term)
     assert wait_until(lambda: attached_clients() > 0)
+    assert client_terms() == [attached_as]
     (box / "laptop" / "go").touch()
     assert client.wait() == 3
 

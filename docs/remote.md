@@ -21,7 +21,7 @@ Add a profile per box to `~/.config/ricecooker/remote.toml`:
 
 Box setup
 ---------
-The box needs `rsync`, `uv`, `tmux`, `base64`, and the chef's own dependencies
+The box needs `rsync`, `uv`, `tmux` 3.1+, `base64`, and the chef's own dependencies
 (see [Installation](installation.md)).
 
 Box secrets go in `~/.config/ricecooker/remote-env` on the box as `KEY=VALUE` lines,
@@ -70,6 +70,7 @@ Run from the chef dir; the cwd is what syncs, and a chef script outside it is re
     while another chef under `remote_root` runs.
   - Each chef has one run at a time: re-running while it is live attaches instead.
   - Detach with `Ctrl-b d`; `Ctrl-C` interrupts the chef.
+  - A laptop `TERM` the box has no terminfo for (e.g. Ghostty's `xterm-ghostty`) attaches as `xterm-256color`.
   - The client prints the log paths and exits with the chef's exit code, or 0 on detach.
   - All chefs on a box share the file cache at `<remote_root>/.ricecookerfilecache`.
 

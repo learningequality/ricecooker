@@ -29,6 +29,10 @@ RECORD_EXIT = (
     'tmux detach-client -s "$t" 2>/dev/null; exit $rc'
 )
 
+# sh -c script; args: <command...>. ssh -t sends the laptop's TERM, and tmux
+# won't attach under one the box has no terminfo for.
+KNOWN_TERM = 'infocmp "$TERM" >/dev/null 2>&1 || export TERM=xterm-256color; exec "$@"'
+
 # Tab-separated: a chef dir may contain spaces.
 LIVE_PANES = "#{session_name}\t#{session_path}\t#{pane_dead}"
 
@@ -40,9 +44,10 @@ class SessionStatus:
     exit_code: Optional[int] = None
 
 
-def tmux_literal(arg) -> str:
-    # tmux ends a command at any argument ending in ";"; "\;" keeps it literal.
-    return arg[:-1] + "\\;" if arg.endswith(";") else arg
+def tmux_quote(arg) -> str:
+    # Nothing expands in tmux's '...', but a newline there drops the next line's
+    # indent and can start a comment.
+    return "'" + arg.replace("'", "'\"'\"'").replace("\n", "'\"\\n\"'") + "'"
 
 
 def session_name(profile) -> str:
@@ -84,49 +89,45 @@ class Session:
         self.target = f"={self.name}:"
 
     def create(self, command, env=None, launcher=()) -> None:
-        set_env = []
-        for key, value in (env or {}).items():
-            set_env += [
-                ";",
-                "set-environment",
+        bookkeeping, log = quote(self.bookkeeping_dir), quote(self.log_path)
+        commands = [
+            [
+                "new-session",
+                "-d",
+                "-s",
+                self.name,
+                "-c",
+                self.chef_dir,
+                "sh",
+                "-c",
+                RECORD_EXIT,
+                "sh",
+                self.bookkeeping_dir,
+                self.target,
+                *command,
+            ],
+            ["set-option", "-t", self.target, "remain-on-exit", "on"],
+            *(
+                ["set-environment", "-t", self.target, key, value]
+                for key, value in (env or {}).items()
+            ),
+            # Run by /bin/sh; this mkdir races the pane's own.
+            [
+                "pipe-pane",
                 "-t",
                 self.target,
-                key,
-                tmux_literal(value),
-            ]
-        bookkeeping, log = quote(self.bookkeeping_dir), quote(self.log_path)
+                f"mkdir -p {bookkeeping} && exec cat > {log}",
+            ],
+        ]
+        # On stdin: the tmux server keeps the argv of the client that started it,
+        # and ps shows that to every user on the box.
+        # One line, run before tmux serves another client: the command can't read
+        # show-environment before the env is set, or exit before remain-on-exit.
+        # After a failed command (a duplicate session) tmux skips the rest of the
+        # line, not the next line.
+        script = " ; ".join(" ".join(map(tmux_quote, c)) for c in commands)
         self._ssh(
-            *launcher,
-            "tmux",
-            "new-session",
-            "-d",
-            "-s",
-            self.name,
-            "-c",
-            self.chef_dir,
-            "sh",
-            "-c",
-            RECORD_EXIT,
-            "sh",
-            self.bookkeeping_dir,
-            self.target,
-            *map(tmux_literal, command),
-            # Same invocation: the command starts at new-session, so a second
-            # round trip lets it read show-environment before the env is set,
-            # or a fast command close the pane.
-            ";",
-            "set-option",
-            "-t",
-            self.target,
-            "remain-on-exit",
-            "on",
-            *set_env,
-            # Run by /bin/sh; this mkdir races the pane's own.
-            ";",
-            "pipe-pane",
-            "-t",
-            self.target,
-            f"mkdir -p {bookkeeping} && exec cat > {log}",
+            *launcher, "tmux", "start-server", ";", "source-file", "-", input=script
         )
 
     def status(self) -> SessionStatus:
@@ -165,6 +166,10 @@ class Session:
             return NOT_A_TTY
         return self.transport.ssh(
             [
+                "sh",
+                "-c",
+                KNOWN_TERM,
+                "sh",
                 "tmux",
                 "attach-session",
                 "-t",
@@ -183,8 +188,8 @@ class Session:
         # 1: no such session, or no tmux server; already torn down.
         self._ssh("tmux", "kill-session", "-t", self.target, ok=(0, 1))
 
-    def _ssh(self, *argv, ok=(0,)):
-        result = self.transport.ssh(list(argv))
+    def _ssh(self, *argv, ok=(0,), input=None):
+        result = self.transport.ssh(list(argv), input=input)
         if result.returncode not in ok:
             raise RemoteSessionError(
                 f"remote: {argv[0]} exited {result.returncode}\n{result.stderr}"

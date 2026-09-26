@@ -13,6 +13,8 @@ SSH_SHIM = """#!/bin/sh
 tty=
 while [ "${1#-}" != "$1" ]; do [ "$1" = -t ] && tty=1; shift; done
 shift
+# sshd runs this as sh -c's argv, which ps shows every user on the box.
+printf '%s\n' "$*" >> "$RC_FAKE_SSH_LOG"
 # Without -t, sshd gives the command no terminal.
 if [ -z "$tty" ] && [ -t 0 ]; then sh -c "$*" </dev/null; else sh -c "$*"; fi
 rc=$?
@@ -73,6 +75,7 @@ def box(tmp_path, monkeypatch, tmux_tmpdir):  # The shim runs tmux at logout.
     (tmp_path / "logind").mkdir()
     # Else box tests read, and may enable linger on, the host's logind.
     monkeypatch.setenv("RC_FAKE_LOGIND", str(tmp_path / "logind"))
+    monkeypatch.setenv("RC_FAKE_SSH_LOG", str(tmp_path / "ssh.log"))
     monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
     monkeypatch.delenv("RSYNC_RSH", raising=False)
     root = tmp_path / "box"
@@ -83,6 +86,11 @@ def box(tmp_path, monkeypatch, tmux_tmpdir):  # The shim runs tmux at logout.
 @pytest.fixture
 def logind(box):
     return box.parent / "logind"
+
+
+@pytest.fixture
+def ssh_log(box):
+    return box.parent / "ssh.log"
 
 
 @pytest.fixture
@@ -156,7 +164,7 @@ def wait_until():
 class PtyProcess:
     """A child on a pty, as a terminal user runs it; its output is kept."""
 
-    def __init__(self, argv, cwd=None):
+    def __init__(self, argv, cwd=None, term="xterm"):
         self.fd, child_fd = os.openpty()
         self.proc = subprocess.Popen(
             argv,
@@ -164,7 +172,7 @@ class PtyProcess:
             stdout=child_fd,
             stderr=child_fd,
             cwd=cwd,
-            env={**os.environ, "TERM": "xterm"},
+            env={**os.environ, "TERM": term},
         )
         os.close(child_fd)
         self._chunks = []
@@ -198,8 +206,8 @@ class PtyProcess:
 def spawn_in_pty():
     started = []
 
-    def spawn(argv, cwd=None):
-        started.append(PtyProcess(argv, cwd))
+    def spawn(argv, cwd=None, term="xterm"):
+        started.append(PtyProcess(argv, cwd, term))
         return started[-1]
 
     yield spawn
