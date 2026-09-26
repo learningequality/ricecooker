@@ -1,4 +1,4 @@
-"""QTI 3.0 items: parse them, strip what the item schema cannot validate, and validate them."""
+"""QTI 3.0 items: strip what the item schema cannot validate, and validate them."""
 
 import os
 import threading
@@ -6,9 +6,8 @@ from functools import lru_cache
 
 from lxml import etree
 
-from ricecooker.utils.imscp import contained_path
-
 QTI3_NAMESPACE = "http://www.imsglobal.org/xsd/imsqtiasi_v3p0"
+_XS_NAMESPACE = "http://www.w3.org/2001/XMLSchema"
 
 # Studio's vendored item schema (learningequality/studio@3bdac307), so an item that
 # passes here passes Studio's validate_qti_item.
@@ -29,23 +28,6 @@ ITEM_NAMESPACES = frozenset(
 )
 _STYLESHEET_TAG = f"{{{QTI3_NAMESPACE}}}qti-stylesheet"
 _PARSER = etree.XMLParser(resolve_entities=False, no_network=True, load_dtd=False)
-
-
-def read_qti3(package_dir, member, tag):
-    """Parse ``member`` as a QTI 3.0 ``<tag>``; return its root element.
-
-    Raises ``ValueError`` saying why the file is unusable.
-    """
-    path = contained_path(package_dir, member)
-    if path is None or not os.path.isfile(path):
-        raise ValueError("is missing or outside the package")
-    try:
-        root = etree.parse(path, _PARSER).getroot()
-    except etree.XMLSyntaxError as e:
-        raise ValueError(f"is not well-formed XML: {e.msg}")
-    if root.tag != f"{{{QTI3_NAMESPACE}}}{tag}":
-        raise ValueError(f"is not a QTI 3.0 <{tag}> (only QTI 3.0 is supported)")
-    return root
 
 
 def strip_unschematized(item):
@@ -82,12 +64,16 @@ def _remove(elem):
 
 @lru_cache(maxsize=1)
 def _item_schema():
-    return etree.XMLSchema(etree.parse(ITEM_SCHEMA_PATH))
+    """The item schema, and the elements it declares without a ``qti-`` prefix: its HTML."""
+    tree = etree.parse(ITEM_SCHEMA_PATH)
+    names = (e.get("name") for e in tree.iter(f"{{{_XS_NAMESPACE}}}element"))
+    html = frozenset(name for name in names if name and not name.startswith("qti-"))
+    return etree.XMLSchema(tree), html
 
 
 def validate_qti_item(item):
     """Raise ``ValueError`` naming the first schema error if ``item`` is not a valid QTI 3.0 item."""
-    schema = _item_schema()
+    schema, _ = _item_schema()
     with _VALIDATION_LOCK:
         if schema.validate(item):
             return

@@ -1,4 +1,4 @@
-"""Build the QTI 3.0 tests and items of an IMSCP package into exercises."""
+"""Build the QTI tests and items of an IMSCP package into exercises."""
 
 import os
 import posixpath
@@ -20,9 +20,11 @@ from ricecooker.utils.pipeline.convert import SVGValidationHandler
 from ricecooker.utils.pipeline.exceptions import ExpectedFileException
 from ricecooker.utils.pipeline.exceptions import InvalidFileException
 from ricecooker.utils.qti.items import QTI3_NAMESPACE
-from ricecooker.utils.qti.items import read_qti3
 from ricecooker.utils.qti.items import strip_unschematized
 from ricecooker.utils.qti.items import validate_qti_item
+from ricecooker.utils.qti.upgrade import QTI_RESOURCE_VERSIONS
+from ricecooker.utils.qti.upgrade import read_qti
+from ricecooker.utils.qti.upgrade import SUPPORTED_VERSIONS
 from ricecooker.utils.references import QTIMapper
 from ricecooker.utils.references import resolve_reference
 
@@ -55,7 +57,7 @@ def assessment_item_members(package_dir, test_member, root, seen=None):
         elif member not in seen:
             seen.add(member)
             try:
-                section = read_qti3(package_dir, member, "qti-assessment-section")
+                section = read_qti(package_dir, member, "qti-assessment-section")
             except ValueError as e:
                 LOGGER.warning("IMSCP: skipping QTI section %s: %s", member, e)
                 continue
@@ -64,7 +66,7 @@ def assessment_item_members(package_dir, test_member, root, seen=None):
 
 
 class QTIExerciseBuilder:
-    """Build the QTI 3.0 tests and items of one IMSCP package into exercise node dicts."""
+    """Build the QTI tests and items of one IMSCP package into exercise node dicts."""
 
     IMAGE_EXTENSIONS = (
         ImageConversionHandler.EXTENSIONS | SVGValidationHandler.EXTENSIONS
@@ -101,17 +103,18 @@ class QTIExerciseBuilder:
                 tests.append({**resource, "index_file": member})
             elif resource["type"].startswith(QTI_ITEM_TYPE_PREFIX):
                 items.append(member)
-            elif "v3p0" not in resource["type"]:
+            elif not any(v in resource["type"] for v in QTI_RESOURCE_VERSIONS):
                 LOGGER.warning(
-                    "IMSCP: skipping QTI resource %s: only QTI 3.0 is supported",
+                    "IMSCP: skipping QTI resource %s: only %s is supported",
                     resource["source_id"],
+                    SUPPORTED_VERSIONS,
                 )
         return tests, items
 
     def _build_test_exercise(self, test):
         member = test["index_file"]
         try:
-            root = read_qti3(self.package.directory, member, "qti-assessment-test")
+            root = read_qti(self.package.directory, member, "qti-assessment-test")
         except ValueError as e:
             LOGGER.warning("IMSCP: rejecting QTI test %s: %s", member, e)
             return None
@@ -153,15 +156,19 @@ class QTIExerciseBuilder:
     def _question(self, member):
         """The cached question for item ``member``; ``None`` if the item is rejected."""
         if member not in self.questions:
+            item = None
             try:
-                self.questions[member] = self._build_question(member)
+                item = read_qti(self.package.directory, member, "qti-assessment-item")
+                self.questions[member] = self._build_question(member, item)
             except (ValueError, InvalidFileException, ExpectedFileException) as e:
-                LOGGER.warning("IMSCP: rejecting QTI item %s: %s", member, e)
+                name = (
+                    member if item is None else f"{item.get('identifier')} ({member})"
+                )
+                LOGGER.warning("IMSCP: rejecting QTI item %s: %s", name, e)
                 self.questions[member] = None
         return self.questions[member]
 
-    def _build_question(self, member):
-        item = read_qti3(self.package.directory, member, "qti-assessment-item")
+    def _build_question(self, member, item):
         strip_unschematized(item)
         # Studio fails the whole channel commit on one schema-invalid item.
         validate_qti_item(item)
