@@ -69,6 +69,9 @@ def compress_audio(
         "libmp3lame",
         option_name,
         str(value),
+        # the mp3 muxer otherwise re-encodes cover art as PNG
+        "-c:v",
+        "copy",
         target_file,
     ]
     try:

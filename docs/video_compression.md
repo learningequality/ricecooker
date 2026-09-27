@@ -32,8 +32,21 @@ Automated conversion
 When `ffmpeg` is installed, `ricecooker` compresses all video and audio files
 before uploading them to Kolibri Studio:
   - Video: CRF of 32 (constant rate factor), max height of 720 pixels
-    (or the `video-height` setting)
+    (or the `video-height` setting); webm output is capped at 0.1 bits per
+    pixel per frame
   - Audio: 96 kbps
+
+Already-compliant files are uploaded unchanged, unless their own
+`ffmpeg_settings` change the defaults:
+  - Video:
+    - within the max height after rotation
+    - H.264 (mp4) or VP8/VP9 (webm)
+    - 4:2:0 pixel format
+    - at most 0.15 (H.264) or 0.25 (VP8/VP9) bits per pixel per frame
+    - audio tracks AAC (mp4) or Opus/Vorbis (webm) at up to 160 kbps
+
+    An mp4 without faststart is remuxed, not re-encoded.
+  - Audio: mp3 at or below the target bitrate.
 
 Use `--no-compress` on the command line, or `SETTINGS["compress"] = False` in
 the chef, to upload all media as-is, ignoring files' own `ffmpeg_settings`.

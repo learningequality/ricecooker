@@ -1,9 +1,14 @@
+import json
 import logging
 import os
 import re
+import struct
 import subprocess
 import threading
 import time
+from collections import defaultdict
+from dataclasses import dataclass
+from fractions import Fraction
 from typing import Tuple
 
 from le_utils.constants import format_presets
@@ -17,6 +22,9 @@ LOGGER.setLevel(logging.DEBUG)
 
 STALL_TIMEOUT = 300
 PROBE_TIMEOUT = 60
+VP9_MAX_BITS_PER_PIXEL = 0.1
+# webm can only carry text subtitles.
+BITMAP_SUBTITLE_CODECS = {"dvb_subtitle", "dvd_subtitle", "hdmv_pgs_subtitle", "xsub"}
 
 
 def run_ffmpeg(args):
@@ -230,6 +238,21 @@ class VideoCompressionError(Exception):
     """
 
 
+def _vp9_bit_rate(video, max_height, max_width=None):
+    try:
+        fps = Fraction(video["avg_frame_rate"])
+    except (TypeError, KeyError, ValueError, ZeroDivisionError):
+        return 0
+    width, height = display_size(video)
+    if max_width is not None:
+        scale = min(1, int(max_width) / width)
+    elif max_height == "ih":
+        scale = 1
+    else:
+        scale = min(1, int(max_height) / height)
+    return int(VP9_MAX_BITS_PER_PIXEL * width * height * scale**2 * fps)
+
+
 def compress_video(source_file_path, target_file, overwrite=False, **kwargs):
     """
     Compress and scale video at `source_file_path` using settings provided in `kwargs`.
@@ -269,6 +292,25 @@ def compress_video(source_file_path, target_file, overwrite=False, **kwargs):
     # Default CRF values differ by format
     crf = kwargs.get("crf", 35 if is_webm else 32)
 
+    # Map streams the way ffmpeg's default selection does, minus cover art,
+    # which mp4 can't carry as H.264.
+    streams = (probe_media(source_file_path) or {}).get("streams", [])
+    video = video_stream(streams)
+    selected = [video, audio_stream(streams)]
+    if is_webm:
+        selected.append(
+            next(
+                (
+                    s
+                    for s in streams
+                    if s.get("codec_type") == "subtitle"
+                    and s.get("codec_name") not in BITMAP_SUBTITLE_CODECS
+                ),
+                None,
+            )
+        )
+    stream_maps = [arg for s in selected if s for arg in ("-map", f"0:{s['index']}")]
+
     # Common parameters that apply to both formats
     command = [
         "-y" if overwrite else "-n",
@@ -276,6 +318,9 @@ def compress_video(source_file_path, target_file, overwrite=False, **kwargs):
         source_file_path,
         "-vf",
         "scale={}".format(scale),
+        "-pix_fmt",
+        "yuv420p",
+        *stream_maps,
         "-b:a",
         "32k",
         "-ac",
@@ -290,12 +335,21 @@ def compress_video(source_file_path, target_file, overwrite=False, **kwargs):
 
     # Format-specific parameters
     if is_webm:
+        bit_rate = _vp9_bit_rate(
+            video,
+            kwargs.get("max_height", config.VIDEO_HEIGHT or "480"),
+            kwargs.get("max_width"),
+        )
         command.extend(
             [
                 "-c:v",
                 "libvpx-vp9",
                 "-b:v",
-                "0",
+                str(bit_rate),
+                "-maxrate",
+                str(bit_rate),
+                "-bufsize",
+                str(2 * bit_rate),
                 "-deadline",
                 "good",
                 "-cpu-used",
@@ -340,6 +394,11 @@ def web_faststart_video(source_file_path, target_file, overwrite=False):
         "-y" if overwrite else "-n",
         "-i",
         source_file_path,
+        "-map",
+        "0",
+        # mp4 can't copy data tracks such as timecode
+        "-map",
+        "-0:d?",
         "-c",
         "copy",
         "-v",
@@ -399,3 +458,110 @@ def validate_media_file(file_path: str) -> Tuple[bool, str]:
         return False, line
 
     return True, ""
+
+
+def _ffprobe(file_path, *args):
+    try:
+        return subprocess.check_output(
+            ["ffprobe", "-v", "error", *args, str(file_path)],
+            stdin=subprocess.DEVNULL,
+            timeout=PROBE_TIMEOUT,
+            text=True,
+        )
+    except (subprocess.CalledProcessError, OSError):
+        return None
+
+
+def probe_media(file_path):
+    result = _ffprobe(
+        file_path,
+        "-show_entries",
+        "stream=index,codec_type,codec_name,width,height,pix_fmt,bit_rate,avg_frame_rate,channels"
+        ":stream_side_data=rotation:stream_disposition=attached_pic,default",
+        "-of",
+        "json",
+    )
+    return None if result is None else json.loads(result)
+
+
+def _best_stream(streams, codec_type, size):
+    # ffmpeg's default selection score; max() keeps the first of equals, as ffmpeg does.
+    candidates = [
+        s
+        for s in streams
+        if s.get("codec_type") == codec_type
+        and not s.get("disposition", {}).get("attached_pic")
+    ]
+    return max(
+        candidates,
+        key=lambda s: size(s) + 5000000 * s.get("disposition", {}).get("default", 0),
+        default=None,
+    )
+
+
+def video_stream(streams):
+    return _best_stream(
+        streams, "video", lambda s: s.get("width", 0) * s.get("height", 0)
+    )
+
+
+def audio_stream(streams):
+    return _best_stream(streams, "audio", lambda s: s.get("channels", 0))
+
+
+def display_size(stream):
+    rotation = next(
+        (d["rotation"] for d in stream.get("side_data_list", []) if "rotation" in d),
+        0,
+    )
+    if int(rotation) % 180:
+        return stream["height"], stream["width"]
+    return stream["width"], stream["height"]
+
+
+@dataclass
+class PacketTotals:
+    bits: int = 0
+    count: int = 0
+    duration: float = 0.0
+
+
+def probe_packets(file_path):
+    try:
+        output = _ffprobe(
+            file_path,
+            "-show_entries",
+            "packet=stream_index,size,duration_time",
+            "-of",
+            "compact=p=0",
+        )
+    except subprocess.TimeoutExpired:
+        # Too long to scan; empty totals make the video non-compliant.
+        output = None
+    totals = defaultdict(PacketTotals)
+    for line in (output or "").splitlines():
+        packet = dict(field.split("=", 1) for field in line.split("|") if field)
+        stream = totals[int(packet["stream_index"])]
+        stream.bits += 8 * int(packet["size"])
+        stream.count += 1
+        try:
+            stream.duration += float(packet.get("duration_time"))
+        except (TypeError, ValueError):
+            pass
+    return totals
+
+
+def is_faststart(file_path):
+    with open(file_path, "rb") as f:
+        while True:
+            header = f.read(8)
+            if len(header) < 8:
+                return False
+            size, box_type = struct.unpack(">I4s", header)
+            if box_type == b"moov":
+                return True
+            if size == 1:
+                size = struct.unpack(">Q", f.read(8))[0] - 8
+            if box_type == b"mdat" or size < 8:
+                return False
+            f.seek(size - 8, os.SEEK_CUR)
