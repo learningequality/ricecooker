@@ -198,6 +198,7 @@ class VideoCompressionHandler(MediaCompressionHandler):
                 return
         else:
             output_ext = file_formats.WEBM
+            ffmpeg_settings = ffmpeg_settings or {"max_height": "ih"}
 
         with self.write_file(output_ext) as temp_outfile:
             compress_video(path, temp_outfile.name, overwrite=True, **ffmpeg_settings)

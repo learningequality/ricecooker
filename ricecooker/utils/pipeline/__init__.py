@@ -4,6 +4,7 @@ from copy import deepcopy
 from typing import Dict
 from typing import Optional
 
+from ricecooker.utils.pipeline.context import _recursive_update
 from ricecooker.utils.pipeline.context import FileMetadata
 
 from .convert import ConversionStageHandler
@@ -66,8 +67,6 @@ class FilePipeline(CompositeHandler):
 
     def __init__(self, children=None, default_context=None):
         super().__init__(children=children)
-        # Context merged into every execute() call — e.g. the compression
-        # settings the chef derives from its --compress flag.
         self.default_context = default_context or {}
 
     def execute(
@@ -80,8 +79,15 @@ class FilePipeline(CompositeHandler):
         """
         Execute the pipeline for a given file path.
         """
-        # Merge the pipeline defaults with the per-call context; the caller wins.
-        context = {**self.default_context, **(context or {})}
+        context = _recursive_update(deepcopy(self.default_context), context or {})
+        if not self.default_context.get("compress", True):
+            context.update(video_settings={}, audio_settings={})
+        else:
+            context["explicit_settings"] = [
+                key
+                for key in ("video_settings", "audio_settings")
+                if context.get(key, {}) != self.default_context.get(key, {})
+            ]
         file_metadata_list = [FileMetadata(path=path)]
         for handler in self._children:
             updated_file_metadata_list = []
