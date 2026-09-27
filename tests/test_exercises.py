@@ -293,6 +293,10 @@ invalid_questions = [
         "Hint in hint list is not a string",
     ),
     (QTIQuestion("q4", "<x/>", hints=5), "Hints must be a list"),
+    (
+        PerseusQuestion("q5", "{}", ka_language=None),
+        "Perseus question must have a ka_language",
+    ),
 ]
 
 

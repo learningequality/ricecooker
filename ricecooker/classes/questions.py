@@ -292,6 +292,9 @@ class PerseusQuestion(BaseQuestion):
         )
 
     def _validate(self):
+        assert self.ka_language, (
+            "Assumption Failed: Perseus question must have a ka_language"
+        )
         assert self.question == "", (
             "Assumption Failed: Perseus question should not have a question"
         )

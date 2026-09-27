@@ -13,6 +13,7 @@ import pytest
 import requests
 from conftest import sample_path
 from le_utils.constants import content_kinds
+from le_utils.constants import exercises
 from le_utils.constants import file_types
 from le_utils.constants import format_presets
 from le_utils.constants import licenses
@@ -354,6 +355,24 @@ def test_add_files_with_preset(channel):
     assert topic_node.kind == "topic"
     assert len(html5_node.files) == 3
     assert html5_node.files[2].get_preset() == format_presets.AUDIO_DEPENDENCY
+
+
+def test_jsontrees_perseus_question_without_ka_language_fails_node(
+    channel, mastery_model
+):
+    exercise = dict(
+        kind=content_kinds.EXERCISE,
+        source_id="exercise",
+        title="exercise",
+        license=get_license("CC BY", copyright_holder="Demo Holdings").as_dict(),
+        exercise_data=mastery_model,
+        questions=[
+            {"question_type": exercises.PERSEUS_QUESTION, "id": "q1", "item_data": "{}"}
+        ],
+    )
+    build_tree_from_json(channel, [exercise])
+    with pytest.raises(InvalidNodeException, match="question q1: .*ka_language"):
+        channel.children[0].validate()
 
 
 """ *********** SLIDESHOW CONTENT NODE TESTS *********** """
