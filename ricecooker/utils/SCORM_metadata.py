@@ -10,13 +10,10 @@ from le_utils.constants.labels import learning_activities
 from le_utils.constants.labels import needs
 from le_utils.constants.labels import resource_type
 
+from ricecooker import config
 from ricecooker.utils.youtube import get_language_with_alpha2_fallback
 
 LOGGER = logging.getLogger(__name__)
-
-# Node validation rejects longer tags, and LOM keywords are routinely whole
-# phrases, so over-long ones are dropped rather than fail the channel.
-MAX_TAG_LENGTH = 30
 
 
 # LOM educational learningResourceType -> (le_utils learning activity,
@@ -239,10 +236,10 @@ def _normalize_keywords(keyword):
     for keyword_text in _text_list(keyword):
         if not keyword_text:
             continue
-        if len(keyword_text) > MAX_TAG_LENGTH:
+        if len(keyword_text) > config.MAX_TAG_LENGTH:
             LOGGER.warning(
                 "SCORM: dropping keyword longer than %s characters: %s",
-                MAX_TAG_LENGTH,
+                config.MAX_TAG_LENGTH,
                 keyword_text,
             )
         else:

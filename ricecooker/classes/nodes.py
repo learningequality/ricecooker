@@ -81,6 +81,16 @@ inheritable_metadata_label_fields = [
 ]
 
 
+METADATA_LABEL_CHOICES = {
+    "grade_levels": levels.LEVELSLIST,
+    "resource_types": resource_type.RESOURCETYPELIST,
+    "learning_activities": learning_activities.LEARNINGACTIVITIESLIST,
+    "accessibility_labels": accessibility_categories.ACCESSIBILITYCATEGORIESLIST,
+    "categories": subjects.SUBJECTSLIST,
+    "learner_needs": needs.NEEDSLIST,
+}
+
+
 class Node(object):
     """Base model representing all nodes in the content tree.
 
@@ -246,16 +256,16 @@ class Node(object):
         if isinstance(language, languages.Language):
             self.language = language.code
 
-    def __str__(self):
+    def _str_metadata(self):
         count = self.count()
-        metadata = "{0} {1}".format(
-            count, "descendant" if count == 1 else "descendants"
-        )
+        return "{0} {1}".format(count, "descendant" if count == 1 else "descendants")
+
+    def __str__(self):
         return "{title} ({kind}) ({source_id}): {metadata}".format(
             title=self.title,
             kind=self.__class__.__name__,
             source_id=self.source_id,
-            metadata=metadata,
+            metadata=self._str_metadata(),
         )
 
     def __repr__(self):
@@ -479,7 +489,27 @@ class Node(object):
 
     def _validate_values(self, assertion, error_message):
         if assertion:
-            raise InvalidNodeException(f"{self}: {error_message}")
+            raise InvalidNodeException(error_message)
+
+    def _drop_invalid_values(self, field, is_valid, requirement=None):
+        values = getattr(self, field)
+        containers = (
+            (list, tuple) if field in ("grade_levels", "resource_types") else list
+        )
+        self._validate_values(
+            not isinstance(values, containers), f"{field} must be a list"
+        )
+        kept = []
+        for value in values:
+            if is_valid(value):
+                kept.append(value)
+                continue
+            message = f"Invalid {field} value {value!r}"
+            if requirement:
+                message = f"{message}: {requirement}"
+            self._validate_values(config.STRICT, message)
+            config.LOGGER.warning(f"{self}: {message}. Dropped it.")
+        setattr(self, field, kept)
 
     def _validate_question(self, question):
         try:
@@ -555,14 +585,11 @@ class Node(object):
         self._validate_values(
             not isinstance(self.extra_fields, dict), "Extra fields is not a dict"
         )
-        self._validate_values(not isinstance(self.tags, list), "Tags is not a list")
-
-        for tag in self.tags:
-            self._validate_values(not isinstance(tag, str), "Tag is not a string")
-            self._validate_values(
-                len(tag) > 30,
-                f"Tag '{tag}' is too long. Tags should be 30 chars or less.",
-            )
+        self._drop_invalid_values(
+            "tags",
+            lambda tag: isinstance(tag, str) and len(tag) <= config.MAX_TAG_LENGTH,
+            f"tags must be strings of {config.MAX_TAG_LENGTH} chars or less",
+        )
 
         if self.license is not None:
             self._validate_values(
@@ -577,62 +604,9 @@ class Node(object):
             self.role not in ROLES, f"Role must be one of the following: {ROLES}"
         )
 
-        if self.grade_levels is not None:
-            for grade in self.grade_levels:
-                self._validate_values(
-                    grade not in levels.LEVELSLIST,
-                    f"Grade levels must be one of the following: {levels.LEVELSLIST}",
-                )
-
-        if self.resource_types is not None:
-            for res_type in self.resource_types:
-                self._validate_values(
-                    res_type not in resource_type.RESOURCETYPELIST,
-                    f"Resource types must be one of the following: {resource_type.RESOURCETYPELIST}",
-                )
-
-        if self.learning_activities is not None:
-            self._validate_values(
-                not isinstance(self.learning_activities, list),
-                "Learning activities must be list",
-            )
-            for learn_act in self.learning_activities:
-                self._validate_values(
-                    learn_act not in learning_activities.LEARNINGACTIVITIESLIST,
-                    f"Learning activities must be one of the following: {learning_activities.LEARNINGACTIVITIESLIST}",
-                )
-
-        if self.accessibility_labels is not None:
-            self._validate_values(
-                not isinstance(self.accessibility_labels, list),
-                "Accessibility label must be list",
-            )
-            for access_label in self.accessibility_labels:
-                self._validate_values(
-                    access_label
-                    not in accessibility_categories.ACCESSIBILITYCATEGORIESLIST,
-                    f"Accessibility label must be one of the following: {accessibility_categories.ACCESSIBILITYCATEGORIESLIST}",
-                )
-
-        if self.categories is not None:
-            self._validate_values(
-                not isinstance(self.categories, list), "Categories must be list"
-            )
-            for category in self.categories:
-                self._validate_values(
-                    category not in subjects.SUBJECTSLIST,
-                    f"Categories must be one of the following: {subjects.SUBJECTSLIST}",
-                )
-
-        if self.learner_needs is not None:
-            self._validate_values(
-                not isinstance(self.learner_needs, list), "Learner needs must be list"
-            )
-            for learner_need in self.learner_needs:
-                self._validate_values(
-                    learner_need not in needs.NEEDSLIST,
-                    f"Learner needs must be one of the following: {needs.NEEDSLIST}",
-                )
+        for field, choices in METADATA_LABEL_CHOICES.items():
+            if getattr(self, field) is not None:
+                self._drop_invalid_values(field, choices.__contains__)
 
     def validate(self):
         self.valid = False
@@ -860,10 +834,14 @@ class TreeNode(Node):
         """
         for child in self.children:
             child.process_metadata_subtree()
-        self.process_files()
-        # ContentNode.process_files() already validates a leaf.
-        if self.kind == content_kinds.TOPIC:
-            self.validate()
+        try:
+            self.process_files()
+            # ContentNode.process_files() already validates a leaf.
+            if self.kind == content_kinds.TOPIC:
+                self.validate()
+        except InvalidNodeException as e:
+            self._error = str(e)
+            raise InvalidNodeException(f"{self}: {e}") from e
 
     def get_domain_namespace(self):
         if not self.domain_ns:
@@ -1028,15 +1006,11 @@ class ContentNode(TreeNode):
             return config.FILE_PIPELINE
         return self._pipeline
 
-    def __str__(self):
+    def _str_metadata(self):
         if len(self.files) == 0 and self.uri:
-            metadata = "uri: {}".format(self.uri)
-        else:
-            metadata = "{0} {1}".format(
-                len(self.files), "file" if len(self.files) == 1 else "files"
-            )
-        return "{title} ({kind}): {metadata}".format(
-            title=self.title, kind=self.__class__.__name__, metadata=metadata
+            return "uri: {}".format(self.uri)
+        return "{0} {1}".format(
+            len(self.files), "file" if len(self.files) == 1 else "files"
         )
 
     def _validate_uri(self):
@@ -1459,12 +1433,9 @@ class ExerciseNode(ContentNode):
 
         super(ExerciseNode, self).__init__(*args, extra_fields=exercise_data, **kwargs)
 
-    def __str__(self):
-        metadata = "{0} {1}".format(
+    def _str_metadata(self):
+        return "{0} {1}".format(
             len(self.questions), "question" if len(self.questions) == 1 else "questions"
-        )
-        return "{title} ({kind}): {metadata}".format(
-            title=self.title, kind=self.__class__.__name__, metadata=metadata
         )
 
     def add_question(self, question):
@@ -1704,6 +1675,9 @@ class StudioContentNode(TreeNode):
             ]
             del self.overrides["thumbnail"]
         data.update(self.overrides)
+        for field in ("tags", *METADATA_LABEL_CHOICES):
+            if self.overrides.get(field) is not None:
+                data[field] = getattr(self, field)
         return data
 
 

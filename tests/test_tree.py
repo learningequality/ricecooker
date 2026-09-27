@@ -16,6 +16,7 @@ from le_utils.constants import content_kinds
 from le_utils.constants import file_types
 from le_utils.constants import format_presets
 from le_utils.constants import licenses
+from le_utils.constants.labels import accessibility_categories
 from le_utils.constants.labels import learning_activities
 from le_utils.constants.labels import levels
 from le_utils.constants.labels import needs
@@ -41,12 +42,15 @@ from ricecooker.classes.nodes import ContentNode
 from ricecooker.classes.nodes import CustomNavigationChannelNode
 from ricecooker.classes.nodes import CustomNavigationNode
 from ricecooker.classes.nodes import DocumentNode
+from ricecooker.classes.nodes import ExerciseNode
+from ricecooker.classes.nodes import METADATA_LABEL_CHOICES
 from ricecooker.classes.nodes import Node
 from ricecooker.classes.nodes import RemoteContentNode
 from ricecooker.classes.nodes import SlideshowNode
 from ricecooker.classes.nodes import TopicNode
 from ricecooker.classes.nodes import TreeNode
 from ricecooker.classes.nodes import VideoNode
+from ricecooker.classes.questions import SingleSelectQuestion
 from ricecooker.commands import uploadchannel
 from ricecooker.exceptions import ChannelIncompleteError
 from ricecooker.exceptions import FileNotFoundException
@@ -2008,3 +2012,280 @@ def test_channel_without_edit_rights_fails_before_any_download(chef, studio):
     assert exited.value.code not in (None, 0)
     nodes = [chef.channel] + chef.channel.children
     assert all(f.filename is None for node in nodes for f in node.files)
+
+
+""" *********** INVALID METADATA TESTS (issue #782) *********** """
+
+
+def _fake_studio_post(posted):
+    def fake_post(url, **kwargs):
+        response = MagicMock()
+        response.status_code = 200
+        if url == config.add_nodes_url():
+            payload = json.loads(kwargs["data"])
+            children = payload["content_data"]
+            posted.extend((payload["root_id"], child) for child in children)
+            body = {"root_ids": {c["node_id"]: "srv_" + c["node_id"] for c in children}}
+        else:
+            body = {"root": "root", "channel_id": "chan-id", "new_channel": "chan-id"}
+        response._content = json.dumps(body).encode("utf-8")
+        return response
+
+    return fake_post
+
+
+def _upload_beside_a_kept_topic(channel, caplog, dropped):
+    channel.add_child(dropped)
+    channel.add_child(TopicNode("kept", "Kept"))
+    manager = ChannelManager(channel)
+    with patch("ricecooker.config.STRICT", False):
+        manager.validate()
+        manager.process_tree()
+    caplog.clear()
+    posted = []
+    with (
+        patch("ricecooker.config.SESSION.post", side_effect=_fake_studio_post(posted)),
+        caplog.at_level(logging.WARNING, logger=config.LOGGER.name),
+    ):
+        manager.upload_tree()
+    assert [child["source_id"] for _, child in posted] == ["kept"]
+    return [r.getMessage() for r in caplog.records if dropped.title in r.getMessage()]
+
+
+@pytest.mark.parametrize(
+    "node_class, reason",
+    [
+        (ContentNode, "No kind has been set"),
+        (ExerciseNode, "Exercise does not have any questions"),
+    ],
+    ids=["no_files", "no_questions"],
+)
+def test_upload_tree_summary_names_each_dropped_node(
+    channel, caplog, node_class, reason
+):
+    dropped = node_class(
+        "dropped", "Dropped", license=get_license(licenses.CC_BY, copyright_holder="x")
+    )
+    summary = _upload_beside_a_kept_topic(channel, caplog, dropped)
+    assert summary == ["\t{}: {}".format(dropped, reason)]
+
+
+def test_upload_tree_drops_a_node_whose_processing_raised(channel, caplog):
+    dropped = ContentNode(
+        "subs",
+        "Subs",
+        license=get_license(licenses.CC_BY, copyright_holder="x"),
+        uri=sample_path("testsubtitles_ar.srt"),
+        pipeline=FilePipeline(),
+    )
+    summary = _upload_beside_a_kept_topic(channel, caplog, dropped)
+    assert len(summary) == 1
+    assert summary[0].startswith("\t{}: Missing required context".format(dropped))
+
+
+def _pdf_as(node_class):
+    kwargs = (
+        {"questions": [SingleSelectQuestion("q1", "Q", "A", ["A"])]}
+        if node_class is ExerciseNode
+        else {}
+    )
+    return node_class(
+        "mismatch",
+        "Mismatch",
+        license=get_license(licenses.CC_BY, copyright_holder="x"),
+        uri=sample_path("41568-pdf.pdf"),
+        pipeline=FilePipeline(),
+        **kwargs,
+    )
+
+
+@pytest.mark.parametrize("node_class", [VideoNode, ExerciseNode])
+def test_upload_tree_drops_a_node_whose_uri_infers_another_kind(
+    channel, caplog, node_class
+):
+    dropped = _pdf_as(node_class)
+    summary = _upload_beside_a_kept_topic(channel, caplog, dropped)
+    assert summary == [
+        "\t{}: Inferred kind is different from content node class kind.".format(dropped)
+    ]
+
+
+@pytest.mark.parametrize("node_class", [VideoNode, ExerciseNode])
+def test_process_tree_raises_on_a_kind_mismatch_in_strict_mode(channel, node_class):
+    channel.add_child(_pdf_as(node_class))
+    with (
+        patch("ricecooker.config.STRICT", True),
+        pytest.raises(InvalidNodeException, match="Inferred kind is different"),
+    ):
+        ChannelManager(channel).process_tree()
+
+
+def test_upload_tree_keeps_a_topic_whose_tag_was_dropped(channel, caplog):
+    long_tag = "t" * 31
+    topic = TopicNode("tagged", "Tagged", tags=["short", long_tag])
+    topic.add_child(TopicNode("child", "Child"))
+    channel.add_child(topic)
+    manager = ChannelManager(channel)
+    posted = []
+    with (
+        patch("ricecooker.config.STRICT", False),
+        patch("ricecooker.config.SESSION.post", side_effect=_fake_studio_post(posted)),
+        caplog.at_level(logging.WARNING, logger=config.LOGGER.name),
+    ):
+        manager.validate()
+        manager.process_tree()
+        manager.upload_tree()
+
+    assert [(root_id, c["source_id"], c["tags"]) for root_id, c in posted] == [
+        ("root", "tagged", ["short"]),
+        ("srv_" + topic.get_node_id().hex, "child", []),
+    ]
+    assert any(
+        r.levelno == logging.WARNING
+        and "tagged" in r.getMessage()
+        and long_tag in r.getMessage()
+        for r in caplog.records
+    )
+
+
+CLEANABLE_VALUES = [
+    ("tags", "short", "t" * 31),
+    ("tags", "short", 7),
+    ("grade_levels", levels.LOWER_SECONDARY, "not-a-label"),
+    ("resource_types", resource_type.LESSON, "not-a-label"),
+    ("learning_activities", learning_activities.WATCH, "not-a-label"),
+    (
+        "accessibility_labels",
+        accessibility_categories.CAPTIONS_SUBTITLES,
+        "not-a-label",
+    ),
+    ("categories", subjects.BIOLOGY, "not-a-label"),
+    ("learner_needs", needs.MATERIALS, "not-a-label"),
+]
+
+
+@pytest.mark.parametrize("field, valid, invalid", CLEANABLE_VALUES)
+def test_validate_drops_an_invalid_metadata_value(channel, field, valid, invalid):
+    node = TopicNode("topic", "Topic", **{field: [valid, invalid]})
+    channel.add_child(node)
+    with patch("ricecooker.config.STRICT", False):
+        ChannelManager(channel).validate()
+    assert (node.valid, getattr(node, field)) == (True, [valid])
+
+
+def test_process_tree_keeps_a_content_node_whose_tag_was_dropped(channel):
+    node = ContentNode(
+        "doc",
+        "Doc",
+        license=get_license(licenses.CC_BY, copyright_holder="x"),
+        uri=sample_path("sample_doc_with_toc.pdf"),
+        pipeline=FilePipeline(),
+        tags=["short", "t" * 31],
+    )
+    channel.add_child(node)
+    manager = ChannelManager(channel)
+    with patch("ricecooker.config.STRICT", False):
+        manager.validate()
+        manager.process_tree()
+    assert (node.valid, node.tags) == (True, ["short"])
+
+
+def test_remote_content_node_sends_the_tags_left_after_validation(channel):
+    node = RemoteContentNode(
+        "a" * 32, source_content_id="c" * 32, tags=["short", "t" * 31]
+    )
+    channel.add_child(node)
+    with patch("ricecooker.config.STRICT", False):
+        ChannelManager(channel).validate()
+    assert node.to_dict()["tags"] == ["short"]
+
+
+def test_dropped_label_warning_names_node_field_and_value(channel, caplog):
+    node = TopicNode("topic", "Topic", categories=[subjects.BIOLOGY, "bogus"])
+    channel.add_child(node)
+    with (
+        patch("ricecooker.config.STRICT", False),
+        caplog.at_level(logging.WARNING, logger=config.LOGGER.name),
+    ):
+        ChannelManager(channel).validate()
+    assert [r.getMessage() for r in caplog.records] == [
+        f"{node}: Invalid categories value 'bogus'. Dropped it."
+    ]
+
+
+@pytest.mark.parametrize("field, valid, invalid", CLEANABLE_VALUES)
+def test_validate_raises_on_an_invalid_metadata_value_in_strict_mode(
+    channel, field, valid, invalid
+):
+    node = TopicNode("topic", "Topic", **{field: [valid, invalid]})
+    channel.add_child(node)
+    with (
+        patch("ricecooker.config.STRICT", True),
+        pytest.raises(InvalidNodeException) as raised,
+    ):
+        ChannelManager(channel).validate()
+    assert str(raised.value).startswith(f"{node}: Invalid {field} value {invalid!r}")
+
+
+def test_process_tree_names_the_failing_node_in_strict_mode(channel):
+    node = ContentNode(
+        "bare-node", "Bare", license=get_license(licenses.CC_BY, copyright_holder="x")
+    )
+    channel.add_child(node)
+    with (
+        patch("ricecooker.config.STRICT", True),
+        pytest.raises(InvalidNodeException) as raised,
+    ):
+        ChannelManager(channel).process_tree()
+    assert str(raised.value) == f"{node}: No kind has been set"
+
+
+def test_process_tree_reraises_a_value_error_unchanged_in_strict_mode(channel):
+    node = ContentNode(
+        "subtitle",
+        "Subtitle",
+        uri=sample_path("testsubtitles_ar.srt"),
+        license=get_license(licenses.CC_BY, copyright_holder="x"),
+        pipeline=FilePipeline(),
+    )
+    channel.add_child(node)
+    with (
+        patch("ricecooker.config.STRICT", True),
+        pytest.raises(ValueError) as raised,
+    ):
+        ChannelManager(channel).process_tree()
+    assert type(raised.value) is ValueError
+    assert str(raised.value).startswith(
+        "Missing required context for SubtitleConversionHandler"
+    )
+
+
+@pytest.mark.parametrize(
+    "field, value",
+    [(field, "not-a-list") for field in ("tags", *METADATA_LABEL_CHOICES)]
+    + [("tags", ("short",))],
+)
+def test_validate_rejects_a_metadata_field_that_is_not_a_list(channel, field, value):
+    node = TopicNode("topic", "Topic", **{field: value})
+    channel.add_child(node)
+    with patch("ricecooker.config.STRICT", False):
+        ChannelManager(channel).validate()
+    assert node.valid is False
+
+
+def test_validate_accepts_a_grade_levels_tuple(channel):
+    node = TopicNode(
+        "topic", "Topic", grade_levels=(levels.LOWER_SECONDARY, "not-a-label")
+    )
+    channel.add_child(node)
+    with patch("ricecooker.config.STRICT", False):
+        ChannelManager(channel).validate()
+    assert (node.valid, node.grade_levels) == (True, [levels.LOWER_SECONDARY])
+
+
+def test_remote_content_node_sends_a_none_label_override_unchanged(channel):
+    node = RemoteContentNode("a" * 32, source_content_id="c" * 32, grade_levels=None)
+    channel.add_child(node)
+    with patch("ricecooker.config.STRICT", False):
+        ChannelManager(channel).validate()
+    assert node.to_dict()["grade_levels"] is None

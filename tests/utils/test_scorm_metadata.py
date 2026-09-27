@@ -148,3 +148,9 @@ def test_over_long_keywords_are_dropped():
         {"keyword": ["widgets", "Data (especially computer data)!"]}
     )
     assert fields["tags"] == ["widgets"]
+
+
+def test_keyword_length_limit_follows_config(monkeypatch):
+    monkeypatch.setattr("ricecooker.config.MAX_TAG_LENGTH", 5)
+    fields = metadata_dict_to_content_node_fields({"keyword": ["gears", "widgets"]})
+    assert fields["tags"] == ["gears"]
