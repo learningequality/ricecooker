@@ -18,6 +18,7 @@ from dataclasses import field
 from typing import Dict
 from typing import Optional
 from typing import Union
+from urllib.parse import unquote
 from xml.etree import ElementTree
 
 import filetype
@@ -55,6 +56,7 @@ from ricecooker.utils.pipeline.exceptions import InvalidFileException
 from ricecooker.utils.references import DEFAULT_MAPPERS
 from ricecooker.utils.references import ReferenceMapper
 from ricecooker.utils.references import sanitize_style_css
+from ricecooker.utils.references import split_reference
 from ricecooker.utils.references import strip_scripts
 from ricecooker.utils.references import strip_stylesheet_links
 from ricecooker.utils.scorm import boilerplate_script_members
@@ -287,7 +289,7 @@ class ArchiveProcessingBaseHandler(ExtensionMatchingHandler):
         pass
 
     @abstractmethod
-    def validate_archive(self, path: str, entry=None):
+    def validate_archive(self, path: str, entry=None, explicit_entry=False):
         pass
 
     def pre_process(self, temp_dir, entry):
@@ -320,10 +322,16 @@ class ArchiveProcessingBaseHandler(ExtensionMatchingHandler):
         ).process()
 
     def _convert_archive(
-        self, path, audio_settings, video_settings, entry=None, **seal_kwargs
+        self,
+        path,
+        audio_settings,
+        video_settings,
+        entry=None,
+        explicit_entry=False,
+        **seal_kwargs,
     ):
         """Validate, extract, process and seal the archive at ``path``."""
-        self.validate_archive(path, entry)
+        self.validate_archive(path, entry, explicit_entry)
 
         ext = extract_path_ext(path)
 
@@ -421,6 +429,7 @@ def _has_script(html):
 class WebArchiveContextMetadata(ArchiveProcessingContextMetadata):
     # The entry point, as an archive member path; detected when unset.
     entry: Optional[str] = None
+    explicit_entry: bool = False
 
 
 class WebArchiveConversionHandler(ArchiveProcessingBaseHandler):
@@ -432,8 +441,10 @@ class WebArchiveConversionHandler(ArchiveProcessingBaseHandler):
 
     CONTEXT_CLASS = WebArchiveContextMetadata
 
-    def get_cache_key(self, path, entry=None, **kwargs) -> str:
+    def get_cache_key(self, path, entry=None, explicit_entry=False, **kwargs) -> str:
         key = super().get_cache_key(path, **kwargs)
+        if explicit_entry:
+            key += ":explicit"
         return f"{key}:entry={entry}" if entry else key
 
     def entry_point(self, names):
@@ -441,48 +452,72 @@ class WebArchiveConversionHandler(ArchiveProcessingBaseHandler):
         return find_html_entrypoint([n for n in names if not n.endswith("/")])
 
     def handle_file(
-        self, path, audio_settings=None, video_settings=None, entry=None, **seal_kwargs
+        self,
+        path,
+        audio_settings=None,
+        video_settings=None,
+        entry=None,
+        explicit_entry=False,
+        **seal_kwargs,
     ):
+        requested_entry = entry
+        suffix = ""
+        if entry:
+            member, suffix = split_reference(entry)
+            entry = posixpath.normpath(member).lstrip("/")
         prepared_path, entry = self._prepare_archive(path, entry)
         try:
             self._convert_archive(
-                prepared_path, audio_settings, video_settings, entry, **seal_kwargs
+                prepared_path,
+                audio_settings,
+                video_settings,
+                entry,
+                explicit_entry=explicit_entry,
+                **seal_kwargs,
             )
         finally:
             if prepared_path != path and os.path.exists(prepared_path):
                 os.unlink(prepared_path)
         # Mirror Studio: when the entry point is not index.html at the root,
         # record it in extra_fields.options.entry so Kolibri loads it.
-        if entry and entry != "index.html":
-            return FileMetadata(
-                content_node_metadata=ContentNodeMetadata(
-                    extra_fields={"options": {"entry": entry}}
-                )
+        if entry == "index.html" and not suffix:
+            if not requested_entry:
+                return None
+            entry = None
+        else:
+            entry += suffix
+        return FileMetadata(
+            content_node_metadata=ContentNodeMetadata(
+                extra_fields={"options": {"entry": entry}}
             )
-        return None
+        )
 
-    def validate_archive(self, path: str, entry=None):
+    def validate_archive(self, path: str, entry=None, explicit_entry=False):
         with self.open_and_verify_archive(path) as zf:
-            entry = entry or self.entry_point(zf.namelist())
+            names = zf.namelist()
+            detected = self.entry_point(names)
+            explicit = explicit_entry and bool(entry) and entry != detected
+            if explicit:
+                # Kolibri loads an explicit entry as given, percent-encoded or not.
+                entry = entry if entry in names else unquote(entry)
+            else:
+                entry = entry or detected
             if entry is None:
                 raise InvalidFileException(
                     f"File {path} is not a valid {self.FILE_TYPE} file, "
                     "no HTML file was found in the archive."
                 )
-            self._validate_entry(zf, path, entry)
-
-    def entry_disqualifier(self, names, html, entry):
-        """Why the entry point is unusable, or None. Default: it lacks a body."""
-        return _parse_entry(html, entry)[1]
-
-    def _validate_entry(self, zf, path, entry):
-        reason = self.entry_disqualifier(
-            zf.namelist(), self.read_file_from_archive(zf, entry), entry
-        )
-        if reason:
-            raise InvalidFileException(
-                f"File {path} is not a valid {self.FILE_TYPE} file, {reason}"
+            reason = self.entry_disqualifier(
+                names, self.read_file_from_archive(zf, entry), entry, explicit
             )
+            if reason:
+                raise InvalidFileException(
+                    f"File {path} is not a valid {self.FILE_TYPE} file, {reason}"
+                )
+
+    def entry_disqualifier(self, names, html, entry, explicit=False):
+        """Why the entry point is unusable, or None. Default: a detected entry lacks a body."""
+        return None if explicit else _parse_entry(html, entry)[1]
 
     def _prepare_archive(self, path, entry=None):
         """Denest a zip whose files all share a common parent directory
@@ -629,7 +664,7 @@ class H5PConversionHandler(ArchiveProcessingBaseHandler):
     FILE_TYPE = "H5P"
     REFERENCE_MAPPERS = DEFAULT_MAPPERS + (H5PContentMapper(),)
 
-    def validate_archive(self, path: str, entry=None):
+    def validate_archive(self, path: str, entry=None, explicit_entry=False):
         with self.open_and_verify_archive(path) as zf:
             h5p_json = self.read_file_from_archive(zf, "h5p.json")
             try:
@@ -705,7 +740,7 @@ class EPUBConversionHandler(ArchiveProcessingBaseHandler):
                 f"File {path} is not a valid EPUB file, OPF file is not well-formed."
             )
 
-    def validate_archive(self, path: str, entry=None):
+    def validate_archive(self, path: str, entry=None, explicit_entry=False):
         with self.open_and_verify_archive(path) as zf:
             self._validate_mimetype(zf, path)
             opf_path = self._get_opf_path(zf, path)
@@ -719,7 +754,7 @@ class KPUBConversionHandler(WebArchiveConversionHandler):
     def pre_process(self, temp_dir, entry):
         sanitize_kpub_directory(temp_dir, entry)
 
-    def entry_disqualifier(self, names, html, entry):
+    def entry_disqualifier(self, names, html, entry, explicit=False):
         return _kpub_disqualifier(names, html, entry)
 
 
@@ -727,7 +762,7 @@ class BloomConversionHandler(ArchiveProcessingBaseHandler):
     EXTENSIONS = {file_formats.BLOOMPUB, file_formats.BLOOMD}
     FILE_TYPE = "Bloom"
 
-    def validate_archive(self, path: str, entry=None):
+    def validate_archive(self, path: str, entry=None, explicit_entry=False):
         with self.open_and_verify_archive(path) as zf:
             # Check meta.json exists and is valid
             meta = self.read_file_from_archive(zf, "meta.json")
@@ -950,7 +985,12 @@ def _summarize_leaf(sub):
             continue
         # merge() round-trips through to_dict(), so this is always a plain dict.
         metadata = fm.content_node_metadata or {}
-        return metadata.get("kind"), files, metadata.get("extra_fields")
+        extra_fields = dict(metadata.get("extra_fields") or {})
+        options = extra_fields.pop("options", {})
+        options = {key: value for key, value in options.items() if value is not None}
+        if options:
+            extra_fields["options"] = options
+        return metadata.get("kind"), files, extra_fields or None
     return None, files, None
 
 
@@ -1011,11 +1051,17 @@ class IMSCPConversionHandler(HTML5ConversionHandler):
         audio_settings=None,
         video_settings=None,
         entry=None,
+        explicit_entry=False,
         preserve_kind=False,
     ):
         if preserve_kind:
             return super().handle_file(
-                path, audio_settings, video_settings, entry, preserve_kind=True
+                path,
+                audio_settings,
+                video_settings,
+                entry,
+                explicit_entry=explicit_entry,
+                preserve_kind=True,
             )
         with tempfile.TemporaryDirectory() as temp_dir:
             with zipfile.ZipFile(path) as zf:
