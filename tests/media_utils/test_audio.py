@@ -2,6 +2,7 @@ from __future__ import print_function
 
 import atexit
 import os
+import subprocess
 import tempfile
 
 import pytest
@@ -32,6 +33,26 @@ class Test_compress_video:
             audio.compress_audio(audio_file.name, vout.name, overwrite=True)
             compressed_duration = videos.extract_duration_of_media(vout.name, "mp3")
             assert duration == compressed_duration
+
+    @pytest.mark.parametrize("bit_rate", [48, 96])
+    def test_compression_uses_bit_rate(self, audio_file, bit_rate):
+        with TempFile(suffix=".mp3") as vout:
+            audio.compress_audio(
+                audio_file.name, vout.name, overwrite=True, bit_rate=bit_rate
+            )
+            probed = subprocess.check_output(
+                [
+                    "ffprobe",
+                    "-v",
+                    "error",
+                    "-show_entries",
+                    "stream=bit_rate",
+                    "-of",
+                    "default=noprint_wrappers=1:nokey=1",
+                    vout.name,
+                ]
+            )
+            assert int(probed) == bit_rate * 1000
 
     def test_raises_for_bad_file(self):
         with TempFile(suffix=".mp4") as vout:
