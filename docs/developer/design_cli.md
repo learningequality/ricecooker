@@ -29,7 +29,7 @@ A sushi chef script like this:
 
 Flow diagram
 ------------
-The call to `chef.main()` results in the following sequence of six calls:
+The call to `chef.main()` results in the following sequence of five calls:
 
     MySushiChef -----extends----> SushiChef                  commands.uploadchannel
     ---------------------------   -----------------------    -----------------------
@@ -38,9 +38,8 @@ The call to `chef.main()` results in the following sequence of six calls:
                                   3. run(args, options)
                                                              4. uploadchannel(chef, **args, **options)
                                                              ...
-    5. get_channel(**kwargs)
-                                                             ...
-    6. construct_channel(**kwargs)
+    5. construct_channel(**kwargs)
+         calls get_channel(**kwargs)
                                                              ...
                                                              ...
                                                              DONE
@@ -123,8 +122,8 @@ There are three types of arguments involved in a chef run:
   - `kwargs` (dict): chef-specific keyword arguments not handled by ricecooker's `uploadchannel` method
       - the chef's `run` method calls `uploadchannel_wrapper(self, args, options)`, which merges
         both dicts into the keyword arguments of `uploadchannel`,
-        while the definition of `uploadchannel` looks like `uploadchannel(chef, verbose=False, update=False, ... stage=False, **kwargs)`
+        while the definition of `uploadchannel` looks like `uploadchannel(chef, command="uploadchannel", update=False, ... stage=False, **kwargs)`
         so `kwargs` contains a mix of both `args` and `options` that are not
         explicitly expected by the `uploadchannel` function
       - The function `uploadchannel` will pass `**kwargs` on to the `chef`'s
-        `get_channel` and `construct_channel` methods as part of the chef run.
+        `construct_channel` method as part of the chef run.

@@ -102,7 +102,9 @@ argument instead — it triggers the same YouTube caption download alongside the
 video, with no explicit `YouTubeSubtitleFile` or local `.vtt` file needed:
 ```
 video_node = ContentNode(
-    source_id, title, license,
+    source_id=source_id,
+    title=title,
+    license=license,
     uri=f"https://www.youtube.com/watch?v={youtube_id}",
     context={"subtitle_languages": ["en", "es"]},
 )

@@ -12,6 +12,7 @@ The detailed information for content developers (chef authors) is presented here
    languages
    chefops
    remote
+   migration
 
 
 Code examples

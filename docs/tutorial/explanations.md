@@ -118,7 +118,7 @@ you to a structure that best first the needs of learners and teachers.
 
 
 ### Content nodes
-The canonical way to add a content item is `ContentNode(source_id, title, license, uri=...)`.
+The canonical way to add a content item is `ContentNode(source_id=..., title=..., license=..., uri=...)`.
 Passing a local path or URL as `uri` downloads the resource and infers its kind, format
 preset, and underlying file object automatically — see
 [concepts/introduction.md](../concepts/introduction.md#supported-content-kinds) for how
