@@ -1,11 +1,11 @@
 import codecs
 import concurrent.futures
 import json
-import os
 import sys
 
 from requests.exceptions import RequestException
 
+from ricecooker.classes.files import split_known_extension
 from ricecooker.exceptions import ChannelIncompleteError
 from ricecooker.exceptions import InvalidNodeException
 
@@ -211,11 +211,10 @@ class ChannelManager:
                 "preset": file_data.get_preset(),
                 "duration": file_data.duration,
             }
-            # Workaround for a bug in the Studio upload URL endpoint, whereby
-            # it does not currently use the passed in file_format as the default
-            # extension.
-            name, ext = os.path.splitext(data["name"])
-            if not ext or ext != data["file_format"]:
+            # Studio stores the file under the name's lowercased extension, so it
+            # must equal the format's.
+            name, ext = split_known_extension(data["name"])
+            if ext.lower() != "." + data["file_format"]:
                 data["name"] = "{}.{}".format(name, data["file_format"])
             url_response = config.SESSION.post(config.get_upload_url(), json=data)
             if url_response.status_code == 412:

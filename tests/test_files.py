@@ -351,6 +351,20 @@ def test_truncate_preserves_extension(mock_node):
     assert len(test_file.original_filename) == config.MAX_ORIGINAL_FILENAME_LENGTH
 
 
+@pytest.mark.parametrize("ext", [".pdf", ".webp", ""])
+def test_truncate_keeps_dotted_stem(mock_node, ext):
+    test_file = File()
+    stem = "Chapter 1.2 Intro " + "x" * config.MAX_ORIGINAL_FILENAME_LENGTH
+    test_file.original_filename = stem + ext
+    test_file.node = mock_node
+    test_file.truncate_fields()
+
+    assert (
+        test_file.original_filename
+        == stem[: config.MAX_ORIGINAL_FILENAME_LENGTH - len(ext)] + ext
+    )
+
+
 def test_truncate_non_ascii(mock_node):
     """Test truncation with non-ASCII characters"""
     test_file = File()

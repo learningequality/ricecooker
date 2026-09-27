@@ -22,6 +22,7 @@ from le_utils.constants.labels import needs
 from le_utils.constants.labels import resource_type
 from le_utils.constants.labels import subjects
 from le_utils.constants.languages import getlang
+from PIL import Image
 from requests.exceptions import ConnectionError as RequestsConnectionError
 from requests.exceptions import ReadTimeout
 
@@ -30,7 +31,9 @@ from ricecooker.chefs import SushiChef
 from ricecooker.classes.files import DocumentFile
 from ricecooker.classes.files import HTMLZipFile
 from ricecooker.classes.files import SlideImageFile
+from ricecooker.classes.files import SubtitleFile
 from ricecooker.classes.files import ThumbnailFile
+from ricecooker.classes.files import VideoFile
 from ricecooker.classes.licenses import get_license
 from ricecooker.classes.licenses import License
 from ricecooker.classes.nodes import ChannelNode
@@ -1556,6 +1559,71 @@ def test_file_upload_missing_storage_raises_descriptive_error(channel):
     with pytest.raises(FileNotFoundException) as exc_info:
         manager.do_file_upload(filename)
     assert storage_path in str(exc_info.value)
+
+
+@pytest.mark.parametrize(
+    "original_filename, expected",
+    [
+        ("Chapter 1.2 Intro.pdf", "Chapter 1.2 Intro.pdf"),
+        ("Chapter 1.2 Intro", "Chapter 1.2 Intro.pdf"),
+        ("Report.PDF", "Report.PDF"),
+    ],
+)
+def test_file_upload_name_keeps_dotted_stem(studio, original_filename, expected):
+    document = DocumentFile(sample_path("sample_doc_with_toc.pdf"))
+    channel = ChannelNode("dotted", "www.learningequality.org", "Dotted")
+    channel.add_child(
+        DocumentNode(
+            "doc",
+            "Doc",
+            license=get_license(licenses.CC_BY, copyright_holder="x"),
+            files=[document],
+        )
+    )
+    manager = ChannelManager(channel)
+    filenames = manager.process_tree()
+    # Transfers such as Google Drive name files without an extension.
+    document.original_filename = original_filename
+
+    manager.upload_files(filenames)
+
+    assert studio.upload_names == [expected]
+
+
+def test_file_upload_name_replaces_converted_extension(studio, tmp_path):
+    cover = str(tmp_path / "Cover 1.2.webp")
+    Image.open(sample_path("thumbnail.png")).save(cover)
+    channel = ChannelNode("converted", "www.learningequality.org", "Converted")
+    channel.add_child(
+        DocumentNode(
+            "document",
+            "Document",
+            license=get_license(licenses.CC_BY, copyright_holder="x"),
+            thumbnail=cover,
+            files=[DocumentFile(sample_path("41568-pdf.pdf"))],
+        )
+    )
+    channel.add_child(
+        VideoNode(
+            "video",
+            "Video",
+            license=get_license(licenses.CC_BY, copyright_holder="x"),
+            files=[
+                VideoFile(sample_path("sample.mov")),
+                SubtitleFile(sample_path("testsubtitles_ar.srt"), language="ar"),
+            ],
+        )
+    )
+    manager = ChannelManager(channel)
+
+    manager.upload_files(manager.process_tree())
+
+    assert sorted(studio.upload_names) == [
+        "41568-pdf.pdf",
+        "Cover 1.2.png",
+        "sample.webm",
+        "testsubtitles_ar.vtt",
+    ]
 
 
 def test_add_nodes_checks_both_failed_files_and_validity(channel):
