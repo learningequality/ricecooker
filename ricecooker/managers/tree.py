@@ -38,8 +38,6 @@ class ChannelManager:
         self.failed_uploads = {}
         self.file_map = {}
         self.all_nodes = []
-        self.root_id = None  # Will be set during early permission check
-        self.channel_id = None  # Will be set during early permission check
 
     def validate(self):
         """Validate every node in the tree. Raises InvalidNodeException in strict mode; returns None."""
@@ -306,11 +304,7 @@ class ChannelManager:
         from datetime import datetime
 
         start_time = datetime.now()
-        # Use cached root_id and channel_id if already set (from early permission check)
-        if self.root_id is not None and self.channel_id is not None:
-            root, channel_id = self.root_id, self.channel_id
-        else:
-            root, channel_id = self.add_channel()
+        root, channel_id = self.add_channel()
         self.node_count_dict = {"upload_count": 0, "total_count": self.channel.count()}
 
         config.LOGGER.info("\tPreparing fields...")
@@ -392,7 +386,11 @@ class ChannelManager:
         """
         config.LOGGER.info("   Creating channel {0}".format(self.channel.title))
         self.channel.truncate_fields()
-        payload = {"channel_data": self.channel.to_dict()}
+        channel_data = self.channel.to_dict()
+        # Studio's publish reads the thumbnail from storage.
+        if channel_data["thumbnail"] in self.failed_uploads:
+            channel_data["thumbnail"] = None
+        payload = {"channel_data": channel_data}
         response = config.SESSION.post(
             config.create_channel_url(), data=json.dumps(payload)
         )
