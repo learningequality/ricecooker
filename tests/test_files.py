@@ -489,12 +489,14 @@ def test_videofile_compression_caching(video_file):
         assert filename3 == filename2
 
 
-def test_video_compression_error(video_file):
+def test_video_compression_error():
     """Test that video compression errors are properly handled"""
     with patch("ricecooker.utils.pipeline.convert.compress_video") as mock_compress:
         mock_compress.side_effect = VideoCompressionError("FFmpeg failed")
 
-        video_file = VideoFile(video_file.path, ffmpeg_settings={"crf": 32})
+        video_file = VideoFile(
+            sample_path("high_res_sample.mp4"), ffmpeg_settings={"crf": 32}
+        )
         result = video_file.process_file()
 
         assert result is None
