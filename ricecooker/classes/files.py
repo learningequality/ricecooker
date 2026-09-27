@@ -74,6 +74,7 @@ class File(object):
     duration = None
     skip_upload = False
     default_preset = None
+    content_node_metadata = None
 
     def __init__(
         self,
@@ -299,6 +300,12 @@ class HTMLZipFile(DownloadFile):
     allowed_formats = {file_formats.HTML5}
     is_primary = True
     default_preset = format_presets.HTML5_ZIP
+
+    def process_file(self):
+        options = (self.node and self.node.extra_fields.get("options")) or {}
+        if options.get("entry"):
+            self.context.update(entry=options["entry"], explicit_entry=True)
+        return super().process_file()
 
 
 class H5PFile(DownloadFile):

@@ -40,6 +40,7 @@ from ricecooker.classes.files import HTMLZipFile
 from ricecooker.classes.licenses import get_license
 from ricecooker.classes.nodes import ChannelNode
 from ricecooker.classes.nodes import ContentNode
+from ricecooker.classes.nodes import CustomNavigationNode
 from ricecooker.classes.nodes import HTML5AppNode
 from ricecooker.exceptions import InvalidNodeException
 from ricecooker.managers.tree import ChannelManager
@@ -238,6 +239,33 @@ def _create_archive(path, files_dict):
             zf.writestr(filename, content)
 
 
+@contextmanager
+def _archive(files):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        path = os.path.join(tmpdir, "test.zip")
+        _create_archive(path, files)
+        yield path
+
+
+def _make_node(path, via_file=True, node_class=HTML5AppNode, **kwargs):
+    source = {"files": [HTMLZipFile(path)]} if via_file else {"uri": path}
+    return node_class(
+        source_id="node",
+        title="Node",
+        license=get_license("CC BY", copyright_holder="Holder"),
+        pipeline=FilePipeline(),
+        **source,
+        **kwargs,
+    )
+
+
+def _process_node(files, **kwargs):
+    with _archive(files) as path:
+        node = _make_node(path, **kwargs)
+        node.process_files()
+    return node
+
+
 class TestHTML5Validation:
     """Regression tests for HTML5ConversionHandler body validation."""
 
@@ -271,9 +299,7 @@ class TestHTML5EntryPoint:
 
     def _execute(self, files):
         """Create an HTML5 archive with given files and run the handler."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            path = os.path.join(tmpdir, "test.zip")
-            _create_archive(path, files)
+        with _archive(files) as path:
             return HTML5ConversionHandler().execute(path, skip_cache=True)
 
     def test_no_html_file_rejected(self):
@@ -318,6 +344,110 @@ class TestHTML5EntryPoint:
         }
         with zipfile.ZipFile(results[0].path) as zf:
             assert "app.html" in zf.namelist()
+
+    @pytest.mark.parametrize("via_file", [True, False])
+    def test_detected_entry_uploaded(self, via_file):
+        node = _process_node({"app.html": self.VALID_HTML}, via_file=via_file)
+        assert node.extra_fields == {"options": {"entry": "app.html"}}
+
+    @pytest.mark.parametrize("via_file", [True, False])
+    @pytest.mark.parametrize(
+        "entrypoint,options",
+        [("dist/app.html", {"entry": "app.html"}), ("dist/index.html", {})],
+    )
+    def test_htmlzipfile_entrypoint_rebased_when_denested(
+        self, entrypoint, options, via_file
+    ):
+        node = _process_node(
+            {"dist/index.html": self.VALID_HTML, "dist/app.html": self.VALID_HTML},
+            via_file=via_file,
+            entrypoint=entrypoint,
+        )
+        assert node.extra_fields == {"options": options}
+        with zipfile.ZipFile(config.get_storage_path(node.files[0].filename)) as zf:
+            assert {"index.html", "app.html"} <= set(zf.namelist())
+
+    @pytest.mark.parametrize("via_file", [True, False])
+    @pytest.mark.parametrize(
+        "entrypoint,options",
+        [
+            ("./app.html", {"entry": "app.html"}),
+            ("/app.html", {"entry": "app.html"}),
+            ("app.html#top", {"entry": "app.html#top"}),
+            ("app.html?x=1", {"entry": "app.html?x=1"}),
+            ("index.html#top", {"entry": "index.html#top"}),
+            ("./index.html", {}),
+        ],
+    )
+    def test_entrypoint_url_forms_uploaded(self, entrypoint, options, via_file):
+        node = _process_node(
+            {"index.html": self.VALID_HTML, "app.html": self.VALID_HTML},
+            via_file=via_file,
+            entrypoint=entrypoint,
+        )
+        assert node.extra_fields == {"options": options}
+
+    @pytest.mark.parametrize("via_file", [True, False])
+    @pytest.mark.parametrize(
+        "entrypoint,member,html",
+        [
+            ("app.html", "app.html", "<script src='app.js'></script>"),
+            ("frames.html", "frames.html", "<frameset><frame src='a.html'>"),
+            ("my%20page.html", "my page.html", VALID_HTML),
+        ],
+    )
+    def test_explicit_entrypoint_only_needs_to_exist(
+        self, entrypoint, member, html, via_file
+    ):
+        node = _process_node(
+            {"index.html": self.VALID_HTML, member: html},
+            via_file=via_file,
+            entrypoint=entrypoint,
+        )
+        assert node.extra_fields == {"options": {"entry": entrypoint}}
+
+    @pytest.mark.parametrize("via_file", [True, False])
+    def test_missing_htmlzipfile_entrypoint_fails_node(self, via_file):
+        with _archive({"index.html": self.VALID_HTML}) as path:
+            node = _make_node(path, via_file=via_file, entrypoint="missing.html")
+            clone = node.copy()
+            with pytest.raises(InvalidNodeException, match="missing.html"):
+                node.process_files()
+        assert node.extra_fields == {"options": {"entry": "missing.html"}}
+        assert clone.extra_fields == {"options": {"entry": "missing.html"}}
+
+    @pytest.mark.parametrize(
+        "via_file,node_class,kwargs",
+        [
+            (True, CustomNavigationNode, {}),
+            (
+                False,
+                HTML5AppNode,
+                {"extra_fields": {"options": {"modality": "CUSTOM_NAVIGATION"}}},
+            ),
+        ],
+    )
+    def test_detected_entry_keeps_modality(self, via_file, node_class, kwargs):
+        node = _process_node(
+            {"app.html": self.VALID_HTML},
+            via_file=via_file,
+            node_class=node_class,
+            **kwargs,
+        )
+        assert node.extra_fields == {
+            "options": {"modality": "CUSTOM_NAVIGATION", "entry": "app.html"}
+        }
+
+    @pytest.mark.parametrize("via_file", [True, False])
+    def test_detected_entry_leaves_shared_extra_fields(self, via_file):
+        shared = {"options": {}}
+        for entry in ["app.html", "index.html"]:
+            _process_node(
+                {entry: self.VALID_HTML},
+                via_file=via_file,
+                extra_fields=shared,
+            )
+        assert "entry" not in shared["options"]
 
 
 class TestKPUBValidation:
@@ -1135,20 +1265,10 @@ class TestKPUBPromotion:
 
     @pytest.mark.parametrize("via_file", [True, False])
     def test_legacy_html5_apis_keep_static_zip_html5(self, via_file):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            path = os.path.join(tmpdir, "test.zip")
-            _create_archive(
-                path, {"index.html": "<html><body><p>An article</p></body></html>"}
-            )
-            source = {"files": [HTMLZipFile(path)]} if via_file else {"uri": path}
-            node = HTML5AppNode(
-                source_id="static",
-                title="Static",
-                license=get_license("CC BY", copyright_holder="Holder"),
-                pipeline=FilePipeline(),
-                **source,
-            )
-            node.process_files()
+        node = _process_node(
+            {"index.html": "<html><body><p>An article</p></body></html>"},
+            via_file=via_file,
+        )
         assert [f.get_preset() for f in node.files] == [format_presets.HTML5_ZIP]
 
     def test_static_article_promoted_to_kpub(self):
@@ -1841,6 +1961,33 @@ class TestIMSCPDecomposition:
         )
         (leaf,) = _tree_dict_leaves(tree)
         assert leaf["extra_fields"]["options"]["entry"] == href
+
+    @pytest.mark.parametrize("href", ["index.html", "sco/index.html"])
+    def test_index_entry_uploads_no_options(self, href):
+        (leaf,) = _tree_dict_leaves(self._decompose(href, _ARTICLE_HTML))
+        assert "extra_fields" not in leaf
+
+    @pytest.mark.parametrize(
+        "html",
+        [
+            "<html><head></head><body></body></html>",
+            "<html><frameset><frame src='index.html'></frameset></html>",
+        ],
+    )
+    def test_bodiless_href_beside_index_is_dropped(self, html):
+        files = {
+            "sco/launch.html": html,
+            "sco/index.html": _page("<p>Body.</p>"),
+            "other/page.html": _page("<p>Other.</p>"),
+        }
+        tree = _decompose_package(
+            [
+                ("SCO", "sco/launch.html", ["sco/index.html"]),
+                ("OTHER", "other/page.html", []),
+            ],
+            files,
+        )
+        assert list(_leaves_by_title(tree)) == ["OTHER"]
 
     def test_uri_encoded_href_resolves(self):
         tree = self._decompose("my%20page.html", _ARTICLE_HTML)
