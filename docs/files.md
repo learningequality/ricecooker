@@ -177,7 +177,7 @@ The following file classes can be added to the `VideoNode`s:
     class WebVideoFile(File)
     class YouTubeVideoFile(WebVideoFile)
     class SubtitleFile(DownloadFile)
-    class YouTubeSubtitleFile(File)
+    class YouTubeSubtitleFile(DownloadFile)
 
 
 To create `VideoFile`, you need the code
