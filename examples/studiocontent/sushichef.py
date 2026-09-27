@@ -15,14 +15,6 @@ curates content from another channel already on Studio into a new channel.
 
 SOURCE_DOMAIN = "testdomain.org"  ## change me!
 
-# global dict to retain state between the two chef runs
-original_channel_data = {
-    "channel_id": None,
-    "doc_node_id": None,
-    "audio_node_id": None,
-}
-
-
 class OriginalChannelChef(SushiChef):
     channel_info = {
         "CHANNEL_TITLE": "Original channel",
@@ -75,6 +67,9 @@ class CuratedChannelChef(SushiChef):
 
     def construct_channel(self, **kwargs):
         channel = self.get_channel(**kwargs)
+        original_channel = OriginalChannelChef().construct_channel()
+        original_channel_id = original_channel.get_node_id().hex
+        original_doc, original_audio = original_channel.children[:2]
 
         document_topic = TopicNode(
             title="Documents",
@@ -83,8 +78,8 @@ class CuratedChannelChef(SushiChef):
         channel.add_child(document_topic)
         remote_document = StudioContentNode(
             title="Glorious new title for the potato doc",
-            source_channel_id=original_channel_data["channel_id"],
-            source_node_id=original_channel_data["doc_node_id"],
+            source_channel_id=original_channel_id,
+            source_node_id=original_doc.get_node_id().hex,
         )
         document_topic.add_child(remote_document)
 
@@ -94,8 +89,8 @@ class CuratedChannelChef(SushiChef):
         )
         channel.add_child(audio_topic)
         remote_audio = StudioContentNode(
-            source_channel_id=original_channel_data["channel_id"],
-            source_node_id=original_channel_data["audio_node_id"],
+            source_channel_id=original_channel_id,
+            source_node_id=original_audio.get_node_id().hex,
         )
         audio_topic.add_child(remote_audio)
 
@@ -109,15 +104,6 @@ if __name__ == "__main__":
     """
     original_chef = OriginalChannelChef()
     original_chef.main()
-    original_channel = original_chef.construct_channel()
-
-    original_channel_data["channel_id"] = original_channel.get_node_id().hex
-    original_channel_data["doc_node_id"] = (
-        original_channel.children[0].get_node_id().hex
-    )
-    original_channel_data["audio_node_id"] = (
-        original_channel.children[1].get_node_id().hex
-    )
 
     input(
         "Please visit the URL above and deploy the channel, and wait for it to finish. Then press enter to continue..."

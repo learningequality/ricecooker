@@ -5,19 +5,21 @@ This directory contains examples of `ricecooker` content integration scripts (su
 
   - [`gettingstarted`](./gettingstarted)/[`sushichef.py`](./gettingstarted/sushichef.py)
     is a basic "Hello, World!" example used in the [Getting started](https://ricecooker.readthedocs.io/en/latest/gettingstarted.html) guide.
-  - `tutorial/sushichf.py` the code that goes with the sushi chef tutorial doc
-    https://docs.google.com/document/d/1iiwce8B_AyJ2d6K8dYBl66n9zjz0zQ3G4gTrubdk9ws/edit
-  - `kitchensink/sushichef.py` is a comprehensive example that creates audio, video, and exercise nodes.
-  - `wikipedia/sushichef.py` an example that creates a channel from two Wikipedia categories
+  - [`tutorial`](./tutorial)/[`sushichef.py`](./tutorial/sushichef.py) goes with the
+    [tutorial](https://ricecooker.readthedocs.io/en/latest/tutorial/tutorial.html) and adds a document, a video and an audio file.
+  - [`wikipedia`](./wikipedia)/[`sushichef.py`](./wikipedia/sushichef.py) builds a channel from two Wikipedia list pages.
+  - [`pagearchive`](./pagearchive)/[`sushichef.py`](./pagearchive/sushichef.py) archives a JavaScript web page into an offline HTML5 zip.
+  - [`studiocontent`](./studiocontent)/[`sushichef.py`](./studiocontent/sushichef.py) curates nodes from a channel already on Studio into a new channel.
+  - [`curriculum_courses`](./curriculum_courses)/[`sushichef.py`](./curriculum_courses/sushichef.py) builds a course channel from `content.json`.
 
-To run each of these, you you'll need to edit the `SOURCE_DOMAIN` and `SOURCE_ID`
-in each chef script and then call them on the command line:
+To run each of these, you'll need to edit `CHANNEL_SOURCE_DOMAIN` and `CHANNEL_SOURCE_ID`
+in the chef's `channel_info` and then call it on the command line:
 
     git clone https://github.com/learningequality/ricecooker.git
     cd ricecooker/examples/examplename
     # Follow the instructions in the README.md file...
     # ...then run the sushichef script by calling:
-    python suschief.py --token=YOURSTUDIOTOKENHERE9139139f3a23232
+    python sushichef.py --token=YOURSTUDIOTOKENHERE9139139f3a23232
 
 
 Further reading
