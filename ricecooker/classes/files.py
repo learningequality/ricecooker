@@ -353,8 +353,7 @@ class YouTubeVideoFile(WebVideoFile):
         )
 
 
-class YouTubeSubtitleFile(File):
-    default_preset = format_presets.VIDEO_SUBTITLE
+class YouTubeSubtitleFile(DownloadFile):
     """
     Helper class for downloading youtube subtitles.
     Args:
@@ -365,19 +364,24 @@ class YouTubeSubtitleFile(File):
     if `language` is a supported code before creating the `YouTubeSubtitleFile`.
     """
 
+    default_ext = file_formats.VTT
+    default_preset = format_presets.VIDEO_SUBTITLE
+
     def __init__(self, youtube_id, language=None, **kwargs):
-        self.youtube_url = "http://www.youtube.com/watch?v={}".format(youtube_id)
         if isinstance(language, languages.Language):
             language = language.code
-        self.youtube_language = (
-            language  # save youtube language code (can differ from internal repr.)
+        self.youtube_language = language
+        super().__init__(
+            "http://www.youtube.com/watch?v={}".format(youtube_id),
+            context={
+                "subtitle_languages": [language],
+                "download_video": False,
+                "default_ext": None,
+            },
+            language=get_language_with_alpha2_fallback(language).code,
+            **kwargs,
         )
-        language_obj = get_language_with_alpha2_fallback(language)
-        super(YouTubeSubtitleFile, self).__init__(language=language_obj.code, **kwargs)
-        self.context = {
-            "subtitle_languages": [self.youtube_language],
-            "download_video": False,
-        }
+        self.youtube_url = self.path
         assert self.language, "Subtitles must have a language"
 
 

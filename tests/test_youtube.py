@@ -1,8 +1,12 @@
 import os
+import shutil
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import pytest
+import yt_dlp
+from conftest import sample_path
 from le_utils.constants import licenses
 from vcr_config import my_vcr
 
@@ -107,15 +111,63 @@ def subtitles_langs_unsupported():
     return ["sgn", "zzzza", "bbb-qqq"]
 
 
-@pytest.mark.skipif(True, reason="Requires connecting to youtube.")
-def test_youtubesubtitle_process_file(youtube_video_with_subs_dict):
-    youtube_id = youtube_video_with_subs_dict["youtube_id"]
-    lang = youtube_video_with_subs_dict["subtitles_langs"][0]
-    sub_file = YouTubeSubtitleFile(youtube_id=youtube_id, language=lang)
+@pytest.fixture
+def fake_yt_dlp(monkeypatch):
+    fake = SimpleNamespace(available={"en"}, error=None, calls=0)
+
+    class FakeYoutubeDL:
+        def __init__(self, params):
+            self.params = params
+            fake.calls += 1
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc_info):
+            return False
+
+        def extract_info(self, url, **kwargs):
+            return {"id": "fake", "url": url}
+
+        def process_ie_result(self, ie_result, **kwargs):
+            if fake.error:
+                raise fake.error
+            for lang in set(self.params["subtitleslangs"]) & fake.available:
+                # yt-dlp appends .<lang>.vtt to outtmpl for subtitles.
+                shutil.copyfile(
+                    sample_path("subtitles", "basic.vtt"),
+                    "{}.{}.vtt".format(self.params["outtmpl"], lang),
+                )
+            return ie_result
+
+    monkeypatch.setattr(
+        "ricecooker.utils.pipeline.transfer.yt_dlp.YoutubeDL", FakeYoutubeDL
+    )
+    return fake
+
+
+def test_youtubesubtitle_process_file(fake_yt_dlp, youtube_video_with_subs_dict):
+    sub_file = YouTubeSubtitleFile(
+        youtube_id=youtube_video_with_subs_dict["youtube_id"], language="en"
+    )
     filename = sub_file.process_file()
-    assert filename is not None, "Processing YouTubeSubtitleFile file failed"
-    assert filename.endswith(".vtt"), "Wrong extension for video subtitles"
-    assert not filename.endswith("." + lang + ".vtt"), "Lang code in extension"
+    assert filename is not None, sub_file.error
+    assert filename.endswith(".vtt")
+    assert fake_yt_dlp.calls
+
+
+@pytest.mark.parametrize(
+    "available,error",
+    [(set(), None), ({"en"}, yt_dlp.utils.DownloadError("ERROR: Video unavailable"))],
+)
+def test_youtubesubtitle_failure_is_a_failed_file(fake_yt_dlp, available, error):
+    fake_yt_dlp.available = available
+    fake_yt_dlp.error = error
+    sub_file = YouTubeSubtitleFile(youtube_id="nosubs", language="en")
+    assert sub_file.process_file() is None
+    assert sub_file in config.FAILED_FILES
+    assert sub_file.error
+    assert fake_yt_dlp.calls
 
 
 def test_is_youtube_subtitle_file_supported_language(
