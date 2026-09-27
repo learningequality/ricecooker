@@ -29,7 +29,6 @@ from pdf2image import pdfinfo_from_path
 from pdf2image.exceptions import PDFPageCountError
 from pdf2image.exceptions import PDFPopplerTimeoutError
 from PIL import Image
-from PIL import UnidentifiedImageError
 
 from ricecooker import config
 from ricecooker.config import LOGGER
@@ -808,19 +807,17 @@ class ImageConversionHandler(ExtensionMatchingHandler):
         try:
             with Image.open(path) as im:
                 im.verify()
-            if extension not in self.SUPPORTED_IMAGE_EXTENSIONS:
-                tempf = tempfile.NamedTemporaryFile(
-                    suffix=".{}".format(file_formats.PNG), delete=False
-                )
-                tempf.close()
-                extension = file_formats.PNG
-                with self.write_file(extension) as tempf:
-                    with Image.open(path) as im:
-                        im.convert("RGB").save(tempf, extension)
-        except UnidentifiedImageError:
+            if extension in self.SUPPORTED_IMAGE_EXTENSIONS:
+                return
+            with Image.open(path) as im:
+                converted = im.convert("RGB")
+        # PIL raises these for a truncated, corrupt or oversized image.
+        except (OSError, SyntaxError, Image.DecompressionBombError):
             raise InvalidFileException(
                 "Image file did not pass verification: not a recognized image"
             )
+        with self.write_file(file_formats.PNG) as tempf:
+            converted.save(tempf, file_formats.PNG)
 
 
 class SVGValidationHandler(ExtensionMatchingHandler):

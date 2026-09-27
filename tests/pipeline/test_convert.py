@@ -2,6 +2,7 @@
 
 import base64
 import json
+import logging
 import os
 import posixpath
 import re
@@ -37,6 +38,7 @@ from ricecooker import config
 from ricecooker.classes.files import EPubFile
 from ricecooker.classes.files import H5PFile
 from ricecooker.classes.files import HTMLZipFile
+from ricecooker.classes.files import SubtitleFile
 from ricecooker.classes.licenses import get_license
 from ricecooker.classes.nodes import ChannelNode
 from ricecooker.classes.nodes import ContentNode
@@ -49,6 +51,7 @@ from ricecooker.utils import videos
 from ricecooker.utils.archive_dependencies import SharedAssetExtractor
 from ricecooker.utils.imscp import IMSCPPackage
 from ricecooker.utils.pipeline import FilePipeline
+from ricecooker.utils.pipeline import transfer
 from ricecooker.utils.pipeline.convert import BloomConversionHandler
 from ricecooker.utils.pipeline.convert import DocumentConversionHandler
 from ricecooker.utils.pipeline.convert import EPUBConversionHandler
@@ -558,7 +561,7 @@ class TestDocumentConversion:
 
 @contextmanager
 def _run_external_refs(
-    files, url_to_content, *, suffix=".zip", mappers=DEFAULT_MAPPERS
+    files, url_to_content, *, suffix=".zip", mappers=DEFAULT_MAPPERS, content_types=None
 ):
     """Build an archive from ``files``, run the processor, yield ``(dir, fetched)``.
 
@@ -576,7 +579,7 @@ def _run_external_refs(
         with zipfile.ZipFile(zip_path) as zf:
             zf.extractall(out_dir)
         try:
-            with fake_download_session(url_to_content) as fetched:
+            with fake_download_session(url_to_content, content_types) as fetched:
                 archive_assets.ArchiveProcessor(
                     out_dir, pipeline, convert_stage=convert_stage, mappers=mappers
                 ).process()
@@ -617,6 +620,209 @@ class TestArchiveProcessor:
             soup = BeautifulSoup(index, "lxml")
             assert soup.find("title").string == "Keep Me"
             assert soup.find("script")["src"] == "app.js"
+
+    def test_failed_ref_left_unrewritten(self):
+        bad_url = "https://ex.com/dropped.png"
+        bad_content = [
+            b"partial",
+            requests.exceptions.ChunkedEncodingError(
+                "Connection broken: IncompleteRead"
+            ),
+        ]
+        files = {
+            "index.html": (
+                f'<html><body><img src="{bad_url}">'
+                '<img src="https://ex.com/good.png"></body></html>'
+            ),
+        }
+        url_to_content = {bad_url: bad_content, "https://ex.com/good.png": _PNG_1x1}
+        with _run_external_refs(files, url_to_content) as (out_dir, _fetched):
+            index = open(os.path.join(out_dir, "index.html")).read()
+            assert bad_url in index
+            assert "https://ex.com/good.png" not in index
+            assert len([n for n in os.listdir(out_dir) if n.endswith(".png")]) == 1
+
+    def test_undeterminable_ref_left_unrewritten(self, caplog):
+        blob = "https://ex.com/blob?id=1"
+        files = {
+            "index.html": (
+                f'<html><body><img src="{blob}">'
+                '<img src="https://ex.com/good.png"></body></html>'
+            ),
+        }
+        url_to_content = {blob: b"???", "https://ex.com/good.png": _PNG_1x1}
+        with caplog.at_level(logging.WARNING, logger=config.LOGGER.name):
+            with _run_external_refs(files, url_to_content) as (out_dir, _fetched):
+                index = open(os.path.join(out_dir, "index.html")).read()
+        assert blob in index
+        assert "https://ex.com/good.png" not in index
+        assert any(
+            re.search(r"blob\?id=1 \(.+\)", r.getMessage())
+            for r in caplog.records
+            if r.levelno == logging.WARNING
+        )
+
+    def test_extensionless_stylesheet_resolved(self):
+        css_url = "https://fonts.googleapis.com/css?family=Roboto"
+        font_url = "https://fonts.gstatic.com/s/roboto.woff2"
+        files = {
+            "index.html": f'<html><head><link rel="stylesheet" href="{css_url}"></head></html>',
+        }
+        url_to_content = {
+            css_url: f"@font-face{{src:url({font_url})}}".encode(),
+            font_url: b"wOF2",
+        }
+        with _run_external_refs(
+            files,
+            url_to_content,
+            content_types={css_url: "text/css; charset=utf-8"},
+        ) as (out_dir, fetched):
+            index = open(os.path.join(out_dir, "index.html")).read()
+            css_files = [n for n in os.listdir(out_dir) if n.endswith(".css")]
+        assert len(css_files) == 1
+        assert f'href="{css_files[0]}"' in index
+        assert font_url in fetched
+
+    @pytest.mark.parametrize(
+        "member,original,url",
+        [
+            (
+                "index.html",
+                "<html><head><meta charset='windows-1252'></head><body>"
+                "<p>Educación “x”</p><img src='https://ex.com/cp.png'></body></html>".encode(
+                    "cp1252"
+                )
+                # A byte cp1252 leaves undefined.
+                + b"\x81",
+                "https://ex.com/cp.png",
+            ),
+            (
+                "index.html",
+                "<html><head><meta charset='shift_jis'></head><body>"
+                "<p>日本語のページ</p><img src='https://ex.com/sj.png'></body></html>".encode(
+                    "shift_jis"
+                ),
+                "https://ex.com/sj.png",
+            ),
+            (
+                "style.css",
+                "/* Café */ body{background:url(https://ex.com/css.png)}".encode(
+                    "cp1252"
+                ),
+                "https://ex.com/css.png",
+            ),
+            (
+                "index.html",
+                (
+                    "<html><head><!-- " + "x" * 5000 + " --></head><body>"
+                    "<p>Educación</p><img src='https://ex.com/late.png'></body></html>"
+                ).encode("cp1252"),
+                "https://ex.com/late.png",
+            ),
+        ],
+        ids=["cp1252-html", "shift_jis-html", "cp1252-css", "non-ascii-past-sample"],
+    )
+    def test_non_utf8_refs_rewritten_in_place(self, member, original, url):
+        with _run_external_refs({member: original}, {url: _PNG_1x1}) as (
+            out_dir,
+            _fetched,
+        ):
+            pngs = [n for n in os.listdir(out_dir) if n.endswith(".png")]
+            with open(os.path.join(out_dir, member), "rb") as f:
+                rewritten = f.read()
+        assert len(pngs) == 1
+        assert rewritten == original.replace(url.encode(), pngs[0].encode())
+
+    def test_encoding_python_lacks_falls_back_to_latin1(self):
+        url = "https://ex.com/tw.png"
+        original = f"<p>caf\xe9</p><img src='{url}'>".encode("latin-1")
+        detected = {"encoding": "EUC-TW", "confidence": 0.99, "language": ""}
+        with patch("chardet.detect", return_value=detected):
+            with _run_external_refs({"index.html": original}, {url: _PNG_1x1}) as (
+                out_dir,
+                _fetched,
+            ):
+                pngs = [n for n in os.listdir(out_dir) if n.endswith(".png")]
+                with open(os.path.join(out_dir, "index.html"), "rb") as f:
+                    rewritten = f.read()
+        assert len(pngs) == 1
+        assert rewritten == original.replace(url.encode(), pngs[0].encode())
+
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "https://ex.com/app.js",
+            "https://ex.com/site.css",
+            "https://ex.com/font.woff2",
+            "https://ex.com/logo.svg",
+            "https://ex.com/data.json",
+            "https://ex.com/photo.png",
+            "https://ex.com/clip.mp3",
+        ],
+        ids=["js", "css", "woff2", "svg", "json", "png", "mp3"],
+    )
+    def test_asset_answered_with_html_left_unrewritten(self, url):
+        page = (
+            f'<html><head><script src="{url}"></script>'
+            f'<link rel="stylesheet" href="{url}"></head>'
+            f'<body><img src="{url}"></body></html>'
+        )
+        not_found = "<html><body>Not Found</body></html>"
+
+        def render_page(url, output_dir, **kwargs):
+            with open(os.path.join(output_dir, "index.html"), "w") as f:
+                f.write(not_found)
+
+        with (
+            patch.object(transfer, "render_page", render_page),
+            _run_external_refs(
+                {"index.html": page},
+                {url: not_found.encode()},
+                content_types={url: "text/html; charset=utf-8"},
+            ) as (out_dir, _fetched),
+        ):
+            assert sorted(os.listdir(out_dir)) == ["index.html"]
+            with open(os.path.join(out_dir, "index.html")) as f:
+                assert f.read() == page
+
+    @pytest.mark.parametrize(
+        "url, content_type",
+        [
+            ("https://ex.com/captions.vtt", "text/vtt"),
+            ("https://ex.com/captions?id=5", "text/vtt"),
+            ("https://ex.com/subs.php?id=1", "text/vtt"),
+            ("https://ex.com/subs.php?id=2", "application/ttml+xml"),
+        ],
+        ids=["vtt", "extensionless", "php", "php-ttml"],
+    )
+    def test_subtitle_ref_left_unrewritten(self, url, content_type):
+        page = (
+            f'<html><body><video src="https://ex.com/good.png"><track src="{url}"></video>'
+            "</body></html>"
+        )
+        url_to_content = {
+            url: b"WEBVTT\n\n00:00.000 --> 00:01.000\nHi\n",
+            "https://ex.com/good.png": _PNG_1x1,
+        }
+        with _run_external_refs(
+            {"index.html": page}, url_to_content, content_types={url: content_type}
+        ) as (out_dir, _fetched):
+            index = open(os.path.join(out_dir, "index.html")).read()
+        assert f'src="{url}"' in index
+        assert "https://ex.com/good.png" not in index
+
+    def test_subtitle_ref_cached_by_subtitle_file_left_unrewritten(self, tmp_path):
+        url = "https://ex.com/captions.vtt"
+        vtt = b"WEBVTT\n\n00:00.000 --> 00:01.000\nHi\n"
+        page = f'<html><body><video><track src="{url}"></video></body></html>'
+        cache = FileCache(str(tmp_path / "cache"), forever=True)
+        with patch.object(caching, "FILECACHE", cache):
+            with fake_download_session({url: vtt}, {url: "text/vtt"}):
+                assert SubtitleFile(url, language="en").process_file()
+            with _run_external_refs({"index.html": page}, {}) as (out_dir, fetched):
+                index = open(os.path.join(out_dir, "index.html")).read()
+        assert fetched == []
+        assert f'src="{url}"' in index
 
     def test_css_recursion(self):
         url_to_content = {
@@ -904,20 +1110,21 @@ class TestSharedAssetExtractor:
             for directory in leaf_dirs.values():
                 assert {"nav.html", "p.html"} <= set(_read_tree(directory))
 
-    def test_leaf_with_non_utf8_page_sits_out(self):
+    def test_cp1252_page_rewritten_in_its_encoding(self):
+        page_b = "<p>Café “x”</p><img src='../img/logo.png'>".encode("cp1252")
         files = {
-            "a/index.html": '<script src="../lib/x.js"></script>',
-            "b/index.html": '<script src="../lib/x.js"></script>',
-            "b/p2.html": "caf\xe9".encode("latin-1"),
-            "lib/x.js": "X",
+            "a/index.html": '<img src="../img/logo.png">',
+            "b/index.html": page_b,
+            "img/logo.png": b"LOGO",
         }
-        leaves = {"a": ["a/index.html"], "b": ["b/index.html", "b/p2.html"]}
-        with _shared_extraction(files, leaves) as (leaf_dirs, dep, _rewritten):
-            assert dep == {}
-            members = ["b/index.html", "b/p2.html", "lib/x.js"]
-            assert _read_tree(leaf_dirs["b"]) == {
-                m: _as_bytes(files)[m] for m in members
-            }
+        leaves = {"a": ["a/index.html"], "b": ["b/index.html"]}
+        with _shared_extraction(files, leaves) as (leaf_dirs, dep, rewritten):
+            assert dep == {"img/logo.png": b"LOGO"}
+            assert rewritten == {"a", "b"}
+            (ref,) = _refs(leaf_dirs["a"], "a/index.html")
+            assert _read_tree(leaf_dirs["b"])["b/index.html"] == page_b.replace(
+                b"../img/logo.png", ref.encode()
+            )
 
 
 class TestH5PContentMapper:
@@ -1405,6 +1612,8 @@ def _qti_package(resources, files):
 
 _ARTICLE_HTML = "<html><body><h1>Title</h1><p>Prose.</p></body></html>"
 
+_PADDING = "<!-- " + "x" * 5000 + " -->"
+
 # Per-item LOM covering every mapped section: general, educational, rights and
 # lifeCycle contributors.
 _LOM_ITEM_XML = (
@@ -1860,6 +2069,43 @@ class TestIMSCPDecomposition:
         )
         (leaf,) = tree["children"]
         assert leaf["title"] == "English"
+
+    @pytest.mark.parametrize(
+        "lead,gap",
+        [("", ""), (_PADDING, ""), ("", _PADDING)],
+        ids=["early", "late", "late-cp1252-only-byte"],
+    )
+    def test_manifest_misdeclared_as_utf8_keeps_titles(self, lead, gap):
+        manifest = (
+            '<?xml version="1.0" encoding="UTF-8"?>{}'
+            '<manifest xmlns="http://www.imsproject.org/xsd/imscp_rootv1p1p2" '
+            'identifier="MAN"><organizations default="ORG">'
+            '<organization identifier="ORG">'
+            "<item identifier='A' identifierref='R1'><title>Educación física</title></item>{}"
+            "<item identifier='B' identifierref='R2'><title>Maria’s class</title></item>"
+            "</organization></organizations><resources>"
+            '<resource identifier="R1" type="webcontent" href="a.html">'
+            '<file href="a.html"/></resource>'
+            '<resource identifier="R2" type="webcontent" href="b.html">'
+            '<file href="b.html"/></resource></resources></manifest>'
+        ).format(lead, gap)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "package.zip")
+            _create_archive(
+                path,
+                {
+                    "imsmanifest.xml": manifest.encode("cp1252"),
+                    "a.html": _ARTICLE_HTML,
+                    "b.html": _ARTICLE_HTML,
+                },
+            )
+            tree = (
+                FilePipeline().execute(path, skip_cache=True)[0].content_node_metadata
+            )
+        assert [leaf["title"] for leaf in tree["children"]] == [
+            "Educación física",
+            "Maria’s class",
+        ]
 
     def test_nested_resources_collapse_into_one_folder(self):
         # Single-child wrappers (organization, A, B) and a folder left with one
