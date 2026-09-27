@@ -49,6 +49,7 @@ class ArchiveProcessor:
         mappers=DEFAULT_MAPPERS,
         audio_settings=None,
         video_settings=None,
+        explicit_settings=(),
         members=None,
     ):
         self.directory = directory
@@ -62,6 +63,7 @@ class ArchiveProcessor:
         self.mappers = mappers
         self.audio_settings = audio_settings or {}
         self.video_settings = video_settings or {}
+        self.explicit_settings = list(explicit_settings)
         # Fetched URL -> pipeline output path (None on failure): fetch each URL
         # once and terminate cycles in downloaded CSS.
         self.visited = {}
@@ -210,6 +212,7 @@ class ArchiveProcessor:
                 context={
                     "audio_settings": self.audio_settings,
                     "video_settings": self.video_settings,
+                    "explicit_settings": self.explicit_settings,
                 },
                 skip_cache=True,
             )

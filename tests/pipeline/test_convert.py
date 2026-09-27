@@ -4,8 +4,10 @@ import base64
 import json
 import os
 import posixpath
+import random
 import re
 import shutil
+import struct
 import subprocess
 import tempfile
 import time
@@ -21,6 +23,7 @@ import pytest
 import requests
 from bs4 import BeautifulSoup
 from cachecontrol.caches.file_cache import FileCache
+from conftest import read_file_hash
 from conftest import sample_path
 from fake_session import fake_download_session
 from le_utils.constants import content_kinds
@@ -48,8 +51,10 @@ from ricecooker.utils import archive_assets
 from ricecooker.utils import caching
 from ricecooker.utils import videos
 from ricecooker.utils.archive_dependencies import SharedAssetExtractor
+from ricecooker.utils.audio import compress_audio
 from ricecooker.utils.imscp import IMSCPPackage
 from ricecooker.utils.pipeline import FilePipeline
+from ricecooker.utils.pipeline.convert import AudioCompressionHandler
 from ricecooker.utils.pipeline.convert import BloomConversionHandler
 from ricecooker.utils.pipeline.convert import DocumentConversionHandler
 from ricecooker.utils.pipeline.convert import EPUBConversionHandler
@@ -59,6 +64,8 @@ from ricecooker.utils.pipeline.convert import HTML5ConversionHandler
 from ricecooker.utils.pipeline.convert import ImageConversionHandler
 from ricecooker.utils.pipeline.convert import KPUBConversionHandler
 from ricecooker.utils.pipeline.convert import PandocMissingError
+from ricecooker.utils.pipeline.convert import VideoCompressionHandler
+from ricecooker.utils.pipeline.exceptions import ExpectedFileException
 from ricecooker.utils.pipeline.exceptions import InvalidFileException
 from ricecooker.utils.qti.items import item_vocabulary
 from ricecooker.utils.qti.upgrade import QTI2Converter
@@ -67,6 +74,10 @@ from ricecooker.utils.references import DEFAULT_MAPPERS
 from ricecooker.utils.references import is_data_uri
 from ricecooker.utils.references import is_external_url
 from ricecooker.utils.references import mapper_for
+from ricecooker.utils.videos import display_size
+from ricecooker.utils.videos import is_faststart
+from ricecooker.utils.videos import probe_media
+from ricecooker.utils.videos import web_faststart_video
 from ricecooker.utils.zip import create_predictable_zip
 from ricecooker.utils.zip import directory_member_names
 
@@ -84,7 +95,7 @@ def _write_stub_output(input_path, output_path, **kwargs):
         fh.write(b"compressed")
 
 
-def test_html5_archive_with_mp4_compression(video_file, audio_file):
+def test_html5_archive_with_mp4_compression(audio_file):
     """MP4 and MP3 files within HTML5 archives are compressed when settings are provided."""
     # Create temporary HTML5 archive with media files
     temp_archive = tempfile.NamedTemporaryFile(suffix=".zip", delete=False)
@@ -94,7 +105,7 @@ def test_html5_archive_with_mp4_compression(video_file, audio_file):
         with zipfile.ZipFile(temp_archive.name, "w") as zf:
             zf.writestr("index.html", "<html><body>Test content</body></html>")
             # Add media files by reading from fixture files
-            with open(video_file.path, "rb") as vf:
+            with open(sample_path("high_res_sample.mp4"), "rb") as vf:
                 zf.writestr("video/sample.mp4", vf.read())
             with open(audio_file.path, "rb") as af:
                 zf.writestr("audio/sample.mp3", af.read())
@@ -215,15 +226,529 @@ def test_archive_no_compression_without_settings(video_file, audio_file):
         ("sample_audio.mp3", {"audio_settings": {"bit_rate": 96}}),
     ],
 )
-def test_hung_ffmpeg_fails_file(sample, context, stub_on_path, monkeypatch):
-    stub_on_path("ffmpeg")
-    monkeypatch.setattr(videos, "STALL_TIMEOUT", 1)
+@pytest.mark.parametrize(
+    "binary,timeout", [("ffmpeg", "STALL_TIMEOUT"), ("ffprobe", "PROBE_TIMEOUT")]
+)
+def test_hung_ffmpeg_fails_file(
+    sample, context, binary, timeout, stub_on_path, monkeypatch
+):
+    stub_on_path(binary)
+    monkeypatch.setattr(videos, timeout, 2)
     start = time.monotonic()
     with pytest.raises(InvalidFileException):
         FilePipeline(default_context=context).execute(
             sample_path(sample), skip_cache=True
         )
-    assert time.monotonic() - start < 10
+    assert time.monotonic() - start < 4
+
+
+def test_timed_out_packet_scan_reencodes(faststart_240p, stub_on_path, monkeypatch):
+    ffprobe = shutil.which("ffprobe")
+    stub_on_path(
+        "ffprobe", f'case "$*" in *packet=*) exec sleep 30;; esac\nexec {ffprobe} "$@"'
+    )
+    monkeypatch.setattr(videos, "PROBE_TIMEOUT", 2)
+    output = _compress(
+        VideoCompressionHandler(), faststart_240p, video_settings={"crf": 32}
+    )
+    assert read_file_hash(output) != read_file_hash(faststart_240p)
+
+
+def _compress(handler, path, **settings):
+    [result] = handler.execute(path, context=settings, skip_cache=True)
+    return result.path
+
+
+def _audio_only(path, bit_rate="128k", cover=False):
+    cover_args = []
+    if cover:
+        cover_args = ["-f", "lavfi", "-i", "color=size=64x64:duration=0.04"]
+        cover_args += ["-map", "0", "-map", "1", "-c:v", "mjpeg"]
+        cover_args += ["-disposition:v:0", "attached_pic"]
+    subprocess.run(
+        ["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "sine=duration=2", *cover_args]
+        + ["-ac", "2", "-b:a", bit_rate, "-movflags", "+faststart", str(path)],
+        check=True,
+    )
+    return str(path)
+
+
+@pytest.fixture
+def audio_only_mp4(tmp_path):
+    return _audio_only(tmp_path / "music.mp4")
+
+
+@pytest.fixture
+def audio_only_webm(tmp_path):
+    return _audio_only(tmp_path / "music.webm")
+
+
+@pytest.fixture
+def cover_audio_mp4(tmp_path):
+    return _audio_only(tmp_path / "cover_music.mp4", cover=True)
+
+
+@pytest.fixture
+def cover_audio_256k_mp4(tmp_path):
+    return _audio_only(tmp_path / "cover_music.mp4", bit_rate="256k", cover=True)
+
+
+@pytest.mark.parametrize(
+    "sample", ["faststart_240p", "audio_only_mp4", "audio_only_webm", "cover_audio_mp4"]
+)
+def test_compliant_video_passes_through(sample, request):
+    path = request.getfixturevalue(sample)
+    output = _compress(VideoCompressionHandler(), path, video_settings={"crf": 32})
+    assert read_file_hash(output) == read_file_hash(path)
+
+
+@pytest.fixture
+def multitrack_240p(tmp_path):
+    srt = tmp_path / "subs.srt"
+    srt.write_text("1\n00:00:00,000 --> 00:00:01,000\nHello\n")
+    path = str(tmp_path / "multitrack.mp4")
+    subprocess.run(
+        ["ffmpeg", "-v", "error", "-i", sample_path("low_res_sample.mp4")]
+        + ["-f", "lavfi", "-i", "sine=duration=1", "-i", str(srt)]
+        + ["-map", "0", "-map", "1", "-map", "2", "-c:v", "copy", "-c:a", "aac"]
+        + ["-c:s", "mov_text", "-timecode", "00:00:00:00", path],
+        check=True,
+    )
+    return path
+
+
+@pytest.mark.parametrize("sample", ["low_res", "multitrack_240p"])
+def test_compliant_mp4_without_faststart_is_remuxed(sample, request):
+    if sample == "low_res":
+        path = sample_path("low_res_sample.mp4")
+    else:
+        path = request.getfixturevalue(sample)
+    assert not is_faststart(path)
+    output = _compress(VideoCompressionHandler(), path, video_settings={"crf": 32})
+    assert is_faststart(output)
+    assert probe_media(output)["streams"] == probe_media(path)["streams"]
+
+
+def _lavfi_clip(path, source, *codec_args):
+    subprocess.run(
+        ["ffmpeg", "-v", "error", "-f", "lavfi", "-i", source]
+        + ["-f", "lavfi", "-i", "sine", "-shortest", *codec_args, str(path)],
+        check=True,
+    )
+    return str(path)
+
+
+GRAIN_720P = "testsrc2=size=1280x720:rate=15:duration=2,noise=alls=10:allf=t"
+
+
+@pytest.fixture
+def high_bitrate_720p(tmp_path):
+    return _lavfi_clip(
+        tmp_path / "high_bitrate.mp4",
+        "testsrc2=size=1280x720:rate=30:duration=2",
+        *["-c:v", "libx264", "-crf", "12", "-movflags", "+faststart"],
+    )
+
+
+@pytest.fixture
+def high_bitrate_720p_webm(tmp_path):
+    return _lavfi_clip(
+        tmp_path / "high_bitrate.webm",
+        GRAIN_720P,
+        *["-c:v", "libvpx-vp9", "-b:v", "9M", "-maxrate", "9M", "-bufsize", "9M"],
+        *["-deadline", "realtime"],
+    )
+
+
+@pytest.fixture
+def grain_720p_mkv(tmp_path):
+    return _lavfi_clip(
+        tmp_path / "grain.mkv", GRAIN_720P, "-c:v", "libx264", "-crf", "0"
+    )
+
+
+@pytest.fixture
+def small_144p_mkv(tmp_path):
+    return _lavfi_clip(
+        tmp_path / "small.mkv",
+        "testsrc2=size=256x144:rate=30:duration=1",
+        *["-c:v", "libx264", "-crf", "0"],
+    )
+
+
+@pytest.mark.parametrize(
+    "sample,crf",
+    [
+        ("high_res_sample.mp4", 32),
+        ("high_res_sample.mp4", 10),
+        ("high_res_sample.webm", 32),
+        ("high_bitrate_720p", 32),
+        ("grain_720p_mkv", 32),
+        ("small_144p_mkv", 32),
+    ],
+)
+def test_compressed_output_passes_through(sample, crf, request):
+    if not sample.endswith((".mp4", ".webm")):
+        path = request.getfixturevalue(sample)
+    else:
+        path = sample_path(sample)
+    settings = {"crf": crf, "max_height": 720}
+    output = _compress(VideoCompressionHandler(), path, video_settings=settings)
+    passed = _compress(VideoCompressionHandler(), output, video_settings=settings)
+    assert read_file_hash(passed) == read_file_hash(output)
+
+
+def test_is_faststart_rejects_malformed_box(tmp_path):
+    path = tmp_path / "bad.mp4"
+    path.write_bytes(b"\x00\x00\x00\x01ftyp" + b"\x00" * 8)
+    assert not is_faststart(str(path))
+
+
+@pytest.mark.parametrize(
+    "sample,settings,height",
+    [
+        ("high_res_sample.mp4", {"crf": 32, "max_height": 720}, 720),
+        ("high_res_sample.webm", {"crf": 32, "max_height": 720}, 720),
+        ("low_res_sample.mp4", {"crf": 32, "max_height": 144}, 144),
+    ],
+)
+def test_noncompliant_video_is_reencoded(sample, settings, height):
+    output = _compress(
+        VideoCompressionHandler(),
+        sample_path(sample),
+        video_settings=settings,
+    )
+    [video] = [s for s in probe_media(output)["streams"] if s["codec_type"] == "video"]
+    assert video["height"] == height
+
+
+@pytest.mark.parametrize("sample", ["high_bitrate_720p", "high_bitrate_720p_webm"])
+def test_high_bitrate_video_within_height_is_reencoded(sample, request):
+    path = request.getfixturevalue(sample)
+    output = _compress(
+        VideoCompressionHandler(),
+        path,
+        video_settings={"crf": 32, "max_height": 720},
+    )
+    [video] = [s for s in probe_media(output)["streams"] if s["codec_type"] == "video"]
+    assert video["height"] == 720
+    assert os.path.getsize(output) < os.path.getsize(path) / 2
+
+
+@pytest.fixture
+def surround_ac3_240p(tmp_path):
+    return _lavfi_clip(
+        tmp_path / "surround.mp4",
+        "testsrc2=size=426x240:rate=30:duration=1",
+        *["-c:v", "libx264", "-c:a", "ac3", "-b:a", "448k", "-ac", "6"],
+        *["-movflags", "+faststart"],
+    )
+
+
+@pytest.fixture
+def two_language_240p(tmp_path):
+    # The default-flagged track comes second.
+    path = str(tmp_path / "two_language.mp4")
+    subprocess.run(
+        [
+            "ffmpeg",
+            "-v",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=size=426x240:duration=1",
+        ]
+        + [
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=duration=1",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=f=880:duration=1",
+        ]
+        + [
+            "-map",
+            "0",
+            "-map",
+            "1",
+            "-map",
+            "2",
+            "-c:v",
+            "libx264",
+            "-c:a",
+            "ac3",
+            "-b:a",
+            "448k",
+        ]
+        + ["-metadata:s:a:0", "language=fra", "-metadata:s:a:1", "language=eng"]
+        + [
+            "-disposition:a:0",
+            "0",
+            "-disposition:a:1",
+            "default",
+            "-movflags",
+            "+faststart",
+            path,
+        ],
+        check=True,
+    )
+    return path
+
+
+def _audio_languages(path):
+    output = subprocess.check_output(
+        ["ffprobe", "-v", "error", "-select_streams", "a"]
+        + ["-show_entries", "stream_tags=language", "-of", "csv=p=0", path],
+        text=True,
+    )
+    return output.split()
+
+
+@pytest.mark.parametrize(
+    "sample,language",
+    [
+        ("surround_ac3_240p", "und"),
+        ("cover_audio_256k_mp4", "und"),
+        ("two_language_240p", "eng"),
+    ],
+)
+def test_video_with_noncompliant_audio_is_reencoded(sample, language, request):
+    output = _compress(
+        VideoCompressionHandler(),
+        request.getfixturevalue(sample),
+        video_settings={"crf": 32, "max_height": 720},
+    )
+    [audio] = [s for s in probe_media(output)["streams"] if s["codec_type"] == "audio"]
+    assert audio["codec_name"] == "aac"
+    assert int(audio["bit_rate"]) <= VideoCompressionHandler.MAX_AUDIO_BIT_RATE
+    assert _audio_languages(output) == [language]
+
+
+def _pgs_sup(path):
+    PDS, ODS, PCS, WDS, END = 0x14, 0x15, 0x16, 0x17, 0x80
+
+    def segment(kind, data):
+        return b"PG" + struct.pack(">IIBH", 9000, 0, kind, len(data)) + data
+
+    rle = bytes([0, 0x80 | 16, 1, 0, 0]) * 16
+    path.write_bytes(
+        segment(
+            PCS,
+            struct.pack(
+                ">HHBHBBBBHBBHH", 426, 240, 0x10, 0, 0x80, 0, 0, 1, 0, 0, 0, 10, 10
+            ),
+        )
+        + segment(WDS, struct.pack(">BBHHHH", 1, 0, 10, 10, 16, 16))
+        + segment(PDS, bytes([0, 0, 1, 235, 128, 128, 255]))
+        + segment(
+            ODS,
+            struct.pack(">HBB", 0, 0, 0xC0)
+            + (len(rle) + 4).to_bytes(3, "big")
+            + struct.pack(">HH", 16, 16)
+            + rle,
+        )
+        + segment(END, b"")
+    )
+    return path
+
+
+def _subtitled_mkv(path, bitmap_first=False):
+    srt = path.with_suffix(".srt")
+    srt.write_text("1\n00:00:00,000 --> 00:00:01,000\nHello\n")
+    subtitles = [_pgs_sup(path.with_suffix(".sup")), srt] if bitmap_first else [srt]
+    inputs = [arg for subtitle in subtitles for arg in ("-i", str(subtitle))]
+    maps = [arg for i in range(len(subtitles) + 2) for arg in ("-map", str(i))]
+    subprocess.run(
+        [
+            "ffmpeg",
+            "-v",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=size=426x240:duration=1",
+        ]
+        + ["-f", "lavfi", "-i", "sine=duration=1", *inputs, *maps]
+        + ["-c:v", "libx264", "-c:s", "copy", str(path)],
+        check=True,
+    )
+    return str(path)
+
+
+@pytest.mark.parametrize("bitmap_first", [False, True])
+@pytest.mark.parametrize("settings", [{}, {"crf": 32, "max_height": 720}])
+def test_converted_webm_keeps_text_subtitles(settings, bitmap_first, tmp_path):
+    path = _subtitled_mkv(tmp_path / "subtitled.mkv", bitmap_first)
+    output = _compress(VideoCompressionHandler(), path, video_settings=settings)
+    streams = probe_media(output)["streams"]
+    assert [s["codec_name"] for s in streams if s["codec_type"] == "subtitle"] == [
+        "webvtt"
+    ]
+
+
+CHEF_DEFAULTS = {
+    "compress": True,
+    "video_settings": {"crf": 32, "max_height": 720},
+    "audio_settings": {"bit_rate": 96},
+}
+
+
+@pytest.fixture
+def rotated_720p(tmp_path):
+    path = _lavfi_clip(
+        tmp_path / "landscape.mp4",
+        "testsrc2=size=1280x720:rate=10:duration=1",
+        *["-c:v", "libx264", "-crf", "32", "-c:a", "aac", "-b:a", "32k"],
+    )
+    rotated = str(tmp_path / "portrait.mp4")
+    subprocess.run(
+        ["ffmpeg", "-v", "error", "-display_rotation", "90", "-i", path]
+        + ["-c", "copy", "-movflags", "+faststart", rotated],
+        check=True,
+    )
+    return rotated
+
+
+@pytest.fixture
+def yuv444_240p(tmp_path):
+    return _lavfi_clip(
+        tmp_path / "yuv444.mp4",
+        "testsrc2=size=426x240:rate=10:duration=1",
+        *["-c:v", "libx264", "-crf", "32", "-pix_fmt", "yuv444p"],
+        *["-c:a", "aac", "-b:a", "32k", "-movflags", "+faststart"],
+    )
+
+
+@pytest.mark.parametrize("sample", ["rotated_720p", "yuv444_240p"])
+def test_video_unplayable_as_is_is_reencoded(sample, request):
+    [result] = FilePipeline(default_context=CHEF_DEFAULTS).execute(
+        request.getfixturevalue(sample), skip_cache=True
+    )
+    [video] = [
+        s for s in probe_media(result.path)["streams"] if s["codec_type"] == "video"
+    ]
+    assert display_size(video)[1] <= 720
+    assert video["pix_fmt"] == "yuv420p"
+
+
+@pytest.fixture
+def faststart_240p(tmp_path):
+    path = str(tmp_path / "faststart.mp4")
+    web_faststart_video(sample_path("low_res_sample.mp4"), path)
+    return path
+
+
+@pytest.fixture
+def mp3_48k(tmp_path):
+    path = str(tmp_path / "48k.mp3")
+    compress_audio(sample_path("sample_audio.mp3"), path, bit_rate=48)
+    return path
+
+
+@pytest.mark.parametrize(
+    "sample,context,reencoded",
+    [
+        ("faststart_240p", None, False),
+        ("faststart_240p", {"video_settings": {"crf": 40}}, True),
+        ("mp3_48k", None, False),
+        ("mp3_48k", {"audio_settings": {"bit_rate": 64}}, True),
+    ],
+)
+@pytest.mark.parametrize("in_archive", [False, True])
+def test_explicit_settings_reencode_compliant_media(
+    sample, context, reencoded, in_archive, request, tmp_path
+):
+    path = request.getfixturevalue(sample)
+    name = os.path.basename(path)
+    with open(path, "rb") as fh:
+        original = fh.read()
+    if in_archive:
+        path = str(tmp_path / "app.zip")
+        _create_archive(path, {"index.html": "<p>Media</p>", name: original})
+    [result] = FilePipeline(default_context=CHEF_DEFAULTS).execute(
+        path, context=context, skip_cache=True
+    )
+    if in_archive:
+        output = _zip_members(result.path)[name]
+    else:
+        with open(result.path, "rb") as fh:
+            output = fh.read()
+    assert (output != original) == reencoded
+
+
+@pytest.mark.parametrize(
+    "ext,cause",
+    [
+        ("mp4", "moov atom not found"),
+        # ffmpeg 6.1 and earlier: "Could not seek".
+        ("mp3", "Could not seek|two consecutive MPEG audio frames"),
+    ],
+)
+def test_corrupt_media_reports_its_cause(tmp_path, ext, cause):
+    path = tmp_path / f"bad.{ext}"
+    path.write_bytes(random.Random(0).randbytes(4096))
+    with pytest.raises(ExpectedFileException, match=cause):
+        FilePipeline(default_context=CHEF_DEFAULTS).execute(str(path), skip_cache=True)
+
+
+@pytest.mark.parametrize(
+    "on_copy,error,cause",
+    [
+        ("echo remux boom >&2; exit 1", ExpectedFileException, "remux boom"),
+        ("exec sleep 30", InvalidFileException, "ffmpeg timed out after 2s"),
+    ],
+)
+def test_failed_faststart_remux_reports_its_cause(
+    on_copy, error, cause, stub_on_path, monkeypatch
+):
+    ffmpeg = shutil.which("ffmpeg")
+    stub_on_path(
+        "ffmpeg",
+        f'for a in "$@"; do [ "$a" = copy ] && {{ {on_copy}; }}; done\nexec {ffmpeg} "$@"',
+    )
+    monkeypatch.setattr(videos, "STALL_TIMEOUT", 2)
+    with pytest.raises(error, match=cause):
+        FilePipeline(default_context=CHEF_DEFAULTS).execute(
+            sample_path("low_res_sample.mp4"), skip_cache=True
+        )
+
+
+def test_compliant_audio_passes_through(mp3_48k):
+    output = _compress(
+        AudioCompressionHandler(), mp3_48k, audio_settings={"bit_rate": 96}
+    )
+    assert read_file_hash(output) == read_file_hash(mp3_48k)
+
+
+def test_noncompliant_audio_is_reencoded():
+    output = _compress(
+        AudioCompressionHandler(),
+        sample_path("sample_audio.mp3"),
+        audio_settings={"bit_rate": 96},
+    )
+    assert probe_media(output)["streams"][0]["bit_rate"] == "96000"
+
+
+def test_reencoded_audio_keeps_cover_art_as_is(tmp_path):
+    cover = str(tmp_path / "cover.jpg")
+    subprocess.run(
+        ["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "testsrc2=size=1000x1000"]
+        + ["-vf", "noise=alls=40", "-frames:v", "1", cover],
+        check=True,
+    )
+    path = str(tmp_path / "cover.mp3")
+    subprocess.run(
+        ["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "sine=duration=5", "-i", cover]
+        + ["-map", "0", "-map", "1", "-b:a", "192k", "-c:v", "copy"]
+        + ["-disposition:v", "attached_pic", path],
+        check=True,
+    )
+    output = _compress(AudioCompressionHandler(), path, audio_settings={"bit_rate": 96})
+    assert probe_media(output)["streams"][1]["codec_name"] == "mjpeg"
+    assert os.path.getsize(output) < os.path.getsize(path)
 
 
 # HTML5 Conversion Tests

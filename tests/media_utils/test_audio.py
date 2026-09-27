@@ -2,7 +2,6 @@ from __future__ import print_function
 
 import atexit
 import os
-import subprocess
 import tempfile
 
 import pytest
@@ -40,19 +39,8 @@ class Test_compress_video:
             audio.compress_audio(
                 audio_file.name, vout.name, overwrite=True, bit_rate=bit_rate
             )
-            probed = subprocess.check_output(
-                [
-                    "ffprobe",
-                    "-v",
-                    "error",
-                    "-show_entries",
-                    "stream=bit_rate",
-                    "-of",
-                    "default=noprint_wrappers=1:nokey=1",
-                    vout.name,
-                ]
-            )
-            assert int(probed) == bit_rate * 1000
+            [stream] = videos.probe_media(vout.name)["streams"]
+            assert int(stream["bit_rate"]) == bit_rate * 1000
 
     def test_raises_for_bad_file(self):
         with TempFile(suffix=".mp4") as vout:
