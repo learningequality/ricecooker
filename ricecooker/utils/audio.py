@@ -55,7 +55,7 @@ def compress_audio(
 
     if encoding is AudioEncoding.CBR:
         option_name = "-b:a"
-        value = bit_rate
+        value = f"{bit_rate}k"
     else:
         option_name = "-qscale:a"
         value = vbr
