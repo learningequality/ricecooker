@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p1 http://www.imsglobal.org/xsd/qti/qtiv2p1/imsqti_v2p1.xsd"
+    identifier="feedback" title="Feedback" adaptive="true" timeDependent="false">
+    <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier">
+        <correctResponse><value>A</value></correctResponse>
+    </responseDeclaration>
+    <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float"/>
+    <outcomeDeclaration identifier="FEEDBACK" cardinality="multiple" baseType="identifier"/>
+    <outcomeDeclaration identifier="completionStatus" cardinality="single" baseType="identifier"/>
+    <itemBody>
+        <choiceInteraction responseIdentifier="RESPONSE" maxChoices="1">
+            <prompt>How many sides has a triangle?</prompt>
+            <simpleChoice identifier="A">Three <feedbackInline outcomeIdentifier="FEEDBACK" identifier="A" showHide="show">Right.</feedbackInline></simpleChoice>
+            <simpleChoice identifier="B">Four</simpleChoice>
+        </choiceInteraction>
+        <feedbackBlock outcomeIdentifier="FEEDBACK" identifier="B" showHide="show">
+            <p>A square has four sides.</p>
+            <div>Count the corners.</div>
+        </feedbackBlock>
+    </itemBody>
+    <responseProcessing>
+        <setOutcomeValue identifier="FEEDBACK">
+            <multiple><variable identifier="RESPONSE"/></multiple>
+        </setOutcomeValue>
+        <setOutcomeValue identifier="completionStatus"><baseValue baseType="identifier">completed</baseValue></setOutcomeValue>
+    </responseProcessing>
+</assessmentItem>

@@ -971,7 +971,7 @@ class IMSCPConversionHandler(HTML5ConversionHandler):
     """Decompose an IMS Content Package (incl. SCORM) into a native node subtree.
 
     Every surviving leaf re-enters the pipeline to be sealed into its own file, so
-    no leaf is backed by the whole package zip. QTI 3.0 tests and items become
+    no leaf is backed by the whole package zip. QTI tests and items become
     exercises. Must be registered before ``HTML5ConversionHandler``, which
     claims any ``.zip``.
     """

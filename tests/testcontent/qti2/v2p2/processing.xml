@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p2 http://www.imsglobal.org/xsd/qti/qtiv2p2/imsqti_v2p2.xsd"
+    identifier="processing" title="Processing" label="calc" adaptive="false" timeDependent="true" toolName="hand" toolVersion="1">
+    <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="float"/>
+    <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float" interpretation="Marks" normalMinimum="0" normalMaximum="3">
+        <defaultValue><value>0</value></defaultValue>
+    </outcomeDeclaration>
+    <outcomeDeclaration identifier="REVIEW" cardinality="single" baseType="float" externalScored="human"/>
+    <outcomeDeclaration identifier="FEEDBACK" cardinality="multiple" baseType="identifier"/>
+    <templateDeclaration identifier="A" cardinality="single" baseType="integer" mathVariable="true" paramVariable="true"/>
+    <templateDeclaration identifier="B" cardinality="single" baseType="integer" mathVariable="true"/>
+    <templateDeclaration identifier="C" cardinality="single" baseType="float" mathVariable="true"/>
+    <templateDeclaration identifier="D" cardinality="ordered" baseType="integer"/>
+    <templateDeclaration identifier="WORD" cardinality="single" baseType="string"/>
+    <templateProcessing>
+        <templateCondition>
+            <templateIf>
+                <isNull><variable identifier="A"/></isNull>
+                <setTemplateValue identifier="A"><random><multiple><baseValue baseType="integer">2</baseValue><baseValue baseType="integer">4</baseValue></multiple></random></setTemplateValue>
+            </templateIf>
+            <templateElseIf>
+                <gt><variable identifier="A"/><baseValue baseType="integer">9</baseValue></gt>
+                <setTemplateValue identifier="A"><integerModulus><variable identifier="A"/><baseValue baseType="integer">10</baseValue></integerModulus></setTemplateValue>
+            </templateElseIf>
+            <templateElse>
+                <setTemplateValue identifier="A"><integerDivide><variable identifier="A"/><baseValue baseType="integer">1</baseValue></integerDivide></setTemplateValue>
+            </templateElse>
+        </templateCondition>
+        <setTemplateValue identifier="B"><gcd><variable identifier="A"/><baseValue baseType="integer">6</baseValue></gcd></setTemplateValue>
+        <setTemplateValue identifier="D">
+            <repeat numberRepeats="2"><ordered><variable identifier="A"/><variable identifier="B"/></ordered></repeat>
+        </setTemplateValue>
+        <setTemplateValue identifier="C">
+            <roundTo roundingMode="decimalPlaces" figures="2">
+                <product>
+                    <mathOperator name="sin"><divide><mathConstant name="pi"/><variable identifier="A"/></divide></mathOperator>
+                    <statsOperator name="mean"><variable identifier="D"/></statsOperator>
+                </product>
+            </roundTo>
+        </setTemplateValue>
+        <setTemplateValue identifier="B"><round><subtract><max><variable identifier="D"/></max><min><variable identifier="D"/></min></subtract></round></setTemplateValue>
+        <setTemplateValue identifier="B"><index n="1"><delete><variable identifier="A"/><variable identifier="D"/></delete></index></setTemplateValue>
+        <setTemplateValue identifier="WORD"><substring caseSensitive="false"><baseValue baseType="string">a</baseValue><baseValue baseType="string">cat</baseValue></substring></setTemplateValue>
+    </templateProcessing>
+    <itemBody>
+        <p>What is <printedVariable identifier="C"/> to two decimal places?
+            <textEntryInteraction responseIdentifier="RESPONSE" expectedLength="5"/></p>
+    </itemBody>
+    <responseProcessing>
+        <responseCondition>
+            <responseIf>
+                <or>
+                    <isNull><variable identifier="RESPONSE"/></isNull>
+                    <durationGTE><variable identifier="duration"/><baseValue baseType="duration">600</baseValue></durationGTE>
+                </or>
+                <setOutcomeValue identifier="SCORE"><baseValue baseType="float">0</baseValue></setOutcomeValue>
+            </responseIf>
+            <responseElseIf>
+                <and>
+                    <equalRounded roundingMode="significantFigures" figures="3"><variable identifier="RESPONSE"/><variable identifier="C"/></equalRounded>
+                    <durationLT><variable identifier="duration"/><baseValue baseType="duration">60</baseValue></durationLT>
+                </and>
+                <setOutcomeValue identifier="SCORE"><baseValue baseType="float">3</baseValue></setOutcomeValue>
+            </responseElseIf>
+            <responseElse>
+                <responseCondition>
+                    <responseIf>
+                        <not><equal toleranceMode="absolute" tolerance="0.1"><variable identifier="RESPONSE"/><variable identifier="C"/></equal></not>
+                        <setOutcomeValue identifier="SCORE"><baseValue baseType="float">0</baseValue></setOutcomeValue>
+                    </responseIf>
+                    <responseElse>
+                        <setOutcomeValue identifier="SCORE"><baseValue baseType="float">1</baseValue></setOutcomeValue>
+                    </responseElse>
+                </responseCondition>
+            </responseElse>
+        </responseCondition>
+        <setOutcomeValue identifier="FEEDBACK">
+            <multiple><baseValue baseType="identifier">DONE</baseValue></multiple>
+        </setOutcomeValue>
+        <responseCondition>
+            <responseIf>
+                <member><baseValue baseType="identifier">DONE</baseValue><variable identifier="FEEDBACK"/></member>
+                <setOutcomeValue identifier="SCORE"><variable identifier="SCORE"/></setOutcomeValue>
+            </responseIf>
+        </responseCondition>
+    </responseProcessing>
+</assessmentItem>

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" xmlns:qh5="http://www.imsglobal.org/xsd/imsqtiv2p2_html5_v1p0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p2 http://www.imsglobal.org/xsd/qti/qtiv2p2/imsqti_v2p2.xsd"
+    identifier="html5" title="HTML5" adaptive="false" timeDependent="false">
+    <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier">
+        <correctResponse><value>A</value></correctResponse>
+    </responseDeclaration>
+    <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float"/>
+    <itemBody>
+        <qh5:figure data-fooBar="kept">
+            <img src="images/pic.png" alt="A pixel"/>
+            <qh5:figcaption>One <qh5:ruby>漢<qh5:rp>(</qh5:rp><qh5:rt>kan</qh5:rt><qh5:rp>)</qh5:rp></qh5:ruby> pixel.</qh5:figcaption>
+        </qh5:figure>
+        <choiceInteraction responseIdentifier="RESPONSE" maxChoices="1" aria-label="Answers">
+            <prompt dir="rtl">ما هو <qh5:bdi>X</qh5:bdi>؟</prompt>
+            <simpleChoice identifier="A">One</simpleChoice>
+            <simpleChoice identifier="B">Two</simpleChoice>
+        </choiceInteraction>
+        <p>Solve <m3:math xmlns:m3="http://www.w3.org/2010/Math/MathML"><m3:mi>x</m3:mi></m3:math> with <ssml11:sub xmlns:ssml11="http://www.w3.org/2010/10/synthesis" alias="doctor">Dr.</ssml11:sub> Who.</p>
+    </itemBody>
+    <responseProcessing template="http://www.imsglobal.org/question/qti_v2p2/rptemplates/match_correct"/>
+</assessmentItem>

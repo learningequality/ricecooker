@@ -87,11 +87,12 @@ with `exercise_node.add_question(question)`.
 QTI packages
 ------------
 
-`ContentNode(uri="package.zip")` with a QTI 3.0 content package gives one practice quiz per test, with items in test order, or one quiz of all items if the package has no test.
+`ContentNode(uri="package.zip")` with a QTI 2.1, 2.2 or 3.0 content package gives one practice quiz per test, with items in test order, or one quiz of all items if the package has no test.
+QTI 2.x items and tests are converted to QTI 3.0 first.
 Quizzes default to `mastery_model` `do_all`, `randomize` `False` and `options.modality` `QUIZ`.
 To change every quiz in the package, set `mastery_model`, `m`, `n`, `randomize` or `options` in the node's `extra_fields`.
 `"options": {"modality": None}` gives plain exercises.
-Items that are not QTI 3.0, fail the QTI 3.0 item schema, or reference media other than images are skipped with a warning.
+Items that are not QTI 2.1, 2.2 or 3.0, fail the QTI 3.0 item schema once converted, or reference media other than images are skipped with a warning.
 `<qti-stylesheet>` elements, and elements and attributes outside the QTI 3.0 item schema's namespaces, are removed from items.
 
 

@@ -1,4 +1,4 @@
-"""QTI 3.0 items: parse them, strip what the item schema cannot validate, and validate them."""
+"""QTI 3.0 items: strip what the item schema cannot validate, and validate them."""
 
 import os
 import threading
@@ -6,9 +6,8 @@ from functools import lru_cache
 
 from lxml import etree
 
-from ricecooker.utils.imscp import contained_path
-
 QTI3_NAMESPACE = "http://www.imsglobal.org/xsd/imsqtiasi_v3p0"
+_XS_NAMESPACE = "http://www.w3.org/2001/XMLSchema"
 
 # Studio's vendored item schema (learningequality/studio@3bdac307), so an item that
 # passes here passes Studio's validate_qti_item.
@@ -31,23 +30,6 @@ _STYLESHEET_TAG = f"{{{QTI3_NAMESPACE}}}qti-stylesheet"
 _PARSER = etree.XMLParser(resolve_entities=False, no_network=True, load_dtd=False)
 
 
-def read_qti3(package_dir, member, tag):
-    """Parse ``member`` as a QTI 3.0 ``<tag>``; return its root element.
-
-    Raises ``ValueError`` saying why the file is unusable.
-    """
-    path = contained_path(package_dir, member)
-    if path is None or not os.path.isfile(path):
-        raise ValueError("is missing or outside the package")
-    try:
-        root = etree.parse(path, _PARSER).getroot()
-    except etree.XMLSyntaxError as e:
-        raise ValueError(f"is not well-formed XML: {e.msg}")
-    if root.tag != f"{{{QTI3_NAMESPACE}}}{tag}":
-        raise ValueError(f"is not a QTI 3.0 <{tag}> (only QTI 3.0 is supported)")
-    return root
-
-
 def strip_unschematized(item):
     """Drop markup the item schema cannot validate from ``item``, in place.
 
@@ -56,7 +38,7 @@ def strip_unschematized(item):
     """
     for elem in list(item.iter(etree.Element)):
         if elem.tag == _STYLESHEET_TAG or _is_foreign(elem.tag):
-            _remove(elem)
+            remove_element(elem)
             continue
         for name in [name for name in elem.attrib if _is_foreign(name)]:
             del elem.attrib[name]
@@ -68,7 +50,7 @@ def _is_foreign(name):
     return namespace is not None and namespace not in ITEM_NAMESPACES
 
 
-def _remove(elem):
+def remove_element(elem):
     """Remove ``elem`` and its subtree, keeping its tail text."""
     parent = elem.getparent()
     if elem.tail:
@@ -81,15 +63,71 @@ def _remove(elem):
 
 
 @lru_cache(maxsize=1)
+def _schema_and_vocabulary():
+    tree = etree.parse(ITEM_SCHEMA_PATH)
+    return etree.XMLSchema(tree), _vocabulary(tree.getroot())
+
+
 def _item_schema():
-    return etree.XMLSchema(etree.parse(ITEM_SCHEMA_PATH))
+    return _schema_and_vocabulary()[0]
+
+
+def item_vocabulary():
+    """``{element name: frozenset(attribute names)}`` of every element the item schema declares.
+
+    Attributes from other namespaces, such as ``xml:lang``, are left out.
+    """
+    return _schema_and_vocabulary()[1]
+
+
+def _vocabulary(root):
+    types = {t.get("name"): t for t in root.iter(f"{{{_XS_NAMESPACE}}}complexType")}
+    groups = {g.get("name"): g for g in root.iter(f"{{{_XS_NAMESPACE}}}attributeGroup")}
+    vocabulary = {}
+    for elem in root.iter(f"{{{_XS_NAMESPACE}}}element"):
+        name = elem.get("name")
+        if name is None:
+            continue
+        definition = types.get(elem.get("type"))
+        if definition is None:
+            definition = elem.find(f"{{{_XS_NAMESPACE}}}complexType")
+        attributes = (
+            _attributes(definition, types, groups) if definition is not None else set()
+        )
+        vocabulary[name] = vocabulary.get(name, frozenset()) | attributes
+    return vocabulary
+
+
+def _attributes(definition, types, groups):
+    attributes = set()
+    for child in definition:
+        tag = etree.QName(child).localname
+        if tag == "attribute" and child.get("name"):
+            attributes.add(child.get("name"))
+        elif tag == "attributeGroup" and child.get("ref") in groups:
+            attributes |= _attributes(groups[child.get("ref")], types, groups)
+        elif tag in ("complexContent", "simpleContent"):
+            attributes |= _attributes(child, types, groups)
+        elif tag in ("extension", "restriction"):
+            if child.get("base") in types:
+                attributes |= _attributes(types[child.get("base")], types, groups)
+            attributes |= _attributes(child, types, groups)
+    return attributes
+
+
+def parse_qti(path):
+    return etree.parse(path, _PARSER).getroot()
 
 
 def validate_qti_item(item):
     """Raise ``ValueError`` naming the first schema error if ``item`` is not a valid QTI 3.0 item."""
     schema = _item_schema()
     with _VALIDATION_LOCK:
-        if schema.validate(item):
-            return
+        try:
+            if schema.validate(item):
+                return
+        except etree.XMLSchemaValidateError as e:
+            # Raised for an unresolved entity reference, which _PARSER leaves in place.
+            raise ValueError(f"cannot be checked against the QTI 3.0 schema: {e}")
         error = schema.error_log[0]
     raise ValueError(f"fails the QTI 3.0 schema at line {error.line}: {error.message}")

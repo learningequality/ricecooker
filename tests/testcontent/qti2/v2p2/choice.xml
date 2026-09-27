@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" xmlns:qh5="http://www.imsglobal.org/xsd/imsqtiv2p2_html5_v1p0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p2 http://www.imsglobal.org/xsd/qti/qtiv2p2/imsqti_v2p2.xsd"
+    identifier="choice" title="Choice" adaptive="false" timeDependent="false">
+    <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier">
+        <correctResponse><value>B</value></correctResponse>
+    </responseDeclaration>
+    <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float"/>
+    <itemBody>
+        <qh5:header><h2>Planets</h2></qh5:header>
+        <choiceInteraction responseIdentifier="RESPONSE" shuffle="true" maxChoices="1">
+            <prompt>Which planet is largest?</prompt>
+            <simpleChoice identifier="A">Mars</simpleChoice>
+            <simpleChoice identifier="B">Jupiter</simpleChoice>
+            <simpleChoice identifier="C" fixed="true">None of <qh5:bdi>these</qh5:bdi></simpleChoice>
+        </choiceInteraction>
+    </itemBody>
+    <responseProcessing template="http://www.imsglobal.org/question/qti_v2p2/rptemplates/match_correct"/>
+</assessmentItem>
