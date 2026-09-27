@@ -8,6 +8,7 @@ from ricecooker.utils.pipeline import FilePipeline
 from ricecooker.utils.pipeline.context import FileMetadata
 from ricecooker.utils.pipeline.convert import ConversionStageHandler
 from ricecooker.utils.pipeline.convert import VideoCompressionHandler
+from ricecooker.utils.pipeline.exceptions import ExpectedFileException
 from ricecooker.utils.pipeline.exceptions import InvalidFileException
 from ricecooker.utils.pipeline.extract_metadata import ExtractMetadataStageHandler
 from ricecooker.utils.pipeline.file_handler import FileHandler
@@ -104,6 +105,33 @@ def test_unknown_init_context_field_raises():
 def test_handler_with_no_context_fields_rejects_init_context():
     with pytest.raises(TypeError, match="unexpected context"):
         TestFileHandler(anything=1)
+
+
+class RaisingHandler(TestFileHandler):
+    HANDLED_EXCEPTIONS = [RuntimeError]
+
+    def __init__(self, error):
+        super().__init__()
+        self.error = error
+
+    def handle_file(self, path, **kwargs):
+        raise self.error
+
+
+@pytest.mark.parametrize(
+    "error,message",
+    [(RuntimeError("boom"), "boom"), (RuntimeError(), "RuntimeError")],
+    ids=["with-message", "no-message"],
+)
+def test_handler_error_fails_the_file(error, message):
+    with pytest.raises(ExpectedFileException) as excinfo:
+        RaisingHandler(error).execute("some/file.txt", skip_cache=True)
+    assert str(excinfo.value) == message
+
+
+def test_unhandled_error_propagates():
+    with pytest.raises(TypeError, match="bug"):
+        RaisingHandler(TypeError("bug")).execute("some/file.txt", skip_cache=True)
 
 
 def _fake_compress(path, outpath, overwrite=True, **settings):

@@ -20,13 +20,14 @@ from ricecooker.utils.images import ThumbnailGenerationError
 from ricecooker.utils.paths import resolve_path_ext
 from ricecooker.utils.pipeline import FilePipeline
 from ricecooker.utils.pipeline.convert import AudioCompressionHandler
-from ricecooker.utils.pipeline.convert import ConversionStageHandler
 from ricecooker.utils.pipeline.convert import ImageConversionHandler
 from ricecooker.utils.pipeline.convert import SubtitleConversionHandler
 from ricecooker.utils.pipeline.convert import VideoCompressionHandler
 from ricecooker.utils.pipeline.exceptions import ExpectedFileException
 from ricecooker.utils.pipeline.exceptions import InvalidFileException
 from ricecooker.utils.pipeline.transfer import CatchAllWebResourceDownloadHandler
+from ricecooker.utils.pipeline.transfer import CONVERT_EXTENSIONS
+from ricecooker.utils.pipeline.transfer import path_ext_or_none
 from ricecooker.utils.storage import copy_file_to_storage
 from ricecooker.utils.videos import extract_thumbnail_from_video
 from ricecooker.utils.youtube import get_language_with_alpha2_fallback
@@ -40,11 +41,7 @@ fallback_pipeline = FilePipeline()
 # used for converting avi/flv/etc. videos and srt subtitles
 CONVERTIBLE_FORMATS = {p.id: p.convertible_formats for p in format_presets.PRESETLIST}
 
-KNOWN_EXTENSIONS = {ext for ext, _ in file_formats.choices} | {
-    ext
-    for handler in ConversionStageHandler.DEFAULT_CHILDREN
-    for ext in handler.EXTENSIONS
-}
+KNOWN_EXTENSIONS = {ext for ext, _ in file_formats.choices} | CONVERT_EXTENSIONS
 
 
 def split_known_extension(filename):
@@ -186,7 +183,6 @@ class File(object):
 
 
 class DownloadFile(File):
-    ext = None
     allowed_formats = None
 
     def __init__(self, path, context=None, **kwargs):
@@ -195,21 +191,25 @@ class DownloadFile(File):
             "default_ext": self.default_ext,
             # A File's class fixes its format.
             "preserve_kind": True,
+            "render_html": self.allowed_formats is None
+            or file_formats.HTML5 in self.allowed_formats,
         }
         self.context.update(context or {})
         super(DownloadFile, self).__init__(**kwargs)
 
     def validate(self):
-        """
-        Ensure `self.path` has one of the extensions in `self._allowed_formats`.
-        """
         assert self.path, "{} must have a path".format(self.__class__.__name__)
-        extension = resolve_path_ext(
-            self.path, declared_ext=self.ext, default_ext=self.default_ext
-        )
-        if self.allowed_formats is not None and extension not in self.allowed_formats:
-            raise ValueError(
-                f"Incompatible extension {extension} for {self.__class__.__name__} at {self.path}"
+
+    def _reject_known_incompatible_ext(self):
+        if (
+            self.allowed_formats is None
+            or path_ext_or_none(self.path) not in CONVERT_EXTENSIONS
+        ):
+            return
+        extension = resolve_path_ext(self.path, declared_ext=self.context.get("ext"))
+        if extension not in self.allowed_formats:
+            raise InvalidFileException(
+                f"Incompatible extension {extension} for {self.__class__.__name__}"
             )
 
     def __str__(self):
@@ -217,23 +217,27 @@ class DownloadFile(File):
 
     def process_file(self):
         try:
-            try:
-                self.validate()
-            except ValueError as ve:
-                raise InvalidFileException from ve
+            self.validate()
+            self._reject_known_incompatible_ext()
             pipeline = config.FILE_PIPELINE or fallback_pipeline
             metadata = pipeline.execute(
                 self.path, context=self.context, skip_cache=config.UPDATE
             )[0]
             metadata = metadata.to_dict()
+            if not metadata.get("filename"):
+                raise InvalidFileException("File could not be processed by pipeline")
+            if (
+                self.allowed_formats is not None
+                and path_ext_or_none(metadata["filename"]) not in self.allowed_formats
+            ):
+                raise InvalidFileException(
+                    f"Processed into {metadata['filename']}, incompatible with {self.__class__.__name__}"
+                )
             for key in metadata:
                 if key == "path":
                     # Don't overwrite the input path.
                     continue
                 setattr(self, key, metadata[key])
-            self.validate()
-            if not self.filename:
-                raise InvalidFileException("File could not be processed by pipeline")
             return super().process_file()
         except (ExpectedFileException, InvalidFileException) as err:
             self.error = str(err)
@@ -386,12 +390,7 @@ class SubtitleFile(DownloadFile):
         self.subtitlesformat = self.ext = kwargs.pop("subtitlesformat", None)
         super(SubtitleFile, self).__init__(path, **kwargs)
         assert self.language, "Subtitles must have a language"
-        self.context = {
-            "language": self.language,
-            "ext": self.ext,
-            # PHP and similar endpoints serve subtitles as text/html.
-            "render_html": False,
-        }
+        self.context.update(language=self.language, ext=self.ext)
 
 
 class Base64ImageFile(ThumbnailPresetMixin, DownloadFile):
@@ -555,7 +554,6 @@ class ExtractedThumbnailFile(ThumbnailFile):
 
 class ExtractedPdfThumbnailFile(ExtractedThumbnailFile):
     extractor_kwargs = {"page_number": 0, "crop": None}
-    allowed_formats = DocumentFile.allowed_formats
 
     def extractor_fun(self, fpath_in, thumbpath_out, **kwargs):
         create_image_from_pdf_page(fpath_in, thumbpath_out, **kwargs)
@@ -563,7 +561,6 @@ class ExtractedPdfThumbnailFile(ExtractedThumbnailFile):
 
 class ExtractedEPubThumbnailFile(ExtractedThumbnailFile):
     extractor_kwargs = {"crop": None}
-    allowed_formats = EPubFile.allowed_formats
 
     def extractor_fun(self, fpath_in, thumbpath_out, **kwargs):
         create_image_from_epub(fpath_in, thumbpath_out, **kwargs)
@@ -571,7 +568,6 @@ class ExtractedEPubThumbnailFile(ExtractedThumbnailFile):
 
 class ExtractedHTMLZipThumbnailFile(ExtractedThumbnailFile):
     extractor_kwargs = {"crop": "smart"}
-    allowed_formats = HTMLZipFile.allowed_formats
 
     def extractor_fun(self, fpath_in, thumbpath_out, **kwargs):
         try:
@@ -588,12 +584,11 @@ class ExtractedHTMLZipThumbnailFile(ExtractedThumbnailFile):
 
 
 class ExtractedKPUBThumbnailFile(ExtractedHTMLZipThumbnailFile):
-    allowed_formats = {file_formats.HTML5_ARTICLE}
+    pass
 
 
 class ExtractedVideoThumbnailFile(ExtractedThumbnailFile):
     extractor_kwargs = {"overwrite": True}
-    allowed_formats = VideoFile.allowed_formats
 
     def extractor_fun(self, fpath_in, thumbpath_out, **kwargs):
         extract_thumbnail_from_video(fpath_in, thumbpath_out, **kwargs)
