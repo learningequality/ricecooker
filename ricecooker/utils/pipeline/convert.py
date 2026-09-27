@@ -875,6 +875,7 @@ class DocumentConversionHandler(ExtensionMatchingHandler):
 
     EXTENSIONS = {"docx", "odt", "rtf", "md", "markdown"}
     HANDLED_EXCEPTIONS = [PandocConversionError]
+    TIMEOUT = 300
 
     def handle_file(self, path):
         if shutil.which("pandoc") is None:
@@ -897,9 +898,11 @@ class DocumentConversionHandler(ExtensionMatchingHandler):
                         "index.html",
                     ],
                     cwd=temp_dir,
+                    stdin=subprocess.DEVNULL,
                     capture_output=True,
                     text=True,
                     check=True,
+                    timeout=self.TIMEOUT,
                 )
             except subprocess.CalledProcessError as e:
                 raise PandocConversionError(

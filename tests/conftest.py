@@ -3,6 +3,7 @@ import glob
 import hashlib
 import os
 import shutil
+import sys
 import uuid
 import zipfile
 from unittest.mock import MagicMock
@@ -966,6 +967,22 @@ def sample_path(*parts):
     path = os.path.join(SAMPLES_DIR, *parts)
     assert os.path.exists(path), "Missing committed sample fixture: {}".format(path)
     return path
+
+
+@pytest.fixture
+def stub_on_path(tmp_path, monkeypatch):
+    if sys.platform == "win32":
+        pytest.skip("shell-script stubs need a POSIX shell")
+    bin_dir = tmp_path / "stub-bin"
+    bin_dir.mkdir()
+    monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
+
+    def install(name, script="exec sleep 30"):
+        stub = bin_dir / name
+        stub.write_text(f"#!/bin/sh\n{script}\n")
+        stub.chmod(0o755)
+
+    return install
 
 
 def read_file_hash(local_path):

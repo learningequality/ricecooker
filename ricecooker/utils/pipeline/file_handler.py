@@ -3,6 +3,7 @@ Utilities for handling file downloads from URLs
 """
 
 import os
+import subprocess
 import tempfile
 import threading
 from abc import ABC
@@ -290,6 +291,10 @@ class FileHandler(Handler):
                     f"\tFailed {self.STAGE} for {path} with kwargs {kwargs}"
                 )
                 raise ExpectedFileException(e) from e
+            except subprocess.TimeoutExpired as e:
+                raise InvalidFileException(
+                    f"{e.cmd[0]} timed out after {e.timeout}s"
+                ) from e
 
             original_path = path
 
