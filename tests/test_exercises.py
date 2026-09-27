@@ -5,6 +5,7 @@ import os
 import re
 import sys
 import uuid
+from unittest.mock import patch
 
 import pytest
 from le_utils.constants import exercises
@@ -24,6 +25,7 @@ from ricecooker.classes.questions import QTIQuestion
 from ricecooker.classes.questions import SingleSelectQuestion
 from ricecooker.config import STORAGE_DIRECTORY
 from ricecooker.exceptions import InvalidQuestionException
+from ricecooker.managers.tree import ChannelManager
 
 TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
 TESTCONTENT_DIR = os.path.join(TESTS_DIR, "testcontent")
@@ -174,6 +176,107 @@ def test_exercise_extra_fields_float(exercise):
     assert exercise.extra_fields["n"] == 5
 
     exercise.validate()
+
+
+def _exercise(source_id, exercise_data, question_count):
+    return ExerciseNode(
+        source_id=source_id,
+        title=source_id,
+        license=licenses.PUBLIC_DOMAIN,
+        exercise_data=exercise_data,
+        questions=[
+            SingleSelectQuestion(f"q{i}", "Q", "A", ["A", "B"])
+            for i in range(question_count)
+        ],
+    )
+
+
+mastery_defaults = [
+    (None, 3, (3, 3)),
+    (None, 7, (5, 5)),
+    ({"mastery_model": exercises.M_OF_N}, 3, (3, 3)),
+    ({"mastery_model": exercises.M_OF_N, "m": 2}, 7, (2, 2)),
+    ({"mastery_model": exercises.M_OF_N, "n": 4}, 7, (4, 4)),
+    ({"mastery_model": exercises.NUM_CORRECT_IN_A_ROW_10, "m": 2}, 7, (10, 10)),
+]
+
+
+@pytest.mark.parametrize("exercise_data,question_count,expected", mastery_defaults)
+def test_exercise_mastery_defaults(exercise_data, question_count, expected):
+    node = _exercise("e", exercise_data, question_count)
+    node.process_files()
+    assert (node.extra_fields["m"], node.extra_fields["n"]) == expected
+
+
+ignored_mastery_values = [
+    ({"mastery_model": exercises.QUIZ}, (None, None)),
+    ({"mastery_model": exercises.PRE_POST_TEST}, (None, None)),
+    ({"mastery_model": exercises.QUIZ, "m": 0}, (None, None)),
+    ({"mastery_model": exercises.PRE_POST_TEST, "n": ""}, (None, None)),
+    ({"mastery_model": exercises.DO_ALL, "m": None}, (2, 2)),
+    ({"mastery_model": exercises.DO_ALL, "m": "three"}, (2, 2)),
+]
+
+
+@pytest.mark.parametrize("exercise_data,expected", ignored_mastery_values)
+def test_mastery_values_ignored_outside_m_of_n(channel, exercise_data, expected):
+    node = _exercise("e", exercise_data, 2)
+    channel.add_child(node)
+    manager = ChannelManager(channel)
+    with patch("ricecooker.config.STRICT", False):
+        manager.validate()
+        manager.process_tree()
+        manager.validate()
+    assert node.valid, node._error
+    assert (node.extra_fields["m"], node.extra_fields["n"]) == expected
+
+
+uncoercible_mastery = [
+    (
+        {"mastery_model": exercises.M_OF_N, "m": None, "n": 3},
+        "M must be an integer coerceable value",
+    ),
+    (
+        {"mastery_model": exercises.M_OF_N, "m": "three", "n": 3},
+        "M must be an integer coerceable value",
+    ),
+    (
+        {"mastery_model": exercises.M_OF_N, "m": 3, "n": None},
+        "N must be an integer coerceable value",
+    ),
+    (
+        {"mastery_model": exercises.M_OF_N, "m": float("inf"), "n": 3},
+        "M must be an integer coerceable value",
+    ),
+]
+
+
+@pytest.mark.parametrize("exercise_data,message", uncoercible_mastery)
+def test_uncoercible_mastery_value_fails_only_its_node(channel, exercise_data, message):
+    bad = _exercise("bad", exercise_data, 1)
+    good = _exercise("good", {"mastery_model": exercises.M_OF_N, "m": 1, "n": 1}, 1)
+    channel.add_child(bad)
+    channel.add_child(good)
+    manager = ChannelManager(channel)
+    with patch("ricecooker.config.STRICT", False):
+        manager.validate()
+        manager.process_tree()
+    assert message in bad._error
+    assert not bad.valid
+    assert good.valid
+
+
+def test_shared_exercise_data_defaults_per_node(channel):
+    data = {"mastery_model": exercises.M_OF_N}
+    small = _exercise("small", data, 2)
+    large = _exercise("large", data, 7)
+    channel.add_child(small)
+    channel.add_child(large)
+    manager = ChannelManager(channel)
+    manager.validate()
+    manager.process_tree()
+    assert (small.extra_fields["m"], small.extra_fields["n"]) == (2, 2)
+    assert (large.extra_fields["m"], large.extra_fields["n"]) == (5, 5)
 
 
 invalid_questions = [

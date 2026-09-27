@@ -41,6 +41,13 @@ from .questions import VARIANT_A
 from .questions import VARIANT_B
 
 MASTERY_MODELS = [id for id, name in exercises.MASTERY_MODELS]
+FIXED_MASTERY_VALUES = {
+    exercises.NUM_CORRECT_IN_A_ROW_10: 10,
+    exercises.NUM_CORRECT_IN_A_ROW_5: 5,
+    exercises.NUM_CORRECT_IN_A_ROW_3: 3,
+    exercises.NUM_CORRECT_IN_A_ROW_2: 2,
+    exercises.SKILL_CHECK: 1,
+}
 ROLES = [id for id, name in roles.choices]
 EXERCISE_SETTING_KEYS = ("mastery_model", "m", "n", "randomize", "options")
 PRESET_LOOKUP = {p.id: p for p in format_presets.PRESETLIST}
@@ -1093,31 +1100,25 @@ class ContentNode(TreeNode):
     def process_exercise_data(self):
         mastery_model = self.extra_fields["mastery_model"]
 
-        # Keep original m/n values or other n/m values if specified
-        m_value = self.extra_fields.get("m") or self.extra_fields.get("n")
-        n_value = self.extra_fields.get("n") or self.extra_fields.get("m")
-
-        if m_value:
-            m_value = int(m_value)
-        if n_value:
-            n_value = int(n_value)
-
-        # Update mastery model if parameters were not provided
         if mastery_model == exercises.M_OF_N:
-            m_value = m_value or max(min(5, len(self.questions)), 1)
-            n_value = n_value or max(min(5, len(self.questions)), 1)
+            given = {}
+            for key in ("m", "n"):
+                if key in self.extra_fields:
+                    try:
+                        given[key] = int(self.extra_fields[key])
+                    except (TypeError, ValueError, OverflowError):
+                        self._validate_values(
+                            True, f"{key.upper()} must be an integer coerceable value"
+                        )
+            default = max(min(5, len(self.questions)), 1)
+            m_value = given.get("m") or given.get("n") or default
+            n_value = given.get("n") or given.get("m") or default
         elif mastery_model == exercises.DO_ALL:
             m_value = n_value = max(len(self.questions), 1)
-        elif mastery_model == exercises.NUM_CORRECT_IN_A_ROW_10:
-            m_value = n_value = 10
-        elif mastery_model == exercises.NUM_CORRECT_IN_A_ROW_5:
-            m_value = n_value = 5
-        elif mastery_model == exercises.NUM_CORRECT_IN_A_ROW_3:
-            m_value = n_value = 3
-        elif mastery_model == exercises.NUM_CORRECT_IN_A_ROW_2:
-            m_value = n_value = 2
-        elif mastery_model == exercises.SKILL_CHECK:
-            m_value = n_value = 1
+        elif mastery_model in FIXED_MASTERY_VALUES:
+            m_value = n_value = FIXED_MASTERY_VALUES[mastery_model]
+        else:
+            m_value = n_value = None
 
         self.extra_fields.update({"m": m_value})
         self.extra_fields.update({"n": n_value})
@@ -1134,28 +1135,6 @@ class ContentNode(TreeNode):
             mastery_model not in MASTERY_MODELS,
             "Unrecognized mastery model {}".format(mastery_model),
         )
-        if mastery_model == exercises.M_OF_N:
-            self._validate_values(
-                "m" not in self.extra_fields, "M of N mastery model is missing M value"
-            )
-            self._validate_values(
-                "n" not in self.extra_fields, "M of N mastery model is missing N value"
-            )
-            try:
-                int(self.extra_fields["m"])
-            except ValueError:
-                self._validate_values(
-                    True,
-                    "M must be an integer coerceable value",
-                )
-            try:
-                int(self.extra_fields["n"])
-            except ValueError:
-                self._validate_values(
-                    True,
-                    "N must be an integer coerceable value",
-                )
-
         self.process_exercise_data()
 
     # A leaf inherits the package's license as well as its language.
@@ -1506,8 +1485,6 @@ class ExerciseNode(ContentNode):
         downloaded = super(ExerciseNode, self).process_files()
         for question in self.questions:
             downloaded += question.process_question()
-
-        self.process_exercise_data()
 
         config.LOGGER.info("\t*** Images for {} have been processed".format(self.title))
         return downloaded
