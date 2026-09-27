@@ -817,7 +817,6 @@ class SVGValidationHandler(ExtensionMatchingHandler):
 
 class SubtitleContextMetadata(ContextMetadata):
     language: str
-    subtitle_format: Optional[str] = None
 
 
 class SubtitleConversionHandler(ExtensionMatchingHandler):
@@ -833,16 +832,11 @@ class SubtitleConversionHandler(ExtensionMatchingHandler):
 
     HANDLED_EXCEPTIONS = [InvalidSubtitleFormatError, InvalidSubtitleLanguageError]
 
-    def get_cache_key(
-        self, path: str, language: str = None, subtitle_format: str = None
-    ) -> str:
-        return super().get_cache_key(path)
-
-    def handle_file(self, path, language=None, subtitle_format=None):
+    def handle_file(self, path, language=None):
         if language is None:
             raise ValueError("Subtitles must have a language specified.")
 
-        converter = build_subtitle_converter_from_file(path, in_format=subtitle_format)
+        converter = build_subtitle_converter_from_file(path)
 
         # We'll assume the provided file is in the passed language in this case
         if len(converter.get_language_codes()) == 1 and converter.has_language(

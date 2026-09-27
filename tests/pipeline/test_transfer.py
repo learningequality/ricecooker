@@ -340,6 +340,26 @@ def test_disk_transfer_reuses_unchanged_file(tmp_path):
     assert os.path.getmtime(second.path) == 0
 
 
+def test_disk_transfer_declared_ext_is_fallback_for_unknown_ext(tmp_path):
+    source = tmp_path / "subs.txt"
+    source.write_text("1\n00:00:01,000 --> 00:00:02,000\nHello\n")
+    handler = DiskResourceHandler()
+
+    handler.execute(str(source))
+    result = handler.execute(str(source), context={"ext": "srt"})[0]
+
+    assert result.filename.endswith(".srt")
+
+
+def test_disk_transfer_known_ext_beats_declared_ext(tmp_path):
+    source = tmp_path / "subs.vtt"
+    source.write_text("WEBVTT\n\n00:01.000 --> 00:02.000\nHello\n")
+
+    result = DiskResourceHandler().execute(str(source), context={"ext": "srt"})[0]
+
+    assert result.filename.endswith(".vtt")
+
+
 def test_disk_transfer_non_file_protocol():
     """Test that non-file protocols are left unchanged."""
     path = "http://example.com/path/to/file.jpg"

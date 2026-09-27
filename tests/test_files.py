@@ -6,10 +6,13 @@ import os.path
 import tempfile
 import threading
 import zipfile
+from http.server import BaseHTTPRequestHandler
+from http.server import ThreadingHTTPServer
 from io import BytesIO
 from shutil import copyfile
 from unittest.mock import MagicMock
 from unittest.mock import patch
+from urllib.parse import urlparse
 
 import pytest
 from conftest import sample_path
@@ -39,8 +42,13 @@ from ricecooker.classes.files import VideoFile
 from ricecooker.classes.files import YouTubeVideoFile
 from ricecooker.exceptions import FileNotFoundException
 from ricecooker.utils.audio import AudioCompressionError
+from ricecooker.utils.pipeline import FilePipeline
+from ricecooker.utils.pipeline.convert import ConversionStageHandler
 from ricecooker.utils.pipeline.convert import PDFValidationHandler
 from ricecooker.utils.pipeline.exceptions import InvalidFileException
+from ricecooker.utils.pipeline.extract_metadata import ExtractMetadataStageHandler
+from ricecooker.utils.pipeline.file_handler import FileHandler
+from ricecooker.utils.pipeline.transfer import DownloadStageHandler
 from ricecooker.utils.storage import copy_file_to_storage
 from ricecooker.utils.storage import get_hash
 from ricecooker.utils.videos import VideoCompressionError
@@ -1054,6 +1062,100 @@ def test_convertible_substitles_weirdext_subtitlesformat():
         # Clean up temporary file
         if os.path.exists(temp_file.name):
             os.remove(temp_file.name)
+
+
+@pytest.fixture
+def subtitle_server():
+    bodies = {
+        "/getsub.php": sample_path("subtitles", "basic.srt"),
+        "/subs.json": sample_path("subtitles", "basic.srt"),
+        "/captions/lecture1.mp4": sample_path("subtitles", "basic.srt"),
+        "/subs.vtt": sample_path("subtitles", "basic.vtt"),
+    }
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_HEAD(self):
+            self._respond(send_body=False)
+
+        def do_GET(self):
+            self._respond(send_body=True)
+
+        def _respond(self, send_body):
+            with open(bodies[urlparse(self.path).path], "rb") as fh:
+                body = fh.read()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=UTF-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            if send_body:
+                self.wfile.write(body)
+
+        def log_message(self, *args):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    yield f"http://127.0.0.1:{server.server_port}"
+    server.shutdown()
+    server.server_close()
+
+
+@pytest.mark.parametrize(
+    "url_path", ["/getsub.php?id=5", "/subs.json", "/captions/lecture1.mp4?lang=en"]
+)
+def test_subtitlesformat_is_fallback_for_unknown_url_extension(
+    subtitle_server, url_path
+):
+    subtitle_file = SubtitleFile(
+        f"{subtitle_server}{url_path}", language="en", subtitlesformat="srt"
+    )
+    filename = subtitle_file.process_file()
+
+    assert filename.endswith(".vtt"), subtitle_file.error
+    with open(config.get_storage_path(filename), encoding="utf-8") as fh:
+        assert "البعض أكثر" in fh.read()
+
+
+def test_url_subtitle_type_beats_subtitlesformat(subtitle_server):
+    subtitle_file = SubtitleFile(
+        f"{subtitle_server}/subs.vtt", language="en", subtitlesformat="srt"
+    )
+    filename = subtitle_file.process_file()
+
+    assert filename.endswith(".vtt"), subtitle_file.error
+    with open(config.get_storage_path(filename), encoding="utf-8") as fh:
+        assert "أمضيت ما يقرب من العقدين" in fh.read()
+
+
+def test_subtitle_file_uses_chef_pipeline(monkeypatch):
+    class ChefSubtitleHandler(FileHandler):
+        def should_handle(self, path):
+            return path.startswith("chef-subs://")
+
+        def handle_file(self, path):
+            with self.write_file(file_formats.SRT) as fh:
+                with open(sample_path("subtitles", "basic.srt"), "rb") as src:
+                    fh.write(src.read())
+
+    download_stage = DownloadStageHandler(
+        children=[ChefSubtitleHandler()]
+        + [handler() for handler in DownloadStageHandler.DEFAULT_CHILDREN]
+    )
+    pipeline = FilePipeline(
+        children=[
+            download_stage,
+            ConversionStageHandler(),
+            ExtractMetadataStageHandler(),
+        ]
+    )
+    monkeypatch.setattr(config, "FILE_PIPELINE", pipeline)
+
+    subtitle_file = SubtitleFile("chef-subs://lecture1", language="en")
+    filename = subtitle_file.process_file()
+
+    assert filename.endswith(".vtt"), subtitle_file.error
+    with open(config.get_storage_path(filename), encoding="utf-8") as fh:
+        assert "البعض أكثر" in fh.read()
 
 
 # Tests for Base64 image files
