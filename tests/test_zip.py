@@ -55,8 +55,8 @@ def create_test_files(files):
     return temp_dir
 
 
-def generate_md5(temp_dir, entrypoint=None):
-    zip_path = create_predictable_zip(temp_dir, entrypoint=entrypoint)
+def generate_md5(temp_dir):
+    zip_path = create_predictable_zip(temp_dir)
     with open(zip_path, "rb") as f:
         md5 = hashlib.md5(f.read()).hexdigest()
     os.remove(zip_path)
@@ -76,7 +76,7 @@ def cleanup(temp_dir):
 def test_predictable_zip(case_name, case):
     temp_dir = create_test_files(case["files"])
     try:
-        md5 = generate_md5(temp_dir, case.get("entrypoint"))
+        md5 = generate_md5(temp_dir)
         assert md5 == case["expected_md5"], f"MD5 mismatch for {case_name}"
     finally:
         cleanup(temp_dir)
@@ -95,6 +95,16 @@ def test_refuses_to_build_archives_on_zlib_ng(monkeypatch, tmp_path, attribute, 
     monkeypatch.setattr(zip_module.zlib, attribute, value, raising=False)
     with pytest.raises(RuntimeError, match="zlib-ng"):
         create_predictable_zip(str(tmp_path))
+
+
+def test_entrypoint_is_refused(tmp_path):
+    (tmp_path / "index.html").write_text("<html></html>")
+    with pytest.raises(ValueError):
+        create_predictable_zip(str(tmp_path), entrypoint="main.html")
+    zip_path = create_predictable_zip(str(tmp_path), entrypoint="index.html")
+    with open(zip_path, "rb") as f:
+        assert hashlib.md5(f.read()).hexdigest() == generate_md5(str(tmp_path))
+    os.remove(zip_path)
 
 
 def test_order_independence():
@@ -166,6 +176,6 @@ def test_find_common_root(names, expected):
 if __name__ == "__main__":
     for name, case in TEST_CASES.items():
         temp_dir = create_test_files(case["files"])
-        md5 = generate_md5(temp_dir, case.get("entrypoint"))
+        md5 = generate_md5(temp_dir)
         print(f"MD5 for {name}: {md5}")
         cleanup(temp_dir)
