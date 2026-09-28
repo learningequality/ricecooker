@@ -280,9 +280,8 @@ def _map_html_urls(
 def _filter_css_declarations(css: str, allowed: Set[str]) -> Tuple[str, List[str]]:
     """Keep only declarations whose property is in ``allowed``.
 
-    Returns ``(kept_css, dropped_property_names)``. Splits naively on ``;``/``:``,
-    which is correct for the v1 allowlist (``text-align``/``color``/
-    ``background-color`` values never contain ``;`` or ``:``).
+    Returns ``(kept_css, dropped_property_names)``. Splits naively on ``;``/``:``
+    (allowed property values do not contain ``;`` or ``:``).
     """
     kept, dropped = [], []
     for decl in css.split(";"):

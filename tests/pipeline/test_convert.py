@@ -416,6 +416,21 @@ class TestKPUBSanitization:
             assert "color" in produced
             assert "position" not in produced
 
+    @pytest.mark.parametrize(
+        "prop,value",
+        [
+            ("text-decoration", "underline"),
+            ("text-decoration-line", "underline"),
+            ("text-decoration-style", "wavy"),
+            ("text-decoration-color", "red"),
+            ("text-decoration-thickness", "2px"),
+        ],
+    )
+    def test_text_decoration_styles_survive(self, prop, value):
+        html = f'<html><body><p style="{prop}:{value}">Hi</p></body></html>'
+        with self._run(html) as produced:
+            assert f"{prop}:{value}" in produced
+
     def test_sanitizer_logs_removed(self, caplog):
         html = '<html><body><p style="position:absolute">Hi</p></body></html>'
         with tempfile.TemporaryDirectory() as tmpdir:
