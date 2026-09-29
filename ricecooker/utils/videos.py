@@ -381,6 +381,21 @@ def validate_media_file(file_path: str) -> Tuple[bool, str]:
     result = run_ffmpeg(cmd)
 
     if result.returncode != 0:
-        return False, f"Failed to decode {file_path}: {result.stderr}"
+        lines = [line for line in result.stderr.splitlines() if line.strip()]
+        if not lines:
+            return False, "ffmpeg could not decode the file"
+        # The first "[demuxer @ addr] " tagged line carries the cause; untagged
+        # lines before it can be probe noise. ffmpeg < 6.1 may print only
+        # "<path>: <reason>", untagged.
+        tag = re.compile(r"^\[[^\]]* @ (?:0x)?[0-9a-fA-F]+\] ")
+        line = next((line for line in lines if tag.match(line)), lines[0])
+        line = tag.sub("", line).removeprefix(f"{file_path}: ")
+        # Sibling files an ffconcat or HLS input names resolve against the
+        # storage directory.
+        directory = os.path.dirname(file_path)
+        if directory:
+            for sep in {os.sep, "/"}:
+                line = line.replace(directory + sep, "")
+        return False, line
 
     return True, ""

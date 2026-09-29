@@ -35,6 +35,7 @@ from ricecooker.classes.files import H5PFile
 from ricecooker.classes.files import HTMLZipFile
 from ricecooker.classes.files import StudioFile
 from ricecooker.classes.files import SubtitleFile
+from ricecooker.classes.files import ThumbnailFile
 from ricecooker.classes.files import VideoFile
 from ricecooker.classes.files import YouTubeVideoFile
 from ricecooker.exceptions import FileNotFoundException
@@ -727,6 +728,28 @@ def test_invalid_htmlzip_validation(invalid_zip):
     assert html_file.filename is None
     assert html_file.error is not None
     assert "no HTML file" in html_file.error
+
+
+@pytest.mark.parametrize(
+    "file_class,name,content",
+    [
+        (VideoFile, "bad.mp4", b"This is not a valid media file"),
+        (VideoFile, "concat.mp4", b"ffconcat version 1.0\nfile 'part1.mp4'\n"),
+        (AudioFile, "bad.mp3", b"This is not a valid media file"),
+        (ThumbnailFile, "bad.png", b"not an image"),
+        (ThumbnailFile, "bad.svg", b"<svg><g></svg>"),
+    ],
+)
+def test_corrupt_media_error_is_one_line_without_storage_path(
+    tmp_path, file_class, name, content
+):
+    path = tmp_path / name
+    path.write_bytes(content)
+    media_file = file_class(str(path))
+
+    assert media_file.process_file() is None
+    assert "\n" not in media_file.error
+    assert os.path.abspath(config.STORAGE_DIRECTORY) not in media_file.error
 
 
 def test_non_index_entry_htmlzip_validation(non_index_entry_zip):

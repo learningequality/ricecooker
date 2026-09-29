@@ -186,7 +186,7 @@ class VideoCompressionHandler(MediaCompressionHandler):
                 is_valid, error = validate_media_file(path)
                 if not is_valid:
                     raise InvalidFileException(
-                        f"Video file {path} did not pass verification with error: {error}"
+                        f"Video file did not pass verification: {error}"
                     )
                 return
         else:
@@ -232,7 +232,7 @@ class AudioCompressionHandler(MediaCompressionHandler):
                 is_valid, error = validate_media_file(path)
                 if not is_valid:
                     raise InvalidFileException(
-                        f"Audio file {path} did not pass verification with error: {error}"
+                        f"Audio file did not pass verification: {error}"
                     )
                 return
 
@@ -802,9 +802,9 @@ class ImageConversionHandler(ExtensionMatchingHandler):
                 with self.write_file(extension) as tempf:
                     with Image.open(path) as im:
                         im.convert("RGB").save(tempf, extension)
-        except UnidentifiedImageError as e:
+        except UnidentifiedImageError:
             raise InvalidFileException(
-                f"Image file {path} did not pass verification: {e}"
+                "Image file did not pass verification: not a recognized image"
             )
 
 
@@ -819,9 +819,7 @@ class SVGValidationHandler(ExtensionMatchingHandler):
         try:
             ElementTree.parse(path)
         except ElementTree.ParseError as e:
-            raise InvalidFileException(
-                f"SVG file {path} did not pass verification: {e}"
-            )
+            raise InvalidFileException(f"SVG file did not pass verification: {e}")
 
 
 class SubtitleContextMetadata(ContextMetadata):
