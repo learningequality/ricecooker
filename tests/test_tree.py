@@ -1462,6 +1462,69 @@ def test_upload_tree_still_commits_when_only_one_node_failed(channel):
     assert config.finish_channel_url() in committed
 
 
+@pytest.mark.parametrize(
+    "original_filename",
+    ["a" * 296 + ".pdf", "a" * 254],
+    ids=["300_with_extension", "254_without_extension"],
+)
+def test_file_with_overlong_original_filename_uploads(
+    tree, document, original_filename
+):
+    manager = ChannelManager(tree)
+    manager.root_id, manager.channel_id = "root", "chan-id"
+    manager.validate()
+    files = manager.process_tree()
+    doc_file = next(f for f in document.files if isinstance(f, DocumentFile))
+    doc_file.original_filename = original_filename
+
+    upload_names = {}
+    added_node_ids = []
+
+    def fake_post(url, **kwargs):
+        response = MagicMock()
+        response.status_code = 200
+        if url == config.get_upload_url():
+            name = kwargs["json"]["name"]
+            upload_names[kwargs["json"]["checksum"]] = name
+            if len(name) > config.MAX_ORIGINAL_FILENAME_LENGTH:
+                response.status_code = 500
+                return response
+            response.json.return_value = {
+                "uploadURL": "https://storage.test/upload",
+                "mimetype": "application/pdf",
+                "might_skip": False,
+            }
+        elif url == config.add_nodes_url():
+            payload = json.loads(kwargs["data"])
+            added_node_ids.extend(c["node_id"] for c in payload["content_data"])
+            response._content = json.dumps(
+                {
+                    "root_ids": {
+                        c["node_id"]: "srv_" + c["node_id"]
+                        for c in payload["content_data"]
+                    }
+                }
+            ).encode("utf-8")
+        else:
+            response._content = json.dumps({"new_channel": "chan-id"}).encode("utf-8")
+        return response
+
+    with (
+        patch("ricecooker.config.SESSION.post", side_effect=fake_post),
+        patch("ricecooker.config.SESSION.put", return_value=MagicMock(status_code=200)),
+    ):
+        manager.upload_files(files)
+        manager.reattempt_upload_fails()
+        manager.upload_tree()
+
+    assert manager.failed_uploads == {}
+    node_id = document.get_node_id().hex
+    assert node_id in added_node_ids
+    doc_name = upload_names[doc_file.checksum]
+    assert len(doc_name) <= config.MAX_ORIGINAL_FILENAME_LENGTH
+    assert doc_name.endswith(".pdf")
+
+
 def test_add_nodes_handles_server_error(channel):
     """Test that add_nodes handles server error responses."""
     # Create a manager
