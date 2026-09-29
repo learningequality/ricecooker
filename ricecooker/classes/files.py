@@ -20,6 +20,7 @@ from ricecooker.utils.images import ThumbnailGenerationError
 from ricecooker.utils.paths import extract_path_ext
 from ricecooker.utils.pipeline import FilePipeline
 from ricecooker.utils.pipeline.convert import AudioCompressionHandler
+from ricecooker.utils.pipeline.convert import ConversionStageHandler
 from ricecooker.utils.pipeline.convert import ImageConversionHandler
 from ricecooker.utils.pipeline.convert import SubtitleConversionHandler
 from ricecooker.utils.pipeline.convert import VideoCompressionHandler
@@ -38,6 +39,19 @@ fallback_pipeline = FilePipeline()
 # Lookup table for convertible file formats for a given preset
 # used for converting avi/flv/etc. videos and srt subtitles
 CONVERTIBLE_FORMATS = {p.id: p.convertible_formats for p in format_presets.PRESETLIST}
+
+KNOWN_EXTENSIONS = {ext for ext, _ in file_formats.choices} | {
+    ext
+    for handler in ConversionStageHandler.DEFAULT_CHILDREN
+    for ext in handler.EXTENSIONS
+}
+
+
+def split_known_extension(filename):
+    stem, ext = os.path.splitext(filename)
+    if ext[1:].lower() not in KNOWN_EXTENSIONS:
+        return filename, ""
+    return stem, ext
 
 
 class ThumbnailPresetMixin(object):
@@ -128,18 +142,10 @@ class File(object):
             config.print_truncate(
                 "original_filename", self.node.source_id, self.original_filename
             )
-            original_extension = self.original_filename.split(".")[-1]
-            if original_extension == self.original_filename:
-                original_extension = ""
-            self.original_filename = self.original_filename.split(".")[0]
-            extension_length = (
-                0 if not original_extension else len(original_extension) + 1
+            stem, ext = split_known_extension(self.original_filename)
+            self.original_filename = (
+                stem[: config.MAX_ORIGINAL_FILENAME_LENGTH - len(ext)] + ext
             )
-            self.original_filename = self.original_filename[
-                : config.MAX_ORIGINAL_FILENAME_LENGTH - extension_length
-            ]
-            if original_extension:
-                self.original_filename += "." + original_extension
 
         if self.source_url and len(self.source_url) > config.MAX_SOURCE_URL_LENGTH:
             config.print_truncate(

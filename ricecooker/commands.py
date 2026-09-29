@@ -128,7 +128,7 @@ def uploadchannel(  # noqa: C901
     if command != "dryrun":
         config.LOGGER.info("Checking channel permissions...")
         try:
-            tree.root_id, tree.channel_id = tree.add_channel()
+            tree.add_channel()
         except Exception:
             sys.exit(1)
 

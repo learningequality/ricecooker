@@ -22,14 +22,18 @@ from le_utils.constants.labels import needs
 from le_utils.constants.labels import resource_type
 from le_utils.constants.labels import subjects
 from le_utils.constants.languages import getlang
+from PIL import Image
 from requests.exceptions import ConnectionError as RequestsConnectionError
 from requests.exceptions import ReadTimeout
 
 from ricecooker import config
+from ricecooker.chefs import SushiChef
 from ricecooker.classes.files import DocumentFile
 from ricecooker.classes.files import HTMLZipFile
 from ricecooker.classes.files import SlideImageFile
+from ricecooker.classes.files import SubtitleFile
 from ricecooker.classes.files import ThumbnailFile
+from ricecooker.classes.files import VideoFile
 from ricecooker.classes.licenses import get_license
 from ricecooker.classes.licenses import License
 from ricecooker.classes.nodes import ChannelNode
@@ -42,6 +46,8 @@ from ricecooker.classes.nodes import RemoteContentNode
 from ricecooker.classes.nodes import SlideshowNode
 from ricecooker.classes.nodes import TopicNode
 from ricecooker.classes.nodes import TreeNode
+from ricecooker.classes.nodes import VideoNode
+from ricecooker.commands import uploadchannel
 from ricecooker.exceptions import ChannelIncompleteError
 from ricecooker.exceptions import FileNotFoundException
 from ricecooker.exceptions import InvalidNodeException
@@ -1392,14 +1398,15 @@ def test_upload_tree_refuses_to_commit_when_a_node_batch_failed(channel):
         node.valid = True
 
     manager = ChannelManager(channel)
-    manager.root_id, manager.channel_id = "root", "chan-id"
 
     def fake_post(url, **kwargs):
         response = MagicMock()
         if url == config.add_nodes_url():
             raise RequestsConnectionError("Connection reset by peer")
         response.status_code = 200
-        response._content = json.dumps({"new_channel": "chan-id"}).encode("utf-8")
+        response._content = json.dumps(
+            {"root": "root", "channel_id": "chan-id", "new_channel": "chan-id"}
+        ).encode("utf-8")
         return response
 
     with patch("ricecooker.config.SESSION.post", side_effect=fake_post) as post:
@@ -1430,7 +1437,6 @@ def test_upload_tree_still_commits_when_only_one_node_failed(channel):
         node.valid = True
 
     manager = ChannelManager(channel)
-    manager.root_id, manager.channel_id = "root", "chan-id"
     # bad.pdf's upload to Studio failed and survived the retry.
     manager.failed_uploads = {"bad.pdf": "500 Server Error"}
 
@@ -1451,7 +1457,9 @@ def test_upload_tree_still_commits_when_only_one_node_failed(channel):
             ).encode("utf-8")
         else:
             committed.append(url)
-            response._content = json.dumps({"new_channel": "chan-id"}).encode("utf-8")
+            response._content = json.dumps(
+                {"root": "root", "channel_id": "chan-id", "new_channel": "chan-id"}
+            ).encode("utf-8")
         return response
 
     with patch("ricecooker.config.SESSION.post", side_effect=fake_post):
@@ -1614,6 +1622,71 @@ def test_file_upload_missing_storage_raises_descriptive_error(channel):
     with pytest.raises(FileNotFoundException) as exc_info:
         manager.do_file_upload(filename)
     assert storage_path in str(exc_info.value)
+
+
+@pytest.mark.parametrize(
+    "original_filename, expected",
+    [
+        ("Chapter 1.2 Intro.pdf", "Chapter 1.2 Intro.pdf"),
+        ("Chapter 1.2 Intro", "Chapter 1.2 Intro.pdf"),
+        ("Report.PDF", "Report.PDF"),
+    ],
+)
+def test_file_upload_name_keeps_dotted_stem(studio, original_filename, expected):
+    document = DocumentFile(sample_path("sample_doc_with_toc.pdf"))
+    channel = ChannelNode("dotted", "www.learningequality.org", "Dotted")
+    channel.add_child(
+        DocumentNode(
+            "doc",
+            "Doc",
+            license=get_license(licenses.CC_BY, copyright_holder="x"),
+            files=[document],
+        )
+    )
+    manager = ChannelManager(channel)
+    filenames = manager.process_tree()
+    # Transfers such as Google Drive name files without an extension.
+    document.original_filename = original_filename
+
+    manager.upload_files(filenames)
+
+    assert studio.upload_names == [expected]
+
+
+def test_file_upload_name_replaces_converted_extension(studio, tmp_path):
+    cover = str(tmp_path / "Cover 1.2.webp")
+    Image.open(sample_path("thumbnail.png")).save(cover)
+    channel = ChannelNode("converted", "www.learningequality.org", "Converted")
+    channel.add_child(
+        DocumentNode(
+            "document",
+            "Document",
+            license=get_license(licenses.CC_BY, copyright_holder="x"),
+            thumbnail=cover,
+            files=[DocumentFile(sample_path("41568-pdf.pdf"))],
+        )
+    )
+    channel.add_child(
+        VideoNode(
+            "video",
+            "Video",
+            license=get_license(licenses.CC_BY, copyright_holder="x"),
+            files=[
+                VideoFile(sample_path("sample.mov")),
+                SubtitleFile(sample_path("testsubtitles_ar.srt"), language="ar"),
+            ],
+        )
+    )
+    manager = ChannelManager(channel)
+
+    manager.upload_files(manager.process_tree())
+
+    assert sorted(studio.upload_names) == [
+        "41568-pdf.pdf",
+        "Cover 1.2.png",
+        "sample.webm",
+        "testsubtitles_ar.vtt",
+    ]
 
 
 def test_add_nodes_checks_both_failed_files_and_validity(channel):
@@ -1795,3 +1868,141 @@ def test_rejected_studio_token_exits_nonzero():
         with pytest.raises(SystemExit) as exited:
             authenticate_user("bad-token")
     assert exited.value.code not in (None, 0)
+
+
+def _studio_response(status_code, body=None):
+    response = requests.Response()
+    response.status_code = status_code
+    response._content = json.dumps(body).encode("utf-8")
+    return response
+
+
+class FakeStudio:
+    def __init__(self):
+        self.editable = True
+        self.thumbnail = None
+        self.stored = set()
+        self.upload_names = []
+        self.failing_formats = set()
+
+    def post(self, url, data=None, **kwargs):
+        payload = kwargs.get("json") or json.loads(data or "{}")
+        if url == config.authentication_url():
+            return _studio_response(200, {"username": "chef"})
+        if url == config.check_version_url():
+            return _studio_response(200, {"status": 0, "message": ""})
+        if url == config.create_channel_url():
+            if not self.editable:
+                # create_channel's SuspiciousOperation surfaces as a 500.
+                return _studio_response(500, "Internal server error")
+            channel_data = payload["channel_data"]
+            self.thumbnail = channel_data["thumbnail"]
+            return _studio_response(
+                200, {"root": "root", "channel_id": channel_data["id"]}
+            )
+        if url == config.get_upload_url():
+            self.upload_names.append(payload["name"])
+            upload_url = "https://storage.test/{checksum}.{file_format}".format(
+                **payload
+            )
+            return _studio_response(
+                200,
+                {
+                    "uploadURL": upload_url,
+                    "mimetype": "application/octet-stream",
+                    "might_skip": False,
+                },
+            )
+        if url == config.add_nodes_url():
+            node_ids = [node["node_id"] for node in payload["content_data"]]
+            return _studio_response(
+                200, {"root_ids": {n: "srv_" + n for n in node_ids}}
+            )
+        if url == config.finish_channel_url():
+            return _studio_response(200, {"new_channel": payload["channel_id"]})
+        raise AssertionError("unexpected Studio call: " + url)
+
+    def put(self, url, **kwargs):
+        name = url.rsplit("/", 1)[-1]
+        if name.rsplit(".", 1)[-1] in self.failing_formats:
+            return _studio_response(500, "Internal server error")
+        self.stored.add(name)
+        return _studio_response(200)
+
+    def head(self, url, **kwargs):
+        return _studio_response(200 if url.rsplit("/", 1)[-1] in self.stored else 404)
+
+
+@pytest.fixture
+def studio(monkeypatch):
+    fake = FakeStudio()
+    for name in ("SESSION", "DOWNLOAD_SESSION"):
+        session = requests.Session()
+        session.post, session.put, session.head = fake.post, fake.put, fake.head
+        monkeypatch.setattr(config, name, session)
+    return fake
+
+
+class ThumbnailChef(SushiChef):
+    auth = None
+    channel_info = {
+        "CHANNEL_SOURCE_DOMAIN": "testing.learningequality.org",
+        "CHANNEL_SOURCE_ID": "thumbnail-chef",
+        "CHANNEL_TITLE": "Thumbnail chef",
+        "CHANNEL_LANGUAGE": "en",
+        "CHANNEL_THUMBNAIL": sample_path("thumbnail.png"),
+    }
+
+    def construct_channel(self, **kwargs):
+        self.channel = self.get_channel(**kwargs)
+        self.channel.add_child(
+            DocumentNode(
+                "doc",
+                "Doc",
+                license=get_license(licenses.CC_BY, copyright_holder="x"),
+                files=[DocumentFile(sample_path("sample_doc_with_toc.pdf"))],
+            )
+        )
+        return self.channel
+
+
+@pytest.fixture
+def chef(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    for name in (
+        "UPDATE",
+        "VIDEO_HEIGHT",
+        "THUMBNAILS",
+        "STAGE",
+        "PUBLISH",
+        "FILE_PIPELINE",
+    ):
+        monkeypatch.setattr(config, name, getattr(config, name))
+    return ThumbnailChef()
+
+
+@pytest.mark.parametrize("reupload", [False, True], ids=["new", "reupload"])
+def test_upload_leaves_channel_thumbnail_on_studio(chef, studio, reupload):
+    if reupload:
+        uploadchannel(ThumbnailChef(), token="tok")
+    uploadchannel(chef, token="tok")
+
+    assert studio.thumbnail == chef.channel.thumbnail.filename
+    assert studio.thumbnail in studio.stored
+
+
+def test_upload_omits_channel_thumbnail_that_failed_to_upload(chef, studio):
+    studio.failing_formats.add("png")
+    uploadchannel(chef, token="tok")
+
+    assert studio.thumbnail is None
+
+
+def test_channel_without_edit_rights_fails_before_any_download(chef, studio):
+    studio.editable = False
+    with pytest.raises(SystemExit) as exited:
+        uploadchannel(chef, token="tok")
+
+    assert exited.value.code not in (None, 0)
+    nodes = [chef.channel] + chef.channel.children
+    assert all(f.filename is None for node in nodes for f in node.files)
