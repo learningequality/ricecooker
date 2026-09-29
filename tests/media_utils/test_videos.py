@@ -4,6 +4,7 @@ import atexit
 import os
 import re
 import subprocess
+import sys
 import tempfile
 from unittest import mock
 
@@ -273,20 +274,54 @@ def test_validate_audio_file_valid(audio_file):
     assert error == ""
 
 
-def test_validate_media_file_corrupt(corrupt_media_path):
-    is_valid, error = videos.validate_media_file(corrupt_media_path)
-    assert not is_valid
-    assert "Failed to decode" in error
-
-
 def test_validate_media_file_nonexistent():
     is_valid, error = videos.validate_media_file("nonexistent_file.mp4")
     assert not is_valid
-    assert "Failed to decode" in error
+    assert error and "\n" not in error
+    assert "nonexistent_file.mp4" not in error
 
 
-def test_validate_media_file_empty():
-    with tempfile.NamedTemporaryFile(suffix=".mp4") as empty_file:
-        is_valid, error = videos.validate_media_file(empty_file.name)
-        assert not is_valid
-        assert "Failed to decode" in error
+def test_validate_media_file_reports_cause(tmp_path, low_res_video):
+    with open(low_res_video.name, "rb") as f:
+        data = f.read()
+    media = tmp_path / "bad.mp4"
+    media.write_bytes(data[: len(data) // 2])
+
+    is_valid, error = videos.validate_media_file(str(media))
+    assert not is_valid
+    assert error == "moov atom not found"
+
+
+def test_validate_media_file_reports_cause_not_probe_noise(tmp_path):
+    bad_webm = tmp_path / "bad.webm"
+    bad_webm.write_bytes(b"not media")
+
+    is_valid, error = videos.validate_media_file(str(bad_webm))
+    assert not is_valid
+    # ffmpeg < 6.1 fails before the matroska demuxer runs, so only the
+    # untagged probe line is ruled out.
+    assert not error.startswith("Truncating packet")
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="stand-in ffmpeg is a shell script")
+@pytest.mark.parametrize(
+    "script,expected",
+    [
+        ("exit 1", "ffmpeg could not decode the file"),
+        (
+            'while [ "$1" != -i ]; do shift; done; echo "$2: Invalid data found when processing input" >&2; exit 1',
+            "Invalid data found when processing input",
+        ),
+    ],
+)
+def test_validate_media_file_stand_in_ffmpeg(
+    tmp_path, monkeypatch, corrupt_media_path, script, expected
+):
+    fake_ffmpeg = tmp_path / "ffmpeg"
+    fake_ffmpeg.write_text(f"#!/bin/sh\n{script}\n")
+    fake_ffmpeg.chmod(0o755)
+    monkeypatch.setenv("PATH", str(tmp_path), prepend=os.pathsep)
+
+    is_valid, error = videos.validate_media_file(corrupt_media_path)
+    assert not is_valid
+    assert error == expected
