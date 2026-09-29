@@ -955,23 +955,12 @@ class TestHTML5EntryPoint:
         assert node.extra_fields == {"options": {"entry": "missing.html"}}
         assert clone.extra_fields == {"options": {"entry": "missing.html"}}
 
-    @pytest.mark.parametrize(
-        "via_file,node_class,kwargs",
-        [
-            (True, CustomNavigationNode, {}),
-            (
-                False,
-                HTML5AppNode,
-                {"extra_fields": {"options": {"modality": "CUSTOM_NAVIGATION"}}},
-            ),
-        ],
-    )
-    def test_detected_entry_keeps_modality(self, via_file, node_class, kwargs):
+    @pytest.mark.parametrize("via_file", [True, False])
+    def test_detected_entry_keeps_modality(self, via_file):
         node = _process_node(
             {"app.html": self.VALID_HTML},
             via_file=via_file,
-            node_class=node_class,
-            **kwargs,
+            node_class=CustomNavigationNode,
         )
         assert node.extra_fields == {
             "options": {"modality": "CUSTOM_NAVIGATION", "entry": "app.html"}
@@ -987,6 +976,15 @@ class TestHTML5EntryPoint:
                 extra_fields=shared,
             )
         assert "entry" not in shared["options"]
+
+    def test_custom_navigation_uri_rejects_other_kinds(self):
+        node = _make_node(
+            sample_path("41568-pdf.pdf"),
+            via_file=False,
+            node_class=CustomNavigationNode,
+        )
+        with pytest.raises(InvalidNodeException, match="Inferred kind document"):
+            node.process_files()
 
 
 class TestKPUBValidation:
@@ -1802,12 +1800,21 @@ class TestKPUBPromotion:
                 path, context=context, skip_cache=True
             )
 
-    @pytest.mark.parametrize("via_file", [True, False])
-    def test_legacy_html5_apis_keep_static_zip_html5(self, via_file):
+    @pytest.mark.parametrize(
+        "via_file,node_class",
+        [
+            (True, HTML5AppNode),
+            (False, HTML5AppNode),
+            (False, CustomNavigationNode),
+        ],
+    )
+    def test_legacy_html5_apis_keep_static_zip_html5(self, via_file, node_class):
         node = _process_node(
             {"index.html": "<html><body><p>An article</p></body></html>"},
             via_file=via_file,
+            node_class=node_class,
         )
+        assert node.kind == node_class.kind
         assert [f.get_preset() for f in node.files] == [format_presets.HTML5_ZIP]
 
     def test_static_article_promoted_to_kpub(self):
