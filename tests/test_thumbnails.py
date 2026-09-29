@@ -1,7 +1,7 @@
 import os
 
 import PIL
-import pytest  # noqa F401
+import pytest
 from le_utils.constants import format_presets
 from le_utils.constants import licenses
 from test_tree import thumbnail_path  # noqa F401
@@ -24,6 +24,7 @@ from ricecooker.classes.nodes import DocumentNode
 from ricecooker.classes.nodes import HTML5AppNode
 from ricecooker.classes.nodes import TopicNode
 from ricecooker.classes.nodes import VideoNode
+from ricecooker.utils import videos
 
 SHOW_THUMBS = False  # set to True to show outputs when running tests locally
 
@@ -342,3 +343,14 @@ class TestThumbnailGeneration(object):
         assert result is None, "expected None result for invalid MP4"
         assert len(config.FAILED_FILES) == 1, "expected one failed file"
         assert thumbnail_file.filename is None, "filename should remain None"
+
+    @pytest.mark.parametrize("tool", ["ffprobe", "ffmpeg"])
+    def test_hung_video_tool_fails_thumbnail(
+        self, video_file, stub_on_path, monkeypatch, tool
+    ):
+        stub_on_path(tool)
+        monkeypatch.setattr(videos, "PROBE_TIMEOUT", 1)
+        thumbnail_file = ExtractedVideoThumbnailFile(video_file.path)
+        assert thumbnail_file.process_file() is None
+        assert config.FAILED_FILES == [thumbnail_file]
+        assert "timed out" in thumbnail_file.error

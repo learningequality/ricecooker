@@ -8,6 +8,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+import time
 import zipfile
 from collections import defaultdict
 from contextlib import contextmanager
@@ -21,6 +22,7 @@ import pytest
 import requests
 from bs4 import BeautifulSoup
 from cachecontrol.caches.file_cache import FileCache
+from conftest import sample_path
 from le_utils.constants import content_kinds
 from le_utils.constants import exercises
 from le_utils.constants import format_presets
@@ -42,6 +44,7 @@ from ricecooker.exceptions import InvalidNodeException
 from ricecooker.managers.tree import ChannelManager
 from ricecooker.utils import archive_assets
 from ricecooker.utils import caching
+from ricecooker.utils import videos
 from ricecooker.utils.archive_dependencies import SharedAssetExtractor
 from ricecooker.utils.imscp import IMSCPPackage
 from ricecooker.utils.pipeline import FilePipeline
@@ -204,6 +207,26 @@ def test_archive_no_compression_without_settings(video_file, audio_file):
 
     finally:
         os.unlink(temp_archive.name)
+
+
+@pytest.mark.parametrize(
+    "sample, context",
+    [
+        ("low_res_sample.mp4", {"video_settings": {}}),
+        ("low_res_sample.mp4", {"video_settings": {"crf": 32}}),
+        ("sample_audio.mp3", {"audio_settings": {}}),
+        ("sample_audio.mp3", {"audio_settings": {"bit_rate": 96}}),
+    ],
+)
+def test_hung_ffmpeg_fails_file(sample, context, stub_on_path, monkeypatch):
+    stub_on_path("ffmpeg")
+    monkeypatch.setattr(videos, "STALL_TIMEOUT", 1)
+    start = time.monotonic()
+    with pytest.raises(InvalidFileException):
+        FilePipeline(default_context=context).execute(
+            sample_path(sample), skip_cache=True
+        )
+    assert time.monotonic() - start < 10
 
 
 # HTML5 Conversion Tests
@@ -533,6 +556,14 @@ class TestDocumentConversion:
         with patch("ricecooker.utils.pipeline.convert.shutil.which", return_value=None):
             with pytest.raises(PandocMissingError, match="(?i)install"):
                 handler.handle_file("in.docx")
+
+    def test_hung_pandoc_fails_file(self, stub_on_path, monkeypatch, tmp_path):
+        src = tmp_path / "in.md"
+        src.write_text("# Title\n\nHello world", encoding="utf-8")
+        stub_on_path("pandoc")
+        monkeypatch.setattr(DocumentConversionHandler, "TIMEOUT", 1)
+        with pytest.raises(InvalidFileException, match="pandoc timed out"):
+            FilePipeline(default_context={}).execute(str(src), skip_cache=True)
 
 
 @contextmanager

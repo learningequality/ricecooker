@@ -2,9 +2,7 @@ from __future__ import print_function
 
 import atexit
 import os
-import subprocess
 import tempfile
-from unittest import mock
 
 import pytest
 from conftest import sample_path
@@ -36,15 +34,9 @@ class Test_compress_video:
             assert duration == compressed_duration
 
     def test_raises_for_bad_file(self):
-        # ffmpeg failure is mocked so the error-mapping path is exercised without
-        # shelling out to a real encoder.
         with TempFile(suffix=".mp4") as vout:
-            with mock.patch(
-                "ricecooker.utils.audio.subprocess.check_output",
-                side_effect=subprocess.CalledProcessError(1, "ffmpeg", b"bad input"),
-            ):
-                with pytest.raises(audio.AudioCompressionError):
-                    audio.compress_audio("source.mp3", vout.name, overwrite=True)
+            with pytest.raises(audio.AudioCompressionError):
+                audio.compress_audio("source.mp3", vout.name, overwrite=True)
 
 
 # Helper class for cross-platform temporary files

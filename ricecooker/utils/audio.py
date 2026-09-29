@@ -2,6 +2,8 @@ import logging
 import subprocess
 from enum import Enum
 
+from .videos import run_ffmpeg
+
 LOGGER = logging.getLogger("AudioResource")
 LOGGER.setLevel(logging.DEBUG)
 
@@ -60,7 +62,6 @@ def compress_audio(
 
     # run command
     command = [
-        "ffmpeg",
         "-y" if overwrite else "-n",
         "-i",
         source_file_path,
@@ -71,8 +72,8 @@ def compress_audio(
         target_file,
     ]
     try:
-        subprocess.check_output(command, stderr=subprocess.STDOUT)
+        run_ffmpeg(command).check_returncode()
     except subprocess.CalledProcessError as e:
-        raise AudioCompressionError("{}: {}".format(e, e.output))
+        raise AudioCompressionError("{}: {}".format(e, e.stderr))
     except (BrokenPipeError, IOError) as e:
         raise AudioCompressionError("{}".format(e))
