@@ -1514,7 +1514,9 @@ def test_file_with_overlong_original_filename_uploads(
                 }
             ).encode("utf-8")
         else:
-            response._content = json.dumps({"new_channel": "chan-id"}).encode("utf-8")
+            response._content = json.dumps(
+                {"root": "root", "channel_id": "chan-id", "new_channel": "chan-id"}
+            ).encode("utf-8")
         return response
 
     with (
