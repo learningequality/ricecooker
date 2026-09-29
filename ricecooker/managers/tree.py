@@ -219,6 +219,13 @@ class ChannelManager:
             name, ext = os.path.splitext(data["name"])
             if not ext or ext != data["file_format"]:
                 data["name"] = "{}.{}".format(name, data["file_format"])
+            # Studio stores the name in a 255-character column.
+            if len(data["name"]) > config.MAX_ORIGINAL_FILENAME_LENGTH:
+                suffix_length = len(data["file_format"]) + 1
+                data["name"] = (
+                    data["name"][: config.MAX_ORIGINAL_FILENAME_LENGTH - suffix_length]
+                    + data["name"][-suffix_length:]
+                )
             url_response = config.SESSION.post(config.get_upload_url(), json=data)
             if url_response.status_code == 412:
                 raise InsufficientStorageException("You have run out of storage space.")
