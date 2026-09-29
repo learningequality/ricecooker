@@ -80,7 +80,16 @@ from .file_handler import StageHandler
 CONVERTIBLE_FORMATS = {p.id: p.convertible_formats for p in format_presets.PRESETLIST}
 
 # CSS properties permitted on inline ``style=`` attributes inside a KPUB.
-KPUB_STYLE_ALLOWLIST = {"text-align", "color", "background-color"}
+KPUB_STYLE_ALLOWLIST = {
+    "text-align",
+    "color",
+    "background-color",
+    "text-decoration",
+    "text-decoration-line",
+    "text-decoration-style",
+    "text-decoration-color",
+    "text-decoration-thickness",
+}
 
 
 class PandocMissingError(Exception):
