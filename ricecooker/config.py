@@ -205,6 +205,18 @@ STORAGE_DIRECTORY = os.getenv(
 # Session for communicating to Kolibri Studio
 SESSION = requests.Session()
 
+UPLOAD_SESSION = requests.Session()
+_upload_retry = Retry(
+    total=5,
+    backoff_factor=1,
+    status_forcelist=[500, 502, 503, 504],
+    allowed_methods={"PUT"},
+    redirect=False,
+    respect_retry_after_header=True,
+)
+UPLOAD_SESSION.mount("http://", HTTPAdapter(max_retries=_upload_retry))
+UPLOAD_SESSION.mount("https://", HTTPAdapter(max_retries=_upload_retry))
+
 # Cache for filenames
 FILECACHE_DIRECTORY = os.getenv(
     "RICECOOKER_FILECACHE", os.path.join(CURRENT_CWD, ".ricecookerfilecache")
