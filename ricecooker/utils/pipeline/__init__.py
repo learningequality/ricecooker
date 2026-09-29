@@ -80,7 +80,9 @@ class FilePipeline(CompositeHandler):
         Execute the pipeline for a given file path.
         """
         context = _recursive_update(deepcopy(self.default_context), context or {})
-        if not self.default_context.get("compress", True):
+        if not (
+            self.default_context.get("compress", True) and context.get("compress", True)
+        ):
             context.update(video_settings={}, audio_settings={})
         else:
             context["explicit_settings"] = [

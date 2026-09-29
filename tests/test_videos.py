@@ -15,8 +15,10 @@ from le_utils.constants import licenses
 
 from ricecooker import config
 from ricecooker.chefs import SushiChef
+from ricecooker.classes.files import AudioFile
 from ricecooker.classes.files import SubtitleFile
 from ricecooker.classes.files import VideoFile
+from ricecooker.classes.nodes import ContentNode
 from ricecooker.classes.nodes import VideoNode
 
 
@@ -280,6 +282,39 @@ def test_chef_without_compression_uploads_video_as_is(
     assert video_file.process_file() == sample_hash_filename("high_res_sample.mp4")
     mov_file = VideoFile(sample_path("sample.mov"), ffmpeg_settings=ffmpeg_settings)
     assert _processed_height(mov_file) == 720
+
+
+def _process_uri(path, context):
+    node = ContentNode(
+        source_id="video",
+        title="Video",
+        license=licenses.CC_BY,
+        copyright_holder="Holder",
+        uri=path,
+        context=context,
+    )
+    node.process_files()
+    [video_file] = node.files
+    return video_file.filename
+
+
+@pytest.mark.parametrize(
+    "sample,process",
+    [
+        (
+            "high_res_sample.mp4",
+            lambda path: VideoFile(path, ffmpeg_settings=False).process_file(),
+        ),
+        (
+            "sample_audio.mp3",
+            lambda path: AudioFile(path, ffmpeg_settings=False).process_file(),
+        ),
+        ("high_res_sample.mp4", lambda path: _process_uri(path, {"compress": False})),
+    ],
+)
+def test_file_opted_out_of_compression_is_unchanged(monkeypatch, sample, process):
+    _use_chef_pipeline(monkeypatch)
+    assert process(sample_path(sample)) == sample_hash_filename(sample)
 
 
 """ *********** TEST VIDEO CONVERSION  *********** """

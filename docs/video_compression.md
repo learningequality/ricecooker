@@ -52,6 +52,8 @@ Use `--no-compress` on the command line, or `SETTINGS["compress"] = False` in
 the chef, to upload all media as-is, ignoring files' own `ffmpeg_settings`.
 Video in other containers is still converted to webm at its own height, and
 other audio to mp3.
+To skip one file, pass `ffmpeg_settings=False` to `VideoFile`/`AudioFile`, or
+`context={"compress": False}` to `ContentNode(uri=...)`.
 
 
 

@@ -262,6 +262,12 @@ class ThumbnailFile(ThumbnailPresetMixin, ImageDownloadFile):
     default_ext = file_formats.PNG
 
 
+def _ffmpeg_context(settings_key, ffmpeg_settings):
+    if ffmpeg_settings is False:
+        return {"compress": False}
+    return {settings_key: ffmpeg_settings or {}}
+
+
 class AudioFile(DownloadFile):
     default_ext = file_formats.MP3
     allowed_formats = AudioCompressionHandler.EXTENSIONS
@@ -270,7 +276,7 @@ class AudioFile(DownloadFile):
 
     def __init__(self, path, ffmpeg_settings=None, **kwargs):
         super(AudioFile, self).__init__(
-            path, context={"audio_settings": ffmpeg_settings or {}}, **kwargs
+            path, context=_ffmpeg_context("audio_settings", ffmpeg_settings), **kwargs
         )
 
 
@@ -322,7 +328,7 @@ class VideoFile(DownloadFile):
 
     def __init__(self, path, ffmpeg_settings=None, **kwargs):
         super(VideoFile, self).__init__(
-            path, context={"video_settings": ffmpeg_settings or {}}, **kwargs
+            path, context=_ffmpeg_context("video_settings", ffmpeg_settings), **kwargs
         )
 
 
