@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p2" xmlns:qh5="http://www.imsglobal.org/xsd/imsqtiv2p2_html5_v1p0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p2 http://www.imsglobal.org/xsd/qti/qtiv2p2/imsqti_v2p2.xsd"
+    identifier="rubric" title="Rubric" adaptive="false" timeDependent="false">
+    <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="string"/>
+    <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float"/>
+    <itemBody>
+        <rubricBlock view="candidate" aria-label="Instructions">
+            <p>Answer in one <qh5:bdi>sentence</qh5:bdi>.</p>
+        </rubricBlock>
+        <rubricBlock view="scorer tutor">Award one mark for any mention of rain.</rubricBlock>
+        <rubricBlock view="scorer">Full marks need two causes.</rubricBlock>
+        <rubricBlock view="tutor">Discuss snowmelt.</rubricBlock>
+        <rubricBlock view="author proctor testConstructor">Reviewed in 2024.</rubricBlock>
+        <rubricBlock view="candidate" use="navigation">Press Next to continue.</rubricBlock>
+        <extendedTextInteraction responseIdentifier="RESPONSE">
+            <prompt>Why do rivers flood?</prompt>
+        </extendedTextInteraction>
+    </itemBody>
+</assessmentItem>

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_v2p1 http://www.imsglobal.org/xsd/qti/qtiv2p1/imsqti_v2p1.xsd"
+    identifier="end_attempt" title="End attempt" adaptive="true" timeDependent="false">
+    <responseDeclaration identifier="RESPONSE" cardinality="single" baseType="identifier">
+        <correctResponse><value>A</value></correctResponse>
+    </responseDeclaration>
+    <responseDeclaration identifier="HINT" cardinality="single" baseType="boolean"/>
+    <outcomeDeclaration identifier="SCORE" cardinality="single" baseType="float"/>
+    <outcomeDeclaration identifier="FEEDBACK" cardinality="single" baseType="identifier"/>
+    <itemBody>
+        <choiceInteraction responseIdentifier="RESPONSE" maxChoices="1">
+            <prompt>Which is a prime number?</prompt>
+            <simpleChoice identifier="A">7</simpleChoice>
+            <simpleChoice identifier="B">8</simpleChoice>
+        </choiceInteraction>
+        <p><endAttemptInteraction responseIdentifier="HINT" title="Show a hint"/></p>
+        <feedbackBlock outcomeIdentifier="FEEDBACK" identifier="HINT" showHide="show">It has no divisors but 1 and itself.</feedbackBlock>
+    </itemBody>
+    <responseProcessing>
+        <responseCondition>
+            <responseIf>
+                <variable identifier="HINT"/>
+                <setOutcomeValue identifier="FEEDBACK"><baseValue baseType="identifier">HINT</baseValue></setOutcomeValue>
+            </responseIf>
+            <responseElseIf>
+                <match><variable identifier="RESPONSE"/><correct identifier="RESPONSE"/></match>
+                <setOutcomeValue identifier="SCORE"><baseValue baseType="float">1</baseValue></setOutcomeValue>
+            </responseElseIf>
+        </responseCondition>
+    </responseProcessing>
+</assessmentItem>
