@@ -1,5 +1,7 @@
 """Tests for exercise nodes, questions, and files"""
 
+import base64
+import hashlib
 import json
 import os
 import re
@@ -680,6 +682,31 @@ def test_perseus_image_is_downloaded_and_rewritten(item, exercise_image_filename
         json.dumps(item).replace("http://h/pic.png", stored)
     )
     assert exercises.CONTENT_STORAGE_PLACEHOLDER in q.raw_data
+
+
+@pytest.mark.parametrize(
+    "content,url",
+    [
+        ("![](http://h/thumbnail.png?lang=en)", "http://h/thumbnail.png?lang=en"),
+        # the literal backslash-n seen in KA exports
+        ("![](http://h/thumbnail.png\\n)", "http://h/thumbnail.png"),
+    ],
+)
+def test_perseus_image_url_loses_only_encoded_newlines(
+    content, url, exercise_image_filename
+):
+    _clear_ricecookerfilecache()
+    q = PerseusQuestion("q", _perseus_item(content), ka_language="en")
+    with fake_download_session({url: NO_WIFI_PNG}):
+        assert q.process_question() == [exercise_image_filename]
+
+
+def test_perseus_unpadded_base64_ending_in_n_is_stored_intact():
+    # whole 3-byte groups need no padding; 0x27's low six bits encode "n"
+    data = NO_WIFI_PNG + b"\0" * (-(len(NO_WIFI_PNG) + 1) % 3) + b"'"
+    uri = "data:image/png;base64," + base64.b64encode(data).decode()
+    q = PerseusQuestion("q", _perseus_item(f"![]({uri})"), ka_language="en")
+    assert q.process_question() == [hashlib.md5(data).hexdigest() + ".png"]
 
 
 # Test exercise images

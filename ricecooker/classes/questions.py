@@ -315,7 +315,7 @@ class PerseusQuestion(BaseQuestion):
             return f"{open}{protocol}:{path}{close}"
         # Strip `path` of whitespace
         # Remove stray encoded line-breaks sometimes present in KA exports
-        stripped_path = re.sub(r"\s", "", path).lstrip("\\n").rstrip("\\n")
+        stripped_path = re.sub(r"\s", "", path).removeprefix("\\n").removesuffix("\\n")
         full_path = f"{protocol.replace('web+graphie', 'https')}:{stripped_path}"
         for file in self.files:
             if file.path == full_path:
