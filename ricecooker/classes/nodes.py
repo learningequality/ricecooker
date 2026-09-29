@@ -1187,13 +1187,15 @@ class ContentNode(TreeNode):
             return
         for metadata_dict in file_metadata_dicts:
             self.add_file(self._file_from_metadata(metadata_dict))
-        if (
-            self.kind is not None
-            and content_metadata.get("kind", self.kind) != self.kind
-        ):
-            raise InvalidNodeException(
-                "Inferred kind is different from content node class kind."
-            )
+        if self.kind is not None:
+            uri_kinds = {PRESET_LOOKUP[p].kind for p in self.required_presets} or {
+                self.kind
+            }
+            inferred_kind = content_metadata.pop("kind", None)
+            if inferred_kind and inferred_kind not in uri_kinds:
+                raise InvalidNodeException(
+                    f"Inferred kind {inferred_kind} is not one of {sorted(uri_kinds)}"
+                )
         self.set_metadata(content_metadata)
 
     def process_files(self):

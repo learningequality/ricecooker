@@ -2390,7 +2390,9 @@ def test_upload_tree_drops_a_node_whose_uri_infers_another_kind(
     dropped = _pdf_as(node_class)
     summary = _upload_beside_a_kept_topic(channel, caplog, dropped)
     assert summary == [
-        "\t{}: Inferred kind is different from content node class kind.".format(dropped)
+        "\t{}: Inferred kind document is not one of {}".format(
+            dropped, [node_class.kind]
+        )
     ]
 
 
@@ -2399,7 +2401,9 @@ def test_process_tree_raises_on_a_kind_mismatch_in_strict_mode(channel, node_cla
     channel.add_child(_pdf_as(node_class))
     with (
         patch("ricecooker.config.STRICT", True),
-        pytest.raises(InvalidNodeException, match="Inferred kind is different"),
+        pytest.raises(
+            InvalidNodeException, match="Inferred kind document is not one of"
+        ),
     ):
         ChannelManager(channel).process_tree()
 
