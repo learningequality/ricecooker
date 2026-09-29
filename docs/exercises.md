@@ -10,7 +10,7 @@ An `ExerciseNode`s are special kind of content node contains one or more questio
 In order to set the criteria for completing exercises, you must set __exercise_data__
 to a dict containing a `mastery_model` field based on the mastery models provided
 in `le_utils.constants.exercises`.
-If no data is provided, `ricecooker` will default to mastery at 3 of 5 correct.
+If no data is provided, `ricecooker` defaults to `m_of_n`. If only one of `m` and `n` is given, the other takes its value; if neither is, both default to the number of questions, at most 5.
 For example:
 ```
 node = ExerciseNode(
