@@ -1120,8 +1120,7 @@ class ContentNode(TreeNode):
         else:
             m_value = n_value = None
 
-        self.extra_fields.update({"m": m_value})
-        self.extra_fields.update({"n": n_value})
+        self.extra_fields = {**self.extra_fields, "m": m_value, "n": n_value}
 
     def _validate_exercise(self):
         """Validate the exercise. Raises InvalidNodeException on failure; returns None."""
