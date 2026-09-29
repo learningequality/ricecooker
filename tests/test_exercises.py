@@ -8,6 +8,7 @@ import uuid
 from unittest.mock import patch
 
 import pytest
+from fake_session import fake_download_session
 from le_utils.constants import exercises
 from le_utils.constants import format_presets
 from le_utils.constants import licenses
@@ -463,17 +464,17 @@ with open(
     os.path.join(TESTCONTENT_DIR, "exercises", "perseus_question_inline_link.json"),
     encoding="utf-8",
 ) as inf:
-    item_data_link = json.load(inf)
-    datum = (
-        item_data_link,
-        [
-            "2672f777fd35a425ed221936cf29fb48",
-            "9570c5339784b65baf6873ed8cfada9d",
-            "c70736eb538798719445c79f8ff647a2",
-            "e489fde9967e09feec04165f3b679c3b",
-        ],
+    item_data_link_envelope = json.load(inf)
+    link_hashes = [
+        "2672f777fd35a425ed221936cf29fb48",
+        "9570c5339784b65baf6873ed8cfada9d",
+        "c70736eb538798719445c79f8ff647a2",
+        "e489fde9967e09feec04165f3b679c3b",
+    ]
+    perseus_test_data.append((item_data_link_envelope, link_hashes))
+    perseus_test_data.append(
+        (json.loads(item_data_link_envelope["itemData"]), link_hashes)
     )
-    perseus_test_data.append(datum)
 
 
 @pytest.mark.parametrize("item,image_hashes", perseus_test_data)
@@ -503,6 +504,182 @@ def test_perseus_process_question(item, image_hashes):
         filehash, ext = os.path.splitext(filename)
         image_hashes.add(filehash)
     assert image_hashes == expected_image_hashes, "Unexpected image file set"
+    json.loads(testq.raw_data)
+    assert "web+graphie://" not in testq.raw_data
+
+
+def _perseus_item(content):
+    return {"question": {"content": content, "images": {}, "widgets": {}}, "hints": []}
+
+
+def _perseus_widget_item(widget):
+    item = _perseus_item("[[☃ w 1]]")
+    item["question"]["widgets"]["w 1"] = widget
+    return item
+
+
+@pytest.mark.parametrize(
+    "item",
+    [
+        _perseus_item('see <a href="http://h/page.html">here</a>'),
+        _perseus_widget_item(
+            {
+                "type": "phet-simulation",
+                "options": {
+                    "url": "https://phet.colorado.edu/sims/html/x/latest/x_en.html"
+                },
+            }
+        ),
+    ],
+    ids=["quoted-link", "phet-simulation-url"],
+)
+def test_perseus_non_image_url_is_left_alone(item):
+    q = PerseusQuestion("q", item, ka_language="en")
+    with fake_download_session({}):
+        assert q.process_question() == []
+    assert json.loads(q.raw_data) == item
+
+
+with open(os.path.join(TESTCONTENT_DIR, "exercises", "no-wifi.png"), "rb") as f:
+    NO_WIFI_PNG = f.read()
+
+
+def _perseus_radio_item(content):
+    return _perseus_widget_item(
+        {
+            "type": "radio",
+            "options": {"choices": [{"content": "[1,2]"}, {"content": '["é"]'}]},
+        }
+    ) | {"hints": [{"content": content}]}
+
+
+def test_perseus_item_without_images_is_unchanged():
+    raw = json.dumps(
+        _perseus_radio_item("é"), separators=(",", ":"), ensure_ascii=False
+    )
+    q = PerseusQuestion("q", raw, ka_language="en")
+    assert q.process_question() == []
+    assert q.raw_data == raw
+
+
+def test_perseus_json_like_strings_are_kept_verbatim(exercise_image_filename):
+    _clear_ricecookerfilecache()
+    q = PerseusQuestion(
+        "q", _perseus_radio_item("![](http://h/pic.png)"), ka_language="en"
+    )
+    with fake_download_session({"http://h/pic.png": NO_WIFI_PNG}):
+        assert q.process_question() == [exercise_image_filename]
+    choices = json.loads(q.raw_data)["question"]["widgets"]["w 1"]["options"]["choices"]
+    assert choices == [{"content": "[1,2]"}, {"content": '["é"]'}]
+
+
+def _perseus_images_key_item(url):
+    item = _perseus_item("no images here")
+    item["question"]["images"] = {url: {"width": 1, "height": 1}}
+    return item
+
+
+@pytest.mark.parametrize(
+    "item,full_path",
+    [
+        (_perseus_item("![](web+graphie://h/missing)"), "https://h/missing"),
+        (_perseus_item("![](http://h/missing.png)"), "http://h/missing.png"),
+        (_perseus_images_key_item("web+graphie://h/missing"), "https://h/missing"),
+        (_perseus_images_key_item("http://h/missing.png"), "http://h/missing.png"),
+    ],
+)
+def test_perseus_failed_image_download_fails_question(item, full_path):
+    _clear_ricecookerfilecache()
+    q = PerseusQuestion("q", item, ka_language="en")
+    with (
+        fake_download_session({}),
+        pytest.raises(InvalidNodeException, match=re.escape(full_path)),
+    ):
+        q.process_question()
+
+
+def test_perseus_failed_data_image_names_mimetype_not_payload():
+    payload = base64.b64encode(b"<svg xmlns='http://www.w3.org/2000/svg'/>").decode()
+    item = _perseus_item(f"![](data:image/svg+xml;base64,{payload})")
+    q = PerseusQuestion("q", item, ka_language="en")
+    with pytest.raises(InvalidNodeException) as excinfo:
+        q.process_question()
+    assert str(excinfo.value).endswith("data:image/svg+xml: invalid image")
+
+
+def test_perseus_whole_string_graphie_is_downloaded_and_rewritten():
+    _clear_ricecookerfilecache()
+    item = _perseus_widget_item({"type": "x", "options": {"x": "web+graphie://h/g"}})
+    q = PerseusQuestion("q", item, ka_language="en")
+    with fake_download_session(
+        {"https://h/g.svg": b"<svg/>", "https://h/g-data.json": b"{}"}
+    ):
+        assert len(q.process_question()) == 1
+    options = json.loads(q.raw_data)["question"]["widgets"]["w 1"]["options"]
+    assert options["x"] == "web+graphie:" + exercises.CONTENT_STORAGE_FORMAT.format("g")
+
+
+@pytest.mark.parametrize(
+    "item",
+    [
+        _perseus_item('$a<b$ <img alt="x" src="http://h/pic.png"> $c>d$'),
+        _perseus_item('<img data-src="http://h/lazy.png" src="http://h/pic.png">'),
+        _perseus_item('<IMG SRC="http://h/pic.png">'),
+        _perseus_item('<img alt="a>b" src="http://h/pic.png">'),
+        {
+            "question": {
+                "content": "![](http://h/pic.png)",
+                "images": {"http://h/pic.png": {"width": 1, "height": 1}},
+                "widgets": {},
+            },
+            "hints": [],
+        },
+        _perseus_widget_item(
+            {
+                "type": "image",
+                "options": {"backgroundImage": {"url": "http://h/pic.png"}},
+            }
+        ),
+        _perseus_widget_item(
+            {"type": "measurer", "options": {"image": {"url": "http://h/pic.png"}}}
+        ),
+        _perseus_widget_item(
+            {"type": "label-image", "options": {"imageUrl": "http://h/pic.png"}}
+        ),
+        _perseus_widget_item(
+            {"type": "plotter", "options": {"picUrl": "http://h/pic.png"}}
+        ),
+        {"id": "x", "itemData": json.dumps(_perseus_item("![](http://h/pic.png)"))},
+    ],
+    ids=[
+        "img-src",
+        "img-data-src",
+        "img-uppercase",
+        "img-alt-gt",
+        "images-key",
+        "backgroundImage.url",
+        "image.url",
+        "imageUrl",
+        "picUrl",
+        "envelope",
+    ],
+)
+def test_perseus_image_is_downloaded_and_rewritten(item, exercise_image_filename):
+    def decode(raw_data):
+        decoded = json.loads(raw_data)
+        if "itemData" in decoded:
+            decoded["itemData"] = json.loads(decoded["itemData"])
+        return decoded
+
+    _clear_ricecookerfilecache()
+    stored = exercises.CONTENT_STORAGE_FORMAT.format(exercise_image_filename)
+    q = PerseusQuestion("q", item, ka_language="en")
+    with fake_download_session({"http://h/pic.png": NO_WIFI_PNG}):
+        assert q.process_question() == [exercise_image_filename]
+    assert decode(q.raw_data) == decode(
+        json.dumps(item).replace("http://h/pic.png", stored)
+    )
+    assert exercises.CONTENT_STORAGE_PLACEHOLDER in q.raw_data
 
 
 # Test exercise images

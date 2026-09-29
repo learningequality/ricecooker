@@ -10,23 +10,29 @@ from le_utils.constants import exercises
 from ricecooker.utils.encodings import get_base64_encoding
 
 from .. import config
+from ..exceptions import InvalidNodeException
 from ..exceptions import InvalidQuestionException
 from .files import _ExerciseBase64ImageFile
 from .files import _ExerciseGraphieFile
 from .files import _ExerciseImageFile
 
 # Reusable protocol and path pattern for Perseus questions
-PERSEUS_PROTOCOL_PATH = (
-    r"(?P<protocol>web\+graphie|https?|file|data):(?P<rawpath>[^\)\"]+)"
-)
+PERSEUS_PROTOCOL = r"(?P<protocol>web\+graphie|https?|file|data)"
+PERSEUS_PROTOCOL_PATH = rf"{PERSEUS_PROTOCOL}:(?P<rawpath>[^\)\"]+)"
 
-# match protocol:{{path}} in quotation marks for Perseus
-PERSEUS_QUOTED_IMAGE_REGEX = rf"(?P<open>\"){PERSEUS_PROTOCOL_PATH}(?P<close>\")"
+PERSEUS_IMAGE_URL_REGEX = rf"(?P<open>){PERSEUS_PROTOCOL}:(?P<rawpath>.+)(?P<close>)"
 
 # match protocol:{{path}} in markdown images ![text](url) for Perseus - captures the URL part only
 PERSEUS_MARKDOWN_IMAGE_REGEX = (
     rf"(?P<open>!\[[^\]]*\]\(){PERSEUS_PROTOCOL_PATH}(?P<close>\))"
 )
+
+PERSEUS_IMG_SRC_REGEX = (
+    rf"(?P<open>(?i:<img\b(?:[^>\"']|\"[^\"]*\"|'[^']*')*?(?<![\w-])src)\s*=\s*(?P<quote>[\"']))"
+    rf"{PERSEUS_PROTOCOL}:(?P<rawpath>.+?)(?P<close>(?P=quote))"
+)
+
+PERSEUS_IMAGE_URL_FIELDS = {"backgroundImage.url", "image.url", "imageUrl", "picUrl"}
 
 # match protocol:{{path}} either wrapped in parentheses or quotes (original regex)
 MARKDOWN_IMAGE_REGEX = r"!\[([^\]]+)?\]\(([^\)]+?)\)"  # match ![{{smth}}]({{url}})
@@ -268,7 +274,11 @@ class PerseusQuestion(BaseQuestion):
     """
 
     def __init__(self, id, raw_data, ka_language, source_url=None, **kwargs):
-        raw_data = raw_data if isinstance(raw_data, str) else json.dumps(raw_data)
+        raw_data = (
+            raw_data
+            if isinstance(raw_data, str)
+            else json.dumps(raw_data, ensure_ascii=False)
+        )
         self.ka_language = ka_language
         super(PerseusQuestion, self).__init__(
             id,
@@ -322,6 +332,16 @@ class PerseusQuestion(BaseQuestion):
             exercise_image_file.assessment_item = self
             # Process file to make the replacement_str available
             exercise_image_file.process_file()
+            if not exercise_image_file.filename:
+                shown_path = (
+                    re.split("[;,]", full_path, maxsplit=1)[0]
+                    if protocol == "data"
+                    else full_path
+                )
+                raise InvalidNodeException(
+                    f"Perseus question {self.source_id} failed to download image "
+                    f"{shown_path}: {exercise_image_file.error or 'invalid image'}"
+                )
             self.files.append(exercise_image_file)
         # Get `new_path` = the replacement path for the image resource
         new_path = exercises.CONTENT_STORAGE_FORMAT.format(
@@ -331,22 +351,56 @@ class PerseusQuestion(BaseQuestion):
             new_path = "web+graphie:" + new_path
         return f"{open}{new_path}{close}"
 
+    def _replace_image_url(self, text):
+        match = re.fullmatch(PERSEUS_IMAGE_URL_REGEX, text, re.DOTALL)
+        return self._replace_image(match) if match else text
+
+    def _process_string(self, text, key, parent_key):
+        if text.lstrip()[:1] in ("{", "["):
+            try:
+                nested = json.loads(text)
+            except ValueError:
+                pass
+            else:
+                processed = self._process_value(nested)
+                if processed == nested:
+                    return text
+                return json.dumps(processed, ensure_ascii=False)
+        if (
+            text.startswith("web+graphie:")
+            or key in PERSEUS_IMAGE_URL_FIELDS
+            or f"{parent_key}.{key}" in PERSEUS_IMAGE_URL_FIELDS
+        ):
+            text = self._replace_image_url(text)
+        else:
+            text = re.sub(PERSEUS_MARKDOWN_IMAGE_REGEX, self._replace_image, text)
+            text = re.sub(PERSEUS_IMG_SRC_REGEX, self._replace_image, text)
+        if "web+graphie://" in text:
+            raise InvalidNodeException(
+                f"Perseus question {self.source_id} has unresolved web+graphie:// URLs"
+            )
+        return text
+
+    def _process_value(self, value, key=None, parent_key=None):
+        if isinstance(value, dict):
+            processed = {}
+            for k, v in value.items():
+                new_k = self._replace_image_url(k) if key == "images" else k
+                processed[new_k] = self._process_value(v, k, key)
+            return processed
+        if isinstance(value, list):
+            return [self._process_value(v, key, parent_key) for v in value]
+        if isinstance(value, str):
+            return self._process_string(value, key, parent_key)
+        return value
+
     def process_question(self):
         """
         Parse specific fields in `self.raw_data` that needs to have image strings
         processed: replaced by references to `CONTENTSTORAGE` + added as files.
         Returns: list of all files needed to render this question.
         """
-        # First pass: handle quoted images
-        self.raw_data = re.sub(
-            PERSEUS_QUOTED_IMAGE_REGEX, self._replace_image, self.raw_data
-        )
-        # Second pass: handle markdown images (excluding those already processed)
-        self.raw_data = re.sub(
-            PERSEUS_MARKDOWN_IMAGE_REGEX, self._replace_image, self.raw_data
-        )
-
-        # Return all filenames
+        self.raw_data = self._process_string(self.raw_data, None, None)
         return [f.filename for f in self.files]
 
 
