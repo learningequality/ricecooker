@@ -766,7 +766,7 @@ def test_uri_node_failure_carries_pipeline_error(node_class):
         pipeline=FilePipeline(),
         copyright_holder="Demo Holdings",
     )
-    with pytest.raises(InvalidNodeException, match="Could not read malformed PDF file"):
+    with pytest.raises(InvalidNodeException, match="did not pass validation"):
         node.process_files()
 
 
@@ -782,7 +782,7 @@ def test_file_node_failure_carries_each_file_error(invalid_document_file):
         node.process_files()
 
     message = str(excinfo.value)
-    assert "Could not read malformed PDF file" in message
+    assert "did not pass validation" in message
     assert sample_path("broken.pdf") in message
     assert invalid_document_file.path in message
 
@@ -1152,8 +1152,7 @@ def test_process_node_warning_carries_pipeline_error(channel, caplog):
         ChannelManager(channel).process_node(node)
 
     assert any(
-        r.levelno == logging.WARNING
-        and "Could not read malformed PDF file" in r.getMessage()
+        r.levelno == logging.WARNING and "did not pass validation" in r.getMessage()
         for r in caplog.records
     )
 

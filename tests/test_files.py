@@ -3,6 +3,7 @@
 import base64
 import hashlib
 import os.path
+import sys
 import tempfile
 import threading
 import zipfile
@@ -20,6 +21,7 @@ from le_utils.constants import file_formats
 from le_utils.constants import format_presets
 from le_utils.constants import languages
 from le_utils.constants.exercises import GRAPHIE_DELIMITER
+from pdf2image.exceptions import PDFInfoNotInstalledError
 from PIL import Image
 from PyPDF2 import PdfFileWriter
 from requests import ConnectionError
@@ -1527,8 +1529,50 @@ def test_pdf_validation_handler_empty_pdf(tmpdir):
     with open(empty_pdf_path, "wb") as f:
         writer.write(f)
 
-    with pytest.raises(InvalidFileException):
+    with pytest.raises(InvalidFileException, match="^PDF has no pages$"):
         handler.execute(empty_pdf_path)
+
+
+@pytest.mark.parametrize(
+    "name", ["aes128_owner_password.pdf", "aes256_owner_password.pdf"]
+)
+def test_owner_password_pdf_passes_validation(name):
+    pdf = DocumentFile(sample_path(name))
+    assert pdf.process_file().endswith(".pdf")
+    assert pdf not in config.FAILED_FILES
+
+
+@pytest.mark.parametrize("name", ["aes128_user_password.pdf", "zlib_error.pdf"])
+def test_unreadable_pdf_fails_only_that_file(name):
+    pdf = DocumentFile(sample_path(name))
+    assert pdf.process_file() is None
+    assert pdf in config.FAILED_FILES
+    assert pdf.error.startswith("PDF did not pass validation: ")
+    assert "\n" not in pdf.error
+    assert config.STORAGE_DIRECTORY not in pdf.error
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="shell-script pdfinfo stub")
+def test_pdf_validation_timeout_fails_only_that_file(monkeypatch, tmp_path):
+    stub = tmp_path / "pdfinfo"
+    stub.write_text("#!/bin/sh\nexec sleep 30\n")
+    stub.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{tmp_path}{os.pathsep}{os.environ['PATH']}")
+    monkeypatch.setattr(PDFValidationHandler, "TIMEOUT", 1)
+    monkeypatch.setattr(config, "UPDATE", True)
+
+    pdf = DocumentFile(sample_path("aes128_owner_password.pdf"))
+
+    assert pdf.process_file() is None
+    assert pdf in config.FAILED_FILES
+    assert "timed out" in pdf.error
+
+
+def test_pdf_validation_requires_poppler(monkeypatch, tmp_path):
+    monkeypatch.setattr(config, "UPDATE", True)
+    monkeypatch.setenv("PATH", str(tmp_path))
+    with pytest.raises(PDFInfoNotInstalledError):
+        DocumentFile(sample_path("aes128_owner_password.pdf")).process_file()
 
 
 def test_subtitle_cache_keys_with_format(mock_filecache, subtitle_file):
