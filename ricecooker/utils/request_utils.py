@@ -1,6 +1,7 @@
 import os
 from urllib.parse import urlparse
 
+import requests
 from requests.auth import AuthBase
 
 
@@ -46,7 +47,35 @@ class DomainSpecificAuth(AuthBase):
         Returns:
             r: (requests.PreparedRequest)
         """
-        domain = urlparse(r.url).netloc
-        if domain in self.domain_to_headers:
-            r.headers.update(self.domain_to_headers[domain])
+        headers = self.domain_to_headers.get(urlparse(r.url).netloc, {})
+        r.domain_auth = self
+        r.domain_auth_replaced = {
+            key: (r.headers.get(key), value) for key, value in headers.items()
+        }
+        r.headers.update(headers)
         return r
+
+    def rebuild(self, r, previous):
+        for key, (replaced, added) in previous.domain_auth_replaced.items():
+            if r.headers.get(key) != added:
+                continue
+            if replaced is None:
+                del r.headers[key]
+            else:
+                r.headers[key] = replaced
+        if (
+            urlparse(previous.url).scheme == "https"
+            and urlparse(r.url).scheme == "http"
+        ):
+            return r
+        return self(r)
+
+
+class DomainAuthSession(requests.Session):
+    """requests strips only Authorization on redirect, so other domain headers would follow to the new host."""
+
+    def rebuild_auth(self, prepared_request, response):
+        super().rebuild_auth(prepared_request, response)
+        auth = getattr(response.request, "domain_auth", None)
+        if auth is not None:
+            auth.rebuild(prepared_request, response.request)

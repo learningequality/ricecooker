@@ -16,6 +16,7 @@ from requests_file import FileAdapter
 from urllib3.util.retry import Retry
 
 from .exceptions import FileNotFoundException
+from .utils.request_utils import DomainAuthSession
 
 UPDATE = False
 VIDEO_HEIGHT = None
@@ -216,7 +217,7 @@ FAILED_FILES = []
 # read timeouts, 429/5xx) so a slow or briefly unavailable host does not fail
 # the download outright — parity with the retry adapter the old downloader.py
 # session mounted before it was removed.
-DOWNLOAD_SESSION = requests.Session()
+DOWNLOAD_SESSION = DomainAuthSession()
 _download_retry = Retry(
     total=3,
     backoff_factor=1,
