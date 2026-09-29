@@ -53,11 +53,14 @@ class ChannelManager:
         try:
             node.validate()
         except InvalidNodeException as e:
-            if config.STRICT:
-                raise
-            else:
-                node._error = str(e)
-                config.LOGGER.warning(node._error)
+            self._record_error(node, e)
+
+    def _record_error(self, node, e):
+        if config.STRICT:
+            raise InvalidNodeException(f"{node}: {e}") from e
+        node.valid = False
+        node._error = str(e)
+        config.LOGGER.warning(f"{node}: {node._error}")
 
     def process_tree(self):
         """
@@ -125,11 +128,9 @@ class ChannelManager:
         try:
             node.process_files()
         except (InvalidNodeException, ValueError) as e:
-            if config.STRICT:
+            if config.STRICT and isinstance(e, ValueError):
                 raise
-            else:
-                node._error = str(e)
-                config.LOGGER.warning(node._error)
+            self._record_error(node, e)
         return self.node_files(node)
 
     def node_files(self, node):
@@ -378,7 +379,7 @@ class ChannelManager:
             for node_id in node_builds:
                 node = node_builds[node_id]
                 config.LOGGER.warning(
-                    "\t{} ({})".format(str(node["node"]), node["error"])
+                    "\t{}: {}".format(str(node["node"]), node["error"])
                 )
                 if "content" in node:
                     config.LOGGER.warning(node["content"][:80])

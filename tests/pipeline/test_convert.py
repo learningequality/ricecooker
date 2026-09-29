@@ -2333,6 +2333,70 @@ class TestQTIIngestion:
             ):
                 node.process_files()
 
+    @contextmanager
+    def _invalid_two_test_package(self):
+        resources, files = _one_test_package("t1")
+        more_resources, more_files = _one_test_package("t2")
+        with _qti_package(resources + more_resources, {**files, **more_files}) as path:
+            node = _quiz_content_node(path, extra_fields={"mastery_model": "bogus"})
+            channel = ChannelNode(
+                "qti-channel", "example.org", "Channel", language="en"
+            )
+            channel.add_child(node)
+            yield node, ChannelManager(channel)
+
+    def test_invalid_exercise_in_a_package_names_the_failing_exercise_in_strict_mode(
+        self,
+    ):
+        with (
+            patch("ricecooker.config.STRICT", True),
+            self._invalid_two_test_package() as (node, manager),
+        ):
+            with pytest.raises(InvalidNodeException) as excinfo:
+                manager.process_tree()
+        assert str(excinfo.value).endswith(
+            f"{node.children[0]}: Unrecognized mastery model bogus"
+        )
+
+    def test_invalid_exercise_in_a_package_drops_the_package(self, caplog):
+        posted = []
+
+        def fake_post(url, **kwargs):
+            if url == config.add_nodes_url():
+                children = json.loads(kwargs["data"])["content_data"]
+                posted.extend(child["source_id"] for child in children)
+                body = {"root_ids": {c["node_id"]: c["node_id"] for c in children}}
+            else:
+                body = {
+                    "root": "root",
+                    "channel_id": "chan-id",
+                    "new_channel": "chan-id",
+                }
+            response = requests.Response()
+            response.status_code = 200
+            response._content = json.dumps(body).encode("utf-8")
+            return response
+
+        with (
+            patch("ricecooker.config.STRICT", False),
+            self._invalid_two_test_package() as (node, manager),
+        ):
+            manager.validate()
+            manager.process_tree()
+            caplog.clear()
+            with (
+                patch("ricecooker.config.SESSION.post", side_effect=fake_post),
+                caplog.at_level("WARNING", logger=config.LOGGER.name),
+            ):
+                manager.upload_tree()
+        assert posted == []
+        summary = [
+            r.getMessage() for r in caplog.records if node.title in r.getMessage()
+        ]
+        assert summary == [
+            f"\t{node}: {node.children[0]}: Unrecognized mastery model bogus"
+        ]
+
     @staticmethod
     def _ids(leaf):
         return [q["id"] for q in leaf["questions"]]
