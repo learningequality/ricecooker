@@ -16,6 +16,8 @@ from ricecooker.utils.request_utils import DomainSpecificAuth
 from . import config
 from .classes import files
 from .classes import nodes
+from .commands import check_removed_options
+from .commands import RESUME_REMOVED
 from .commands import uploadchannel_wrapper
 from .exceptions import InvalidUsageException
 from .exceptions import raise_for_invalid_channel
@@ -57,8 +59,8 @@ class SushiChef(object):
 
     channel_node_class = nodes.ChannelNode
 
-    file_pipeline = None  # assigned a FilePipeline in run(); default lets node
-    # helpers fall back to a fresh pipeline when invoked outside a run.
+    file_pipeline = None
+    auth = None
 
     def __init__(self, *args, **kwargs):
         """
@@ -258,6 +260,10 @@ class SushiChef(object):
         """
         # --remote=NAME only, so a bare --remote cannot swallow the command.
         argv = [a + "=" if client_flag(a) == "--remote" else a for a in sys.argv[1:]]
+        # Not registered as flags: argparse would then reject --res/--st as ambiguous.
+        removed = {"--resume", "--step"} - self.arg_parser._option_string_actions.keys()
+        if any(a.split("=", 1)[0] in removed for a in argv):
+            raise InvalidUsageException(RESUME_REMOVED)
         args_namespace, options_list = self.arg_parser.parse_known_args(argv)
         args = args_namespace.__dict__
 
@@ -274,6 +280,28 @@ class SushiChef(object):
         # main() dispatches only a leading remote; anything else here would upload.
         if args["command"] == "remote":
             raise InvalidUsageException("remote must be the first argument.")
+        # Parse additional keyword arguments from `options_list`
+        options = {}
+        for preoption in options_list:
+            try:
+                option_key, option_value = preoption.split("=", 1)
+                options.update({option_key.strip(): option_value.strip()})
+            except ValueError:
+                msg = "Invalid option '{0}': use [key]=[value] format (no whitespace)".format(
+                    preoption
+                )
+                raise InvalidUsageException(msg)
+        self._check_usage(args, options)
+
+        self._resolve_token(args)
+
+        self.args = args
+        self.options = options
+
+        return args, options
+
+    def _check_usage(self, args, options):
+        check_removed_options(self, options)
 
         # Print CLI deprecation warnings info
         if args["stage_deprecated"]:
@@ -298,25 +326,6 @@ class SushiChef(object):
             raise InvalidUsageException(
                 "Arguments --env and --env-pass require --remote."
             )
-
-        self._resolve_token(args)
-
-        # Parse additional keyword arguments from `options_list`
-        options = {}
-        for preoption in options_list:
-            try:
-                option_key, option_value = preoption.split("=")
-                options.update({option_key.strip(): option_value.strip()})
-            except IndexError:
-                msg = "Invalid option '{0}': use [key]=[value] format (no whitespace)".format(
-                    preoption
-                )
-                raise InvalidUsageException(msg)
-
-        self.args = args
-        self.options = options
-
-        return args, options
 
     def _resolve_token(self, args):
         remote = args["remote"] is not None
@@ -512,6 +521,22 @@ class SushiChef(object):
             options (dict): extra key=value options given on command line
         """
 
+    def build_file_pipeline(self):
+        # Compression is opt-in via --compress; when set, derive the ffmpeg
+        # settings once and pass them through the pipeline's default context so
+        # every media file (standalone or inside an archive) is compressed
+        # consistently.
+        default_context = {}
+        if self.get_setting("compress", False):
+            default_context["video_settings"] = {
+                "crf": 32,
+                "max_height": self.get_setting("video-height") or 720,
+            }
+            default_context["audio_settings"] = {
+                "bit_rate": 96,
+            }
+        return FilePipeline(default_context=default_context)
+
     def run(self, args, options):
         """
         This function calls uploadchannel which performs all the run steps:
@@ -532,20 +557,7 @@ class SushiChef(object):
         self.CHEF_RUN_DATA["current_run"] = run_id
         self.CHEF_RUN_DATA["runs"].append({"id": run_id})
 
-        # Compression is opt-in via --compress; when set, derive the ffmpeg
-        # settings once and pass them through the pipeline's default context so
-        # every media file (standalone or inside an archive) is compressed
-        # consistently.
-        default_context = {}
-        if self.get_setting("compress", False):
-            default_context["video_settings"] = {
-                "crf": 32,
-                "max_height": self.get_setting("video-height") or 720,
-            }
-            default_context["audio_settings"] = {
-                "bit_rate": 96,
-            }
-        self.file_pipeline = FilePipeline(default_context=default_context)
+        self.file_pipeline = self.build_file_pipeline()
         self.auth = DomainSpecificAuth(self.DOMAIN_AUTH_HEADERS)
         # TODO(Kevin): move self.download_content() call here
         self.pre_run(args, options)
@@ -558,14 +570,19 @@ class SushiChef(object):
         # Before the chef's parser, so chef-added required args and -h cannot intercept it.
         if sys.argv[1:2] == ["remote"]:
             sys.exit(run_remote_command(sys.argv[2:], script=sys.argv[0]))
-        args, options = self.parse_args_and_options()
-        if args["remote"] is not None:
-            env = forwarded_env(args["token"], args["env"], args["env_pass"])
-            sys.exit(
-                run_remotely(chef_argv(sys.argv), env, remote=args["remote"] or None)
-            )
-        self.config_logger(args, options)
-        self.run(args, options)
+        try:
+            args, options = self.parse_args_and_options()
+            if args["remote"] is not None:
+                env = forwarded_env(args["token"], args["env"], args["env_pass"])
+                sys.exit(
+                    run_remotely(
+                        chef_argv(sys.argv), env, remote=args["remote"] or None
+                    )
+                )
+            self.config_logger(args, options)
+            self.run(args, options)
+        except InvalidUsageException as e:
+            sys.exit(str(e))
 
 
 # JSON TREE CHEF

@@ -1,18 +1,34 @@
 #!/usr/bin/env python
+import copy
+import glob
+import importlib.util
+import os
 import random
+import socket
 import string
+import sys
 
+import pytest
+import requests
 from le_utils.constants import licenses
 
+from ricecooker import config
 from ricecooker.chefs import SushiChef
 from ricecooker.classes.files import AudioFile
 from ricecooker.classes.files import DocumentFile
 from ricecooker.classes.files import VideoFile
 from ricecooker.classes.licenses import get_license
 from ricecooker.classes.nodes import AudioNode
+from ricecooker.classes.nodes import ChannelNode
+from ricecooker.classes.nodes import ContentNode
 from ricecooker.classes.nodes import DocumentNode
 from ricecooker.classes.nodes import TopicNode
 from ricecooker.classes.nodes import VideoNode
+from ricecooker.commands import create_initial_tree
+from ricecooker.commands import uploadchannel
+from ricecooker.commands import uploadchannel_wrapper
+from ricecooker.exceptions import InvalidUsageException
+from ricecooker.utils.pipeline import FilePipeline
 
 
 class TestChef(SushiChef):
@@ -119,6 +135,219 @@ class TestChef(SushiChef):
         # the `construct_channel` method returns a ChannelNode that will be
         # processed by the ricecooker framework
         return channel
+
+
+class NeverRunChef(SushiChef):
+    channel_info = {
+        "CHANNEL_SOURCE_DOMAIN": "example.org",
+        "CHANNEL_SOURCE_ID": "example",
+        "CHANNEL_TITLE": "Example",
+        "CHANNEL_LANGUAGE": "en",
+    }
+
+    def get_channel(self, **kwargs):
+        return ChannelNode(
+            source_domain="example.org", source_id="example", title="Example"
+        )
+
+    def download_content(self):
+        raise AssertionError("downloaded content")
+
+    def construct_channel(self, **kwargs):
+        raise AssertionError("constructed channel")
+
+
+@pytest.mark.parametrize(
+    "channel_info",
+    [{**NeverRunChef.channel_info, "CHANNEL_ID": "0" * 32}, {"CHANNEL_ID": "0" * 32}],
+    ids=["with_source_keys", "without_source_keys"],
+)
+def test_channel_id_in_channel_info_is_rejected_before_login(offline, channel_info):
+    chef = NeverRunChef()
+    chef.channel_info = channel_info
+
+    with pytest.raises(InvalidUsageException, match="CHANNEL_ID is not supported"):
+        uploadchannel(chef, token="t")
+
+
+@pytest.mark.parametrize("removed", [{"resume": True}, {"step": "LAST"}])
+def test_uploadchannel_rejects_removed_resume_kwargs_before_login(offline, removed):
+    with pytest.raises(InvalidUsageException, match="removed"):
+        uploadchannel(NeverRunChef(), token="t", **removed)
+
+
+class StepChef(SushiChef):
+    def __init__(self):
+        super().__init__()
+        self.arg_parser.add_argument("--step", type=int)
+
+    def construct_channel(self, **kwargs):
+        raise AssertionError(f"constructed channel with step={kwargs['step']}")
+
+
+def test_chef_registered_step_flag_reaches_construct_channel(offline, monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["./sushichef.py", "dryrun", "--step", "3"])
+    chef = StepChef()
+    args, options = chef.parse_args_and_options()
+
+    with pytest.raises(AssertionError, match="step=3"):
+        uploadchannel_wrapper(chef, args, options)
+
+
+@pytest.fixture
+def chef_config(monkeypatch):
+    for name in (
+        "UPDATE",
+        "VIDEO_HEIGHT",
+        "THUMBNAILS",
+        "STAGE",
+        "PUBLISH",
+        "FILE_PIPELINE",
+    ):
+        monkeypatch.setattr(config, name, getattr(config, name))
+    monkeypatch.setattr(config, "DOWNLOAD_SESSION", requests.Session())
+
+
+class RunOverrideChef(SushiChef):
+    channel_info = {
+        "CHANNEL_SOURCE_DOMAIN": "example.org",
+        "CHANNEL_SOURCE_ID": "run-override",
+        "CHANNEL_TITLE": "Run override",
+        "CHANNEL_LANGUAGE": "en",
+    }
+    DOMAIN_AUTH_HEADERS = {"example.org": {"X-Api-Key": "EXAMPLE_API_KEY"}}
+
+    def construct_channel(self, **kwargs):
+        channel = self.get_channel()
+        channel.add_child(
+            ContentNode(
+                source_id="pdf",
+                title="PDF",
+                license=get_license(licenses.PUBLIC_DOMAIN),
+                uri=os.path.join(
+                    os.path.dirname(__file__), "testcontent", "samples", "41568-pdf.pdf"
+                ),
+            )
+        )
+        return channel
+
+    def run(self, args, options):
+        uploadchannel(self, command="dryrun")
+
+
+@pytest.fixture
+def run_override_chef(chef_config, monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("EXAMPLE_API_KEY", "secret")
+    chef = RunOverrideChef()
+    chef.CHEF_RUN_DATA = copy.deepcopy(config.CHEF_DATA_DEFAULT)
+    return chef
+
+
+def test_uploadchannel_builds_pipeline_and_auth_for_run_override(run_override_chef):
+    run_override_chef.run({}, {})
+
+    request = requests.Request("GET", "https://example.org/x").prepare()
+    assert config.DOWNLOAD_SESSION.auth(request).headers["X-Api-Key"] == "secret"
+
+
+def test_uploadchannel_keeps_pipeline_set_by_run_override(run_override_chef):
+    run_override_chef.file_pipeline = custom = FilePipeline()
+    run_override_chef.run({}, {})
+
+    assert config.FILE_PIPELINE is custom
+
+
+@pytest.fixture
+def offline(chef_config, monkeypatch):
+    def refuse(*args, **kwargs):
+        raise OSError("network disabled in test")
+
+    monkeypatch.setattr(socket.socket, "connect", refuse)
+    monkeypatch.setattr(socket, "getaddrinfo", refuse)
+    monkeypatch.setattr(config, "FILE_PIPELINE", FilePipeline())
+    monkeypatch.setattr(config, "STRICT", True)
+
+
+WIKIPEDIA_PAGES = {
+    "https://en.wikipedia.org/wiki/List_of_citrus_fruits": """<table>
+        <tr><th>Name</th><th>Image</th></tr>
+        <tr><td><a href="/wiki/Lemon">Lemon</a></td><td><img src="//upload.wikimedia.org/120px-Lemon.jpg"></td></tr>
+        <tr><td><a href="/wiki/Citron">Citron</a></td><td><img src="//upload.wikimedia.org/120px-Citron.svg"></td></tr>
+        <tr><td>Unlinked hybrid</td><td></td></tr>
+        </table>""",
+    "https://en.wikipedia.org/wiki/List_of_potato_cultivars": """<table>
+        <tr><th>Name</th><th>Image</th></tr>
+        <tr><td><a href="/wiki/Yukon_Gold_potato">Yukon Gold</a></td><td></td></tr>
+        </table>""",
+}
+
+
+class CannedPagesAdapter(requests.adapters.BaseAdapter):
+    def send(self, request, **kwargs):
+        if request.url not in WIKIPEDIA_PAGES:
+            raise requests.ConnectionError(f"network disabled in test: {request.url}")
+        response = requests.Response()
+        response.status_code = 200
+        response.url = request.url
+        response.request = request
+        response._content = WIKIPEDIA_PAGES[request.url].encode()
+        return response
+
+    def close(self):
+        pass
+
+
+def load_example_chefs(script):
+    name = os.path.basename(os.path.dirname(script))
+    spec = importlib.util.spec_from_file_location(f"example_{name}", script)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    chefs = []
+    for obj in vars(module).values():
+        if not (
+            isinstance(obj, type)
+            and issubclass(obj, SushiChef)
+            and obj.__module__ == module.__name__
+        ):
+            continue
+        chef = obj()
+        if hasattr(chef, "channel_info"):
+            chef.channel_info = {
+                **chef.channel_info,
+                "CHANNEL_SOURCE_DOMAIN": "example.org",
+                "CHANNEL_SOURCE_ID": "example",
+            }
+        chefs.append(chef)
+    return chefs
+
+
+def construct_offline(chef, monkeypatch):
+    session = requests.Session()
+    session.mount("https://", CannedPagesAdapter())
+    session.mount("http://", CannedPagesAdapter())
+    with monkeypatch.context() as m:
+        m.setattr(config, "DOWNLOAD_SESSION", session)
+        return chef.construct_channel()
+
+
+EXAMPLES_DIR = os.path.join(os.path.dirname(__file__), "..", "examples")
+EXAMPLE_SCRIPTS = sorted(glob.glob(os.path.join(EXAMPLES_DIR, "*", "sushichef.py")))
+
+
+@pytest.mark.parametrize(
+    "script",
+    EXAMPLE_SCRIPTS,
+    ids=[os.path.basename(os.path.dirname(s)) for s in EXAMPLE_SCRIPTS],
+)
+def test_example_chef_builds_valid_tree_offline(script, offline, monkeypatch):
+    chefs = load_example_chefs(script)
+    assert chefs
+
+    for chef in chefs:
+        channel = construct_offline(chef, monkeypatch)
+        create_initial_tree(channel)
+        assert channel.get_non_topic_descendants()
 
 
 if __name__ == "__main__":

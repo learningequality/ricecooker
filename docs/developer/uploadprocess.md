@@ -27,7 +27,8 @@ make sure the node's metadata is set correctly and necessary files are provided.
 Each `File` subclass comes turn has it's own validation logic to ensure the file
 provided has the appropriate extension.
 
-The tree validation logic is initiated [here](https://github.com/learningequality/ricecooker/blob/master/ricecooker/managers/tree.py#L19-L24) when the channel's `validate_tree` method is called.
+Tree validation runs when `create_initial_tree` in `commands.py` calls
+[`ChannelManager.validate()`](https://github.com/learningequality/ricecooker/blob/main/ricecooker/managers/tree.py), which validates every node.
 
 Note: the files have not been processed at this point, so the node and file
 `validate` methods cannot do "deep checks" on the file contents yet.

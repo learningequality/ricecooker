@@ -96,19 +96,10 @@ See the [sushi-chef-shls code repo](https://github.com/learningequality/sushi-ch
 for the final version of the web crawling code that was used for this content source.
 
 
-### Static assets download utility
-We have a handy function for fetching all of a webpage's static assets (JS, CSS, images, etc.),
-so that, in theory, you could scrape a webpage and display it in Kolibri exactly
-as you see it in the website itself in your browser.
-
-See the source in [`utils/downloader.py`](https://github.com/learningequality/ricecooker/blob/master/ricecooker/utils/downloader.py#L129-L247),
-[example usage in a simple app: MEET chef](https://github.com/learningequality/sushi-chef-MEET/blob/425327ad552f9f25f582a2057048f6d4475382c1/chef.py#L205),
-which comprises articles with text and images, and [another example in a complex app: Blockly Games chef](https://github.com/learningequality/sushi-chef-blockly-games/blob/270e8bc620be0ed883f40e2739878db54f7243b7/chef.py#L193), an interactive JS game with images and sounds.
-
-
-
-
-
+### Archiving a web page
+`ContentNode(uri=page_url)` renders a web page and its assets (JS, CSS, images)
+into an HTML5 zip that displays in Kolibri as it does in your browser.
+See [Archiving web pages](downloader.md).
 
 
 
@@ -157,8 +148,8 @@ It also includes a sidebar for those apps where you may want internal navigation
 However, consider if it would be more appropriate to turn each page into its own
 content item and grouping them together into a single folder (topic).
 
-How to decide between the static assets downloader (above) and this starter template?
-Prefer the static assets downloader if it makes sense to keep the source styling or JS,
+How to decide between page archiving (above) and this starter template?
+Prefer page archiving if it makes sense to keep the source styling or JS,
 such as in the case of an interactive app
 (e.g. [Blockly Games](https://github.com/learningequality/sushi-chef-blockly-games))
 or an app-like reader

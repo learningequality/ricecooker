@@ -161,7 +161,7 @@ and ``--compress`` (video compression) to create better channels.
 `Utility functions <index_utils.html>`_
 ***************************************
 Learn what tools are available for:
-`downloading <downloader.html>`__,
+`archiving web pages <downloader.html>`__,
 `creating <htmlapps.html>`__ and `debugging <developer/kolibripreview.html>`__ HTMLZip files,
 `video compression <video_compression.html>`__,
 `splitting PDFs <pdfutils.html>`__ into chapters,

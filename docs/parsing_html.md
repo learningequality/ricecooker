@@ -60,11 +60,11 @@ The most commonly used parts of the BeautifulSoup API are:
 Here is some sample code for getting the text of the LE mission statement:
 
 ```python
+import requests
 from bs4 import BeautifulSoup
-from ricecooker.utils.downloader import read
 
 url = 'https://learningequality.org/'
-html = read(url)
+html = requests.get(url).content
 doc = BeautifulSoup(html, 'html5lib')
 
 main_div = doc.find('div', {'id': 'body-content'})
@@ -80,6 +80,9 @@ links = doc.find_all('a')
 for link in links:
     print(link.get_text().strip(), '-->', link['href'])
 ```
+
+To archive the pages you find, pass their URLs to `ContentNode(uri=...)`;
+see [Archiving web pages](downloader.md).
 
 
 

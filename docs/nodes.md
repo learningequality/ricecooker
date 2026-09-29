@@ -187,6 +187,10 @@ For your copy-paste convenience, here is the sample code for creating a content 
 See the [Overview](#overview) above for how the pipeline infers kind, preset,
 and files from `uri`.
 
+A content node has one primary file: one video resolution, or a PDF or an EPUB but not both.
+Subtitles and thumbnails are supplementary. A second primary file fails validation with
+`Multiple (2) required presets found`, so put each one in its own node.
+
 Specify `derive_thumbnail=True` and leave thumbnail blank (`thumbnail=None`) to
 let Ricecooker automatically generate a thumbnail for the node based on its content.
 Thumbnail generation is supported for audio, video, PDF, and ePub, and HTML5 files.
@@ -286,6 +290,7 @@ To following code creates an exercise node with a single perseus question in it:
                 PerseusQuestion(
                     id='ex2bQ4',
                     raw_data=RAW_PERSEUS_JSON_STR,
+                    ka_language='en',
                     source_url='https://github.com/learningequality/sample-channels/blob/master/contentnodes/exercise/perseus_graph_question.json'
                 ),
             ]

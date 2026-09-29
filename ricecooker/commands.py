@@ -10,8 +10,18 @@ from . import __version__
 from . import config
 from .classes.nodes import ChannelNode
 from .exceptions import ChannelIncompleteError
+from .exceptions import InvalidUsageException
 from .managers.tree import ChannelManager
+from .utils.request_utils import DomainSpecificAuth
 from .utils.slack import send_slack_notification
+
+RESUME_REMOVED = "--resume and --step have been removed: every run starts from the beginning, reusing downloaded files from the local cache."
+
+
+def check_removed_options(chef, options):
+    owned = {action.dest for action in chef.arg_parser._actions}
+    if {"resume", "step"} & (options.keys() - owned):
+        raise InvalidUsageException(RESUME_REMOVED)
 
 
 def uploadchannel_wrapper(chef, args, options):
@@ -54,6 +64,12 @@ def uploadchannel(  # noqa: C901
         kwargs (dict): extra keyword args will be passed to construct_channel (optional)
     Returns: (str) link to access newly created channel
     """
+    check_removed_options(chef, kwargs)
+    channel_info = getattr(chef, "channel_info", {})
+    if "CHANNEL_ID" in channel_info:
+        raise InvalidUsageException(
+            "channel_info CHANNEL_ID is not supported: the channel ID is derived from CHANNEL_SOURCE_DOMAIN and CHANNEL_SOURCE_ID."
+        )
 
     # Set configuration settings
     config.UPDATE = update
@@ -61,6 +77,10 @@ def uploadchannel(  # noqa: C901
     config.THUMBNAILS = chef.get_setting("thumbnails", False)
     config.STAGE = stage
     config.PUBLISH = publish
+    if chef.file_pipeline is None:
+        chef.file_pipeline = chef.build_file_pipeline()
+    if chef.auth is None:
+        chef.auth = DomainSpecificAuth(chef.DOMAIN_AUTH_HEADERS)
     config.FILE_PIPELINE = chef.file_pipeline
 
     # Set max retries for downloading

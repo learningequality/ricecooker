@@ -1,37 +1,13 @@
 #!/usr/bin/env python
-import tempfile
-
-import requests
 from bs4 import BeautifulSoup
+from le_utils.constants import licenses
 
+from ricecooker import config
 from ricecooker.chefs import SushiChef
-from ricecooker.classes import licenses
-from ricecooker.classes.files import HTMLZipFile
-from ricecooker.classes.nodes import ChannelNode
-from ricecooker.classes.nodes import HTML5AppNode
+from ricecooker.classes.licenses import get_license
+from ricecooker.classes.nodes import ContentNode
 from ricecooker.classes.nodes import TopicNode
 from ricecooker.config import LOGGER
-from ricecooker.utils.caching import CacheControlAdapter
-from ricecooker.utils.caching import CacheForeverHeuristic
-from ricecooker.utils.caching import FileCache
-from ricecooker.utils.html import download_file
-from ricecooker.utils.zip import create_predictable_zip
-
-
-# CHANNEL SETTINGS
-SOURCE_DOMAIN = "<yourdomain.org>"  #
-SOURCE_ID = "<yourid>"  # an alphanumeric ID refering to this channel
-CHANNEL_TITLE = "<channeltitle>"  # a humand-readbale title
-CHANNEL_LANGUAGE = "en"  # language of channel
-
-
-sess = requests.Session()
-cache = FileCache(".webcache")
-basic_adapter = CacheControlAdapter(cache=cache)
-forever_adapter = CacheControlAdapter(heuristic=CacheForeverHeuristic(), cache=cache)
-
-sess.mount("http://", forever_adapter)
-sess.mount("https://", forever_adapter)
 
 
 def make_fully_qualified_url(url):
@@ -45,50 +21,26 @@ def make_fully_qualified_url(url):
     return url
 
 
-def make_request(url, *args, **kwargs):
-    response = sess.get(url, *args, **kwargs)
-    if response.status_code != 200:
-        LOGGER.warning("URL NOT FOUND: " + url)
-    elif not response.from_cache:
-        LOGGER.warning("NOT CACHED: " + url)
-    return response
-
-
-def get_parsed_html_from_url(url, *args, **kwargs):
-    html = make_request(url, *args, **kwargs).content
-    return BeautifulSoup(html, "html.parser")
-
-
 class WikipediaChef(SushiChef):
-    def get_channel(self, *args, **kwargs):
+    channel_info = {
+        "CHANNEL_TITLE": "Wikipedia fruit and vegetables",
+        "CHANNEL_SOURCE_DOMAIN": "<yourdomain.org>",  # where content comes from
+        "CHANNEL_SOURCE_ID": "<unique id for the channel>",  # CHANGE ME!!!
+        "CHANNEL_LANGUAGE": "en",
+        "CHANNEL_THUMBNAIL": "https://lh3.googleusercontent.com/zwwddqxgFlP14DlucvBV52RUMA-cV3vRvmjf-iWqxuVhYVmB-l8XN9NDirb0687DSw=w300",
+    }
 
-        channel = ChannelNode(
-            source_domain=SOURCE_DOMAIN,
-            source_id=SOURCE_ID,
-            title=CHANNEL_TITLE,
-            thumbnail="https://lh3.googleusercontent.com/zwwddqxgFlP14DlucvBV52RUMA-cV3vRvmjf-iWqxuVhYVmB-l8XN9NDirb0687DSw=w300",
-            language=CHANNEL_LANGUAGE,
-        )
-
-        return channel
-
-    def construct_channel(self, *args, **kwargs):
-
+    def construct_channel(self, **kwargs):
         channel = self.get_channel(**kwargs)
-        citrus_topic = TopicNode(source_id="List_of_citrus_fruits", title="Citrus!")
-        channel.add_child(citrus_topic)
-        add_subpages_from_wikipedia_list(
-            citrus_topic, "https://en.wikipedia.org/wiki/List_of_citrus_fruits"
-        )
-
-        potato_topic = TopicNode(
-            source_id="List_of_potato_cultivars", title="Potatoes!"
-        )
-        channel.add_child(potato_topic)
-        add_subpages_from_wikipedia_list(
-            potato_topic, "https://en.wikipedia.org/wiki/List_of_potato_cultivars"
-        )
-
+        for page, title in (
+            ("List_of_citrus_fruits", "Citrus!"),
+            ("List_of_potato_cultivars", "Potatoes!"),
+        ):
+            topic = TopicNode(source_id=page, title=title)
+            channel.add_child(topic)
+            add_subpages_from_wikipedia_list(
+                topic, "https://en.wikipedia.org/wiki/" + page
+            )
         return channel
 
 
@@ -98,8 +50,10 @@ def add_subpages_from_wikipedia_list(topic, list_url):
     #   1. the source of the page (e.g. https://en.wikipedia.org/wiki/List_of_citrus_fruits), or inspect in chrome dev tools
     #   2. the documentation for BeautifulSoup version 4: https://www.crummy.com/software/BeautifulSoup/bs4/doc/
 
-    # parse the the page into BeautifulSoup format, so we can loop through and manipulate it
-    page = get_parsed_html_from_url(list_url)
+    # the session ricecooker downloads with, so DOMAIN_AUTH_HEADERS and its User-Agent apply
+    response = config.DOWNLOAD_SESSION.get(list_url)
+    response.raise_for_status()
+    page = BeautifulSoup(response.content, "html.parser")
 
     # extract the main table from the page
     table = page.find("table")
@@ -121,11 +75,10 @@ def add_subpages_from_wikipedia_list(topic, list_url):
         if not link:
             continue
 
-        # extract the URL and title for the subpage
+        # extract the URL for the subpage
         url = make_fully_qualified_url(link["href"])
         if url is None:
             continue  # skip internal links and or bad URLs
-        title = link.text
 
         # attempt to extract a thumbnail for the subpage, from the second column in the table
         image = columns[1].find("img")
@@ -135,53 +88,19 @@ def add_subpages_from_wikipedia_list(topic, list_url):
         ):
             thumbnail_url = None
 
-        # download the wikipedia page into an HTML5 app node
-        html5app = download_wikipedia_page(url, thumbnail=thumbnail_url, title=title)
-
-        # add the downloaded HTML5 app node into the topic
-        topic.add_child(html5app)
-
-
-def download_wikipedia_page(url, thumbnail, title):
-
-    # create a temp directory to house our downloaded files
-    destpath = tempfile.mkdtemp()
-
-    # downlod the main wikipedia page, apply a middleware processor, and call it index.html
-    localref, _ = download_file(
-        url,
-        destpath,
-        filename="index.html",
-        middleware_callbacks=process_wikipedia_page,
-        request_fn=make_request,
-    )
-
-    # turn the temp folder into a zip file
-    zippath = create_predictable_zip(destpath)
-
-    # create an HTML5 app node
-    html5app = HTML5AppNode(
-        files=[HTMLZipFile(zippath)],
-        title=title,
-        thumbnail=thumbnail,
-        source_id=url.split("/")[-1],
-        license=licenses.PublicDomainLicense(),
-    )
-
-    return html5app
-
-
-def process_wikipedia_page(content, baseurl, destpath, **kwargs):
-
-    page = BeautifulSoup(content, "html.parser")
-
-    for image in page.find_all("img"):
-        relpath, _ = download_file(
-            make_fully_qualified_url(image["src"]), destpath, request_fn=make_request
+        # ricecooker archives the page and its images into an HTML5 zip
+        topic.add_child(
+            ContentNode(
+                source_id=url.split("/")[-1],
+                title=link.text,
+                license=get_license(
+                    licenses.CC_BY_SA, copyright_holder="Wikipedia contributors"
+                ),
+                language="en",
+                thumbnail=thumbnail_url,
+                uri=url,
+            )
         )
-        image["src"] = relpath
-
-    return str(page)
 
 
 if __name__ == "__main__":

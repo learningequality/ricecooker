@@ -29,18 +29,17 @@ A sushi chef script like this:
 
 Flow diagram
 ------------
-The call to `chef.main()` results in the following sequence of six calls:
+The call to `chef.main()` results in the following sequence of five calls:
 
     MySushiChef -----extends----> SushiChef                  commands.uploadchannel
     ---------------------------   -----------------------    -----------------------
                                   1. main()
                                   2. parse_args_and_options()
                                   3. run(args, options)
-                                                             4. uploadchannel(chef, *args, **options)
+                                                             4. uploadchannel(chef, **args, **options)
                                                              ...
-    5. get_channel(**kwargs)
-                                                             ...
-    6. construct_channel(**kwargs)
+    5. construct_channel(**kwargs)
+         calls get_channel(**kwargs)
                                                              ...
                                                              ...
                                                              DONE
@@ -81,13 +80,13 @@ The call to `chef.main()` results in the following sequence of six calls:
                 args, options = self.parse_args_and_options()
                 self.run(args, options)
 
-  -  The chef's `run` method calls `uploadchannel`
+  -  The chef's `run` method calls `uploadchannel` through `uploadchannel_wrapper`
 
          class SushiChef():
              ...
              def run(self, args, options):
                  ...
-                 uploadchannel(self, **args.__dict__, **options)
+                 uploadchannel_wrapper(self, args, options)
 
       note the chef instance is passed as the first argument, and not path.
 
@@ -102,7 +101,8 @@ The call to `chef.main()` results in the following sequence of six calls:
     that will be called as part of the run
      - `__init__`: if you want to add custom chef-specific command line arguments using argparse
      - `pre_run`: if you need to do something before chef run starts (called by `run`)
-     - `run`: in case you want to call `uploadchannel` yourself
+     - `run`: in case you want to call `uploadchannel` yourself; if the override
+       doesn't call `super().run()`, `uploadchannel` builds `file_pipeline` and `auth` itself
 
 
 
@@ -120,9 +120,10 @@ There are three types of arguments involved in a chef run:
     - often used to pass the language option (`./sushichef.py ... lang=fr`)
 
   - `kwargs` (dict): chef-specific keyword arguments not handled by ricecooker's `uploadchannel` method
-      - the chef's `run` method makes the call `uploadchannel(self, **args.__dict__, **options)`
-        while the definition of `uploadchannel` looks like `uploadchannel(chef, verbose=False, update=False, ... stage=False, **kwargs)`
+      - the chef's `run` method calls `uploadchannel_wrapper(self, args, options)`, which merges
+        both dicts into the keyword arguments of `uploadchannel`,
+        while the definition of `uploadchannel` looks like `uploadchannel(chef, command="uploadchannel", update=False, ... stage=False, **kwargs)`
         so `kwargs` contains a mix of both `args` and `options` that are not
         explicitly expected by the `uploadchannel` function
       - The function `uploadchannel` will pass `**kwargs` on to the `chef`'s
-        `get_channel` and `construct_channel` methods as part of the chef run.
+        `construct_channel` method as part of the chef run.

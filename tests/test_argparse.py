@@ -48,6 +48,11 @@ def cli_args_and_expected():
             "expected_options": dict(somethin="else", extrakey="extraval"),
         },
         {
+            "cli_input": "./sushichef.py --token=letoken url=http://x?a=b",
+            "expected_args": dict(defaults, token="letoken"),
+            "expected_options": dict(url="http://x?a=b"),
+        },
+        {
             "cli_input": (
                 "./sushichef.py -uv --warn --compress --download-attempts=4 "
                 "--token=besttokenever --prompt --deploy --publish"
@@ -122,6 +127,17 @@ def studio_token(monkeypatch):
 
 
 @pytest.fixture
+def no_token_prompt(monkeypatch):
+    monkeypatch.delenv("STUDIO_TOKEN", raising=False)
+    monkeypatch.delenv("CONTENT_CURATION_TOKEN", raising=False)
+
+    def no_prompt(*args):
+        raise AssertionError("prompted for token")
+
+    monkeypatch.setattr("builtins.input", no_prompt)
+
+
+@pytest.fixture
 def handed_off(monkeypatch, studio_token):
     calls = []
 
@@ -171,10 +187,44 @@ def test_env_flags_without_remote_are_usage_errors(studio_token):
 
 
 @pytest.mark.parametrize(
-    "cli_input", ["./chef.py -u remote", "./chef.py -u remote sync"]
+    "cli_input",
+    [
+        "./sushichef.py --resume",
+        "./sushichef.py --step=LAST",
+        "./sushichef.py --step LAST",
+        "./sushichef.py --resume dryrun",
+        "./sushichef.py resume=true",
+        "./sushichef.py step=LAST",
+    ],
+)
+def test_removed_resume_flags_are_usage_errors(no_token_prompt, cli_input):
+    with pytest.raises(InvalidUsageException, match="removed"):
+        chef_arg_parser(cli_input)
+
+
+@pytest.mark.parametrize(
+    "flag, arg", [("--res", "reset_deprecated"), ("--st", "stage_deprecated")]
+)
+def test_abbreviated_deprecated_flags_still_parse(flag, arg):
+    args, _ = chef_arg_parser("./sushichef.py --token=t dryrun " + flag)
+    assert args[arg]
+
+
+def test_main_exits_with_usage_error_message():
+    assert "removed" in run_main("./sushichef.py --token=t --resume")
+
+
+def test_option_without_equals_is_usage_error(no_token_prompt):
+    with pytest.raises(InvalidUsageException, match="--bogus"):
+        chef_arg_parser("./sushichef.py --bogus")
+
+
+@pytest.mark.parametrize(
+    "cli_input",
+    ["./chef.py -u remote", "./chef.py -u remote sync", "./chef.py -u remote --bogus"],
 )
 def test_remote_after_other_args_is_usage_error(studio_token, cli_input):
-    with pytest.raises(InvalidUsageException):
+    with pytest.raises(InvalidUsageException, match="first argument"):
         chef_arg_parser(cli_input)
 
 
@@ -231,5 +281,4 @@ def test_remote_never_prompts_for_token(handed_off, monkeypatch):
 
 def test_env_pass_of_unset_variable_is_usage_error(handed_off, monkeypatch):
     monkeypatch.delenv("NOPE", raising=False)
-    with pytest.raises(InvalidUsageException):
-        run_main("./chef.py --remote --env-pass NOPE")
+    assert "NOPE" in run_main("./chef.py --remote --env-pass NOPE")
