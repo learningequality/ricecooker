@@ -679,6 +679,20 @@ def test_explicit_settings_reencode_compliant_media(
     assert (output != original) == reencoded
 
 
+def test_opted_out_archive_leaves_downloaded_media_uncompressed(tmp_path):
+    url = "https://cdn.example.org/opted-out.mp4"
+    with open(sample_path("high_res_sample.mp4"), "rb") as fh:
+        mp4 = fh.read()
+    path = str(tmp_path / "app.zip")
+    _create_archive(path, {"index.html": f"<video src='{url}'></video>"})
+    cache = FileCache(str(tmp_path / "cache"), forever=True)
+    with fake_download_session({url: mp4}), patch.object(caching, "FILECACHE", cache):
+        [result] = FilePipeline(default_context=CHEF_DEFAULTS).execute(
+            path, context={"compress": False}, skip_cache=True
+        )
+    assert mp4 in _zip_members(result.path).values()
+
+
 @pytest.mark.parametrize(
     "ext,cause",
     [
@@ -2784,6 +2798,26 @@ class TestIMSCPDecomposition:
             for f in FilePipeline().execute(
                 video_file.path, context=context, skip_cache=True
             )
+        ]
+        assert _filenames(leaf) == {expected}
+
+    def test_opted_out_package_leaves_media_uncompressed(self):
+        path = sample_path("high_res_sample.mp4")
+        with open(path, "rb") as fh:
+            mp4 = fh.read()
+        files = {
+            "m/page.html": _page("<video src='clip.mp4'></video>"),
+            "m/clip.mp4": mp4,
+        }
+        tree = _decompose_package(
+            [("MEDIA", "m/page.html", ["m/clip.mp4"])],
+            files,
+            pipeline=FilePipeline(default_context=CHEF_DEFAULTS),
+            context={"compress": False},
+        )
+        (leaf,) = _tree_dict_leaves(tree)
+        (expected,) = [
+            f.filename for f in FilePipeline().execute(path, skip_cache=True)
         ]
         assert _filenames(leaf) == {expected}
 

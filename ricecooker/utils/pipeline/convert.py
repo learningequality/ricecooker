@@ -1402,11 +1402,15 @@ class IMSCPConversionHandler(HTML5ConversionHandler):
         finally:
             os.unlink(zip_path)
 
-    def _leaf_from_pipeline(self, node_dict, path, context=None, extra_files=()):
+    def _leaf_from_pipeline(self, node_dict, path, context, extra_files=()):
         """The leaf ``path`` backs, or ``None`` to drop just that leaf and keep decomposing."""
         source_id = node_dict.get("source_id")
+        # Empty settings would pick the pipeline's defaults back up.
+        compress = bool(context["audio_settings"] or context["video_settings"])
         try:
-            sub = self.get_pipeline().execute(path, context=context)
+            sub = self.get_pipeline().execute(
+                path, context={**context, "compress": compress}
+            )
         except (InvalidFileException, ExpectedFileException) as e:
             LOGGER.warning(
                 "IMSCP: skipping resource %s, could not process: %s", source_id, e

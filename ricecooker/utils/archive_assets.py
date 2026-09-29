@@ -181,7 +181,10 @@ class ArchiveProcessor:
         fetch_url = "https:" + url if url.startswith("//") else url
         try:
             results = self.pipeline.execute(
-                fetch_url, skip_download_cache=config.UPDATE
+                fetch_url,
+                # Empty settings would pick the pipeline's defaults back up.
+                context={"compress": bool(self.audio_settings or self.video_settings)},
+                skip_download_cache=config.UPDATE,
             )
         except (InvalidFileException, ExpectedFileException) as e:
             LOGGER.warning(
