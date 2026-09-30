@@ -27,10 +27,13 @@ from .context import FileMetadata
 from .exceptions import ExpectedFileException
 from .exceptions import InvalidFileException
 from .exceptions import NotHandledException
+from .exceptions import ProbeError
 
 
 class Handler(ABC):
     """Base class for handling file fetching and processing"""
+
+    REMOTE_PROBE: ClassVar[bool] = False
 
     def __init__(self):
         self.parent = None
@@ -61,6 +64,11 @@ class Handler(ABC):
         skip_cache: Optional[bool] = False,
     ) -> list[FileMetadata]:
         pass
+
+    def get_cached(
+        self, path: str, context: Optional[Dict] = None
+    ) -> list[FileMetadata]:
+        return []
 
 
 class DualModeTemporaryFile:
@@ -263,6 +271,14 @@ class FileHandler(Handler):
 
         return cached_files, uncached_files
 
+    def get_cached(
+        self, path: str, context: Optional[Dict] = None
+    ) -> list[FileMetadata]:
+        cached, uncached = self._get_cached_and_uncached_files(
+            path, self._get_context(context), skip_cache=False
+        )
+        return [] if uncached else cached
+
     def execute(
         self,
         path: str,
@@ -371,8 +387,25 @@ class FirstHandlerOnly(CompositeHandler):
         context: Optional[Dict] = None,
         skip_cache: Optional[bool] = False,
     ) -> list[FileMetadata]:
-        for handler in self.get_handlers(context):
-            if handler.should_handle(path):
+        handlers = self.get_handlers(context)
+        for index, handler in enumerate(handlers):
+            if handler.REMOTE_PROBE and not skip_cache:
+                cached = handler.get_cached(path, context)
+                if cached:
+                    return cached
+            try:
+                claimed = handler.should_handle(path)
+            except ProbeError:
+                if skip_cache:
+                    raise
+                fallback = next(
+                    (h for h in handlers[index + 1 :] if h.should_handle(path)), None
+                )
+                cached = fallback.get_cached(path, context) if fallback else []
+                if not cached:
+                    raise
+                return cached
+            if claimed:
                 try:
                     return handler.execute(path, context=context, skip_cache=skip_cache)
                 except NotHandledException:

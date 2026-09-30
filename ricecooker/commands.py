@@ -3,7 +3,6 @@ import random
 import sys
 import webbrowser
 
-import requests
 from requests.exceptions import HTTPError
 
 from . import __version__
@@ -83,13 +82,7 @@ def uploadchannel(  # noqa: C901
         chef.auth = DomainSpecificAuth(chef.DOMAIN_AUTH_HEADERS)
     config.FILE_PIPELINE = chef.file_pipeline
 
-    # Set max retries for downloading
-    config.DOWNLOAD_SESSION.mount(
-        "http://", requests.adapters.HTTPAdapter(max_retries=int(download_attempts))
-    )
-    config.DOWNLOAD_SESSION.mount(
-        "https://", requests.adapters.HTTPAdapter(max_retries=int(download_attempts))
-    )
+    config.set_download_attempts(int(download_attempts))
 
     config.DOWNLOAD_SESSION.auth = chef.auth
 

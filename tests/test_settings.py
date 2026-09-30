@@ -1,5 +1,6 @@
 import logging
 import os
+import socket
 import ssl
 import sys
 import threading
@@ -7,14 +8,21 @@ from http.server import BaseHTTPRequestHandler
 from http.server import ThreadingHTTPServer
 
 import pytest
+import requests
+from le_utils.constants import format_presets
 from mock import MagicMock
 from mock import mock_open
 from mock import patch
 from requests import PreparedRequest
+from vcr_config import my_vcr
 
 from ricecooker import chefs
 from ricecooker import config
+from ricecooker.classes.files import StudioFile
+from ricecooker.commands import uploadchannel
 from ricecooker.utils import metadata_provider
+from ricecooker.utils.pipeline.exceptions import ExpectedFileException
+from ricecooker.utils.pipeline.transfer import DownloadStageHandler
 from ricecooker.utils.request_utils import DomainSpecificAuth
 
 settings = {"thumbnails": True, "compress": True}
@@ -351,3 +359,83 @@ def test_read_csv_lines_opens_utf8():
     ) as mocked:
         metadata_provider._read_csv_lines("some.csv")
     mocked.assert_called_once_with("some.csv", "r", encoding="utf-8")
+
+
+class _DryrunChef(chefs.SushiChef):
+    channel_info = {
+        "CHANNEL_SOURCE_DOMAIN": "download-attempts.test",
+        "CHANNEL_SOURCE_ID": "download-attempts",
+        "CHANNEL_TITLE": "Download attempts",
+        "CHANNEL_LANGUAGE": "en",
+    }
+    auth = None
+
+    def construct_channel(self, **kwargs):
+        return self.get_channel(**kwargs)
+
+
+@pytest.mark.parametrize("attempts, succeeds", [(0, False), (1, True)])
+@my_vcr.use_cassette
+def test_download_attempts_retries_server_errors(
+    monkeypatch, tmp_path, attempts, succeeds
+):
+    monkeypatch.setattr(config, "DOWNLOAD_SESSION", requests.Session())
+    for name in (
+        "UPDATE",
+        "VIDEO_HEIGHT",
+        "THUMBNAILS",
+        "STAGE",
+        "PUBLISH",
+        "FILE_PIPELINE",
+    ):
+        monkeypatch.setattr(config, name, getattr(config, name))
+    with monkeypatch.context() as m:
+        m.chdir(tmp_path)
+        uploadchannel(_DryrunChef(), command="dryrun", download_attempts=attempts)
+
+    url = "https://flaky.example/doc.pdf"
+    if succeeds:
+        result = DownloadStageHandler().execute(url, skip_cache=True)
+        with open(result[0].path, "rb") as fh:
+            assert fh.read() == b"%PDF-1.4\n"
+    else:
+        with pytest.raises(ExpectedFileException, match="503"):
+            DownloadStageHandler().execute(url, skip_cache=True)
+
+
+@pytest.mark.parametrize(
+    "target, error",
+    [
+        ("urllib3.util.connection.create_connection", ConnectionRefusedError()),
+        ("urllib3.util.connection.create_connection", socket.gaierror()),
+        (
+            "urllib3.connectionpool.HTTPConnectionPool._make_request",
+            ssl.SSLCertVerificationError(1, "certificate has expired"),
+        ),
+    ],
+)
+def test_download_does_not_retry_unreachable_hosts(target, error):
+    with patch(target, side_effect=error) as attempt:
+        with pytest.raises(requests.ConnectionError):
+            config.DOWNLOAD_SESSION.get("http://unreachable.example/doc.pdf")
+    assert attempt.call_count == 1
+
+
+def test_download_does_not_retry_client_errors():
+    with my_vcr.use_cassette("test_download_does_not_retry_client_errors") as cassette:
+        response = config.DOWNLOAD_SESSION.get("https://missing.example/gone.pdf")
+    assert response.status_code == 404
+    assert cassette.play_count == 1
+
+
+def test_studio_file_validate_retries_server_errors(monkeypatch):
+    monkeypatch.setattr(config, "DOMAIN", config.DEFAULT_DOMAIN)
+    monkeypatch.setattr(config, "DOWNLOAD_SESSION", requests.Session())
+    config.set_download_attempts(3)
+    studio_file = StudioFile("ab12", "mp3", format_presets.AUDIO)
+    with my_vcr.use_cassette(
+        "test_studio_file_validate_retries_server_errors"
+    ) as cassette:
+        studio_file.validate()
+    assert studio_file.size == 5
+    assert cassette.play_count == 2

@@ -31,6 +31,7 @@ from le_utils.constants import modalities
 from le_utils.constants.labels import learning_activities
 from le_utils.constants.labels import resource_type
 from lxml import etree
+from vcr_config import my_vcr
 
 from ricecooker import config
 from ricecooker.classes.files import EPubFile
@@ -54,6 +55,7 @@ from ricecooker.utils.pipeline.convert import EPUBConversionHandler
 from ricecooker.utils.pipeline.convert import H5PContentMapper
 from ricecooker.utils.pipeline.convert import H5PConversionHandler
 from ricecooker.utils.pipeline.convert import HTML5ConversionHandler
+from ricecooker.utils.pipeline.convert import ImageConversionHandler
 from ricecooker.utils.pipeline.convert import KPUBConversionHandler
 from ricecooker.utils.pipeline.convert import PandocMissingError
 from ricecooker.utils.pipeline.exceptions import InvalidFileException
@@ -67,14 +69,8 @@ from ricecooker.utils.references import mapper_for
 from ricecooker.utils.zip import create_predictable_zip
 from ricecooker.utils.zip import directory_member_names
 
-# A valid 1x1 PNG, small enough to inline but real enough to pass the CONVERT
-# stage's image verification (so external image refs survive download -> convert).
-_PNG_1x1 = (
-    b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01"
-    b"\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89"
-    b"\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01"
-    b"\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82"
-)
+from .helpers import _PNG_1x1
+from .helpers import fake_render_page
 
 
 def _write_stub_output(input_path, output_path, **kwargs):
@@ -378,16 +374,10 @@ class TestKPUBValidation:
         )
 
     def test_images_allowed(self):
-        png_data = (
-            b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01"
-            b"\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89"
-            b"\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01"
-            b"\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82"
-        )
         self._validate(
             {
                 "index.html": '<html><body><img src="image.png"></body></html>',
-                "image.png": png_data,
+                "image.png": _PNG_1x1,
             }
         )
 
@@ -1076,6 +1066,60 @@ class TestHandlerExternalRefIntegration:
             assert any(n.endswith(".png") for n in names)
             index = zf.read("index.html").decode("utf-8")
             assert "https://ex.com" not in index
+
+    @my_vcr.use_cassette
+    def test_dead_external_ref_left_as_is(self):
+        files = {
+            "index.html": (
+                '<html><body><p>x</p><script src="https://dead.example/app.js"></script>'
+                '<script src="https://dead.example/lib"></script></body></html>'
+            ),
+        }
+        with patch(
+            "ricecooker.utils.pipeline.transfer.render_page",
+            side_effect=fake_render_page(),
+        ):
+            filename = self._process(HTMLZipFile, files, ".zip")
+        with zipfile.ZipFile(config.get_storage_path(filename)) as zf:
+            index = zf.read("index.html").decode("utf-8")
+        assert 'src="https://dead.example/app.js"' in index
+        assert 'src="https://dead.example/lib"' in index
+
+    def test_update_refetches_external_refs(self):
+        url = "https://ex.com/refetched.png"
+        files = {"index.html": f'<html><body><img src="{url}"></body></html>'}
+        changed = base64.b64decode(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGNgYPgPAAEDAQAIicLsAAAAAElFTkSuQmCC"
+        )
+        with fake_download_session({url: _PNG_1x1}):
+            self._process(HTMLZipFile, files, ".zip")
+        with (
+            fake_download_session({url: changed}),
+            patch.object(config, "UPDATE", True),
+        ):
+            filename = self._process(HTMLZipFile, files, ".zip")
+        with zipfile.ZipFile(config.get_storage_path(filename)) as zf:
+            pngs = [zf.read(n) for n in zf.namelist() if n.endswith(".png")]
+        assert pngs == [changed]
+
+    def test_update_does_not_reconvert_unchanged_external_refs(self):
+        url = "https://ex.com/unchanged.png"
+        files = {"index.html": f'<html><body><img src="{url}"></body></html>'}
+        with fake_download_session({url: _PNG_1x1}):
+            self._process(HTMLZipFile, files, ".zip")
+        with (
+            fake_download_session({url: _PNG_1x1}) as calls,
+            patch.object(config, "UPDATE", True),
+            patch.object(
+                ImageConversionHandler,
+                "handle_file",
+                autospec=True,
+                side_effect=ImageConversionHandler.handle_file,
+            ) as convert,
+        ):
+            self._process(HTMLZipFile, files, ".zip")
+        assert calls == [url]
+        assert convert.call_count == 0
 
 
 class TestKPUBPromotion:

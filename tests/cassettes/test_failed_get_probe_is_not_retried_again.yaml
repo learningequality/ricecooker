@@ -1,0 +1,44 @@
+interactions:
+- request:
+    body: null
+    headers: {}
+    method: HEAD
+    uri: https://down.example/page
+  response:
+    body:
+      string: ''
+    headers:
+      Content-Type:
+      - text/html
+    status:
+      code: 405
+      message: Method Not Allowed
+- request:
+    body: null
+    headers: {}
+    method: GET
+    uri: https://down.example/page
+  response:
+    body:
+      string: <html><body>Unavailable</body></html>
+    headers:
+      Content-Type:
+      - text/html
+    status:
+      code: 503
+      message: Service Unavailable
+- request:
+    body: null
+    headers: {}
+    method: GET
+    uri: https://down.example/page
+  response:
+    body:
+      string: <html><body>Unavailable</body></html>
+    headers:
+      Content-Type:
+      - text/html
+    status:
+      code: 503
+      message: Service Unavailable
+version: 1

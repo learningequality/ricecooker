@@ -918,7 +918,9 @@ class YouTubeSushiChef(SushiChef):
         config.LOGGER.info("thumbnail = {}".format(thumbnail_link))
         pipeline = self.file_pipeline or FilePipeline()
         try:
-            thumbnail_results = pipeline.execute(thumbnail_link)
+            thumbnail_results = pipeline.execute(
+                thumbnail_link, skip_download_cache=config.UPDATE
+            )
             dest_file = thumbnail_results[-1].path
         except (InvalidFileException, ExpectedFileException) as e:
             config.LOGGER.error(

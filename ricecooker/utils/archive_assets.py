@@ -20,6 +20,7 @@ import os
 import shutil
 from collections import deque
 
+from ricecooker import config
 from ricecooker.config import LOGGER
 from ricecooker.utils.paths import extract_path_ext
 from ricecooker.utils.pipeline.exceptions import ExpectedFileException
@@ -177,7 +178,9 @@ class ArchiveProcessor:
         # has none, so default it to https.
         fetch_url = "https:" + url if url.startswith("//") else url
         try:
-            results = self.pipeline.execute(fetch_url)
+            results = self.pipeline.execute(
+                fetch_url, skip_download_cache=config.UPDATE
+            )
         except (InvalidFileException, ExpectedFileException) as e:
             LOGGER.warning(
                 "Could not download external resource, leaving reference unrewritten: {} ({})".format(

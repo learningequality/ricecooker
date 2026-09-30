@@ -1,0 +1,60 @@
+interactions:
+- request:
+    body: null
+    headers: {}
+    method: HEAD
+    uri: https://i.ytimg.com/vi/thumb-update/hqdefault.png
+  response:
+    body:
+      string: ''
+    headers:
+      Content-Type:
+      - image/png
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers: {}
+    method: HEAD
+    uri: https://i.ytimg.com/vi/thumb-update/hqdefault.png
+  response:
+    body:
+      string: ''
+    headers:
+      Content-Type:
+      - image/png
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers: {}
+    method: GET
+    uri: https://i.ytimg.com/vi/thumb-update/hqdefault.png
+  response:
+    body:
+      string: !!binary |
+        iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC
+    headers:
+      Content-Type:
+      - image/png
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers: {}
+    method: GET
+    uri: https://i.ytimg.com/vi/thumb-update/hqdefault.png
+  response:
+    body:
+      string: !!binary |
+        iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGNgYPgPAAEDAQAIicLsAAAAAElFTkSuQmCC
+    headers:
+      Content-Type:
+      - image/png
+    status:
+      code: 200
+      message: OK
+version: 1

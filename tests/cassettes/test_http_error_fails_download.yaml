@@ -1,0 +1,30 @@
+interactions:
+- request:
+    body: null
+    headers: {}
+    method: HEAD
+    uri: https://gone.example/missing.pdf
+  response:
+    body:
+      string: ''
+    headers:
+      Content-Type:
+      - text/html
+    status:
+      code: 404
+      message: Not Found
+- request:
+    body: null
+    headers: {}
+    method: GET
+    uri: https://gone.example/missing.pdf
+  response:
+    body:
+      string: <html><body>Not Found</body></html>
+    headers:
+      Content-Type:
+      - text/html
+    status:
+      code: 404
+      message: Not Found
+version: 1

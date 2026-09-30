@@ -1,0 +1,58 @@
+interactions:
+- request:
+    body: null
+    headers: {}
+    method: HEAD
+    uri: https://site.example/lesson
+  response:
+    body:
+      string: ''
+    headers:
+      Content-Type:
+      - text/html
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers: {}
+    method: HEAD
+    uri: https://site.example/lesson
+  response:
+    body:
+      string: ''
+    headers:
+      Content-Type:
+      - text/html
+    status:
+      code: 503
+      message: Service Unavailable
+- request:
+    body: null
+    headers: {}
+    method: GET
+    uri: https://site.example/lesson
+  response:
+    body:
+      string: <html><body>Unavailable</body></html>
+    headers:
+      Content-Type:
+      - text/html
+    status:
+      code: 503
+      message: Service Unavailable
+- request:
+    body: null
+    headers: {}
+    method: GET
+    uri: https://site.example/lesson
+  response:
+    body:
+      string: <html><body>Unavailable</body></html>
+    headers:
+      Content-Type:
+      - text/html
+    status:
+      code: 503
+      message: Service Unavailable
+version: 1

@@ -1005,7 +1005,9 @@ def test_webvideo_playlist_url_fails_before_entries_resolve(
     monkeypatch.setattr(config, "USEPROXY", useproxy)
     monkeypatch.setenv("PROXY_LIST", "proxy.invalid:3128")
     monkeypatch.setattr(proxy, "PROXY_LIST", [])
-    mock_session.head.side_effect = ConnectionError("offline")
+    mock_session.head.side_effect = mock_session.get.side_effect = ConnectionError(
+        "offline"
+    )
     monkeypatch.setattr(
         yt_dlp.YoutubeDL, "urlopen", MagicMock(side_effect=ConnectionError("offline"))
     )

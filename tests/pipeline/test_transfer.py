@@ -14,12 +14,18 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import pytest
+import requests
+import urllib3
 import yt_dlp
 from fake_session import fake_download_session
 from le_utils.constants import format_presets
+from le_utils.constants import licenses
 from vcr_config import my_vcr
 
 from ricecooker import config
+from ricecooker.classes.licenses import get_license
+from ricecooker.classes.nodes import ContentNode
+from ricecooker.exceptions import InvalidNodeException
 from ricecooker.utils.caching import generate_key
 from ricecooker.utils.pipeline import FilePipeline
 from ricecooker.utils.pipeline.context import FileMetadata
@@ -27,24 +33,19 @@ from ricecooker.utils.pipeline.exceptions import ExpectedFileException
 from ricecooker.utils.pipeline.exceptions import InvalidFileException
 from ricecooker.utils.pipeline.file_handler import FileHandler
 from ricecooker.utils.pipeline.transfer import Base64FileHandler
+from ricecooker.utils.pipeline.transfer import CatchAllWebResourceDownloadHandler
 from ricecooker.utils.pipeline.transfer import DiskResourceHandler
 from ricecooker.utils.pipeline.transfer import DownloadStageHandler
 from ricecooker.utils.pipeline.transfer import (
     get_filename_from_content_disposition_header,
 )
 from ricecooker.utils.pipeline.transfer import GoogleDriveHandler
+from ricecooker.utils.pipeline.transfer import read
 from ricecooker.utils.pipeline.transfer import SingleFileRenderHandler
 from ricecooker.utils.pipeline.transfer import YouTubeContextMetadata
 from ricecooker.utils.pipeline.transfer import YoutubeDownloadHandler
 
-# A valid 1x1 PNG — single-file inlines binary assets as base64 ``data:`` URIs,
-# and the CONVERT stage needs a decodable image to explode.
-_PNG_1x1 = (
-    b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01"
-    b"\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89"
-    b"\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01"
-    b"\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82"
-)
+from .helpers import fake_render_page
 
 content_disposition_filename_cases = [
     ('Content-Disposition: attachment; filename="example.jpg"', "example.jpg"),
@@ -451,7 +452,7 @@ def html_page(url, render_page=None):
 @pytest.fixture
 def renders_page():
     def render(url, context=None):
-        with html_page(url, _fake_render_page()) as head:
+        with html_page(url, fake_render_page()) as head:
             result = DownloadStageHandler().execute(
                 url, context=context, skip_cache=True
             )
@@ -605,7 +606,7 @@ def test_download_stage_renders_page_after_caching_its_video():
     with (
         fake_extractors({BBCIE: VIDEO}),
         patch.object(yt_dlp.YoutubeDL, "dl", _fake_yt_dlp_download),
-        html_page(BBC_ARTICLE, _fake_render_page()),
+        html_page(BBC_ARTICLE, fake_render_page()),
     ):
         video_file = DownloadStageHandler().execute(BBC_ARTICLE, skip_cache=True)
         page = DownloadStageHandler().execute(
@@ -732,7 +733,7 @@ def fake_video_site():
         with (
             fake_extractors({extractor: _video_info(url, subtitle_lang)}),
             patch.object(yt_dlp.YoutubeDL, "dl", _fake_yt_dlp_download),
-            html_page(url, _fake_render_page()),
+            html_page(url, fake_render_page()),
         ):
             return DownloadStageHandler().execute(
                 url, context={"subtitle_languages": ["en"]}, skip_cache=True
@@ -794,7 +795,7 @@ def test_disk_transfer_file_protocol():
 
 def test_disk_transfer_recopies_edited_file(tmp_path):
     source = tmp_path / "notes.txt"
-    handler = DiskResourceHandler()
+    handler = DownloadStageHandler()
 
     source.write_text("first draft")
     handler.execute(str(source))
@@ -982,27 +983,9 @@ def test_render_page_missing_binary_raises_singlefilerendererror():
                 singlefile.render_page("https://spa.example/", tmpdir)
 
 
-def _fake_render_page(**expected_kwargs):
-    """Return a render_page stand-in that emits an index.html with a data: img.
-
-    The emitted body has real content (the <img>), which the CONVERT stage's
-    index.html body validation requires.
-    """
-    data_uri = "data:image/png;base64," + base64.b64encode(_PNG_1x1).decode()
-
-    def render_page(url, output_dir, **kwargs):
-        for key, value in expected_kwargs.items():
-            assert kwargs.get(key) == value
-        index_path = os.path.join(output_dir, "index.html")
-        with open(index_path, "w") as fh:
-            fh.write('<html><body><img src="{}"></body></html>'.format(data_uri))
-        return index_path
-
-    return render_page
-
-
 class _FakeHeadResponse:
     def __init__(self, content_type):
+        self.ok = True
         self.headers = {"content-type": content_type}
 
 
@@ -1049,7 +1032,7 @@ def test_singlefile_render_handler_produces_zip():
     handler = SingleFileRenderHandler()
     with patch(
         "ricecooker.utils.pipeline.transfer.render_page",
-        side_effect=_fake_render_page(),
+        side_effect=fake_render_page(),
     ):
         result = handler.execute("https://spa.example/")
     assert result[0].filename.endswith(".zip")
@@ -1091,11 +1074,11 @@ def test_singlefile_render_handler_neutralizes_external_navigation():
 def test_singlefile_render_handler_forwards_crawl_context():
     # Crawl depth/scope reach the handler only through CONTEXT_CLASS; without it
     # every field silently defaults and the depth/scope config AC is a no-op.
-    # _fake_render_page asserts the kwargs render_page actually received.
+    # fake_render_page asserts the kwargs render_page actually received.
     handler = SingleFileRenderHandler()
     with patch(
         "ricecooker.utils.pipeline.transfer.render_page",
-        side_effect=_fake_render_page(crawl_max_depth=3, crawl_inner_links_only=False),
+        side_effect=fake_render_page(crawl_max_depth=3, crawl_inner_links_only=False),
     ):
         result = handler.execute(
             "https://spa.example/",
@@ -1106,11 +1089,11 @@ def test_singlefile_render_handler_forwards_crawl_context():
 
 def test_singlefile_render_handler_forwards_auth_context():
     # Login-wall auth reaches the render the same way crawl options do: through
-    # CONTEXT_CLASS. _fake_render_page asserts render_page got the auth kwargs.
+    # CONTEXT_CLASS. fake_render_page asserts render_page got the auth kwargs.
     handler = SingleFileRenderHandler()
     with patch(
         "ricecooker.utils.pipeline.transfer.render_page",
-        side_effect=_fake_render_page(
+        side_effect=fake_render_page(
             browser_cookies_file="/tmp/cookies.txt",
             http_headers={"Authorization": "Bearer tok"},
         ),
@@ -1132,7 +1115,7 @@ def test_singlefile_render_end_to_end_explosion():
     with (
         patch(
             "ricecooker.utils.pipeline.transfer.render_page",
-            side_effect=_fake_render_page(),
+            side_effect=fake_render_page(),
         ),
         patch.object(
             config.DOWNLOAD_SESSION,
@@ -1169,3 +1152,245 @@ def test_default_pipeline_renders_html_and_downloads_other_sources():
         assert pipeline.should_handle("https://spa.example/") is True
         # A non-HTML resource still routes to a default download handler.
         assert pipeline.should_handle("https://example.com/x.pdf") is True
+
+
+@pytest.mark.parametrize(
+    "url",
+    ["https://nohead405.example/report.pdf", "https://nohead501.example/report.pdf"],
+)
+@my_vcr.use_cassette
+def test_rejected_head_downloads_via_get(url):
+    result = DownloadStageHandler().execute(url, skip_cache=True)
+    assert result[0].filename.endswith(".pdf")
+    with open(result[0].path, "rb") as fh:
+        assert fh.read() == b"%PDF-1.4\n"
+
+
+def test_http_error_fails_download():
+    with my_vcr.use_cassette("test_http_error_fails_download") as cassette:
+        with pytest.raises(ExpectedFileException, match="404"):
+            DownloadStageHandler().execute(
+                "https://gone.example/missing.pdf", skip_cache=True
+            )
+    assert cassette.play_count == 2
+
+
+def _fresh_download_session(monkeypatch):
+    session = requests.Session()
+    session.trust_env = False
+    monkeypatch.setattr(config, "DOWNLOAD_SESSION", session)
+    config.set_download_attempts(1)
+
+
+def test_failed_get_probe_is_not_retried_again(monkeypatch):
+    _fresh_download_session(monkeypatch)
+    with my_vcr.use_cassette("test_failed_get_probe_is_not_retried_again") as cassette:
+        with pytest.raises(ExpectedFileException, match="503"):
+            DownloadStageHandler().execute("https://down.example/page", skip_cache=True)
+    assert cassette.play_count == 3
+
+
+def _fake_http(monkeypatch, respond):
+    _fresh_download_session(monkeypatch)
+    methods = []
+
+    def make_request(pool, conn, method, url, headers=None, **kwargs):
+        methods.append(method)
+        return respond(pool, method, url, headers or {})
+
+    monkeypatch.setattr(
+        urllib3.connectionpool.HTTPConnectionPool, "_make_request", make_request
+    )
+    return methods
+
+
+def _response(status, content_type="", body=b"", **headers):
+    return urllib3.HTTPResponse(
+        body=io.BytesIO(body),
+        status=status,
+        headers={"Content-Type": content_type, **headers},
+        preload_content=False,
+    )
+
+
+def test_raising_get_probe_is_not_retried_again(monkeypatch):
+    def respond(pool, method, url, headers):
+        if method == "HEAD":
+            return _response(405)
+        raise urllib3.exceptions.ReadTimeoutError(pool, url, "read timed out")
+
+    methods = _fake_http(monkeypatch, respond)
+    with pytest.raises(ExpectedFileException, match="timed out"):
+        DownloadStageHandler().execute("https://slow.example/page", skip_cache=True)
+    assert methods == ["HEAD", "GET", "GET"]
+
+
+@pytest.mark.parametrize(
+    "url", ["https://site.example/lesson", "https://site.example/lesson.html"]
+)
+def test_raising_head_html_page_is_rendered(monkeypatch, url):
+    def respond(pool, method, url, headers):
+        if method == "HEAD":
+            raise urllib3.exceptions.ReadTimeoutError(pool, url, "read timed out")
+        return _response(200, "text/html", b"<html></html>")
+
+    methods = _fake_http(monkeypatch, respond)
+    with patch(
+        "ricecooker.utils.pipeline.transfer.render_page",
+        side_effect=fake_render_page(),
+    ):
+        result = DownloadStageHandler().execute(url, skip_cache=True)
+    assert result[0].filename.endswith(".zip")
+    assert methods == ["HEAD", "GET"]
+
+
+def test_probe_omits_context_http_headers(monkeypatch):
+    sent = []
+
+    def respond(pool, method, url, headers):
+        sent.append((pool.host, dict(headers)))
+        if pool.host == "locked.example":
+            return _response(302, Location="https://s3.example/doc.pdf?sig=1")
+        return _response(200, "application/pdf", b"%PDF-1.4\n")
+
+    _fake_http(monkeypatch, respond)
+    DownloadStageHandler().execute(
+        "https://locked.example/doc.pdf",
+        context={"http_headers": {"X-Api-Key": "k"}},
+        skip_cache=True,
+    )
+    assert {host for host, _ in sent} == {"locked.example", "s3.example"}
+    assert not [headers for _, headers in sent if "X-Api-Key" in headers]
+
+
+def test_failed_download_is_retried_after_recovery(monkeypatch):
+    _fresh_download_session(monkeypatch)
+    url = "https://recovering.example/report.pdf"
+    stage = DownloadStageHandler()
+    with my_vcr.use_cassette(
+        "test_failed_download_is_retried_after_recovery"
+    ) as cassette:
+        assert stage.should_handle(url) is True
+        with pytest.raises(ExpectedFileException, match="503"):
+            stage.execute(url, skip_cache=True)
+        result = stage.execute(url, skip_cache=True)
+    with open(result[0].path, "rb") as fh:
+        assert fh.read() == b"%PDF-1.4\n"
+    assert cassette.play_count == 5
+
+
+def test_cached_render_survives_failing_source(monkeypatch):
+    _fresh_download_session(monkeypatch)
+    url = "https://site.example/lesson"
+    with my_vcr.use_cassette("test_cached_render_survives_failing_source") as cassette:
+        with patch(
+            "ricecooker.utils.pipeline.transfer.render_page",
+            side_effect=fake_render_page(),
+        ):
+            first = DownloadStageHandler().execute(url, skip_cache=True)
+        second = DownloadStageHandler().execute(url)
+        with pytest.raises(ExpectedFileException, match="503"):
+            DownloadStageHandler().execute(url, skip_cache=True)
+    assert second[0].path == first[0].path
+    assert cassette.play_count == 4
+
+
+@pytest.mark.parametrize(
+    "url", ["https://nohead.example/page", "https://busy.example/page"]
+)
+@my_vcr.use_cassette
+def test_rejected_head_html_page_is_rendered(url):
+    with patch(
+        "ricecooker.utils.pipeline.transfer.render_page",
+        side_effect=fake_render_page(),
+    ):
+        result = DownloadStageHandler().execute(url, skip_cache=True)
+    assert result[0].filename.endswith(".zip")
+
+
+def test_failed_probe_serves_cached_download(monkeypatch):
+    _fresh_download_session(monkeypatch)
+    url = "https://flaky.example/cached-report.pdf"
+    with my_vcr.use_cassette("test_failed_probe_serves_cached_download") as cassette:
+        first = DownloadStageHandler().execute(url, skip_cache=True)
+        second = DownloadStageHandler().execute(url)
+        with pytest.raises(ExpectedFileException, match="503"):
+            DownloadStageHandler().execute(url, skip_cache=True)
+    assert second[0].path == first[0].path
+    assert cassette.play_count == 8
+
+
+def test_cached_download_of_html_page_is_rendered(monkeypatch):
+    methods = _fake_http(
+        monkeypatch,
+        lambda pool, method, url, headers: _response(
+            200, "text/html", b"<html></html>"
+        ),
+    )
+    url = "https://v080.example/lesson.html"
+    DownloadStageHandler(children=[CatchAllWebResourceDownloadHandler()]).execute(url)
+    with patch(
+        "ricecooker.utils.pipeline.transfer.render_page",
+        side_effect=fake_render_page(),
+    ):
+        result = DownloadStageHandler().execute(url)
+    assert result[0].filename.endswith(".zip")
+    assert methods == ["GET", "HEAD"]
+
+
+def _failing_source(status):
+    def respond(pool, method, url, headers):
+        if status is None:
+            raise urllib3.exceptions.NewConnectionError(pool, "connection refused")
+        return _response(status, "text/html")
+
+    return respond
+
+
+def _render_disk_pipeline():
+    return FilePipeline(
+        children=[
+            DownloadStageHandler(
+                children=[SingleFileRenderHandler(), DiskResourceHandler()]
+            )
+        ]
+    )
+
+
+@pytest.mark.parametrize("status", [None, 404])
+def test_failed_probe_without_catch_all_invalidates_node(monkeypatch, status):
+    _fake_http(monkeypatch, _failing_source(status))
+    node = ContentNode(
+        source_id="lesson",
+        title="Lesson",
+        license=get_license(licenses.CC_BY, copyright_holder="Holder"),
+        uri="https://down.example/lesson",
+        pipeline=_render_disk_pipeline(),
+    )
+    with pytest.raises(InvalidNodeException, match="cannot handle uri"):
+        node.validate()
+
+
+@pytest.mark.parametrize("status", [None, 404, 503])
+def test_failed_probe_without_catch_all_serves_cached_render(monkeypatch, status):
+    url = "https://site.example/lesson"
+    _fake_http(monkeypatch, lambda *args: _response(200, "text/html"))
+    with patch(
+        "ricecooker.utils.pipeline.transfer.render_page",
+        side_effect=fake_render_page(),
+    ):
+        first = _render_disk_pipeline().execute(url, skip_cache=True)
+    methods = _fake_http(monkeypatch, _failing_source(status))
+    pipeline = _render_disk_pipeline()
+    assert pipeline.should_handle(url)
+    second = pipeline.execute(url)
+    assert second[0].path == first[0].path
+    assert methods == []
+
+
+@my_vcr.use_cassette
+def test_read_refetches_under_update():
+    url = "https://changing.example/data.txt"
+    with patch.object(config, "UPDATE", True):
+        assert read(url) == b"first"
+        assert read(url) == b"second"

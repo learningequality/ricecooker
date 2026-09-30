@@ -75,6 +75,7 @@ class FilePipeline(CompositeHandler):
         path: str,
         context: Optional[Dict] = None,
         skip_cache: Optional[bool] = False,
+        skip_download_cache: Optional[bool] = False,
     ) -> list[FileMetadata]:
         """
         Execute the pipeline for a given file path.
@@ -93,7 +94,11 @@ class FilePipeline(CompositeHandler):
                     new_metadata_list = handler.execute(
                         file_metadata.path,
                         context=scoped_context,
-                        skip_cache=skip_cache,
+                        skip_cache=skip_cache
+                        or (
+                            skip_download_cache
+                            and isinstance(handler, DownloadStageHandler)
+                        ),
                     )
                     for new_metadata in new_metadata_list:
                         # For each new metadata in the returned list
