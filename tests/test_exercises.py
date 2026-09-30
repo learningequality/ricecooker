@@ -17,6 +17,8 @@ from le_utils.constants import licenses
 from test_videos import _clear_ricecookerfilecache
 from vcr_config import my_vcr
 
+from ricecooker.classes.files import File
+from ricecooker.classes.licenses import get_license
 from ricecooker.classes.nodes import ExerciseNode
 from ricecooker.classes.nodes import InvalidNodeException
 from ricecooker.classes.questions import BaseQuestion
@@ -456,6 +458,41 @@ def test_question_retried_after_failed_image_keeps_all_images(exercise_image_fil
         question.process_question()
     files = question.to_dict()["files"]
     assert {f["original_filename"] for f in files} == {"ok.png", "flaky.png"}
+
+
+def test_process_files_leaves_a_shared_question_unprocessed(exercise_image_file):
+    _clear_ricecookerfilecache()
+    with open(exercise_image_file.path, "rb") as f:
+        png = f.read()
+    shared = SingleSelectQuestion(
+        "q", "Q ![](http://h/q.png)", "a", ["a", "b"], hints=["h"]
+    )
+    license = get_license(licenses.CC_BY, copyright_holder="x")
+    nodes = [
+        ExerciseNode(sid, sid, license=license, questions=[shared])
+        for sid in ("ex1", "ex2")
+    ]
+    with fake_download_session({"http://h/q.png": png}):
+        for node in nodes:
+            node.process_files()
+
+    assert shared.hints == ["h"]
+    assert shared.files == []
+    copies = [node.questions[0] for node in nodes]
+    assert all(c is not shared for c in copies)
+    assert copies[0] is not copies[1]
+
+
+def test_question_with_pathless_file_still_processes(exercise_image_file):
+    _clear_ricecookerfilecache()
+    with open(exercise_image_file.path, "rb") as f:
+        png = f.read()
+    question = SingleSelectQuestion("q", "Q ![](http://h/q.png)", "a", ["a", "b"])
+    question.files.append(File(preset="exercise_image", filename="x.png"))
+    with fake_download_session({"http://h/q.png": png}):
+        question.process_question()
+
+    assert len(question.files) == 2
 
 
 # Test PerseusQuestion process_question method

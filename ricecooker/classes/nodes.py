@@ -1453,6 +1453,7 @@ class ExerciseNode(ContentNode):
             "\t*** Processing images for exercise: {}".format(self.title)
         )
         downloaded = super(ExerciseNode, self).process_files()
+        self.questions = [q.copy() for q in self.questions]
         for question in self.questions:
             downloaded += question.process_question()
 

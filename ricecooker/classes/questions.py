@@ -1,4 +1,5 @@
 # Question models for exercises
+import copy
 import html
 import json
 import re
@@ -85,6 +86,11 @@ class BaseQuestion:
         """Return the assessment ID as a hex string."""
         return self.id.hex
 
+    def copy(self):
+        duplicate = copy.copy(self)
+        duplicate.files = list(self.files)
+        return duplicate
+
     def truncate_fields(self):
         if self.source_url and len(self.source_url) > config.MAX_SOURCE_URL_LENGTH:
             config.print_truncate(
@@ -155,7 +161,11 @@ class BaseQuestion:
             hint_files += hfiles
 
         self.question, self.answers, self.hints = question, answers, hints
-        self.files += question_files + answer_files + hint_files
+        seen = {getattr(f, "path", None) for f in self.files}
+        for f in question_files + answer_files + hint_files:
+            if f.path not in seen:
+                seen.add(f.path)
+                self.files.append(f)
         return [f.filename for f in self.files]
 
     def set_images(self, text):
