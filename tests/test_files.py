@@ -3,13 +3,17 @@
 import base64
 import hashlib
 import os.path
+import sys
 import tempfile
 import threading
 import zipfile
+from http.server import BaseHTTPRequestHandler
+from http.server import ThreadingHTTPServer
 from io import BytesIO
 from shutil import copyfile
 from unittest.mock import MagicMock
 from unittest.mock import patch
+from urllib.parse import urlparse
 
 import pytest
 from conftest import sample_path
@@ -17,6 +21,7 @@ from le_utils.constants import file_formats
 from le_utils.constants import format_presets
 from le_utils.constants import languages
 from le_utils.constants.exercises import GRAPHIE_DELIMITER
+from pdf2image.exceptions import PDFInfoNotInstalledError
 from PIL import Image
 from PyPDF2 import PdfFileWriter
 from requests import ConnectionError
@@ -40,8 +45,13 @@ from ricecooker.classes.files import VideoFile
 from ricecooker.classes.files import YouTubeVideoFile
 from ricecooker.exceptions import FileNotFoundException
 from ricecooker.utils.audio import AudioCompressionError
+from ricecooker.utils.pipeline import FilePipeline
+from ricecooker.utils.pipeline.convert import ConversionStageHandler
 from ricecooker.utils.pipeline.convert import PDFValidationHandler
 from ricecooker.utils.pipeline.exceptions import InvalidFileException
+from ricecooker.utils.pipeline.extract_metadata import ExtractMetadataStageHandler
+from ricecooker.utils.pipeline.file_handler import FileHandler
+from ricecooker.utils.pipeline.transfer import DownloadStageHandler
 from ricecooker.utils.storage import copy_file_to_storage
 from ricecooker.utils.storage import get_hash
 from ricecooker.utils.videos import VideoCompressionError
@@ -1093,6 +1103,100 @@ def test_convertible_substitles_weirdext_subtitlesformat():
             os.remove(temp_file.name)
 
 
+@pytest.fixture
+def subtitle_server():
+    bodies = {
+        "/getsub.php": sample_path("subtitles", "basic.srt"),
+        "/subs.json": sample_path("subtitles", "basic.srt"),
+        "/captions/lecture1.mp4": sample_path("subtitles", "basic.srt"),
+        "/subs.vtt": sample_path("subtitles", "basic.vtt"),
+    }
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_HEAD(self):
+            self._respond(send_body=False)
+
+        def do_GET(self):
+            self._respond(send_body=True)
+
+        def _respond(self, send_body):
+            with open(bodies[urlparse(self.path).path], "rb") as fh:
+                body = fh.read()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=UTF-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            if send_body:
+                self.wfile.write(body)
+
+        def log_message(self, *args):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    yield f"http://127.0.0.1:{server.server_port}"
+    server.shutdown()
+    server.server_close()
+
+
+@pytest.mark.parametrize(
+    "url_path", ["/getsub.php?id=5", "/subs.json", "/captions/lecture1.mp4?lang=en"]
+)
+def test_subtitlesformat_is_fallback_for_unknown_url_extension(
+    subtitle_server, url_path
+):
+    subtitle_file = SubtitleFile(
+        f"{subtitle_server}{url_path}", language="en", subtitlesformat="srt"
+    )
+    filename = subtitle_file.process_file()
+
+    assert filename.endswith(".vtt"), subtitle_file.error
+    with open(config.get_storage_path(filename), encoding="utf-8") as fh:
+        assert "البعض أكثر" in fh.read()
+
+
+def test_url_subtitle_type_beats_subtitlesformat(subtitle_server):
+    subtitle_file = SubtitleFile(
+        f"{subtitle_server}/subs.vtt", language="en", subtitlesformat="srt"
+    )
+    filename = subtitle_file.process_file()
+
+    assert filename.endswith(".vtt"), subtitle_file.error
+    with open(config.get_storage_path(filename), encoding="utf-8") as fh:
+        assert "أمضيت ما يقرب من العقدين" in fh.read()
+
+
+def test_subtitle_file_uses_chef_pipeline(monkeypatch):
+    class ChefSubtitleHandler(FileHandler):
+        def should_handle(self, path):
+            return path.startswith("chef-subs://")
+
+        def handle_file(self, path):
+            with self.write_file(file_formats.SRT) as fh:
+                with open(sample_path("subtitles", "basic.srt"), "rb") as src:
+                    fh.write(src.read())
+
+    download_stage = DownloadStageHandler(
+        children=[ChefSubtitleHandler()]
+        + [handler() for handler in DownloadStageHandler.DEFAULT_CHILDREN]
+    )
+    pipeline = FilePipeline(
+        children=[
+            download_stage,
+            ConversionStageHandler(),
+            ExtractMetadataStageHandler(),
+        ]
+    )
+    monkeypatch.setattr(config, "FILE_PIPELINE", pipeline)
+
+    subtitle_file = SubtitleFile("chef-subs://lecture1", language="en")
+    filename = subtitle_file.process_file()
+
+    assert filename.endswith(".vtt"), subtitle_file.error
+    with open(config.get_storage_path(filename), encoding="utf-8") as fh:
+        assert "البعض أكثر" in fh.read()
+
+
 # Tests for Base64 image files
 
 
@@ -1462,8 +1566,50 @@ def test_pdf_validation_handler_empty_pdf(tmpdir):
     with open(empty_pdf_path, "wb") as f:
         writer.write(f)
 
-    with pytest.raises(InvalidFileException):
+    with pytest.raises(InvalidFileException, match="^PDF has no pages$"):
         handler.execute(empty_pdf_path)
+
+
+@pytest.mark.parametrize(
+    "name", ["aes128_owner_password.pdf", "aes256_owner_password.pdf"]
+)
+def test_owner_password_pdf_passes_validation(name):
+    pdf = DocumentFile(sample_path(name))
+    assert pdf.process_file().endswith(".pdf")
+    assert pdf not in config.FAILED_FILES
+
+
+@pytest.mark.parametrize("name", ["aes128_user_password.pdf", "zlib_error.pdf"])
+def test_unreadable_pdf_fails_only_that_file(name):
+    pdf = DocumentFile(sample_path(name))
+    assert pdf.process_file() is None
+    assert pdf in config.FAILED_FILES
+    assert pdf.error.startswith("PDF did not pass validation: ")
+    assert "\n" not in pdf.error
+    assert config.STORAGE_DIRECTORY not in pdf.error
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="shell-script pdfinfo stub")
+def test_pdf_validation_timeout_fails_only_that_file(monkeypatch, tmp_path):
+    stub = tmp_path / "pdfinfo"
+    stub.write_text("#!/bin/sh\nexec sleep 30\n")
+    stub.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{tmp_path}{os.pathsep}{os.environ['PATH']}")
+    monkeypatch.setattr(PDFValidationHandler, "TIMEOUT", 1)
+    monkeypatch.setattr(config, "UPDATE", True)
+
+    pdf = DocumentFile(sample_path("aes128_owner_password.pdf"))
+
+    assert pdf.process_file() is None
+    assert pdf in config.FAILED_FILES
+    assert "timed out" in pdf.error
+
+
+def test_pdf_validation_requires_poppler(monkeypatch, tmp_path):
+    monkeypatch.setattr(config, "UPDATE", True)
+    monkeypatch.setenv("PATH", str(tmp_path))
+    with pytest.raises(PDFInfoNotInstalledError):
+        DocumentFile(sample_path("aes128_owner_password.pdf")).process_file()
 
 
 def test_subtitle_cache_keys_with_format(mock_filecache, subtitle_file):

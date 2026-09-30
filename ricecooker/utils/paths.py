@@ -3,6 +3,8 @@ import os
 from pathlib import Path
 from urllib.parse import urlparse
 
+from le_utils.constants import format_presets
+
 
 def dir_exists(filepath):
     file_ = Path(filepath)
@@ -86,3 +88,17 @@ def extract_path_ext(path, default_ext=None):
     if not ext:
         raise ValueError("No extension in path {} and default_ext is None".format(path))
     return ext.lower()
+
+
+PRESET_FORMATS = [
+    {*preset.allowed_formats, *preset.convertible_formats}
+    for preset in format_presets.PRESETLIST
+]
+
+
+def resolve_path_ext(path, declared_ext=None, default_ext=None):
+    ext = extract_path_ext(path, default_ext=declared_ext or default_ext)
+    if not declared_ext:
+        return ext
+    shares_preset = any(ext in fmts and declared_ext in fmts for fmts in PRESET_FORMATS)
+    return ext if shares_preset else declared_ext

@@ -363,13 +363,16 @@ class FirstHandlerOnly(CompositeHandler):
     run the first handler that can handle the file.
     """
 
+    def get_handlers(self, context: Optional[Dict] = None) -> list[Handler]:
+        return self._children
+
     def execute(
         self,
         path: str,
         context: Optional[Dict] = None,
         skip_cache: Optional[bool] = False,
     ) -> list[FileMetadata]:
-        for handler in self._children:
+        for handler in self.get_handlers(context):
             if handler.should_handle(path):
                 return handler.execute(path, context=context, skip_cache=skip_cache)
         return []

@@ -25,10 +25,11 @@ import html5lib
 from html5lib.html5parser import ParseError
 from le_utils.constants import file_formats
 from le_utils.constants import format_presets
+from pdf2image import pdfinfo_from_path
+from pdf2image.exceptions import PDFPageCountError
+from pdf2image.exceptions import PDFPopplerTimeoutError
 from PIL import Image
 from PIL import UnidentifiedImageError
-from PyPDF2 import PdfFileReader
-from PyPDF2.utils import PdfReadError
 
 from ricecooker import config
 from ricecooker.config import LOGGER
@@ -78,6 +79,12 @@ from .file_handler import ExtensionMatchingHandler
 from .file_handler import StageHandler
 
 CONVERTIBLE_FORMATS = {p.id: p.convertible_formats for p in format_presets.PRESETLIST}
+
+
+def _last_line(text):
+    lines = text.strip().splitlines()
+    return lines[-1] if lines else "unknown error"
+
 
 # CSS properties permitted on inline ``style=`` attributes inside a KPUB.
 KPUB_STYLE_ALLOWLIST = {
@@ -751,16 +758,24 @@ class PDFValidationHandler(ExtensionMatchingHandler):
 
     EXTENSIONS = {file_formats.PDF}
 
+    TIMEOUT = 60
+
     def handle_file(self, path):
         try:
-            with open(path, "rb") as f:
-                pdf = PdfFileReader(f)
-                if pdf.getNumPages() == 0:
-                    raise InvalidFileException(f"PDF file {path} has no pages.")
-        except PdfReadError as e:
-            raise InvalidFileException(f"PDF file {path} did not pass validation: {e}")
-        except FileNotFoundError:
-            raise InvalidFileException(f"File not found at path: {path}")
+            pages = pdfinfo_from_path(path, timeout=self.TIMEOUT)["Pages"]
+        except PDFPageCountError as e:
+            # poppler 26 exits with a page-range error on zero pages instead of reporting 0.
+            if "Invalid page count 0" not in str(e):
+                raise InvalidFileException(
+                    f"PDF did not pass validation: {_last_line(str(e))}"
+                )
+            pages = 0
+        except PDFPopplerTimeoutError:
+            raise InvalidFileException(
+                f"PDF did not pass validation: pdfinfo timed out after {self.TIMEOUT}s"
+            )
+        if pages == 0:
+            raise InvalidFileException("PDF has no pages")
 
 
 class ImageConversionHandler(ExtensionMatchingHandler):
@@ -824,7 +839,6 @@ class SVGValidationHandler(ExtensionMatchingHandler):
 
 class SubtitleContextMetadata(ContextMetadata):
     language: str
-    subtitle_format: Optional[str] = None
 
 
 class SubtitleConversionHandler(ExtensionMatchingHandler):
@@ -840,16 +854,11 @@ class SubtitleConversionHandler(ExtensionMatchingHandler):
 
     HANDLED_EXCEPTIONS = [InvalidSubtitleFormatError, InvalidSubtitleLanguageError]
 
-    def get_cache_key(
-        self, path: str, language: str = None, subtitle_format: str = None
-    ) -> str:
-        return super().get_cache_key(path)
-
-    def handle_file(self, path, language=None, subtitle_format=None):
+    def handle_file(self, path, language=None):
         if language is None:
             raise ValueError("Subtitles must have a language specified.")
 
-        converter = build_subtitle_converter_from_file(path, in_format=subtitle_format)
+        converter = build_subtitle_converter_from_file(path)
 
         # We'll assume the provided file is in the passed language in this case
         if len(converter.get_language_codes()) == 1 and converter.has_language(

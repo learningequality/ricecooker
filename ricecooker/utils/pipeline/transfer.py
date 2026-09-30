@@ -25,7 +25,7 @@ from ricecooker import config
 from ricecooker.utils.caching import generate_key
 from ricecooker.utils.encodings import ext_from_data_uri_mimetype
 from ricecooker.utils.encodings import get_base64_data_uri
-from ricecooker.utils.paths import extract_path_ext
+from ricecooker.utils.paths import resolve_path_ext
 from ricecooker.utils.pipeline.exceptions import InvalidFileException
 from ricecooker.utils.references import neutralize_external_navigation
 from ricecooker.utils.singlefile import render_page
@@ -38,16 +38,24 @@ from .context import ContextMetadata
 from .context import FileMetadata
 from .convert import _seal_directory_to_file
 from .file_handler import FileHandler
+from .file_handler import Handler
 from .file_handler import StageHandler
 
 
 class GenericFileContextMetadata(ContextMetadata):
     default_ext: Optional[str] = None
+    ext: Optional[str] = None
 
 
-class DiskResourceHandler(FileHandler):
+class DeclaredExtMixin:
     CONTEXT_CLASS = GenericFileContextMetadata
 
+    def get_cache_key(self, path, ext=None, **kwargs) -> str:
+        key = super().get_cache_key(path, **kwargs)
+        return f"{key}:{ext}" if ext else key
+
+
+class DiskResourceHandler(DeclaredExtMixin, FileHandler):
     HANDLED_EXCEPTIONS = [IOError, FileNotFoundError]
 
     def _normalize_path(self, path):
@@ -79,9 +87,9 @@ class DiskResourceHandler(FileHandler):
         # Cached by path, so a file edited in place must be copied again
         return not filename.startswith(get_hash(self._normalize_path(path)))
 
-    def handle_file(self, path, default_ext=None):
+    def handle_file(self, path, default_ext=None, ext=None):
         path = self._normalize_path(path)
-        ext = extract_path_ext(path, default_ext=default_ext)
+        ext = resolve_path_ext(path, declared_ext=ext, default_ext=default_ext)
         with self.write_file(ext) as fh:
             with open(path, "rb") as fobj:
                 for chunk in iter(lambda: fobj.read(2097152), b""):
@@ -140,9 +148,7 @@ def extract_filename_from_request(path, res):
     return filename
 
 
-class CatchAllWebResourceDownloadHandler(WebResourceHandler):
-    CONTEXT_CLASS = GenericFileContextMetadata
-
+class CatchAllWebResourceDownloadHandler(DeclaredExtMixin, WebResourceHandler):
     PATTERNS = [""]
 
     HANDLED_EXCEPTIONS = [
@@ -153,15 +159,17 @@ class CatchAllWebResourceDownloadHandler(WebResourceHandler):
         Timeout,
     ]
 
-    def handle_file(self, path, default_ext=None):
+    def handle_file(self, path, default_ext=None, ext=None):
         # Use explicit timeout to prevent hanging downloads
         # (connection_timeout, read_timeout) - connection timeout for establishing connection,
         # read timeout for time between receiving data chunks (prevents stuck downloads)
         r = config.DOWNLOAD_SESSION.get(path, stream=True, timeout=(30, 60))
         original_filename = extract_filename_from_request(path, r)
-        default_ext = extract_path_ext(original_filename, default_ext=default_ext)
+        ext = resolve_path_ext(
+            original_filename, declared_ext=ext, default_ext=default_ext
+        )
         r.raise_for_status()
-        with self.write_file(default_ext) as fh:
+        with self.write_file(ext) as fh:
             for chunk in r.iter_content(chunk_size=8192):
                 fh.write(chunk)
         return FileMetadata(original_filename=original_filename)
@@ -528,6 +536,11 @@ class DownloadStageHandler(StageHandler):
             # to prevent further processing
             raise InvalidFileException(f"Could not handle download from {path}")
         return should_handle
+
+    def get_handlers(self, context: Optional[Dict] = None) -> list[Handler]:
+        if (context or {}).get("render_html", True):
+            return self._children
+        return [h for h in self._children if not isinstance(h, SingleFileRenderHandler)]
 
     def execute(
         self,

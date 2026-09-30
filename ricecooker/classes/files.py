@@ -17,7 +17,7 @@ from ricecooker.utils.images import create_image_from_zip
 from ricecooker.utils.images import create_image_from_zip_screenshot
 from ricecooker.utils.images import create_tiled_image
 from ricecooker.utils.images import ThumbnailGenerationError
-from ricecooker.utils.paths import extract_path_ext
+from ricecooker.utils.paths import resolve_path_ext
 from ricecooker.utils.pipeline import FilePipeline
 from ricecooker.utils.pipeline.convert import AudioCompressionHandler
 from ricecooker.utils.pipeline.convert import ConversionStageHandler
@@ -204,9 +204,9 @@ class DownloadFile(File):
         Ensure `self.path` has one of the extensions in `self._allowed_formats`.
         """
         assert self.path, "{} must have a path".format(self.__class__.__name__)
-        extension = self.ext
-        if not extension:
-            extension = extract_path_ext(self.path, default_ext=self.default_ext)
+        extension = resolve_path_ext(
+            self.path, declared_ext=self.ext, default_ext=self.default_ext
+        )
         if self.allowed_formats is not None and extension not in self.allowed_formats:
             raise ValueError(
                 f"Incompatible extension {extension} for {self.__class__.__name__} at {self.path}"
@@ -383,16 +383,14 @@ class SubtitleFile(DownloadFile):
         """
         If `subtitlesformat` arg is empty, then type will be detected and converted if supported
         """
-        self.subtitlesformat = kwargs.get("subtitlesformat", None)
-        self.ext = self.subtitlesformat
-        if "subtitlesformat" in kwargs:
-            del kwargs["subtitlesformat"]
+        self.subtitlesformat = self.ext = kwargs.pop("subtitlesformat", None)
         super(SubtitleFile, self).__init__(path, **kwargs)
         assert self.language, "Subtitles must have a language"
         self.context = {
             "language": self.language,
-            "subtitle_format": self.subtitlesformat,
-            "default_ext": self.subtitlesformat,
+            "ext": self.ext,
+            # PHP and similar endpoints serve subtitles as text/html.
+            "render_html": False,
         }
 
 
