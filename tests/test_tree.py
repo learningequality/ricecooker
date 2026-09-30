@@ -1625,6 +1625,46 @@ def test_perseus_question_shared_by_two_exercises_lists_image_once_each(
         assert [f["original_filename"] for f in item["files"]] == ["q.png"]
 
 
+def test_failed_question_shared_between_exercises_drops_only_its_exercises(
+    channel, exercise_image_file
+):
+    _clear_ricecookerfilecache()
+    good = SingleSelectQuestion("good", "![](http://h/q.png)", "a", ["a", "b"])
+    bad = SingleSelectQuestion("bad", "![](http://h/missing.png)", "a", ["a", "b"])
+    for source_id, questions in (
+        ("e1", [bad, good]),
+        ("e2", [good]),
+        ("e3", [bad]),
+    ):
+        channel.add_child(
+            ExerciseNode(
+                source_id,
+                source_id,
+                license=get_license(licenses.CC_BY, copyright_holder="x"),
+                exercise_data={"m": 1, "n": 1},
+                questions=questions,
+            )
+        )
+    with open(exercise_image_file.path, "rb") as f:
+        png = f.read()
+
+    manager = ChannelManager(channel)
+    with (
+        patch("ricecooker.config.STRICT", False),
+        fake_download_session({"http://h/q.png": png}),
+    ):
+        manager.validate()
+        manager.process_tree()
+
+    manager.root_id, manager.channel_id = "root", "chan-id"
+    posted = []
+    with patch("ricecooker.config.SESSION.post", side_effect=_fake_studio_post(posted)):
+        manager.upload_tree()
+    assert [child["source_id"] for _, child in posted] == ["e2"]
+    (item,) = posted[0][1]["questions"]
+    assert [f["original_filename"] for f in item["files"]] == ["q.png"]
+
+
 @pytest.mark.parametrize("threads", [1, 5])
 def test_exercise_cloned_under_two_topics_uploads_every_placement(
     channel, exercise_image_file, threads
