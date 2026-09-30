@@ -12,7 +12,6 @@ import time
 import zipfile
 from collections import defaultdict
 from contextlib import contextmanager
-from types import SimpleNamespace
 from unittest.mock import patch
 from urllib.parse import unquote
 from urllib.parse import urljoin
@@ -23,6 +22,7 @@ import requests
 from bs4 import BeautifulSoup
 from cachecontrol.caches.file_cache import FileCache
 from conftest import sample_path
+from fake_session import fake_download_session
 from le_utils.constants import content_kinds
 from le_utils.constants import exercises
 from le_utils.constants import format_presets
@@ -485,7 +485,7 @@ class TestKPUBSanitization:
         with tempfile.TemporaryDirectory() as tmpdir:
             path = os.path.join(tmpdir, "test.kpub")
             _create_archive(path, {"index.html": html})
-            with _fake_download_session(url_to_content) as fetched:
+            with fake_download_session(url_to_content) as fetched:
                 FilePipeline(default_context={}).execute(path, skip_cache=True)
         assert "https://ex.com/keep.png" in fetched
         assert "https://ex.com/bg.png" not in fetched
@@ -567,38 +567,6 @@ class TestDocumentConversion:
 
 
 @contextmanager
-def _fake_download_session(url_to_content):
-    """Patch the pipeline's HTTP session so external refs resolve to fixed bytes.
-
-    Only the network boundary is mocked; the real ``FilePipeline`` still runs each
-    reference through download -> convert. An unmapped URL raises like a failed
-    request, so tests exercise the leave-unrewritten path too. Yields the list of
-    fetched URLs for call assertions.
-    """
-    calls = []
-
-    def get(url, stream=True, timeout=None):
-        calls.append(url)
-        if url not in url_to_content:
-            raise requests.exceptions.ConnectionError("no fake resource for " + url)
-        content = url_to_content[url]
-        return SimpleNamespace(
-            headers={},
-            raise_for_status=lambda: None,
-            iter_content=lambda chunk_size=8192: iter([content]),
-        )
-
-    def head(url, **kwargs):
-        # The render handler HEAD-probes every external ref to see if it is an
-        # HTML page; these fixtures are assets, so report a non-HTML type and let
-        # the catch-all download handler fetch them via get().
-        return SimpleNamespace(headers={"content-type": "application/octet-stream"})
-
-    with patch.object(config, "DOWNLOAD_SESSION", SimpleNamespace(get=get, head=head)):
-        yield calls
-
-
-@contextmanager
 def _run_external_refs(
     files, url_to_content, *, suffix=".zip", mappers=DEFAULT_MAPPERS
 ):
@@ -618,7 +586,7 @@ def _run_external_refs(
         with zipfile.ZipFile(zip_path) as zf:
             zf.extractall(out_dir)
         try:
-            with _fake_download_session(url_to_content) as fetched:
+            with fake_download_session(url_to_content) as fetched:
                 archive_assets.ArchiveProcessor(
                     out_dir, pipeline, convert_stage=convert_stage, mappers=mappers
                 ).process()
@@ -1098,7 +1066,7 @@ class TestHandlerExternalRefIntegration:
         }
         # Drive the whole HTMLZipFile.process_file path; only the download session
         # is faked, so the handler downloads and rewrites through its real pipeline.
-        with _fake_download_session({"https://ex.com/a.png": _PNG_1x1}):
+        with fake_download_session({"https://ex.com/a.png": _PNG_1x1}):
             filename = self._process(HTMLZipFile, files, ".zip")
 
         # The produced archive contains the downloaded asset (next to index.html)
@@ -1240,7 +1208,7 @@ class TestKPUBPromotion:
     def test_downloaded_external_css_stripped_on_promotion(self):
         # Promotion is judged after reference resolution, so a stylesheet that was
         # downloaded into the archive is stripped rather than sealed into a .kpub.
-        with _fake_download_session({"https://ex.com/s.css": b"p{color:red}"}):
+        with fake_download_session({"https://ex.com/s.css": b"p{color:red}"}):
             result = self._run(
                 {
                     "index.html": (
@@ -1528,7 +1496,7 @@ def _decompose_package(resources, files, pipeline=None, downloads=None, context=
         # skip_cache doesn't reach the per-leaf runs, so give them a fresh cache.
         cache = FileCache(os.path.join(tmp, "cache"), forever=True)
         with (
-            _fake_download_session(downloads or {}),
+            fake_download_session(downloads or {}),
             patch.object(caching, "FILECACHE", cache),
         ):
             result = (pipeline or FilePipeline()).execute(
@@ -1634,7 +1602,7 @@ class TestIMSCPDecomposition:
         path = os.path.join(_IMSCP_FIXTURE_DIR, zip_name)
         # Any external reference inside a resource fails gracefully (left
         # unrewritten) instead of hitting the network, keeping the test hermetic.
-        with _fake_download_session({}):
+        with fake_download_session({}):
             result = FilePipeline().execute(path, skip_cache=True)
         return result[0].content_node_metadata
 
@@ -1951,7 +1919,7 @@ class TestIMSCPDecomposition:
             license=get_license("CC BY", copyright_holder="ESSI"),
             files=[HTMLZipFile(path)],
         )
-        with _fake_download_session({}):
+        with fake_download_session({}):
             node.process_files()
         assert node.kind == content_kinds.HTML5
         assert node.children == []
@@ -1973,7 +1941,7 @@ class TestIMSCPDecomposition:
         )
         channel = ChannelNode("eventos-channel", "example.org", "Channel")
         channel.add_child(node)
-        with _fake_download_session({}):
+        with fake_download_session({}):
             files_to_upload = ChannelManager(channel).process_tree()
         assert node.kind == content_kinds.TOPIC
         assert node.files == []

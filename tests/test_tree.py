@@ -13,6 +13,7 @@ import pytest
 import requests
 from conftest import sample_path
 from le_utils.constants import content_kinds
+from le_utils.constants import exercises
 from le_utils.constants import file_types
 from le_utils.constants import format_presets
 from le_utils.constants import licenses
@@ -50,6 +51,7 @@ from ricecooker.classes.nodes import SlideshowNode
 from ricecooker.classes.nodes import TopicNode
 from ricecooker.classes.nodes import TreeNode
 from ricecooker.classes.nodes import VideoNode
+from ricecooker.classes.questions import PerseusQuestion
 from ricecooker.classes.questions import SingleSelectQuestion
 from ricecooker.commands import uploadchannel
 from ricecooker.exceptions import ChannelIncompleteError
@@ -353,6 +355,24 @@ def test_add_files_with_preset(channel):
     assert topic_node.kind == "topic"
     assert len(html5_node.files) == 3
     assert html5_node.files[2].get_preset() == format_presets.AUDIO_DEPENDENCY
+
+
+def test_jsontrees_perseus_question_without_ka_language_fails_node(
+    channel, mastery_model
+):
+    exercise = dict(
+        kind=content_kinds.EXERCISE,
+        source_id="exercise",
+        title="exercise",
+        license=get_license("CC BY", copyright_holder="Demo Holdings").as_dict(),
+        exercise_data=mastery_model,
+        questions=[
+            {"question_type": exercises.PERSEUS_QUESTION, "id": "q1", "item_data": "{}"}
+        ],
+    )
+    build_tree_from_json(channel, [exercise])
+    with pytest.raises(InvalidNodeException, match="question q1: .*ka_language"):
+        channel.children[0].validate()
 
 
 """ *********** SLIDESHOW CONTENT NODE TESTS *********** """
@@ -1537,6 +1557,53 @@ def test_file_with_overlong_original_filename_uploads(
     doc_name = upload_names[doc_file.checksum]
     assert len(doc_name) <= config.MAX_ORIGINAL_FILENAME_LENGTH
     assert doc_name.endswith(".pdf")
+
+
+def test_leftover_perseus_graphie_blocks_upload(channel, mastery_model):
+    exercise = ExerciseNode(
+        "exercise",
+        "Exercise",
+        license=get_license(licenses.CC_BY, copyright_holder="x"),
+        exercise_data=mastery_model,
+        questions=[
+            PerseusQuestion(
+                "q1",
+                r'{"question": {"content": "[link](web+graphie:\/\/h\/x)"}}',
+                ka_language="en",
+            )
+        ],
+    )
+    channel.add_child(exercise)
+    manager = ChannelManager(channel)
+    manager.root_id, manager.channel_id = "root", "chan-id"
+    sent = []
+
+    def fake_post(url, **kwargs):
+        response = MagicMock()
+        response.status_code = 200
+        payload = json.loads(kwargs["data"]) if url == config.add_nodes_url() else {}
+        sent.extend(c["node_id"] for c in payload.get("content_data", []))
+        response._content = json.dumps(
+            {
+                "root_ids": {n: "srv_" + n for n in sent},
+                "root": "root",
+                "channel_id": "chan-id",
+                "new_channel": "chan-id",
+            }
+        ).encode("utf-8")
+        return response
+
+    with (
+        patch("ricecooker.config.STRICT", False),
+        patch("ricecooker.config.SESSION.post", side_effect=fake_post),
+    ):
+        manager.validate()
+        manager.process_tree()
+        manager.upload_tree()
+
+    node_id = exercise.get_node_id().hex
+    assert node_id not in sent
+    assert "web+graphie://" in manager.failed_node_builds[node_id]["error"]
 
 
 def test_add_nodes_handles_server_error(channel):
