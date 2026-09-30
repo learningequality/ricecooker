@@ -305,7 +305,8 @@ class Node(object):
 
         Resets node_id/content_id so each placement derives a distinct node_id
         from its own parent chain, while keeping source_id (and thus content_id)
-        identical. File objects are shared, not copied.
+        identical. File objects are shared, not copied; questions are copied
+        because processing rewrites them in place.
         """
         clone = copy.copy(self)
         clone.parent = parent
@@ -313,6 +314,9 @@ class Node(object):
         clone.content_id = None
         clone.descendants = []
         clone.files = list(self.files)
+        if isinstance(self.questions, list):
+            # A non-list is kept so validation still rejects every placement.
+            clone.questions = [question.copy() for question in self.questions]
         clone.children = [child.copy(parent=clone) for child in self.children]
         return clone
 

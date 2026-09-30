@@ -1,5 +1,6 @@
 """Tests for tree construction"""
 
+import io
 import json
 import logging
 import os
@@ -1960,6 +1961,80 @@ def test_dedup_preserves_same_parent_error(channel, document):
     with patch("ricecooker.config.STRICT", True):
         with pytest.raises(InvalidNodeException):
             manager.validate()
+
+
+@pytest.mark.parametrize("strict", [True, False], ids=["strict", "lenient"])
+def test_shared_exercise_uploads_each_placement_with_its_images(channel, strict):
+    _clear_ricecookerfilecache()
+    images = {}
+    for name, color in (("q", "red"), ("a", "green"), ("h", "blue")):
+        buffer = io.BytesIO()
+        Image.new("RGB", (4, 4), color).save(buffer, "PNG")
+        images["http://h/{}.png".format(name)] = buffer.getvalue()
+    exercise = ExerciseNode(
+        "ex",
+        "ex",
+        license=get_license(licenses.CC_BY, copyright_holder="x"),
+        exercise_data={"m": 1, "n": 1},
+        questions=[
+            SingleSelectQuestion(
+                "q1",
+                "![](http://h/q.png)",
+                "![](http://h/a.png)",
+                ["![](http://h/a.png)", "b"],
+                hints=["![](http://h/h.png)"],
+            )
+        ],
+    )
+    _place_under_two_topics(channel, exercise)
+
+    manager = ChannelManager(channel)
+    # One thread: concurrent stores of one image race in copy_file_to_storage on Windows.
+    with (
+        patch("ricecooker.config.STRICT", strict),
+        patch("ricecooker.config.TASK_THREADS", 1),
+        fake_download_session(images),
+    ):
+        manager.deduplicate_shared_nodes()
+        manager.validate()
+        manager.process_tree()
+
+    manager.root_id, manager.channel_id = "root", "chan-id"
+    posted = []
+    with patch("ricecooker.config.SESSION.post", side_effect=_fake_studio_post(posted)):
+        manager.upload_tree()
+    exercises_posted = [c for _, c in posted if c["kind"] == content_kinds.EXERCISE]
+    assert len(exercises_posted) == 2
+    for posted_exercise in exercises_posted:
+        files = posted_exercise["questions"][0]["files"]
+        assert sorted(f["original_filename"] for f in files) == [
+            "a.png",
+            "h.png",
+            "q.png",
+        ]
+
+
+def test_shared_exercise_with_tuple_questions_fails_every_placement(channel):
+    exercise = ExerciseNode(
+        "ex",
+        "ex",
+        license=get_license(licenses.CC_BY, copyright_holder="x"),
+        exercise_data={"m": 1, "n": 1},
+        questions=(SingleSelectQuestion("q1", "Q", "a", ["a", "b"], hints=["h"]),),
+    )
+    _place_under_two_topics(channel, exercise)
+
+    manager = ChannelManager(channel)
+    with patch("ricecooker.config.STRICT", False):
+        manager.deduplicate_shared_nodes()
+        manager.validate()
+        manager.process_tree()
+
+    manager.root_id, manager.channel_id = "root", "chan-id"
+    posted = []
+    with patch("ricecooker.config.SESSION.post", side_effect=_fake_studio_post(posted)):
+        manager.upload_tree()
+    assert not [c for _, c in posted if c["kind"] == content_kinds.EXERCISE]
 
 
 def test_create_initial_tree_deduplicates_reused_node(channel, document):

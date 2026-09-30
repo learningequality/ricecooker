@@ -1,4 +1,5 @@
 # Question models for exercises
+import copy
 import html
 import json
 import re
@@ -84,6 +85,12 @@ class BaseQuestion:
     def assessment_id(self):
         """Return the assessment ID as a hex string."""
         return self.id.hex
+
+    def copy(self):
+        """Return a clone with its own ``files`` list, which ``process_question`` extends in place."""
+        clone = copy.copy(self)
+        clone.files = list(self.files)
+        return clone
 
     def truncate_fields(self):
         if self.source_url and len(self.source_url) > config.MAX_SOURCE_URL_LENGTH:
