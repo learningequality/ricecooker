@@ -409,6 +409,55 @@ def test_base_question_set_image(text, replacement_str, hash):
     )
 
 
+@pytest.mark.parametrize("field", ["question", "answer", "hint"])
+def test_question_failed_image_download_fails_question(field):
+    _clear_ricecookerfilecache()
+    image = "![](http://h/missing.png)"
+    question = SingleSelectQuestion(
+        "q",
+        image if field == "question" else "Q",
+        "a",
+        ["a", image if field == "answer" else "b"],
+        hints=[image if field == "hint" else "hint"],
+    )
+    with fake_download_session({}):
+        with pytest.raises(
+            InvalidNodeException, match=re.escape("http://h/missing.png")
+        ):
+            question.process_question()
+
+
+@pytest.mark.parametrize("scheme", ["data", "DATA"])
+def test_question_failed_data_image_names_mimetype_not_payload(scheme):
+    question = SingleSelectQuestion(
+        "q", f"![]({scheme}:text/plain;base64,aGk=)", "a", ["a", "b"]
+    )
+    with pytest.raises(InvalidNodeException) as excinfo:
+        question.process_question()
+    assert str(excinfo.value).endswith(f"{scheme}:text/plain: invalid image")
+
+
+def test_question_retried_after_failed_image_keeps_all_images(exercise_image_file):
+    _clear_ricecookerfilecache()
+    with open(exercise_image_file.path, "rb") as f:
+        png = f.read()
+    question = SingleSelectQuestion(
+        "q",
+        "Q ![](http://h/ok.png)",
+        "a",
+        ["a", "b"],
+        hints=["![](http://h/flaky.png)"],
+    )
+    with fake_download_session({"http://h/ok.png": png}):
+        with pytest.raises(InvalidNodeException):
+            question.process_question()
+    _clear_ricecookerfilecache()
+    with fake_download_session({"http://h/ok.png": png, "http://h/flaky.png": png}):
+        question.process_question()
+    files = question.to_dict()["files"]
+    assert {f["original_filename"] for f in files} == {"ok.png", "flaky.png"}
+
+
 # Test PerseusQuestion process_question method
 ################################################################################
 

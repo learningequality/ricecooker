@@ -126,7 +126,7 @@ class BaseQuestion:
         Returns: list of all downloaded files
         """
         # Process question
-        self.question, question_files = self.set_images(self.question)
+        question, question_files = self.set_images(self.question)
 
         # Process answers
         answers = []
@@ -143,7 +143,6 @@ class BaseQuestion:
             )
             answer_index += 1
             answer_files += afiles
-        self.answers = answers
 
         # Process hints
         hints = []
@@ -154,8 +153,8 @@ class BaseQuestion:
             hints.append({"hint": processed_string, "order": hint_index})
             hint_index += 1
             hint_files += hfiles
-        self.hints = hints
 
+        self.question, self.answers, self.hints = question, answers, hints
         self.files += question_files + answer_files + hint_files
         return [f.filename for f in self.files]
 
@@ -224,6 +223,15 @@ class BaseQuestion:
         exercise_image_file.assessment_item = self
         # Process file to make the replacement_str available
         exercise_image_file.process_file()
+        if not exercise_image_file.filename:
+            shown_path = (
+                re.split("[;,]", stripped_text, maxsplit=1)[0]
+                if stripped_text[:5].lower() == "data:"
+                else stripped_text
+            )
+            raise InvalidNodeException(
+                f"Question {self.source_id} failed to download image {shown_path}: {exercise_image_file.error or 'invalid image'}"
+            )
         # Get `new_text` = the replacement path for the image resource
         new_text = exercises.CONTENT_STORAGE_FORMAT.format(
             exercise_image_file.get_replacement_str()

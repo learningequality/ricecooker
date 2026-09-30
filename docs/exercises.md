@@ -78,6 +78,8 @@ question = InputQuestion(
 
 To add images to a question's question, answers, or hints, format the image path
 with `'![](path/to/some/file.png)'` and `ricecooker` will parse them automatically.
+An image that fails to download fails the exercise: the run stops, or with
+the `STRICT=False` environment variable only that exercise is left out of the upload.
 
 
 Once you have created the appropriate question object, add it to an exercise object

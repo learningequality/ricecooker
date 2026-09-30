@@ -12,6 +12,7 @@ from unittest.mock import patch
 import pytest
 import requests
 from conftest import sample_path
+from fake_session import fake_download_session
 from le_utils.constants import content_kinds
 from le_utils.constants import exercises
 from le_utils.constants import file_types
@@ -27,6 +28,7 @@ from le_utils.constants.languages import getlang
 from PIL import Image
 from requests.exceptions import ConnectionError as RequestsConnectionError
 from requests.exceptions import ReadTimeout
+from test_videos import _clear_ricecookerfilecache
 
 from ricecooker import config
 from ricecooker.chefs import SushiChef
@@ -1491,6 +1493,46 @@ def test_upload_tree_still_commits_when_only_one_node_failed(channel):
     assert manager.failed_batches == []
     assert bad.get_node_id().hex in manager.failed_node_builds
     assert config.finish_channel_url() in committed
+
+
+def test_failed_question_image_skips_only_its_exercise(channel, exercise_image_file):
+    _clear_ricecookerfilecache()
+
+    def exercise(source_id, image_url):
+        return ExerciseNode(
+            source_id,
+            source_id,
+            license=get_license(licenses.CC_BY, copyright_holder="x"),
+            exercise_data={"m": 1, "n": 1},
+            questions=[
+                SingleSelectQuestion(
+                    source_id + "-q", "Q", "a", ["a", "b"], hints=[f"![]({image_url})"]
+                )
+            ],
+        )
+
+    good = exercise("good", "http://h/present.png")
+    bad = exercise("bad", "http://h/missing.png")
+    channel.add_child(good)
+    channel.add_child(bad)
+    with open(exercise_image_file.path, "rb") as f:
+        png = f.read()
+
+    manager = ChannelManager(channel)
+    with (
+        patch("ricecooker.config.STRICT", False),
+        fake_download_session({"http://h/present.png": png}),
+    ):
+        manager.validate()
+        manager.process_tree()
+
+    manager.root_id, manager.channel_id = "root", "chan-id"
+    posted = []
+    with patch("ricecooker.config.SESSION.post", side_effect=_fake_studio_post(posted)):
+        manager.upload_tree()
+    assert [child["source_id"] for _, child in posted] == ["good"]
+    error = manager.failed_node_builds[bad.get_node_id().hex]["error"]
+    assert "http://h/missing.png" in error
 
 
 @pytest.mark.parametrize(
