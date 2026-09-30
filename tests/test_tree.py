@@ -1197,6 +1197,26 @@ def test_process_node_warning_carries_pipeline_error(channel, caplog):
     )
 
 
+def test_process_node_skips_malformed_subtitle(channel, tmp_path):
+    path = tmp_path / "b.srt"
+    path.write_text("1\n00:00 --> junk\n")
+    subtitle = SubtitleFile(str(path), language="en")
+    node = ContentNode(
+        "video",
+        "Video",
+        licenses.CC_BY,
+        uri=sample_path("low_res_sample.mp4"),
+        pipeline=FilePipeline(),
+        copyright_holder="Demo Holdings",
+    )
+    node.add_file(subtitle)
+
+    files = ChannelManager(channel).process_node(node)
+
+    assert [f.get_preset() for f in files.values()] == [format_presets.VIDEO_LOW_RES]
+    assert subtitle.error
+
+
 def test_process_node_survives_redirect_loop(channel, caplog):
     node = ContentNode(
         "loop",

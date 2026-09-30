@@ -851,6 +851,10 @@ class SubtitleConversionHandler(ExtensionMatchingHandler):
 
     HANDLED_EXCEPTIONS = [InvalidSubtitleFormatError, InvalidSubtitleLanguageError]
 
+    def get_cache_key(self, path, language=None, **kwargs) -> str:
+        key = super().get_cache_key(path, **kwargs)
+        return f"{key}:language={language}" if language else key
+
     def handle_file(self, path, language=None):
         if language is None:
             raise ValueError("Subtitles must have a language specified.")

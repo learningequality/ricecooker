@@ -1,4 +1,4 @@
-import codecs
+import xml.dom
 
 from le_utils.constants import file_formats
 from pycaption import CaptionReadError
@@ -11,8 +11,31 @@ from pycaption import SRTReader
 from pycaption import WebVTTReader
 from pycaption import WebVTTWriter
 from pycaption.base import DEFAULT_LANGUAGE_CODE
+from pycaption.exceptions import InvalidInputError
+
+from ricecooker.utils.encodings import decode_text
+
+try:
+    from soupsieve import SelectorSyntaxError
+except ImportError:  # beautifulsoup4 < 4.7 has no soupsieve
+    SelectorSyntaxError = ValueError
 
 LANGUAGE_CODE_UNKNOWN = DEFAULT_LANGUAGE_CODE
+
+# pycaption's parsers raise these on malformed input instead of CaptionReadError.
+# SAMI's <STYLE> parsing raises soupsieve and cssutils (xml.dom, TypeError) errors; DFXP tick/frame offsets raise InvalidInputError.
+_PARSE_ERRORS = (
+    TypeError,
+    IndexError,
+    ValueError,
+    KeyError,
+    AttributeError,
+    OverflowError,
+    RecursionError,
+    InvalidInputError,
+    SelectorSyntaxError,
+    xml.dom.DOMException,
+)
 
 
 class InvalidSubtitleFormatError(TypeError):
@@ -56,7 +79,7 @@ class SubtitleReader:
         try:
             if not self.reader.detect(caption_str):
                 return None
-        except UnicodeDecodeError:
+        except _PARSE_ERRORS:
             return None
 
         # after detection, if read fails, be aggressive and throw an error
@@ -67,8 +90,12 @@ class SubtitleReader:
             return self.reader.read(caption_str)
         except CaptionReadNoCaptions:
             raise InvalidSubtitleFormatError("Caption file has no captions")
-        except (CaptionReadError, UnicodeDecodeError) as e:
+        except CaptionReadError as e:
             raise InvalidSubtitleFormatError("Caption file is invalid: {}".format(e))
+        except _PARSE_ERRORS as e:
+            raise InvalidSubtitleFormatError(
+                "Caption file is invalid: {}: {}".format(type(e).__name__, e)
+            )
         # allow other errors to be passed through
 
 
@@ -162,7 +189,7 @@ class SubtitleConverter:
         :param out_filename: A string path to put the converted captions contents
         :param lang_code: A string of the language code to write
         """
-        with codecs.open(out_filename, "w", encoding="utf-8") as converted_file:
+        with open(out_filename, "w", encoding="utf-8", newline="") as converted_file:
             converted_file.write(self.convert(lang_code))
 
     def convert(self, lang_code):
@@ -258,6 +285,19 @@ def build_subtitle_converter(caption_str, in_format=None):
     return SubtitleConverter(readers, caption_str)
 
 
+def _decode_captions(data):
+    text, encoding = decode_text(data)
+    try:
+        # surrogateescape keeps bytes the detected encoding can't decode.
+        text.encode("utf-8")
+    except UnicodeError:
+        raise InvalidSubtitleFormatError(
+            "Subtitle file is not readable in {}; re-save it as UTF-8".format(encoding)
+        )
+    # A UTF-8 byte-order mark hides the first line from the readers.
+    return text[1:] if text.startswith("\ufeff") else text
+
+
 def build_subtitle_converter_from_file(captions_filename, in_format=None):
     """
     Reads `captions_filename` as the file to be converted, and returns a `SubtitleConverter`
@@ -270,7 +310,6 @@ def build_subtitle_converter_from_file(captions_filename, in_format=None):
     :return: A SubtitleConverter
     :rtype: SubtitleConverter
     """
-    with codecs.open(captions_filename, encoding="utf-8") as captions_file:
-        captions_str = captions_file.read()
-
-    return build_subtitle_converter(captions_str, in_format)
+    with open(captions_filename, "rb") as captions_file:
+        data = captions_file.read()
+    return build_subtitle_converter(_decode_captions(data), in_format)

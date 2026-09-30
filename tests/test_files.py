@@ -1138,6 +1138,116 @@ def test_convertible_substitles_ar_srt():
         assert check_words in filecontents, "expected words not found in converted subs"
 
 
+def test_non_utf8_subtitle_converts_in_its_encoding(tmp_path):
+    path = tmp_path / "c.srt"
+    path.write_bytes("1\n00:00:01,000 --> 00:00:02,000\nCafé\n".encode("cp1252"))
+
+    filename = SubtitleFile(str(path), language="en").process_file()
+
+    assert filename.endswith(".vtt")
+    with open(config.get_storage_path(filename), encoding="utf-8") as f:
+        assert "Café" in f.read()
+
+
+def test_utf8_subtitle_with_bom_converts(tmp_path):
+    path = tmp_path / "bom.srt"
+    path.write_bytes(b"\xef\xbb\xbf1\n00:00:01,000 --> 00:00:02,000\nCaf\xc3\xa9\n")
+
+    filename = SubtitleFile(str(path), language="en").process_file()
+
+    assert filename.endswith(".vtt")
+    with open(config.get_storage_path(filename), encoding="utf-8") as f:
+        text = f.read()
+    assert "Café" in text
+    assert "\ufeff" not in text
+
+
+def test_undecodable_subtitle_fails_only_that_file(tmp_path):
+    path = tmp_path / "c.srt"
+    # \x81 is undefined in cp1252.
+    path.write_bytes(b"1\n00:00:01,000 --> 00:00:02,000\nCaf\xe9 \x81 cr\xe8me\n")
+
+    subtitle = SubtitleFile(str(path), language="en")
+
+    assert subtitle.process_file() is None
+    assert "not readable in" in subtitle.error
+    assert subtitle in config.FAILED_FILES
+
+
+def test_multi_language_subtitle_converts_each_language(tmp_path):
+    path = tmp_path / "a.sami"
+    path.write_text(
+        '<SAMI><HEAD><STYLE TYPE="text/css"><!-- '
+        ".ENCC {Name: English; lang: en;} .FRCC {Name: French; lang: fr;} "
+        "--></STYLE></HEAD><BODY><SYNC Start=1000>"
+        "<P Class=ENCC>Hello<P Class=FRCC>Bonjour</BODY></SAMI>"
+    )
+    SubtitleFile(str(path), language="en").process_file()
+
+    filename = SubtitleFile(str(path), language="fr").process_file()
+
+    with open(config.get_storage_path(filename), encoding="utf-8") as f:
+        assert "Bonjour" in f.read()
+
+
+_TTML = '<tt xmlns="http://www.w3.org/ns/ttml"><body><div>{}</div></body></tt>'
+_SAMI = '<SAMI><HEAD><STYLE TYPE="text/css"><!-- {} --></STYLE></HEAD><BODY><SYNC Start=0><P Class=ENUSCC>x</SAMI>'
+
+
+@pytest.mark.parametrize(
+    "name, contents",
+    [
+        ("b.srt", "1\n00:00 --> junk\n"),
+        ("b.srt", "1\n"),
+        ("b.srt", "1\naa:bb:cc,ddd --> 00:00:02,000\nx\n"),
+        ("b.sami", _SAMI.format("P {margin: 0} .ENUSCC {Name: English; lang: en US;}")),
+        (
+            "b.sami",
+            _SAMI.format("P {color: foo;} .ENUSCC {Name: English; lang: en-US;}"),
+        ),
+        ("b.dfxp", _TTML.format('<p begin="junk" end="x">x</p>')),
+        ("b.dfxp", _TTML.format('<p begin="00:00:01.000">x</p>')),
+        ("b.dfxp", _TTML.format('<p begin="10000000t" end="20000000t">x</p>')),
+        ("b.sami", "<SAMI><BODY><SYNC Start=1e400><P>x</SAMI>"),
+        (
+            "b.sami",
+            _SAMI.format("P {margin-le@t: 1pt;} .ENUSCC {Name: English; lang: en-US;}"),
+        ),
+        (
+            "b.dfxp",
+            _TTML.format(
+                '<p begin="00:00:01.000" end="00:00:02.000">{}x{}</p>'.format(
+                    "<span>" * sys.getrecursionlimit(),
+                    "</span>" * sys.getrecursionlimit(),
+                )
+            ),
+        ),
+    ],
+    ids=[
+        "issue-srt",
+        "srt-cue-number-only",
+        "srt-bad-timestamp",
+        "sami-bad-lang-selector",
+        "sami-bad-css-color",
+        "dfxp-bad-begin",
+        "dfxp-no-end",
+        "dfxp-tick-offset",
+        "sami-infinite-start",
+        "sami-css-typeerror",
+        "dfxp-deep-nesting",
+    ],
+)
+def test_malformed_subtitle_fails_only_that_file(tmp_path, name, contents):
+    path = tmp_path / name
+    path.write_text(contents)
+
+    subtitle = SubtitleFile(str(path), language="en")
+
+    assert subtitle.process_file() is None
+    assert subtitle.error
+    assert subtitle in config.FAILED_FILES
+
+
 @pytest.fixture
 def bad_subtitles_file():
     local_path = os.path.join("tests", "testcontent", "generated", "unconvetible.sub")
@@ -1868,7 +1978,7 @@ def test_subtitle_cache_keys_with_format(mock_filecache, subtitle_file):
 
     expected_keys = {
         f"DOWNLOAD:{path}",
-        f"CONVERT:{sub.filename}",
+        f"CONVERT:{sub.filename}:language=en",
     }
     assert set(mock_filecache.cache.keys()) == expected_keys
 
