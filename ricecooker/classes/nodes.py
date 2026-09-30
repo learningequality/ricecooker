@@ -863,6 +863,12 @@ class TreeNode(Node):
             )
         return self.node_id
 
+    def _truncate_new_title(self):
+        new_title = self.node_modifications.get("New Title")
+        if isinstance(new_title, str) and len(new_title) > config.MAX_TITLE_LENGTH:
+            config.print_truncate("title", self.source_id, new_title, kind=self.kind)
+            self.node_modifications["New Title"] = new_title[: config.MAX_TITLE_LENGTH]
+
     def truncate_fields(self):
         if self.author and len(self.author) > config.MAX_AUTHOR_LENGTH:
             config.print_truncate("author", self.source_id, self.author, kind=self.kind)
@@ -879,6 +885,8 @@ class TreeNode(Node):
                 "provider", self.source_id, self.provider, kind=self.kind
             )
             self.provider = self.provider[: config.MAX_PROVIDER_LENGTH]
+
+        self._truncate_new_title()
 
         self.license and self.license.truncate_fields()
 
@@ -1661,6 +1669,9 @@ class StudioContentNode(TreeNode):
                     )
                 )
         super(StudioContentNode, self)._validate()
+
+    def _truncate_new_title(self):
+        pass
 
     def to_dict(self):
         data = {

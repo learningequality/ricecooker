@@ -2397,3 +2397,38 @@ def test_remote_content_node_sends_a_none_label_override_unchanged(channel):
     with patch("ricecooker.config.STRICT", False):
         ChannelManager(channel).validate()
     assert node.to_dict()["grade_levels"] is None
+
+
+@pytest.mark.parametrize("length,warned", [(200, False), (201, True)])
+def test_truncate_fields_cuts_new_title_to_max_title_length(
+    channel, caplog, length, warned
+):
+    node = TopicNode("t", "T", node_modifications={"New Title": "x" * length})
+    channel.add_child(node)
+    with caplog.at_level(logging.WARNING):
+        node.truncate_fields()
+    assert len(node.to_dict()["title"]) == min(length, config.MAX_TITLE_LENGTH)
+    assert ("title" in caplog.text and "truncating" in caplog.text) is warned
+
+
+def test_truncate_fields_does_not_warn_for_remote_node_new_title(channel, caplog):
+    node = RemoteContentNode("0" * 32, source_node_id="1" * 32)
+    channel.add_child(node)
+    node.node_modifications = {"New Title": "x" * 201}
+    with caplog.at_level(logging.WARNING):
+        node.truncate_fields()
+    assert "truncating" not in caplog.text
+
+
+def test_truncate_fields_leaves_empty_node_modifications_alone(channel):
+    node = TopicNode("t", "T")
+    channel.add_child(node)
+    node.truncate_fields()
+    assert node.node_modifications == {}
+
+
+def test_truncate_fields_leaves_non_string_new_title_alone(channel):
+    node = TopicNode("t", "T", node_modifications={"New Title": 12345})
+    channel.add_child(node)
+    node.truncate_fields()
+    assert node.node_modifications["New Title"] == 12345

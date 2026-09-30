@@ -1,12 +1,16 @@
 #!/usr/bin/env python
 import copy
+import csv
 import glob
 import importlib.util
+import json
+import logging
 import os
 import random
 import socket
 import string
 import sys
+from unittest.mock import MagicMock
 
 import pytest
 import requests
@@ -256,6 +260,72 @@ def test_uploadchannel_keeps_pipeline_set_by_run_override(run_override_chef):
     run_override_chef.run({}, {})
 
     assert config.FILE_PIPELINE is custom
+
+
+class LongNewTitleChef(SushiChef):
+    channel_info = {
+        "CHANNEL_SOURCE_DOMAIN": "example.org",
+        "CHANNEL_SOURCE_ID": "long-new-title",
+        "CHANNEL_TITLE": "Long new title",
+        "CHANNEL_LANGUAGE": "en",
+    }
+
+    def construct_channel(self, **kwargs):
+        channel = self.get_channel()
+        channel.add_child(TopicNode("t", "T"))
+        channel.add_child(TopicNode("sibling", "Sibling"))
+        return channel
+
+
+def test_uploadchannel_truncates_long_csv_new_title_for_studio(
+    chef_config, monkeypatch, tmp_path, caplog
+):
+    monkeypatch.chdir(tmp_path)
+    data_dir = tmp_path / "chefdata" / "data"
+    data_dir.mkdir(parents=True)
+    with open(data_dir / "content_metadata.csv", "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=config.CSV_HEADERS)
+        writer.writeheader()
+        writer.writerow({"Source ID": "t", "New Title": "x" * 201})
+
+    posted = []
+    finished = []
+
+    def studio_post(url, **kwargs):
+        response = MagicMock()
+        response.status_code = 200
+        if url == config.authentication_url():
+            body = {"username": "chef"}
+        elif url == config.check_version_url():
+            body = {"status": 0, "message": ""}
+        elif url == config.add_nodes_url():
+            children = json.loads(kwargs["data"])["content_data"]
+            if any(len(c["title"]) > config.MAX_TITLE_LENGTH for c in children):
+                # Studio's title column is varchar(200); the overflow surfaces as a 500.
+                response.status_code = 500
+                response._content = b'"Internal server error"'
+                return response
+            posted.extend(children)
+            body = {"root_ids": {c["node_id"]: "srv_" + c["node_id"] for c in children}}
+        else:
+            if url == config.finish_channel_url():
+                finished.append(url)
+            body = {"root": "root", "channel_id": "chan-id", "new_channel": "chan-id"}
+        response._content = json.dumps(body).encode("utf-8")
+        return response
+
+    monkeypatch.setattr(config.SESSION, "post", studio_post)
+
+    with caplog.at_level(logging.WARNING, logger=config.LOGGER.name):
+        uploadchannel(LongNewTitleChef(), token="t")
+
+    titles = {c["source_id"]: c["title"] for c in posted}
+    assert titles == {"t": "x" * config.MAX_TITLE_LENGTH, "sibling": "Sibling"}
+    assert finished
+    assert any(
+        "title" in r.getMessage() and "truncating" in r.getMessage()
+        for r in caplog.records
+    )
 
 
 @pytest.fixture
