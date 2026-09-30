@@ -1,0 +1,44 @@
+interactions:
+- request:
+    body: null
+    headers: {}
+    method: HEAD
+    uri: https://changing.example/data.txt
+  response:
+    body:
+      string: ''
+    headers:
+      Content-Type:
+      - text/plain
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers: {}
+    method: GET
+    uri: https://changing.example/data.txt
+  response:
+    body:
+      string: first
+    headers:
+      Content-Type:
+      - text/plain
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers: {}
+    method: GET
+    uri: https://changing.example/data.txt
+  response:
+    body:
+      string: second
+    headers:
+      Content-Type:
+      - text/plain
+    status:
+      code: 200
+      message: OK
+version: 1

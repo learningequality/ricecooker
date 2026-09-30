@@ -1,0 +1,90 @@
+interactions:
+- request:
+    body: null
+    headers: {}
+    method: HEAD
+    uri: https://nohead405.example/report.pdf
+  response:
+    body:
+      string: ''
+    headers:
+      Content-Type:
+      - text/html
+    status:
+      code: 405
+      message: Method Not Allowed
+- request:
+    body: null
+    headers: {}
+    method: GET
+    uri: https://nohead405.example/report.pdf
+  response:
+    body:
+      string: !!binary |
+        JVBERi0xLjQK
+    headers:
+      Content-Type:
+      - application/pdf
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers: {}
+    method: GET
+    uri: https://nohead405.example/report.pdf
+  response:
+    body:
+      string: !!binary |
+        JVBERi0xLjQK
+    headers:
+      Content-Type:
+      - application/pdf
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers: {}
+    method: HEAD
+    uri: https://nohead501.example/report.pdf
+  response:
+    body:
+      string: ''
+    headers:
+      Content-Type:
+      - text/html
+    status:
+      code: 501
+      message: Not Implemented
+- request:
+    body: null
+    headers: {}
+    method: GET
+    uri: https://nohead501.example/report.pdf
+  response:
+    body:
+      string: !!binary |
+        JVBERi0xLjQK
+    headers:
+      Content-Type:
+      - application/pdf
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers: {}
+    method: GET
+    uri: https://nohead501.example/report.pdf
+  response:
+    body:
+      string: !!binary |
+        JVBERi0xLjQK
+    headers:
+      Content-Type:
+      - application/pdf
+    status:
+      code: 200
+      message: OK
+version: 1

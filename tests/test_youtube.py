@@ -3,7 +3,11 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import pytest
+from le_utils.constants import licenses
+from vcr_config import my_vcr
 
+from ricecooker import config
+from ricecooker.chefs import YouTubeSushiChef
 from ricecooker.classes.files import YouTubeSubtitleFile
 from ricecooker.utils.youtube import get_language_with_alpha2_fallback
 from ricecooker.utils.youtube import is_youtube_subtitle_file_supported_language
@@ -174,3 +178,30 @@ def test_youtube_edgecases_alpha2_codes():
     assert lang_obj.code == "he", "Wrong code"
     assert lang_obj.name == "Hebrew (modern)", "Wrong name"
     assert lang_obj.native_name == "עברית", "Wrong native_name"
+
+
+class _ThumbnailChef(YouTubeSushiChef):
+    channel_info = {"CHANNEL_LANGUAGE": "en"}
+
+    def get_channel_metadata(self):
+        return {"defaults": {"license": licenses.CC_BY}}
+
+
+@my_vcr.use_cassette
+def test_update_refetches_youtube_thumbnail(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        "ricecooker.utils.youtube.DEFAULT_YOUTUBE_CACHE_DIR", str(tmp_path)
+    )
+    chef = _ThumbnailChef()
+    info = {
+        "id": "thumb-update",
+        "title": "T",
+        "description": "",
+        "thumbnail": "https://i.ytimg.com/vi/thumb-update/hqdefault.png",
+    }
+    with patch("ricecooker.utils.youtube.yt_dlp.YoutubeDL") as youtube_dl:
+        youtube_dl.return_value.extract_info.return_value = info
+        first = chef.create_video_node("thumb-update").thumbnail.path
+        with patch.object(config, "UPDATE", True):
+            refetched = chef.create_video_node("thumb-update").thumbnail.path
+    assert refetched != first

@@ -1,0 +1,45 @@
+interactions:
+- request:
+    body: null
+    headers: {}
+    method: HEAD
+    uri: https://flaky.example/doc.pdf
+  response:
+    body:
+      string: ''
+    headers:
+      Content-Type:
+      - application/pdf
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers: {}
+    method: GET
+    uri: https://flaky.example/doc.pdf
+  response:
+    body:
+      string: busy
+    headers:
+      Content-Type:
+      - text/plain
+    status:
+      code: 503
+      message: Service Unavailable
+- request:
+    body: null
+    headers: {}
+    method: GET
+    uri: https://flaky.example/doc.pdf
+  response:
+    body:
+      string: !!binary |
+        JVBERi0xLjQK
+    headers:
+      Content-Type:
+      - application/pdf
+    status:
+      code: 200
+      message: OK
+version: 1

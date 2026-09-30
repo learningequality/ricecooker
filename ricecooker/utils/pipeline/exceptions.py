@@ -12,3 +12,7 @@ class ExpectedFileException(Exception):
 
 class NotHandledException(Exception):
     pass
+
+
+class ProbeError(ExpectedFileException):
+    pass

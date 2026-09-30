@@ -32,6 +32,7 @@ from ricecooker.utils.paths import extract_path_ext
 from ricecooker.utils.paths import resolve_path_ext
 from ricecooker.utils.pipeline.exceptions import InvalidFileException
 from ricecooker.utils.pipeline.exceptions import NotHandledException
+from ricecooker.utils.pipeline.exceptions import ProbeError
 from ricecooker.utils.references import neutralize_external_navigation
 from ricecooker.utils.singlefile import render_page
 from ricecooker.utils.singlefile import SingleFileRenderError
@@ -121,9 +122,18 @@ class WebResourceHandler(FileHandler):
                 response = config.DOWNLOAD_SESSION.head(
                     url, allow_redirects=True, timeout=(30, 30)
                 )
-                content_type = response.headers.get("content-type", "")
             except RequestException:
-                content_type = ""
+                response = None
+            if response is None or not response.ok:
+                try:
+                    response = config.DOWNLOAD_SESSION.get(
+                        url, stream=True, timeout=(30, 60)
+                    )
+                    response.close()
+                    response.raise_for_status()
+                except RequestException as e:
+                    raise ProbeError(e) from e
+            content_type = response.headers.get("content-type", "")
             self._content_type_cache[url] = (
                 content_type.split(";", 1)[0].strip().lower()
             )
@@ -191,11 +201,11 @@ class CatchAllWebResourceDownloadHandler(DeclaredExtMixin, WebResourceHandler):
         # (connection_timeout, read_timeout) - connection timeout for establishing connection,
         # read timeout for time between receiving data chunks (prevents stuck downloads)
         r = config.DOWNLOAD_SESSION.get(path, stream=True, timeout=(30, 60))
+        r.raise_for_status()
         original_filename = extract_filename_from_request(path, r)
         ext = resolve_path_ext(
             original_filename, declared_ext=ext, default_ext=default_ext
         )
-        r.raise_for_status()
         with self.write_file(ext) as fh:
             for chunk in r.iter_content(chunk_size=8192):
                 fh.write(chunk)
@@ -340,7 +350,10 @@ class YoutubeDownloadHandler(WebResourceHandler):
 
     def _extract_single(self, ydl, path, wants_video):
         if not is_youtube_url(path):
-            content_type = self._content_type(path)
+            try:
+                content_type = self._content_type(path)
+            except ProbeError:
+                content_type = ""
             if content_type and content_type not in self.HTML_CONTENT_TYPES:
                 raise self._no_video(path, content_type)
         with self._video_errors(path, fall_through=not wants_video):
@@ -602,7 +615,7 @@ class SingleFileRenderContextMetadata(ContextMetadata):
     crawl_rewrite_rule: Optional[str] = None
     browser_executable_path: Optional[str] = None
     # Auth for login-walled targets, forwarded to single-file's
-    # --browser-cookies-file / --http-header. The HEAD probe in should_handle has
+    # --browser-cookies-file / --http-header. The probe in should_handle has
     # no per-URL context, so it authenticates separately via config.DOWNLOAD_SESSION.
     browser_cookies_file: Optional[str] = None
     http_headers: Optional[Dict[str, str]] = None
@@ -611,15 +624,18 @@ class SingleFileRenderContextMetadata(ContextMetadata):
 class SingleFileRenderHandler(WebResourceHandler):
     """Render a URL that serves an HTML page into an HTML5 zip via single-file-cli.
 
-    ``should_handle`` does a cached HEAD request and claims a URL only when it
-    serves HTML. No pip dependency is added — the ``single-file``/Chromium
-    binaries are shelled out to lazily and only for HTML URLs. For login-walled
-    targets see :class:`SingleFileRenderContextMetadata`.
+    ``should_handle`` does a cached HEAD request, or a streamed GET when HEAD
+    fails, and claims a URL when a successful response reports HTML. No pip
+    dependency is added — the ``single-file``/Chromium binaries are shelled out
+    to lazily and only for HTML URLs. For login-walled targets see
+    :class:`SingleFileRenderContextMetadata`.
     """
 
     CONTEXT_CLASS = SingleFileRenderContextMetadata
 
     HANDLED_EXCEPTIONS = [SingleFileRenderError]
+
+    REMOTE_PROBE = True
 
     def should_handle(self, url: str) -> bool:
         try:
@@ -677,8 +693,20 @@ class DownloadStageHandler(StageHandler):
             if isinstance(child, WebResourceHandler):
                 child._content_type_cache = content_type_cache
 
+    @staticmethod
+    def _claims(handler, path):
+        if handler.REMOTE_PROBE and handler.get_cached(path):
+            return True
+        try:
+            return handler.should_handle(path)
+        except ProbeError:
+            return False
+
     def should_handle(self, path: str) -> bool:
-        should_handle = super().should_handle(path)
+        should_handle = any(
+            self._claims(handler, path)
+            for handler in sorted(self._children, key=lambda h: h.REMOTE_PROBE)
+        )
         if not should_handle:
             # If we can't handle the specified path, we raise an error
             # to prevent further processing
@@ -724,6 +752,6 @@ def read(path):
     global _download_stage
     if _download_stage is None:
         _download_stage = DownloadStageHandler()
-    results = _download_stage.execute(path)
+    results = _download_stage.execute(path, skip_cache=config.UPDATE)
     with open(results[0].path, "rb") as fh:
         return fh.read()

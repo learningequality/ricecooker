@@ -213,20 +213,7 @@ FILECACHE_DIRECTORY = os.getenv(
 
 FAILED_FILES = []
 
-# Session for downloading files. Retry transient failures (connection resets,
-# read timeouts, 429/5xx) so a slow or briefly unavailable host does not fail
-# the download outright — parity with the retry adapter the old downloader.py
-# session mounted before it was removed.
 DOWNLOAD_SESSION = DomainAuthSession()
-_download_retry = Retry(
-    total=3,
-    backoff_factor=1,
-    status_forcelist=(429, 500, 502, 503, 504),
-    allowed_methods=frozenset(["GET", "HEAD"]),
-    raise_on_status=False,
-)
-DOWNLOAD_SESSION.mount("http://", HTTPAdapter(max_retries=_download_retry))
-DOWNLOAD_SESSION.mount("https://", HTTPAdapter(max_retries=_download_retry))
 DOWNLOAD_SESSION.mount("file://", FileAdapter())
 
 # Environment variable indicating we should use a proxy for yt_dlp downloads
@@ -447,14 +434,35 @@ def get_storage_url(filename):
     Args: filename (str): Name of file
     Returns: string URL for file
     """
-    file_url = FILE_STORAGE_URL.format(
-        domain=DOMAIN, f=filename[0], s=filename[1], filename=filename
-    )
+    return "{}{}/{}/{}".format(get_storage_prefix(), filename[0], filename[1], filename)
+
+
+def get_storage_prefix():
+    prefix = FILE_STORAGE_URL.split("{f}", 1)[0].format(domain=DOMAIN)
     if DOMAIN == DEFAULT_DOMAIN:
         # If we are targeting the default domain, don't make content storage requests
         # to api.studio because it will skip cloudflare.
-        file_url = file_url.replace("api.", "")
-    return file_url
+        prefix = prefix.replace("api.", "")
+    return prefix
+
+
+def set_download_attempts(attempts):
+    retry = Retry(
+        total=attempts,
+        connect=0,
+        other=0,
+        backoff_factor=1,
+        status_forcelist=(429, 500, 502, 503, 504),
+        allowed_methods=frozenset(["GET"]),
+        raise_on_status=False,
+    )
+    DOWNLOAD_SESSION.mount("http://", HTTPAdapter(max_retries=retry))
+    DOWNLOAD_SESSION.mount("https://", HTTPAdapter(max_retries=retry))
+    storage_retry = retry.new(connect=None, allowed_methods=frozenset(["GET", "HEAD"]))
+    DOWNLOAD_SESSION.mount(get_storage_prefix(), HTTPAdapter(max_retries=storage_retry))
+
+
+set_download_attempts(3)
 
 
 def create_channel_url():
