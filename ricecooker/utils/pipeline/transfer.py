@@ -1,10 +1,12 @@
 import base64
 import binascii
+import functools
 import hashlib
 import mimetypes
 import os
 import re
 import tempfile
+from contextlib import contextmanager
 from dataclasses import field
 from sys import platform
 from typing import Dict
@@ -20,23 +22,28 @@ from requests.exceptions import InvalidSchema
 from requests.exceptions import InvalidURL
 from requests.exceptions import RequestException
 from requests.exceptions import Timeout
+from yt_dlp.extractor import gen_extractor_classes
 
 from ricecooker import config
 from ricecooker.utils.caching import generate_key
 from ricecooker.utils.encodings import ext_from_data_uri_mimetype
 from ricecooker.utils.encodings import get_base64_data_uri
+from ricecooker.utils.paths import extract_path_ext
 from ricecooker.utils.paths import resolve_path_ext
 from ricecooker.utils.pipeline.exceptions import InvalidFileException
+from ricecooker.utils.pipeline.exceptions import NotHandledException
 from ricecooker.utils.references import neutralize_external_navigation
 from ricecooker.utils.singlefile import render_page
 from ricecooker.utils.singlefile import SingleFileRenderError
 from ricecooker.utils.storage import get_hash
 from ricecooker.utils.youtube import get_language_with_alpha2_fallback
+from ricecooker.utils.youtube import is_youtube_url
 from ricecooker.utils.youtube import YouTubeResource
 
 from .context import ContextMetadata
 from .context import FileMetadata
 from .convert import _seal_directory_to_file
+from .convert import VideoCompressionHandler
 from .file_handler import FileHandler
 from .file_handler import Handler
 from .file_handler import StageHandler
@@ -101,6 +108,26 @@ class WebResourceHandler(FileHandler):
     """Base class for handling web URLs"""
 
     PATTERNS = []
+
+    HTML_CONTENT_TYPES = ("text/html", "application/xhtml+xml")
+
+    def __init__(self, **context):
+        super().__init__(**context)
+        self._content_type_cache = {}
+
+    def _content_type(self, url: str) -> str:
+        if url not in self._content_type_cache:
+            try:
+                response = config.DOWNLOAD_SESSION.head(
+                    url, allow_redirects=True, timeout=(30, 30)
+                )
+                content_type = response.headers.get("content-type", "")
+            except RequestException:
+                content_type = ""
+            self._content_type_cache[url] = (
+                content_type.split(";", 1)[0].strip().lower()
+            )
+        return self._content_type_cache[url]
 
     def should_handle(self, url):
         """Check if this handler should handle the given URL"""
@@ -181,26 +208,74 @@ class YouTubeContextMetadata(ContextMetadata):
     max_height: int = 0
     subtitle_languages: list[str] = field(default_factory=list)
     yt_dlp_settings: dict = field(default_factory=dict)
+    default_ext: Optional[str] = None
+    ext: Optional[str] = None
+
+
+@functools.cache
+def _yt_dlp_extractors():
+    # yt-dlp's Generic extractor claims every URL.
+    return [ie for ie in gen_extractor_classes() if ie.ie_key() != "Generic"]
+
+
+class _QuietLogger:
+    def debug(self, msg):
+        config.LOGGER.debug(msg)
+
+    info = warning = error = debug
 
 
 class YoutubeDownloadHandler(WebResourceHandler):
     CONTEXT_CLASS = YouTubeContextMetadata
 
-    PATTERNS = ["youtube.com", "youtu.be"]
+    PATTERNS = [""]
+
+    HANDLED_EXCEPTIONS = [yt_dlp.utils.YoutubeDLError]
+
+    def __init__(self, **context):
+        super().__init__(**context)
+        self._should_handle_cache = {}
+
+    def _has_non_video_ext(self, url):
+        try:
+            ext = extract_path_ext(url)
+        except ValueError:
+            return False
+        return ext not in VideoCompressionHandler.EXTENSIONS
+
+    def should_handle(self, url):
+        if not super().should_handle(url) or self._has_non_video_ext(url):
+            return False
+        if url not in self._should_handle_cache:
+            self._should_handle_cache[url] = any(
+                ie.suitable(url) for ie in _yt_dlp_extractors()
+            )
+        return self._should_handle_cache[url]
 
     def get_cache_key(self, path, **kwargs) -> str:
         return generate_key("DOWNLOADED", path, settings=kwargs["yt_dlp_settings"])
 
     def get_file_kwargs(self, context: YouTubeContextMetadata) -> list[dict]:
+        for ext in (context.default_ext, context.ext):
+            if ext and ext not in VideoCompressionHandler.EXTENSIONS:
+                raise NotHandledException(ext)
         file_kwargs = []
         if context.download_video:
             max_height = context.max_height or (720 if context.high_resolution else 480)
-            yt_dlp_settings = context.yt_dlp_settings or {
+            yt_dlp_settings = {
                 "format": f"bestvideo[height<={max_height}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<={max_height}][ext=webm]+bestaudio[ext=webm]/best[height<={max_height}][ext=mp4]",  # noqa: E501
+                **context.yt_dlp_settings,
             }
+            format_fallback = (
+                ""
+                if "format" in context.yt_dlp_settings
+                else f"/bestvideo[height<={max_height}][ext=mp4]+bestaudio[ext=mp4]"
+            )
             file_kwargs.append(
                 {
                     "yt_dlp_settings": yt_dlp_settings,
+                    "format_fallback": format_fallback,
+                    "default_ext": context.default_ext,
                 }
             )
         for lang in context.subtitle_languages:
@@ -218,20 +293,93 @@ class YoutubeDownloadHandler(WebResourceHandler):
             )
         return file_kwargs
 
-    def _fetch_from_youtube(self, path, yt_dlp_settings, file_format, destination_path):
-        # Download the web_url which can be either a video or subtitles
-        if not config.USEPROXY:
-            # Connect to YouTube directly
+    def _reject_playlist(self, path, info):
+        if info.get("_type") in ("playlist", "multi_video"):
+            raise InvalidFileException(f"{path} is a playlist, not a single video")
+
+    def _no_video(self, path, reason):
+        config.LOGGER.warning(f"\tyt-dlp found no video at {path}: {reason}")
+        return NotHandledException(path)
+
+    @contextmanager
+    def _video_errors(self, path, fall_through):
+        try:
+            yield
+        except Exception as e:
+            if fall_through:
+                raise self._no_video(path, e)
+            if isinstance(e, yt_dlp.utils.YoutubeDLError):
+                raise
+            # yt-dlp re-raises extractor bugs as-is.
+            raise yt_dlp.utils.DownloadError(str(e)) from e
+
+    def _follow_url(self, ydl, info):
+        inner = ydl.extract_info(
+            info["url"], download=False, process=False, ie_key=info.get("ie_key")
+        )
+        if info["_type"] == "url":
+            return inner
+        # Mirrors yt-dlp's url_transparent merge in YoutubeDL.process_ie_result.
+        exempted = {"_type", "url", "ie_key"}
+        if not info.get("section_end") and info.get("section_start") is None:
+            exempted |= {"id", "extractor", "extractor_key"}
+        merged = {
+            **inner,
+            **{k: v for k, v in info.items() if v is not None and k not in exempted},
+        }
+        if merged.get("_type") == "url":
+            merged["_type"] = "url_transparent"
+        return merged
+
+    def _is_audio_only(self, fmt):
+        if fmt.get("vcodec") is not None:
+            return fmt["vcodec"] == "none"
+        # Extractors leave vcodec unset on bare audio URLs (e.g. AudioBoom).
+        ext = fmt.get("ext") or yt_dlp.utils.determine_ext(fmt.get("url", ""))
+        return ext in yt_dlp.utils.MEDIA_EXTENSIONS.audio
+
+    def _extract_single(self, ydl, path, wants_video):
+        if not is_youtube_url(path):
+            content_type = self._content_type(path)
+            if content_type and content_type not in self.HTML_CONTENT_TYPES:
+                raise self._no_video(path, content_type)
+        with self._video_errors(path, fall_through=not wants_video):
+            info = ydl.extract_info(path, download=False, process=False)
+            while info.get("_type") in ("url", "url_transparent"):
+                info = self._follow_url(ydl, info)
+        # yt-dlp derives is_live from live_status only after this point.
+        is_live = info.get("is_live") or info.get("live_status") == "is_live"
+        if wants_video:
+            self._reject_playlist(path, info)
+            if is_live:
+                raise InvalidFileException(f"{path} is a live stream")
+        else:
+            formats = info.get("formats") or ([info] if info.get("url") else [])
+            if all(self._is_audio_only(f) for f in formats):
+                raise self._no_video(path, "no video formats")
+            if is_live:
+                raise self._no_video(path, "live stream")
+        return info
+
+    def _fetch_from_youtube(
+        self, path, yt_dlp_settings, file_format, destination_path, wants_video
+    ):
+        if not config.USEPROXY or not is_youtube_url(path):
             with yt_dlp.YoutubeDL(yt_dlp_settings) as ydl:
-                ydl.download([path])
-                if not os.path.exists(destination_path):
-                    raise yt_dlp.utils.DownloadError("Failed to download " + path)
+                info = self._extract_single(ydl, path, wants_video)
+                with self._video_errors(path, fall_through=False):
+                    ydl.process_ie_result(info, download=True)
+                    if not os.path.exists(destination_path):
+                        raise yt_dlp.utils.DownloadError("Failed to download " + path)
         else:
             # Connect to YouTube via an HTTP proxy
             yt_resource = YouTubeResource(path, useproxy=True, options=yt_dlp_settings)
-            result1 = yt_resource.get_resource_info()
+            result1 = yt_resource.get_resource_info(
+                options={"extract_flat": "in_playlist"}
+            )
             if result1 is None:
                 raise yt_dlp.utils.DownloadError("Failed to get resource info")
+            self._reject_playlist(path, yt_resource.info)
             yt_dlp_settings["writethumbnail"] = False  # overwrite default behaviour
             if file_format == file_formats.VTT:
                 # We need to use the proxy when downloading subtitles
@@ -242,12 +390,25 @@ class YoutubeDownloadHandler(WebResourceHandler):
             if result2 is None or not os.path.exists(destination_path):
                 raise yt_dlp.utils.DownloadError("Failed to download resource " + path)
 
-    def handle_file(self, path, yt_dlp_settings=None):
+    def handle_file(
+        self, path, yt_dlp_settings=None, format_fallback="", default_ext=None
+    ):
         # By default assume we are downloading a video file
         if yt_dlp_settings is None:
             raise ValueError("yt_dlp_settings must be provided")
+        if format_fallback:
+            yt_dlp_settings = {
+                **yt_dlp_settings,
+                "format": yt_dlp_settings["format"] + format_fallback,
+            }
+        is_subtitle = "subtitleslangs" in yt_dlp_settings
+        wants_video = is_youtube_url(path) or is_subtitle or default_ext is not None
+        if wants_video:
+            yt_dlp_settings = {"noplaylist": True, **yt_dlp_settings}
+        else:
+            yt_dlp_settings = {"logger": _QuietLogger(), **yt_dlp_settings}
         youtube_language = None
-        if "subtitleslangs" in yt_dlp_settings:
+        if is_subtitle:
             file_format = file_formats.VTT
             youtube_language = yt_dlp_settings["subtitleslangs"][0]
             download_ext = ext = ".{lang}.{ext}".format(
@@ -273,7 +434,9 @@ class YoutubeDownloadHandler(WebResourceHandler):
             os.remove(destination_path)
 
         # Download the file from YouTube
-        self._fetch_from_youtube(path, yt_dlp_settings, file_format, destination_path)
+        self._fetch_from_youtube(
+            path, yt_dlp_settings, file_format, destination_path, wants_video
+        )
 
         with self.write_file(file_format) as fh:
             with open(destination_path, "rb") as fobj:
@@ -456,30 +619,7 @@ class SingleFileRenderHandler(WebResourceHandler):
 
     CONTEXT_CLASS = SingleFileRenderContextMetadata
 
-    HTML_CONTENT_TYPES = ("text/html", "application/xhtml+xml")
-
     HANDLED_EXCEPTIONS = [SingleFileRenderError]
-
-    def __init__(self):
-        super().__init__()
-        # Memoize the HEAD content-type per URL: should_handle can be called more
-        # than once per URL (composite probe + FirstHandlerOnly dispatch), and we
-        # want at most one HEAD round-trip each.
-        self._content_type_cache = {}
-
-    def _content_type(self, url: str) -> str:
-        if url not in self._content_type_cache:
-            try:
-                response = config.DOWNLOAD_SESSION.head(
-                    url, allow_redirects=True, timeout=(30, 30)
-                )
-                content_type = response.headers.get("content-type", "")
-            except RequestException:
-                content_type = ""
-            self._content_type_cache[url] = (
-                content_type.split(";", 1)[0].strip().lower()
-            )
-        return self._content_type_cache[url]
 
     def should_handle(self, url: str) -> bool:
         try:
@@ -519,8 +659,9 @@ class SingleFileRenderHandler(WebResourceHandler):
 class DownloadStageHandler(StageHandler):
     STAGE = "DOWNLOAD"
     DEFAULT_CHILDREN = [
-        YoutubeDownloadHandler,
+        # Before yt-dlp, whose GoogleDrive extractor also claims Drive file links.
         GoogleDriveHandler,
+        YoutubeDownloadHandler,
         # After the site-specific handlers and before the catch-all: HTML pages
         # render, everything else falls through to a static download.
         SingleFileRenderHandler,
@@ -528,6 +669,13 @@ class DownloadStageHandler(StageHandler):
         DiskResourceHandler,
         Base64FileHandler,
     ]
+
+    def __init__(self, children=None):
+        super().__init__(children=children)
+        content_type_cache = {}
+        for child in self._children:
+            if isinstance(child, WebResourceHandler):
+                child._content_type_cache = content_type_cache
 
     def should_handle(self, path: str) -> bool:
         should_handle = super().should_handle(path)
