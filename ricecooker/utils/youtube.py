@@ -6,6 +6,7 @@ import re
 import time
 from datetime import datetime
 from enum import Enum
+from urllib.parse import urlparse
 
 import langcodes
 import yt_dlp
@@ -31,6 +32,11 @@ NON_NETWORK_ERRORS = [
     yt_dlp.utils.ExtractorError,  # private and unlisted videos
     yt_dlp.utils.PostProcessingError,  # custom postprocessors failures
 ]
+
+
+def is_youtube_url(url):
+    host = urlparse(url).hostname or ""
+    return host in ("youtube.com", "youtu.be") or host.endswith(".youtube.com")
 
 
 def get_youtube_info(youtube_url):

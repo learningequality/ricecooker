@@ -11,11 +11,13 @@ from http.server import BaseHTTPRequestHandler
 from http.server import ThreadingHTTPServer
 from io import BytesIO
 from shutil import copyfile
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 from unittest.mock import patch
 from urllib.parse import urlparse
 
 import pytest
+import yt_dlp
 from conftest import sample_path
 from le_utils.constants import file_formats
 from le_utils.constants import format_presets
@@ -27,6 +29,9 @@ from PyPDF2 import PdfFileWriter
 from requests import ConnectionError
 from requests import HTTPError
 from vcr_config import my_vcr
+from yt_dlp.extractor.vimeo import VimeoAlbumIE
+from yt_dlp.extractor.youtube import YoutubeIE
+from yt_dlp.extractor.youtube import YoutubeTabIE
 
 from ricecooker import config
 from ricecooker.classes.files import _ExerciseGraphieFile
@@ -42,8 +47,10 @@ from ricecooker.classes.files import StudioFile
 from ricecooker.classes.files import SubtitleFile
 from ricecooker.classes.files import ThumbnailFile
 from ricecooker.classes.files import VideoFile
+from ricecooker.classes.files import WebVideoFile
 from ricecooker.classes.files import YouTubeVideoFile
 from ricecooker.exceptions import FileNotFoundException
+from ricecooker.utils import proxy
 from ricecooker.utils.audio import AudioCompressionError
 from ricecooker.utils.pipeline import FilePipeline
 from ricecooker.utils.pipeline.convert import ConversionStageHandler
@@ -908,12 +915,149 @@ def test_create_many_predictable_zip_files(ndirs=8193):
 """ *********** YOUTUBEVIDEOFILE TESTS *********** """
 
 
+class FakeYoutubeDL:
+    fake = None
+
+    def __init__(self, params):
+        self.fake.params = params
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc_info):
+        return False
+
+    def extract_info(self, url, **kwargs):
+        if "extract_info" in self.fake.errors:
+            raise self.fake.errors["extract_info"]
+        return {"id": "fake", "url": url}
+
+    def process_ie_result(self, ie_result, **kwargs):
+        if "process_ie_result" in self.fake.errors:
+            raise self.fake.errors["process_ie_result"]
+        copyfile(sample_path("low_res_sample.mp4"), self.fake.params["outtmpl"])
+        return ie_result
+
+
+@pytest.fixture
+def fake_yt_dlp(monkeypatch, mock_session):
+    fake = SimpleNamespace(params=None, errors={})
+    monkeypatch.setattr(FakeYoutubeDL, "fake", fake)
+    mock_session.head.side_effect = mock_session.get.side_effect = ConnectionError(
+        "offline"
+    )
+    monkeypatch.setattr(
+        "ricecooker.utils.pipeline.transfer.yt_dlp.YoutubeDL", FakeYoutubeDL
+    )
+    return fake
+
+
 @my_vcr.use_cassette
 def test_youtubevideo_process_file(youtube_video_dict):
     video_file = YouTubeVideoFile(youtube_id=youtube_video_dict["youtube_id"])
     filename = video_file.process_file()
     assert filename is not None, "Processing YouTubeVideoFile file failed"
     assert filename.endswith(".mp4"), "Wrong extenstion for video"
+
+
+@pytest.mark.parametrize(
+    "useproxy,url",
+    [(False, "https://vimeo.com/76979871"), (True, "https://vimeo.com/76979872")],
+)
+def test_webvideo_downloads_vimeo_with_yt_dlp(fake_yt_dlp, monkeypatch, useproxy, url):
+    monkeypatch.setattr(config, "USEPROXY", useproxy)
+    video_file = WebVideoFile(url)
+    filename = video_file.process_file()
+    assert filename is not None, video_file.error
+    assert filename.endswith(".mp4")
+
+
+PLAYLIST_URL = "https://www.youtube.com/playlist?list=PL472BC6F4F2C3ABEF"
+VIMEO_SHOWCASE_URL = "https://vimeo.com/showcase/7008490"
+# YoutubeTab returns a url result for a watch URL without v=
+REDIRECT_URL = "https://www.youtube.com/watch?list=PL472BC6F4F2C3ABEF"
+PLAYLIST = {
+    "_type": "playlist",
+    "id": "PL472BC6F4F2C3ABEF",
+    "entries": [{"_type": "url", "url": "https://www.youtube.com/watch?v=aaaaaaaaaaa"}],
+}
+
+
+@pytest.mark.parametrize("useproxy", [False, True], ids=["direct", "proxy"])
+@pytest.mark.parametrize(
+    "url,results",
+    [
+        (PLAYLIST_URL, {PLAYLIST_URL: PLAYLIST}),
+        (
+            REDIRECT_URL,
+            {
+                REDIRECT_URL: {"_type": "url", "url": PLAYLIST_URL},
+                PLAYLIST_URL: PLAYLIST,
+            },
+        ),
+        (VIMEO_SHOWCASE_URL, {VIMEO_SHOWCASE_URL: PLAYLIST}),
+    ],
+    ids=["playlist", "redirect", "vimeo"],
+)
+def test_webvideo_playlist_url_fails_before_entries_resolve(
+    mock_session, monkeypatch, url, results, useproxy
+):
+    monkeypatch.setattr(config, "USEPROXY", useproxy)
+    monkeypatch.setenv("PROXY_LIST", "proxy.invalid:3128")
+    monkeypatch.setattr(proxy, "PROXY_LIST", [])
+    mock_session.head.side_effect = ConnectionError("offline")
+    monkeypatch.setattr(
+        yt_dlp.YoutubeDL, "urlopen", MagicMock(side_effect=ConnectionError("offline"))
+    )
+    for extractor in (YoutubeTabIE, VimeoAlbumIE):
+        monkeypatch.setattr(extractor, "_real_extract", lambda self, u: results[u])
+    resolved = []
+    monkeypatch.setattr(
+        YoutubeIE, "_real_extract", lambda self, u: resolved.append(u) or {}
+    )
+    video_file = WebVideoFile(url)
+    assert video_file.process_file() is None
+    assert "playlist" in video_file.error
+    assert video_file in config.FAILED_FILES
+    assert resolved == []
+
+
+@pytest.mark.parametrize(
+    "method,error",
+    [
+        ("extract_info", yt_dlp.utils.DownloadError("Video unavailable")),
+        ("extract_info", TypeError("extractor bug")),
+        (
+            "process_ie_result",
+            yt_dlp.utils.ExtractorError("Requested format is not available"),
+        ),
+        ("process_ie_result", TypeError("extractor bug")),
+    ],
+)
+@pytest.mark.parametrize(
+    "url", ["https://www.youtube.com/watch?v=unavailable", "https://vimeo.com/76979874"]
+)
+def test_webvideo_yt_dlp_error_fails_the_file(fake_yt_dlp, url, method, error):
+    fake_yt_dlp.errors = {method: error}
+    video_file = WebVideoFile(url)
+    assert video_file.process_file() is None
+    assert str(error) in video_file.error
+    assert video_file in config.FAILED_FILES
+
+
+def test_youtubevideo_download_settings_keep_default_format(fake_yt_dlp):
+    YouTubeVideoFile(
+        "c00kiefile1", download_settings={"cookiefile": "c.txt"}, maxheight=360
+    ).process_file()
+    assert fake_yt_dlp.params["cookiefile"] == "c.txt"
+    assert "height<=360" in fake_yt_dlp.params.get("format", "")
+
+
+def test_youtubevideo_download_settings_format_overrides_default(fake_yt_dlp):
+    YouTubeVideoFile(
+        "userformat1", download_settings={"format": "worst"}, maxheight=360
+    ).process_file()
+    assert fake_yt_dlp.params["format"] == "worst"
 
 
 """ *********** SUBTITLEFILE TESTS *********** """

@@ -8,3 +8,7 @@ class InvalidFileException(Exception):
 
 class ExpectedFileException(Exception):
     pass
+
+
+class NotHandledException(Exception):
+    pass

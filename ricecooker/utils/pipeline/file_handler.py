@@ -26,6 +26,7 @@ from .context import ContextMetadata
 from .context import FileMetadata
 from .exceptions import ExpectedFileException
 from .exceptions import InvalidFileException
+from .exceptions import NotHandledException
 
 
 class Handler(ABC):
@@ -372,7 +373,10 @@ class FirstHandlerOnly(CompositeHandler):
     ) -> list[FileMetadata]:
         for handler in self.get_handlers(context):
             if handler.should_handle(path):
-                return handler.execute(path, context=context, skip_cache=skip_cache)
+                try:
+                    return handler.execute(path, context=context, skip_cache=skip_cache)
+                except NotHandledException:
+                    continue
         return []
 
 
