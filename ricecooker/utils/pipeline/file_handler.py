@@ -296,15 +296,13 @@ class FileHandler(Handler):
                     f"{e.cmd[0]} timed out after {e.timeout}s"
                 ) from e
 
-            original_path = path
+            output_path = self._output_path or path
 
-            path = self._output_path or path
-
-            file_metadata.filename = os.path.basename(path)
+            file_metadata.filename = os.path.basename(output_path)
 
             set_cache_data(cache_key, file_metadata.to_dict())
 
-            file_metadata.path = path
+            file_metadata.path = output_path
 
             self._output_path = None
 
@@ -312,11 +310,11 @@ class FileHandler(Handler):
 
             if kwargs:
                 config.LOGGER.info(
-                    f"\tCompleted {self.STAGE} for {original_path} with kwargs {kwargs} saved to {file_metadata.path}"
+                    f"\tCompleted {self.STAGE} for {path} with kwargs {kwargs} saved to {file_metadata.path}"
                 )
             else:
                 config.LOGGER.info(
-                    f"\tCompleted {self.STAGE} for {original_path} saved to {file_metadata.path}"
+                    f"\tCompleted {self.STAGE} for {path} saved to {file_metadata.path}"
                 )
 
         return file_metadata_list

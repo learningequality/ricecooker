@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import pytest
+import yt_dlp
 from le_utils.constants import format_presets
 from vcr_config import my_vcr
 
@@ -284,6 +285,62 @@ def test_gdrive_channel_spreadsheet(mock_google_creds):
     assert file_metadata is not None
     assert file_metadata[0].filename.endswith("xlsx")
     assert file_metadata[0].original_filename == "Channel spreadsheet"
+
+
+def _video_info(url, subtitle_lang):
+    return {
+        **VIDEO,
+        "webpage_url": url,
+        "formats": [
+            {
+                "format_id": "18",
+                "url": "https://media.invalid/v.mp4",
+                "protocol": "https",
+                "ext": "mp4",
+                "height": 360,
+                "vcodec": "avc1",
+                "acodec": "mp4a",
+            }
+        ],
+        "subtitles": {
+            subtitle_lang: [{"url": "https://media.invalid/s.vtt", "ext": "vtt"}]
+        },
+    }
+
+
+def _fake_yt_dlp_download(self, name, info, subtitle=False, test=False):
+    with open(name, "wb") as fh:
+        fh.write(b"WEBVTT\n" if subtitle else b"mp4 bytes")
+    return True, True
+
+
+@pytest.fixture
+def fake_video_site():
+    def download(url, extractor, subtitle_lang="en"):
+        with (
+            fake_extractors({extractor: _video_info(url, subtitle_lang)}),
+            patch.object(yt_dlp.YoutubeDL, "dl", _fake_yt_dlp_download),
+            html_page(url, _fake_render_page()),
+        ):
+            return DownloadStageHandler().execute(
+                url, context={"subtitle_languages": ["en"]}, skip_cache=True
+            )
+
+    return download
+
+
+@pytest.mark.parametrize(
+    "url,extractor",
+    [
+        (
+            "https://www.youtube.com/watch?v=abcdefghijk",
+            yt_dlp.extractor.youtube.YoutubeIE,
+        ),
+    ],
+)
+def test_download_stage_downloads_video_and_subtitles(fake_video_site, url, extractor):
+    result = fake_video_site(url, extractor)
+    assert [os.path.splitext(f.filename)[1] for f in result] == [".mp4", ".vtt"]
 
 
 def test_disk_transfer_file_protocol():
