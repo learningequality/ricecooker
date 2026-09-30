@@ -102,6 +102,26 @@ class WebResourceHandler(FileHandler):
 
     PATTERNS = []
 
+    HTML_CONTENT_TYPES = ("text/html", "application/xhtml+xml")
+
+    def __init__(self, **context):
+        super().__init__(**context)
+        self._content_type_cache = {}
+
+    def _content_type(self, url: str) -> str:
+        if url not in self._content_type_cache:
+            try:
+                response = config.DOWNLOAD_SESSION.head(
+                    url, allow_redirects=True, timeout=(30, 30)
+                )
+                content_type = response.headers.get("content-type", "")
+            except RequestException:
+                content_type = ""
+            self._content_type_cache[url] = (
+                content_type.split(";", 1)[0].strip().lower()
+            )
+        return self._content_type_cache[url]
+
     def should_handle(self, url):
         """Check if this handler should handle the given URL"""
         try:
@@ -456,30 +476,7 @@ class SingleFileRenderHandler(WebResourceHandler):
 
     CONTEXT_CLASS = SingleFileRenderContextMetadata
 
-    HTML_CONTENT_TYPES = ("text/html", "application/xhtml+xml")
-
     HANDLED_EXCEPTIONS = [SingleFileRenderError]
-
-    def __init__(self):
-        super().__init__()
-        # Memoize the HEAD content-type per URL: should_handle can be called more
-        # than once per URL (composite probe + FirstHandlerOnly dispatch), and we
-        # want at most one HEAD round-trip each.
-        self._content_type_cache = {}
-
-    def _content_type(self, url: str) -> str:
-        if url not in self._content_type_cache:
-            try:
-                response = config.DOWNLOAD_SESSION.head(
-                    url, allow_redirects=True, timeout=(30, 30)
-                )
-                content_type = response.headers.get("content-type", "")
-            except RequestException:
-                content_type = ""
-            self._content_type_cache[url] = (
-                content_type.split(";", 1)[0].strip().lower()
-            )
-        return self._content_type_cache[url]
 
     def should_handle(self, url: str) -> bool:
         try:
@@ -528,6 +525,13 @@ class DownloadStageHandler(StageHandler):
         DiskResourceHandler,
         Base64FileHandler,
     ]
+
+    def __init__(self, children=None):
+        super().__init__(children=children)
+        content_type_cache = {}
+        for child in self._children:
+            if isinstance(child, WebResourceHandler):
+                child._content_type_cache = content_type_cache
 
     def should_handle(self, path: str) -> bool:
         should_handle = super().should_handle(path)
