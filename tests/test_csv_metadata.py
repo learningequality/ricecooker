@@ -2,6 +2,7 @@
 
 import os
 import tempfile
+from unittest.mock import patch
 
 import pytest
 from le_utils.constants import content_kinds
@@ -60,10 +61,18 @@ def test_exercises_linecook(channeldir):
     assert len(test_tree["children"]) == 3, "exercise node + two dirs"
 
     manager = ChannelManager(linecook.construct_channel())
-    manager.validate()
-    manager.process_tree()
+    with patch("ricecooker.config.STRICT", False):
+        manager.validate()
+        manager.process_tree()
     exercise_nodes = [n for n in manager.all_nodes if n.kind == content_kinds.EXERCISE]
-    assert [n.valid for n in exercise_nodes] == [True] * 5
+    # exrc4 and exrc5 link figures/*.png images that do not exist.
+    assert {n.source_id: n.valid for n in exercise_nodes} == {
+        "exrc1": True,
+        "exrc2": True,
+        "exrc3": True,
+        "exrc4": False,
+        "exrc5": False,
+    }
 
     # cleanup
     os.remove(jsontree_path)
