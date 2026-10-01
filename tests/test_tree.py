@@ -33,6 +33,7 @@ from test_videos import _clear_ricecookerfilecache
 from ricecooker import config
 from ricecooker.chefs import SushiChef
 from ricecooker.classes.files import DocumentFile
+from ricecooker.classes.files import File
 from ricecooker.classes.files import HTMLZipFile
 from ricecooker.classes.files import SubtitleFile
 from ricecooker.classes.files import ThumbnailFile
@@ -1882,6 +1883,87 @@ def test_file_upload_name_keeps_dotted_stem(studio, original_filename, expected)
     assert studio.upload_names == [expected]
 
 
+@pytest.mark.parametrize(
+    "original_filename,expected",
+    [
+        ("x" * 10 + "." + "y" * 300, "x" * 10 + "." + "y" * 244),
+        ("Lecture 3.5 " + "b" * 290, "Lecture 3.5 " + "b" * 243),
+        ("Chapter 1. " + "a" * 300 + ".pdf", "Chapter 1. " + "a" * 240 + ".pdf"),
+    ],
+)
+def test_upload_tree_commits_long_file_name(studio, original_filename, expected):
+    node = ContentNode(
+        "app",
+        "App",
+        licenses.CC_BY,
+        uri=sample_path("sample_html.zip"),
+        pipeline=FilePipeline(),
+        copyright_holder="x",
+    )
+    channel = ChannelNode("long-name", "www.learningequality.org", "Long name")
+    channel.add_child(node)
+    manager = ChannelManager(channel)
+    manager.process_tree()
+    (app_file,) = node.files
+    app_file.original_filename = original_filename
+
+    manager.upload_tree()
+
+    (sent,) = [n for n in studio.added_nodes if n["source_id"] == "app"]
+    assert [f["original_filename"] for f in sent["files"]] == [expected]
+
+
+def _perseus_question_with_long_image_name(exercise_image_file):
+    url = "http://h/" + "i" * 300 + ".png"
+    question = PerseusQuestion(
+        "q1", json.dumps({"question": {"content": f"![]({url})"}}), ka_language="en"
+    )
+    with (
+        open(exercise_image_file.path, "rb") as f,
+        fake_download_session({url: f.read()}),
+    ):
+        question.process_question()
+    return question
+
+
+def _sent_question_file_names(studio, source_id):
+    (sent,) = [n for n in studio.added_nodes if n["source_id"] == source_id]
+    return [f["original_filename"] for q in sent["questions"] for f in q["files"]]
+
+
+def test_upload_tree_commits_question_image_with_long_name(
+    studio, channel, exercise_image_file
+):
+    _clear_ricecookerfilecache()
+    question = _perseus_question_with_long_image_name(exercise_image_file)
+    exercise = ExerciseNode(
+        "ex",
+        "ex",
+        license=get_license(licenses.CC_BY, copyright_holder="x"),
+        exercise_data={"m": 1, "n": 1},
+        questions=[question],
+    )
+    channel.add_child(exercise)
+    manager = ChannelManager(channel)
+    manager.process_tree()
+
+    manager.upload_tree()
+
+    assert _sent_question_file_names(studio, "ex") == ["i" * 251 + ".png"]
+
+
+def test_question_truncate_fields_skips_empty_file_entries():
+    question = SingleSelectQuestion("q1", "q", "a", ["a", "b"])
+    long_file = File(
+        preset="exercise_image", filename="f.png", original_filename="o" * 300 + ".png"
+    )
+    question.files += [None, long_file]
+
+    question.truncate_fields()
+
+    assert long_file.original_filename == "o" * 251 + ".png"
+
+
 def test_file_upload_name_replaces_converted_extension(studio, tmp_path):
     cover = str(tmp_path / "Cover 1.2.webp")
     Image.open(sample_path("thumbnail.png")).save(cover)
@@ -2112,6 +2194,7 @@ class FakeStudio:
         self.thumbnail = None
         self.stored = set()
         self.upload_names = []
+        self.added_nodes = []
         self.failing_formats = set()
 
     def post(self, url, data=None, **kwargs):
@@ -2143,7 +2226,17 @@ class FakeStudio:
                 },
             )
         if url == config.add_nodes_url():
-            node_ids = [node["node_id"] for node in payload["content_data"]]
+            nodes = payload["content_data"]
+            if any(
+                len(f["original_filename"] or "") > config.MAX_ORIGINAL_FILENAME_LENGTH
+                for n in nodes
+                for f in n["files"]
+                + [qf for q in n.get("questions", []) for qf in q["files"]]
+            ):
+                # Studio's File.original_filename is a CharField(max_length=255).
+                return _studio_response(500, "Internal server error")
+            self.added_nodes += nodes
+            node_ids = [node["node_id"] for node in nodes]
             return _studio_response(
                 200, {"root_ids": {n: "srv_" + n for n in node_ids}}
             )
