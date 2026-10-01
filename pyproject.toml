@@ -74,7 +74,7 @@ docs = [
     "nbsphinx",
     "ipython",
     "sphinx-notfound-page",
-    "sphinx-llm[gen]==0.4.1",
+    "sphinx-llm[gen]==1.1.0",
 ]
 
 [tool.setuptools_scm]
