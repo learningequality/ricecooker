@@ -92,6 +92,8 @@ class BaseQuestion:
         return duplicate
 
     def truncate_fields(self):
+        for f in filter(lambda x: x and x.filename, self.files):
+            f.truncate_fields()
         if self.source_url and len(self.source_url) > config.MAX_SOURCE_URL_LENGTH:
             config.print_truncate(
                 "question_source_url", self.source_id, self.source_url

@@ -135,12 +135,14 @@ class File(object):
         return os.path.getsize(config.get_existing_storage_path(self.get_filename()))
 
     def truncate_fields(self):
+        owner = self.node or self.assessment_item
+        source_id = owner.source_id if owner else self.__class__.__name__
         if (
             self.original_filename
             and len(self.original_filename) > config.MAX_ORIGINAL_FILENAME_LENGTH
         ):
             config.print_truncate(
-                "original_filename", self.node.source_id, self.original_filename
+                "original_filename", source_id, self.original_filename
             )
             stem, ext = split_known_extension(self.original_filename)
             self.original_filename = (
@@ -148,9 +150,7 @@ class File(object):
             )
 
         if self.source_url and len(self.source_url) > config.MAX_SOURCE_URL_LENGTH:
-            config.print_truncate(
-                "file_source_url", self.node.source_id, self.source_url
-            )
+            config.print_truncate("file_source_url", source_id, self.source_url)
             self.source_url = self.source_url[: config.MAX_SOURCE_URL_LENGTH]
 
     def file_dict(self, filename=None):
