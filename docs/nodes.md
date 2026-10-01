@@ -37,9 +37,7 @@ the other primary leaf class, since exercise questions can't be expressed as a `
                                                               ricecooker.classes.questions
 
 See [Legacy / advanced node classes](#legacy-advanced-node-classes) below for
-the `VideoNode`/`AudioNode`/`DocumentNode`/`HTML5AppNode`/`H5PAppNode` subclasses,
-and [SlideshowNode nodes](#slideshownode-nodes) for `SlideshowNode`, which has
-no `uri`-based equivalent.
+the `VideoNode`/`AudioNode`/`DocumentNode`/`HTML5AppNode`/`H5PAppNode` subclasses.
 
 
 In the remainder of this document we'll describe in full detail the metadata that
@@ -317,37 +315,3 @@ There is no remaining functional advantage to using these classes over
 [files.md](./files.md#subtitle-files)) is expressed more simply as
 `ContentNode(uri=...)` plus `add_file(SubtitleFile(...))`, as shown in the
 [tutorial](tutorial/tutorial.html#step-6-add-content).
-
-
-SlideshowNode nodes
--------------------
-The `SlideshowNode` class and the associated `SlideImageFile` class are used to
-create powerpoint-like presentations. The following code sample shows how to
-create a `SlideshowNode` that contains two slide images:
-
-    slideshow_node = SlideshowNode(
-          source_id='<some unique identifier within source domain>',
-          title='My presentations',
-          author='First Last (author\'s name)',
-          description='Put slideshow description here',
-          language=getlang('en').code,
-          license=get_license(licenses.CC_BY, copyright_holder='Copyright holder name'),
-          thumbnail='some/local/path/slideshow_thumbnail.jpg',
-          files=[
-              SlideImageFile(
-                  path='some/local/path/firstslide.png',
-                  caption="The caption text to be displayed below the slide image.",
-                  descriptive_text="Description of the slide for users that cannot see the image",
-                  language=getlang('en').code,
-              ),
-              SlideImageFile(
-                  path='some/local/path/secondslide.jpg',
-                  caption="The caption for the second slide image.",
-                  descriptive_text="Alternative text for the second slide image",
-                  language=getlang('en').code,
-              )
-          ]
-    )
-
-Note this is a new feature in Kolibri 0.13 and prior version of Kolibri will not
-be able to import and view this content kind.

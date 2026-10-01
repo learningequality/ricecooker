@@ -48,7 +48,6 @@ Kolibri channels are tree-like structures that consist of the following types of
      - Video (`mp4` files with `h264` video codec and `aac` audio codec)
      - HTML5App (`zip` files containing web content like HTML, JavaScript, css and images)
      - H5PApp (self-contained `h5p` files)
-     - Slideshow (a sequence of `jpg` and `png` slide images)
      - Exercises containing questions like multiple choice, multiple selection, and numeric inputs
 
 Chef scripts create each content item by passing a `uri` (a local path or URL) to
