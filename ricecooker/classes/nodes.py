@@ -225,6 +225,15 @@ class Node(object):
             license, copyright_holder=copyright_holder, description=license_description
         )
 
+    def _merge_extra_fields(self, extra_fields):
+        extra_fields = dict(extra_fields)
+        options = {
+            **(self.extra_fields.get("options") or {}),
+            **(extra_fields.pop("options", None) or {}),
+        }
+        options = {key: value for key, value in options.items() if value is not None}
+        self.extra_fields = {**self.extra_fields, **extra_fields, "options": options}
+
     def set_metadata(self, metadata):
         """Apply constructor-style metadata fields to an already-built node.
 
@@ -232,7 +241,9 @@ class Node(object):
         replaces, license fields go through ``set_license``.
         """
         metadata = dict(metadata)
-        self.extra_fields.update(metadata.pop("extra_fields", None) or {})
+        extra_fields = metadata.pop("extra_fields", None)
+        if extra_fields:
+            self._merge_extra_fields(extra_fields)
         if "language" in metadata:
             self.set_language(metadata.pop("language"))
         license_fields = {
@@ -386,6 +397,9 @@ class Node(object):
         filenames = []
         for file in self.files:
             filenames.append(file.process_file())
+            extra_fields = (file.content_node_metadata or {}).get("extra_fields")
+            if extra_fields:
+                self._merge_extra_fields(extra_fields)
 
         # Auto-generation of thumbnails happens here if derive_thumbnail or config.THUMBNAILS is set
         if not self.has_thumbnail() and (config.THUMBNAILS or self.derive_thumbnail):
@@ -1141,24 +1155,16 @@ class ContentNode(TreeNode):
                 )
                 for q in metadata["questions"]
             ]
-            self._apply_exercise_settings(inherited.get("exercise_settings") or {})
-
-    def _apply_exercise_settings(self, settings):
-        settings = dict(settings)
-        options = {
-            **(self.extra_fields.get("options") or {}),
-            **(settings.pop("options", None) or {}),
-        }
-        if "modality" in options and options["modality"] is None:
-            # A plain exercise, not a practice quiz.
-            del options["modality"]
-        self.extra_fields.update(settings, options=options)
+            self._merge_extra_fields(inherited.get("exercise_settings") or {})
 
     def _process_uri(self):
         context = self.context
         if type(self).kind is not None:
             # A typed node cannot become a folder or change kind.
             context = {"preserve_kind": True, **context}
+        options = self.extra_fields.get("options") or {}
+        if options.get("entry"):
+            context = {"entry": options["entry"], "explicit_entry": True, **context}
         try:
             file_metadata_list = self.pipeline.execute(
                 self.uri, context=context, skip_cache=config.UPDATE
@@ -1181,13 +1187,15 @@ class ContentNode(TreeNode):
             return
         for metadata_dict in file_metadata_dicts:
             self.add_file(self._file_from_metadata(metadata_dict))
-        if (
-            self.kind is not None
-            and content_metadata.get("kind", self.kind) != self.kind
-        ):
-            raise InvalidNodeException(
-                "Inferred kind is different from content node class kind."
-            )
+        if self.kind is not None:
+            uri_kinds = {PRESET_LOOKUP[p].kind for p in self.required_presets} or {
+                self.kind
+            }
+            inferred_kind = content_metadata.pop("kind", None)
+            if inferred_kind and inferred_kind not in uri_kinds:
+                raise InvalidNodeException(
+                    f"Inferred kind {inferred_kind} is not one of {sorted(uri_kinds)}"
+                )
         self.set_metadata(content_metadata)
 
     def process_files(self):

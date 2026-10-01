@@ -74,6 +74,7 @@ class File(object):
     duration = None
     skip_upload = False
     default_preset = None
+    content_node_metadata = None
 
     def __init__(
         self,
@@ -261,6 +262,12 @@ class ThumbnailFile(ThumbnailPresetMixin, ImageDownloadFile):
     default_ext = file_formats.PNG
 
 
+def _ffmpeg_context(settings_key, ffmpeg_settings):
+    if ffmpeg_settings is False:
+        return {"compress": False}
+    return {settings_key: ffmpeg_settings or {}}
+
+
 class AudioFile(DownloadFile):
     default_ext = file_formats.MP3
     allowed_formats = AudioCompressionHandler.EXTENSIONS
@@ -269,7 +276,7 @@ class AudioFile(DownloadFile):
 
     def __init__(self, path, ffmpeg_settings=None, **kwargs):
         super(AudioFile, self).__init__(
-            path, context={"audio_settings": ffmpeg_settings or {}}, **kwargs
+            path, context=_ffmpeg_context("audio_settings", ffmpeg_settings), **kwargs
         )
 
 
@@ -300,6 +307,12 @@ class HTMLZipFile(DownloadFile):
     is_primary = True
     default_preset = format_presets.HTML5_ZIP
 
+    def process_file(self):
+        options = (self.node and self.node.extra_fields.get("options")) or {}
+        if options.get("entry"):
+            self.context.update(entry=options["entry"], explicit_entry=True)
+        return super().process_file()
+
 
 class H5PFile(DownloadFile):
     default_ext = file_formats.H5P
@@ -315,7 +328,7 @@ class VideoFile(DownloadFile):
 
     def __init__(self, path, ffmpeg_settings=None, **kwargs):
         super(VideoFile, self).__init__(
-            path, context={"video_settings": ffmpeg_settings or {}}, **kwargs
+            path, context=_ffmpeg_context("video_settings", ffmpeg_settings), **kwargs
         )
 
 
@@ -346,8 +359,7 @@ class YouTubeVideoFile(WebVideoFile):
         )
 
 
-class YouTubeSubtitleFile(File):
-    default_preset = format_presets.VIDEO_SUBTITLE
+class YouTubeSubtitleFile(DownloadFile):
     """
     Helper class for downloading youtube subtitles.
     Args:
@@ -358,19 +370,25 @@ class YouTubeSubtitleFile(File):
     if `language` is a supported code before creating the `YouTubeSubtitleFile`.
     """
 
+    default_ext = file_formats.VTT
+    default_preset = format_presets.VIDEO_SUBTITLE
+
     def __init__(self, youtube_id, language=None, **kwargs):
-        self.youtube_url = "http://www.youtube.com/watch?v={}".format(youtube_id)
         if isinstance(language, languages.Language):
             language = language.code
-        self.youtube_language = (
-            language  # save youtube language code (can differ from internal repr.)
+        self.youtube_language = language
+        super().__init__(
+            "http://www.youtube.com/watch?v={}".format(youtube_id),
+            context={
+                "subtitle_languages": [language],
+                "download_video": False,
+                # yt-dlp's handler refuses a non-video default_ext.
+                "default_ext": None,
+            },
+            language=get_language_with_alpha2_fallback(language).code,
+            **kwargs,
         )
-        language_obj = get_language_with_alpha2_fallback(language)
-        super(YouTubeSubtitleFile, self).__init__(language=language_obj.code, **kwargs)
-        self.context = {
-            "subtitle_languages": [self.youtube_language],
-            "download_video": False,
-        }
+        self.youtube_url = self.path
         assert self.language, "Subtitles must have a language"
 
 

@@ -179,9 +179,10 @@ go through the whole content pipeline.
 
 Creating a HTMLZipFile
 ----------------------
-No special technique is required to create HTMLZipFile files—as long as the .zip
-file contain the index.html in it's root (not in a subfolder), it can be used
-as a `HTMLZipFile` and added as a file to an `HTML5AppNode`.
+Any .zip file containing an HTML page can be used as a `HTMLZipFile` and added
+to an `HTML5AppNode`. A single top-level folder is stripped, and the entry page
+is detected (`index.html` first). Use `HTML5AppNode(entrypoint=...)` to pick
+another page.
 
 Since creating the zip files is such a common task of the cheffing process, we
 provide two helpers to save you time: the `create_predictable_zip` method and

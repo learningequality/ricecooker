@@ -177,7 +177,7 @@ The following file classes can be added to the `VideoNode`s:
     class WebVideoFile(File)
     class YouTubeVideoFile(WebVideoFile)
     class SubtitleFile(DownloadFile)
-    class YouTubeSubtitleFile(File)
+    class YouTubeSubtitleFile(DownloadFile)
 
 
 To create `VideoFile`, you need the code
@@ -262,8 +262,8 @@ Below are some general guidelines for handling video files:
     Here are some recommended choices for video vertical resolution:
       - Use max height of `480` for videos that work well in low resolution (most videos)
       - Use max height of `720` for high resolution videos (lectures with writing on board)
-  - Ricecooker can handle the video compression for you if you specify the
-    `--compress` command line argument.
+  - Ricecooker compresses videos by default when `ffmpeg` is installed;
+    pass `--no-compress` to upload them as-is.
   - The `ffmpeg` setting `crf` stands for Constant Rate Factor and is very useful
     for controlling overall video quality. Setting `crf=24` produces high quality
     video (and possibly large file size), `crf=28` is a mid-range quality, and

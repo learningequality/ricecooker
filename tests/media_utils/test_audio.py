@@ -33,6 +33,15 @@ class Test_compress_video:
             compressed_duration = videos.extract_duration_of_media(vout.name, "mp3")
             assert duration == compressed_duration
 
+    @pytest.mark.parametrize("bit_rate", [48, 96])
+    def test_compression_uses_bit_rate(self, audio_file, bit_rate):
+        with TempFile(suffix=".mp3") as vout:
+            audio.compress_audio(
+                audio_file.name, vout.name, overwrite=True, bit_rate=bit_rate
+            )
+            [stream] = videos.probe_media(vout.name)["streams"]
+            assert int(stream["bit_rate"]) == bit_rate * 1000
+
     def test_raises_for_bad_file(self):
         with TempFile(suffix=".mp4") as vout:
             with pytest.raises(audio.AudioCompressionError):

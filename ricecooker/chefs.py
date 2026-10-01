@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import re
+import shutil
 import sys
 from datetime import datetime
 from warnings import warn
@@ -137,8 +138,9 @@ class SushiChef(object):
         parser.add_argument("--quiet", action="store_true", help="Print only errors.")
         parser.add_argument(
             "--compress",
-            action="store_true",
-            help="Compress videos using ffmpeg -crf=32 -b:a 32k mono.",
+            action=argparse.BooleanOptionalAction,
+            default=None,
+            help="Compress video and audio with ffmpeg (default when ffmpeg is installed).",
         )
         parser.add_argument(
             "--thumbnails",
@@ -233,13 +235,11 @@ class SushiChef(object):
         """
 
         override = None
-        # If there is a command line flag for this setting, allow for it to override the chef
-        # default. Note that these are all boolean flags, so they are true if set, false if not.
         if setting == "thumbnails":
             override = self.args and self.args["thumbnails"]
 
-        if setting == "compress":
-            override = self.args and self.args["compress"]
+        if setting == "compress" and self.args and self.args["compress"] is not None:
+            return self.args["compress"]
 
         if setting in self.SETTINGS:
             return override or self.SETTINGS[setting]
@@ -522,19 +522,18 @@ class SushiChef(object):
         """
 
     def build_file_pipeline(self):
-        # Compression is opt-in via --compress; when set, derive the ffmpeg
-        # settings once and pass them through the pipeline's default context so
-        # every media file (standalone or inside an archive) is compressed
-        # consistently.
-        default_context = {}
-        if self.get_setting("compress", False):
+        default_context = {"compress": False}
+        if not self.get_setting("compress", True):
+            config.LOGGER.warning("Compression is off: media is uploaded uncompressed.")
+        elif shutil.which("ffmpeg") is None:
+            config.LOGGER.warning("ffmpeg not found: media is uploaded uncompressed.")
+        else:
+            default_context["compress"] = True
             default_context["video_settings"] = {
                 "crf": 32,
                 "max_height": self.get_setting("video-height") or 720,
             }
-            default_context["audio_settings"] = {
-                "bit_rate": 96,
-            }
+            default_context["audio_settings"] = {"bit_rate": 96}
         return FilePipeline(default_context=default_context)
 
     def run(self, args, options):
