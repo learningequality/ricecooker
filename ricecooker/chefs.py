@@ -19,6 +19,7 @@ from .classes import nodes
 from .commands import check_removed_options
 from .commands import RESUME_REMOVED
 from .commands import uploadchannel_wrapper
+from .exceptions import InvalidNodeException
 from .exceptions import InvalidUsageException
 from .exceptions import raise_for_invalid_channel
 from .utils.jsontrees import build_tree_from_json
@@ -508,6 +509,10 @@ class SushiChef(object):
             # Add modifications to contentNode
             if contentNode.source_id in metadata_dict:
                 contentNode.node_modifications = metadata_dict[contentNode.source_id]
+                try:
+                    contentNode.validate_new_tags()
+                except InvalidNodeException as e:
+                    raise InvalidNodeException(f"{contentNode}: {e}") from e
         for child in contentNode.children:
             self.apply_modifications(child, metadata_dict)
 
