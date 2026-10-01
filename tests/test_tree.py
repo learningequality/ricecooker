@@ -2436,6 +2436,70 @@ def test_dropped_label_warning_names_node_field_and_value(channel, caplog):
     ]
 
 
+@pytest.mark.parametrize("container", [list, tuple])
+def test_validate_drops_an_over_long_new_tag_with_a_warning(channel, caplog, container):
+    long_tag = "t" * 31
+    node = TopicNode(
+        "topic",
+        "Topic",
+        node_modifications={"New Tags": container(["short", long_tag, "s2"])},
+    )
+    channel.add_child(node)
+    with (
+        patch("ricecooker.config.STRICT", False),
+        caplog.at_level(logging.WARNING, logger=config.LOGGER.name),
+    ):
+        # Re-validated as ContentNode.process_files() does; warns once.
+        ChannelManager(channel).validate()
+        ChannelManager(channel).validate()
+    assert (node.valid, node.to_dict()["tags"]) == (True, ["short", "s2"])
+    (record,) = caplog.records
+    assert "(topic):" in record.getMessage() and long_tag in record.getMessage()
+
+
+def test_validate_raises_on_an_over_long_new_tag_in_strict_mode(channel):
+    long_tag = "t" * 31
+    node = TopicNode("topic", "Topic", node_modifications={"New Tags": [long_tag]})
+    channel.add_child(node)
+    with (
+        patch("ricecooker.config.STRICT", True),
+        pytest.raises(InvalidNodeException) as raised,
+    ):
+        ChannelManager(channel).validate()
+    assert str(raised.value).startswith(f"{node}: Invalid New Tags value {long_tag!r}")
+
+
+def test_node_with_only_over_long_new_tags_sends_its_own_tags(channel):
+    node = TopicNode(
+        "topic", "Topic", tags=["own"], node_modifications={"New Tags": ["t" * 31]}
+    )
+    channel.add_child(node)
+    with patch("ricecooker.config.STRICT", False):
+        ChannelManager(channel).validate()
+    assert node.to_dict()["tags"] == ["own"]
+
+
+@pytest.mark.parametrize("new_tags", [None, ""])
+def test_validate_leaves_non_list_new_tags_as_given(channel, new_tags):
+    node = TopicNode(
+        "topic", "Topic", tags=["own"], node_modifications={"New Tags": new_tags}
+    )
+    channel.add_child(node)
+    with patch("ricecooker.config.STRICT", True):
+        ChannelManager(channel).validate()
+    assert (node.valid, node.to_dict()["tags"]) == (True, ["own"])
+
+
+def test_studio_content_node_ignores_over_long_new_tags_in_strict_mode(channel):
+    node = RemoteContentNode("0" * 32, source_node_id="1" * 32)
+    channel.add_child(node)
+    with patch("ricecooker.config.STRICT", True):
+        SushiChef().apply_modifications(
+            channel, {node.source_id: {"New Tags": ["t" * 31]}}
+        )
+    assert "tags" not in node.to_dict()
+
+
 @pytest.mark.parametrize("field, valid, invalid", CLEANABLE_VALUES)
 def test_validate_raises_on_an_invalid_metadata_value_in_strict_mode(
     channel, field, valid, invalid
@@ -2533,6 +2597,25 @@ def test_truncate_fields_does_not_warn_for_remote_node_new_title(channel, caplog
     with caplog.at_level(logging.WARNING):
         node.truncate_fields()
     assert "truncating" not in caplog.text
+
+
+@pytest.mark.parametrize("length,warnings", [(200, 0), (201, 1)])
+def test_studio_content_node_title_override_is_cut_to_max_title_length(
+    channel, caplog, length, warnings
+):
+    node = RemoteContentNode("0" * 32, source_node_id="1" * 32, title="x" * length)
+    channel.add_child(node)
+    with caplog.at_level(logging.WARNING):
+        node.truncate_fields()
+    assert len(node.to_dict()["title"]) == min(length, config.MAX_TITLE_LENGTH)
+    assert caplog.text.count("truncating") == warnings
+
+
+def test_studio_content_node_without_title_override_sends_no_title(channel):
+    node = RemoteContentNode("0" * 32, source_node_id="1" * 32)
+    channel.add_child(node)
+    node.truncate_fields()
+    assert "title" not in node.to_dict()
 
 
 def test_truncate_fields_leaves_empty_node_modifications_alone(channel):

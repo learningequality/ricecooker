@@ -31,6 +31,7 @@ from ricecooker.classes.nodes import VideoNode
 from ricecooker.commands import create_initial_tree
 from ricecooker.commands import uploadchannel
 from ricecooker.commands import uploadchannel_wrapper
+from ricecooker.exceptions import InvalidNodeException
 from ricecooker.exceptions import InvalidUsageException
 from ricecooker.utils.pipeline import FilePipeline
 
@@ -262,11 +263,11 @@ def test_uploadchannel_keeps_pipeline_set_by_run_override(run_override_chef):
     assert config.FILE_PIPELINE is custom
 
 
-class LongNewTitleChef(SushiChef):
+class TwoTopicChef(SushiChef):
     channel_info = {
         "CHANNEL_SOURCE_DOMAIN": "example.org",
-        "CHANNEL_SOURCE_ID": "long-new-title",
-        "CHANNEL_TITLE": "Long new title",
+        "CHANNEL_SOURCE_ID": "two-topics",
+        "CHANNEL_TITLE": "Two topics",
         "CHANNEL_LANGUAGE": "en",
     }
 
@@ -277,19 +278,17 @@ class LongNewTitleChef(SushiChef):
         return channel
 
 
-def test_uploadchannel_truncates_long_csv_new_title_for_studio(
-    chef_config, monkeypatch, tmp_path, caplog
-):
-    monkeypatch.chdir(tmp_path)
+def _write_content_metadata_csv(tmp_path, row):
     data_dir = tmp_path / "chefdata" / "data"
     data_dir.mkdir(parents=True)
     with open(data_dir / "content_metadata.csv", "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=config.CSV_HEADERS)
         writer.writeheader()
-        writer.writerow({"Source ID": "t", "New Title": "x" * 201})
+        writer.writerow(row)
 
-    posted = []
-    finished = []
+
+def _studio_post(posted, finished, rejects):
+    """Fake Studio that fails an ``add_nodes`` batch with any child ``rejects`` matches."""
 
     def studio_post(url, **kwargs):
         response = MagicMock()
@@ -300,8 +299,7 @@ def test_uploadchannel_truncates_long_csv_new_title_for_studio(
             body = {"status": 0, "message": ""}
         elif url == config.add_nodes_url():
             children = json.loads(kwargs["data"])["content_data"]
-            if any(len(c["title"]) > config.MAX_TITLE_LENGTH for c in children):
-                # Studio's title column is varchar(200); the overflow surfaces as a 500.
+            if any(rejects(c) for c in children):
                 response.status_code = 500
                 response._content = b'"Internal server error"'
                 return response
@@ -314,10 +312,31 @@ def test_uploadchannel_truncates_long_csv_new_title_for_studio(
         response._content = json.dumps(body).encode("utf-8")
         return response
 
-    monkeypatch.setattr(config.SESSION, "post", studio_post)
+    return studio_post
+
+
+def _has_long_tag(child):
+    return any(len(tag) > config.MAX_TAG_LENGTH for tag in child["tags"])
+
+
+def test_uploadchannel_truncates_long_csv_new_title_for_studio(
+    chef_config, monkeypatch, tmp_path, caplog
+):
+    monkeypatch.chdir(tmp_path)
+    _write_content_metadata_csv(tmp_path, {"Source ID": "t", "New Title": "x" * 201})
+    posted = []
+    finished = []
+    # Studio's title column is varchar(200); the overflow surfaces as a 500.
+    monkeypatch.setattr(
+        config.SESSION,
+        "post",
+        _studio_post(
+            posted, finished, lambda c: len(c["title"]) > config.MAX_TITLE_LENGTH
+        ),
+    )
 
     with caplog.at_level(logging.WARNING, logger=config.LOGGER.name):
-        uploadchannel(LongNewTitleChef(), token="t")
+        uploadchannel(TwoTopicChef(), token="t")
 
     titles = {c["source_id"]: c["title"] for c in posted}
     assert titles == {"t": "x" * config.MAX_TITLE_LENGTH, "sibling": "Sibling"}
@@ -326,6 +345,54 @@ def test_uploadchannel_truncates_long_csv_new_title_for_studio(
         "title" in r.getMessage() and "truncating" in r.getMessage()
         for r in caplog.records
     )
+
+
+def test_uploadchannel_drops_long_csv_new_tag_for_studio(
+    chef_config, monkeypatch, tmp_path, caplog
+):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(config, "STRICT", False)
+    long_tag = "t" * 31
+    _write_content_metadata_csv(
+        tmp_path, {"Source ID": "t", "New Tags": f"short,{long_tag}"}
+    )
+    posted = []
+    finished = []
+    monkeypatch.setattr(
+        config.SESSION, "post", _studio_post(posted, finished, _has_long_tag)
+    )
+
+    with caplog.at_level(logging.WARNING, logger=config.LOGGER.name):
+        uploadchannel(TwoTopicChef(), token="t")
+
+    tags = {c["source_id"]: c["tags"] for c in posted}
+    assert tags == {"t": ["short"], "sibling": []}
+    assert finished
+    assert any(
+        "(t):" in r.getMessage() and long_tag in r.getMessage() for r in caplog.records
+    )
+    with open(tmp_path / "chefdata" / "data" / "content_metadata.csv") as f:
+        rows = {row["Source ID"]: row for row in csv.DictReader(f)}
+    assert rows["t"]["New Tags"] == f"short,{long_tag}"
+
+
+def test_uploadchannel_fails_on_long_csv_new_tag_before_add_nodes_in_strict_mode(
+    chef_config, monkeypatch, tmp_path
+):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(config, "STRICT", True)
+    long_tag = "t" * 31
+    _write_content_metadata_csv(tmp_path, {"Source ID": "t", "New Tags": long_tag})
+    posted = []
+    monkeypatch.setattr(
+        config.SESSION, "post", _studio_post(posted, [], lambda c: False)
+    )
+
+    with pytest.raises(
+        InvalidNodeException, match=f"Invalid New Tags value '{long_tag}'"
+    ):
+        uploadchannel(TwoTopicChef(), token="t")
+    assert posted == []
 
 
 @pytest.fixture
