@@ -34,7 +34,6 @@ from ricecooker import config
 from ricecooker.chefs import SushiChef
 from ricecooker.classes.files import DocumentFile
 from ricecooker.classes.files import HTMLZipFile
-from ricecooker.classes.files import SlideImageFile
 from ricecooker.classes.files import SubtitleFile
 from ricecooker.classes.files import ThumbnailFile
 from ricecooker.classes.files import VideoFile
@@ -49,7 +48,6 @@ from ricecooker.classes.nodes import ExerciseNode
 from ricecooker.classes.nodes import METADATA_LABEL_CHOICES
 from ricecooker.classes.nodes import Node
 from ricecooker.classes.nodes import RemoteContentNode
-from ricecooker.classes.nodes import SlideshowNode
 from ricecooker.classes.nodes import TopicNode
 from ricecooker.classes.nodes import TreeNode
 from ricecooker.classes.nodes import VideoNode
@@ -377,93 +375,34 @@ def test_jsontrees_perseus_question_without_ka_language_fails_node(
         channel.children[0].validate()
 
 
-""" *********** SLIDESHOW CONTENT NODE TESTS *********** """
+def test_jsontrees_slideshow_node_unsupported(channel):
+    slideshow = dict(
+        kind=content_kinds.SLIDESHOW,
+        source_id="slideshow",
+        title="slideshow",
+        license=get_license("CC BY", copyright_holder="Demo Holdings").as_dict(),
+    )
+    with pytest.raises(
+        NotImplementedError, match="Unexpected node kind found in json data."
+    ):
+        build_tree_from_json(channel, [slideshow])
 
 
-def test_slideshow_node_via_files(channel):
-    slideshow_node = SlideshowNode(
-        title="The Slideshow",
-        description="Slideshow Content Demo",
-        source_id="demo",
-        author="DE Mo",
-        language="en",
-        license=get_license("CC BY", copyright_holder="Demo Holdings"),
+def test_jsontrees_slideshow_image_file_unsupported(channel):
+    document = dict(
+        kind=content_kinds.DOCUMENT,
+        source_id="document",
+        title="document",
+        license=get_license("CC BY", copyright_holder="Demo Holdings").as_dict(),
         files=[
-            SlideImageFile(
-                path="tests/testcontent/samples/thumbnail.jpg",
-                language="en",
-                caption="Demo blocks are neat.",
-                descriptive_text="Demo blocks are neat.",
-            ),
-            SlideImageFile(
-                path="tests/testcontent/samples/thumbnail.jpg",
-                language="en",
-                caption="Touch the demo to learn new things!",
-                descriptive_text="Touch the demo to learn new things!",
-            ),
-            SlideImageFile(
-                path="tests/testcontent/samples/thumbnail.jpg",
-                language="en",
-                caption="Made mostly with Python!",
-                descriptive_text="Made mostly with Python!",
-            ),
-            SlideImageFile(
-                path="tests/testcontent/samples/thumbnail.jpg",
-                language="en",
-                caption="Unlock your potential with this demo.",
-                descriptive_text="Unlock your potential with this demo.",
-            ),
-            ThumbnailFile(
-                path="tests/testcontent/samples/thumbnail.png", language="en"
-            ),
+            {
+                "file_type": file_types.SLIDESHOW_IMAGE,
+                "path": "tests/testcontent/samples/thumbnail.jpg",
+            }
         ],
     )
-    assert slideshow_node
-    assert slideshow_node.kind == "slideshow"
-    assert len(slideshow_node.files) == 5, "missing files"
-    assert slideshow_node.extra_fields, "missing extra_fields"
-    assert "slideshow_data" in slideshow_node.extra_fields, "missing slideshow_data key"
-    slideshow_node.process_files()
-    channel.add_child(slideshow_node)
-    channel.validate()
-    assert slideshow_node.to_dict()  # not ready yet bcs needs ot be part of tree...
-
-
-def test_slideshow_node_via_add_file(channel):
-    slideshow_node = SlideshowNode(
-        title="The Slideshow via add_files",
-        description="Slideshow Content Demo",
-        source_id="demo2",
-        author="DE Mo",
-        language="en",
-        license=get_license("CC BY", copyright_holder="Demo Holdings"),
-        files=[],
-    )
-    slideimg1 = SlideImageFile(
-        path="tests/testcontent/samples/thumbnail.jpg",
-        language="en",
-        caption="Demo blocks are neat.",
-        descriptive_text="Demo blocks are neat.",
-    )
-    slideshow_node.add_file(slideimg1)
-    slideimg2 = SlideImageFile(
-        path="tests/testcontent/samples/thumbnail.jpg",
-        language="en",
-        caption="Touch the demo to learn new things!",
-        descriptive_text="Touch the demo to learn new things!",
-    )
-    slideshow_node.add_file(slideimg2)
-    thumbimg1 = ThumbnailFile(
-        path="tests/testcontent/samples/thumbnail.jpg", language="en"
-    )
-    slideshow_node.add_file(thumbimg1)
-
-    # print(slideshow_node.__dict__)
-    assert slideshow_node
-    assert len(slideshow_node.files) == 3, "missing files"
-
-    channel.add_child(slideshow_node)
-    channel.validate()
+    with pytest.raises(NotImplementedError, match="Unexpected File type"):
+        build_tree_from_json(channel, [document])
 
 
 """ *********** CUSTOM NAVIGATION CONTENT NODE TESTS *********** """

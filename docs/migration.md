@@ -14,6 +14,8 @@ Removed and changed APIs
 - `PerseusQuestion` requires `ka_language`; see [exercise nodes](nodes.md#exercise-nodes).
 - `Node.validate_tree()` is removed; the tree is validated before files are processed.
   See [upload process](developer/uploadprocess.md).
+- `SlideshowNode` and `SlideImageFile` are removed, with no replacement; a json tree with a
+  `slideshow` node or a `slideshow_image` file entry raises `NotImplementedError`.
 
 
 Pass node arguments by keyword
@@ -23,7 +25,6 @@ These positional arguments bind to different parameters than in 0.7:
 - `ContentNode`, `AudioNode`, `DocumentNode`, `HTML5AppNode`, `H5PAppNode`, `CustomNavigationNode`:
   4th `license_description` → `uri`, 5th `copyright_holder` → `pipeline`.
 - `ExerciseNode`, `PracticeQuizNode`: 4th `questions` → `uri`, 5th `exercise_data` → `pipeline`.
-- `SlideshowNode`: 4th `slideshow_data` → `uri`.
 - `TopicNode`: 6th onward, from `tags` → `copyright_holder`; each later argument moves three places.
 - `ChannelNode`, `CustomNavigationChannelNode`: 3rd `tagline` → `title`, 4th `channel_id` → `tagline`.
 

@@ -24,7 +24,6 @@ AUDIO_NODE = content_kinds.AUDIO
 EXERCISE_NODE = content_kinds.EXERCISE
 DOCUMENT_NODE = content_kinds.DOCUMENT
 HTML5_NODE = content_kinds.HTML5
-SLIDESHOW_NODE = content_kinds.SLIDESHOW
 
 
 # TODO(Ivan): add constants.file_types to le_utils and discuss with Jordan
@@ -36,7 +35,6 @@ EPUB_FILE = file_types.EPUB
 HTML5_FILE = file_types.HTML5
 THUMBNAIL_FILE = file_types.THUMBNAIL
 SUBTITLES_FILE = file_types.SUBTITLES
-SLIDESHOW_IMAGE_FILE = file_types.SLIDESHOW_IMAGE
 REMOTE_FILE = "remote_file"
 
 
@@ -105,7 +103,6 @@ def build_tree_from_json(parent_node, sourcetree):
         EXERCISE_NODE,
         DOCUMENT_NODE,
         HTML5_NODE,
-        SLIDESHOW_NODE,
     ]
 
     for source_node in sourcetree:
@@ -226,24 +223,6 @@ def build_tree_from_json(parent_node, sourcetree):
             add_files(child_node, source_node.get("files") or [])
             parent_node.add_child(child_node)
 
-        elif kind == SLIDESHOW_NODE:
-            child_node = nodes.SlideshowNode(
-                source_id=source_node["source_id"],
-                title=source_node["title"],
-                description=source_node.get("description"),
-                license=get_license(**source_node["license"]),
-                author=source_node.get("author"),
-                aggregator=source_node.get("aggregator"),
-                provider=source_node.get("provider"),
-                role=source_node.get("role", roles.LEARNER),
-                language=source_node.get("language"),
-                thumbnail=source_node.get("thumbnail"),
-                derive_thumbnail=source_node.get("derive_thumbnail", False),
-                tags=source_node.get("tags"),
-            )
-            add_files(child_node, source_node.get("files") or [])
-            parent_node.add_child(child_node)
-
         # TODO: add support for H5P content kind
 
         else:
@@ -262,7 +241,6 @@ def add_files(node, file_list):  # noqa: C901
         HTML5_FILE,
         THUMBNAIL_FILE,
         SUBTITLES_FILE,
-        SLIDESHOW_IMAGE_FILE,
         REMOTE_FILE,
     ]
 
@@ -354,16 +332,6 @@ def add_files(node, file_list):  # noqa: C901
                     if key in f:
                         params[key] = f[key]
                 node.add_file(files.SubtitleFile(**params))
-
-        elif file_type == SLIDESHOW_IMAGE_FILE:
-            node.add_file(
-                files.SlideImageFile(
-                    path=path,
-                    language=f.get("language", None),
-                    caption=f.get("caption", ""),
-                    descriptive_text=f.get("descriptive_text", ""),
-                )
-            )
 
         elif file_type == REMOTE_FILE:
             node.add_file(

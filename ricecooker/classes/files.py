@@ -246,17 +246,6 @@ class ImageDownloadFile(DownloadFile):
     allowed_formats = ImageConversionHandler.EXTENSIONS | {file_formats.SVG}
 
 
-class SlideImageFile(ImageDownloadFile):
-    default_ext = file_formats.PNG
-    is_primary = True
-    default_preset = format_presets.SLIDESHOW_IMAGE
-
-    def __init__(self, path, caption="", descriptive_text="", **kwargs):
-        self.caption = caption
-        self.descriptive_text = descriptive_text
-        super(ImageDownloadFile, self).__init__(path, **kwargs)
-
-
 class ThumbnailFile(ThumbnailPresetMixin, ImageDownloadFile):
     default_ext = file_formats.PNG
 
