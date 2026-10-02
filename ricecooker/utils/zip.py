@@ -94,9 +94,13 @@ def create_predictable_zip(path, entrypoint=None, file_converter=None):
     stay consistent if zipping the same content twice.
     Args:
         path (str): absolute path either to a directory to zip up, or an existing zip file to convert.
-        entrypoint (str or None): if specified, a relative file path in the zip to serve as the first page to load
+        entrypoint: must be None or "index.html".
     Returns: path (str) to the output zip file
     """
+    if entrypoint not in (None, "index.html"):
+        raise ValueError(
+            "create_predictable_zip cannot set an entry point; pass it as HTML5AppNode(entrypoint=...)."
+        )
     _assert_reference_zlib()
     extension = "zip"
     # if path is a directory, recursively enumerate all the files under the directory

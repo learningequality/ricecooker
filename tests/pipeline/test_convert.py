@@ -4,8 +4,10 @@ import base64
 import json
 import os
 import posixpath
+import random
 import re
 import shutil
+import struct
 import subprocess
 import tempfile
 import time
@@ -21,6 +23,7 @@ import pytest
 import requests
 from bs4 import BeautifulSoup
 from cachecontrol.caches.file_cache import FileCache
+from conftest import read_file_hash
 from conftest import sample_path
 from fake_session import fake_download_session
 from le_utils.constants import content_kinds
@@ -40,6 +43,7 @@ from ricecooker.classes.files import HTMLZipFile
 from ricecooker.classes.licenses import get_license
 from ricecooker.classes.nodes import ChannelNode
 from ricecooker.classes.nodes import ContentNode
+from ricecooker.classes.nodes import CustomNavigationNode
 from ricecooker.classes.nodes import HTML5AppNode
 from ricecooker.exceptions import InvalidNodeException
 from ricecooker.managers.tree import ChannelManager
@@ -47,8 +51,10 @@ from ricecooker.utils import archive_assets
 from ricecooker.utils import caching
 from ricecooker.utils import videos
 from ricecooker.utils.archive_dependencies import SharedAssetExtractor
+from ricecooker.utils.audio import compress_audio
 from ricecooker.utils.imscp import IMSCPPackage
 from ricecooker.utils.pipeline import FilePipeline
+from ricecooker.utils.pipeline.convert import AudioCompressionHandler
 from ricecooker.utils.pipeline.convert import BloomConversionHandler
 from ricecooker.utils.pipeline.convert import DocumentConversionHandler
 from ricecooker.utils.pipeline.convert import EPUBConversionHandler
@@ -58,6 +64,8 @@ from ricecooker.utils.pipeline.convert import HTML5ConversionHandler
 from ricecooker.utils.pipeline.convert import ImageConversionHandler
 from ricecooker.utils.pipeline.convert import KPUBConversionHandler
 from ricecooker.utils.pipeline.convert import PandocMissingError
+from ricecooker.utils.pipeline.convert import VideoCompressionHandler
+from ricecooker.utils.pipeline.exceptions import ExpectedFileException
 from ricecooker.utils.pipeline.exceptions import InvalidFileException
 from ricecooker.utils.qti.items import item_vocabulary
 from ricecooker.utils.qti.upgrade import QTI2Converter
@@ -66,6 +74,10 @@ from ricecooker.utils.references import DEFAULT_MAPPERS
 from ricecooker.utils.references import is_data_uri
 from ricecooker.utils.references import is_external_url
 from ricecooker.utils.references import mapper_for
+from ricecooker.utils.videos import display_size
+from ricecooker.utils.videos import is_faststart
+from ricecooker.utils.videos import probe_media
+from ricecooker.utils.videos import web_faststart_video
 from ricecooker.utils.zip import create_predictable_zip
 from ricecooker.utils.zip import directory_member_names
 
@@ -83,7 +95,7 @@ def _write_stub_output(input_path, output_path, **kwargs):
         fh.write(b"compressed")
 
 
-def test_html5_archive_with_mp4_compression(video_file, audio_file):
+def test_html5_archive_with_mp4_compression(audio_file):
     """MP4 and MP3 files within HTML5 archives are compressed when settings are provided."""
     # Create temporary HTML5 archive with media files
     temp_archive = tempfile.NamedTemporaryFile(suffix=".zip", delete=False)
@@ -93,7 +105,7 @@ def test_html5_archive_with_mp4_compression(video_file, audio_file):
         with zipfile.ZipFile(temp_archive.name, "w") as zf:
             zf.writestr("index.html", "<html><body>Test content</body></html>")
             # Add media files by reading from fixture files
-            with open(video_file.path, "rb") as vf:
+            with open(sample_path("high_res_sample.mp4"), "rb") as vf:
                 zf.writestr("video/sample.mp4", vf.read())
             with open(audio_file.path, "rb") as af:
                 zf.writestr("audio/sample.mp3", af.read())
@@ -214,15 +226,543 @@ def test_archive_no_compression_without_settings(video_file, audio_file):
         ("sample_audio.mp3", {"audio_settings": {"bit_rate": 96}}),
     ],
 )
-def test_hung_ffmpeg_fails_file(sample, context, stub_on_path, monkeypatch):
-    stub_on_path("ffmpeg")
-    monkeypatch.setattr(videos, "STALL_TIMEOUT", 1)
+@pytest.mark.parametrize(
+    "binary,timeout", [("ffmpeg", "STALL_TIMEOUT"), ("ffprobe", "PROBE_TIMEOUT")]
+)
+def test_hung_ffmpeg_fails_file(
+    sample, context, binary, timeout, stub_on_path, monkeypatch
+):
+    stub_on_path(binary)
+    monkeypatch.setattr(videos, timeout, 2)
     start = time.monotonic()
     with pytest.raises(InvalidFileException):
         FilePipeline(default_context=context).execute(
             sample_path(sample), skip_cache=True
         )
-    assert time.monotonic() - start < 10
+    assert time.monotonic() - start < 4
+
+
+def test_timed_out_packet_scan_reencodes(faststart_240p, stub_on_path, monkeypatch):
+    ffprobe = shutil.which("ffprobe")
+    stub_on_path(
+        "ffprobe", f'case "$*" in *packet=*) exec sleep 30;; esac\nexec {ffprobe} "$@"'
+    )
+    monkeypatch.setattr(videos, "PROBE_TIMEOUT", 2)
+    output = _compress(
+        VideoCompressionHandler(), faststart_240p, video_settings={"crf": 32}
+    )
+    assert read_file_hash(output) != read_file_hash(faststart_240p)
+
+
+def _compress(handler, path, **settings):
+    [result] = handler.execute(path, context=settings, skip_cache=True)
+    return result.path
+
+
+def _audio_only(path, bit_rate="128k", cover=False):
+    cover_args = []
+    if cover:
+        cover_args = ["-f", "lavfi", "-i", "color=size=64x64:duration=0.04"]
+        cover_args += ["-map", "0", "-map", "1", "-c:v", "mjpeg"]
+        cover_args += ["-disposition:v:0", "attached_pic"]
+    subprocess.run(
+        ["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "sine=duration=2", *cover_args]
+        + ["-ac", "2", "-b:a", bit_rate, "-movflags", "+faststart", str(path)],
+        check=True,
+    )
+    return str(path)
+
+
+@pytest.fixture
+def audio_only_mp4(tmp_path):
+    return _audio_only(tmp_path / "music.mp4")
+
+
+@pytest.fixture
+def audio_only_webm(tmp_path):
+    return _audio_only(tmp_path / "music.webm")
+
+
+@pytest.fixture
+def cover_audio_mp4(tmp_path):
+    return _audio_only(tmp_path / "cover_music.mp4", cover=True)
+
+
+@pytest.fixture
+def cover_audio_256k_mp4(tmp_path):
+    return _audio_only(tmp_path / "cover_music.mp4", bit_rate="256k", cover=True)
+
+
+@pytest.mark.parametrize(
+    "sample", ["faststart_240p", "audio_only_mp4", "audio_only_webm", "cover_audio_mp4"]
+)
+def test_compliant_video_passes_through(sample, request):
+    path = request.getfixturevalue(sample)
+    output = _compress(VideoCompressionHandler(), path, video_settings={"crf": 32})
+    assert read_file_hash(output) == read_file_hash(path)
+
+
+@pytest.fixture
+def multitrack_240p(tmp_path):
+    srt = tmp_path / "subs.srt"
+    srt.write_text("1\n00:00:00,000 --> 00:00:01,000\nHello\n")
+    path = str(tmp_path / "multitrack.mp4")
+    subprocess.run(
+        ["ffmpeg", "-v", "error", "-i", sample_path("low_res_sample.mp4")]
+        + ["-f", "lavfi", "-i", "sine=duration=1", "-i", str(srt)]
+        + ["-map", "0", "-map", "1", "-map", "2", "-c:v", "copy", "-c:a", "aac"]
+        + ["-c:s", "mov_text", "-timecode", "00:00:00:00", path],
+        check=True,
+    )
+    return path
+
+
+@pytest.mark.parametrize("sample", ["low_res", "multitrack_240p"])
+def test_compliant_mp4_without_faststart_is_remuxed(sample, request):
+    if sample == "low_res":
+        path = sample_path("low_res_sample.mp4")
+    else:
+        path = request.getfixturevalue(sample)
+    assert not is_faststart(path)
+    output = _compress(VideoCompressionHandler(), path, video_settings={"crf": 32})
+    assert is_faststart(output)
+    assert probe_media(output)["streams"] == probe_media(path)["streams"]
+
+
+def _lavfi_clip(path, source, *codec_args):
+    subprocess.run(
+        ["ffmpeg", "-v", "error", "-f", "lavfi", "-i", source]
+        + ["-f", "lavfi", "-i", "sine", "-shortest", *codec_args, str(path)],
+        check=True,
+    )
+    return str(path)
+
+
+GRAIN_720P = "testsrc2=size=1280x720:rate=15:duration=2,noise=alls=10:allf=t"
+
+
+@pytest.fixture
+def high_bitrate_720p(tmp_path):
+    return _lavfi_clip(
+        tmp_path / "high_bitrate.mp4",
+        "testsrc2=size=1280x720:rate=30:duration=2",
+        *["-c:v", "libx264", "-crf", "12", "-movflags", "+faststart"],
+    )
+
+
+@pytest.fixture
+def high_bitrate_720p_webm(tmp_path):
+    return _lavfi_clip(
+        tmp_path / "high_bitrate.webm",
+        GRAIN_720P,
+        *["-c:v", "libvpx-vp9", "-b:v", "9M", "-maxrate", "9M", "-bufsize", "9M"],
+        *["-deadline", "realtime"],
+    )
+
+
+@pytest.fixture
+def grain_720p_mkv(tmp_path):
+    return _lavfi_clip(
+        tmp_path / "grain.mkv", GRAIN_720P, "-c:v", "libx264", "-crf", "0"
+    )
+
+
+@pytest.fixture
+def small_144p_mkv(tmp_path):
+    return _lavfi_clip(
+        tmp_path / "small.mkv",
+        "testsrc2=size=256x144:rate=30:duration=1",
+        *["-c:v", "libx264", "-crf", "0"],
+    )
+
+
+@pytest.mark.parametrize(
+    "sample,crf",
+    [
+        ("high_res_sample.mp4", 32),
+        ("high_res_sample.mp4", 10),
+        ("high_res_sample.webm", 32),
+        ("high_bitrate_720p", 32),
+        ("grain_720p_mkv", 32),
+        ("small_144p_mkv", 32),
+    ],
+)
+def test_compressed_output_passes_through(sample, crf, request):
+    if not sample.endswith((".mp4", ".webm")):
+        path = request.getfixturevalue(sample)
+    else:
+        path = sample_path(sample)
+    settings = {"crf": crf, "max_height": 720}
+    output = _compress(VideoCompressionHandler(), path, video_settings=settings)
+    passed = _compress(VideoCompressionHandler(), output, video_settings=settings)
+    assert read_file_hash(passed) == read_file_hash(output)
+
+
+def test_is_faststart_rejects_malformed_box(tmp_path):
+    path = tmp_path / "bad.mp4"
+    path.write_bytes(b"\x00\x00\x00\x01ftyp" + b"\x00" * 8)
+    assert not is_faststart(str(path))
+
+
+@pytest.mark.parametrize(
+    "sample,settings,height",
+    [
+        ("high_res_sample.mp4", {"crf": 32, "max_height": 720}, 720),
+        ("high_res_sample.webm", {"crf": 32, "max_height": 720}, 720),
+        ("low_res_sample.mp4", {"crf": 32, "max_height": 144}, 144),
+    ],
+)
+def test_noncompliant_video_is_reencoded(sample, settings, height):
+    output = _compress(
+        VideoCompressionHandler(),
+        sample_path(sample),
+        video_settings=settings,
+    )
+    [video] = [s for s in probe_media(output)["streams"] if s["codec_type"] == "video"]
+    assert video["height"] == height
+
+
+@pytest.mark.parametrize("sample", ["high_bitrate_720p", "high_bitrate_720p_webm"])
+def test_high_bitrate_video_within_height_is_reencoded(sample, request):
+    path = request.getfixturevalue(sample)
+    output = _compress(
+        VideoCompressionHandler(),
+        path,
+        video_settings={"crf": 32, "max_height": 720},
+    )
+    [video] = [s for s in probe_media(output)["streams"] if s["codec_type"] == "video"]
+    assert video["height"] == 720
+    assert os.path.getsize(output) < os.path.getsize(path) / 2
+
+
+@pytest.fixture
+def surround_ac3_240p(tmp_path):
+    return _lavfi_clip(
+        tmp_path / "surround.mp4",
+        "testsrc2=size=426x240:rate=30:duration=1",
+        *["-c:v", "libx264", "-c:a", "ac3", "-b:a", "448k", "-ac", "6"],
+        *["-movflags", "+faststart"],
+    )
+
+
+@pytest.fixture
+def two_language_240p(tmp_path):
+    # The default-flagged track comes second.
+    path = str(tmp_path / "two_language.mp4")
+    subprocess.run(
+        [
+            "ffmpeg",
+            "-v",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=size=426x240:duration=1",
+        ]
+        + [
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=duration=1",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=f=880:duration=1",
+        ]
+        + [
+            "-map",
+            "0",
+            "-map",
+            "1",
+            "-map",
+            "2",
+            "-c:v",
+            "libx264",
+            "-c:a",
+            "ac3",
+            "-b:a",
+            "448k",
+        ]
+        + ["-metadata:s:a:0", "language=fra", "-metadata:s:a:1", "language=eng"]
+        + [
+            "-disposition:a:0",
+            "0",
+            "-disposition:a:1",
+            "default",
+            "-movflags",
+            "+faststart",
+            path,
+        ],
+        check=True,
+    )
+    return path
+
+
+def _audio_languages(path):
+    output = subprocess.check_output(
+        ["ffprobe", "-v", "error", "-select_streams", "a"]
+        + ["-show_entries", "stream_tags=language", "-of", "csv=p=0", path],
+        text=True,
+    )
+    return output.split()
+
+
+@pytest.mark.parametrize(
+    "sample,language",
+    [
+        ("surround_ac3_240p", "und"),
+        ("cover_audio_256k_mp4", "und"),
+        ("two_language_240p", "eng"),
+    ],
+)
+def test_video_with_noncompliant_audio_is_reencoded(sample, language, request):
+    output = _compress(
+        VideoCompressionHandler(),
+        request.getfixturevalue(sample),
+        video_settings={"crf": 32, "max_height": 720},
+    )
+    [audio] = [s for s in probe_media(output)["streams"] if s["codec_type"] == "audio"]
+    assert audio["codec_name"] == "aac"
+    assert int(audio["bit_rate"]) <= VideoCompressionHandler.MAX_AUDIO_BIT_RATE
+    assert _audio_languages(output) == [language]
+
+
+def _pgs_sup(path):
+    PDS, ODS, PCS, WDS, END = 0x14, 0x15, 0x16, 0x17, 0x80
+
+    def segment(kind, data):
+        return b"PG" + struct.pack(">IIBH", 9000, 0, kind, len(data)) + data
+
+    rle = bytes([0, 0x80 | 16, 1, 0, 0]) * 16
+    path.write_bytes(
+        segment(
+            PCS,
+            struct.pack(
+                ">HHBHBBBBHBBHH", 426, 240, 0x10, 0, 0x80, 0, 0, 1, 0, 0, 0, 10, 10
+            ),
+        )
+        + segment(WDS, struct.pack(">BBHHHH", 1, 0, 10, 10, 16, 16))
+        + segment(PDS, bytes([0, 0, 1, 235, 128, 128, 255]))
+        + segment(
+            ODS,
+            struct.pack(">HBB", 0, 0, 0xC0)
+            + (len(rle) + 4).to_bytes(3, "big")
+            + struct.pack(">HH", 16, 16)
+            + rle,
+        )
+        + segment(END, b"")
+    )
+    return path
+
+
+def _subtitled_mkv(path, bitmap_first=False):
+    srt = path.with_suffix(".srt")
+    srt.write_text("1\n00:00:00,000 --> 00:00:01,000\nHello\n")
+    subtitles = [_pgs_sup(path.with_suffix(".sup")), srt] if bitmap_first else [srt]
+    inputs = [arg for subtitle in subtitles for arg in ("-i", str(subtitle))]
+    maps = [arg for i in range(len(subtitles) + 2) for arg in ("-map", str(i))]
+    subprocess.run(
+        [
+            "ffmpeg",
+            "-v",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=size=426x240:duration=1",
+        ]
+        + ["-f", "lavfi", "-i", "sine=duration=1", *inputs, *maps]
+        + ["-c:v", "libx264", "-c:s", "copy", str(path)],
+        check=True,
+    )
+    return str(path)
+
+
+@pytest.mark.parametrize("bitmap_first", [False, True])
+@pytest.mark.parametrize("settings", [{}, {"crf": 32, "max_height": 720}])
+def test_converted_webm_keeps_text_subtitles(settings, bitmap_first, tmp_path):
+    path = _subtitled_mkv(tmp_path / "subtitled.mkv", bitmap_first)
+    output = _compress(VideoCompressionHandler(), path, video_settings=settings)
+    streams = probe_media(output)["streams"]
+    assert [s["codec_name"] for s in streams if s["codec_type"] == "subtitle"] == [
+        "webvtt"
+    ]
+
+
+CHEF_DEFAULTS = {
+    "compress": True,
+    "video_settings": {"crf": 32, "max_height": 720},
+    "audio_settings": {"bit_rate": 96},
+}
+
+
+@pytest.fixture
+def rotated_720p(tmp_path):
+    path = _lavfi_clip(
+        tmp_path / "landscape.mp4",
+        "testsrc2=size=1280x720:rate=10:duration=1",
+        *["-c:v", "libx264", "-crf", "32", "-c:a", "aac", "-b:a", "32k"],
+    )
+    rotated = str(tmp_path / "portrait.mp4")
+    subprocess.run(
+        ["ffmpeg", "-v", "error", "-display_rotation", "90", "-i", path]
+        + ["-c", "copy", "-movflags", "+faststart", rotated],
+        check=True,
+    )
+    return rotated
+
+
+@pytest.fixture
+def yuv444_240p(tmp_path):
+    return _lavfi_clip(
+        tmp_path / "yuv444.mp4",
+        "testsrc2=size=426x240:rate=10:duration=1",
+        *["-c:v", "libx264", "-crf", "32", "-pix_fmt", "yuv444p"],
+        *["-c:a", "aac", "-b:a", "32k", "-movflags", "+faststart"],
+    )
+
+
+@pytest.mark.parametrize("sample", ["rotated_720p", "yuv444_240p"])
+def test_video_unplayable_as_is_is_reencoded(sample, request):
+    [result] = FilePipeline(default_context=CHEF_DEFAULTS).execute(
+        request.getfixturevalue(sample), skip_cache=True
+    )
+    [video] = [
+        s for s in probe_media(result.path)["streams"] if s["codec_type"] == "video"
+    ]
+    assert display_size(video)[1] <= 720
+    assert video["pix_fmt"] == "yuv420p"
+
+
+@pytest.fixture
+def faststart_240p(tmp_path):
+    path = str(tmp_path / "faststart.mp4")
+    web_faststart_video(sample_path("low_res_sample.mp4"), path)
+    return path
+
+
+@pytest.fixture
+def mp3_48k(tmp_path):
+    path = str(tmp_path / "48k.mp3")
+    compress_audio(sample_path("sample_audio.mp3"), path, bit_rate=48)
+    return path
+
+
+@pytest.mark.parametrize(
+    "sample,context,reencoded",
+    [
+        ("faststart_240p", None, False),
+        ("faststart_240p", {"video_settings": {"crf": 40}}, True),
+        ("mp3_48k", None, False),
+        ("mp3_48k", {"audio_settings": {"bit_rate": 64}}, True),
+    ],
+)
+@pytest.mark.parametrize("in_archive", [False, True])
+def test_explicit_settings_reencode_compliant_media(
+    sample, context, reencoded, in_archive, request, tmp_path
+):
+    path = request.getfixturevalue(sample)
+    name = os.path.basename(path)
+    with open(path, "rb") as fh:
+        original = fh.read()
+    if in_archive:
+        path = str(tmp_path / "app.zip")
+        _create_archive(path, {"index.html": "<p>Media</p>", name: original})
+    [result] = FilePipeline(default_context=CHEF_DEFAULTS).execute(
+        path, context=context, skip_cache=True
+    )
+    if in_archive:
+        output = _zip_members(result.path)[name]
+    else:
+        with open(result.path, "rb") as fh:
+            output = fh.read()
+    assert (output != original) == reencoded
+
+
+def test_opted_out_archive_leaves_downloaded_media_uncompressed(tmp_path):
+    url = "https://cdn.example.org/opted-out.mp4"
+    with open(sample_path("high_res_sample.mp4"), "rb") as fh:
+        mp4 = fh.read()
+    path = str(tmp_path / "app.zip")
+    _create_archive(path, {"index.html": f"<video src='{url}'></video>"})
+    cache = FileCache(str(tmp_path / "cache"), forever=True)
+    with fake_download_session({url: mp4}), patch.object(caching, "FILECACHE", cache):
+        [result] = FilePipeline(default_context=CHEF_DEFAULTS).execute(
+            path, context={"compress": False}, skip_cache=True
+        )
+    assert mp4 in _zip_members(result.path).values()
+
+
+@pytest.mark.parametrize(
+    "ext,cause",
+    [
+        ("mp4", "moov atom not found"),
+        # ffmpeg 6.1 and earlier: "Could not seek".
+        ("mp3", "Could not seek|two consecutive MPEG audio frames"),
+    ],
+)
+def test_corrupt_media_reports_its_cause(tmp_path, ext, cause):
+    path = tmp_path / f"bad.{ext}"
+    path.write_bytes(random.Random(0).randbytes(4096))
+    with pytest.raises(ExpectedFileException, match=cause):
+        FilePipeline(default_context=CHEF_DEFAULTS).execute(str(path), skip_cache=True)
+
+
+@pytest.mark.parametrize(
+    "on_copy,error,cause",
+    [
+        ("echo remux boom >&2; exit 1", ExpectedFileException, "remux boom"),
+        ("exec sleep 30", InvalidFileException, "ffmpeg timed out after 2s"),
+    ],
+)
+def test_failed_faststart_remux_reports_its_cause(
+    on_copy, error, cause, stub_on_path, monkeypatch
+):
+    ffmpeg = shutil.which("ffmpeg")
+    stub_on_path(
+        "ffmpeg",
+        f'for a in "$@"; do [ "$a" = copy ] && {{ {on_copy}; }}; done\nexec {ffmpeg} "$@"',
+    )
+    monkeypatch.setattr(videos, "STALL_TIMEOUT", 2)
+    with pytest.raises(error, match=cause):
+        FilePipeline(default_context=CHEF_DEFAULTS).execute(
+            sample_path("low_res_sample.mp4"), skip_cache=True
+        )
+
+
+def test_compliant_audio_passes_through(mp3_48k):
+    output = _compress(
+        AudioCompressionHandler(), mp3_48k, audio_settings={"bit_rate": 96}
+    )
+    assert read_file_hash(output) == read_file_hash(mp3_48k)
+
+
+def test_noncompliant_audio_is_reencoded():
+    output = _compress(
+        AudioCompressionHandler(),
+        sample_path("sample_audio.mp3"),
+        audio_settings={"bit_rate": 96},
+    )
+    assert probe_media(output)["streams"][0]["bit_rate"] == "96000"
+
+
+def test_reencoded_audio_keeps_cover_art_as_is(tmp_path):
+    cover = str(tmp_path / "cover.jpg")
+    subprocess.run(
+        ["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "testsrc2=size=1000x1000"]
+        + ["-vf", "noise=alls=40", "-frames:v", "1", cover],
+        check=True,
+    )
+    path = str(tmp_path / "cover.mp3")
+    subprocess.run(
+        ["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "sine=duration=5", "-i", cover]
+        + ["-map", "0", "-map", "1", "-b:a", "192k", "-c:v", "copy"]
+        + ["-disposition:v", "attached_pic", path],
+        check=True,
+    )
+    output = _compress(AudioCompressionHandler(), path, audio_settings={"bit_rate": 96})
+    assert probe_media(output)["streams"][1]["codec_name"] == "mjpeg"
+    assert os.path.getsize(output) < os.path.getsize(path)
 
 
 # HTML5 Conversion Tests
@@ -236,6 +776,33 @@ def _create_archive(path, files_dict):
             if isinstance(content, str):
                 content = content.encode("utf-8")
             zf.writestr(filename, content)
+
+
+@contextmanager
+def _archive(files):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        path = os.path.join(tmpdir, "test.zip")
+        _create_archive(path, files)
+        yield path
+
+
+def _make_node(path, via_file=True, node_class=HTML5AppNode, **kwargs):
+    source = {"files": [HTMLZipFile(path)]} if via_file else {"uri": path}
+    return node_class(
+        source_id="node",
+        title="Node",
+        license=get_license("CC BY", copyright_holder="Holder"),
+        pipeline=FilePipeline(),
+        **source,
+        **kwargs,
+    )
+
+
+def _process_node(files, **kwargs):
+    with _archive(files) as path:
+        node = _make_node(path, **kwargs)
+        node.process_files()
+    return node
 
 
 class TestHTML5Validation:
@@ -271,9 +838,7 @@ class TestHTML5EntryPoint:
 
     def _execute(self, files):
         """Create an HTML5 archive with given files and run the handler."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            path = os.path.join(tmpdir, "test.zip")
-            _create_archive(path, files)
+        with _archive(files) as path:
             return HTML5ConversionHandler().execute(path, skip_cache=True)
 
     def test_no_html_file_rejected(self):
@@ -318,6 +883,110 @@ class TestHTML5EntryPoint:
         }
         with zipfile.ZipFile(results[0].path) as zf:
             assert "app.html" in zf.namelist()
+
+    @pytest.mark.parametrize("via_file", [True, False])
+    def test_detected_entry_uploaded(self, via_file):
+        node = _process_node({"app.html": self.VALID_HTML}, via_file=via_file)
+        assert node.extra_fields == {"options": {"entry": "app.html"}}
+
+    @pytest.mark.parametrize("via_file", [True, False])
+    @pytest.mark.parametrize(
+        "entrypoint,options",
+        [("dist/app.html", {"entry": "app.html"}), ("dist/index.html", {})],
+    )
+    def test_htmlzipfile_entrypoint_rebased_when_denested(
+        self, entrypoint, options, via_file
+    ):
+        node = _process_node(
+            {"dist/index.html": self.VALID_HTML, "dist/app.html": self.VALID_HTML},
+            via_file=via_file,
+            entrypoint=entrypoint,
+        )
+        assert node.extra_fields == {"options": options}
+        with zipfile.ZipFile(config.get_storage_path(node.files[0].filename)) as zf:
+            assert {"index.html", "app.html"} <= set(zf.namelist())
+
+    @pytest.mark.parametrize("via_file", [True, False])
+    @pytest.mark.parametrize(
+        "entrypoint,options",
+        [
+            ("./app.html", {"entry": "app.html"}),
+            ("/app.html", {"entry": "app.html"}),
+            ("app.html#top", {"entry": "app.html#top"}),
+            ("app.html?x=1", {"entry": "app.html?x=1"}),
+            ("index.html#top", {"entry": "index.html#top"}),
+            ("./index.html", {}),
+        ],
+    )
+    def test_entrypoint_url_forms_uploaded(self, entrypoint, options, via_file):
+        node = _process_node(
+            {"index.html": self.VALID_HTML, "app.html": self.VALID_HTML},
+            via_file=via_file,
+            entrypoint=entrypoint,
+        )
+        assert node.extra_fields == {"options": options}
+
+    @pytest.mark.parametrize("via_file", [True, False])
+    @pytest.mark.parametrize(
+        "entrypoint,member,html",
+        [
+            ("app.html", "app.html", "<script src='app.js'></script>"),
+            ("frames.html", "frames.html", "<frameset><frame src='a.html'>"),
+            ("my%20page.html", "my page.html", VALID_HTML),
+        ],
+    )
+    def test_explicit_entrypoint_only_needs_to_exist(
+        self, entrypoint, member, html, via_file
+    ):
+        node = _process_node(
+            {"index.html": self.VALID_HTML, member: html},
+            via_file=via_file,
+            entrypoint=entrypoint,
+        )
+        assert node.extra_fields == {"options": {"entry": entrypoint}}
+
+    @pytest.mark.parametrize("via_file", [True, False])
+    def test_missing_htmlzipfile_entrypoint_fails_node(self, via_file):
+        with _archive({"index.html": self.VALID_HTML}) as path:
+            node = _make_node(path, via_file=via_file, entrypoint="missing.html")
+            clone = node.copy()
+            with pytest.raises(InvalidNodeException, match="missing.html"):
+                node.process_files()
+        assert node.extra_fields == {"options": {"entry": "missing.html"}}
+        assert clone.extra_fields == {"options": {"entry": "missing.html"}}
+
+    @pytest.mark.parametrize(
+        "via_file,node_class,kwargs",
+        [
+            (True, CustomNavigationNode, {}),
+            (
+                False,
+                HTML5AppNode,
+                {"extra_fields": {"options": {"modality": "CUSTOM_NAVIGATION"}}},
+            ),
+        ],
+    )
+    def test_detected_entry_keeps_modality(self, via_file, node_class, kwargs):
+        node = _process_node(
+            {"app.html": self.VALID_HTML},
+            via_file=via_file,
+            node_class=node_class,
+            **kwargs,
+        )
+        assert node.extra_fields == {
+            "options": {"modality": "CUSTOM_NAVIGATION", "entry": "app.html"}
+        }
+
+    @pytest.mark.parametrize("via_file", [True, False])
+    def test_detected_entry_leaves_shared_extra_fields(self, via_file):
+        shared = {"options": {}}
+        for entry in ["app.html", "index.html"]:
+            _process_node(
+                {entry: self.VALID_HTML},
+                via_file=via_file,
+                extra_fields=shared,
+            )
+        assert "entry" not in shared["options"]
 
 
 class TestKPUBValidation:
@@ -1135,20 +1804,10 @@ class TestKPUBPromotion:
 
     @pytest.mark.parametrize("via_file", [True, False])
     def test_legacy_html5_apis_keep_static_zip_html5(self, via_file):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            path = os.path.join(tmpdir, "test.zip")
-            _create_archive(
-                path, {"index.html": "<html><body><p>An article</p></body></html>"}
-            )
-            source = {"files": [HTMLZipFile(path)]} if via_file else {"uri": path}
-            node = HTML5AppNode(
-                source_id="static",
-                title="Static",
-                license=get_license("CC BY", copyright_holder="Holder"),
-                pipeline=FilePipeline(),
-                **source,
-            )
-            node.process_files()
+        node = _process_node(
+            {"index.html": "<html><body><p>An article</p></body></html>"},
+            via_file=via_file,
+        )
         assert [f.get_preset() for f in node.files] == [format_presets.HTML5_ZIP]
 
     def test_static_article_promoted_to_kpub(self):
@@ -1842,6 +2501,33 @@ class TestIMSCPDecomposition:
         (leaf,) = _tree_dict_leaves(tree)
         assert leaf["extra_fields"]["options"]["entry"] == href
 
+    @pytest.mark.parametrize("href", ["index.html", "sco/index.html"])
+    def test_index_entry_uploads_no_options(self, href):
+        (leaf,) = _tree_dict_leaves(self._decompose(href, _ARTICLE_HTML))
+        assert "extra_fields" not in leaf
+
+    @pytest.mark.parametrize(
+        "html",
+        [
+            "<html><head></head><body></body></html>",
+            "<html><frameset><frame src='index.html'></frameset></html>",
+        ],
+    )
+    def test_bodiless_href_beside_index_is_dropped(self, html):
+        files = {
+            "sco/launch.html": html,
+            "sco/index.html": _page("<p>Body.</p>"),
+            "other/page.html": _page("<p>Other.</p>"),
+        }
+        tree = _decompose_package(
+            [
+                ("SCO", "sco/launch.html", ["sco/index.html"]),
+                ("OTHER", "other/page.html", []),
+            ],
+            files,
+        )
+        assert list(_leaves_by_title(tree)) == ["OTHER"]
+
     def test_uri_encoded_href_resolves(self):
         tree = self._decompose("my%20page.html", _ARTICLE_HTML)
         assert len(list(_tree_dict_leaves(tree))) == 1
@@ -2112,6 +2798,26 @@ class TestIMSCPDecomposition:
             for f in FilePipeline().execute(
                 video_file.path, context=context, skip_cache=True
             )
+        ]
+        assert _filenames(leaf) == {expected}
+
+    def test_opted_out_package_leaves_media_uncompressed(self):
+        path = sample_path("high_res_sample.mp4")
+        with open(path, "rb") as fh:
+            mp4 = fh.read()
+        files = {
+            "m/page.html": _page("<video src='clip.mp4'></video>"),
+            "m/clip.mp4": mp4,
+        }
+        tree = _decompose_package(
+            [("MEDIA", "m/page.html", ["m/clip.mp4"])],
+            files,
+            pipeline=FilePipeline(default_context=CHEF_DEFAULTS),
+            context={"compress": False},
+        )
+        (leaf,) = _tree_dict_leaves(tree)
+        (expected,) = [
+            f.filename for f in FilePipeline().execute(path, skip_cache=True)
         ]
         assert _filenames(leaf) == {expected}
 

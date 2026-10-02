@@ -10,7 +10,7 @@ Ricecooker CLI
 This listing shows the `ricecooker` command line interface (CLI) arguments:
 
     usage: sushichef.py  [-h] [--token TOKEN] [-u] [--debug] [-v] [--warn]
-                            [--quiet] [--compress] [--thumbnails]
+                            [--quiet] [--compress | --no-compress] [--thumbnails]
                             [--download-attempts DOWNLOAD_ATTEMPTS]
                             [--prompt] [--deploy] [--publish] [--sample SIZE]
 
@@ -25,7 +25,9 @@ This listing shows the `ricecooker` command line interface (CLI) arguments:
       -v, --verbose         Verbose mode (default).
       --warn                Print errors and warnings.
       --quiet               Print only errors.
-      --compress            Compress videos using ffmpeg -crf=32 -b:a 32k mono.
+      --compress, --no-compress
+                            Compress video and audio with ffmpeg (default when
+                            ffmpeg is installed).
       --thumbnails          Automatically generate thumbnails for content nodes.
       --download-attempts N Maximum number of times to retry downloading files (default: 3).
       --prompt              Prompt user to open the channel after the chef run.
@@ -43,10 +45,12 @@ Below is a short guide to some of the most important and useful ones arguments.
 
 
 ### Compression and thumbnail globals
+When ffmpeg is installed, all video and audio is compressed by default
+(see [video compression](video_compression.md)).
+Use `--no-compress` or `SETTINGS["compress"] = False` to upload media as-is.
 You can specify video compression settings (see this page) and thumbnails for
-specific nodes and files in the channel, or use `--compress` and `--thumbnails`
-to apply compression to ALL videos, and automatically generate thumbnails for
-all the supported content kinds. **We recommend you always use the `--thumbnails`**
+specific nodes and files in the channel, or use `--thumbnails` to automatically
+generate thumbnails for all the supported content kinds. **We recommend you always use the `--thumbnails`**
 in order to create more colorful, lively channels that learners will want to browse.
 
 

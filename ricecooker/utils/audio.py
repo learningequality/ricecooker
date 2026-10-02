@@ -55,7 +55,7 @@ def compress_audio(
 
     if encoding is AudioEncoding.CBR:
         option_name = "-b:a"
-        value = bit_rate
+        value = f"{bit_rate}k"
     else:
         option_name = "-qscale:a"
         value = vbr
@@ -69,6 +69,9 @@ def compress_audio(
         "libmp3lame",
         option_name,
         str(value),
+        # the mp3 muxer otherwise re-encodes cover art as PNG
+        "-c:v",
+        "copy",
         target_file,
     ]
     try:
