@@ -19,6 +19,8 @@ import shutil
 from collections import defaultdict
 from urllib.parse import quote
 
+from ricecooker.utils.encodings import decode_text
+from ricecooker.utils.encodings import encode_text
 from ricecooker.utils.imscp import contained_path
 from ricecooker.utils.references import HTMLMapper
 from ricecooker.utils.references import mapper_for
@@ -29,16 +31,16 @@ from ricecooker.utils.storage import get_hash
 
 def _map_file(path, member, fn):
     """Apply ``fn`` to every reference in ``path``; write back only on change."""
-    with open(path, encoding="utf-8") as fh:
-        content = fh.read()
+    with open(path, "rb") as fh:
+        content, encoding = decode_text(fh.read())
     rewritten, _urls = mapper_for(member).map(content, fn)
     if rewritten != content:
-        with open(path, "w", encoding="utf-8") as fh:
-            fh.write(rewritten)
+        with open(path, "wb") as fh:
+            fh.write(encode_text(rewritten, encoding))
 
 
 class _Unreadable(Exception):
-    """A mapped member can't be read as UTF-8, so rewriting it would corrupt it."""
+    pass
 
 
 class _Leaf:

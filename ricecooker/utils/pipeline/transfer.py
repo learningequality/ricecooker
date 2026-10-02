@@ -14,20 +14,19 @@ from typing import Optional
 from urllib.parse import unquote
 from urllib.parse import urlparse
 
+import filetype
 import yt_dlp
 from le_utils.constants import file_formats
-from requests.exceptions import ConnectionError
-from requests.exceptions import HTTPError
-from requests.exceptions import InvalidSchema
-from requests.exceptions import InvalidURL
 from requests.exceptions import RequestException
-from requests.exceptions import Timeout
 from yt_dlp.extractor import gen_extractor_classes
 
 from ricecooker import config
 from ricecooker.utils.caching import generate_key
+from ricecooker.utils.encodings import ext_from_content_type
 from ricecooker.utils.encodings import ext_from_data_uri_mimetype
+from ricecooker.utils.encodings import exts_from_mimetype
 from ricecooker.utils.encodings import get_base64_data_uri
+from ricecooker.utils.encodings import mimetype_from_content_type
 from ricecooker.utils.paths import extract_path_ext
 from ricecooker.utils.paths import resolve_path_ext
 from ricecooker.utils.pipeline.exceptions import InvalidFileException
@@ -44,6 +43,8 @@ from ricecooker.utils.youtube import YouTubeResource
 from .context import ContextMetadata
 from .context import FileMetadata
 from .convert import _seal_directory_to_file
+from .convert import ArchiveProcessingBaseHandler
+from .convert import ConversionStageHandler
 from .convert import VideoCompressionHandler
 from .file_handler import FileHandler
 from .file_handler import Handler
@@ -97,7 +98,10 @@ class DiskResourceHandler(DeclaredExtMixin, FileHandler):
 
     def handle_file(self, path, default_ext=None, ext=None):
         path = self._normalize_path(path)
-        ext = resolve_path_ext(path, declared_ext=ext, default_ext=default_ext)
+        try:
+            ext = resolve_path_ext(path, declared_ext=ext, default_ext=default_ext)
+        except ValueError as e:
+            raise InvalidFileException(str(e)) from e
         with self.write_file(ext) as fh:
             with open(path, "rb") as fobj:
                 for chunk in iter(lambda: fobj.read(2097152), b""):
@@ -185,31 +189,139 @@ def extract_filename_from_request(path, res):
     return filename
 
 
+CONVERT_EXTENSIONS = frozenset(
+    ext
+    for handler in ConversionStageHandler.DEFAULT_CHILDREN
+    for ext in handler.EXTENSIONS
+)
+
+
+def path_ext_or_none(path):
+    try:
+        return extract_path_ext(path)
+    except ValueError:
+        return None
+
+
+# Not from mimetypes: its font types are absent before Python 3.14.
+STATIC_ASSET_EXTENSIONS = frozenset(
+    {
+        "css",
+        "csv",
+        "eot",
+        "js",
+        file_formats.JSON,
+        "map",
+        "mjs",
+        "otf",
+        file_formats.SVG,
+        "ttf",
+        "woff",
+        "woff2",
+        "xml",
+    }
+)
+
+NAME_KEPT_EXTENSIONS = CONVERT_EXTENSIONS | STATIC_ASSET_EXTENSIONS
+
+_CONTAINER_EXTENSIONS = frozenset({"7z", "bz2", "gz", "rar", "tar", "xz", "zip"})
+
+_ARCHIVE_EXTENSIONS = frozenset(
+    ext
+    for handler in ConversionStageHandler.DEFAULT_CHILDREN
+    if issubclass(handler, ArchiveProcessingBaseHandler)
+    for ext in handler.EXTENSIONS
+)
+
+
+_WHITESPACE = b" \t\r\n\f"
+
+
+def _is_html(head):
+    start = head.lstrip(b"\xef\xbb\xbf" + _WHITESPACE).lower()
+    while start.startswith((b"<!--", b"<?")):
+        close = b"-->" if start.startswith(b"<!--") else b"?>"
+        end = start.find(close)
+        if end == -1:
+            return False
+        start = start[end + len(close) :].lstrip(_WHITESPACE)
+    return start.startswith((b"<!doctype html", b"<html", b"<head", b"<body"))
+
+
+class WebDownloadContextMetadata(GenericFileContextMetadata):
+    asset_ref: bool = False
+
+
 class CatchAllWebResourceDownloadHandler(DeclaredExtMixin, WebResourceHandler):
+    CONTEXT_CLASS = WebDownloadContextMetadata
+
     PATTERNS = [""]
 
-    HANDLED_EXCEPTIONS = [
-        HTTPError,
-        ConnectionError,
-        InvalidURL,
-        InvalidSchema,
-        Timeout,
-    ]
+    HANDLED_EXCEPTIONS = [RequestException]
 
-    def handle_file(self, path, default_ext=None, ext=None):
+    def get_cache_key(self, path, asset_ref=False, **kwargs) -> str:
+        key = super().get_cache_key(path, **kwargs)
+        name_ext = path_ext_or_none(path)
+        if name_ext not in NAME_KEPT_EXTENSIONS:
+            key += ":v2"
+        if asset_ref and name_ext in STATIC_ASSET_EXTENSIONS:
+            key += ":asset"
+        return key
+
+    def handle_file(self, path, default_ext=None, ext=None, asset_ref=False):
         # Use explicit timeout to prevent hanging downloads
         # (connection_timeout, read_timeout) - connection timeout for establishing connection,
         # read timeout for time between receiving data chunks (prevents stuck downloads)
         r = config.DOWNLOAD_SESSION.get(path, stream=True, timeout=(30, 60))
         r.raise_for_status()
         original_filename = extract_filename_from_request(path, r)
-        ext = resolve_path_ext(
-            original_filename, declared_ext=ext, default_ext=default_ext
-        )
+        chunks = r.iter_content(chunk_size=8192)
+        head = next(chunks, b"")
+        if ext:
+            ext = resolve_path_ext(original_filename, declared_ext=ext)
+        else:
+            ext = self._resolve_ext(
+                path,
+                original_filename,
+                r.headers.get("content-type"),
+                head,
+                default_ext,
+                asset_ref=asset_ref,
+            )
         with self.write_file(ext) as fh:
-            for chunk in r.iter_content(chunk_size=8192):
+            fh.write(head)
+            for chunk in chunks:
                 fh.write(chunk)
         return FileMetadata(original_filename=original_filename)
+
+    def _resolve_ext(self, path, filename, content_type, head, default_ext, asset_ref):
+        name_ext = path_ext_or_none(filename)
+        mimetype = mimetype_from_content_type(content_type)
+        page = (
+            name_ext in STATIC_ASSET_EXTENSIONS
+            and mimetype == "text/html"
+            and _is_html(head)
+        )
+        if page and asset_ref:
+            raise InvalidFileException(
+                f"{path} was answered with an HTML page, not a .{name_ext} file"
+            )
+        if not page and (
+            name_ext in NAME_KEPT_EXTENSIONS or name_ext in exts_from_mimetype(mimetype)
+        ):
+            return name_ext
+        if name_ext is None and default_ext:
+            return default_ext
+        ext = ext_from_content_type(content_type) or getattr(
+            filetype.guess(head), "extension", None
+        )
+        # Many formats (.ggb, .sb3, .jar) are containers under their own extension.
+        if name_ext and ext in _CONTAINER_EXTENSIONS:
+            ext = default_ext if default_ext in _ARCHIVE_EXTENSIONS else name_ext
+        ext = ext or name_ext
+        if not ext:
+            raise InvalidFileException(f"Could not determine the file type of {path}")
+        return ext
 
 
 class YouTubeContextMetadata(ContextMetadata):
@@ -482,8 +594,10 @@ class GoogleDriveHandler(WebResourceHandler):
 
     @property
     def HANDLED_EXCEPTIONS(self):
-        from googleapiclient.errors import HttpError as GoogleHttpError
-
+        try:
+            from googleapiclient.errors import HttpError as GoogleHttpError
+        except ImportError:
+            return []
         return [GoogleHttpError]
 
     @property

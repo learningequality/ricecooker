@@ -16,8 +16,7 @@ from collections import deque
 from urllib.parse import unquote
 from xml.etree import ElementTree as ET
 
-import chardet
-
+from ricecooker.utils.encodings import decode_text
 from ricecooker.utils.references import mapper_for
 from ricecooker.utils.references import resolve_reference
 from ricecooker.utils.references import split_reference
@@ -114,12 +113,8 @@ def _read_manifest(manifest_path):
         # Some manifests declare UTF-8 but contain other-encoded bytes; detect the
         # real encoding, decode, and re-parse from re-encoded UTF-8 bytes.
         with open(manifest_path, "rb") as f:
-            data = f.read()
-        encoding = chardet.detect(data)["encoding"]
-        if encoding is None:
-            # Nothing to re-decode from; the manifest is simply not parseable.
-            raise
-        return ET.parse(io.BytesIO(data.decode(encoding).encode("utf-8"))).getroot()
+            text, _encoding = decode_text(f.read())
+        return ET.parse(io.BytesIO(text.encode("utf-8", errors="replace"))).getroot()
 
 
 def _strip_ns(key):
@@ -498,9 +493,9 @@ class IMSCPPackage:
         if mapper is None:
             return []
         try:
-            with open(contained_path(self.directory, member), encoding="utf-8") as fh:
-                content = fh.read()
-        except (OSError, UnicodeDecodeError):
+            with open(contained_path(self.directory, member), "rb") as fh:
+                content, _encoding = decode_text(fh.read())
+        except OSError:
             return None
         paths = (resolve_reference(member, ref) for ref in mapper.extract(content))
         return [path for path in paths if path is not None]
