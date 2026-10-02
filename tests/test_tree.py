@@ -1074,6 +1074,14 @@ def test_validate_node_sets_error_attribute(channel):
     assert result is None
 
 
+def test_validate_accepts_thumbnail_url_without_image_extension(channel):
+    channel.add_child(
+        TopicNode("t", "T", thumbnail="https://site.example/thumb.php?id=1")
+    )
+    with patch("ricecooker.config.STRICT", True):
+        ChannelManager(channel).validate()
+
+
 def test_process_node_handles_exceptions(channel):
     """Test that process_node handles InvalidNodeException and ValueError."""
     # Create a manager
@@ -1127,6 +1135,73 @@ def test_process_node_warning_carries_pipeline_error(channel, caplog):
         r.levelno == logging.WARNING and "did not pass validation" in r.getMessage()
         for r in caplog.records
     )
+
+
+def test_process_node_skips_malformed_subtitle(channel, tmp_path):
+    path = tmp_path / "b.srt"
+    path.write_text("1\n00:00 --> junk\n")
+    subtitle = SubtitleFile(str(path), language="en")
+    node = ContentNode(
+        "video",
+        "Video",
+        licenses.CC_BY,
+        uri=sample_path("low_res_sample.mp4"),
+        pipeline=FilePipeline(),
+        copyright_holder="Demo Holdings",
+    )
+    node.add_file(subtitle)
+
+    files = ChannelManager(channel).process_node(node)
+
+    assert [f.get_preset() for f in files.values()] == [format_presets.VIDEO_LOW_RES]
+    assert subtitle.error
+
+
+def test_process_node_survives_redirect_loop(channel, caplog):
+    node = ContentNode(
+        "loop",
+        "Loop",
+        licenses.CC_BY,
+        uri="https://example.com/loop.pdf",
+        pipeline=FilePipeline(),
+        copyright_holder="Demo Holdings",
+    )
+    with (
+        patch.object(config, "DOWNLOAD_SESSION") as session,
+        patch("ricecooker.config.STRICT", False),
+        caplog.at_level(logging.WARNING, logger=config.LOGGER.name),
+    ):
+        session.get.side_effect = requests.exceptions.TooManyRedirects(
+            "Exceeded 30 redirects."
+        )
+        ChannelManager(channel).process_node(node)
+
+    assert any(
+        r.levelno == logging.WARNING and "Exceeded 30 redirects" in r.getMessage()
+        for r in caplog.records
+    )
+
+
+def test_process_node_fails_exercise_on_extensionless_local_question_image(
+    channel, tmp_path, monkeypatch
+):
+    monkeypatch.setattr(config, "FAILED_FILES", [])
+    image = tmp_path / "diagram"
+    Image.new("RGB", (1, 1)).save(image, "PNG")
+    node = ExerciseNode(
+        "ex",
+        "Exercise",
+        licenses.CC_BY,
+        copyright_holder="Demo Holdings",
+        exercise_data={"mastery_model": exercises.M_OF_N, "m": 1, "n": 1},
+        questions=[SingleSelectQuestion("q1", f"![]({image}) pick", "a", ["a", "b"])],
+    )
+    with (
+        patch("ricecooker.config.STRICT", True),
+        pytest.raises(InvalidNodeException, match="No extension in path"),
+    ):
+        ChannelManager(channel).process_node(node)
+    assert {f.path for f in config.FAILED_FILES} == {str(image)}
 
 
 def test_add_nodes_skips_invalid_nodes(channel):
