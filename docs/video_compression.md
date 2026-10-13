@@ -29,24 +29,31 @@ experience for all Kolibri users, regardless of their device.
 
 Automated conversion
 --------------------
-The `ricecooker` library can handle the video compression for you if you specify
-the `--compress` command line argument to the chef script, e.g. `python chef.py ... --compress`.
-Under the hood, the `ffmpeg` video conversion program will be called to compress
-video files before uploading them to Kolibri Studio. Specifying `--compress` on
-the command line will use the following default settings:
+When `ffmpeg` is installed, `ricecooker` compresses all video and audio files
+before uploading them to Kolibri Studio:
+  - Video: CRF of 32 (constant rate factor), max height of 720 pixels
+    (or the `video-height` setting); webm output is capped at 0.1 bits per
+    pixel per frame
+  - Audio: 96 kbps
 
-    ffmpeg -i inputfile.mp4 \
-      -b:a 32k -ac 1 \
-      -vf scale="'w=-2:h=trunc(min(ih,480)/2)*2'" \
-      -crf 32 \
-      -profile:v baseline -level 3.0 -preset slow -v error -strict -2 -stats -movflags faststart \
-      -y outputfile.mp4
+Already-compliant files are uploaded unchanged, unless their own
+`ffmpeg_settings` change the defaults:
+  - Video:
+    - within the max height after rotation
+    - H.264 (mp4) or VP8/VP9 (webm)
+    - 4:2:0 pixel format
+    - at most 0.15 (H.264) or 0.25 (VP8/VP9) bits per pixel per frame
+    - audio tracks AAC (mp4) or Opus/Vorbis (webm) at up to 160 kbps
 
-This command takes the `inputfile.mp4` and outputs the file `outputfile.mp4` that
-has the following transformations applied to it:
-  - Limits the audio codec to 32k/sec
-  - Scale the video to max-height of 480 pixels
-  - Compress the video with CRF of 32 (constant rate factor)
+    An mp4 without faststart is remuxed, not re-encoded.
+  - Audio: mp3 at or below the target bitrate.
+
+Use `--no-compress` on the command line, or `SETTINGS["compress"] = False` in
+the chef, to upload all media as-is, ignoring files' own `ffmpeg_settings`.
+Video in other containers is still converted to webm at its own height, and
+other audio to mp3.
+To skip one file, pass `ffmpeg_settings=False` to `VideoFile`/`AudioFile`, or
+`context={"compress": False}` to `ContentNode(uri=...)`.
 
 
 

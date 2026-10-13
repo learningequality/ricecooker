@@ -1,9 +1,11 @@
 from __future__ import print_function
 
+import logging
 import os
 import re
 import shutil
 import subprocess
+import sys
 
 import pytest
 from conftest import sample_hash_filename
@@ -12,8 +14,11 @@ from le_utils.constants import format_presets
 from le_utils.constants import licenses
 
 from ricecooker import config
+from ricecooker.chefs import SushiChef
+from ricecooker.classes.files import AudioFile
 from ricecooker.classes.files import SubtitleFile
 from ricecooker.classes.files import VideoFile
+from ricecooker.classes.nodes import ContentNode
 from ricecooker.classes.nodes import VideoNode
 
 
@@ -203,6 +208,113 @@ class Test_video_compression(object):
         assert video_file in config.FAILED_FILES, (
             "Video file sould be added to config.FAILED_FILES"
         )
+
+
+def _use_chef_pipeline(monkeypatch, argv=(), settings=None):
+    _clear_ricecookerfilecache()
+    monkeypatch.setattr(sys, "argv", ["sushichef.py", "--token=t", *argv])
+    chef = SushiChef()
+    chef.SETTINGS.update(settings or {})
+    chef.parse_args_and_options()
+    monkeypatch.setattr(config, "FILE_PIPELINE", chef.build_file_pipeline())
+
+
+def _processed_height(video_file):
+    return get_resolution(config.get_storage_path(video_file.process_file()))[1]
+
+
+@pytest.mark.parametrize(
+    "argv,settings,ffmpeg_settings",
+    [
+        ([], {}, None),
+        ([], {}, {"crf": 20}),
+        (["--compress"], {"compress": False}, None),
+    ],
+)
+def test_chef_compresses_video_to_720p(
+    monkeypatch, high_res_video, argv, settings, ffmpeg_settings
+):
+    _use_chef_pipeline(monkeypatch, argv, settings)
+    video_file = make_video_file(high_res_video, ffmpeg_settings=ffmpeg_settings)
+    assert _processed_height(video_file) == 720
+
+
+def test_chef_compression_keeps_file_crf(monkeypatch, high_res_video):
+    _use_chef_pipeline(monkeypatch)
+    default, crf20 = (
+        os.path.getsize(
+            config.get_storage_path(
+                make_video_file(high_res_video, ffmpeg_settings=s).process_file()
+            )
+        )
+        for s in (None, {"crf": 20})
+    )
+    assert crf20 > default
+
+
+@pytest.mark.parametrize("ffmpeg_settings", [None, {"crf": 20}])
+@pytest.mark.parametrize(
+    "argv,settings,ffmpeg_found,warning",
+    [
+        (["--no-compress"], {"compress": True}, True, "Compression is off"),
+        ([], {"compress": False}, True, "Compression is off"),
+        ([], {}, False, "ffmpeg not found"),
+    ],
+)
+def test_chef_without_compression_uploads_video_as_is(
+    monkeypatch,
+    caplog,
+    high_res_video,
+    argv,
+    settings,
+    ffmpeg_found,
+    warning,
+    ffmpeg_settings,
+):
+    if not ffmpeg_found:
+        monkeypatch.setattr(shutil, "which", lambda cmd: None)
+    with caplog.at_level(logging.WARNING):
+        _use_chef_pipeline(monkeypatch, argv, settings)
+    assert [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING] == [
+        f"{warning}: media is uploaded uncompressed."
+    ]
+    video_file = make_video_file(high_res_video, ffmpeg_settings=ffmpeg_settings)
+    assert video_file.process_file() == sample_hash_filename("high_res_sample.mp4")
+    mov_file = VideoFile(sample_path("sample.mov"), ffmpeg_settings=ffmpeg_settings)
+    assert _processed_height(mov_file) == 720
+
+
+def _process_uri(path, context):
+    node = ContentNode(
+        source_id="video",
+        title="Video",
+        license=licenses.CC_BY,
+        copyright_holder="Holder",
+        uri=path,
+        context=context,
+    )
+    node.process_files()
+    [video_file] = node.files
+    return video_file.filename
+
+
+@pytest.mark.parametrize(
+    "sample,process",
+    [
+        (
+            "high_res_sample.mp4",
+            lambda path: VideoFile(path, ffmpeg_settings=False).process_file(),
+        ),
+        (
+            "sample_audio.mp3",
+            lambda path: AudioFile(path, ffmpeg_settings=False).process_file(),
+        ),
+        ("high_res_sample.mp4", lambda path: _process_uri(path, {"compress": False})),
+    ],
+)
+def test_file_opted_out_of_compression_is_unchanged(monkeypatch, sample, process):
+    _use_chef_pipeline(monkeypatch)
+    assert process(sample_path(sample)) == sample_hash_filename(sample)
 
 
 """ *********** TEST VIDEO CONVERSION  *********** """

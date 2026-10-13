@@ -44,7 +44,6 @@ def uploadchannel(  # noqa: C901
     token="#",
     prompt=False,
     publish=False,
-    compress=False,
     stage=False,
     **kwargs,
 ):
@@ -58,7 +57,6 @@ def uploadchannel(  # noqa: C901
         token (str): content server authorization token
         prompt (bool): indicates whether to prompt user to open channel when done (optional)
         publish (bool): indicates whether to automatically publish channel (optional)
-        compress (bool): indicates whether to compress larger files (optional)
         stage (bool): indicates whether to stage rather than deploy channel (optional)
         kwargs (dict): extra keyword args will be passed to construct_channel (optional)
     Returns: (str) link to access newly created channel

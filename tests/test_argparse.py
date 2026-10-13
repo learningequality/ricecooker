@@ -16,7 +16,7 @@ def cli_args_and_expected():
         "debug": False,
         "warn": False,
         "quiet": False,
-        "compress": False,
+        "compress": None,
         "thumbnails": False,
         "download_attempts": 3,
         "prompt": False,

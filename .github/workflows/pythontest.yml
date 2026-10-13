@@ -8,6 +8,9 @@ on:
     branches:
       - develop
       - main
+env:
+  # uv 0.13 rejects the pre-POSIX tar of the PyPDF2 1.26.0 sdist
+  UV_LEGACY_TAR_BACKEND: '1'
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
