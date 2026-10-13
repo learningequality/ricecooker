@@ -127,7 +127,6 @@ class FileHandler(Handler):
 
     CONTEXT_CLASS: ClassVar[Optional[Type[ContextMetadata]]] = ContextMetadata
 
-    # Subclasses can define this list to specify which exceptions should be caught and reported
     HANDLED_EXCEPTIONS = []
 
     def __init__(self, **context):
@@ -170,9 +169,12 @@ class FileHandler(Handler):
             context = self.CONTEXT_CLASS(**context)
         except TypeError:
             missing = fields - set(context)
-            raise ValueError(
+            message = (
                 f"Missing required context for {self.__class__.__name__}: {missing}"
             )
+            if merged.get("asset_ref"):
+                raise InvalidFileException(message)
+            raise ValueError(message)
         return context
 
     @contextmanager
@@ -307,7 +309,7 @@ class FileHandler(Handler):
                 config.LOGGER.error(
                     f"\tFailed {self.STAGE} for {path} with kwargs {kwargs}"
                 )
-                raise ExpectedFileException(e) from e
+                raise ExpectedFileException(str(e) or type(e).__name__) from e
             except subprocess.TimeoutExpired as e:
                 raise InvalidFileException(
                     f"{e.cmd[0]} timed out after {e.timeout}s"
