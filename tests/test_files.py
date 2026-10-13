@@ -1,12 +1,16 @@
 """Tests for file downloading and processing"""
 
 import base64
+import errno
 import hashlib
 import os.path
+import shutil
+import struct
 import sys
 import tempfile
 import threading
 import zipfile
+import zlib
 from http.server import BaseHTTPRequestHandler
 from http.server import ThreadingHTTPServer
 from io import BytesIO
@@ -19,6 +23,7 @@ from urllib.parse import urlparse
 import pytest
 import yt_dlp
 from conftest import sample_path
+from fake_session import fake_download_session
 from le_utils.constants import file_formats
 from le_utils.constants import format_presets
 from le_utils.constants import languages
@@ -28,6 +33,8 @@ from PIL import Image
 from PyPDF2 import PdfFileWriter
 from requests import ConnectionError
 from requests import HTTPError
+from requests.exceptions import ChunkedEncodingError
+from requests.exceptions import TooManyRedirects
 from vcr_config import my_vcr
 from yt_dlp.extractor.vimeo import VimeoAlbumIE
 from yt_dlp.extractor.youtube import YoutubeIE
@@ -37,7 +44,6 @@ from ricecooker import config
 from ricecooker.classes.files import _ExerciseGraphieFile
 from ricecooker.classes.files import AudioFile
 from ricecooker.classes.files import Base64ImageFile
-from ricecooker.classes.files import CONVERTIBLE_FORMATS
 from ricecooker.classes.files import DocumentFile
 from ricecooker.classes.files import DownloadFile
 from ricecooker.classes.files import File
@@ -420,6 +426,23 @@ def test_download_file_404_error(mock_session):
     assert download_file in config.FAILED_FILES
 
 
+_PNG_1x1 = (
+    b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01"
+    b"\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89"
+    b"\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01"
+    b"\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82"
+)
+
+
+def test_thumbnail_url_without_image_extension_stored_by_content():
+    url = "https://site.example/thumb.php?id=1"
+    thumbnail = ThumbnailFile(url)
+
+    with fake_download_session({url: _PNG_1x1}, {url: "image/png"}):
+        assert thumbnail.process_file().endswith(".png")
+    assert thumbnail.error is None
+
+
 def test_download_file_connection_timeout(mock_session):
     """Test handling of connection timeouts"""
     mock_session.get.side_effect = ConnectionError("Connection timed out")
@@ -430,6 +453,86 @@ def test_download_file_connection_timeout(mock_session):
     assert result is None
     assert "Connection timed out" in download_file.error
     assert download_file in config.FAILED_FILES
+
+
+def _drop_mid_download(chunk_size=8192):
+    yield b"partial"
+    raise ChunkedEncodingError("Connection broken: IncompleteRead")
+
+
+@pytest.mark.parametrize(
+    "get,expected",
+    [
+        (
+            {"side_effect": TooManyRedirects("Exceeded 30 redirects.")},
+            "Exceeded 30 redirects",
+        ),
+        (
+            {
+                "return_value": SimpleNamespace(
+                    headers={},
+                    raise_for_status=lambda: None,
+                    iter_content=_drop_mid_download,
+                )
+            },
+            "Connection broken",
+        ),
+    ],
+    ids=["redirect-loop", "dropped-mid-download"],
+)
+def test_download_failure_fails_only_that_file(mock_session, get, expected):
+    mock_session.get.configure_mock(**get)
+
+    download_file = DownloadFile("http://fake.url/file.txt")
+
+    assert download_file.process_file() is None
+    assert expected in download_file.error
+    assert download_file in config.FAILED_FILES
+
+
+_BOMB_IHDR = b"IHDR" + struct.pack(">IIBBBBB", 20000, 20000, 8, 6, 0, 0, 0)
+
+
+# PIL raises OSError for the 20-byte cut, SyntaxError for the 60-byte one and
+# DecompressionBombError for the 20000x20000 header.
+@pytest.mark.parametrize(
+    "content",
+    [
+        _PNG_1x1[:20],
+        _PNG_1x1[:60],
+        _PNG_1x1[:8]
+        + struct.pack(">I", 13)
+        + _BOMB_IHDR
+        + struct.pack(">I", zlib.crc32(_BOMB_IHDR))
+        + _PNG_1x1[33:],
+    ],
+    ids=["truncated-20", "truncated-60", "decompression-bomb"],
+)
+def test_bad_image_fails_only_that_file(tmp_path, content):
+    path = tmp_path / "thumb.png"
+    path.write_bytes(content)
+
+    thumbnail = ThumbnailFile(str(path))
+
+    assert thumbnail.process_file() is None
+    assert "did not pass verification" in thumbnail.error
+    assert thumbnail in config.FAILED_FILES
+
+
+def test_storage_error_during_image_conversion_propagates(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "STORAGE_DIRECTORY", str(tmp_path / "storage"))
+    path = tmp_path / "thumb.bmp"
+    Image.new("RGB", (1, 1)).save(path)
+    real_copy = shutil.copy
+
+    def copy(src, dst):
+        if ".png" in os.path.basename(dst):
+            raise OSError(errno.ENOSPC, "No space left on device")
+        return real_copy(src, dst)
+
+    with patch.object(shutil, "copy", copy):
+        with pytest.raises(OSError, match="No space left"):
+            ThumbnailFile(str(path)).process_file()
 
 
 # Check basic caching for downloaded files
@@ -548,126 +651,121 @@ def test_set_language():
     pytest.raises(TypeError, SubtitleFile, "path", language="notalanguage")
 
 
-# Video validation tests
+@pytest.mark.parametrize(
+    "cls,kwargs",
+    [(VideoFile, {}), (AudioFile, {}), (SubtitleFile, {"language": "en"})],
+    ids=["video", "audio", "subtitle"],
+)
+def test_processed_extension_outside_allowed_formats_fails_the_file(
+    tmp_path, cls, kwargs
+):
+    path = tmp_path / "media.xyz"
+    path.write_bytes(b"junk")
+    media = cls(str(path), **kwargs)
+
+    assert media.process_file() is None
+    assert f".xyz, incompatible with {cls.__name__}" in media.error
+    assert str(path) not in media.error
+    assert media in config.FAILED_FILES
 
 
-def test_allowed_video_formats():
-    # MP4 and WEBM are allowed formats
-    for ext in [file_formats.MP4, file_formats.WEBM]:
-        video = VideoFile(f"/path/to/video.{ext}")
-        try:
-            video.validate()  # Should not raise error
-        except ValueError as e:
-            pytest.fail(f"Validation failed for {ext}: {str(e)}")
+@pytest.mark.parametrize("name", ["lecture.mov", "notes.md"])
+def test_known_extension_outside_allowed_formats_fails_before_processing(
+    tmp_path, name
+):
+    path = tmp_path / name
+    path.write_bytes(b"junk")
+    audio = AudioFile(str(path))
+
+    assert audio.process_file() is None
+    assert f"Incompatible extension {path.suffix[1:]} for AudioFile" in audio.error
+    assert str(path) not in audio.error
+    assert audio in config.FAILED_FILES
 
 
-def test_disallowed_video_formats():
-    video = VideoFile("/path/to/video.xyz")
-    with pytest.raises(ValueError) as excinfo:
-        video.validate()
-    assert "Incompatible extension" in str(excinfo.value)
+@pytest.mark.parametrize(
+    "url,body",
+    [
+        (
+            "https://s.example/sub?id=vtt",
+            b"WEBVTT\n\n00:00.000 --> 00:01.000\nHi\n",
+        ),
+        (
+            "https://s.example/sub?id=srt",
+            b"1\n00:00:00,000 --> 00:00:01,000\nHi\n",
+        ),
+    ],
+    ids=["vtt", "srt"],
+)
+def test_extensionless_subtitle_url_processes_to_vtt(url, body):
+    with fake_download_session({url: body}, {url: "text/plain"}):
+        sub = SubtitleFile(url, language="en")
+        filename = sub.process_file()
+    assert sub.error is None
+    assert filename.endswith(".vtt")
 
 
-def test_convertible_video_formats():
-    # AVI and MOV are convertible formats
-    for ext in CONVERTIBLE_FORMATS[format_presets.VIDEO_HIGH_RES]:
-        video = VideoFile(f"/path/to/video.{ext}")
-        try:
-            video.validate()  # Should not raise error
-        except ValueError as e:
-            pytest.fail(f"Validation failed for {ext}: {str(e)}")
+def test_extensionless_subtitle_response_to_download_file_fails_file():
+    url = "http://fake/subs?id=1"
+    with fake_download_session({url: b"WEBVTT\n"}, {url: "text/vtt"}):
+        download = DownloadFile(url)
+        assert download.process_file() is None
+    assert "no language was given" in download.error
 
 
-def test_video_default_ext():
-    video = VideoFile("/path/to/video", default_ext=file_formats.MP4)
-    try:
-        video.validate()  # Should not raise error
-    except ValueError as e:
-        pytest.fail(f"Validation failed: {str(e)}")
+@pytest.mark.parametrize("subtitle_first", [True, False])
+def test_subtitle_and_download_file_at_one_url_do_not_share_download(
+    subtitle_first,
+):
+    url = f"http://fake/subs.php?first={subtitle_first}"
+    with fake_download_session(
+        {url: b"WEBVTT\n\n00:00.000 --> 00:01.000\nHi\n"}, {url: "text/vtt"}
+    ):
+        sub = SubtitleFile(url, language="en")
+        download = DownloadFile(url)
+        files = [sub, download] if subtitle_first else [download, sub]
+        for f in files:
+            f.process_file()
+    assert sub.error is None and sub.filename.endswith(".vtt")
+    assert download.error is None and download.filename.endswith(".php")
 
 
-def test_video_no_extension_no_default():
-    video = VideoFile("/path/to/video")
-    video.default_ext = None
-    with pytest.raises(ValueError) as excinfo:
-        video.validate()
-    assert "No extension" in str(excinfo.value)
+def test_local_subtitle_download_file_without_language_raises(tmp_path):
+    path = tmp_path / "subs.srt"
+    path.write_bytes(b"1\n00:00:00,000 --> 00:00:01,000\nHi\n")
+    with pytest.raises(ValueError, match="Missing required context"):
+        DownloadFile(str(path)).process_file()
 
 
-# Audio validation tests
-def test_allowed_audio_formats():
-    # Only MP3 is allowed
-    audio = AudioFile("/path/to/audio.mp3")
-    try:
-        audio.validate()  # Should not raise error
-    except ValueError as e:
-        pytest.fail(f"Validation failed: {str(e)}")
+@pytest.mark.parametrize(
+    "mimetype,fmt,suffix",
+    [
+        ("image/x-ms-bmp", "BMP", ".png"),
+        ("image/x-portable-pixmap", "PPM", ".png"),
+        ("image/x-targa", "TGA", ".png"),
+        ("image/apng", "PNG", ".png"),
+        ("image/mpo", "JPEG", ".jpg"),
+    ],
+)
+def test_base64_legacy_image_mimetype_converts_to_uploadable_ext(mimetype, fmt, suffix):
+    buf = BytesIO()
+    Image.new("RGB", (1, 1)).save(buf, fmt)
+    encoding = f"data:{mimetype};base64," + base64.b64encode(buf.getvalue()).decode()
+    image = Base64ImageFile(encoding)
+    filename = image.process_file()
+    assert image.error is None
+    assert filename.endswith(suffix)
 
 
-def test_convertible_audio_formats():
-    # wav and ogg are convertible formats
-    for ext in CONVERTIBLE_FORMATS[format_presets.AUDIO]:
-        audio = AudioFile(f"/path/to/audio.{ext}")
-        try:
-            audio.validate()  # Should not raise error
-        except ValueError as e:
-            pytest.fail(f"Validation failed for {ext}: {str(e)}")
+@pytest.mark.parametrize("mimetype", ["image/emf", "image/wmf"])
+def test_thumbnail_served_as_windows_metafile_fails_file(mimetype):
+    url = f"https://site.example/thumb.php?type={mimetype}"
+    emf_zero_frame = b"\x01\x00\x00\x00" + b"\x00" * 36 + b" EMF" + b"\x00" * 60
+    thumbnail = ThumbnailFile(url)
 
-
-def test_disallowed_audio_format():
-    audio = AudioFile("/path/to/audio.xyz")
-    with pytest.raises(ValueError) as excinfo:
-        audio.validate()
-    assert "Incompatible extension" in str(excinfo.value)
-
-
-def test_audio_default_ext():
-    audio = AudioFile("/path/to/audio", default_ext=file_formats.MP3)
-    try:
-        audio.validate()  # Should not raise error
-    except ValueError as e:
-        pytest.fail(f"Validation failed: {str(e)}")
-
-
-def test_audio_no_extension_no_default():
-    audio = AudioFile("/path/to/audio")
-    audio.default_ext = None
-    with pytest.raises(ValueError) as excinfo:
-        audio.validate()
-    assert "No extension" in str(excinfo.value)
-
-
-# Subtitle validation tests
-
-
-def test_vtt_format_validation():
-    """Test .vtt subtitle format passes validation"""
-    subtitle = SubtitleFile("/path/to/subs.vtt", language="en")
-    subtitle.validate()  # Should not raise error
-
-
-def test_convertible_subtitle_formats():
-    """Test convertible formats (.srt, .ttml, etc) pass validation"""
-    for fmt in CONVERTIBLE_FORMATS[format_presets.VIDEO_SUBTITLE]:
-        subtitle = SubtitleFile(f"/path/to/subs.{fmt}", language="en")
-        try:
-            subtitle.validate()  # Should not raise error
-        except ValueError as e:
-            pytest.fail(f"Validation failed for {fmt}: {str(e)}")
-
-
-def test_subtitle_format_specified():
-    """Test validation passes when subtitlesformat is specified"""
-    subtitle = SubtitleFile("/path/to/subs", language="en", subtitlesformat="srt")
-    subtitle.validate()  # Should not raise error
-
-
-def test_invalid_format_validation():
-    """Test invalid format fails validation when no subtitlesformat specified"""
-    subtitle = SubtitleFile("/path/to/subs.xyz", language="en")
-    with pytest.raises(ValueError) as excinfo:
-        subtitle.validate()
-    assert "Incompatible extension" in str(excinfo.value)
+    with fake_download_session({url: emf_zero_frame}, {url: mimetype}):
+        assert thumbnail.process_file() is None
+    assert thumbnail in config.FAILED_FILES
 
 
 def test_missing_language_validation():
@@ -769,6 +867,24 @@ def test_corrupt_media_error_is_one_line_without_storage_path(
     assert media_file.process_file() is None
     assert "\n" not in media_file.error
     assert os.path.abspath(config.STORAGE_DIRECTORY) not in media_file.error
+
+
+def test_truncated_utf16_member_left_unchanged(tmp_path):
+    other = (
+        "<html><body><img src='https://ex.com/a.png'></body></html>".encode("utf-16")
+        + b"\n"
+    )
+    path = tmp_path / "site.zip"
+    with zipfile.ZipFile(path, "w") as zf:
+        zf.writestr("index.html", "<html><body>Test</body></html>")
+        zf.writestr("other.html", other)
+    html_file = HTMLZipFile(str(path))
+    with fake_download_session({}):
+        filename = html_file.process_file()
+
+    assert html_file.error is None
+    with zipfile.ZipFile(config.get_storage_path(filename)) as zf:
+        assert zf.read("other.html") == other
 
 
 def test_non_index_entry_htmlzip_validation(non_index_entry_zip):
@@ -1343,6 +1459,31 @@ def test_subtitle_file_uses_chef_pipeline(monkeypatch):
     assert filename.endswith(".vtt"), subtitle_file.error
     with open(config.get_storage_path(filename), encoding="utf-8") as fh:
         assert "البعض أكثر" in fh.read()
+
+
+def test_pipeline_output_without_extension_fails_the_file(monkeypatch):
+    class ExtensionlessHandler(FileHandler):
+        def should_handle(self, path):
+            return path.startswith("drive-like://")
+
+        def handle_file(self, path):
+            with self.write_file("") as fh:
+                fh.write(b"%PDF-1.4")
+
+    pipeline = FilePipeline(
+        children=[
+            DownloadStageHandler(children=[ExtensionlessHandler()]),
+            ConversionStageHandler(),
+            ExtractMetadataStageHandler(),
+        ]
+    )
+    monkeypatch.setattr(config, "FILE_PIPELINE", pipeline)
+
+    document = DocumentFile("drive-like://worksheet")
+
+    assert document.process_file() is None
+    assert "incompatible with DocumentFile" in document.error
+    assert document in config.FAILED_FILES
 
 
 # Tests for Base64 image files

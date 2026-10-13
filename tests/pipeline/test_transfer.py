@@ -2,7 +2,9 @@ import base64
 import copy
 import io
 import json
+import mimetypes
 import os
+import sys
 import tempfile
 import tracemalloc
 import urllib.parse
@@ -20,6 +22,7 @@ import yt_dlp
 from fake_session import fake_download_session
 from le_utils.constants import format_presets
 from le_utils.constants import licenses
+from PIL import Image
 from vcr_config import my_vcr
 
 from ricecooker import config
@@ -27,8 +30,11 @@ from ricecooker.classes.licenses import get_license
 from ricecooker.classes.nodes import ContentNode
 from ricecooker.exceptions import InvalidNodeException
 from ricecooker.utils.caching import generate_key
+from ricecooker.utils.caching import set_cache_data
+from ricecooker.utils.encodings import exts_from_mimetype
 from ricecooker.utils.pipeline import FilePipeline
 from ricecooker.utils.pipeline.context import FileMetadata
+from ricecooker.utils.pipeline.convert import ImageConversionHandler
 from ricecooker.utils.pipeline.exceptions import ExpectedFileException
 from ricecooker.utils.pipeline.exceptions import InvalidFileException
 from ricecooker.utils.pipeline.file_handler import FileHandler
@@ -45,6 +51,7 @@ from ricecooker.utils.pipeline.transfer import SingleFileRenderHandler
 from ricecooker.utils.pipeline.transfer import YouTubeContextMetadata
 from ricecooker.utils.pipeline.transfer import YoutubeDownloadHandler
 
+from .helpers import _PNG_1x1
 from .helpers import fake_render_page
 
 content_disposition_filename_cases = [
@@ -219,6 +226,15 @@ def test_gdrive_init_context_validated_via_super():
     # custom __init__ forwards **context rather than swallowing it.
     with pytest.raises(TypeError, match="unexpected context field"):
         GoogleDriveHandler(default_ext="pdf")
+
+
+def test_gdrive_without_extra_reports_missing_library():
+    blocked = dict.fromkeys(
+        ["googleapiclient", "googleapiclient.errors", "googleapiclient.http"]
+    )
+    with patch.dict(sys.modules, blocked):
+        with pytest.raises(RuntimeError, match="google-api-python-client"):
+            GoogleDriveHandler().execute(pdf_link, skip_cache=True)
 
 
 @my_vcr.use_cassette
@@ -793,6 +809,13 @@ def test_disk_transfer_file_protocol():
     )
 
 
+def test_disk_transfer_rejects_extensionless_path(tmp_path):
+    source = tmp_path / "diagram"
+    source.write_bytes(b"data")
+    with pytest.raises(InvalidFileException, match="No extension"):
+        DiskResourceHandler().execute(str(source), skip_cache=True)
+
+
 def test_disk_transfer_recopies_edited_file(tmp_path):
     source = tmp_path / "notes.txt"
     handler = DownloadStageHandler()
@@ -998,6 +1021,311 @@ def _fake_head(content_types_by_url):
     return head
 
 
+class _FakeGetResponse(_FakeHeadResponse):
+    def __init__(self, content, content_type):
+        super().__init__(content_type)
+        self.content = content
+
+    def raise_for_status(self):
+        pass
+
+    def iter_content(self, chunk_size=8192):
+        yield self.content
+
+
+@pytest.mark.parametrize(
+    "url,content_type,content,default_ext,suffix",
+    [
+        (
+            "https://site.example/thumb.php?id=1",
+            "image/jpeg",
+            b"\xff\xd8\xff\xe0jpeg",
+            "png",
+            ".jpg",
+        ),
+        (
+            "https://fonts.googleapis.com/css?family=Roboto",
+            "text/css; charset=utf-8",
+            b"@font-face{}",
+            None,
+            ".css",
+        ),
+        (
+            "https://site.example/file?id=2",
+            "application/octet-stream",
+            _PNG_1x1,
+            None,
+            ".png",
+        ),
+        (
+            "https://site.example/pkg.h5p",
+            "application/zip",
+            b"PK\x03\x04",
+            None,
+            ".h5p",
+        ),
+        (
+            "https://site.example/pkg?id=3",
+            "application/zip",
+            b"PK\x03\x04",
+            "h5p",
+            ".h5p",
+        ),
+        (
+            "https://site.example/data.xml",
+            "application/xml",
+            b"<data/>",
+            None,
+            ".xml",
+        ),
+        (
+            "https://cdn.example/script?v=1",
+            "application/javascript",
+            b"var x;",
+            None,
+            ".js",
+        ),
+        (
+            "https://site.example/page.htm",
+            "text/html; charset=utf-8",
+            b"<html></html>",
+            None,
+            ".htm",
+        ),
+        (
+            "https://site.example/video.m3u8",
+            "application/vnd.apple.mpegurl",
+            b"#EXTM3U",
+            None,
+            ".m3u8",
+        ),
+        (
+            "https://site.example/app.ggb",
+            "application/octet-stream",
+            b"PK\x03\x04",
+            None,
+            ".ggb",
+        ),
+        (
+            "https://site.example/app.sb3",
+            "application/zip",
+            b"PK\x03\x04",
+            None,
+            ".sb3",
+        ),
+        (
+            "https://maps.googleapis.com/maps/api/js?key=K",
+            "text/javascript",
+            b"var x;",
+            None,
+            ".js",
+        ),
+        ("https://site.example/app.js", "application/json", b"var x;", None, ".js"),
+        (
+            "https://site.example/lib.min.js.map",
+            "application/json",
+            b"{}",
+            None,
+            ".map",
+        ),
+        (
+            "https://site.example/data.csv",
+            "application/vnd.ms-excel",
+            b"a,b",
+            None,
+            ".csv",
+        ),
+        (
+            "https://site.example/feed.xml",
+            "application/rss+xml",
+            b"<rss/>",
+            None,
+            ".xml",
+        ),
+        (
+            "https://site.example/page.js",
+            "text/html",
+            b"<html></html>",
+            None,
+            ".html",
+        ),
+        (
+            "https://s.example/icon.svg",
+            "text/html",
+            b"<svg xmlns='http://www.w3.org/2000/svg' width='1' height='1'/>",
+            None,
+            ".svg",
+        ),
+        (
+            "https://s.example/download.php?id=1",
+            "application/zip",
+            b"PK\x03\x04",
+            "zip",
+            ".zip",
+        ),
+        (
+            "https://s.example/getsub.php?id=5",
+            "application/zip",
+            b"PK\x03\x04",
+            "vtt",
+            ".php",
+        ),
+        ("https://s.example/stream.php?id=1", "audio/ogg", b"OggS", None, ".ogg"),
+        ("https://s.example/feed.xml", "text/html", b"<data>1</data>", None, ".xml"),
+        (
+            "https://s.example/logo.svg",
+            "text/html",
+            b"<!-- Generator --><svg xmlns='http://www.w3.org/2000/svg'/>",
+            None,
+            ".svg",
+        ),
+        (
+            "https://s.example/app2.js",
+            "text/html",
+            b"<!-- hide\nvar x;\n// -->",
+            None,
+            ".js",
+        ),
+        ("https://s.example/site.css", "text/html", b"<!-- body{} -->", None, ".css"),
+        (
+            "https://s.example/page2.js",
+            "text/html",
+            b"<?xml version='1.0'?>\n<!-- 404 -->\n<!DOCTYPE html><html/>",
+            None,
+            ".html",
+        ),
+    ],
+    ids=[
+        "unknown-name-ext",
+        "no-name-ext",
+        "sniffed",
+        "known-name-ext",
+        "declared-default",
+        "xml-not-xsl",
+        "js",
+        "matching-name-ext-htm",
+        "matching-name-ext-m3u8",
+        "sniffed-zip-keeps-name-ext",
+        "zip-type-keeps-name-ext",
+        "text-javascript",
+        "asset-ext-beats-json-type",
+        "source-map",
+        "csv-not-xls",
+        "xml-not-rss",
+        "page-at-asset-ext",
+        "svg-served-as-html",
+        "container-type-takes-default-ext",
+        "container-type-ignores-non-archive-default-ext",
+        "ogg-not-oga",
+        "xml-served-as-html",
+        "comment-first-svg-served-as-html",
+        "comment-first-js-served-as-html",
+        "comment-only-css-served-as-html",
+        "xhtml-page-at-asset-ext",
+    ],
+)
+def test_catchall_names_file_from_response(
+    url, content_type, content, default_ext, suffix
+):
+    with patch.object(
+        config.DOWNLOAD_SESSION,
+        "get",
+        return_value=_FakeGetResponse(content, content_type),
+    ):
+        result = CatchAllWebResourceDownloadHandler().execute(
+            url, context={"default_ext": default_ext}, skip_cache=True
+        )
+    assert result[0].filename.endswith(suffix)
+
+
+@pytest.mark.parametrize(
+    "url,content_type,suffix",
+    [
+        ("https://s.example/subs.php?id=1", "text/vtt", ".vtt"),
+        ("https://s.example/subs.php?id=2", "application/ttml+xml", ".ttml"),
+        ("https://s.example/subs.php?id=3", "application/x-subrip", ".srt"),
+        ("https://s.example/thumb.php?id=4", "image/webp", ".webp"),
+        ("https://s.example/page.htm", "text/html", ".htm"),
+    ],
+)
+def test_catchall_naming_ignores_host_mimetypes_db(
+    monkeypatch, url, content_type, suffix
+):
+    empty_db = mimetypes.MimeTypes()
+    empty_db.types_map = ({}, {})
+    empty_db.types_map_inv = ({}, {})
+    monkeypatch.setattr(mimetypes, "_db", empty_db)
+    monkeypatch.setattr(mimetypes, "inited", True)
+    with patch.object(
+        config.DOWNLOAD_SESSION,
+        "get",
+        return_value=_FakeGetResponse(b"x", content_type),
+    ):
+        result = CatchAllWebResourceDownloadHandler().execute(
+            url, context={"language": "en"}, skip_cache=True
+        )
+    assert result[0].filename.endswith(suffix)
+
+
+def test_every_pil_image_mimetype_maps_to_a_converted_ext():
+    Image.init()
+    for mimetype in {m for m in Image.MIME.values() if m.startswith("image/")}:
+        exts = set(exts_from_mimetype(mimetype))
+        assert exts and exts <= ImageConversionHandler.EXTENSIONS, mimetype
+
+
+@pytest.mark.parametrize(
+    "url,cached,refetched",
+    [
+        ("https://site.example/stale-cache.php", "stale.php", True),
+        ("https://site.example/kept-cache.png", "kept.png", False),
+    ],
+    ids=["renamed-ext-refetched", "kept-ext-reused"],
+)
+def test_catchall_download_cached_by_earlier_release(url, cached, refetched):
+    with open(config.get_storage_path(cached), "wb") as fh:
+        fh.write(_PNG_1x1)
+    set_cache_data(f"DOWNLOAD:{url}", {"filename": cached})
+    with patch.object(
+        config.DOWNLOAD_SESSION,
+        "get",
+        return_value=_FakeGetResponse(_PNG_1x1, "image/png"),
+    ) as get:
+        handler = CatchAllWebResourceDownloadHandler()
+        handler.parent = DownloadStageHandler()
+        result = handler.execute(url, context={})
+    assert get.called == refetched
+    assert (result[0].filename == cached) != refetched
+
+
+def test_catchall_node_file_and_archive_ref_share_one_download():
+    url = "https://site.example/shared-logo.png"
+    with patch.object(
+        config.DOWNLOAD_SESSION,
+        "get",
+        return_value=_FakeGetResponse(_PNG_1x1, "image/png"),
+    ) as get:
+        handler = CatchAllWebResourceDownloadHandler()
+        handler.parent = DownloadStageHandler()
+        handler.execute(url, context={})
+        handler.execute(url, context={"asset_ref": True})
+    assert get.call_count == 1
+
+
+def test_catchall_rejects_undeterminable_type():
+    with patch.object(
+        config.DOWNLOAD_SESSION,
+        "get",
+        return_value=_FakeGetResponse(b"hello", "text/plain"),
+    ):
+        with pytest.raises(
+            InvalidFileException, match="Could not determine the file type"
+        ):
+            CatchAllWebResourceDownloadHandler().execute(
+                "https://site.example/blob?id=4", context={}, skip_cache=True
+            )
+
+
 def test_singlefile_render_handler_should_handle_detects_html():
     # No marker: the handler claims a URL only when a HEAD says it serves HTML,
     # so it can sit before the catch-all and render only HTML pages.
@@ -1135,6 +1463,28 @@ def test_singlefile_render_end_to_end_explosion():
     pngs = [n for n in names if n.endswith(".png")]
     assert len(pngs) == 1
     assert 'src="{}"'.format(pngs[0]) in index
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://en.wikipedia.org/wiki/Node.js",
+        "https://commons.wikimedia.org/wiki/File:Example.svg",
+        "https://github.com/nodejs/node/blob/main/package.json",
+    ],
+)
+def test_page_at_asset_extension_url_renders(url):
+    with (
+        patch(
+            "ricecooker.utils.pipeline.transfer.render_page",
+            side_effect=fake_render_page(),
+        ),
+        patch.object(
+            config.DOWNLOAD_SESSION, "head", side_effect=_fake_head({url: "text/html"})
+        ),
+    ):
+        result = FilePipeline().execute(url)
+    assert result[0].preset == format_presets.KPUB_ZIP
 
 
 def test_default_pipeline_renders_html_and_downloads_other_sources():
