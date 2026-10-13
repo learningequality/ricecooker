@@ -26,6 +26,7 @@ from ricecooker import config
 from ricecooker.classes.licenses import get_license
 from ricecooker.classes.nodes import ContentNode
 from ricecooker.exceptions import InvalidNodeException
+from ricecooker.utils import proxy
 from ricecooker.utils.caching import generate_key
 from ricecooker.utils.pipeline import FilePipeline
 from ricecooker.utils.pipeline.context import FileMetadata
@@ -44,6 +45,7 @@ from ricecooker.utils.pipeline.transfer import read
 from ricecooker.utils.pipeline.transfer import SingleFileRenderHandler
 from ricecooker.utils.pipeline.transfer import YouTubeContextMetadata
 from ricecooker.utils.pipeline.transfer import YoutubeDownloadHandler
+from ricecooker.utils.youtube import YouTubeResource
 
 from .helpers import fake_render_page
 
@@ -464,6 +466,7 @@ def renders_page():
 
 BBCIE = yt_dlp.extractor.bbc.BBCIE
 VimeoIE = yt_dlp.extractor.vimeo.VimeoIE
+YoutubeIE = yt_dlp.extractor.youtube.YoutubeIE
 
 
 @pytest.mark.parametrize(
@@ -764,6 +767,212 @@ def test_download_stage_fails_video_missing_subtitle_language(fake_video_site):
             VimeoIE,
             subtitle_lang="fr",
         )
+
+
+YOUTUBE_URL = "https://www.youtube.com/watch?v=aaaaaaaaaaa"
+TEST_PROXIES = [
+    "proxy.invalid:3128",
+    "b.invalid:3128",
+    "c.invalid:3128",
+    "d.invalid:3128",
+]
+
+
+@pytest.fixture
+def youtube_proxy(monkeypatch, tmp_path):
+    monkeypatch.setattr(config, "USEPROXY", True)
+    monkeypatch.setenv("PROXY_LIST", ";".join(TEST_PROXIES))
+    monkeypatch.setattr(proxy, "PROXY_LIST", [])
+    monkeypatch.setattr(proxy, "RECENT_PROXIES", [])
+    monkeypatch.setattr(proxy, "MAYBE_BROKEN_PROXIES", {})
+    monkeypatch.setattr(proxy, "BROKEN_PROXIES", [])
+    monkeypatch.setattr(
+        proxy, "BROKEN_PROXIES_CACHE_FILENAME", str(tmp_path / "broken_proxies.list")
+    )
+    monkeypatch.setattr("ricecooker.utils.youtube.time.sleep", lambda s: None)
+
+
+@contextmanager
+def _patched_youtube(dl, extracted=None):
+    with (
+        fake_extractors({YoutubeIE: extracted or _video_info(YOUTUBE_URL, "en")}),
+        patch.object(yt_dlp.YoutubeDL, "dl", dl),
+    ):
+        yield
+
+
+def _download_youtube(dl, extracted=None, subtitles=True):
+    context = {"subtitle_languages": ["en"]} if subtitles else None
+    with _patched_youtube(dl, extracted):
+        return DownloadStageHandler().execute(
+            YOUTUBE_URL, context=context, skip_cache=True
+        )
+
+
+def _proxy_error():
+    return yt_dlp.networking.exceptions.ProxyError("proxy refused connection")
+
+
+def _http_error(url, status):
+    response = yt_dlp.networking.Response(io.BytesIO(), url, {}, status=status)
+    return yt_dlp.networking.exceptions.HTTPError(response)
+
+
+def _dead_proxy_subtitle_download(self, name, info, subtitle=False, test=False):
+    if subtitle:
+        raise _proxy_error()
+    return _fake_yt_dlp_download(self, name, info)
+
+
+@pytest.mark.parametrize(
+    "slow_limit", [YouTubeResource.EXTRACT_TIME_SLOW_LIMIT, -1], ids=["fast", "slow"]
+)
+def test_download_stage_downloads_youtube_video_and_subtitles_with_proxy(
+    youtube_proxy, monkeypatch, slow_limit
+):
+    monkeypatch.setattr(YouTubeResource, "EXTRACT_TIME_SLOW_LIMIT", slow_limit)
+    proxies = {}
+
+    def dl(self, name, info, subtitle=False, test=False):
+        proxies["subtitle" if subtitle else "video"] = self.proxies.get("all")
+        return _fake_yt_dlp_download(self, name, info, subtitle=subtitle)
+
+    result = _download_youtube(dl)
+    assert [os.path.splitext(f.filename)[1] for f in result] == [".mp4", ".vtt"]
+    assert proxies["subtitle"] in TEST_PROXIES
+    assert proxies["video"] not in TEST_PROXIES
+
+
+@pytest.mark.parametrize(
+    "extracted,dl",
+    [
+        (_proxy_error(), _fake_yt_dlp_download),
+        (None, _dead_proxy_subtitle_download),
+    ],
+    ids=["info", "download"],
+)
+def test_download_stage_fails_youtube_file_when_proxy_fails(
+    youtube_proxy, extracted, dl
+):
+    with pytest.raises(ExpectedFileException):
+        _download_youtube(dl, extracted)
+
+
+@pytest.mark.parametrize(
+    "live",
+    [{"is_live": True}, {"live_status": "is_live"}],
+    ids=["is_live", "live_status"],
+)
+def test_download_stage_fails_proxied_youtube_live_video(youtube_proxy, live):
+    with pytest.raises(InvalidFileException, match="live stream"):
+        _download_youtube(
+            MagicMock(side_effect=AssertionError("recorded")),
+            {**_video_info(YOUTUBE_URL, "en"), **live},
+            subtitles=False,
+        )
+
+
+def test_youtube_resource_second_download_uses_its_own_options(youtube_proxy, tmp_path):
+    with _patched_youtube(_fake_yt_dlp_download):
+        resource = YouTubeResource(YOUTUBE_URL, useproxy=True)
+        resource.get_resource_info()
+        resource.download(
+            base_path=str(tmp_path),
+            useproxy=True,
+            options={"skip_download": True, "writesubtitles": True},
+        )
+        result = resource.download(base_path=str(tmp_path))
+    assert os.path.exists(result["filename"])
+    assert result["filename"].endswith(".mp4")
+
+
+def test_youtube_resource_removes_partial_download_before_retry(
+    youtube_proxy, tmp_path
+):
+    partials = []
+
+    def dl(self, name, info, subtitle=False, test=False):
+        if not partials:
+            partials.append(name)
+            with open(name, "wb") as fh:
+                fh.write(b"partial")
+            raise _proxy_error()
+        assert not os.path.exists(partials[0])
+        return _fake_yt_dlp_download(self, name, info)
+
+    with _patched_youtube(dl):
+        resource = YouTubeResource(YOUTUBE_URL, useproxy=True)
+        assert resource.download(base_path=str(tmp_path)) is not None
+
+
+def test_download_stage_retries_youtube_subtitle_on_next_proxy(youtube_proxy):
+    proxies = []
+
+    def dl(self, name, info, subtitle=False, test=False):
+        if subtitle:
+            proxies.append(self.proxies.get("all"))
+            if len(proxies) == 1:
+                raise _proxy_error()
+        return _fake_yt_dlp_download(self, name, info, subtitle=subtitle)
+
+    result = _download_youtube(dl)
+    assert os.path.splitext(result[-1].filename)[1] == ".vtt"
+    assert len(set(proxies)) == len(proxies) == 2
+    assert set(proxies) <= set(TEST_PROXIES)
+
+
+def test_download_stage_fails_each_youtube_file_when_all_proxies_broken(
+    youtube_proxy, monkeypatch
+):
+    monkeypatch.setenv("PROXY_LIST", TEST_PROXIES[0])
+    for _ in range(2):
+        with pytest.raises(ExpectedFileException):
+            _download_youtube(_dead_proxy_subtitle_download)
+
+
+def test_download_stage_keeps_proxies_when_youtube_subtitle_missing(youtube_proxy):
+    def dl(self, name, info, subtitle=False, test=False):
+        if subtitle:
+            raise _http_error(name, 404)
+        return _fake_yt_dlp_download(self, name, info)
+
+    with pytest.raises(ExpectedFileException):
+        _download_youtube(dl)
+    assert proxy.BROKEN_PROXIES == []
+    assert proxy.MAYBE_BROKEN_PROXIES == {}
+
+
+def test_download_stage_retries_unproxied_youtube_video_error(youtube_proxy):
+    calls = []
+
+    def dl(self, name, info, subtitle=False, test=False):
+        calls.append(name)
+        if len(calls) == 1:
+            raise _http_error(name, 503)
+        return _fake_yt_dlp_download(self, name, info)
+
+    result = _download_youtube(dl, subtitles=False)
+    assert [os.path.splitext(f.filename)[1] for f in result] == [".mp4"]
+    assert len(calls) == 2
+
+
+def test_download_stage_fails_unproxied_youtube_video_after_retries(youtube_proxy):
+    def dl(self, name, info, subtitle=False, test=False):
+        raise _http_error(name, 503)
+
+    with pytest.raises(ExpectedFileException):
+        _download_youtube(dl, subtitles=False)
+
+
+def test_youtube_resource_download_returns_none_when_every_attempt_fails(
+    youtube_proxy, tmp_path
+):
+    def dl(self, name, info, subtitle=False, test=False):
+        raise _proxy_error()
+
+    with _patched_youtube(dl):
+        resource = YouTubeResource(YOUTUBE_URL, useproxy=True)
+        assert resource.download(base_path=str(tmp_path), useproxy=True) is None
 
 
 def test_disk_transfer_file_protocol():
