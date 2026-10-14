@@ -34,6 +34,13 @@ NON_NETWORK_ERRORS = [
 ]
 
 
+def _choose_proxy():
+    try:
+        return proxy.choose_proxy()
+    except proxy.NoProxyAvailableError as e:
+        raise yt_dlp.utils.DownloadError(str(e))
+
+
 def is_youtube_url(url):
     host = urlparse(url).hostname or ""
     return host in ("youtube.com", "youtu.be") or host.endswith(".youtube.com")
@@ -100,7 +107,7 @@ class YouTubeResource(object):
 
         for i in range(self.num_retries):
             if self.useproxy:
-                dl_proxy = proxy.choose_proxy()
+                dl_proxy = _choose_proxy()
                 extract_info_options["proxy"] = dl_proxy
             if self.options:
                 extract_info_options.update(self.options)  # init-time options
@@ -128,7 +135,7 @@ class YouTubeResource(object):
                     else:
                         proxy.record_error_for_proxy(
                             dl_proxy,
-                            exception="extract_info took " + extract_time + " seconds",
+                            exception=f"extract_info took {extract_time} seconds",
                         )
                         LOGGER.info("Found slow proxy {}".format(dl_proxy))
 
@@ -179,35 +186,30 @@ class YouTubeResource(object):
             # download should always be called after self.info is available
             self.get_resource_info()
 
-        # Set reasonable default download options...
-        self.client.params["outtmpl"] = "{}/%(id)s.%(ext)s".format(download_dir)
-        self.client.params["writethumbnail"] = True  # TODO(ivan): revisit this
-        self.client.params["continuedl"] = False  # clean start to avoid errors
-        self.client.params["noprogress"] = True  # progressbar doesn't log well
-        if options:
+        params = {
+            **self.client.params,
+            # Set reasonable default download options...
+            "outtmpl": "{}/%(id)s.%(ext)s".format(download_dir),
+            "writethumbnail": True,  # TODO(ivan): revisit this
+            "continuedl": False,  # clean start to avoid errors
+            "noprogress": True,  # progressbar doesn't log well
             # ...but override them based on user choices when specified
-            self.client.params.update(options)
-        LOGGER.debug("Using download options = {}".format(self.client.params))
+            **(options or {}),
+        }
+        LOGGER.debug("Using download options = {}".format(params))
 
         LOGGER.info("Downloading {} to dir {}".format(self.url, download_dir))
         for i in range(self.num_retries):
             # Proxy configuration for download (default = no proxy)
-            if useproxy:
-                # If useproxy ovverride specified, choose a new proxy server:
-                dl_proxy = proxy.choose_proxy()
-                self.client.params["proxy"] = dl_proxy
-                self.client._setup_opener()  # this will re-initialize downloader
-            elif (
-                not useproxy
-                and "proxy" in self.client.params
-                and self.client.params["proxy"]
-            ):
-                # Disable proxy if it was used for the get_resource_info call
-                self.client.params["proxy"] = None
-                self.client._setup_opener()  # this will re-initialize downloader
+            dl_proxy = _choose_proxy() if useproxy else None
+            # yt-dlp parses outtmpl in __init__ and caches proxies on first use
+            ydl = yt_dlp.YoutubeDL(
+                {**params, "proxy": dl_proxy}, auto_init="no_verbose_header"
+            )
 
             try:
-                self.info = self.client.process_ie_result(self.info, download=True)
+                with ydl:
+                    self.info = ydl.process_ie_result(self.info, download=True)
                 LOGGER.debug("Finished process_ie_result successfully")
                 break
             except Exception as e:
@@ -216,18 +218,24 @@ class YouTubeResource(object):
                     (eclass, evalue, etraceback) = e.exc_info
                     if eclass in NON_NETWORK_ERRORS:
                         network_related_error = False
+                    # the resource is missing upstream, not blocked by the proxy
+                    if isinstance(
+                        evalue, yt_dlp.networking.exceptions.HTTPError
+                    ) and evalue.status in (404, 410):
+                        network_related_error = False
                 if useproxy and network_related_error:
                     # Add the current proxy to the BROKEN_PROXIES list
                     proxy.record_error_for_proxy(dl_proxy, exception=e)
                 if self.info:
                     # cleanup partially downloaded file to get a clean start
-                    download_filename = self.client.prepare_filename(self.info)
+                    download_filename = ydl.prepare_filename(self.info)
                     if os.path.exists(download_filename):
                         os.remove(download_filename)
                 LOGGER.warning(e)
-                if i < self.num_retries - 1:
-                    LOGGER.warning("Download {} failed, retrying...".format(i + 1))
-                    time.sleep(self.sleep_seconds)
+                if i == self.num_retries - 1:
+                    return None
+                LOGGER.warning("Download {} failed, retrying...".format(i + 1))
+                time.sleep(self.sleep_seconds)
 
         # Post-process results
         # TODO(ivan): handle post processing filename when custom `outtmpl` specified in options

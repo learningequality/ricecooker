@@ -432,9 +432,15 @@ class YoutubeDownloadHandler(WebResourceHandler):
             )
         return file_kwargs
 
-    def _reject_playlist(self, path, info):
+    def _is_live(self, info):
+        # yt-dlp derives is_live from live_status only after processing.
+        return info.get("is_live") or info.get("live_status") == "is_live"
+
+    def _reject_unsupported(self, path, info):
         if info.get("_type") in ("playlist", "multi_video"):
             raise InvalidFileException(f"{path} is a playlist, not a single video")
+        if self._is_live(info):
+            raise InvalidFileException(f"{path} is a live stream")
 
     def _no_video(self, path, reason):
         config.LOGGER.warning(f"\tyt-dlp found no video at {path}: {reason}")
@@ -489,17 +495,13 @@ class YoutubeDownloadHandler(WebResourceHandler):
             info = ydl.extract_info(path, download=False, process=False)
             while info.get("_type") in ("url", "url_transparent"):
                 info = self._follow_url(ydl, info)
-        # yt-dlp derives is_live from live_status only after this point.
-        is_live = info.get("is_live") or info.get("live_status") == "is_live"
         if wants_video:
-            self._reject_playlist(path, info)
-            if is_live:
-                raise InvalidFileException(f"{path} is a live stream")
+            self._reject_unsupported(path, info)
         else:
             formats = info.get("formats") or ([info] if info.get("url") else [])
             if all(self._is_audio_only(f) for f in formats):
                 raise self._no_video(path, "no video formats")
-            if is_live:
+            if self._is_live(info):
                 raise self._no_video(path, "live stream")
         return info
 
@@ -521,7 +523,7 @@ class YoutubeDownloadHandler(WebResourceHandler):
             )
             if result1 is None:
                 raise yt_dlp.utils.DownloadError("Failed to get resource info")
-            self._reject_playlist(path, yt_resource.info)
+            self._reject_unsupported(path, yt_resource.info)
             yt_dlp_settings["writethumbnail"] = False  # overwrite default behaviour
             if file_format == file_formats.VTT:
                 # We need to use the proxy when downloading subtitles

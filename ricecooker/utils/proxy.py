@@ -107,6 +107,10 @@ def get_proxies(refresh=False):
 ################################################################################
 
 
+class NoProxyAvailableError(Exception):
+    pass
+
+
 def choose_proxy():
     """
     Main function called externally to get a random proxy from the PROXY_LIST.
@@ -122,6 +126,8 @@ def choose_proxy():
     attempt = 0
     attempts_made = 0
     while not chosen:
+        if not proxies:
+            raise NoProxyAvailableError("No working proxy available")
         proxy = random.choice(proxies)
         if proxy not in RECENT_PROXIES:
             chosen = True
