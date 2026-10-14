@@ -17,15 +17,32 @@ from .files import _ExerciseBase64ImageFile
 from .files import _ExerciseGraphieFile
 from .files import _ExerciseImageFile
 
+MARKDOWN_IMAGE_CLOSE = (
+    r"(?:\s+(?:\"(?:[^\"\\]|\\.)*\"|'(?:[^'\\]|\\.)*'|\((?:[^()\\]|\\.)*\))\s*)?\)"
+)
+MARKDOWN_IMAGE_HAS_CLOSE = r"(?=[^\)]*\))"
+
+
+def _markdown_image_url(excluded):
+    # Lazy per whitespace-separated run, not per character: MARKDOWN_IMAGE_CLOSE is tried once
+    # per run, so long base64 URIs and whitespace runs stay linear. Trailing whitespace is kept.
+    run = rf"[^\s\){excluded}]+"
+    return rf"(?:\s*{run}(?:\s+{run})*?(?:\s+(?=\)))?|\s+(?=\)))"
+
+
 # Reusable protocol and path pattern for Perseus questions
 PERSEUS_PROTOCOL = r"(?P<protocol>web\+graphie|https?|file|data)"
-PERSEUS_PROTOCOL_PATH = rf"{PERSEUS_PROTOCOL}:(?P<rawpath>[^\)\"]+)"
+PERSEUS_PROTOCOL_PATH = (
+    rf"{PERSEUS_PROTOCOL}:{MARKDOWN_IMAGE_HAS_CLOSE}(?P<rawpath>"
+    + _markdown_image_url('"')
+    + ")"
+)
 
 PERSEUS_IMAGE_URL_REGEX = rf"(?P<open>){PERSEUS_PROTOCOL}:(?P<rawpath>.+)(?P<close>)"
 
 # match protocol:{{path}} in markdown images ![text](url) for Perseus - captures the URL part only
 PERSEUS_MARKDOWN_IMAGE_REGEX = (
-    rf"(?P<open>!\[[^\]]*\]\(){PERSEUS_PROTOCOL_PATH}(?P<close>\))"
+    rf"(?P<open>!\[[^\]]*\]\(){PERSEUS_PROTOCOL_PATH}(?P<close>{MARKDOWN_IMAGE_CLOSE})"
 )
 
 PERSEUS_IMG_SRC_REGEX = (
@@ -35,8 +52,8 @@ PERSEUS_IMG_SRC_REGEX = (
 
 PERSEUS_IMAGE_URL_FIELDS = {"backgroundImage.url", "image.url", "imageUrl", "picUrl"}
 
-# match protocol:{{path}} either wrapped in parentheses or quotes (original regex)
-MARKDOWN_IMAGE_REGEX = r"!\[([^\]]+)?\]\(([^\)]+?)\)"  # match ![{{smth}}]({{url}})
+# match ![{{alt}}]({{url}} "{{title}}"): group 1 is alt, group 2 the URL without title
+MARKDOWN_IMAGE_REGEX = rf"!\[([^\]]+)?\]\({MARKDOWN_IMAGE_HAS_CLOSE}({_markdown_image_url('')}){MARKDOWN_IMAGE_CLOSE}"
 
 # Pre/post test variant constants for UnitNode questions
 VARIANT_A = "A"
@@ -177,19 +194,19 @@ class BaseQuestion:
         Returns:string with checksums in place of image strings and
             list of files that were downloaded from string
         """
-        # Set up return values and regex
         file_list = []
-        processed_string = self.parse_html(text)
-        reg = re.compile(MARKDOWN_IMAGE_REGEX, flags=re.IGNORECASE)
-        matches = reg.findall(processed_string)
 
-        # Parse all matches
-        for match in matches:
-            file_result = self.set_image(match[1])
-            if file_result[0] != "":
-                replacement, new_files = file_result
-                processed_string = processed_string.replace(match[1], replacement)
-                file_list += new_files
+        def replace_image(match):
+            new_text, new_files = self.set_image(match.group(2))
+            file_list.extend(new_files)
+            return f"![{match.group(1) or ''}]({new_text})"
+
+        processed_string = re.sub(
+            MARKDOWN_IMAGE_REGEX,
+            replace_image,
+            self.parse_html(text),
+            flags=re.IGNORECASE,
+        )
         return processed_string, file_list
 
     def parse_html(self, text):
