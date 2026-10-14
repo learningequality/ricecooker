@@ -8,7 +8,7 @@ from ricecooker import config
 
 
 @contextmanager
-def fake_download_session(url_to_content, content_types=None):
+def fake_download_session(url_to_content, content_types=None, dispositions=None):
     """Patch the pipeline's HTTP session so external refs resolve to fixed bytes.
 
     Only the network boundary is mocked; the real ``FilePipeline`` still runs each
@@ -18,10 +18,12 @@ def fake_download_session(url_to_content, content_types=None):
 
     A URL maps to bytes, to an exception ``get`` raises, or to a list of chunks
     where an exception element is raised when the body stream reaches it.
-    ``content_types`` maps a URL to the Content-Type its response carries.
+    ``content_types`` maps a URL to the Content-Type its response carries,
+    ``dispositions`` to the filename its Content-Disposition names.
     """
     calls = []
     content_types = content_types or {}
+    dispositions = dispositions or {}
 
     def iter_chunks(chunks):
         for chunk in chunks:
@@ -38,10 +40,15 @@ def fake_download_session(url_to_content, content_types=None):
             raise content
         chunks = content if isinstance(content, list) else [content]
         headers = {"content-type": content_types[url]} if url in content_types else {}
+        if url in dispositions:
+            headers["content-disposition"] = (
+                f'attachment; filename="{dispositions[url]}"'
+            )
         return SimpleNamespace(
             headers=headers,
             raise_for_status=lambda: None,
             iter_content=lambda chunk_size=8192: iter_chunks(chunks),
+            close=lambda: None,
         )
 
     def head(url, **kwargs):

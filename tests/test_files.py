@@ -11,6 +11,7 @@ import tempfile
 import threading
 import zipfile
 import zlib
+from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler
 from http.server import ThreadingHTTPServer
 from io import BytesIO
@@ -30,6 +31,7 @@ from le_utils.constants import languages
 from le_utils.constants.exercises import GRAPHIE_DELIMITER
 from pdf2image.exceptions import PDFInfoNotInstalledError
 from PIL import Image
+from pipeline.helpers import fake_render_page
 from PyPDF2 import PdfFileWriter
 from requests import ConnectionError
 from requests import HTTPError
@@ -707,6 +709,241 @@ def test_extensionless_subtitle_url_processes_to_vtt(url, body):
     assert filename.endswith(".vtt")
 
 
+def _process_download(
+    file_class, url, path, content_type=None, disposition=None, **kwargs
+):
+    with open(path, "rb") as f:
+        body = f.read()
+    with fake_download_session(
+        {url: body},
+        {url: content_type} if content_type else None,
+        {url: disposition} if disposition else None,
+    ):
+        file = file_class(url, **kwargs)
+        return file, file.process_file()
+
+
+def test_subtitle_default_ext_keyword_on_yt_dlp_url_processes_to_vtt():
+    url = "https://www.youtube.com/api/timedtext?v=abcdefghijk&lang=ar&fmt=srt"
+    sub, filename = _process_download(
+        SubtitleFile,
+        url,
+        sample_path("testsubtitles_ar.srt"),
+        language="ar",
+        default_ext="srt",
+    )
+    assert sub.error is None
+    assert filename.endswith(".vtt")
+
+
+@pytest.mark.parametrize(
+    "file_class,sample,kwargs,ext",
+    [
+        (VideoFile, "low_res_sample.webm", {"default_ext": "webm"}, ".webm"),
+        (ThumbnailFile, "thumbnail.jpg", {"default_ext": "jpg"}, ".jpg"),
+        (ThumbnailFile, "thumbnail.jpg", {"default_ext": "JPG"}, ".jpg"),
+        (WebVideoFile, "low_res_sample.webm", {"default_ext": "webm"}, ".webm"),
+        (
+            DownloadFile,
+            "thumbnail.png",
+            {"default_ext": ".png", "preset": format_presets.AUDIO_THUMBNAIL},
+            ".png",
+        ),
+    ],
+)
+def test_extensionless_url_is_stored_with_default_ext(file_class, sample, kwargs, ext):
+    url = "https://s.example/file?id={}-{}".format(
+        file_class.__name__, kwargs["default_ext"]
+    )
+    file, filename = _process_download(file_class, url, sample_path(sample), **kwargs)
+    assert file.error is None
+    name = os.path.basename(filename)
+    assert name.endswith(ext) and name.count(".") == 1
+
+
+@pytest.mark.parametrize(
+    "file_class,sample,default_ext,kwargs",
+    [
+        (VideoFile, "sample_audio.mp3", "mp3", {}),
+        (WebVideoFile, "sample_audio.mp3", "mp3", {}),
+        (DownloadFile, "testsubtitles_ar.srt", "vtt", {}),
+        (SubtitleFile, "testsubtitles_ar.srt", "mp4", {"language": "ar"}),
+        (
+            EPubFile,
+            "testdocument.epub",
+            "zip",
+            {"content_type": "application/epub+zip"},
+        ),
+    ],
+)
+def test_rejected_default_ext_keyword_fails_file(
+    file_class, sample, default_ext, kwargs
+):
+    url = "https://s.example/file?id=rejected-{}-{}-{}".format(
+        file_class.__name__, default_ext, "content_type" in kwargs
+    )
+    file, filename = _process_download(
+        file_class, url, sample_path(sample), default_ext=default_ext, **kwargs
+    )
+    assert filename is None
+    assert "Incompatible default_ext" in file.error
+
+
+def test_rejected_default_ext_keyword_fails_cached_download(tmp_path):
+    url = "https://s.example/file?id=cached-rejected"
+    path = tmp_path / "thumbnail"
+    copyfile(sample_path("thumbnail.jpg"), path)
+    with fake_download_session({url: path.read_bytes()}):
+        for source in (url, str(path)):
+            assert ThumbnailFile(source).process_file() is not None
+            file = ThumbnailFile(source, default_ext="pdf")
+            assert file.process_file() is None
+            assert "Incompatible default_ext" in file.error
+
+
+@contextmanager
+def _fake_html_session(url, content_type="text/html"):
+    with (
+        fake_download_session(
+            {url: b"<!doctype html><html></html>"}, {url: content_type}
+        ),
+        patch(
+            "ricecooker.utils.pipeline.transfer.render_page",
+            side_effect=fake_render_page(),
+        ) as render,
+    ):
+        yield render
+
+
+@pytest.mark.parametrize("file_class", [DownloadFile, WebVideoFile])
+def test_rejected_default_ext_keyword_fails_html_response(file_class):
+    url = "https://s.example/subs?id=html-{}".format(file_class.__name__)
+    with _fake_html_session(url) as render:
+        assert DownloadFile(url).process_file() is not None
+        file = file_class(url, default_ext="vtt")
+        assert file.process_file() is None
+    assert "Incompatible default_ext vtt" in file.error
+    assert render.call_count == 1
+
+
+@pytest.mark.parametrize(
+    "file_class,url,kwargs,content_type",
+    [
+        (
+            HTMLZipFile,
+            "https://s.example/get?id=html",
+            {"default_ext": "html"},
+            "text/html",
+        ),
+        (
+            DownloadFile,
+            "https://s.example/get?id=xhtml",
+            {"default_ext": "xhtml", "preset": format_presets.HTML5_ZIP},
+            "application/xhtml+xml",
+        ),
+        (
+            DownloadFile,
+            "https://s.example/lesson.html",
+            {"default_ext": "vtt", "preset": format_presets.HTML5_ZIP},
+            "text/html",
+        ),
+    ],
+)
+def test_html_response_renders_despite_default_ext(
+    file_class, url, kwargs, content_type
+):
+    with _fake_html_session(url, content_type):
+        file = file_class(url, **kwargs)
+        filename = file.process_file()
+    assert filename is not None, file.error
+    assert filename.endswith(".zip")
+
+
+@pytest.mark.parametrize(
+    "file_class,sample,default_ext,url,disposition,content_type",
+    [
+        (
+            ThumbnailFile,
+            "thumbnail.jpg",
+            "pdf",
+            "https://s.example/f.jpg?id=named-path",
+            None,
+            "image/jpeg",
+        ),
+        (
+            ThumbnailFile,
+            "thumbnail.jpg",
+            "pdf",
+            "https://s.example/get?id=named-disposition",
+            "f.jpg",
+            "image/jpeg",
+        ),
+        (
+            VideoFile,
+            "low_res_sample.mp4",
+            "mp3",
+            "https://www.dropbox.com/s/abc123/get?id=named-disposition",
+            "f.mp4",
+            "video/mp4",
+        ),
+    ],
+)
+def test_named_response_ignores_default_ext_keyword(
+    file_class, sample, default_ext, url, disposition, content_type
+):
+    file, filename = _process_download(
+        file_class,
+        url,
+        sample_path(sample),
+        default_ext=default_ext,
+        content_type=content_type,
+        disposition=disposition,
+    )
+    assert file.error is None
+    assert filename.endswith(os.path.splitext(sample)[1])
+
+
+@pytest.mark.parametrize(
+    "file_class,sample,kwargs,ext",
+    [
+        (
+            SubtitleFile,
+            "testsubtitles_ar.srt",
+            {"language": "ar", "subtitlesformat": "srt", "default_ext": "mp4"},
+            ".vtt",
+        ),
+        (
+            DownloadFile,
+            "thumbnail.jpg",
+            {
+                "context": {"ext": "jpg"},
+                "default_ext": "srt",
+                "preset": format_presets.AUDIO_THUMBNAIL,
+            },
+            ".jpg",
+        ),
+    ],
+)
+def test_declared_ext_ignores_default_ext_keyword(file_class, sample, kwargs, ext):
+    url = "https://s.example/get?id=named-{}".format(file_class.__name__)
+    file, filename = _process_download(file_class, url, sample_path(sample), **kwargs)
+    assert file.error is None
+    assert filename.endswith(ext)
+
+
+def test_base64_image_ignores_default_ext_keyword():
+    img = Base64ImageFile(encoding=TEST_PNG_BASE64, default_ext="vtt")
+    filename = img.process_file()
+    assert filename == f"{EXPECTED_PNG_MD5}.png", img.error
+
+
+def test_extensionless_url_is_stored_with_class_default_ext(valid_h5p):
+    url = "https://s.example/file?id=h5p"
+    file, filename = _process_download(H5PFile, url, valid_h5p)
+    assert file.error is None
+    assert filename.endswith(".h5p")
+
+
 def test_extensionless_subtitle_response_to_download_file_fails_file():
     url = "http://fake/subs?id=1"
     with fake_download_session({url: b"WEBVTT\n"}, {url: "text/vtt"}):
@@ -1237,6 +1474,73 @@ def test_youtubevideo_download_settings_format_overrides_default(fake_yt_dlp):
         "userformat1", download_settings={"format": "worst"}, maxheight=360
     ).process_file()
     assert fake_yt_dlp.params["format"] == "worst"
+
+
+@pytest.mark.parametrize("useproxy", [False, True], ids=["direct", "proxy"])
+def test_webvideo_rejected_default_ext_keyword_fails_before_extraction(
+    fake_yt_dlp, monkeypatch, useproxy
+):
+    monkeypatch.setattr(config, "USEPROXY", useproxy)
+    monkeypatch.setenv("PROXY_LIST", "proxy.invalid:3128")
+    monkeypatch.setattr(proxy, "PROXY_LIST", [])
+    fake_yt_dlp.errors = {
+        "extract_info": AssertionError("extracted"),
+        "process_ie_result": AssertionError("downloaded"),
+    }
+    video_file = WebVideoFile(
+        "https://www.youtube.com/watch?v=abcdefghijk", default_ext="m4a"
+    )
+    assert video_file.process_file() is None
+    assert "Incompatible default_ext" in video_file.error
+
+
+@pytest.mark.parametrize(
+    "url,default_ext",
+    [
+        ("https://vimeo.com/2", "vtt"),
+        ("https://vimeo.com/7", "pdf"),
+        ("https://www.youtube.com/watch?v=abcdefghijk", "mp3"),
+    ],
+)
+def test_download_file_rejected_default_ext_keyword_fails_yt_dlp_url(
+    fake_yt_dlp, url, default_ext
+):
+    fake_yt_dlp.errors = {"process_ie_result": AssertionError("downloaded")}
+    download_file = DownloadFile(
+        url, default_ext=default_ext, preset=format_presets.VIDEO_HIGH_RES
+    )
+    assert download_file.process_file() is None
+    assert "Incompatible default_ext {}".format(default_ext) in download_file.error
+
+
+def test_webvideo_rejected_default_ext_keyword_fails_cached_download(fake_yt_dlp):
+    url = "https://www.youtube.com/watch?v=cachedvideo"
+    assert WebVideoFile(url).process_file() is not None
+    video_file = WebVideoFile(url, default_ext="m4a")
+    assert video_file.process_file() is None
+    assert "Incompatible default_ext" in video_file.error
+
+
+@pytest.mark.parametrize(
+    "file_class,url,kwargs",
+    [
+        (VideoFile, "https://i.imgur.com/A61SaA1.mp4", {}),
+        (WebVideoFile, "https://commons.wikimedia.org/wiki/File:Foo.webm", {}),
+        (WebVideoFile, "https://vimeo.com/3", {"context": {"ext": "mp4"}}),
+        (
+            DownloadFile,
+            "https://vimeo.com/4",
+            {"context": {"ext": "mp4"}, "preset": format_presets.VIDEO_HIGH_RES},
+        ),
+    ],
+)
+def test_video_url_with_ext_ignores_rejected_default_ext_keyword(
+    fake_yt_dlp, file_class, url, kwargs
+):
+    video_file = file_class(url, default_ext="mp3", **kwargs)
+    filename = video_file.process_file()
+    assert filename is not None, video_file.error
+    assert filename.endswith(".mp4")
 
 
 """ *********** SUBTITLEFILE TESTS *********** """
