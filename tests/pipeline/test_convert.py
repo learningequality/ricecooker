@@ -2546,14 +2546,18 @@ def _expanded_node(chef_license, copyright_holder=True, item_xml=None):
         _build_single_resource_imscp(
             path, "article.html", _ARTICLE_HTML, item_xml=item_xml
         )
-        node = ContentNode(
-            source_id="pkg",
-            title="Pkg",
-            license=chef_license,
-            uri=path,
-            pipeline=FilePipeline(),
-        )
-        node.process_files()
+        return _processed_package_node(path, chef_license)
+
+
+def _processed_package_node(path, chef_license):
+    node = ContentNode(
+        source_id="pkg",
+        title="Pkg",
+        license=chef_license,
+        uri=path,
+        pipeline=FilePipeline(),
+    )
+    node.process_files()
     return node
 
 
@@ -2634,11 +2638,23 @@ class TestIMSCPDecomposition:
             self._decompose("page.html", index_html, item_xml=item_xml)
 
     def test_rejected_package_node_carries_pipeline_error(self):
-        with pytest.raises(InvalidNodeException, match="every resource was rejected"):
+        with pytest.raises(
+            InvalidNodeException, match="every resource was rejected"
+        ) as excinfo:
             _expanded_node(
                 get_license(licenses.PUBLIC_DOMAIN),
                 item_xml="<adlcp:masteryscore>80</adlcp:masteryscore>",
             )
+        assert os.path.abspath(config.STORAGE_DIRECTORY) not in str(excinfo.value)
+
+    def test_unparseable_manifest_error_omits_storage_path(self, tmp_path):
+        path = str(tmp_path / "package.zip")
+        _create_archive(path, {"imsmanifest.xml": "<manifest"})
+        with pytest.raises(
+            InvalidNodeException, match="could not be parsed"
+        ) as excinfo:
+            _processed_package_node(path, get_license(licenses.PUBLIC_DOMAIN))
+        assert os.path.abspath(config.STORAGE_DIRECTORY) not in str(excinfo.value)
 
     def test_gitta_has_multiple_html5_leaves(self):
         tree = self._run("gitta_ims.zip")

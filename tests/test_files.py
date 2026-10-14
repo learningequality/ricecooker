@@ -44,8 +44,10 @@ from ricecooker import config
 from ricecooker.classes.files import _ExerciseGraphieFile
 from ricecooker.classes.files import AudioFile
 from ricecooker.classes.files import Base64ImageFile
+from ricecooker.classes.files import BloomPubFile
 from ricecooker.classes.files import DocumentFile
 from ricecooker.classes.files import DownloadFile
+from ricecooker.classes.files import EPubFile
 from ricecooker.classes.files import File
 from ricecooker.classes.files import H5PFile
 from ricecooker.classes.files import HTMLZipFile
@@ -885,6 +887,63 @@ def test_truncated_utf16_member_left_unchanged(tmp_path):
     assert html_file.error is None
     with zipfile.ZipFile(config.get_storage_path(filename)) as zf:
         assert zf.read("other.html") == other
+
+
+def _zip_bytes(files):
+    buffer = BytesIO()
+    with zipfile.ZipFile(buffer, "w") as zf:
+        for name, content in files.items():
+            zf.writestr(name, content)
+    return buffer.getvalue()
+
+
+@pytest.mark.parametrize(
+    "file_class,name,content,reason",
+    [
+        (HTMLZipFile, "bad.zip", b"not a zip", "not a valid zip archive"),
+        (
+            HTMLZipFile,
+            "empty.zip",
+            _zip_bytes({"index.html": "<html><body></body></html>"}),
+            "index.html is empty",
+        ),
+        (
+            HTMLZipFile,
+            "nohtml.zip",
+            _zip_bytes({"a.txt": "x"}),
+            "no HTML file was found",
+        ),
+        (
+            H5PFile,
+            "bad.h5p",
+            _zip_bytes({"content/content.json": "{}"}),
+            "h5p.json is missing",
+        ),
+        (
+            EPubFile,
+            "bad.epub",
+            _zip_bytes({"mimetype": "text/plain"}),
+            "mimetype is incorrect",
+        ),
+        (
+            BloomPubFile,
+            "bad.bloompub",
+            _zip_bytes({"meta.json": "{}"}),
+            "meta.json missing required fields",
+        ),
+    ],
+    ids=["html5", "html5-empty-entry", "html5-no-html", "h5p", "epub", "bloom"],
+)
+def test_invalid_archive_error_omits_storage_path(
+    tmp_path, file_class, name, content, reason
+):
+    path = tmp_path / name
+    path.write_bytes(content)
+    archive_file = file_class(str(path))
+
+    assert archive_file.process_file() is None
+    assert reason in archive_file.error
+    assert os.path.abspath(config.STORAGE_DIRECTORY) not in archive_file.error
 
 
 def test_non_index_entry_htmlzip_validation(non_index_entry_zip):

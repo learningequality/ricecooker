@@ -489,7 +489,7 @@ class ArchiveProcessingBaseHandler(ExtensionMatchingHandler):
                 yield zf
         except zipfile.BadZipFile:
             raise InvalidFileException(
-                f"File {path} is not a valid {self.FILE_TYPE} file, it is not a valid zip archive."
+                f"Not a valid {self.FILE_TYPE} file, it is not a valid zip archive."
             )
 
     def read_file_from_archive(self, zf, filepath):
@@ -497,7 +497,7 @@ class ArchiveProcessingBaseHandler(ExtensionMatchingHandler):
             return zf.read(filepath)
         except KeyError:
             raise InvalidFileException(
-                f"File {zf.filename} is not a valid {self.FILE_TYPE} file, {filepath} is missing."
+                f"Not a valid {self.FILE_TYPE} file, {filepath} is missing."
             )
 
 
@@ -634,15 +634,14 @@ class WebArchiveConversionHandler(ArchiveProcessingBaseHandler):
                 entry = entry or detected
             if entry is None:
                 raise InvalidFileException(
-                    f"File {path} is not a valid {self.FILE_TYPE} file, "
-                    "no HTML file was found in the archive."
+                    f"Not a valid {self.FILE_TYPE} file, no HTML file was found in the archive."
                 )
             reason = self.entry_disqualifier(
                 names, self.read_file_from_archive(zf, entry), entry, explicit
             )
             if reason:
                 raise InvalidFileException(
-                    f"File {path} is not a valid {self.FILE_TYPE} file, {reason}"
+                    f"Not a valid {self.FILE_TYPE} file, {reason}"
                 )
 
     def entry_disqualifier(self, names, html, entry, explicit=False):
@@ -801,14 +800,14 @@ class H5PConversionHandler(ArchiveProcessingBaseHandler):
                 json.loads(h5p_json)
             except json.JSONDecodeError:
                 raise InvalidFileException(
-                    f"File {path} is not a valid H5P file, h5p.json is not valid JSON."
+                    f"Not a valid {self.FILE_TYPE} file, h5p.json is not valid JSON."
                 )
             content_json = self.read_file_from_archive(zf, "content/content.json")
             try:
                 json.loads(content_json)
             except json.JSONDecodeError:
                 raise InvalidFileException(
-                    f"File {path} is not a valid H5P file, content/content.json is not valid JSON."
+                    f"Not a valid {self.FILE_TYPE} file, content/content.json is not valid JSON."
                 )
 
 
@@ -816,20 +815,20 @@ class EPUBConversionHandler(ArchiveProcessingBaseHandler):
     EXTENSIONS = {file_formats.EPUB}
     FILE_TYPE = "EPUB"
 
-    def _validate_mimetype(self, zf, path):
+    def _validate_mimetype(self, zf):
         mimetype = self.read_file_from_archive(zf, "mimetype")
         try:
             mimetype = mimetype.decode("utf-8").strip()
         except UnicodeDecodeError:
             raise InvalidFileException(
-                f"File {path} is not a valid EPUB file, mimetype file is not UTF-8 encoded."
+                f"Not a valid {self.FILE_TYPE} file, mimetype file is not UTF-8 encoded."
             )
         if mimetype != "application/epub+zip":
             raise InvalidFileException(
-                f"File {path} is not a valid EPUB file, mimetype is incorrect."
+                f"Not a valid {self.FILE_TYPE} file, mimetype is incorrect."
             )
 
-    def _get_opf_path(self, zf, path):
+    def _get_opf_path(self, zf):
         # Then read the container manifest to confirm it exists and get the path to the OPF file.
         container_file = self.read_file_from_archive(zf, "META-INF/container.xml")
         try:
@@ -840,20 +839,20 @@ class EPUBConversionHandler(ArchiveProcessingBaseHandler):
             )
             if not rootfiles:
                 raise InvalidFileException(
-                    f"File {path} is not a valid EPUB file, rootfile is missing from container manifest."
+                    f"Not a valid {self.FILE_TYPE} file, rootfile is missing from container manifest."
                 )
             opf_path = rootfiles[0].get("full-path")
             if not opf_path:
                 raise InvalidFileException(
-                    f"File {path} is not a valid EPUB file, rootfile path is empty."
+                    f"Not a valid {self.FILE_TYPE} file, rootfile path is empty."
                 )
             return opf_path
         except ET.ParseError:
             raise InvalidFileException(
-                f"File {path} is not a valid EPUB file, container manifest is not well-formed."
+                f"Not a valid {self.FILE_TYPE} file, container manifest is not well-formed."
             )
 
-    def _validate_opf(self, zf, path, opf_path):
+    def _validate_opf(self, zf, opf_path):
         # If the container manifest is valid, read the OPF file and confirm it exists and has a manifest.
         opf_file = self.read_file_from_archive(zf, opf_path)
         try:
@@ -863,18 +862,18 @@ class EPUBConversionHandler(ArchiveProcessingBaseHandler):
             )
             if manifest is None:
                 raise InvalidFileException(
-                    f"File {path} is not a valid EPUB file, manifest is missing from OPF."
+                    f"Not a valid {self.FILE_TYPE} file, manifest is missing from OPF."
                 )
         except ET.ParseError:
             raise InvalidFileException(
-                f"File {path} is not a valid EPUB file, OPF file is not well-formed."
+                f"Not a valid {self.FILE_TYPE} file, OPF file is not well-formed."
             )
 
     def validate_archive(self, path: str, entry=None, explicit_entry=False):
         with self.open_and_verify_archive(path) as zf:
-            self._validate_mimetype(zf, path)
-            opf_path = self._get_opf_path(zf, path)
-            self._validate_opf(zf, path, opf_path)
+            self._validate_mimetype(zf)
+            opf_path = self._get_opf_path(zf)
+            self._validate_opf(zf, opf_path)
 
 
 class KPUBConversionHandler(WebArchiveConversionHandler):
@@ -902,18 +901,18 @@ class BloomConversionHandler(ArchiveProcessingBaseHandler):
                 missing_fields = [f for f in required_meta_fields if f not in meta]
                 if missing_fields:
                     raise InvalidFileException(
-                        f"File {path} is not a valid bloom file, meta.json missing required fields: {', '.join(missing_fields)}"
+                        f"Not a valid {self.FILE_TYPE} file, meta.json missing required fields: {', '.join(missing_fields)}"
                     )
             except json.JSONDecodeError:
                 raise InvalidFileException(
-                    f"File {path} is not a valid bloom file, meta.json is not valid JSON."
+                    f"Not a valid {self.FILE_TYPE} file, meta.json is not valid JSON."
                 )
 
             # Check for at least one .htm file
             htm_files = [f for f in zf.namelist() if f.lower().endswith(".htm")]
             if not htm_files:
                 raise InvalidFileException(
-                    f"File {path} is not a valid bloom file, no .htm files found."
+                    f"Not a valid {self.FILE_TYPE} file, no .htm files found."
                 )
 
 
@@ -1207,7 +1206,7 @@ class IMSCPConversionHandler(HTML5ConversionHandler):
                 manifest = parse_imscp_manifest(ims_dir)
             except ET.ParseError as e:
                 raise InvalidFileException(
-                    f"File {path} is not a valid IMSCP package, its {IMSCP_MANIFEST} could not be parsed: {e}"
+                    f"Not a valid IMSCP package, its {IMSCP_MANIFEST} could not be parsed: {e}"
                 )
             # Every leaf compresses its media like the package would.
             settings = {
@@ -1227,7 +1226,7 @@ class IMSCPConversionHandler(HTML5ConversionHandler):
         children = self._finish_nodes(nodes, sealed) + qti_exercises
         if not children:
             raise InvalidFileException(
-                f"File {path} is not a valid IMSCP package, every resource was rejected."
+                "Not a valid IMSCP package, every resource was rejected."
             )
         # Package-level LOM rides on the topmost node.
         tree = collapse_single_children(
