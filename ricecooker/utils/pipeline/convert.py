@@ -13,6 +13,7 @@ import xml.etree.ElementTree as ET
 import zipfile
 from abc import abstractmethod
 from contextlib import contextmanager
+from contextlib import suppress
 from dataclasses import dataclass
 from dataclasses import field
 from typing import Dict
@@ -70,11 +71,13 @@ from ricecooker.utils.subtitles import InvalidSubtitleLanguageError
 from ricecooker.utils.subtitles import LANGUAGE_CODE_UNKNOWN
 from ricecooker.utils.videos import audio_stream
 from ricecooker.utils.videos import compress_video
+from ricecooker.utils.videos import decode_media_file
 from ricecooker.utils.videos import display_size
+from ricecooker.utils.videos import ffmpeg_cause
+from ricecooker.utils.videos import ffmpeg_encode_cause
 from ricecooker.utils.videos import is_faststart
 from ricecooker.utils.videos import probe_media
 from ricecooker.utils.videos import probe_packets
-from ricecooker.utils.videos import validate_media_file
 from ricecooker.utils.videos import video_stream
 from ricecooker.utils.videos import VideoCompressionError
 from ricecooker.utils.videos import web_faststart_video
@@ -182,21 +185,35 @@ class MediaCompressionHandler(ExtensionMatchingHandler):
         )
 
     def verify(self, path):
-        is_valid, error = validate_media_file(path)
-        if not is_valid:
+        result = decode_media_file(path)
+        if result.returncode != 0:
             raise InvalidFileException(
-                f"{self.MEDIA} file did not pass verification: {error}"
+                f"{self.MEDIA} file did not pass verification: {ffmpeg_cause(result.stderr, path)}"
             )
+        return result.stderr
 
     @contextmanager
-    def write_compressed(self, extension):
+    def write_compressed(self, path, extension):
         try:
             with self.write_file(extension) as temp_outfile:
                 yield temp_outfile
         except InvalidFileException as e:
-            if e.__context__ is not None:
-                raise e.__context__ from None
-            raise
+            if e.__context__ is None:
+                raise
+            error = e.__context__
+        except tuple(self.HANDLED_EXCEPTIONS) as e:
+            error = e
+        else:
+            return
+        if isinstance(error, tuple(self.HANDLED_EXCEPTIONS)):
+            decode_errors = ""
+            with suppress(OSError):
+                decode_errors = self.verify(path)
+            if isinstance(error.__cause__, subprocess.CalledProcessError):
+                raise type(error)(
+                    ffmpeg_encode_cause(error.__cause__, path, decode_errors)
+                ) from error.__cause__
+        raise error
 
 
 class VideoCompressionHandler(MediaCompressionHandler):
@@ -296,14 +313,14 @@ class VideoCompressionHandler(MediaCompressionHandler):
         elif reencode or not self.is_compliant(path, input_ext, **ffmpeg_settings):
             output_ext = input_ext
         elif input_ext == file_formats.MP4 and not is_faststart(path):
-            with self.write_compressed(input_ext) as temp_outfile:
+            with self.write_compressed(path, input_ext) as temp_outfile:
                 web_faststart_video(path, temp_outfile.name, overwrite=True)
             return
         else:
             self.verify(path)
             return
 
-        with self.write_compressed(output_ext) as temp_outfile:
+        with self.write_compressed(path, output_ext) as temp_outfile:
             compress_video(path, temp_outfile.name, overwrite=True, **ffmpeg_settings)
 
 
@@ -358,7 +375,7 @@ class AudioCompressionHandler(MediaCompressionHandler):
 
         output_ext = file_formats.MP3
 
-        with self.write_compressed(output_ext) as temp_outfile:
+        with self.write_compressed(path, output_ext) as temp_outfile:
             compress_audio(path, temp_outfile.name, overwrite=True, **ffmpeg_settings)
 
 

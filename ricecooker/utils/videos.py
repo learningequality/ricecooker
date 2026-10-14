@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import re
+import signal
 import struct
 import subprocess
 import threading
@@ -244,6 +245,8 @@ def _vp9_bit_rate(video, max_height, max_width=None):
     except (TypeError, KeyError, ValueError, ZeroDivisionError):
         return 0
     width, height = display_size(video)
+    if not width or not height:
+        return 0
     if max_width is not None:
         scale = min(1, int(max_width) / width)
     elif max_height == "ih":
@@ -375,7 +378,7 @@ def compress_video(source_file_path, target_file, overwrite=False, **kwargs):
     try:
         run_ffmpeg(command).check_returncode()
     except subprocess.CalledProcessError as e:
-        raise VideoCompressionError("{}: {}".format(e, e.stderr))
+        raise VideoCompressionError("{}: {}".format(e, e.stderr)) from e
     except (BrokenPipeError, IOError) as e:
         raise VideoCompressionError("{}".format(e))
 
@@ -412,9 +415,13 @@ def web_faststart_video(source_file_path, target_file, overwrite=False):
     try:
         run_ffmpeg(command).check_returncode()
     except subprocess.CalledProcessError as e:
-        raise VideoCompressionError("{}: {}".format(e, e.stderr))
+        raise VideoCompressionError("{}: {}".format(e, e.stderr)) from e
     except (BrokenPipeError, IOError) as e:
         raise VideoCompressionError("{}".format(e))
+
+
+def decode_media_file(file_path):
+    return run_ffmpeg(["-v", "error", "-i", file_path, "-f", "null", "-"])
 
 
 def validate_media_file(file_path: str) -> Tuple[bool, str]:
@@ -428,36 +435,56 @@ def validate_media_file(file_path: str) -> Tuple[bool, str]:
         Tuple[bool, str]: (is_valid, error_message)
     """
 
-    cmd = [
-        "-v",
-        "error",  # Only show errors
-        "-i",
-        file_path,
-        "-f",
-        "null",  # Output format null (discards output)
-        "-",  # Output to pipe
-    ]
-    result = run_ffmpeg(cmd)
+    result = decode_media_file(file_path)
 
     if result.returncode != 0:
-        lines = [line for line in result.stderr.splitlines() if line.strip()]
-        if not lines:
-            return False, "ffmpeg could not decode the file"
-        # The first "[demuxer @ addr] " tagged line carries the cause; untagged
-        # lines before it can be probe noise. ffmpeg < 6.1 may print only
-        # "<path>: <reason>", untagged.
-        tag = re.compile(r"^\[[^\]]* @ (?:0x)?[0-9a-fA-F]+\] ")
-        line = next((line for line in lines if tag.match(line)), lines[0])
-        line = tag.sub("", line).removeprefix(f"{file_path}: ")
-        # Sibling files an ffconcat or HLS input names resolve against the
-        # storage directory.
-        directory = os.path.dirname(file_path)
-        if directory:
-            for sep in {os.sep, "/"}:
-                line = line.replace(directory + sep, "")
-        return False, line
+        return False, ffmpeg_cause(result.stderr, file_path)
 
     return True, ""
+
+
+FFMPEG_TAG = re.compile(r"\[[^\]]* @ (?:0x)?[0-9a-fA-F]+\] ")
+
+
+def ffmpeg_cause(stderr, file_path):
+    lines = [line for line in stderr.splitlines() if line.strip()]
+    if not lines:
+        return "ffmpeg could not decode the file"
+    # The first "[demuxer @ addr] " tagged line carries the cause; untagged
+    # lines before it can be probe noise. ffmpeg < 6.1 may print only
+    # "<path>: <reason>", untagged.
+    line = next((line for line in lines if FFMPEG_TAG.match(line)), lines[0])
+    return _clean_line(line, file_path)
+
+
+def ffmpeg_encode_cause(error, file_path, decode_errors=""):
+    if error.returncode < 0:
+        try:
+            signal_name = signal.Signals(-error.returncode).name
+        except ValueError:
+            signal_name = f"signal {-error.returncode}"
+        return f"ffmpeg killed by {signal_name}"
+    known = {_clean_line(line, file_path) for line in decode_errors.splitlines()}
+    lines = [
+        _clean_line(line, file_path)
+        for line in error.stderr.splitlines()
+        if line.strip()
+    ]
+    if not lines:
+        return f"ffmpeg exited with status {error.returncode}"
+    # ffmpeg closes with teardown errors; the first new line is the cause.
+    return next((line for line in lines if line not in known), lines[0])
+
+
+def _clean_line(line, file_path):
+    line = FFMPEG_TAG.sub("", line).removeprefix(f"{file_path}: ")
+    # Sibling files an ffconcat or HLS input names resolve against the
+    # storage directory.
+    directory = os.path.dirname(file_path)
+    if directory:
+        for sep in {os.sep, "/"}:
+            line = line.replace(directory + sep, "")
+    return line
 
 
 def _ffprobe(file_path, *args):

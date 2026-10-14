@@ -72,11 +72,13 @@ def compress_audio(
         # the mp3 muxer otherwise re-encodes cover art as PNG
         "-c:v",
         "copy",
+        "-v",
+        "error",
         target_file,
     ]
     try:
         run_ffmpeg(command).check_returncode()
     except subprocess.CalledProcessError as e:
-        raise AudioCompressionError("{}: {}".format(e, e.stderr))
+        raise AudioCompressionError("{}: {}".format(e, e.stderr)) from e
     except (BrokenPipeError, IOError) as e:
         raise AudioCompressionError("{}".format(e))

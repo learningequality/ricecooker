@@ -697,35 +697,144 @@ def test_opted_out_archive_leaves_downloaded_media_uncompressed(tmp_path):
     assert mp4 in _zip_members(result.path).values()
 
 
+def _random_bytes(path):
+    path.write_bytes(random.Random(0).randbytes(4096))
+
+
+def _wav_with_nine_channel_header(path):
+    subprocess.run(
+        ["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "sine=d=2", str(path)],
+        check=True,
+    )
+    data = bytearray(path.read_bytes())
+    # The mono samples still decode, but the encoder can't downmix 9 channels.
+    data[22:24] = struct.pack("<H", 9)
+    path.write_bytes(data)
+
+
+def _mkv_with_decode_warnings_then_nine_channels(path):
+    sines = "|".join(f"sin({i + 1}*440*2*PI*t)" for i in range(9))
+    subprocess.run(
+        ["ffmpeg", "-v", "error", "-f", "lavfi"]
+        + ["-i", "testsrc2=s=160x120:d=2:r=25,noise=alls=30:allf=t"]
+        + ["-itsoffset", "1", "-f", "lavfi", "-i", f"aevalsrc={sines}:d=1:s=8000"]
+        + ["-map", "0", "-map", "1", "-c:v", "libx264", "-crf", "18"]
+        + ["-c:a", "pcm_s16le", str(path)],
+        check=True,
+    )
+    data = bytearray(path.read_bytes())
+    rng = random.Random(0)
+    # Garbled H.264 still decodes, with warnings ahead of the encoder's cause.
+    for _ in range(30):
+        offset = rng.randrange(len(data) * 5 // 100, len(data) * 40 // 100)
+        data[offset : offset + 32] = rng.randbytes(32)
+    path.write_bytes(data)
+
+
 @pytest.mark.parametrize(
-    "ext,cause",
+    "ext,cause,write",
     [
-        ("mp4", "moov atom not found"),
+        ("mp4", "moov atom not found", _random_bytes),
         # ffmpeg 6.1 and earlier: "Could not seek".
-        ("mp3", "Could not seek|two consecutive MPEG audio frames"),
+        ("mp3", "Could not seek|two consecutive MPEG audio frames", _random_bytes),
+        ("avi", "Invalid data found when processing input", _random_bytes),
+        ("wav", "Invalid data found when processing input", _random_bytes),
+        # ffmpeg master: "Invalid data found".
+        (
+            "m4v",
+            "header damaged|Invalid data found when processing input",
+            _random_bytes,
+        ),
+        ("wav", "^Rematrix is needed", _wav_with_nine_channel_header),
+        ("mkv", "^Rematrix is needed", _mkv_with_decode_warnings_then_nine_channels),
     ],
 )
-def test_corrupt_media_reports_its_cause(tmp_path, ext, cause):
+def test_corrupt_media_reports_its_cause(tmp_path, ext, cause, write):
     path = tmp_path / f"bad.{ext}"
-    path.write_bytes(random.Random(0).randbytes(4096))
-    with pytest.raises(ExpectedFileException, match=cause):
+    write(path)
+    with pytest.raises(
+        (InvalidFileException, ExpectedFileException), match=cause
+    ) as excinfo:
         FilePipeline(default_context=CHEF_DEFAULTS).execute(str(path), skip_cache=True)
+    error = str(excinfo.value)
+    assert "\n" not in error
+    assert os.path.abspath(config.STORAGE_DIRECTORY) not in error
+
+
+@pytest.mark.parametrize("ext", ["avi", "wav"])
+def test_missing_ffmpeg_fails_file(tmp_path, monkeypatch, ext):
+    path = tmp_path / f"bad.{ext}"
+    _random_bytes(path)
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    monkeypatch.setenv("PATH", str(empty))
+    # Windows: "The system cannot find the file specified".
+    with pytest.raises(
+        ExpectedFileException, match="No such file or directory|cannot find the file"
+    ):
+        FilePipeline(default_context={"compress": False}).execute(
+            str(path), skip_cache=True
+        )
+
+
+def test_converted_audio_ignores_undecodable_cover_art(tmp_path):
+    cover = tmp_path / "cover.jpg"
+    subprocess.run(
+        ["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "testsrc=s=320x240:d=1"]
+        + ["-frames:v", "1", str(cover)],
+        check=True,
+    )
+    data = cover.read_bytes()
+    # Drop the scan data so the image no longer decodes.
+    cover.write_bytes(data[: data.find(b"\xff\xda")])
+    path = str(tmp_path / "cover.m4a")
+    subprocess.run(
+        ["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "sine=duration=2", "-i", cover]
+        + ["-map", "0", "-map", "1", "-c:a", "aac", "-c:v", "copy"]
+        + ["-disposition:v", "attached_pic", path],
+        check=True,
+    )
+    output = _compress(AudioCompressionHandler(), path, audio_settings={})
+    assert output.endswith(".mp3")
 
 
 @pytest.mark.parametrize(
-    "on_copy,error,cause",
+    "on_arg,error,cause",
     [
-        ("echo remux boom >&2; exit 1", ExpectedFileException, "remux boom"),
-        ("exec sleep 30", InvalidFileException, "ffmpeg timed out after 2s"),
+        ("copy) echo remux boom >&2; exit 1;;", ExpectedFileException, "remux boom"),
+        (
+            "copy) echo cause >&2; echo teardown >&2; exit 1;;",
+            ExpectedFileException,
+            "^cause$",
+        ),
+        ("copy) exec sleep 30;;", InvalidFileException, "ffmpeg timed out after 2s"),
+        (
+            "copy) kill -KILL $$;;",
+            ExpectedFileException,
+            "^ffmpeg killed by SIGKILL$",
+        ),
+        # Partial output, e.g. a disk filling up mid-encode.
+        (
+            'copy) for o; do :; done; echo partial > "$o"; '
+            'echo "[out#0/mp4 @ 0x1] Error writing trailer: No space left on device" >&2; exit 1;;',
+            ExpectedFileException,
+            "^Error writing trailer: No space left on device$",
+        ),
+        # A corrupt mp4 whose decode check fails too.
+        (
+            'copy|null) echo "[mov @ 0x1] moov atom not found" >&2; exit 1;;',
+            InvalidFileException,
+            "^Video file did not pass verification: moov atom not found$",
+        ),
     ],
 )
 def test_failed_faststart_remux_reports_its_cause(
-    on_copy, error, cause, stub_on_path, monkeypatch
+    on_arg, error, cause, stub_on_path, monkeypatch
 ):
     ffmpeg = shutil.which("ffmpeg")
     stub_on_path(
         "ffmpeg",
-        f'for a in "$@"; do [ "$a" = copy ] && {{ {on_copy}; }}; done\nexec {ffmpeg} "$@"',
+        f'for a in "$@"; do case "$a" in {on_arg} esac; done\nexec {ffmpeg} "$@"',
     )
     monkeypatch.setattr(videos, "STALL_TIMEOUT", 2)
     with pytest.raises(error, match=cause):
