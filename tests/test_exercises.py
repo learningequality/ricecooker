@@ -14,6 +14,7 @@ from fake_session import fake_download_session
 from le_utils.constants import exercises
 from le_utils.constants import format_presets
 from le_utils.constants import licenses
+from le_utils.constants import modalities
 from test_files import create_test_image
 from test_videos import _clear_ricecookerfilecache
 from vcr_config import my_vcr
@@ -22,6 +23,7 @@ from ricecooker.classes.files import File
 from ricecooker.classes.licenses import get_license
 from ricecooker.classes.nodes import ExerciseNode
 from ricecooker.classes.nodes import InvalidNodeException
+from ricecooker.classes.nodes import PracticeQuizNode
 from ricecooker.classes.questions import BaseQuestion
 from ricecooker.classes.questions import InputQuestion
 from ricecooker.classes.questions import MARKDOWN_IMAGE_REGEX
@@ -184,8 +186,8 @@ def test_exercise_extra_fields_float(exercise):
     exercise.validate()
 
 
-def _exercise(source_id, exercise_data, question_count):
-    return ExerciseNode(
+def _exercise(source_id, exercise_data, question_count, node_class=ExerciseNode):
+    return node_class(
         source_id=source_id,
         title=source_id,
         license=licenses.PUBLIC_DOMAIN,
@@ -283,6 +285,15 @@ def test_shared_exercise_data_defaults_per_node(channel):
     manager.process_tree()
     assert (small.extra_fields["m"], small.extra_fields["n"]) == (2, 2)
     assert (large.extra_fields["m"], large.extra_fields["n"]) == (5, 5)
+
+
+def test_shared_exercise_data_options_per_node():
+    data = {"mastery_model": exercises.M_OF_N, "options": {}}
+    quiz = _exercise("quiz", data, 2, node_class=PracticeQuizNode)
+    exercise = _exercise("exercise", data, 2)
+    assert data["options"] == {}
+    assert quiz.extra_fields["options"] == {"modality": modalities.QUIZ}
+    assert exercise.extra_fields["options"] == {}
 
 
 invalid_questions = [
