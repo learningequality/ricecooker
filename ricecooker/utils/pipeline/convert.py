@@ -218,8 +218,11 @@ class VideoCompressionHandler(MediaCompressionHandler):
         file_formats.WEBM,
     }
 
-    EXTENSIONS = SUPPORTED_VIDEO_EXTS | set(
-        CONVERTIBLE_FORMATS[format_presets.VIDEO_HIGH_RES]
+    # le_utils lists mpg but not its mpeg alias
+    EXTENSIONS = (
+        SUPPORTED_VIDEO_EXTS
+        | set(CONVERTIBLE_FORMATS[format_presets.VIDEO_HIGH_RES])
+        | {"mpeg"}
     )
 
     CODECS = {
@@ -955,10 +958,15 @@ class ImageConversionHandler(ExtensionMatchingHandler):
         file_formats.GIF,
     }
 
-    # Add all supported image extensions from PIL except for PDF
-    EXTENSIONS = SUPPORTED_IMAGE_EXTENSIONS | {
-        key.strip(".") for key in Image.registered_extensions() if key != ".pdf"
-    }
+    # PIL also registers .pdf, .mpg and .mpeg, which belong to other handlers
+    EXTENSIONS = (
+        (
+            SUPPORTED_IMAGE_EXTENSIONS
+            | {key.strip(".") for key in Image.registered_extensions()}
+        )
+        - {file_formats.PDF}
+        - VideoCompressionHandler.EXTENSIONS
+    )
 
     def handle_file(self, path):
         preferred_extension = extract_path_ext(path)

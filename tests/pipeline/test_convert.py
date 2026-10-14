@@ -638,6 +638,20 @@ def test_video_unplayable_as_is_is_reencoded(sample, request):
     assert video["pix_fmt"] == "yuv420p"
 
 
+@pytest.mark.parametrize("ext", ["mpg", "mpeg"])
+def test_mpg_video_converts_through_video_handler(tmp_path, ext):
+    path = _lavfi_clip(
+        tmp_path / f"clip.{ext}",
+        "testsrc2=size=160x120:rate=25:duration=0.4",
+        *["-c:v", "mpeg1video", "-c:a", "mp2"],
+    )
+    [result] = FilePipeline(default_context=CHEF_DEFAULTS).execute(
+        path, skip_cache=True
+    )
+    assert result.path.endswith(".webm")
+    assert any(s["codec_type"] == "video" for s in probe_media(result.path)["streams"])
+
+
 @pytest.fixture
 def faststart_240p(tmp_path):
     path = str(tmp_path / "faststart.mp4")
