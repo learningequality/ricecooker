@@ -319,8 +319,7 @@ def test_invalid_question_raises_with_assertion_message(question, message):
 
 
 """
-Return patterns that should match the RE for markdown file/image includes:
-MARKDOWN_IMAGE_REGEX = r'!\\[([^\\]]+)?\\]\\(([^\\)]+)\\)'
+Return patterns that should match MARKDOWN_IMAGE_REGEX
 """
 markdown_link_strings_and_match = [
     ("![smth](path)", ("smth", "path")),
@@ -340,6 +339,14 @@ markdown_link_strings_and_match = [
         ),
     ),
     ("![smth](//url.org/path/file.png)", ("smth", "//url.org/path/file.png")),
+    ('![smth](path "Fig")', ("smth", "path")),
+    ("![smth](path 'Fig')", ("smth", "path")),
+    ('![smth](path "Fig (1)") bof', ("smth", "path")),
+    ("![smth](path (Fig))", ("smth", "path")),
+    ("![smth](path (F\\)g))", ("smth", "path")),
+    ('![smth](path "F\\"g")', ("smth", "path")),
+    ("![smth](path 'F\\'g')", ("smth", "path")),
+    ("![smth](data:image/png;base64,AA\nAA)", ("smth", "data:image/png;base64,AA\nAA")),
 ]
 
 markdown_pat = re.compile(MARKDOWN_IMAGE_REGEX, flags=re.IGNORECASE)
@@ -349,9 +356,7 @@ markdown_pat = re.compile(MARKDOWN_IMAGE_REGEX, flags=re.IGNORECASE)
 def test_MARKDOWN_IMAGE_REGEX_matches(sample_str, expected_matches):
     m = markdown_pat.search(sample_str)
     assert m, "MARKDOWN_IMAGE_REGEX failed to match string " + sample_str
-    assert m.groups() == expected_matches, (
-        "found " + m.groups() + " expected " + expected_matches
-    )
+    assert m.groups() == expected_matches
 
 
 # Tests to make sure BaseQuestion.set_image works correctly
@@ -412,22 +417,62 @@ def test_base_question_set_image(text, replacement_str, hash):
     )
 
 
+def _single_select_with_image(field, image):
+    texts = {"question": "Q", "answer": "b", "hint": "hint", field: image}
+    return SingleSelectQuestion(
+        "q", texts["question"], "a", ["a", texts["answer"]], hints=[texts["hint"]]
+    )
+
+
 @pytest.mark.parametrize("field", ["question", "answer", "hint"])
 def test_question_failed_image_download_fails_question(field):
     _clear_ricecookerfilecache()
-    image = "![](http://h/missing.png)"
-    question = SingleSelectQuestion(
-        "q",
-        image if field == "question" else "Q",
-        "a",
-        ["a", image if field == "answer" else "b"],
-        hints=[image if field == "hint" else "hint"],
-    )
+    question = _single_select_with_image(field, "![](http://h/missing.png)")
     with fake_download_session({}):
         with pytest.raises(
             InvalidNodeException, match=re.escape("http://h/missing.png")
         ):
             question.process_question()
+
+
+@pytest.mark.parametrize("title", ['"No Wi-Fi"', "(No Wi-Fi)"])
+@pytest.mark.parametrize("field", ["question", "answer", "hint"])
+def test_question_titled_image_is_stored(field, title, exercise_image_filename):
+    _clear_ricecookerfilecache()
+    question = _single_select_with_image(field, f"![](http://h/pic.png {title})")
+    with fake_download_session({"http://h/pic.png": NO_WIFI_PNG}):
+        assert question.process_question() == [exercise_image_filename]
+    processed = [question.question]
+    processed += [a["answer"] for a in question.answers]
+    processed += [h["hint"] for h in question.hints]
+    stored = exercises.CONTENT_STORAGE_FORMAT.format(exercise_image_filename)
+    assert f"![]({stored})" in processed
+
+
+@pytest.mark.parametrize(
+    "text,expected",
+    [
+        # Studio resolves the placeholder only inside ![..](..)
+        (
+            "![](http://h/pic.png) [link](http://h/pic.png)",
+            "![]({stored}) [link](http://h/pic.png)",
+        ),
+        (
+            "![](http://h/pic.png) ![](http://h/pic.png?x=1)",
+            "![]({stored}) ![]({stored})",
+        ),
+    ],
+)
+def test_question_rewrites_only_image_references(
+    text, expected, exercise_image_filename
+):
+    _clear_ricecookerfilecache()
+    question = SingleSelectQuestion("q", text, "a", ["a", "b"])
+    responses = {"http://h/pic.png": NO_WIFI_PNG, "http://h/pic.png?x=1": NO_WIFI_PNG}
+    with fake_download_session(responses):
+        assert set(question.process_question()) == {exercise_image_filename}
+    stored = exercises.CONTENT_STORAGE_FORMAT.format(exercise_image_filename)
+    assert question.question == expected.format(stored=stored)
 
 
 @pytest.mark.parametrize("scheme", ["data", "DATA"])
@@ -722,6 +767,10 @@ def test_perseus_whole_string_graphie_is_downloaded_and_rewritten():
         _perseus_item('<img data-src="http://h/lazy.png" src="http://h/pic.png">'),
         _perseus_item('<IMG SRC="http://h/pic.png">'),
         _perseus_item('<img alt="a>b" src="http://h/pic.png">'),
+        _perseus_item('![](http://h/pic.png "No Wi-Fi")'),
+        _perseus_item("![](http://h/pic.png 'No Wi-Fi')"),
+        _perseus_item('![](http://h/pic.png "No \\"Wi-Fi\\"")'),
+        _perseus_item("![](http://h/pic.png (No Wi-Fi))"),
         {
             "question": {
                 "content": "![](http://h/pic.png)",
@@ -752,6 +801,10 @@ def test_perseus_whole_string_graphie_is_downloaded_and_rewritten():
         "img-data-src",
         "img-uppercase",
         "img-alt-gt",
+        "md-title-double",
+        "md-title-single",
+        "md-title-escaped-quote",
+        "md-title-parens",
         "images-key",
         "backgroundImage.url",
         "image.url",
@@ -784,6 +837,7 @@ def test_perseus_image_is_downloaded_and_rewritten(item, exercise_image_filename
         ("![](http://h/thumbnail.png?lang=en)", "http://h/thumbnail.png?lang=en"),
         # the literal backslash-n seen in KA exports
         ("![](http://h/thumbnail.png\\n)", "http://h/thumbnail.png"),
+        ("![](http://h/pic.png\n)", "http://h/pic.png"),
     ],
 )
 def test_perseus_image_url_loses_only_encoded_newlines(
@@ -793,6 +847,8 @@ def test_perseus_image_url_loses_only_encoded_newlines(
     q = PerseusQuestion("q", _perseus_item(content), ka_language="en")
     with fake_download_session({url: NO_WIFI_PNG}):
         assert q.process_question() == [exercise_image_filename]
+    stored = exercises.CONTENT_STORAGE_FORMAT.format(exercise_image_filename)
+    assert json.loads(q.raw_data)["question"]["content"] == f"![]({stored})"
 
 
 def test_perseus_unpadded_base64_ending_in_n_is_stored_intact():
