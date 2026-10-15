@@ -61,6 +61,7 @@ Homepage = "https://github.com/learningequality/ricecooker"
 test = [
     "pytest==8.4.2",
     "pytest-env==1.1.5",
+    "pytest-timeout==2.4.0",
     "vcrpy==8.2.1; python_version >='3.10'",
     "mock==5.2.0",
 ]
@@ -97,6 +98,9 @@ docs = { requires-python = ">=3.11" }
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 norecursedirs = ["docs", "examples", "resources"]
+# "thread" also works on Windows (no SIGALRM)
+timeout = 300
+timeout_method = "thread"
 env = [
     "RICECOOKER_STORAGE=./.pytest_storage",
     "RICECOOKER_FILECACHE=./.pytest_filecache",

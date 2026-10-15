@@ -38,6 +38,7 @@ jobs:
     needs: pre_job
     if: ${{ needs.pre_job.outputs.python == 'true' }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
