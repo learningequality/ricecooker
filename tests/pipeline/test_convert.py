@@ -1226,6 +1226,87 @@ class TestDocumentConversion:
         with pytest.raises(InvalidFileException, match="pandoc timed out"):
             FilePipeline(default_context={}).execute(str(src), skip_cache=True)
 
+    @pytest.mark.parametrize(
+        "script,cause",
+        [
+            (
+                # A multi-line warning, then pandoc 3.9's error on `---\ntitle: [unclosed\n---`
+                'echo "[WARNING] Could not convert TeX math x, rendering as TeX:" >&2\n'
+                'echo "  x" >&2\n'
+                'echo "Error parsing YAML metadata at \\"$1\\" (line 1, column 1):" >&2\n'
+                'echo "YAML parse exception at line 2, column 0," >&2\n'
+                'echo "while parsing a flow sequence:" >&2\n'
+                "echo \"did not find expected ',' or ']'\" >&2\nexit 64",
+                'Error parsing YAML metadata at "the document" (line 1, column 1): YAML parse exception at line 2, column 0, '
+                "while parsing a flow sequence: did not find expected ',' or ']'",
+            ),
+            (
+                # pandoc 3.9's IO error, with its GHC backtrace
+                'echo "pandoc: $1: withBinaryFile: does not exist (No such file or directory)" >&2\n'
+                'echo "HasCallStack backtrace:" >&2\n'
+                'echo "  ioException, called at libraries/ghc-internal/src/GHC/Internal/IO/Exception.hs:319:20 in ghc-internal:GHC.Internal.IO.Exception" >&2\n'
+                "exit 1",
+                "pandoc: the document: withBinaryFile: does not exist (No such file or directory)",
+            ),
+            (
+                'echo "[WARNING] Could not fetch resource $1.png: not found" >&2\nexit 3',
+                "exit status 3",
+            ),
+            (
+                'printf "pandoc: \\377 in %s\\n" "$1" >&2\nexit 92',
+                "pandoc: \ufffd in the document",
+            ),
+            (
+                # Under LC_ALL=C pandoc re-encodes non-ASCII bytes of its input path.
+                "printf 'pandoc: %s: bad\\n' \"$1\" | LC_ALL=C tr '\\200-\\377' '?' >&2\nexit 1",
+                "pandoc: the document: bad",
+            ),
+        ],
+        ids=[
+            "yaml-metadata",
+            "read-error",
+            "warnings-only",
+            "non-utf8-stderr",
+            "mangled-storage-path",
+        ],
+    )
+    def test_pandoc_failure_is_one_path_free_line(
+        self, stub_on_path, tmp_path, monkeypatch, script, cause
+    ):
+        monkeypatch.setattr(config, "STORAGE_DIRECTORY", str(tmp_path / "störage"))
+        src = _make_source(tmp_path, "md", "# Title\n\nHello world")
+        stub_on_path("pandoc", script)
+        with pytest.raises(ExpectedFileException) as excinfo:
+            FilePipeline(default_context={}).execute(src, skip_cache=True)
+        assert str(excinfo.value) == f"pandoc failed to convert the document: {cause}"
+
+    def test_untitled_document_title_is_stored_file_stem(self, tmp_path):
+        src = _make_source(tmp_path, "md", "Hello world")
+        [result] = FilePipeline(default_context={}).execute(src, skip_cache=True)
+        index = _zip_members(result.path)["index.html"].decode("utf-8")
+        assert BeautifulSoup(index, "lxml").title.string == read_file_hash(src)
+
+    def test_undecodable_stderr_on_success_converts(self, stub_on_path, tmp_path):
+        src = _make_source(tmp_path, "md", "# Title\n\nHello world")
+        stub_on_path(
+            "pandoc",
+            "echo '<html><head><title>T</title></head><body><p>Hi</p></body></html>' > index.html\n"
+            "printf '[WARNING] caf\\351\\n' >&2",
+        )
+        [result] = FilePipeline(default_context={}).execute(src, skip_cache=True)
+        assert result.preset == format_presets.KPUB_ZIP
+
+    def test_real_pandoc_failure_is_one_path_free_line(self, tmp_path):
+        src = _make_source(tmp_path, "md", "---\ntitle: [unclosed\n---\n\nHello")
+        with pytest.raises(ExpectedFileException) as excinfo:
+            FilePipeline(default_context={}).execute(src, skip_cache=True)
+        message = str(excinfo.value)
+        assert message.startswith("pandoc failed to convert the document: ")
+        assert message.endswith("did not find expected ',' or ']'")
+        assert "\n" not in message
+        # pandoc < 3.9 omits the path here
+        assert read_file_hash(src) not in message
+
 
 @contextmanager
 def _run_external_refs(
