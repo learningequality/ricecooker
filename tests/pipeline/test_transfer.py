@@ -4,8 +4,11 @@ import io
 import json
 import mimetypes
 import os
+import shutil
+import subprocess
 import sys
 import tempfile
+import time
 import tracemalloc
 import urllib.parse
 import zipfile
@@ -19,6 +22,8 @@ import pytest
 import requests
 import urllib3
 import yt_dlp
+from conftest import hanging_stub
+from conftest import sample_path
 from fake_session import fake_download_session
 from le_utils.constants import format_presets
 from le_utils.constants import licenses
@@ -30,6 +35,7 @@ from ricecooker.classes.licenses import get_license
 from ricecooker.classes.nodes import ContentNode
 from ricecooker.exceptions import InvalidNodeException
 from ricecooker.utils import proxy
+from ricecooker.utils import videos
 from ricecooker.utils.caching import generate_key
 from ricecooker.utils.caching import set_cache_data
 from ricecooker.utils.encodings import exts_from_mimetype
@@ -709,6 +715,121 @@ def test_download_stage_fails_live_video(live):
         DownloadStageHandler().execute(
             url, context={"default_ext": "mp4"}, skip_cache=True
         )
+
+
+@pytest.fixture
+def fresh_ffmpeg_version_cache(monkeypatch):
+    pp = yt_dlp.postprocessor.ffmpeg.FFmpegPostProcessor
+    monkeypatch.setattr(pp, "_version_cache", {None: None})
+    monkeypatch.setattr(pp, "_features_cache", {})
+
+
+SPLIT_MP4 = [
+    {**MP4_ONLY[0], "format_id": "video", "acodec": "none"},
+    {
+        **MP4_ONLY[0],
+        "format_id": "audio",
+        "url": "https://media.invalid/a.m4a",
+        "ext": "m4a",
+        "vcodec": "none",
+    },
+]
+
+
+@pytest.fixture
+def offline_split_youtube(monkeypatch, fresh_ffmpeg_version_cache):
+    monkeypatch.setattr(videos, "STALL_TIMEOUT", 1)
+    monkeypatch.setattr(videos, "PROBE_TIMEOUT", 1)
+    with (
+        patch.object(
+            yt_dlp.YoutubeDL, "urlopen", side_effect=ConnectionError("offline")
+        ),
+        _patched_youtube(_fake_yt_dlp_download, {**VIDEO, "formats": SPLIT_MP4}),
+    ):
+        yield
+
+
+@pytest.mark.parametrize(
+    "answered",
+    [
+        "-bsfs",
+        # The #806 stub: yt-dlp's -bsfs version probe hangs too.
+        "-version",
+    ],
+)
+@pytest.mark.parametrize("proxied", [False, True], ids=["direct", "proxied"])
+def test_hung_yt_dlp_ffmpeg_fails_file(
+    answered, proxied, request, stub_on_path, offline_split_youtube
+):
+    if proxied:
+        request.getfixturevalue("youtube_proxy")
+    stub_on_path("ffmpeg", hanging_stub("ffmpeg", answered))
+    start = time.monotonic()
+    with pytest.raises(InvalidFileException):
+        FilePipeline().execute(
+            "https://www.youtube.com/watch?v=hhhhhhhhhhh", skip_cache=True
+        )
+    assert time.monotonic() - start < 20
+    assert not proxy.MAYBE_BROKEN_PROXIES
+
+
+def test_hung_yt_dlp_merge_is_not_retried_by_youtube_resource(
+    tmp_path, stub_on_path, offline_split_youtube
+):
+    runs = tmp_path / "runs"
+    stub_on_path("ffmpeg", hanging_stub("ffmpeg", on_run=f'echo run >> "{runs}"; '))
+    resource = YouTubeResource(
+        "https://www.youtube.com/watch?v=hhhhhhhhhhh", useproxy=False
+    )
+    with pytest.raises(subprocess.TimeoutExpired):
+        resource.download(
+            options={"outtmpl": {"default": str(tmp_path / "%(id)s.%(ext)s")}}
+        )
+    assert runs.read_text().splitlines() == ["run"]
+
+
+def test_progressing_yt_dlp_merge_outlives_stall_timeout(
+    tmp_path, stub_on_path, monkeypatch, fresh_ffmpeg_version_cache
+):
+    real_ffmpeg = shutil.which("ffmpeg")
+    # The merge completes only if yt-dlp's ffmpeg_location, not PATH, runs.
+    stub_on_path("ffmpeg")
+    monkeypatch.setattr(videos, "STALL_TIMEOUT", 2)
+    output = tmp_path / "merged.mp4"
+    ydl = yt_dlp.YoutubeDL(
+        {
+            "ffmpeg_location": real_ffmpeg,
+            "postprocessor_args": {"merger+ffmpeg_i1": ["-stream_loop", "2", "-re"]},
+        }
+    )
+    info = {
+        "filepath": str(output),
+        "__files_to_merge": [
+            sample_path("high_res_sample.mp4"),
+            sample_path("sample_audio.mp3"),
+        ],
+        "requested_formats": SPLIT_MP4,
+    }
+    yt_dlp.postprocessor.ffmpeg.FFmpegMergerPP(ydl).run(info)
+    assert output.exists()
+
+
+def test_yt_dlp_ffprobe_is_bounded(
+    stub_on_path, monkeypatch, fresh_ffmpeg_version_cache
+):
+    stub_on_path("ffmpeg", 'echo "ffmpeg version 7.0"')
+    stub_on_path("ffprobe", hanging_stub("ffprobe"))
+    monkeypatch.setattr(videos, "PROBE_TIMEOUT", 1)
+    pp = yt_dlp.postprocessor.ffmpeg.FFmpegPostProcessor(yt_dlp.YoutubeDL())
+    with pytest.raises(subprocess.TimeoutExpired):
+        pp.get_metadata_object("video.mp4")
+
+
+def test_yt_dlp_ffprobe_runs_without_progress_args(fresh_ffmpeg_version_cache):
+    # Real ffprobe rejects -progress.
+    pp = yt_dlp.postprocessor.ffmpeg.FFmpegPostProcessor(yt_dlp.YoutubeDL())
+    metadata = pp.get_metadata_object(sample_path("high_res_sample.mp4"))
+    assert metadata["streams"]
 
 
 def test_yt_dlp_should_handle_does_not_retain_data_uris():

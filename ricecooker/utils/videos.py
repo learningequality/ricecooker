@@ -13,8 +13,6 @@ from typing import Tuple
 
 from le_utils.constants import format_presets
 
-from ricecooker import config
-
 from .images import ThumbnailGenerationError
 
 LOGGER = logging.getLogger("VideoResource")
@@ -27,9 +25,9 @@ VP9_MAX_BITS_PER_PIXEL = 0.1
 BITMAP_SUBTITLE_CODECS = {"dvb_subtitle", "dvd_subtitle", "hdmv_pgs_subtitle", "xsub"}
 
 
-def run_ffmpeg(args):
-    cmd = ["ffmpeg", "-nostats", "-progress", "pipe:1", *args]
-    proc = subprocess.Popen(
+def run_ffmpeg(args, executable="ffmpeg", popen=subprocess.Popen):
+    cmd = [executable, "-nostats", "-progress", "pipe:1", *args]
+    proc = popen(
         cmd,
         stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE,
@@ -272,6 +270,8 @@ def compress_video(source_file_path, target_file, overwrite=False, **kwargs):
     Raises:
         VideoCompressionError: If compression fails
     """
+    from ricecooker import config
+
     # Get input format
     ext = os.path.splitext(target_file)[1].lower()
     is_webm = ext == ".webm"

@@ -930,6 +930,11 @@ def stub_on_path(tmp_path, monkeypatch):
     return install
 
 
+def hanging_stub(exe, answered="-bsfs", on_run=""):
+    # Answers yt-dlp's version probe, then hangs on every other run.
+    return f'case "$1" in {answered}) echo "{exe} version 7.0" ;; *) {on_run}exec sleep 30 ;; esac'
+
+
 def read_file_hash(local_path):
     """md5 hex digest of a file's bytes -- the basis for Studio storage filenames."""
     md5 = hashlib.md5()
