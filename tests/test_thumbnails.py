@@ -24,12 +24,18 @@ from ricecooker.classes.nodes import DocumentNode
 from ricecooker.classes.nodes import HTML5AppNode
 from ricecooker.classes.nodes import TopicNode
 from ricecooker.classes.nodes import VideoNode
+from ricecooker.utils import images
 from ricecooker.utils import videos
 
 SHOW_THUMBS = False  # set to True to show outputs when running tests locally
 
 
 THUMBNAIL_URL = "https://raw.githubusercontent.com/learningequality/ricecooker/master/tests/testcontent/samples/thumbnail.png"
+
+
+@pytest.fixture(autouse=True)
+def no_chromium(monkeypatch):
+    monkeypatch.setattr(images, "find_chromium_binary", lambda: None)
 
 
 class TestThumbnailSetting(object):
