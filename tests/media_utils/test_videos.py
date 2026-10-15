@@ -98,12 +98,13 @@ class Test_check_video_resolution:
     def test_hung_probe_falls_back_to_low_res(
         self, low_res_video, stub_on_path, monkeypatch
     ):
-        stub_on_path("ffprobe")
+        calls = stub_on_path("ffprobe")
         monkeypatch.setattr(videos, "PROBE_TIMEOUT", 1)
         start = time.monotonic()
         preset = videos.guess_video_preset_by_resolution(low_res_video.name)
         assert preset == format_presets.VIDEO_LOW_RES
         assert time.monotonic() - start < 10
+        assert calls.read_text().count("\n") == 1
 
 
 class Test_extract_duration_of_media:
