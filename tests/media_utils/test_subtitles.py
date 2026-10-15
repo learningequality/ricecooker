@@ -1,6 +1,8 @@
 import codecs
 import hashlib
 import os
+import subprocess
+import sys
 import tempfile
 from unittest import TestCase
 
@@ -16,6 +18,11 @@ from ricecooker.utils.subtitles import LANGUAGE_CODE_UNKNOWN
 test_files_dir = os.path.join(
     os.path.abspath(os.path.dirname(__file__)), "files", "subtitles"
 )
+
+
+def test_import_does_not_load_tkinter(tmp_path):
+    code = "import sys, ricecooker.chefs; sys.exit('_tkinter' in sys.modules)"
+    assert subprocess.run([sys.executable, "-c", code], cwd=tmp_path).returncode == 0
 
 
 def getlang_by_name(name):
