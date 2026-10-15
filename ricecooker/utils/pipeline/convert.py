@@ -15,6 +15,7 @@ from abc import abstractmethod
 from contextlib import contextmanager
 from dataclasses import dataclass
 from dataclasses import field
+from pathlib import Path
 from typing import Dict
 from typing import Optional
 from typing import Union
@@ -26,6 +27,7 @@ import html5lib
 from html5lib.html5parser import ParseError
 from le_utils.constants import file_formats
 from le_utils.constants import format_presets
+from lxml import etree
 from pdf2image import pdfinfo_from_path
 from pdf2image.exceptions import PDFPageCountError
 from pdf2image.exceptions import PDFPopplerTimeoutError
@@ -996,9 +998,19 @@ class SVGValidationHandler(ExtensionMatchingHandler):
 
     def handle_file(self, path):
         try:
-            ElementTree.parse(path)
-        except ElementTree.ParseError as e:
-            raise InvalidFileException(f"SVG file did not pass verification: {e}")
+            try:
+                ElementTree.parse(path)
+            except (LookupError, ValueError):
+                # expat can't decode multi-byte encodings such as Shift_JIS
+                etree.fromstring(
+                    Path(path).read_bytes(),
+                    etree.XMLParser(huge_tree=True, resolve_entities=False),
+                )
+        except (ElementTree.ParseError, etree.XMLSyntaxError) as e:
+            # Some lxml messages contain newlines
+            raise InvalidFileException(
+                f"SVG file did not pass verification: {' '.join(e.msg.split())}"
+            )
 
 
 class SubtitleContextMetadata(ContextMetadata):
