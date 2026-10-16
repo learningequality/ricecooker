@@ -18,6 +18,7 @@ from le_utils.constants import exercises
 from le_utils.constants import file_types
 from le_utils.constants import format_presets
 from le_utils.constants import licenses
+from le_utils.constants import modalities
 from le_utils.constants.labels import accessibility_categories
 from le_utils.constants.labels import learning_activities
 from le_utils.constants.labels import levels
@@ -42,15 +43,19 @@ from ricecooker.classes.licenses import get_license
 from ricecooker.classes.licenses import License
 from ricecooker.classes.nodes import ChannelNode
 from ricecooker.classes.nodes import ContentNode
+from ricecooker.classes.nodes import CourseNode
 from ricecooker.classes.nodes import CustomNavigationChannelNode
 from ricecooker.classes.nodes import CustomNavigationNode
 from ricecooker.classes.nodes import DocumentNode
 from ricecooker.classes.nodes import ExerciseNode
+from ricecooker.classes.nodes import HTML5AppNode
+from ricecooker.classes.nodes import LessonNode
 from ricecooker.classes.nodes import METADATA_LABEL_CHOICES
 from ricecooker.classes.nodes import Node
 from ricecooker.classes.nodes import RemoteContentNode
 from ricecooker.classes.nodes import TopicNode
 from ricecooker.classes.nodes import TreeNode
+from ricecooker.classes.nodes import UnitNode
 from ricecooker.classes.nodes import VideoNode
 from ricecooker.classes.questions import PerseusQuestion
 from ricecooker.classes.questions import SingleSelectQuestion
@@ -564,6 +569,52 @@ def test_custom_navigation_channel_node_via_add_file():
         custom_navigation_channel_node.to_dict()["files"][0]["filename"]
         == zipfile.filename
     )
+
+
+""" *********** SHARED EXTRA_FIELDS TESTS *********** """
+
+
+_LICENSE = get_license("CC BY", copyright_holder="H")
+
+
+@pytest.mark.parametrize(
+    "node_class,kwargs,expected_options",
+    [
+        (
+            HTML5AppNode,
+            {"license": _LICENSE, "entrypoint": "app.html"},
+            {"entry": "app.html"},
+        ),
+        (
+            CustomNavigationNode,
+            {"license": _LICENSE, "entrypoint": "app.html"},
+            {"modality": modalities.CUSTOM_NAVIGATION, "entry": "app.html"},
+        ),
+        (
+            CustomNavigationChannelNode,
+            {"source_domain": "d", "entrypoint": "app.html"},
+            {"modality": modalities.CUSTOM_NAVIGATION, "entry": "app.html"},
+        ),
+        (LessonNode, {}, {"modality": LessonNode.MODALITY}),
+        (UnitNode, {}, {"modality": UnitNode.MODALITY}),
+        (CourseNode, {}, {"modality": CourseNode.MODALITY}),
+    ],
+)
+def test_construction_leaves_shared_extra_fields_untouched(
+    channel, node_class, kwargs, expected_options
+):
+    shared = {"options": {"k": "v"}}
+    a = node_class(source_id="a", title="A", extra_fields=shared, **kwargs)
+    assert shared == {"options": {"k": "v"}}
+    if not isinstance(a, ChannelNode):
+        channel.add_child(a)
+    options = json.loads(a.to_dict()["extra_fields"])["options"]
+    assert options.items() >= {**expected_options, "k": "v"}.items()
+
+    b = HTML5AppNode("b", "B", extra_fields=shared, license=_LICENSE)
+    channel.add_child(b)
+    options = json.loads(b.to_dict()["extra_fields"])["options"]
+    assert options == {"k": "v"}
 
 
 def test_remote_content_node_with_no_overrides():

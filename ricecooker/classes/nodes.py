@@ -1398,14 +1398,6 @@ def _exercise_settings(extra_fields):
     }
 
 
-def _set_entrypoint(entrypoint, kwargs):
-    if entrypoint:
-        kwargs["extra_fields"] = kwargs.get("extra_fields", {})
-        kwargs["extra_fields"]["options"] = kwargs["extra_fields"].get("options", {})
-        kwargs["extra_fields"]["options"].update({"entry": entrypoint})
-    return kwargs
-
-
 class HTML5AppNode(ContentNode):
     """Model representing a zipped HTML5 application
 
@@ -1424,8 +1416,9 @@ class HTML5AppNode(ContentNode):
     required_presets = (format_presets.HTML5_ZIP,)
 
     def __init__(self, *args, entrypoint=None, **kwargs):
-        kwargs = _set_entrypoint(entrypoint, kwargs)
         super().__init__(*args, **kwargs)
+        if entrypoint:
+            self._merge_extra_fields({"options": {"entry": entrypoint}})
 
     def generate_thumbnail(self):
         html5_files = [
@@ -1525,12 +1518,11 @@ class CustomNavigationNode(ContentNode):
     required_presets = (format_presets.HTML5_ZIP,)
 
     def __init__(self, *args, entrypoint=None, **kwargs):
-        kwargs = _set_entrypoint(entrypoint, kwargs)
-        kwargs["extra_fields"] = kwargs.get("extra_fields", {})
-        kwargs["extra_fields"]["options"] = kwargs["extra_fields"].get("options", {})
-        # TODO: update le-utils version and use a constant value here
-        kwargs["extra_fields"]["options"].update({"modality": "CUSTOM_NAVIGATION"})
         super(CustomNavigationNode, self).__init__(*args, **kwargs)
+        options = {"modality": modalities.CUSTOM_NAVIGATION}
+        if entrypoint:
+            options["entry"] = entrypoint
+        self._merge_extra_fields({"options": options})
 
     def generate_thumbnail(self):
         html5_files = [
@@ -1549,12 +1541,11 @@ class CustomNavigationChannelNode(ChannelNode):
     required_presets = (format_presets.HTML5_ZIP,)
 
     def __init__(self, *args, entrypoint=None, **kwargs):
-        kwargs = _set_entrypoint(entrypoint, kwargs)
-        kwargs["extra_fields"] = kwargs.get("extra_fields", {})
-        kwargs["extra_fields"]["options"] = kwargs["extra_fields"].get("options", {})
-        # TODO: update le-utils version and use a constant value here
-        kwargs["extra_fields"]["options"].update({"modality": "CUSTOM_NAVIGATION"})
         super(CustomNavigationChannelNode, self).__init__(*args, **kwargs)
+        options = {"modality": modalities.CUSTOM_NAVIGATION}
+        if entrypoint:
+            options["entry"] = entrypoint
+        self._merge_extra_fields({"options": options})
 
 
 class PracticeQuizNode(ExerciseNode):
@@ -1564,11 +1555,8 @@ class PracticeQuizNode(ExerciseNode):
     """
 
     def __init__(self, *args, **kwargs):
-        kwargs["exercise_data"] = kwargs.get("exercise_data", {})
-        kwargs["exercise_data"]["options"] = kwargs["exercise_data"].get("options", {})
-        # TODO: update le-utils version and use a constant value here
-        kwargs["exercise_data"]["options"].update({"modality": "QUIZ"})
         super(PracticeQuizNode, self).__init__(*args, **kwargs)
+        self._merge_extra_fields({"options": {"modality": modalities.QUIZ}})
 
 
 class StudioContentNode(TreeNode):
@@ -1684,10 +1672,8 @@ class _CurriculumNode(TopicNode):
     CHILD_CLASS = None  # Subclasses must define
 
     def __init__(self, *args, **kwargs):
-        kwargs["extra_fields"] = kwargs.get("extra_fields", {})
-        kwargs["extra_fields"]["options"] = kwargs["extra_fields"].get("options", {})
-        kwargs["extra_fields"]["options"]["modality"] = self.MODALITY
         super().__init__(*args, **kwargs)
+        self._merge_extra_fields({"options": {"modality": self.MODALITY}})
 
     def _validate_child(self, node):
         """Validate that node is an instance of the allowed child class."""
