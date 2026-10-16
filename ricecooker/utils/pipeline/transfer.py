@@ -5,6 +5,7 @@ import hashlib
 import mimetypes
 import os
 import re
+import subprocess
 import tempfile
 from contextlib import contextmanager
 from dataclasses import field
@@ -453,7 +454,7 @@ class YoutubeDownloadHandler(WebResourceHandler):
         except Exception as e:
             if fall_through:
                 raise self._no_video(path, e)
-            if isinstance(e, yt_dlp.utils.YoutubeDLError):
+            if isinstance(e, (yt_dlp.utils.YoutubeDLError, subprocess.TimeoutExpired)):
                 raise
             # yt-dlp re-raises extractor bugs as-is.
             raise yt_dlp.utils.DownloadError(str(e)) from e

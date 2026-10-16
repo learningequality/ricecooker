@@ -1,11 +1,14 @@
 import os
 import shutil
+import subprocess
+import sys
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import pytest
 import yt_dlp
+from conftest import hanging_stub
 from conftest import sample_path
 from le_utils.constants import licenses
 from vcr_config import my_vcr
@@ -257,3 +260,33 @@ def test_update_refetches_youtube_thumbnail(monkeypatch, tmp_path):
         with patch.object(config, "UPDATE", True):
             refetched = chef.create_video_node("thumb-update").thumbnail.path
     assert refetched != first
+
+
+def test_importing_youtube_alone_bounds_yt_dlp_merges(tmp_path, stub_on_path):
+    stub_on_path("ffmpeg", hanging_stub("ffmpeg"))
+    keep = tmp_path / ".ricecooker-temp" / "keep"
+    keep.parent.mkdir()
+    keep.touch()
+    for name in ("v.mp4", "a.m4a"):
+        (tmp_path / name).touch()
+    # A fresh interpreter: this process already imported transfer.py and config.
+    code = """
+import yt_dlp
+from ricecooker.utils import videos, youtube
+videos.STALL_TIMEOUT = 1
+info = {
+    "filepath": "out.mp4",
+    "__files_to_merge": ["v.mp4", "a.m4a"],
+    "requested_formats": [{"acodec": "none", "protocol": "https"}, {"vcodec": "none", "protocol": "https"}],
+}
+yt_dlp.postprocessor.ffmpeg.FFmpegMergerPP(yt_dlp.YoutubeDL()).run(info)
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", code],
+        capture_output=True,
+        text=True,
+        cwd=tmp_path,
+        timeout=20,
+    )
+    assert result.stderr.splitlines()[-1].startswith("subprocess.TimeoutExpired")
+    assert keep.exists()
