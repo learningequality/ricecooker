@@ -97,6 +97,20 @@ def _last_line(text):
     return lines[-1] if lines else "unknown error"
 
 
+def _pandoc_error_detail(stderr, src, returncode):
+    stderr = stderr.replace(src, "the document")
+    # pandoc >= 3.9 appends a GHC backtrace to IO errors.
+    stderr = stderr.partition("HasCallStack backtrace:")[0]
+    lines, in_warning = [], False
+    for line in stderr.splitlines():
+        # A warning's indented continuation lines belong to it.
+        if not line[:1].isspace():
+            in_warning = line.startswith("[WARNING]")
+        if not in_warning and (line := line.strip()):
+            lines.append(line)
+    return " ".join(lines) or f"exit status {returncode}"
+
+
 # CSS properties permitted on inline ``style=`` attributes inside a KPUB.
 KPUB_STYLE_ALLOWLIST = {
     "text-align",
@@ -1078,9 +1092,13 @@ class DocumentConversionHandler(ExtensionMatchingHandler):
                 "pandoc is required to convert documents (.docx/.odt/.rtf/.md/.markdown) "
                 "to KPUB. Install pandoc — see docs/installation.md."
             )
-        # cwd=temp_dir below, so keep the input path absolute.
-        src = os.path.abspath(path)
-        with tempfile.TemporaryDirectory() as temp_dir:
+        with tempfile.TemporaryDirectory() as work_dir:
+            # pandoc names its input in errors, re-encoding non-ASCII paths, and defaults <title> to its stem.
+            name = os.path.basename(path)
+            shutil.copyfile(path, os.path.join(work_dir, name))
+            src = os.path.join("..", name)
+            kpub_dir = os.path.join(work_dir, "kpub")
+            os.mkdir(kpub_dir)
             try:
                 subprocess.run(
                     [
@@ -1092,21 +1110,24 @@ class DocumentConversionHandler(ExtensionMatchingHandler):
                         "-o",
                         "index.html",
                     ],
-                    cwd=temp_dir,
+                    cwd=kpub_dir,
                     stdin=subprocess.DEVNULL,
                     capture_output=True,
-                    text=True,
+                    # pandoc's rendered errors are UTF-8.
+                    encoding="utf-8",
+                    errors="replace",
                     check=True,
                     timeout=self.TIMEOUT,
                 )
             except subprocess.CalledProcessError as e:
+                detail = _pandoc_error_detail(e.stderr, src, e.returncode)
                 raise PandocConversionError(
-                    f"pandoc failed to convert {path}: {e.stderr}"
+                    f"pandoc failed to convert the document: {detail}"
                 )
             # pandoc --extract-media localizes embedded media only; unlike an
             # uploaded KPUB, remote <img> refs are not downloaded (out of scope).
-            sanitize_kpub_directory(temp_dir)
-            _seal_directory_to_file(self, temp_dir, file_formats.HTML5_ARTICLE)
+            sanitize_kpub_directory(kpub_dir)
+            _seal_directory_to_file(self, kpub_dir, file_formats.HTML5_ARTICLE)
 
 
 # Presets whose files ride alongside a primary file (thumbnails, subtitles); they
