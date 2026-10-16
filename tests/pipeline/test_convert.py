@@ -1,6 +1,7 @@
 """Tests for audio and video compression in archive files."""
 
 import base64
+import hashlib
 import json
 import logging
 import os
@@ -841,6 +842,8 @@ def test_failed_faststart_remux_reports_its_cause(
         FilePipeline(default_context=CHEF_DEFAULTS).execute(
             sample_path("low_res_sample.mp4"), skip_cache=True
         )
+    partial = hashlib.md5(b"partial\n").hexdigest()
+    assert not os.path.exists(config.get_storage_path(f"{partial}.mp4"))
 
 
 def test_compliant_audio_passes_through(mp3_48k):

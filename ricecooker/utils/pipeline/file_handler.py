@@ -191,8 +191,8 @@ class FileHandler(Handler):
                     raise InvalidFileException(
                         f"File with extension {extension} failed to write (corrupted)."
                     )
-                filename = copy_file_to_storage(tempf.name, ext=extension)
-                self._output_path = config.get_storage_path(filename)
+            filename = copy_file_to_storage(tempf.name, ext=extension)
+            self._output_path = config.get_storage_path(filename)
 
     @abstractmethod
     def handle_file(self, path, **kwargs) -> Union[None, FileMetadata]:
