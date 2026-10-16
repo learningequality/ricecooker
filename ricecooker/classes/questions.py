@@ -9,6 +9,7 @@ from bs4 import BeautifulSoup
 from le_utils.constants import exercises
 
 from ricecooker.utils.encodings import get_base64_encoding
+from ricecooker.utils.processing_run import run_once
 
 from .. import config
 from ..exceptions import InvalidNodeException
@@ -97,6 +98,7 @@ class BaseQuestion:
         self.source_url = source_url
         self.randomize = randomize
         self.id = uuid.uuid5(uuid.NAMESPACE_DNS, id)
+        self._run_key = object()
 
     @property
     def assessment_id(self):
@@ -107,6 +109,20 @@ class BaseQuestion:
         duplicate = copy.copy(self)
         duplicate.files = list(self.files)
         return duplicate
+
+    def _process_image(self, image_file):
+        def process():
+            image_file.assessment_item = self
+            image_file.process_file()
+            return image_file
+
+        key = (
+            self._run_key,
+            type(image_file),
+            image_file.path,
+            getattr(image_file, "ka_language", None),
+        )
+        return run_once(key, process)
 
     def truncate_fields(self):
         for f in filter(lambda x: x and x.filename, self.files):
@@ -248,10 +264,8 @@ class BaseQuestion:
             exercise_image_file = _ExerciseBase64ImageFile(stripped_text)
         else:
             exercise_image_file = _ExerciseImageFile(stripped_text)
-        # Setup link to assessment item
-        exercise_image_file.assessment_item = self
         # Process file to make the replacement_str available
-        exercise_image_file.process_file()
+        exercise_image_file = self._process_image(exercise_image_file)
         if not exercise_image_file.filename:
             shown_path = (
                 re.split("[;,]", stripped_text, maxsplit=1)[0]
@@ -368,10 +382,8 @@ class PerseusQuestion(BaseQuestion):
                 exercise_image_file = _ExerciseBase64ImageFile(full_path)
             else:
                 exercise_image_file = _ExerciseImageFile(full_path)
-            # Setup link to assessment item
-            exercise_image_file.assessment_item = self
             # Process file to make the replacement_str available
-            exercise_image_file.process_file()
+            exercise_image_file = self._process_image(exercise_image_file)
             if not exercise_image_file.filename:
                 shown_path = (
                     re.split("[;,]", full_path, maxsplit=1)[0]
@@ -454,7 +466,7 @@ class QTIQuestion(BaseQuestion):
             self.files.append(file)
 
     def process_question(self):
-        return [f.filename for f in self.files]
+        return [f.get_filename() for f in self.files]
 
 
 class MultipleSelectQuestion(BaseQuestion):

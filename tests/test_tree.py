@@ -3,8 +3,11 @@
 import json
 import logging
 import os
+import shutil
 import tempfile
+import time
 import uuid
+import zipfile
 from unittest.mock import MagicMock
 from unittest.mock import mock_open
 from unittest.mock import patch
@@ -33,11 +36,15 @@ from test_videos import _clear_ricecookerfilecache
 
 from ricecooker import config
 from ricecooker.chefs import SushiChef
+from ricecooker.classes.files import _ExerciseImageFile
 from ricecooker.classes.files import DocumentFile
+from ricecooker.classes.files import DownloadFile
+from ricecooker.classes.files import ExtractedHTMLZipThumbnailFile
 from ricecooker.classes.files import File
 from ricecooker.classes.files import HTMLZipFile
 from ricecooker.classes.files import SubtitleFile
 from ricecooker.classes.files import ThumbnailFile
+from ricecooker.classes.files import TiledThumbnailFile
 from ricecooker.classes.files import VideoFile
 from ricecooker.classes.licenses import get_license
 from ricecooker.classes.licenses import License
@@ -58,6 +65,7 @@ from ricecooker.classes.nodes import TreeNode
 from ricecooker.classes.nodes import UnitNode
 from ricecooker.classes.nodes import VideoNode
 from ricecooker.classes.questions import PerseusQuestion
+from ricecooker.classes.questions import QTIQuestion
 from ricecooker.classes.questions import SingleSelectQuestion
 from ricecooker.commands import uploadchannel
 from ricecooker.exceptions import ChannelIncompleteError
@@ -65,6 +73,8 @@ from ricecooker.exceptions import FileNotFoundException
 from ricecooker.exceptions import InvalidNodeException
 from ricecooker.managers.tree import ChannelManager
 from ricecooker.managers.tree import InsufficientStorageException
+from ricecooker.utils import images
+from ricecooker.utils import videos
 from ricecooker.utils.jsontrees import build_tree_from_json
 from ricecooker.utils.pipeline import FilePipeline
 from ricecooker.utils.zip import create_predictable_zip
@@ -1255,6 +1265,433 @@ def test_process_node_fails_exercise_on_extensionless_local_question_image(
     assert {f.path for f in config.FAILED_FILES} == {str(image)}
 
 
+@pytest.mark.parametrize("shared", [False, True])
+def test_failed_file_is_processed_and_reported_once(
+    channel, tmp_path, stub_on_path, monkeypatch, caplog, shared
+):
+    bad = tmp_path / "bad.mp4"
+    bad.write_text("not a video")
+    stub_on_path("ffprobe", "echo N/A")
+    calls = tmp_path / "ffmpeg-calls"
+    stub_on_path("ffmpeg", f"echo x >> {calls}; exec sleep 30")
+    monkeypatch.setattr(videos, "STALL_TIMEOUT", 1)
+    monkeypatch.setattr(config, "FAILED_FILES", [])
+    node = VideoNode("v", "v", licenses.CC_BY, copyright_holder="x")
+    node.add_file(VideoFile(str(bad)))
+    if shared:
+        _place_under_two_topics(channel, node)
+    else:
+        channel.add_child(node)
+    manager = ChannelManager(channel)
+    manager.deduplicate_shared_nodes()
+
+    with patch("ricecooker.config.STRICT", False):
+        manager.process_tree()
+    with caplog.at_level(logging.ERROR, logger=config.LOGGER.name):
+        manager.check_for_files_failed()
+
+    assert calls.read_text().splitlines() == ["x"]
+    assert len(config.FAILED_FILES) == 1
+    assert "1 file(s) have failed" in caplog.text
+
+
+def test_failed_derived_thumbnail_of_a_shared_node_is_reported_once(
+    channel, tmp_path, monkeypatch
+):
+    _clear_ricecookerfilecache()
+    monkeypatch.setattr(config, "FAILED_FILES", [])
+    monkeypatch.setattr(images, "find_chromium_binary", lambda: None)
+    zip_path = tmp_path / "no_images.zip"
+    with zipfile.ZipFile(zip_path, "w") as archive:
+        archive.writestr("index.html", "<html><body>hi</body></html>")
+    node = HTML5AppNode(
+        "h",
+        "h",
+        licenses.CC_BY,
+        files=[HTMLZipFile(str(zip_path))],
+        copyright_holder="x",
+        derive_thumbnail=True,
+    )
+    _place_under_two_topics(channel, node)
+    manager = ChannelManager(channel)
+    manager.deduplicate_shared_nodes()
+
+    with patch("ricecooker.config.STRICT", False):
+        manager.process_tree()
+
+    assert [type(f) for f in config.FAILED_FILES] == [ExtractedHTMLZipThumbnailFile]
+
+
+def test_distinct_nodes_deriving_from_one_zip_get_their_own_thumbnail(
+    channel, tmp_path, thumbnail_path, monkeypatch
+):
+    _clear_ricecookerfilecache()
+    # Windows refuses os.replace onto a stored file another thread holds open.
+    monkeypatch.setattr(config, "TASK_THREADS", 1)
+    zip_path = tmp_path / "app.zip"
+    with zipfile.ZipFile(zip_path, "w") as archive:
+        archive.writestr("index.html", "<html><body>hi</body></html>")
+        archive.write(thumbnail_path, "thumbnail.png")
+    app = HTML5AppNode(
+        "h",
+        "h",
+        licenses.CC_BY,
+        files=[HTMLZipFile(str(zip_path))],
+        copyright_holder="x",
+        derive_thumbnail=True,
+    )
+    nav = CustomNavigationNode(
+        "n",
+        "n",
+        licenses.CC_BY,
+        files=[HTMLZipFile(str(zip_path))],
+        copyright_holder="x",
+        derive_thumbnail=True,
+    )
+    channel.add_child(app)
+    channel.add_child(nav)
+
+    with patch("ricecooker.config.STRICT", False):
+        ChannelManager(channel).process_tree()
+
+    assert app.files[-1] is not nav.files[-1]
+    assert app.files[-1].get_preset() == format_presets.HTML5_THUMBNAIL
+    assert nav.files[-1].get_preset() == format_presets.TOPIC_THUMBNAIL
+
+
+def _counting_file(cls, calls):
+    class CountingFile(cls):
+        def process_file(self):
+            calls.append(self)
+            return super().process_file()
+
+    return CountingFile
+
+
+def _subtitle_without_language(tmp_path, cls=DownloadFile):
+    srt = tmp_path / "sub.srt"
+    srt.write_text("1\n00:00:00,000 --> 00:00:01,000\nhi\n")
+    return cls(str(srt), preset=format_presets.VIDEO_SUBTITLE)
+
+
+def test_raising_file_shared_by_two_placements_fails_both(channel, tmp_path):
+    _clear_ricecookerfilecache()
+    calls = []
+    subtitle = _subtitle_without_language(tmp_path, _counting_file(DownloadFile, calls))
+    node = TopicNode("t", "t", files=[subtitle])
+    topics = _place_under_two_topics(channel, node)
+    manager = ChannelManager(channel)
+    manager.deduplicate_shared_nodes()
+
+    with patch("ricecooker.config.STRICT", False):
+        manager.process_tree()
+
+    placements = [topic.children[0] for topic in topics]
+    assert len(calls) == 1
+    assert all("language" in getattr(p, "_error", "") for p in placements)
+
+
+def test_shared_file_waits_for_its_first_run(channel, monkeypatch):
+    _clear_ricecookerfilecache()
+    monkeypatch.setattr(config, "TASK_THREADS", 5)
+    node = HTML5AppNode(
+        "h",
+        "h",
+        licenses.CC_BY,
+        files=[HTMLZipFile(sample_path("sample_html.zip"))],
+        copyright_holder="x",
+    )
+    topics = _place_under_two_topics(channel, node)
+    manager = ChannelManager(channel)
+    manager.deduplicate_shared_nodes()
+
+    manager.process_tree()
+
+    for topic in topics:
+        topic.children[0].validate()
+
+
+def test_failed_qti_question_file_is_processed_and_reported(
+    channel, tmp_path, monkeypatch
+):
+    monkeypatch.setattr(config, "FAILED_FILES", [])
+    image = _ExerciseImageFile(str(tmp_path / "missing.png"))
+    channel.add_child(_exercise([QTIQuestion("q", "<x/>", files=[image])]))
+
+    with patch("ricecooker.config.STRICT", False):
+        ChannelManager(channel).process_tree()
+
+    assert config.FAILED_FILES == [image]
+
+
+def test_raising_qti_question_file_fails_its_exercise(channel, tmp_path):
+    _clear_ricecookerfilecache()
+    calls = []
+    subtitle = _subtitle_without_language(tmp_path, _counting_file(DownloadFile, calls))
+    node = _exercise([QTIQuestion("q", "<x/>", files=[subtitle])])
+    channel.add_child(node)
+
+    with patch("ricecooker.config.STRICT", False):
+        ChannelManager(channel).process_tree()
+
+    assert len(calls) == 1
+    assert not node.valid
+    assert "language" in node._error
+
+
+def test_failed_node_files_it_never_reached_are_not_processed(channel, tmp_path):
+    _clear_ricecookerfilecache()
+    calls = []
+    thumbnail = _counting_file(ThumbnailFile, calls)(sample_path("thumbnail.png"))
+    channel.add_child(
+        TopicNode(
+            "t", "t", files=[_subtitle_without_language(tmp_path)], thumbnail=thumbnail
+        )
+    )
+    manager = ChannelManager(channel)
+
+    with patch("ricecooker.config.STRICT", False):
+        manager.process_tree()
+
+    assert calls == []
+    assert thumbnail not in manager.file_map.values()
+
+
+def test_failed_node_files_it_processed_are_collected(channel, tmp_path):
+    _clear_ricecookerfilecache()
+    thumbnail = ThumbnailFile(sample_path("thumbnail.png"))
+    channel.add_child(
+        TopicNode("t", "t", files=[thumbnail, _subtitle_without_language(tmp_path)])
+    )
+    manager = ChannelManager(channel)
+
+    with patch("ricecooker.config.STRICT", False):
+        manager.process_tree()
+
+    assert manager.file_map == {thumbnail.filename: thumbnail}
+
+
+def test_qti_question_file_processed_before_process_tree_is_not_rerun(channel):
+    _clear_ricecookerfilecache()
+    calls = []
+    image = _counting_file(_ExerciseImageFile, calls)(sample_path("thumbnail.png"))
+    channel.add_child(_exercise([QTIQuestion("q", "<x/>", files=[image])]))
+    image.process_file()
+
+    ChannelManager(channel).process_tree()
+
+    assert len(calls) == 1
+
+
+@pytest.mark.parametrize("arrives", [False, True])
+def test_file_failed_before_process_tree_is_retried_and_reported_once(
+    channel, tmp_path, thumbnail_path, monkeypatch, arrives
+):
+    _clear_ricecookerfilecache()
+    monkeypatch.setattr(config, "FAILED_FILES", [])
+    late = tmp_path / "late.png"
+    thumbnail = ThumbnailFile(str(late))
+    child = TopicNode("child", "child", thumbnail=thumbnail)
+    parent = TopicNode("parent", "parent", thumbnail=TiledThumbnailFile([child]))
+    parent.add_child(child)
+    channel.add_child(parent)
+    if arrives:
+        shutil.copy(thumbnail_path, late)
+
+    with patch("ricecooker.config.STRICT", False):
+        ChannelManager(channel).process_tree()
+
+    assert (thumbnail.filename is not None) is arrives
+    assert (thumbnail.error is None) is arrives
+    assert config.FAILED_FILES == ([] if arrives else [thumbnail])
+
+
+@pytest.mark.parametrize(
+    "process",
+    [
+        lambda thumbnail: TopicNode("t", "t", thumbnail=thumbnail).process_files(),
+        lambda thumbnail: thumbnail.get_filename(),
+    ],
+    ids=["process_files", "get_filename"],
+)
+def test_failed_file_is_retried_outside_a_run(
+    tmp_path, thumbnail_path, monkeypatch, process
+):
+    _clear_ricecookerfilecache()
+    monkeypatch.setattr(config, "FAILED_FILES", [])
+    late = tmp_path / "late.png"
+    thumbnail = ThumbnailFile(str(late))
+    process(thumbnail)
+    shutil.copy(thumbnail_path, late)
+
+    process(thumbnail)
+
+    assert thumbnail.filename is not None
+    assert thumbnail.error is None
+    assert config.FAILED_FILES == []
+
+
+@pytest.mark.parametrize("retried", [False, True])
+def test_derived_topic_thumbnail_waits_for_a_descendant_thumbnail(
+    channel, tmp_path, thumbnail_path, monkeypatch, retried
+):
+    _clear_ricecookerfilecache()
+    monkeypatch.setattr(config, "TASK_THREADS", 5)
+    monkeypatch.setattr(config, "FAILED_FILES", [])
+
+    class SlowThumbnailFile(ThumbnailFile):
+        def process_file(self):
+            time.sleep(0.5)
+            return super().process_file()
+
+    if retried:
+        late = tmp_path / "late.png"
+        thumbnail = SlowThumbnailFile(str(late))
+        thumbnail.process_file()
+        shutil.copy(thumbnail_path, late)
+    else:
+        thumbnail = SlowThumbnailFile(thumbnail_path)
+    topic = TopicNode("t", "t", derive_thumbnail=True)
+    topic.add_child(
+        DocumentNode(
+            "d", "d", licenses.CC_BY, copyright_holder="x", thumbnail=thumbnail
+        )
+    )
+    channel.add_child(topic)
+
+    with patch("ricecooker.config.STRICT", False):
+        ChannelManager(channel).process_tree()
+
+    assert [bool(f.get_filename()) for f in topic.files] == [True]
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        lambda image: SingleSelectQuestion("q", f"![]({image})", "a", ["a", "b"]),
+        lambda image: PerseusQuestion(
+            "q",
+            json.dumps({"question": {"content": f"![]({image})"}}),
+            ka_language="en",
+        ),
+    ],
+)
+def test_failed_question_image_of_a_shared_exercise_is_processed_once(
+    channel, monkeypatch, question
+):
+    _clear_ricecookerfilecache()
+    monkeypatch.setattr(config, "FAILED_FILES", [])
+    bad = "http://h/qbad.png"
+    node = _exercise([question(bad)])
+    topics = _place_under_two_topics(channel, node)
+    manager = ChannelManager(channel)
+    manager.deduplicate_shared_nodes()
+
+    with (
+        patch("ricecooker.config.STRICT", False),
+        fake_download_session({bad: b"not an image"}) as calls,
+    ):
+        manager.process_tree()
+
+    assert calls == [bad]
+    assert len(config.FAILED_FILES) == 1
+    assert all("qbad.png" in topic.children[0]._error for topic in topics)
+
+
+def _copy_in_language(question, lang):
+    duplicate = question.copy()
+    duplicate.ka_language = lang
+    return duplicate
+
+
+@pytest.mark.parametrize(
+    "make_fr",
+    [
+        lambda en, item: PerseusQuestion("q", item, ka_language="fr"),
+        lambda en, item: _copy_in_language(en, "fr"),
+    ],
+    ids=["distinct", "copy"],
+)
+def test_distinct_questions_get_their_own_graphie_language(
+    channel, monkeypatch, make_fr
+):
+    _clear_ricecookerfilecache()
+    # Windows refuses os.replace onto a stored file another thread holds open.
+    monkeypatch.setattr(config, "TASK_THREADS", 1)
+    item = json.dumps({"question": {"content": "![](web+graphie://h/g)"}})
+    en = PerseusQuestion("q", item, ka_language="en")
+    exercises = [
+        _exercise([question], source_id=question.ka_language)
+        for question in (en, make_fr(en, item))
+    ]
+    for exercise in exercises:
+        channel.add_child(exercise)
+    urls = {
+        "https://h/g.svg": b"<svg/>",
+        "https://h/g-data.json": b'{"en": 1}',
+        "https://h/fr/g-data.json": b'{"fr": 1}',
+    }
+
+    with fake_download_session(urls) as calls:
+        ChannelManager(channel).process_tree()
+
+    assert "https://h/fr/g-data.json" in calls
+    en, fr = (e.questions[0].files[0].filename for e in exercises)
+    assert en != fr
+
+
+def test_shared_uri_node_runs_its_pipeline_once(channel):
+    _clear_ricecookerfilecache()
+    bad = "http://h/bad.png"
+    node = _uri_node("u", bad)
+    _place_under_two_topics(channel, node)
+    manager = ChannelManager(channel)
+    manager.deduplicate_shared_nodes()
+
+    with (
+        patch("ricecooker.config.STRICT", False),
+        fake_download_session({}) as calls,
+    ):
+        manager.process_tree()
+
+    assert calls == [bad]
+
+
+def test_copy_with_another_uri_runs_its_own_pipeline(channel):
+    _clear_ricecookerfilecache()
+    bad, other = "http://h/bad.png", "http://h/other.png"
+    node = _uri_node("u", bad)
+    clone = node.copy()
+    clone.source_id = "u2"
+    clone.uri = other
+    channel.add_child(node)
+    channel.add_child(clone)
+
+    with (
+        patch("ricecooker.config.STRICT", False),
+        fake_download_session({}) as calls,
+    ):
+        ChannelManager(channel).process_tree()
+
+    assert sorted(calls) == [bad, other]
+
+
+def test_distinct_nodes_with_one_failing_uri_each_fail(channel):
+    _clear_ricecookerfilecache()
+    bad = "http://h/bad.png"
+    pipeline = FilePipeline()
+    for source_id in ("a", "b"):
+        channel.add_child(_uri_node(source_id, bad, pipeline))
+
+    with (
+        patch("ricecooker.config.STRICT", False),
+        fake_download_session({}),
+    ):
+        ChannelManager(channel).process_tree()
+
+    assert all("bad.png" in node._error for node in channel.children)
+
+
 def test_add_nodes_skips_invalid_nodes(channel):
     """Test that add_nodes skips invalid nodes and registers them as failed builds."""
     # Create a manager
@@ -1561,21 +1998,17 @@ def test_upload_tree_still_commits_when_only_one_node_failed(channel):
     assert config.finish_channel_url() in committed
 
 
-def test_failed_question_image_skips_only_its_exercise(channel, exercise_image_file):
+def test_failed_question_image_skips_only_its_exercise(
+    channel, exercise_image_file, monkeypatch
+):
     _clear_ricecookerfilecache()
+    monkeypatch.setattr(config, "FAILED_FILES", [])
 
     def exercise(source_id, image_url):
-        return ExerciseNode(
-            source_id,
-            source_id,
-            license=get_license(licenses.CC_BY, copyright_holder="x"),
-            exercise_data={"m": 1, "n": 1},
-            questions=[
-                SingleSelectQuestion(
-                    source_id + "-q", "Q", "a", ["a", "b"], hints=[f"![]({image_url})"]
-                )
-            ],
+        question = SingleSelectQuestion(
+            source_id + "-q", "Q", "a", ["a", "b"], hints=[f"![]({image_url})"]
         )
+        return _exercise([question], source_id)
 
     good = exercise("good", "http://h/present.png")
     bad = exercise("bad", "http://h/missing.png")
@@ -1599,6 +2032,7 @@ def test_failed_question_image_skips_only_its_exercise(channel, exercise_image_f
     assert [child["source_id"] for _, child in posted] == ["good"]
     error = manager.failed_node_builds[bad.get_node_id().hex]["error"]
     assert "http://h/missing.png" in error
+    assert len(config.FAILED_FILES) == 1
 
 
 @pytest.mark.parametrize("threads", [1, 5])
@@ -2189,6 +2623,27 @@ def test_add_nodes_checks_both_failed_files_and_validity(channel):
 
 
 """ *********** NODE COPY / DEDUP TESTS (issue #354) *********** """
+
+
+def _exercise(questions, source_id="ex"):
+    return ExerciseNode(
+        source_id,
+        "ex",
+        license=get_license(licenses.CC_BY, copyright_holder="x"),
+        exercise_data={"m": 1, "n": 1},
+        questions=questions,
+    )
+
+
+def _uri_node(source_id, uri, pipeline=None):
+    return ContentNode(
+        source_id,
+        source_id,
+        licenses.CC_BY,
+        uri=uri,
+        pipeline=pipeline or FilePipeline(),
+        copyright_holder="x",
+    )
 
 
 def _place_under_two_topics(channel, node):

@@ -8,6 +8,7 @@ from requests.exceptions import RequestException
 from ricecooker.classes.files import split_known_extension
 from ricecooker.exceptions import ChannelIncompleteError
 from ricecooker.exceptions import InvalidNodeException
+from ricecooker.utils.processing_run import processing_run
 
 from .. import config
 
@@ -38,6 +39,7 @@ class ChannelManager:
         self.failed_uploads = {}
         self.file_map = {}
         self.all_nodes = []
+        self.failed_nodes = set()
 
     def validate(self):
         """Validate every node in the tree. Raises InvalidNodeException in strict mode; returns None."""
@@ -70,18 +72,19 @@ class ChannelManager:
         """
         if not self.all_nodes:
             self.all_nodes = self.gather_tree_recur([], self.channel)
-        processed = set(map(id, self.all_nodes))
-        with concurrent.futures.ThreadPoolExecutor(
-            max_workers=config.TASK_THREADS
-        ) as executor:
+        with (
+            processing_run(),
+            concurrent.futures.ThreadPoolExecutor(
+                max_workers=config.TASK_THREADS
+            ) as executor,
+        ):
             for data in executor.map(self.process_node, self.all_nodes):
                 self.file_map.update(data)
-        # A decomposed package (IMSCP) grows processed descendants during process_files().
-        # Only collect those: node_files() re-runs a failed file's pipeline.
-        self.all_nodes = self.gather_tree_recur([], self.channel)
-        for node in self.all_nodes:
-            if id(node) not in processed:
-                self.file_map.update(self.node_files(node))
+            # A decomposed package (IMSCP) grows processed descendants during process_files().
+            self.all_nodes = self.gather_tree_recur([], self.channel)
+            for node in self.all_nodes:
+                if id(node) not in self.failed_nodes:
+                    self.file_map.update(self.node_files(node))
         return list(self.file_map.keys())
 
     def deduplicate_shared_nodes(self):
@@ -131,20 +134,20 @@ class ChannelManager:
             if config.STRICT and isinstance(e, ValueError):
                 raise
             self._record_error(node, e)
+            self.failed_nodes.add(id(node))
+            return self.node_files(node, process=False)
         return self.node_files(node)
 
-    def node_files(self, node):
+    def node_files(self, node, process=True):
         """Map each of ``node``'s processed filenames to its File."""
+        files = list(node.files)
+        for question in getattr(node, "questions", []):
+            files.extend(question.files)
         output = {}
-
-        for node_file in node.files:
-            if node_file.get_filename():
-                output[node_file.get_filename()] = node_file
-        if hasattr(node, "questions"):
-            for question in node.questions:
-                for question_file in question.files:
-                    if question_file.get_filename():
-                        output[question_file.get_filename()] = question_file
+        for node_file in files:
+            filename = node_file.get_filename() if process else node_file.filename
+            if filename:
+                output[filename] = node_file
         return output
 
     def check_for_files_failed(self):

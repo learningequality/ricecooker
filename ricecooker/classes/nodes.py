@@ -21,6 +21,7 @@ from le_utils.constants.labels import subjects
 
 from ricecooker.utils.pipeline.exceptions import ExpectedFileException
 from ricecooker.utils.pipeline.exceptions import InvalidFileException
+from ricecooker.utils.processing_run import run_once
 
 from .. import __version__
 from .. import config
@@ -176,6 +177,7 @@ class Node(object):
         self.description = description or ""
         self.derive_thumbnail = derive_thumbnail
         self.extra_fields = extra_fields or {}
+        self._run_key = object()
 
         for f in files or []:
             self.add_file(f)
@@ -396,7 +398,7 @@ class Node(object):
         """
         filenames = []
         for file in self.files:
-            filenames.append(file.process_file())
+            filenames.append(run_once(file, file.process_file))
             extra_fields = (file.content_node_metadata or {}).get("extra_fields")
             if extra_fields:
                 self._merge_extra_fields(extra_fields)
@@ -405,10 +407,17 @@ class Node(object):
         if not self.has_thumbnail() and (config.THUMBNAILS or self.derive_thumbnail):
             thumbnail_file = self.generate_thumbnail()
             if thumbnail_file:
-                thumbnail_filename = thumbnail_file.process_file()
-                if thumbnail_filename:
+                thumbnail_file = run_once(
+                    (
+                        self._run_key,
+                        getattr(thumbnail_file, "path", None),
+                        tuple(getattr(thumbnail_file, "sources", ())),
+                    ),
+                    lambda: thumbnail_file.process_file() and thumbnail_file,
+                )
+                if thumbnail_file:
                     self.set_thumbnail(thumbnail_file)
-                    filenames.append(thumbnail_filename)
+                    filenames.append(thumbnail_file.filename)
                 else:
                     pass  # failed to generate thumbnail
             else:
@@ -1203,8 +1212,11 @@ class ContentNode(TreeNode):
         if options.get("entry"):
             context = {"entry": options["entry"], "explicit_entry": True, **context}
         try:
-            file_metadata_list = self.pipeline.execute(
-                self.uri, context=context, skip_cache=config.UPDATE
+            file_metadata_list = run_once(
+                (self._run_key, self.uri, id(self.pipeline), repr(context)),
+                lambda: self.pipeline.execute(
+                    self.uri, context=context, skip_cache=config.UPDATE
+                ),
             )
         except (InvalidFileException, ExpectedFileException) as e:
             config.LOGGER.error(f"Error processing path: {self.uri} with error: {e}")
