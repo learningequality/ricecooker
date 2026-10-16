@@ -773,6 +773,47 @@ def test_hung_yt_dlp_ffmpeg_fails_file(
     assert not proxy.MAYBE_BROKEN_PROXIES
 
 
+def test_hung_yt_dlp_ffmpeg_download_fails_file(
+    stub_on_path, monkeypatch, fresh_ffmpeg_version_cache
+):
+    monkeypatch.setattr(videos, "STALL_TIMEOUT", 1)
+    stub_on_path("ffmpeg", hanging_stub("ffmpeg"))
+    m3u8 = [{**MP4_ONLY[0], "url": "https://media.invalid/v.m3u8", "protocol": "m3u8"}]
+    start = time.monotonic()
+    with (
+        patch.object(
+            yt_dlp.YoutubeDL, "urlopen", side_effect=ConnectionError("offline")
+        ),
+        fake_extractors(
+            {yt_dlp.extractor.youtube.YoutubeIE: {**VIDEO, "formats": m3u8}}
+        ),
+        pytest.raises(InvalidFileException),
+    ):
+        FilePipeline().execute(
+            "https://www.youtube.com/watch?v=hhhhhhhhhhh", skip_cache=True
+        )
+    assert time.monotonic() - start < 20
+
+
+def test_progressing_yt_dlp_ffmpeg_download_outlives_stall_timeout(
+    tmp_path, monkeypatch, fresh_ffmpeg_version_cache
+):
+    monkeypatch.setattr(videos, "STALL_TIMEOUT", 2)
+    output = tmp_path / "v.mp4"
+    ydl = yt_dlp.YoutubeDL(
+        {"external_downloader_args": {"ffmpeg_i1": ["-stream_loop", "2", "-re"]}}
+    )
+    info = {
+        "url": sample_path("high_res_sample.mp4"),
+        "protocol": "m3u8",
+        "ext": "mp4",
+    }
+    assert yt_dlp.downloader.external.FFmpegFD(ydl, ydl.params).download(
+        str(output), info
+    )
+    assert output.exists()
+
+
 def test_hung_yt_dlp_merge_is_not_retried_by_youtube_resource(
     tmp_path, stub_on_path, offline_split_youtube
 ):

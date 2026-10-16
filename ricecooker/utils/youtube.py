@@ -1,4 +1,5 @@
 import copy
+import io
 import json
 import logging
 import os
@@ -39,6 +40,29 @@ class _StallWatchedPopen(yt_dlp.utils.Popen):
         return result.stdout, result.stderr, result.returncode
 
 
+class _StallWatchedDownloaderPopen(yt_dlp.utils.Popen):
+    _progress = None
+
+    def __init__(self, args, *remaining, **kwargs):
+        # "-" is FFmpegFD writing the media itself to stdout.
+        watched = "ffmpeg" in os.path.basename(args[0]) and args[-1] != "-"
+        if watched:
+            args = [args[0], "-progress", "pipe:1", *args[1:]]
+            kwargs["stdout"] = subprocess.PIPE
+        super().__init__(args, *remaining, **kwargs)
+        if watched:
+            # FFmpegFD's Ctrl-C communicate(b"q") must not read progress alongside the watcher.
+            self._progress, self.stdout = self.stdout, None
+
+    def wait(self, timeout=None):
+        if self._progress and timeout is None:
+            progress, self._progress = self._progress, None
+            videos.watch_progress(
+                self, io.TextIOWrapper(progress, encoding="utf-8", errors="replace")
+            )
+        return super().wait(timeout)
+
+
 # yt_dlp.utils._get_exe_version_output, plus a timeout.
 def _get_exe_version_output(exe, args, ignore_return_code=False):
     try:
@@ -55,7 +79,8 @@ def _get_exe_version_output(exe, args, ignore_return_code=False):
     return None if ret and not ignore_return_code else stdout
 
 
-# yt-dlp's ffmpeg postprocessors and version probes run with no timeout.
+# yt-dlp's ffmpeg downloads, postprocessors and version probes run with no timeout.
+yt_dlp.downloader.external.Popen = _StallWatchedDownloaderPopen
 yt_dlp.postprocessor.ffmpeg.Popen = _StallWatchedPopen
 yt_dlp.postprocessor.ffmpeg._get_exe_version_output = _get_exe_version_output
 

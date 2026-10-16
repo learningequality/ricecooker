@@ -35,15 +35,44 @@ def run_ffmpeg(args, executable="ffmpeg", popen=subprocess.Popen):
         encoding="utf-8",
         errors="replace",
     )
-    progress = []
     stderr = []
+
+    def read_stderr():
+        with proc.stderr:
+            stderr.append(proc.stderr.read())
+
+    stderr_reader = threading.Thread(target=read_stderr, daemon=True)
+    stderr_reader.start()
+    try:
+        output = watch_progress(proc, proc.stdout)
+        returncode = proc.wait()
+    except subprocess.TimeoutExpired as e:
+        proc.wait()
+        stderr_reader.join(1)
+        e.stderr = "".join(stderr)
+        raise
+    except BaseException:
+        proc.kill()
+        proc.wait()
+        raise
+    stderr_reader.join()
+    return subprocess.CompletedProcess(cmd, returncode, output, "".join(stderr))
+
+
+def watch_progress(proc, lines):
+    """
+    Read ffmpeg's -progress `lines` to their end and return the last block.
+    Kill `proc` and raise `subprocess.TimeoutExpired` once its output position
+    stops advancing for STALL_TIMEOUT.
+    """
+    progress = []
     last_advance = time.monotonic()
 
     def read_progress():
         nonlocal last_advance
         position = None
-        with proc.stdout:
-            for line in proc.stdout:
+        with lines:
+            for line in lines:
                 if progress and progress[-1] == "progress=continue\n":
                     progress.clear()
                 progress.append(line)
@@ -51,35 +80,16 @@ def run_ffmpeg(args, executable="ffmpeg", popen=subprocess.Popen):
                     position = line
                     last_advance = time.monotonic()
 
-    def read_stderr():
-        with proc.stderr:
-            stderr.append(proc.stderr.read())
-
     progress_reader = threading.Thread(target=read_progress, daemon=True)
-    stderr_reader = threading.Thread(target=read_stderr, daemon=True)
     progress_reader.start()
-    stderr_reader.start()
-    stalled = False
-    try:
-        while progress_reader.is_alive():
-            idle = time.monotonic() - last_advance
-            if idle >= STALL_TIMEOUT:
-                stalled = True
-                proc.kill()
-                break
-            progress_reader.join(STALL_TIMEOUT - idle)
-        returncode = proc.wait()
-    except BaseException:
-        proc.kill()
-        proc.wait()
-        raise
-    join_timeout = 1 if stalled else None
-    progress_reader.join(join_timeout)
-    stderr_reader.join(join_timeout)
-    output, errors = "".join(progress), "".join(stderr)
-    if stalled:
-        raise subprocess.TimeoutExpired(cmd, STALL_TIMEOUT, output, errors)
-    return subprocess.CompletedProcess(cmd, returncode, output, errors)
+    while progress_reader.is_alive():
+        idle = time.monotonic() - last_advance
+        if idle >= STALL_TIMEOUT:
+            proc.kill()
+            progress_reader.join(1)
+            raise subprocess.TimeoutExpired(proc.args, STALL_TIMEOUT, "".join(progress))
+        progress_reader.join(STALL_TIMEOUT - idle)
+    return "".join(progress)
 
 
 def guess_video_preset_by_resolution(videopath):
