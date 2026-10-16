@@ -932,7 +932,9 @@ def test_invalid_htmlzip_validation(invalid_zip):
     [
         (VideoFile, "bad.mp4", b"This is not a valid media file"),
         (VideoFile, "concat.mp4", b"ffconcat version 1.0\nfile 'part1.mp4'\n"),
+        (VideoFile, "bad.avi", b"This is not a valid media file"),
         (AudioFile, "bad.mp3", b"This is not a valid media file"),
+        (AudioFile, "bad.wav", b"This is not a valid media file"),
         (ThumbnailFile, "bad.png", b"not an image"),
         (ThumbnailFile, "bad.svg", b"<svg><g></svg>"),
         (ThumbnailFile, "bogus.svg", b'<?xml version="1.0" encoding="bogus"?><svg/>'),
