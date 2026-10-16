@@ -14,6 +14,7 @@ import zlib
 from http.server import BaseHTTPRequestHandler
 from http.server import ThreadingHTTPServer
 from io import BytesIO
+from pathlib import Path
 from shutil import copyfile
 from types import SimpleNamespace
 from unittest.mock import MagicMock
@@ -537,6 +538,83 @@ def test_storage_error_during_image_conversion_propagates(tmp_path, monkeypatch)
             ThumbnailFile(str(path)).process_file()
 
 
+@pytest.mark.parametrize(
+    "content",
+    [
+        *(
+            pytest.param(
+                f'<?xml version="1.0" encoding="{encoding}"?><svg><title>図</title></svg>'.encode(
+                    encoding
+                ),
+                id=encoding,
+            )
+            for encoding in ["Shift_JIS", "GBK"]
+        ),
+        pytest.param(
+            b'<?xml version="1.0" encoding="Shift_JIS"?><svg><image href="data:image/png;base64,'
+            + b"A" * 11_000_000
+            + b'"/></svg>',
+            id="large-data-uri",
+        ),
+        pytest.param(
+            b"<svg>" + b"<g>" * 3000 + b"</g>" * 3000 + b"</svg>",
+            id="beyond-libxml2-depth",
+        ),
+    ],
+)
+def test_valid_svg_processes(tmp_path, content):
+    path = tmp_path / "thumb.svg"
+    path.write_bytes(content)
+
+    thumbnail = ThumbnailFile(str(path))
+
+    assert thumbnail.process_file()
+    assert thumbnail.error is None
+
+
+SVG_PROLOGS = [
+    pytest.param("", id="elementtree"),
+    pytest.param('<?xml version="1.0" encoding="Shift_JIS"?>', id="lxml"),
+]
+
+
+@pytest.mark.parametrize("prolog", SVG_PROLOGS)
+def test_svg_billion_laughs_is_not_expanded(tmp_path, prolog):
+    path = tmp_path / "thumb.svg"
+    path.write_bytes(
+        prolog.encode()
+        + b'<!DOCTYPE svg [<!ENTITY lol0 "lol">'
+        + b"".join(
+            f'<!ENTITY lol{i} "{f"&lol{i - 1};" * 10}">'.encode() for i in range(1, 10)
+        )
+        + b"]><svg><text>&lol9;</text></svg>"
+    )
+
+    thumbnail = ThumbnailFile(str(path))
+    thumbnail.process_file()
+
+    # expat and libxml2 >= 2.11 reject the amplification; older libxml2 parses without expanding
+    assert thumbnail.error is None or thumbnail.error.startswith(
+        "SVG file did not pass verification"
+    )
+
+
+@pytest.mark.parametrize("prolog", SVG_PROLOGS)
+def test_svg_external_entity_is_not_read(tmp_path, prolog):
+    secret = tmp_path / "secret.txt"
+    secret.write_text("<unclosed")
+    path = tmp_path / "thumb.svg"
+    path.write_text(
+        f'{prolog}<!DOCTYPE svg [<!ENTITY x SYSTEM "{secret.as_uri()}">]><svg><text>&x;</text></svg>'
+    )
+
+    thumbnail = ThumbnailFile(str(path))
+    thumbnail.process_file()
+
+    # expat rejects the entity as undefined; lxml leaves it unexpanded
+    assert thumbnail.error is None or "undefined entity" in thumbnail.error
+
+
 # Check basic caching for downloaded files
 
 
@@ -857,6 +935,24 @@ def test_invalid_htmlzip_validation(invalid_zip):
         (AudioFile, "bad.mp3", b"This is not a valid media file"),
         (ThumbnailFile, "bad.png", b"not an image"),
         (ThumbnailFile, "bad.svg", b"<svg><g></svg>"),
+        (ThumbnailFile, "bogus.svg", b'<?xml version="1.0" encoding="bogus"?><svg/>'),
+        (
+            ThumbnailFile,
+            "nul.svg",
+            b'<?xml version="1.0" encoding="Shift_JIS"?><svg>\x00</svg>',
+        ),
+        pytest.param(
+            VideoFile,
+            "mp3.mp4",
+            Path(sample_path("sample_audio.mp3")).read_bytes(),
+            id="VideoFile-mp3.mp4",
+        ),
+        pytest.param(
+            AudioFile,
+            "mp4.mp3",
+            Path(sample_path("low_res_sample.mp4")).read_bytes(),
+            id="AudioFile-mp4.mp3",
+        ),
     ],
 )
 def test_corrupt_media_error_is_one_line_without_storage_path(
@@ -867,6 +963,7 @@ def test_corrupt_media_error_is_one_line_without_storage_path(
     media_file = file_class(str(path))
 
     assert media_file.process_file() is None
+    assert media_file.error
     assert "\n" not in media_file.error
     assert os.path.abspath(config.STORAGE_DIRECTORY) not in media_file.error
 
