@@ -141,7 +141,7 @@ class SushiChef(object):
             "--compress",
             action=argparse.BooleanOptionalAction,
             default=None,
-            help="Compress video and audio with ffmpeg (default when ffmpeg is installed).",
+            help="Compress video and audio with ffmpeg (default when ffmpeg and ffprobe are installed).",
         )
         parser.add_argument(
             "--thumbnails",
@@ -528,11 +528,22 @@ class SushiChef(object):
 
     def build_file_pipeline(self):
         default_context = {"compress": False}
-        if not self.get_setting("compress", True):
+        compress = self.get_setting("compress", True)
+        ffmpeg_found = shutil.which("ffmpeg") is not None
+        ffprobe_found = shutil.which("ffprobe") is not None
+        if not compress:
             config.LOGGER.warning("Compression is off: media is uploaded uncompressed.")
-        elif shutil.which("ffmpeg") is None:
-            config.LOGGER.warning("ffmpeg not found: media is uploaded uncompressed.")
-        else:
+        elif not (ffmpeg_found and ffprobe_found):
+            config.LOGGER.warning(
+                "ffmpeg and ffprobe are both needed for compression: media is uploaded uncompressed."
+            )
+        if not ffmpeg_found:
+            config.LOGGER.warning("ffmpeg not found: media is uploaded unverified.")
+        if not ffprobe_found:
+            config.LOGGER.warning(
+                "ffprobe not found: media duration and video resolution are not detected."
+            )
+        if compress and ffmpeg_found and ffprobe_found:
             default_context["compress"] = True
             default_context["video_settings"] = {
                 "crf": 32,

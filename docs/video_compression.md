@@ -29,7 +29,7 @@ experience for all Kolibri users, regardless of their device.
 
 Automated conversion
 --------------------
-When `ffmpeg` is installed, `ricecooker` compresses all video and audio files
+When `ffmpeg` and `ffprobe` are installed, `ricecooker` compresses all video and audio files
 before uploading them to Kolibri Studio:
   - Video: CRF of 32 (constant rate factor), max height of 720 pixels
     (or the `video-height` setting); webm output is capped at 0.1 bits per

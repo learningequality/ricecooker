@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import re
+import shutil
 import signal
 import struct
 import subprocess
@@ -24,6 +25,10 @@ PROBE_TIMEOUT = 60
 VP9_MAX_BITS_PER_PIXEL = 0.1
 # webm can only carry text subtitles.
 BITMAP_SUBTITLE_CODECS = {"dvb_subtitle", "dvd_subtitle", "hdmv_pgs_subtitle", "xsub"}
+
+
+def missing_media_tools():
+    return [tool for tool in ("ffmpeg", "ffprobe") if shutil.which(tool) is None]
 
 
 def run_ffmpeg(args, executable="ffmpeg", popen=subprocess.Popen):
@@ -188,6 +193,8 @@ def extract_thumbnail_from_video(fpath_in, fpath_out, overwrite=False):
         )
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
         raise ThumbnailGenerationError("{}: {}".format(e, e.output))
+    except OSError as e:
+        raise ThumbnailGenerationError(str(e))
     except AttributeError:
         raise ThumbnailGenerationError(
             "No suitable frame for thumbnail generation was found"
@@ -235,6 +242,8 @@ def extract_duration_of_media(fpath_in, extension):
             except ValueError:
                 # This can happen if ffprobe returns N/A for the duration
                 # So instead we try to stream the entire file to get the value
+                if shutil.which("ffmpeg") is None:
+                    return None
                 return _get_stream_duration(fpath_in)
     except Exception as ex:
         LOGGER.warning(ex)

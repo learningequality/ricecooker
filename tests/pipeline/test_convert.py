@@ -778,12 +778,9 @@ def test_corrupt_media_reports_its_cause(tmp_path, ext, cause, write):
 
 
 @pytest.mark.parametrize("ext", ["avi", "wav"])
-def test_missing_ffmpeg_fails_file(tmp_path, monkeypatch, ext):
+def test_missing_ffmpeg_fails_file(tmp_path, empty_path, ext):
     path = tmp_path / f"bad.{ext}"
     _random_bytes(path)
-    empty = tmp_path / "empty"
-    empty.mkdir()
-    monkeypatch.setenv("PATH", str(empty))
     # Windows: "The system cannot find the file specified".
     with pytest.raises(
         ExpectedFileException, match="No such file or directory|cannot find the file"

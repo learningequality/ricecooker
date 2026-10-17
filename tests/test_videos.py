@@ -6,6 +6,7 @@ import re
 import shutil
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 from conftest import sample_hash_filename
@@ -20,6 +21,7 @@ from ricecooker.classes.files import SubtitleFile
 from ricecooker.classes.files import VideoFile
 from ricecooker.classes.nodes import ContentNode
 from ricecooker.classes.nodes import VideoNode
+from ricecooker.managers.tree import ChannelManager
 
 
 def _closed_sample(*parts):
@@ -254,34 +256,115 @@ def test_chef_compression_keeps_file_crf(monkeypatch, high_res_video):
 
 @pytest.mark.parametrize("ffmpeg_settings", [None, {"crf": 20}])
 @pytest.mark.parametrize(
-    "argv,settings,ffmpeg_found,warning",
-    [
-        (["--no-compress"], {"compress": True}, True, "Compression is off"),
-        ([], {"compress": False}, True, "Compression is off"),
-        ([], {}, False, "ffmpeg not found"),
-    ],
+    "argv,settings",
+    [(["--no-compress"], {"compress": True}), ([], {"compress": False})],
 )
 def test_chef_without_compression_uploads_video_as_is(
-    monkeypatch,
-    caplog,
-    high_res_video,
-    argv,
-    settings,
-    ffmpeg_found,
-    warning,
-    ffmpeg_settings,
+    monkeypatch, caplog, high_res_video, argv, settings, ffmpeg_settings
 ):
-    if not ffmpeg_found:
-        monkeypatch.setattr(shutil, "which", lambda cmd: None)
     with caplog.at_level(logging.WARNING):
         _use_chef_pipeline(monkeypatch, argv, settings)
     assert [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING] == [
-        f"{warning}: media is uploaded uncompressed."
+        "Compression is off: media is uploaded uncompressed."
     ]
     video_file = make_video_file(high_res_video, ffmpeg_settings=ffmpeg_settings)
     assert video_file.process_file() == sample_hash_filename("high_res_sample.mp4")
     mov_file = VideoFile(sample_path("sample.mov"), ffmpeg_settings=ffmpeg_settings)
     assert _processed_height(mov_file) == 720
+
+
+def test_chef_without_ffmpeg_uploads_supported_media_as_is(
+    monkeypatch, caplog, empty_path, channel
+):
+    samples = ["high_res_sample.mp4", "high_res_sample.webm", "sample_audio.mp3"]
+    nodes = {}
+    for sample in samples + ["sample.mov"]:
+        nodes[sample] = ContentNode(
+            source_id=sample,
+            title=sample,
+            license=licenses.CC_BY,
+            copyright_holder="Holder",
+            uri=sample_path(sample),
+        )
+        channel.add_child(nodes[sample])
+
+    monkeypatch.setattr(config, "STRICT", False)
+    with caplog.at_level(logging.WARNING):
+        _use_chef_pipeline(monkeypatch)
+        filenames = ChannelManager(channel).process_tree()
+
+    assert sorted(filenames) == sorted(sample_hash_filename(s) for s in samples)
+    assert nodes["sample.mov"].valid is False
+    warnings = [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING]
+    assert warnings[:3] == [
+        "ffmpeg and ffprobe are both needed for compression: media is uploaded uncompressed.",
+        "ffmpeg not found: media is uploaded unverified.",
+        "ffprobe not found: media duration and video resolution are not detected.",
+    ]
+    assert [w.split(" ")[0] for w in warnings[3:]] == ["sample.mov"]
+
+
+def test_chef_without_compression_or_ffmpeg_warns_unverified(
+    monkeypatch, caplog, empty_path
+):
+    with caplog.at_level(logging.WARNING):
+        _use_chef_pipeline(monkeypatch, ["--no-compress"])
+    assert [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING] == [
+        "Compression is off: media is uploaded uncompressed.",
+        "ffmpeg not found: media is uploaded unverified.",
+        "ffprobe not found: media duration and video resolution are not detected.",
+    ]
+
+
+def test_chef_without_ffprobe_uploads_supported_media_as_is(
+    monkeypatch, caplog, tmp_path
+):
+    bin_dir = tmp_path / "ffmpeg-only"
+    bin_dir.mkdir()
+    shutil.copy(shutil.which("ffmpeg"), bin_dir)
+    with monkeypatch.context() as no_ffprobe:
+        no_ffprobe.setenv("PATH", str(bin_dir))
+        with caplog.at_level(logging.WARNING):
+            _use_chef_pipeline(monkeypatch)
+        assert [
+            r.getMessage() for r in caplog.records if r.levelno == logging.WARNING
+        ] == [
+            "ffmpeg and ffprobe are both needed for compression: media is uploaded uncompressed.",
+            "ffprobe not found: media duration and video resolution are not detected.",
+        ]
+        webm_file = VideoFile(sample_path("high_res_sample.webm"))
+        assert webm_file.process_file() == sample_hash_filename("high_res_sample.webm")
+        without_ffprobe = VideoFile(sample_path("sample.mov")).process_file()
+        assert without_ffprobe.endswith(".webm")
+        rerun = VideoFile(sample_path("sample.mov")).process_file()
+        assert rerun == without_ffprobe
+
+    with_ffprobe = VideoFile(sample_path("sample.mov")).process_file()
+    assert with_ffprobe
+    assert with_ffprobe != without_ffprobe
+
+
+def test_media_processed_without_ffmpeg_is_reprocessed_with_it(
+    monkeypatch, tmp_path, high_res_video
+):
+    truncated = tmp_path / "truncated.mp4"
+    data = Path(high_res_video.name).read_bytes()
+    truncated.write_bytes(data[: len(data) // 3])
+    with monkeypatch.context() as no_tools:
+        no_tools.setenv("PATH", str(tmp_path))
+        _use_chef_pipeline(monkeypatch)
+        assert VideoFile(str(truncated)).process_file()
+        assert make_video_file(high_res_video).process_file()
+
+    monkeypatch.setattr(config, "FAILED_FILES", [])
+    truncated_file = VideoFile(str(truncated))
+    assert truncated_file.process_file() is None
+    assert config.FAILED_FILES == [truncated_file]
+    assert "moov atom not found" in truncated_file.error
+    video_file = make_video_file(high_res_video)
+    video_file.process_file()
+    assert video_file.get_preset() == format_presets.VIDEO_HIGH_RES
+    assert video_file.duration == 1
 
 
 def _process_uri(path, context):
