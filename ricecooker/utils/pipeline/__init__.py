@@ -4,10 +4,15 @@ from copy import deepcopy
 from typing import Dict
 from typing import Optional
 
+from le_utils.constants import format_presets
+
+from ricecooker import config
 from ricecooker.utils.pipeline.context import _recursive_update
 from ricecooker.utils.pipeline.context import FileMetadata
 
 from .convert import ConversionStageHandler
+from .exceptions import ExpectedFileException
+from .exceptions import InvalidFileException
 from .extract_metadata import ExtractMetadataStageHandler
 from .file_handler import CompositeHandler
 from .transfer import DownloadStageHandler
@@ -99,15 +104,26 @@ class FilePipeline(CompositeHandler):
                     scoped_context = deepcopy(context)
                     scoped_context.update(file_metadata.to_dict())
                     # Execute the handler and get the new list of metadata
-                    new_metadata_list = handler.execute(
-                        file_metadata.path,
-                        context=scoped_context,
-                        skip_cache=skip_cache
-                        or (
-                            skip_download_cache
-                            and isinstance(handler, DownloadStageHandler)
-                        ),
-                    )
+                    try:
+                        new_metadata_list = handler.execute(
+                            file_metadata.path,
+                            context=scoped_context,
+                            skip_cache=skip_cache
+                            or (
+                                skip_download_cache
+                                and isinstance(handler, DownloadStageHandler)
+                            ),
+                        )
+                    except (ExpectedFileException, InvalidFileException) as e:
+                        if not (
+                            file_metadata.preset == format_presets.VIDEO_SUBTITLE
+                            and len(file_metadata_list) > 1
+                        ):
+                            raise
+                        config.LOGGER.warning(
+                            f"\tSkipping {file_metadata.language} subtitles for {path}: {e}"
+                        )
+                        continue
                     for new_metadata in new_metadata_list:
                         # For each new metadata in the returned list
                         # make a unique copy of the existing metadata and

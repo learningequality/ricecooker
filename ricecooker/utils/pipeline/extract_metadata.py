@@ -22,6 +22,7 @@ PRESETS_FROM_EXTENSIONS = {
     file_formats.BLOOMD: format_presets.BLOOMPUB,
     file_formats.HTML5: format_presets.HTML5_ZIP,
     file_formats.HTML5_ARTICLE: format_presets.KPUB_ZIP,
+    file_formats.VTT: format_presets.VIDEO_SUBTITLE,
 }
 
 KIND_FROM_PRESET = {p.id: p.kind for p in format_presets.PRESETLIST}
@@ -90,6 +91,10 @@ class KPUBMetadataExtractor(MetadataExtractor):
     EXTENSIONS = {file_formats.HTML5_ARTICLE}
 
 
+class SubtitleMetadataExtractor(MetadataExtractor):
+    EXTENSIONS = {file_formats.VTT}
+
+
 class VideoMetadataExtractor(MediaMetadataExtractorMixin, MetadataExtractor):
     MEDIA = "Video"
     EXTENSIONS = {file_formats.MP4, file_formats.WEBM}
@@ -109,4 +114,5 @@ class ExtractMetadataStageHandler(StageHandler):
         BloomPubMetadataExtractor,
         KPUBMetadataExtractor,
         VideoMetadataExtractor,
+        SubtitleMetadataExtractor,
     ]

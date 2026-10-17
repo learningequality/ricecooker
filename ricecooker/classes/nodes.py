@@ -34,8 +34,6 @@ from .files import ExtractedHTMLZipThumbnailFile
 from .files import ExtractedKPUBThumbnailFile
 from .files import ExtractedPdfThumbnailFile
 from .files import File
-from .files import SubtitleFile
-from .files import YouTubeSubtitleFile
 from .licenses import License
 from .questions import QTIQuestion
 from .questions import VARIANT_A
@@ -1091,6 +1089,28 @@ class ContentNode(TreeNode):
                 "Invalid node: pipeline cannot handle uri {}".format(self.uri)
             )
 
+    def _drop_duplicate_subtitles(self):
+        new_files = []
+        language_codes_seen = set()
+        for file in self.files:
+            if (file.preset or file.default_preset) == format_presets.VIDEO_SUBTITLE:
+                language_code = file.language
+                if language_code not in language_codes_seen:
+                    new_files.append(file)
+                    if file.filename or not self._files_processed:
+                        language_codes_seen.add(language_code)
+                else:
+                    file_info = getattr(file, "path", file.filename)
+                    config.LOGGER.warning(
+                        "Skipping duplicate subs for "
+                        + language_code
+                        + " from "
+                        + file_info
+                    )
+            else:
+                new_files.append(file)
+        self.files = new_files
+
     def _validate(self):
         """Validate the content node. Raises InvalidNodeException on failure; returns None."""
         # A node expanded into a folder has no files, license or uri of its own.
@@ -1098,6 +1118,7 @@ class ContentNode(TreeNode):
         if type(self).kind is None and self.kind == content_kinds.TOPIC:
             super(ContentNode, self)._validate()
             return
+        self._drop_duplicate_subtitles()
         if self.kind == content_kinds.EXERCISE:
             self._validate_exercise()
         self._validate_values(self.license is None, "ContentNode must have a license")
@@ -1321,31 +1342,6 @@ class VideoNode(ContentNode):
                 storage_path = config.get_storage_path(video_file.filename)
                 return ExtractedVideoThumbnailFile(storage_path)
         return None
-
-    def _validate(self):
-        """Validate the video. Raises InvalidNodeException on failure; returns None."""
-
-        # Ensure that there is only one subtitle file per language code
-        new_files = []
-        language_codes_seen = set()
-        for file in self.files:
-            if isinstance(file, SubtitleFile) or isinstance(file, YouTubeSubtitleFile):
-                language_code = file.language
-                if language_code not in language_codes_seen:
-                    new_files.append(file)
-                    language_codes_seen.add(language_code)
-                else:
-                    file_info = file.path if hasattr(file, "path") else file.youtube_url
-                    config.LOGGER.warning(
-                        "Skipping duplicate subs for "
-                        + language_code
-                        + " from "
-                        + file_info
-                    )
-            else:
-                new_files.append(file)
-        self.files = new_files
-        super(VideoNode, self)._validate()
 
 
 class AudioNode(ContentNode):

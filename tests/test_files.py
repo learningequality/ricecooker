@@ -2485,6 +2485,7 @@ def test_subtitle_cache_keys_with_format(mock_filecache, subtitle_file):
     expected_keys = {
         f"DOWNLOAD:{path}",
         f"CONVERT:{sub.filename}:language=en",
+        f"EXTRACT_METADATA:{sub.filename}",
     }
     assert set(mock_filecache.cache.keys()) == expected_keys
 
