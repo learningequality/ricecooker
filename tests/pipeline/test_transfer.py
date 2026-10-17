@@ -63,6 +63,9 @@ from ricecooker.utils.youtube import YouTubeResource
 from .helpers import _PNG_1x1
 from .helpers import fake_render_page
 
+_OGG_THEORA = b"OggS\0\x02" + b"\0" * 22 + b"\x80theora" + b"\0" * 30
+_MP4_ISOM = b"\0\0\0\x20ftypisom\0\0\x02\0isomiso2mp41" + b"\0" * 20
+
 content_disposition_filename_cases = [
     ('Content-Disposition: attachment; filename="example.jpg"', "example.jpg"),
     (
@@ -1579,6 +1582,31 @@ class _FakeGetResponse(_FakeHeadResponse):
             None,
             ".html",
         ),
+        (
+            "https://site.example/thumb.php?id=1",
+            "text/html; charset=UTF-8",
+            _PNG_1x1,
+            "png",
+            ".png",
+        ),
+        ("https://site.example/clip.mp4", "text/html", _PNG_1x1, None, ".png"),
+        ("https://site.example/clip.mp3", "text/html", _PNG_1x1, None, ".png"),
+        ("https://site.example/clip", "text/html", _PNG_1x1, "mp4", ".png"),
+        ("https://site.example/clip?id=1", "text/html", _PNG_1x1, "mp3", ".png"),
+        (
+            "https://site.example/clip.jpeg",
+            "text/html",
+            b"\xff\xd8\xff\xe0" + b"\0" * 20,
+            None,
+            ".jpeg",
+        ),
+        ("https://site.example/pkg.h5p", "text/html", b"PK\x03\x04", None, ".h5p"),
+        ("https://s.example/get.php?id=2", "text/html", b"PK\x03\x04", "h5p", ".h5p"),
+        ("https://s.example/get?id=1", "text/html", b"PK\x03\x04", None, ".zip"),
+        ("https://x.example/clip.ogv", "text/html", _OGG_THEORA, None, ".ogv"),
+        ("https://x.example/song.m4a", "text/html", _MP4_ISOM, None, ".m4a"),
+        ("https://x.example/app.js", "text/html", b"BMap.init();\n", None, ".js"),
+        ("https://x.example/cfg.js", "text/html", b"MZ_CONFIG = {};", None, ".js"),
     ],
     ids=[
         "unknown-name-ext",
@@ -1607,6 +1635,19 @@ class _FakeGetResponse(_FakeHeadResponse):
         "comment-first-js-served-as-html",
         "comment-only-css-served-as-html",
         "xhtml-page-at-asset-ext",
+        "png-served-as-html-at-php",
+        "png-served-as-html-at-mp4",
+        "png-served-as-html-at-mp3",
+        "png-served-as-html-without-ext",
+        "png-served-as-html-at-query",
+        "jpeg-served-as-html-keeps-name-ext",
+        "zip-served-as-html-keeps-name-ext",
+        "zip-served-as-html-at-php-takes-default-ext",
+        "zip-served-as-html-without-ext",
+        "ogg-served-as-html-keeps-ogv",
+        "mp4-served-as-html-keeps-m4a",
+        "bmp-like-js-served-as-html-keeps-js",
+        "exe-like-js-served-as-html-keeps-js",
     ],
 )
 def test_catchall_names_file_from_response(
@@ -1683,6 +1724,23 @@ def test_catchall_download_cached_by_earlier_release(url, cached, refetched):
     assert (result[0].filename == cached) != refetched
 
 
+def test_catchall_asset_ref_cached_by_earlier_release_refetched():
+    url = "https://site.example/stale-cache-app.js"
+    with open(config.get_storage_path("stale.js"), "wb") as fh:
+        fh.write(b"<html><body>Not Found</body></html>")
+    set_cache_data(f"DOWNLOAD:{url}:asset", {"filename": "stale.js"})
+    with patch.object(
+        config.DOWNLOAD_SESSION,
+        "get",
+        return_value=_FakeGetResponse(b"var a;", "application/javascript"),
+    ) as get:
+        handler = CatchAllWebResourceDownloadHandler()
+        handler.parent = DownloadStageHandler()
+        result = handler.execute(url, context={"asset_ref": True})
+    assert get.called
+    assert result[0].filename != "stale.js"
+
+
 def test_catchall_node_file_and_archive_ref_share_one_download():
     url = "https://site.example/shared-logo.png"
     with patch.object(
@@ -1695,6 +1753,45 @@ def test_catchall_node_file_and_archive_ref_share_one_download():
         handler.execute(url, context={})
         handler.execute(url, context={"asset_ref": True})
     assert get.call_count == 1
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://site.example/soft-404/logo.png",
+        "https://site.example/soft-404/clip.mp3",
+        "https://site.example/soft-404/clip.mp4",
+        "https://site.example/soft-404/subs.vtt",
+    ],
+)
+def test_catchall_node_file_soft_404_not_cached_for_archive_ref(url):
+    with patch.object(
+        config.DOWNLOAD_SESSION,
+        "get",
+        return_value=_FakeGetResponse(
+            b"<html><body>Not Found</body></html>", "text/html"
+        ),
+    ):
+        handler = CatchAllWebResourceDownloadHandler()
+        handler.parent = DownloadStageHandler()
+        for context in ({}, {"asset_ref": True, "language": "en"}):
+            with pytest.raises(InvalidFileException, match="an HTML page"):
+                handler.execute(url, context=context)
+
+
+@pytest.mark.parametrize(
+    "chunks",
+    [[b"a" * 5000], [b"a" * 5000, b"b" * 5000, b"c" * 5000], [b"x", b"y"]],
+    ids=["one-chunk", "window-ends-mid-stream", "stream-ends-inside-window"],
+)
+def test_catchall_writes_every_chunk_once(chunks):
+    url = "https://site.example/blob.png"
+    with fake_download_session({url: chunks}, content_types={url: "image/png"}):
+        result = CatchAllWebResourceDownloadHandler().execute(
+            url, context={}, skip_cache=True
+        )
+    with open(config.get_storage_path(result[0].filename), "rb") as fh:
+        assert fh.read() == b"".join(chunks)
 
 
 def test_catchall_rejects_undeterminable_type():
