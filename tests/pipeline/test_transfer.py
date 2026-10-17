@@ -2,6 +2,7 @@ import base64
 import copy
 import io
 import json
+import logging
 import mimetypes
 import os
 import shutil
@@ -952,13 +953,14 @@ def test_download_stage_downloads_video_and_subtitles(fake_video_site, url, extr
     assert [os.path.splitext(f.filename)[1] for f in result] == [".mp4", ".vtt"]
 
 
-def test_download_stage_fails_video_missing_subtitle_language(fake_video_site):
-    with pytest.raises(ExpectedFileException, match="Failed to download"):
-        fake_video_site(
-            "https://vimeo.com/76979882",
-            VimeoIE,
-            subtitle_lang="fr",
-        )
+def test_download_stage_skips_video_missing_subtitle_language(fake_video_site, caplog):
+    result = fake_video_site("https://vimeo.com/76979882", VimeoIE, subtitle_lang="fr")
+    assert [os.path.splitext(f.filename)[1] for f in result] == [".mp4"]
+    assert [
+        (r.levelname, r.getMessage())
+        for r in caplog.records
+        if r.levelno >= logging.WARNING
+    ] == [("WARNING", "\tNo en subtitles at https://vimeo.com/76979882")]
 
 
 YOUTUBE_URL = "https://www.youtube.com/watch?v=aaaaaaaaaaa"
@@ -993,8 +995,10 @@ def _patched_youtube(dl, extracted=None):
         yield
 
 
-def _download_youtube(dl, extracted=None, subtitles=True):
-    context = {"subtitle_languages": ["en"]} if subtitles else None
+def _download_youtube(dl, extracted=None, subtitles=True, video=True):
+    context = {"subtitle_languages": ["en"]} if subtitles else {}
+    if not video:
+        context["download_video"] = False
     with _patched_youtube(dl, extracted):
         return DownloadStageHandler().execute(
             YOUTUBE_URL, context=context, skip_cache=True
@@ -1014,6 +1018,35 @@ def _dead_proxy_subtitle_download(self, name, info, subtitle=False, test=False):
     if subtitle:
         raise _proxy_error()
     return _fake_yt_dlp_download(self, name, info)
+
+
+def _rate_limited_subtitle_download(self, name, info, subtitle=False, test=False):
+    if subtitle:
+        raise _http_error(name, 429)
+    return _fake_yt_dlp_download(self, name, info)
+
+
+def test_download_stage_skips_youtube_subtitle_rate_limited(caplog):
+    result = _download_youtube(_rate_limited_subtitle_download)
+    assert [os.path.splitext(f.filename)[1] for f in result] == [".mp4"]
+    assert (
+        "Skipping en subtitles: ERROR: Unable to download video subtitles for 'en': HTTP Error 429"
+        in caplog.text
+    )
+
+
+def test_download_stage_fails_youtube_subtitle_only_missing_language():
+    with pytest.raises(ExpectedFileException, match="No en subtitles at"):
+        _download_youtube(
+            _fake_yt_dlp_download, _video_info(YOUTUBE_URL, "fr"), video=False
+        )
+
+
+def test_download_stage_skips_proxied_youtube_missing_subtitle_language(
+    youtube_proxy,
+):
+    result = _download_youtube(_fake_yt_dlp_download, _video_info(YOUTUBE_URL, "fr"))
+    assert [os.path.splitext(f.filename)[1] for f in result] == [".mp4"]
 
 
 @pytest.mark.parametrize(
@@ -1047,7 +1080,7 @@ def test_download_stage_fails_youtube_file_when_proxy_fails(
     youtube_proxy, extracted, dl
 ):
     with pytest.raises(ExpectedFileException):
-        _download_youtube(dl, extracted)
+        _download_youtube(dl, extracted, video=False)
 
 
 @pytest.mark.parametrize(
@@ -1119,7 +1152,7 @@ def test_download_stage_fails_each_youtube_file_when_all_proxies_broken(
     monkeypatch.setenv("PROXY_LIST", TEST_PROXIES[0])
     for _ in range(2):
         with pytest.raises(ExpectedFileException):
-            _download_youtube(_dead_proxy_subtitle_download)
+            _download_youtube(_dead_proxy_subtitle_download, video=False)
 
 
 def test_download_stage_keeps_proxies_when_youtube_subtitle_missing(youtube_proxy):
@@ -1129,7 +1162,7 @@ def test_download_stage_keeps_proxies_when_youtube_subtitle_missing(youtube_prox
         return _fake_yt_dlp_download(self, name, info)
 
     with pytest.raises(ExpectedFileException):
-        _download_youtube(dl)
+        _download_youtube(dl, video=False)
     assert proxy.BROKEN_PROXIES == []
     assert proxy.MAYBE_BROKEN_PROXIES == {}
 

@@ -14,6 +14,7 @@ from unittest.mock import patch
 
 import pytest
 import requests
+import yt_dlp
 from conftest import sample_path
 from fake_session import fake_download_session
 from le_utils.constants import content_kinds
@@ -30,9 +31,13 @@ from le_utils.constants.labels import resource_type
 from le_utils.constants.labels import subjects
 from le_utils.constants.languages import getlang
 from PIL import Image
+from pipeline.test_transfer import _http_error
+from pipeline.test_transfer import _video_info
+from pipeline.test_transfer import fake_extractors
 from requests.exceptions import ConnectionError as RequestsConnectionError
 from requests.exceptions import ReadTimeout
 from test_videos import _clear_ricecookerfilecache
+from yt_dlp.extractor.youtube import YoutubeIE
 
 from ricecooker import config
 from ricecooker.chefs import SushiChef
@@ -46,6 +51,7 @@ from ricecooker.classes.files import SubtitleFile
 from ricecooker.classes.files import ThumbnailFile
 from ricecooker.classes.files import TiledThumbnailFile
 from ricecooker.classes.files import VideoFile
+from ricecooker.classes.files import YouTubeSubtitleFile
 from ricecooker.classes.licenses import get_license
 from ricecooker.classes.licenses import License
 from ricecooker.classes.nodes import ChannelNode
@@ -2471,6 +2477,89 @@ def test_upload_tree_commits_long_file_name(studio, original_filename, expected)
 
     (sent,) = [n for n in studio.added_nodes if n["source_id"] == "app"]
     assert [f["original_filename"] for f in sent["files"]] == [expected]
+
+
+def _fake_youtube_download(self, name, info, subtitle=False, test=False):
+    if subtitle:
+        with open(name, "w") as fh:
+            fh.write("WEBVTT\n\n00:00:00.000 --> 00:00:01.000\nHello\n")
+    else:
+        shutil.copyfile(sample_path("low_res_sample.mp4"), name)
+    return True, True
+
+
+@pytest.mark.parametrize(
+    "subtitle_languages,legacy_subtitle,caption_failure,expected_subtitles",
+    [
+        (["en"], False, None, ["en"]),
+        (["en", "de"], False, None, ["en"]),
+        (["en", "en"], False, None, ["en"]),
+        (["en"], True, None, ["en"]),
+        (["en"], True, (2, "429"), ["en"]),
+        (["en"], False, (1, "empty"), []),
+        (["en"], True, (1, "empty"), ["en"]),
+    ],
+    ids=[
+        "en",
+        "missing_de",
+        "repeated_en",
+        "legacy_en",
+        "failed_legacy_en",
+        "empty_en",
+        "empty_en_legacy_en",
+    ],
+)
+@pytest.mark.parametrize("node_class", [ContentNode, VideoNode])
+def test_upload_youtube_uri_with_subtitle_languages(
+    studio,
+    node_class,
+    subtitle_languages,
+    legacy_subtitle,
+    caption_failure,
+    expected_subtitles,
+):
+    caption_calls = []
+
+    def dl(self, name, info, subtitle=False, test=False):
+        if subtitle:
+            caption_calls.append(name)
+            if caption_failure == (len(caption_calls), "429"):
+                raise _http_error(name, 429)
+            if caption_failure == (len(caption_calls), "empty"):
+                with open(name, "w") as fh:
+                    fh.write("WEBVTT\n\n")
+                return True, True
+        return _fake_youtube_download(self, name, info, subtitle=subtitle, test=test)
+
+    url = "https://www.youtube.com/watch?v=abcdefghijk"
+    node = node_class(
+        "yt",
+        "YouTube",
+        license=get_license(licenses.CC_BY, copyright_holder="x"),
+        uri=url,
+        pipeline=FilePipeline(),
+        context={"subtitle_languages": subtitle_languages},
+    )
+    if legacy_subtitle:
+        node.add_file(YouTubeSubtitleFile("abcdefghijk", "en"))
+    channel = ChannelNode("youtube", "www.learningequality.org", "YouTube")
+    channel.add_child(node)
+    with (
+        fake_extractors({YoutubeIE: _video_info(url, "en")}),
+        patch.object(yt_dlp.YoutubeDL, "dl", dl),
+        patch.object(config, "UPDATE", True),
+        patch.object(config, "STRICT", False),
+    ):
+        manager = ChannelManager(channel)
+        manager.upload_files(manager.process_tree())
+        manager.upload_tree()
+
+    (sent,) = [n for n in studio.added_nodes if n["source_id"] == "yt"]
+    assert sorted((f["preset"], f["language"] or "") for f in sent["files"]) == [
+        (format_presets.VIDEO_LOW_RES, ""),
+        *((format_presets.VIDEO_SUBTITLE, lang) for lang in expected_subtitles),
+    ]
+    assert {f["filename"] for f in sent["files"]} <= studio.stored
 
 
 def _perseus_question_with_long_image_name(exercise_image_file):
