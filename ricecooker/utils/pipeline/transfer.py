@@ -364,11 +364,11 @@ class CatchAllWebResourceDownloadHandler(DeclaredExtMixin, WebResourceHandler):
             ):
                 return sniffed.extension
         page = (
-            name_ext in STATIC_ASSET_EXTENSIONS
-            and mimetype == "text/html"
+            name_ext in NAME_KEPT_EXTENSIONS
+            and mimetype in self.HTML_CONTENT_TYPES
             and _is_html(head)
         )
-        if page and asset_ref:
+        if page and (asset_ref or name_ext not in STATIC_ASSET_EXTENSIONS):
             raise InvalidFileException(
                 f"{path} was answered with an HTML page, not a .{name_ext} file"
             )

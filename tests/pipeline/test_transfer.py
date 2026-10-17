@@ -1756,6 +1756,30 @@ def test_catchall_node_file_and_archive_ref_share_one_download():
 
 
 @pytest.mark.parametrize(
+    "url",
+    [
+        "https://site.example/soft-404/logo.png",
+        "https://site.example/soft-404/clip.mp3",
+        "https://site.example/soft-404/clip.mp4",
+        "https://site.example/soft-404/subs.vtt",
+    ],
+)
+def test_catchall_node_file_soft_404_not_cached_for_archive_ref(url):
+    with patch.object(
+        config.DOWNLOAD_SESSION,
+        "get",
+        return_value=_FakeGetResponse(
+            b"<html><body>Not Found</body></html>", "text/html"
+        ),
+    ):
+        handler = CatchAllWebResourceDownloadHandler()
+        handler.parent = DownloadStageHandler()
+        for context in ({}, {"asset_ref": True, "language": "en"}):
+            with pytest.raises(InvalidFileException, match="an HTML page"):
+                handler.execute(url, context=context)
+
+
+@pytest.mark.parametrize(
     "chunks",
     [[b"a" * 5000], [b"a" * 5000, b"b" * 5000, b"c" * 5000], [b"x", b"y"]],
     ids=["one-chunk", "window-ends-mid-stream", "stream-ends-inside-window"],

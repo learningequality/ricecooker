@@ -961,6 +961,30 @@ def test_html_response_fails_non_html_file_as_incompatible(file_class):
     assert render.call_count == 0
 
 
+@pytest.mark.parametrize(
+    "file_class,url",
+    [
+        (VideoFile, "https://x.example/page-at-ext/clip.mp4"),
+        (AudioFile, "https://x.example/page-at-ext/clip.mp3"),
+        (DocumentFile, "https://x.example/page-at-ext/doc.pdf"),
+        (ThumbnailFile, "https://x.example/page-at-ext/thumb.png"),
+        (EPubFile, "https://x.example/page-at-ext/book.epub"),
+        (H5PFile, "https://x.example/page-at-ext/app.h5p"),
+        (SubtitleFile, "https://x.example/page-at-ext/subs.vtt"),
+    ],
+)
+@pytest.mark.parametrize("content_type", ["text/html", "application/xhtml+xml"])
+def test_html_page_at_file_ext_fails(file_class, url, content_type):
+    kwargs = {"language": "en"} if file_class is SubtitleFile else {}
+    url += "?type=" + content_type
+    body = b"<!doctype html><html><body>Not Found</body></html>"
+    with _fake_html_session(url, content_type=content_type, body=body) as render:
+        file = file_class(url, **kwargs)
+        assert file.process_file() is None
+    assert "was answered with an HTML page" in file.error
+    assert render.call_count == 0
+
+
 _PNG_BODIES = pytest.mark.parametrize(
     "body", [_PNG_1x1, [_PNG_1x1[:1], _PNG_1x1[1:]]], ids=["one-chunk", "split-chunks"]
 )
