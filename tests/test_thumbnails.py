@@ -360,3 +360,8 @@ class TestThumbnailGeneration(object):
         assert thumbnail_file.process_file() is None
         assert config.FAILED_FILES == [thumbnail_file]
         assert "timed out" in thumbnail_file.error
+
+    def test_missing_video_tool_fails_thumbnail(self, video_file, empty_path):
+        thumbnail_file = ExtractedVideoThumbnailFile(video_file.path)
+        assert thumbnail_file.process_file() is None
+        assert config.FAILED_FILES == [thumbnail_file]

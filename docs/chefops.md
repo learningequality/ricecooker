@@ -27,7 +27,7 @@ This listing shows the `ricecooker` command line interface (CLI) arguments:
       --quiet               Print only errors.
       --compress, --no-compress
                             Compress video and audio with ffmpeg (default when
-                            ffmpeg is installed).
+                            ffmpeg and ffprobe are installed).
       --thumbnails          Automatically generate thumbnails for content nodes.
       --download-attempts N Maximum number of times to retry downloading files (default: 3).
       --prompt              Prompt user to open the channel after the chef run.
@@ -45,7 +45,7 @@ Below is a short guide to some of the most important and useful ones arguments.
 
 
 ### Compression and thumbnail globals
-When ffmpeg is installed, all video and audio is compressed by default
+When ffmpeg and ffprobe are installed, all video and audio is compressed by default
 (see [video compression](video_compression.md)).
 Use `--no-compress` or `SETTINGS["compress"] = False` to upload media as-is.
 You can specify video compression settings (see this page) and thumbnails for

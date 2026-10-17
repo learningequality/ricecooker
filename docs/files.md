@@ -244,7 +244,7 @@ Below are some general guidelines for handling video files:
     Here are some recommended choices for video vertical resolution:
       - Use max height of `480` for videos that work well in low resolution (most videos)
       - Use max height of `720` for high resolution videos (lectures with writing on board)
-  - Ricecooker compresses videos by default when `ffmpeg` is installed;
+  - Ricecooker compresses videos by default when `ffmpeg` and `ffprobe` are installed;
     pass `--no-compress` to upload them as-is.
   - The `ffmpeg` setting `crf` stands for Constant Rate Factor and is very useful
     for controlling overall video quality. Setting `crf=24` produces high quality

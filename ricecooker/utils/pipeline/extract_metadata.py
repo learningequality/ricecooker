@@ -1,3 +1,4 @@
+import shutil
 from subprocess import CalledProcessError
 
 from le_utils.constants import file_formats
@@ -9,6 +10,7 @@ from ricecooker.utils.pipeline.context import FileMetadata
 from ricecooker.utils.pipeline.exceptions import InvalidFileException
 from ricecooker.utils.videos import extract_duration_of_media
 from ricecooker.utils.videos import guess_video_preset_by_resolution
+from ricecooker.utils.videos import missing_media_tools
 
 from .file_handler import ExtensionMatchingHandler
 from .file_handler import StageHandler
@@ -50,7 +52,14 @@ class MetadataExtractor(ExtensionMatchingHandler):
 
 
 class MediaMetadataExtractorMixin:
+    def get_cache_key(self, path, **kwargs):
+        key = super().get_cache_key(path, **kwargs)
+        missing = missing_media_tools()
+        return f"{key}:missing {','.join(missing)}" if missing else key
+
     def infer_metadata(self, path):
+        if shutil.which("ffprobe") is None:
+            return {}
         ext = extract_path_ext(path)
         try:
             duration = extract_duration_of_media(path, ext)
@@ -95,6 +104,8 @@ class VideoMetadataExtractor(MediaMetadataExtractorMixin, MetadataExtractor):
     EXTENSIONS = {file_formats.MP4, file_formats.WEBM}
 
     def infer_preset(self, path):
+        if shutil.which("ffprobe") is None:
+            return format_presets.VIDEO_LOW_RES
         return guess_video_preset_by_resolution(path)
 
 

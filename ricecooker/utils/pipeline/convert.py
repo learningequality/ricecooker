@@ -78,6 +78,7 @@ from ricecooker.utils.videos import display_size
 from ricecooker.utils.videos import ffmpeg_cause
 from ricecooker.utils.videos import ffmpeg_encode_cause
 from ricecooker.utils.videos import is_faststart
+from ricecooker.utils.videos import missing_media_tools
 from ricecooker.utils.videos import probe_media
 from ricecooker.utils.videos import probe_packets
 from ricecooker.utils.videos import video_stream
@@ -193,14 +194,20 @@ class MediaCompressionHandler(ExtensionMatchingHandler):
         ]
 
     def get_cache_key(self, path, ffmpeg_settings=None, reencode=False) -> str:
+        settings = dict(ffmpeg_settings or {})
+        missing = missing_media_tools()
+        if missing:
+            settings["missing_tools"] = missing
         return generate_key(
             "COMPRESSED",
             self.normalize_path(path),
-            settings=ffmpeg_settings or {},
+            settings=settings,
             default=" (default compression)",
         )
 
     def verify(self, path):
+        if shutil.which("ffmpeg") is None:
+            return ""
         result = decode_media_file(path)
         if result.returncode != 0:
             raise InvalidFileException(
