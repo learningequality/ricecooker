@@ -159,6 +159,15 @@ def test_youtubesubtitle_process_file(fake_yt_dlp, youtube_video_with_subs_dict)
     assert fake_yt_dlp.calls
 
 
+def test_youtubesubtitle_ignores_default_ext_keyword(fake_yt_dlp):
+    sub_file = YouTubeSubtitleFile(
+        youtube_id="srtkeyword", language="en", default_ext="srt"
+    )
+    filename = sub_file.process_file()
+    assert filename is not None, sub_file.error
+    assert filename.endswith(".vtt")
+
+
 @pytest.mark.parametrize(
     "available,error",
     [(set(), None), ({"en"}, yt_dlp.utils.DownloadError("ERROR: Video unavailable"))],

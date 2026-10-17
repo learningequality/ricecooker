@@ -55,15 +55,16 @@ from .file_handler import StageHandler
 
 class GenericFileContextMetadata(ContextMetadata):
     default_ext: Optional[str] = None
+    rejected_default_ext: Optional[str] = None
     ext: Optional[str] = None
 
 
 class DeclaredExtMixin:
     CONTEXT_CLASS = GenericFileContextMetadata
 
-    def get_cache_key(self, path, ext=None, **kwargs) -> str:
+    def get_cache_key(self, path, ext=None, rejected_default_ext=None, **kwargs) -> str:
         key = super().get_cache_key(path, **kwargs)
-        return f"{key}:{ext}" if ext else key
+        return _rejected_cache_key(f"{key}:{ext}" if ext else key, rejected_default_ext)
 
 
 class DiskResourceHandler(DeclaredExtMixin, FileHandler):
@@ -98,8 +99,9 @@ class DiskResourceHandler(DeclaredExtMixin, FileHandler):
         # Cached by path, so a file edited in place must be copied again
         return not filename.startswith(get_hash(self._normalize_path(path)))
 
-    def handle_file(self, path, default_ext=None, ext=None):
+    def handle_file(self, path, default_ext=None, ext=None, rejected_default_ext=None):
         path = self._normalize_path(path)
+        _check_default_ext(rejected_default_ext, path)
         try:
             ext = resolve_path_ext(path, declared_ext=ext, default_ext=default_ext)
         except ValueError as e:
@@ -198,6 +200,15 @@ CONVERT_EXTENSIONS = frozenset(
 )
 
 
+def _check_default_ext(rejected_default_ext, name=None):
+    if rejected_default_ext and (name is None or path_ext_or_none(name) is None):
+        raise InvalidFileException(f"Incompatible default_ext {rejected_default_ext}")
+
+
+def _rejected_cache_key(key, rejected_default_ext):
+    return f"{key}:rejected:{rejected_default_ext}" if rejected_default_ext else key
+
+
 def path_ext_or_none(path):
     try:
         return extract_path_ext(path)
@@ -276,7 +287,13 @@ class CatchAllWebResourceDownloadHandler(DeclaredExtMixin, WebResourceHandler):
         return key
 
     def handle_file(
-        self, path, default_ext=None, ext=None, asset_ref=False, language=None
+        self,
+        path,
+        default_ext=None,
+        ext=None,
+        asset_ref=False,
+        language=None,
+        rejected_default_ext=None,
     ):
         # Use explicit timeout to prevent hanging downloads
         # (connection_timeout, read_timeout) - connection timeout for establishing connection,
@@ -284,6 +301,11 @@ class CatchAllWebResourceDownloadHandler(DeclaredExtMixin, WebResourceHandler):
         r = config.DOWNLOAD_SESSION.get(path, stream=True, timeout=(30, 60))
         r.raise_for_status()
         original_filename = extract_filename_from_request(path, r)
+        try:
+            _check_default_ext(rejected_default_ext, original_filename)
+        except InvalidFileException:
+            r.close()
+            raise
         chunks = r.iter_content(chunk_size=8192)
         head = next(chunks, b"")
         if ext:
@@ -349,6 +371,8 @@ class YouTubeContextMetadata(ContextMetadata):
     subtitle_languages: list[str] = field(default_factory=list)
     yt_dlp_settings: dict = field(default_factory=dict)
     default_ext: Optional[str] = None
+    rejected_default_ext: Optional[str] = None
+    reject_non_video_default_ext: bool = False
     ext: Optional[str] = None
 
 
@@ -393,12 +417,18 @@ class YoutubeDownloadHandler(WebResourceHandler):
         return self._should_handle_cache[url]
 
     def get_cache_key(self, path, **kwargs) -> str:
-        return generate_key("DOWNLOADED", path, settings=kwargs["yt_dlp_settings"])
+        key = generate_key("DOWNLOADED", path, settings=kwargs["yt_dlp_settings"])
+        return _rejected_cache_key(key, kwargs.get("rejected_default_ext"))
 
     def get_file_kwargs(self, context: YouTubeContextMetadata) -> list[dict]:
-        for ext in (context.default_ext, context.ext):
-            if ext and ext not in VideoCompressionHandler.EXTENSIONS:
-                raise NotHandledException(ext)
+        if context.ext and context.ext not in VideoCompressionHandler.EXTENSIONS:
+            raise NotHandledException(context.ext)
+        default_ext = context.default_ext
+        rejected_default_ext = context.rejected_default_ext
+        if default_ext and default_ext not in VideoCompressionHandler.EXTENSIONS:
+            if not context.reject_non_video_default_ext:
+                raise NotHandledException(default_ext)
+            default_ext, rejected_default_ext = None, default_ext
         file_kwargs = []
         if context.download_video:
             max_height = context.max_height or (720 if context.high_resolution else 480)
@@ -415,7 +445,8 @@ class YoutubeDownloadHandler(WebResourceHandler):
                 {
                     "yt_dlp_settings": yt_dlp_settings,
                     "format_fallback": format_fallback,
-                    "default_ext": context.default_ext,
+                    "default_ext": default_ext,
+                    "rejected_default_ext": rejected_default_ext,
                 }
             )
         for lang in context.subtitle_languages:
@@ -484,7 +515,7 @@ class YoutubeDownloadHandler(WebResourceHandler):
         ext = fmt.get("ext") or yt_dlp.utils.determine_ext(fmt.get("url", ""))
         return ext in yt_dlp.utils.MEDIA_EXTENSIONS.audio
 
-    def _extract_single(self, ydl, path, wants_video):
+    def _extract_single(self, ydl, path, wants_video, rejected_default_ext):
         if not is_youtube_url(path):
             try:
                 content_type = self._content_type(path)
@@ -492,6 +523,8 @@ class YoutubeDownloadHandler(WebResourceHandler):
                 content_type = ""
             if content_type and content_type not in self.HTML_CONTENT_TYPES:
                 raise self._no_video(path, content_type)
+        if wants_video:
+            _check_default_ext(rejected_default_ext)
         with self._video_errors(path, fall_through=not wants_video):
             info = ydl.extract_info(path, download=False, process=False)
             while info.get("_type") in ("url", "url_transparent"):
@@ -504,19 +537,29 @@ class YoutubeDownloadHandler(WebResourceHandler):
                 raise self._no_video(path, "no video formats")
             if self._is_live(info):
                 raise self._no_video(path, "live stream")
+            _check_default_ext(rejected_default_ext)
         return info
 
     def _fetch_from_youtube(
-        self, path, yt_dlp_settings, file_format, destination_path, wants_video
+        self,
+        path,
+        yt_dlp_settings,
+        file_format,
+        destination_path,
+        wants_video,
+        rejected_default_ext,
     ):
         if not config.USEPROXY or not is_youtube_url(path):
             with yt_dlp.YoutubeDL(yt_dlp_settings) as ydl:
-                info = self._extract_single(ydl, path, wants_video)
+                info = self._extract_single(
+                    ydl, path, wants_video, rejected_default_ext
+                )
                 with self._video_errors(path, fall_through=False):
                     ydl.process_ie_result(info, download=True)
                     if not os.path.exists(destination_path):
                         raise yt_dlp.utils.DownloadError("Failed to download " + path)
         else:
+            _check_default_ext(rejected_default_ext)
             # Connect to YouTube via an HTTP proxy
             yt_resource = YouTubeResource(path, useproxy=True, options=yt_dlp_settings)
             result1 = yt_resource.get_resource_info(
@@ -536,7 +579,12 @@ class YoutubeDownloadHandler(WebResourceHandler):
                 raise yt_dlp.utils.DownloadError("Failed to download resource " + path)
 
     def handle_file(
-        self, path, yt_dlp_settings=None, format_fallback="", default_ext=None
+        self,
+        path,
+        yt_dlp_settings=None,
+        format_fallback="",
+        default_ext=None,
+        rejected_default_ext=None,
     ):
         # By default assume we are downloading a video file
         if yt_dlp_settings is None:
@@ -580,7 +628,12 @@ class YoutubeDownloadHandler(WebResourceHandler):
 
         # Download the file from YouTube
         self._fetch_from_youtube(
-            path, yt_dlp_settings, file_format, destination_path, wants_video
+            path,
+            yt_dlp_settings,
+            file_format,
+            destination_path,
+            wants_video,
+            rejected_default_ext,
         )
 
         with self.write_file(file_format) as fh:
@@ -595,8 +648,14 @@ class YoutubeDownloadHandler(WebResourceHandler):
 instructions = "Please install ricecooker using `pip install ricecooker[google_drive]` to include required dependencies"
 
 
+class GoogleDriveContextMetadata(ContextMetadata):
+    rejected_default_ext: Optional[str] = None
+
+
 class GoogleDriveHandler(WebResourceHandler):
     """Handles downloading from Google Drive share URLs"""
+
+    CONTEXT_CLASS = GoogleDriveContextMetadata
 
     PATTERNS = ["drive.google.com", "docs.google.com"]
 
@@ -672,7 +731,11 @@ class GoogleDriveHandler(WebResourceHandler):
             export_type = "application/pdf"
         return export_type
 
-    def handle_file(self, path: str):
+    def get_cache_key(self, path, rejected_default_ext=None, **kwargs) -> str:
+        key = super().get_cache_key(path, **kwargs)
+        return _rejected_cache_key(key, rejected_default_ext)
+
+    def handle_file(self, path: str, rejected_default_ext=None):
         try:
             from googleapiclient.http import MediaIoBaseDownload
         except ImportError:
@@ -689,6 +752,7 @@ class GoogleDriveHandler(WebResourceHandler):
             .execute()
         )
 
+        _check_default_ext(rejected_default_ext, file["name"])
         mime_type = file["mimeType"]
         is_workspace_file = self._is_google_workspace_file(mime_type)
 
@@ -753,6 +817,7 @@ class SingleFileRenderContextMetadata(ContextMetadata):
     # no per-URL context, so it authenticates separately via config.DOWNLOAD_SESSION.
     browser_cookies_file: Optional[str] = None
     http_headers: Optional[Dict[str, str]] = None
+    rejected_default_ext: Optional[str] = None
 
 
 class SingleFileRenderHandler(WebResourceHandler):
@@ -780,12 +845,14 @@ class SingleFileRenderHandler(WebResourceHandler):
             return False
         return self._content_type(url) in self.HTML_CONTENT_TYPES
 
-    def get_cache_key(self, path, **kwargs) -> str:
+    def get_cache_key(self, path, rejected_default_ext=None, **kwargs) -> str:
         # Include the crawl settings so two depths/scopes of the same URL do
         # not collide (mirrors MediaCompressionHandler.get_cache_key).
-        return generate_key("SINGLEFILE", self.normalize_path(path), settings=kwargs)
+        key = generate_key("SINGLEFILE", self.normalize_path(path), settings=kwargs)
+        return _rejected_cache_key(key, rejected_default_ext)
 
-    def handle_file(self, path, **context):
+    def handle_file(self, path, rejected_default_ext=None, **context):
+        _check_default_ext(rejected_default_ext, path)
         with tempfile.TemporaryDirectory() as temp_dir:
             render_page(path, temp_dir, **context)
             self._neutralize_navigation(temp_dir)

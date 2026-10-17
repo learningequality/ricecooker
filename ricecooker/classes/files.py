@@ -10,6 +10,7 @@ from requests import HTTPError
 
 from ricecooker.utils.caching import FILECACHE
 from ricecooker.utils.caching import get_cache_filename
+from ricecooker.utils.encodings import exts_from_mimetype
 from ricecooker.utils.images import ChromiumUnavailableError
 from ricecooker.utils.images import create_image_from_epub
 from ricecooker.utils.images import create_image_from_pdf_page
@@ -28,6 +29,7 @@ from ricecooker.utils.pipeline.exceptions import InvalidFileException
 from ricecooker.utils.pipeline.transfer import CatchAllWebResourceDownloadHandler
 from ricecooker.utils.pipeline.transfer import CONVERT_EXTENSIONS
 from ricecooker.utils.pipeline.transfer import path_ext_or_none
+from ricecooker.utils.pipeline.transfer import WebResourceHandler
 from ricecooker.utils.storage import copy_file_to_storage
 from ricecooker.utils.videos import extract_thumbnail_from_video
 from ricecooker.utils.youtube import get_language_with_alpha2_fallback
@@ -42,6 +44,10 @@ fallback_pipeline = FilePipeline()
 CONVERTIBLE_FORMATS = {p.id: p.convertible_formats for p in format_presets.PRESETLIST}
 
 KNOWN_EXTENSIONS = {ext for ext, _ in file_formats.choices} | CONVERT_EXTENSIONS
+
+HTML_EXTENSIONS = {
+    ext for t in WebResourceHandler.HTML_CONTENT_TYPES for ext in exts_from_mimetype(t)
+}
 
 
 def split_known_extension(filename):
@@ -188,16 +194,43 @@ class DownloadFile(File):
 
     def __init__(self, path, context=None, **kwargs):
         self.path = path.strip()
+        super(DownloadFile, self).__init__(**kwargs)
+        if self.default_ext:
+            self.default_ext = self.default_ext.lower().lstrip(".")
         self.context = {
             "default_ext": self.default_ext,
             # A File's class fixes its format.
             "preserve_kind": True,
         }
         self.context.update(context or {})
-        super(DownloadFile, self).__init__(**kwargs)
 
     def validate(self):
         assert self.path, "{} must have a path".format(self.__class__.__name__)
+
+    def _accepts_default_ext(self, ext):
+        if self.allowed_formats is None:
+            return (
+                ext in KNOWN_EXTENSIONS
+                and ext not in SubtitleConversionHandler.EXTENSIONS
+            )
+        return ext in self.allowed_formats
+
+    def _default_ext_context(self):
+        ext = self.context.get("default_ext")
+        class_ext = type(self).default_ext
+        if not ext or ext == class_ext:
+            return {}
+        if (
+            self.context.get("ext")
+            or path_ext_or_none(self.path) in CONVERT_EXTENSIONS
+            or (
+                ext in HTML_EXTENSIONS and self._accepts_default_ext(file_formats.HTML5)
+            )
+        ):
+            return {"default_ext": class_ext}
+        if self._accepts_default_ext(ext):
+            return {"reject_non_video_default_ext": self.allowed_formats is None}
+        return {"default_ext": class_ext, "rejected_default_ext": ext}
 
     def _reject_known_incompatible_ext(self):
         if (
@@ -220,7 +253,9 @@ class DownloadFile(File):
             self._reject_known_incompatible_ext()
             pipeline = config.FILE_PIPELINE or fallback_pipeline
             metadata = pipeline.execute(
-                self.path, context=self.context, skip_cache=config.UPDATE
+                self.path,
+                context={**self.context, **self._default_ext_context()},
+                skip_cache=config.UPDATE,
             )[0]
             metadata = metadata.to_dict()
             if not metadata.get("filename"):
@@ -341,6 +376,9 @@ class WebVideoFile(DownloadFile):
         if maxheight:
             self.context["max_height"] = maxheight
         self.context["high_resolution"] = high_resolution
+
+    def _accepts_default_ext(self, ext):
+        return ext in VideoCompressionHandler.EXTENSIONS
 
 
 class YouTubeVideoFile(WebVideoFile):

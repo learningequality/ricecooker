@@ -31,6 +31,7 @@ from PIL import Image
 from vcr_config import my_vcr
 
 from ricecooker import config
+from ricecooker.classes.files import DownloadFile
 from ricecooker.classes.licenses import get_license
 from ricecooker.classes.nodes import ContentNode
 from ricecooker.exceptions import InvalidNodeException
@@ -229,11 +230,24 @@ def test_gdrive_forwards_init_context_to_super():
 
 
 def test_gdrive_init_context_validated_via_super():
-    # GoogleDriveHandler's CONTEXT_CLASS (base ContextMetadata) has no fields,
-    # so any init context is rejected -- but by super's validation, proving the
+    # GoogleDriveHandler's CONTEXT_CLASS has no default_ext field, so this
+    # init context is rejected -- but by super's validation, proving the
     # custom __init__ forwards **context rather than swallowing it.
     with pytest.raises(TypeError, match="unexpected context field"):
         GoogleDriveHandler(default_ext="pdf")
+
+
+def test_gdrive_extensionless_name_fails_rejected_default_ext(mock_google_creds):
+    with patch("googleapiclient.discovery.build") as build:
+        files = build.return_value.files.return_value
+        files.get.return_value.execute.return_value = {
+            "name": "notes",
+            "mimeType": "application/pdf",
+        }
+        file = DownloadFile(pdf_link, default_ext="vtt")
+        assert file.process_file() is None
+        assert file.error == "Incompatible default_ext vtt"
+        files.get_media.assert_not_called()
 
 
 def test_gdrive_without_extra_reports_missing_library():
