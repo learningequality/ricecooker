@@ -14,6 +14,7 @@ from unittest.mock import patch
 
 import pytest
 import requests
+import yt_dlp
 from conftest import sample_path
 from fake_session import fake_download_session
 from le_utils.constants import content_kinds
@@ -30,9 +31,13 @@ from le_utils.constants.labels import resource_type
 from le_utils.constants.labels import subjects
 from le_utils.constants.languages import getlang
 from PIL import Image
+from pipeline.test_transfer import _http_error
+from pipeline.test_transfer import _video_info
+from pipeline.test_transfer import fake_extractors
 from requests.exceptions import ConnectionError as RequestsConnectionError
 from requests.exceptions import ReadTimeout
 from test_videos import _clear_ricecookerfilecache
+from yt_dlp.extractor.youtube import YoutubeIE
 
 from ricecooker import config
 from ricecooker.chefs import SushiChef
@@ -42,10 +47,12 @@ from ricecooker.classes.files import DownloadFile
 from ricecooker.classes.files import ExtractedHTMLZipThumbnailFile
 from ricecooker.classes.files import File
 from ricecooker.classes.files import HTMLZipFile
+from ricecooker.classes.files import StudioFile
 from ricecooker.classes.files import SubtitleFile
 from ricecooker.classes.files import ThumbnailFile
 from ricecooker.classes.files import TiledThumbnailFile
 from ricecooker.classes.files import VideoFile
+from ricecooker.classes.files import YouTubeSubtitleFile
 from ricecooker.classes.licenses import get_license
 from ricecooker.classes.licenses import License
 from ricecooker.classes.nodes import ChannelNode
@@ -77,6 +84,10 @@ from ricecooker.utils import images
 from ricecooker.utils import videos
 from ricecooker.utils.jsontrees import build_tree_from_json
 from ricecooker.utils.pipeline import FilePipeline
+from ricecooker.utils.pipeline.convert import ConversionStageHandler
+from ricecooker.utils.pipeline.extract_metadata import ExtractMetadataStageHandler
+from ricecooker.utils.pipeline.transfer import DownloadStageHandler
+from ricecooker.utils.pipeline.transfer import YoutubeDownloadHandler
 from ricecooker.utils.zip import create_predictable_zip
 
 """ *********** TOPIC FIXTURES *********** """
@@ -2471,6 +2482,213 @@ def test_upload_tree_commits_long_file_name(studio, original_filename, expected)
 
     (sent,) = [n for n in studio.added_nodes if n["source_id"] == "app"]
     assert [f["original_filename"] for f in sent["files"]] == [expected]
+
+
+def _fake_youtube_download(self, name, info, subtitle=False, test=False):
+    if subtitle:
+        with open(name, "w") as fh:
+            fh.write("WEBVTT\n\n00:00:00.000 --> 00:00:01.000\nHello\n")
+    else:
+        shutil.copyfile(sample_path("low_res_sample.mp4"), name)
+    return True, True
+
+
+@pytest.mark.parametrize(
+    "node_class,subtitle_languages,via_default_context,legacy_subtitle,caption_failure,expected_subtitles,expected_failed",
+    [
+        pytest.param(ContentNode, ["en"], False, False, None, ["en"], [], id="en"),
+        pytest.param(
+            ContentNode,
+            ["en", "de"],
+            False,
+            False,
+            None,
+            ["en"],
+            ["de"],
+            id="missing_de",
+        ),
+        pytest.param(
+            ContentNode, ["en", "en"], False, False, None, ["en"], [], id="repeated_en"
+        ),
+        pytest.param(
+            ContentNode, ["en"], False, True, None, ["en"], [], id="legacy_en"
+        ),
+        pytest.param(
+            ContentNode,
+            ["en"],
+            False,
+            True,
+            (2, "429"),
+            ["en"],
+            ["en"],
+            id="failed_legacy_en",
+        ),
+        pytest.param(
+            ContentNode, ["en"], False, False, (1, "empty"), [], ["en"], id="empty_en"
+        ),
+        pytest.param(
+            ContentNode, ["yue"], False, False, None, [], [None], id="unmapped_yue"
+        ),
+        pytest.param(
+            VideoNode, ["en"], False, False, None, ["en"], [], id="video_node_en"
+        ),
+        pytest.param(
+            ContentNode,
+            ["en", "de"],
+            True,
+            False,
+            None,
+            ["en"],
+            ["de"],
+            id="missing_de_default_context",
+        ),
+    ],
+)
+def test_upload_youtube_uri_with_subtitle_languages(
+    studio,
+    caplog,
+    node_class,
+    subtitle_languages,
+    via_default_context,
+    legacy_subtitle,
+    caption_failure,
+    expected_subtitles,
+    expected_failed,
+):
+    caption_calls = []
+
+    def dl(self, name, info, subtitle=False, test=False):
+        if subtitle:
+            caption_calls.append(name)
+            if caption_failure == (len(caption_calls), "429"):
+                raise _http_error(name, 429)
+            if caption_failure == (len(caption_calls), "empty"):
+                with open(name, "w") as fh:
+                    fh.write("WEBVTT\n\n")
+                return True, True
+        return _fake_youtube_download(self, name, info, subtitle=subtitle, test=test)
+
+    url = "https://www.youtube.com/watch?v=abcdefghijk"
+    context = {"subtitle_languages": subtitle_languages}
+    node_kwargs = (
+        {"pipeline": FilePipeline(default_context=context)}
+        if via_default_context
+        else {"pipeline": FilePipeline(), "context": context}
+    )
+    node = node_class(
+        "yt",
+        "YouTube",
+        license=get_license(licenses.CC_BY, copyright_holder="x"),
+        uri=url,
+        **node_kwargs,
+    )
+    if legacy_subtitle:
+        node.add_file(YouTubeSubtitleFile("abcdefghijk", "en"))
+    channel = ChannelNode("youtube", "www.learningequality.org", "YouTube")
+    channel.add_child(node)
+    info = _video_info(url, "en")
+    info["subtitles"]["yue"] = info["subtitles"]["en"]
+    failed_files = []
+    with (
+        fake_extractors({YoutubeIE: info}),
+        patch.object(yt_dlp.YoutubeDL, "dl", dl),
+        patch.object(config, "UPDATE", True),
+        patch.object(config, "STRICT", False),
+        patch.object(config, "FAILED_FILES", failed_files),
+    ):
+        manager = ChannelManager(channel)
+        manager.upload_files(manager.process_tree())
+        manager.upload_tree()
+        caplog.clear()
+        manager.check_for_files_failed()
+
+    (sent,) = [n for n in studio.added_nodes if n["source_id"] == "yt"]
+    assert sorted((f["preset"], f["language"] or "") for f in sent["files"]) == [
+        (format_presets.VIDEO_LOW_RES, ""),
+        *((format_presets.VIDEO_SUBTITLE, lang) for lang in expected_subtitles),
+    ]
+    assert {f["filename"] for f in sent["files"]} <= studio.stored
+    assert [(f.node, f.language) for f in failed_files] == [
+        (node, lang) for lang in expected_failed
+    ]
+    reported = [
+        r.getMessage().split()[:3] for r in caplog.records if r.levelname == "WARNING"
+    ]
+    assert [
+        [kind, source_id, uri.split("://")[1]] for kind, source_id, uri in reported
+    ] == [["Video", "yt:", "www.youtube.com/watch?v=abcdefghijk"]] * len(
+        expected_failed
+    )
+
+
+@pytest.mark.parametrize("shared", [False, True])
+def test_youtube_uri_records_a_caption_missing_for_handler_languages_once(
+    channel, caplog, shared
+):
+    url = "https://www.youtube.com/watch?v=abcdefghijk"
+    youtube = YoutubeDownloadHandler(subtitle_languages=["en", "de"])
+    node = ContentNode(
+        "yt",
+        "YouTube",
+        license=get_license(licenses.CC_BY, copyright_holder="x"),
+        uri=url,
+        pipeline=FilePipeline(
+            children=[
+                DownloadStageHandler(children=[youtube]),
+                ConversionStageHandler(),
+                ExtractMetadataStageHandler(),
+            ]
+        ),
+    )
+    if shared:
+        _place_under_two_topics(channel, node)
+    else:
+        channel.add_child(node)
+    failed_files = []
+    with (
+        fake_extractors({YoutubeIE: _video_info(url, "en")}),
+        patch.object(yt_dlp.YoutubeDL, "dl", _fake_youtube_download),
+        patch.object(config, "UPDATE", True),
+        patch.object(config, "STRICT", False),
+        patch.object(config, "FAILED_FILES", failed_files),
+    ):
+        manager = ChannelManager(channel)
+        manager.deduplicate_shared_nodes()
+        manager.process_tree()
+        manager.check_for_files_failed()
+
+    assert [f.language for f in failed_files] == ["de"]
+    assert "1 file(s) have failed" in caplog.text
+
+
+def test_duplicate_subtitles_without_language_are_dropped(studio):
+    node = VideoNode("v", "v", licenses.CC_BY, copyright_holder="x")
+    for checksum in ("a" * 32, "b" * 32):
+        studio.stored.add(f"{checksum}.vtt")
+        node.add_file(StudioFile(checksum, "vtt", format_presets.VIDEO_SUBTITLE))
+
+    node.validate()
+
+    assert len(node.files) == 1
+
+
+def test_check_for_files_failed_reports_a_file_of_a_node_without_kind(channel, caplog):
+    node = ContentNode(
+        "untyped",
+        "Untyped",
+        license=get_license(licenses.CC_BY, copyright_holder="x"),
+        files=[DocumentFile("/nonexistent/x.pdf")],
+    )
+    channel.add_child(node)
+    with (
+        patch.object(config, "FAILED_FILES", []),
+        patch.object(config, "STRICT", False),
+    ):
+        manager = ChannelManager(channel)
+        manager.process_tree()
+        manager.check_for_files_failed()
+
+    assert "ContentNode untyped" in caplog.text
 
 
 def _perseus_question_with_long_image_name(exercise_image_file):

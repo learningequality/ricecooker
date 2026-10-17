@@ -18,6 +18,7 @@ from urllib.parse import urlparse
 import filetype
 import yt_dlp
 from le_utils.constants import file_formats
+from le_utils.constants import format_presets
 from requests.exceptions import RequestException
 from yt_dlp.extractor import gen_extractor_classes
 
@@ -30,6 +31,7 @@ from ricecooker.utils.encodings import get_base64_data_uri
 from ricecooker.utils.encodings import mimetype_from_content_type
 from ricecooker.utils.paths import extract_path_ext
 from ricecooker.utils.paths import resolve_path_ext
+from ricecooker.utils.pipeline.exceptions import ExpectedFileException
 from ricecooker.utils.pipeline.exceptions import InvalidFileException
 from ricecooker.utils.pipeline.exceptions import NotHandledException
 from ricecooker.utils.pipeline.exceptions import ProbeError
@@ -389,6 +391,10 @@ class _QuietLogger:
     info = warning = error = debug
 
 
+class _NoSubtitles(Exception):
+    pass
+
+
 class YoutubeDownloadHandler(WebResourceHandler):
     CONTEXT_CLASS = YouTubeContextMetadata
 
@@ -463,6 +469,52 @@ class YoutubeDownloadHandler(WebResourceHandler):
                 }
             )
         return file_kwargs
+
+    def execute(
+        self,
+        path: str,
+        context: Optional[Dict] = None,
+        skip_cache: Optional[bool] = False,
+    ) -> list[FileMetadata]:
+        context = self._get_context(context).to_dict()
+        if not context["download_video"]:
+            try:
+                return super().execute(path, context=context, skip_cache=skip_cache)
+            except _NoSubtitles as e:
+                raise ExpectedFileException(str(e)) from e
+        metadata_list = super().execute(
+            path, context={**context, "subtitle_languages": []}, skip_cache=skip_cache
+        )
+        for lang in context["subtitle_languages"]:
+            subtitle_context = {
+                **context,
+                "download_video": False,
+                "subtitle_languages": [lang],
+            }
+            try:
+                subtitle_metadata_list = super().execute(
+                    path, context=subtitle_context, skip_cache=skip_cache
+                )
+            except (_NoSubtitles, ExpectedFileException, InvalidFileException) as e:
+                error = (
+                    str(e)
+                    if isinstance(e, _NoSubtitles)
+                    else f"Skipping {lang} subtitles: {e}"
+                )
+                config.LOGGER.warning(f"\t{error}")
+                language = get_language_with_alpha2_fallback(lang)
+                metadata_list.append(
+                    FileMetadata(
+                        preset=format_presets.VIDEO_SUBTITLE,
+                        language=language.code if language else None,
+                        error=error,
+                    )
+                )
+            else:
+                for subtitle_metadata in subtitle_metadata_list:
+                    subtitle_metadata.preset = format_presets.VIDEO_SUBTITLE
+                metadata_list += subtitle_metadata_list
+        return metadata_list
 
     def _is_live(self, info):
         # yt-dlp derives is_live from live_status only after processing.
@@ -540,6 +592,12 @@ class YoutubeDownloadHandler(WebResourceHandler):
             _check_default_ext(rejected_default_ext)
         return info
 
+    def _nothing_downloaded(self, path, yt_dlp_settings):
+        if "subtitleslangs" in yt_dlp_settings:
+            lang = yt_dlp_settings["subtitleslangs"][0]
+            return _NoSubtitles(f"No {lang} subtitles at {path}")
+        return yt_dlp.utils.DownloadError("Failed to download " + path)
+
     def _fetch_from_youtube(
         self,
         path,
@@ -556,8 +614,6 @@ class YoutubeDownloadHandler(WebResourceHandler):
                 )
                 with self._video_errors(path, fall_through=False):
                     ydl.process_ie_result(info, download=True)
-                    if not os.path.exists(destination_path):
-                        raise yt_dlp.utils.DownloadError("Failed to download " + path)
         else:
             _check_default_ext(rejected_default_ext)
             # Connect to YouTube via an HTTP proxy
@@ -575,8 +631,10 @@ class YoutubeDownloadHandler(WebResourceHandler):
             else:
                 # For video files we can skip the proxy for faster download speed
                 result2 = yt_resource.download(options=yt_dlp_settings)
-            if result2 is None or not os.path.exists(destination_path):
+            if result2 is None:
                 raise yt_dlp.utils.DownloadError("Failed to download resource " + path)
+        if not os.path.exists(destination_path):
+            raise self._nothing_downloaded(path, yt_dlp_settings)
 
     def handle_file(
         self,
@@ -600,10 +658,15 @@ class YoutubeDownloadHandler(WebResourceHandler):
             yt_dlp_settings = {"noplaylist": True, **yt_dlp_settings}
         else:
             yt_dlp_settings = {"logger": _QuietLogger(), **yt_dlp_settings}
-        youtube_language = None
+        language_obj = None
         if is_subtitle:
             file_format = file_formats.VTT
             youtube_language = yt_dlp_settings["subtitleslangs"][0]
+            language_obj = get_language_with_alpha2_fallback(youtube_language)
+            if language_obj is None:
+                raise InvalidFileException(
+                    f"Unsupported subtitle language {youtube_language} at {path}"
+                )
             download_ext = ext = ".{lang}.{ext}".format(
                 lang=youtube_language, ext=file_formats.VTT
             )
@@ -640,8 +703,7 @@ class YoutubeDownloadHandler(WebResourceHandler):
             with open(destination_path, "rb") as fobj:
                 for chunk in iter(lambda: fobj.read(2097152), b""):
                     fh.write(chunk)
-        if youtube_language is not None:
-            language_obj = get_language_with_alpha2_fallback(youtube_language)
+        if language_obj is not None:
             return FileMetadata(language=language_obj.code)
 
 
@@ -933,7 +995,9 @@ class DownloadStageHandler(StageHandler):
 
         # Ensure all downloaded files are actually in storage
         for metadata in metadata_list:
-            if not metadata.path.startswith(os.path.abspath(config.STORAGE_DIRECTORY)):
+            if metadata.error is None and not metadata.path.startswith(
+                os.path.abspath(config.STORAGE_DIRECTORY)
+            ):
                 raise InvalidFileException(f"{path} failed to transfer to storage")
 
         return metadata_list

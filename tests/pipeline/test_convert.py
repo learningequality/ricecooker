@@ -23,6 +23,7 @@ from urllib.parse import urlsplit
 
 import pytest
 import requests
+import yt_dlp
 from bs4 import BeautifulSoup
 from cachecontrol.caches.file_cache import FileCache
 from conftest import read_file_hash
@@ -38,6 +39,9 @@ from le_utils.constants.labels import resource_type
 from lxml import etree
 from vcr_config import my_vcr
 
+from pipeline.test_transfer import _video_info
+from pipeline.test_transfer import fake_extractors
+from pipeline.test_transfer import YoutubeIE
 from ricecooker import config
 from ricecooker.classes.files import DownloadFile
 from ricecooker.classes.files import EPubFile
@@ -1437,7 +1441,13 @@ class TestDocumentConversion:
 
 @contextmanager
 def _run_external_refs(
-    files, url_to_content, *, suffix=".zip", mappers=DEFAULT_MAPPERS, content_types=None
+    files,
+    url_to_content,
+    *,
+    suffix=".zip",
+    mappers=DEFAULT_MAPPERS,
+    content_types=None,
+    pipeline=None,
 ):
     """Build an archive from ``files``, run the processor, yield ``(dir, fetched)``.
 
@@ -1446,7 +1456,7 @@ def _run_external_refs(
     session is faked — so the test exercises the true download/convert paths.
     ``fetched`` is the list of URLs the pipeline requested.
     """
-    pipeline = FilePipeline()
+    pipeline = pipeline or FilePipeline()
     convert_stage = next(c for c in pipeline._children if c.STAGE == "CONVERT")
     with tempfile.TemporaryDirectory() as tmpdir:
         zip_path = os.path.join(tmpdir, "in" + suffix)
@@ -1496,6 +1506,33 @@ class TestArchiveProcessor:
             soup = BeautifulSoup(index, "lxml")
             assert soup.find("title").string == "Keep Me"
             assert soup.find("script")["src"] == "app.js"
+
+    @pytest.mark.parametrize("subtitle_languages", [["en"], ["de"]])
+    def test_youtube_ref_resolves_to_video_with_caption_languages(
+        self, subtitle_languages
+    ):
+        downloads = []
+
+        def dl(self, name, info, subtitle=False, test=False):
+            downloads.append(subtitle)
+            shutil.copyfile(sample_path("low_res_sample.mp4"), name)
+            return True, True
+
+        url = "https://www.youtube.com/watch?v=abcdefghijk"
+        files = {"index.html": f'<html><body><video src="{url}"></video></body></html>'}
+        pipeline = FilePipeline(
+            default_context={"subtitle_languages": subtitle_languages}
+        )
+        with (
+            fake_extractors({YoutubeIE: _video_info(url, "en")}),
+            patch.object(yt_dlp.YoutubeDL, "dl", dl),
+            patch.object(config, "UPDATE", True),
+            _run_external_refs(files, {}, pipeline=pipeline) as (out_dir, _fetched),
+        ):
+            index = open(os.path.join(out_dir, "index.html")).read()
+            (video,) = [n for n in os.listdir(out_dir) if n.endswith(".mp4")]
+        assert f'src="{video}"' in index
+        assert downloads == [False]
 
     def test_failed_ref_left_unrewritten(self):
         bad_url = "https://ex.com/dropped.png"

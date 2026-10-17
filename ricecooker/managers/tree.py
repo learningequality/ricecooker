@@ -162,7 +162,12 @@ class ChannelManager:
             for f in config.FAILED_FILES:
                 if f.node:  # files associated with a a content node
                     info = "{0} {id}".format(
-                        f.node.kind.capitalize(), id=f.node.source_id
+                        (
+                            f.node.kind.capitalize()
+                            if f.node.kind
+                            else type(f.node).__name__
+                        ),
+                        id=f.node.source_id,
                     )
                 elif f.assessment_item:  # files associated with an assessment item
                     info = "{0} {id}".format("Question", id=f.assessment_item.source_id)
@@ -173,6 +178,8 @@ class ChannelManager:
                     file_identifier = f.path
                 elif hasattr(f, "youtube_url") and f.youtube_url:
                     file_identifier = f.youtube_url
+                elif getattr(f, "source_url", None):
+                    file_identifier = f.source_url
                 config.LOGGER.warning(
                     "\t{0}: {id} \n\t   {err}".format(
                         info, id=file_identifier, err=f.error

@@ -191,6 +191,7 @@ class ArchiveProcessor:
                 context={
                     "compress": bool(self.audio_settings or self.video_settings),
                     "asset_ref": True,
+                    "subtitle_languages": [],
                     "render_html": path_ext_or_none(fetch_url)
                     not in NAME_KEPT_EXTENSIONS,
                 },
