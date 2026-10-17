@@ -344,7 +344,8 @@ class CatchAllWebResourceDownloadHandler(DeclaredExtMixin, WebResourceHandler):
             name_ext in NAME_KEPT_EXTENSIONS or name_ext in exts_from_mimetype(mimetype)
         ):
             return name_ext
-        if name_ext is None and default_ext:
+        html = mimetype in self.HTML_CONTENT_TYPES and _is_html(head)
+        if name_ext is None and default_ext and not html:
             return default_ext
         ext = ext_from_content_type(content_type) or getattr(
             filetype.guess(head), "extension", None

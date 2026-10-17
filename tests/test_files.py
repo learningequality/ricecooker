@@ -938,6 +938,28 @@ def test_html_response_renders_despite_default_ext(
 
 
 @pytest.mark.parametrize(
+    "file_class",
+    [
+        ThumbnailFile,
+        AudioFile,
+        VideoFile,
+        DocumentFile,
+        EPubFile,
+        BloomPubFile,
+        H5PFile,
+        WebVideoFile,
+    ],
+)
+def test_html_response_fails_non_html_file_as_incompatible(file_class):
+    url = "https://s.example/get?id=norender-{}".format(file_class.__name__)
+    with _fake_html_session(url) as render:
+        file = file_class(url)
+        assert file.process_file() is None
+    assert "incompatible" in file.error.lower()
+    assert render.call_count == 0
+
+
+@pytest.mark.parametrize(
     "file_class,sample,default_ext,url,disposition,content_type",
     [
         (

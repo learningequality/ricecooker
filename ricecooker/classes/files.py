@@ -214,6 +214,8 @@ class DownloadFile(File):
             "default_ext": self.default_ext,
             # A File's class fixes its format.
             "preserve_kind": True,
+            "render_html": self.allowed_formats is None
+            or file_formats.HTML5 in self.allowed_formats,
         }
         self.context.update(context or {})
 
@@ -374,6 +376,7 @@ class VideoFile(DownloadFile):
 class WebVideoFile(DownloadFile):
     is_primary = True
     default_ext = file_formats.MP4
+    allowed_formats = VideoCompressionHandler.EXTENSIONS
 
     def __init__(
         self,
@@ -389,9 +392,6 @@ class WebVideoFile(DownloadFile):
         if maxheight:
             self.context["max_height"] = maxheight
         self.context["high_resolution"] = high_resolution
-
-    def _accepts_default_ext(self, ext):
-        return ext in VideoCompressionHandler.EXTENSIONS
 
 
 class YouTubeVideoFile(WebVideoFile):
