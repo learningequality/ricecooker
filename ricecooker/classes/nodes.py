@@ -1234,6 +1234,7 @@ class ContentNode(TreeNode):
         if content_metadata.get("children") is not None:
             self.expand_metadata_tree(content_metadata)
             return
+        _require_presets(file_metadata_dicts)
         for metadata_dict in file_metadata_dicts:
             self.add_file(self._file_from_metadata(metadata_dict))
         if self.kind is not None:
@@ -1401,6 +1402,18 @@ class DocumentNode(ContentNode):
                 storage_path = config.get_storage_path(kpub_file.filename)
                 return ExtractedKPUBThumbnailFile(storage_path)
         return None
+
+
+def _require_presets(file_metadata_dicts):
+    presetless = [
+        metadata_dict.get("original_filename") or metadata_dict.get("filename")
+        for metadata_dict in file_metadata_dicts
+        if not metadata_dict.get("preset")
+    ]
+    if presetless:
+        raise InvalidNodeException(
+            f"No format preset inferred for {', '.join(presetless)}"
+        )
 
 
 def _exercise_settings(extra_fields):
