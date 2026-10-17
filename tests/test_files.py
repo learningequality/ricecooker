@@ -880,11 +880,13 @@ def test_rejected_default_ext_keyword_fails_cached_download(tmp_path):
 
 
 @contextmanager
-def _fake_html_session(url, content_type="text/html"):
+def _fake_html_session(
+    url,
+    content_type="text/html",
+    body=b"<!doctype html><html></html>",
+):
     with (
-        fake_download_session(
-            {url: b"<!doctype html><html></html>"}, {url: content_type}
-        ),
+        fake_download_session({url: body}, {url: content_type}),
         patch(
             "ricecooker.utils.pipeline.transfer.render_page",
             side_effect=fake_render_page(),
@@ -953,6 +955,39 @@ def test_html_response_renders_despite_default_ext(
 def test_html_response_fails_non_html_file_as_incompatible(file_class):
     url = "https://s.example/get?id=norender-{}".format(file_class.__name__)
     with _fake_html_session(url) as render:
+        file = file_class(url)
+        assert file.process_file() is None
+    assert "incompatible" in file.error.lower()
+    assert render.call_count == 0
+
+
+def test_png_served_as_html_processes_as_thumbnail():
+    url = "https://site.example/thumb.php?id=1"
+    with (
+        patch("ricecooker.config.UPDATE", True),
+        _fake_html_session(url, "text/html; charset=UTF-8", _PNG_1x1),
+    ):
+        file = ThumbnailFile(url)
+        filename = file.process_file()
+    assert file.error is None
+    assert filename.endswith(".png")
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://site.example/clip.mp4",
+        "https://site.example/clip.mp3",
+        "https://site.example/clip",
+        "https://site.example/clip?id=1",
+    ],
+)
+@pytest.mark.parametrize("file_class", [VideoFile, AudioFile])
+def test_png_served_as_html_fails_media_file_as_incompatible(file_class, url):
+    with (
+        patch("ricecooker.config.UPDATE", True),
+        _fake_html_session(url, body=_PNG_1x1) as render,
+    ):
         file = file_class(url)
         assert file.process_file() is None
     assert "incompatible" in file.error.lower()

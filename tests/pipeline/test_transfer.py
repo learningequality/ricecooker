@@ -63,6 +63,9 @@ from ricecooker.utils.youtube import YouTubeResource
 from .helpers import _PNG_1x1
 from .helpers import fake_render_page
 
+_OGG_THEORA = b"OggS\0\x02" + b"\0" * 22 + b"\x80theora" + b"\0" * 30
+_MP4_ISOM = b"\0\0\0\x20ftypisom\0\0\x02\0isomiso2mp41" + b"\0" * 20
+
 content_disposition_filename_cases = [
     ('Content-Disposition: attachment; filename="example.jpg"', "example.jpg"),
     (
@@ -1579,6 +1582,31 @@ class _FakeGetResponse(_FakeHeadResponse):
             None,
             ".html",
         ),
+        (
+            "https://site.example/thumb.php?id=1",
+            "text/html; charset=UTF-8",
+            _PNG_1x1,
+            "png",
+            ".png",
+        ),
+        ("https://site.example/clip.mp4", "text/html", _PNG_1x1, None, ".png"),
+        ("https://site.example/clip.mp3", "text/html", _PNG_1x1, None, ".png"),
+        ("https://site.example/clip", "text/html", _PNG_1x1, "mp4", ".png"),
+        ("https://site.example/clip?id=1", "text/html", _PNG_1x1, "mp3", ".png"),
+        (
+            "https://site.example/clip.jpeg",
+            "text/html",
+            b"\xff\xd8\xff\xe0" + b"\0" * 20,
+            None,
+            ".jpeg",
+        ),
+        ("https://site.example/pkg.h5p", "text/html", b"PK\x03\x04", None, ".h5p"),
+        ("https://s.example/get.php?id=2", "text/html", b"PK\x03\x04", "h5p", ".h5p"),
+        ("https://s.example/get?id=1", "text/html", b"PK\x03\x04", None, ".zip"),
+        ("https://x.example/clip.ogv", "text/html", _OGG_THEORA, None, ".ogv"),
+        ("https://x.example/song.m4a", "text/html", _MP4_ISOM, None, ".m4a"),
+        ("https://x.example/app.js", "text/html", b"BMap.init();\n", None, ".js"),
+        ("https://x.example/cfg.js", "text/html", b"MZ_CONFIG = {};", None, ".js"),
     ],
     ids=[
         "unknown-name-ext",
@@ -1607,6 +1635,19 @@ class _FakeGetResponse(_FakeHeadResponse):
         "comment-first-js-served-as-html",
         "comment-only-css-served-as-html",
         "xhtml-page-at-asset-ext",
+        "png-served-as-html-at-php",
+        "png-served-as-html-at-mp4",
+        "png-served-as-html-at-mp3",
+        "png-served-as-html-without-ext",
+        "png-served-as-html-at-query",
+        "jpeg-served-as-html-keeps-name-ext",
+        "zip-served-as-html-keeps-name-ext",
+        "zip-served-as-html-at-php-takes-default-ext",
+        "zip-served-as-html-without-ext",
+        "ogg-served-as-html-keeps-ogv",
+        "mp4-served-as-html-keeps-m4a",
+        "bmp-like-js-served-as-html-keeps-js",
+        "exe-like-js-served-as-html-keeps-js",
     ],
 )
 def test_catchall_names_file_from_response(
