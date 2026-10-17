@@ -1,17 +1,7 @@
+import sys
 import xml.dom
 
 from le_utils.constants import file_formats
-from pycaption import CaptionReadError
-from pycaption import CaptionReadNoCaptions
-from pycaption import CaptionSet
-from pycaption import DFXPReader
-from pycaption import SAMIReader
-from pycaption import SCCReader
-from pycaption import SRTReader
-from pycaption import WebVTTReader
-from pycaption import WebVTTWriter
-from pycaption.base import DEFAULT_LANGUAGE_CODE
-from pycaption.exceptions import InvalidInputError
 
 from ricecooker.utils.encodings import decode_text
 
@@ -19,6 +9,27 @@ try:
     from soupsieve import SelectorSyntaxError
 except ImportError:  # beautifulsoup4 < 4.7 has no soupsieve
     SelectorSyntaxError = ValueError
+
+# pycaption imports future.backports, which imports tkinter. On macOS, Tcl's fork handler
+# then starts a thread in each forked child that can block subprocess's fd cleanup before exec forever.
+_hide_tkinter = "tkinter" not in sys.modules
+if _hide_tkinter:
+    sys.modules["tkinter"] = None
+try:
+    from pycaption import CaptionReadError
+    from pycaption import CaptionReadNoCaptions
+    from pycaption import CaptionSet
+    from pycaption import DFXPReader
+    from pycaption import SAMIReader
+    from pycaption import SCCReader
+    from pycaption import SRTReader
+    from pycaption import WebVTTReader
+    from pycaption import WebVTTWriter
+    from pycaption.base import DEFAULT_LANGUAGE_CODE
+    from pycaption.exceptions import InvalidInputError
+finally:
+    if _hide_tkinter:
+        del sys.modules["tkinter"]
 
 LANGUAGE_CODE_UNKNOWN = DEFAULT_LANGUAGE_CODE
 

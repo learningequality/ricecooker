@@ -17,11 +17,43 @@ class CustomDestination(Destination):
             pass
 
 
+class _AnyHeaderStream(object):
+    # Passes the %PDF- header check PdfReader.read makes with its first read; 1.26 had none
+    def __init__(self, stream):
+        self._stream = stream
+        self.seek = stream.seek
+        self.tell = stream.tell
+
+    def read(self, size=-1):
+        self.read = self._stream.read
+        self._stream.seek(size, 1)
+        return b"%PDF-"
+
+    def __getattr__(self, name):
+        return getattr(self._stream, name)
+
+
 class CustomPDFReader(PdfFileReader):
-    def _buildDestination(self, title, array):
+    def read(self, stream):
+        super(CustomPDFReader, self).read(
+            _AnyHeaderStream(stream) if self.strict else stream
+        )
+
+    @staticmethod
+    def _get_xref_issues(stream, startxref):
+        # 1.26's startxref handling: no pre-check, so no full-file xref rebuild
+        return 0
+
+    def _build_destination(self, title, array):
         page, typ = array[0:2]
         array = array[2:]
         return CustomDestination(title, page, typ, *array)
+
+
+class CustomPDFWriter(PdfFileWriter):
+    def set_need_appearances_writer(self):
+        # PyPDF2 1.28 points /AcroForm at the Info dict; add no form at all
+        pass
 
 
 class PDFParser(object):
@@ -153,7 +185,7 @@ class PDFParser(object):
         Save the subset of pages specified in `pagerange` (dict) as separate PDF.
         e.g. pagerange = {'title':'First chapter', 'page_start':0, 'page_end':5}
         """
-        writer = PdfFileWriter()
+        writer = CustomPDFWriter()
         slug = "".join(
             [c for c in pagerange["title"].replace(" ", "-") if c.isalnum() or c == "-"]
         )
@@ -162,7 +194,7 @@ class PDFParser(object):
         )
         for page in range(pagerange["page_start"], pagerange["page_end"]):
             writer.addPage(self.pdf.getPage(page))
-            writer.removeLinks()  # must be done every page
+            writer.remove_links()  # must be done every page
         with open(write_to_path, "wb") as outfile:
             writer.write(outfile)
         return write_to_path

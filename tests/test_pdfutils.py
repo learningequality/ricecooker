@@ -5,6 +5,7 @@ from tempfile import TemporaryDirectory
 import pytest
 from conftest import sample_path
 from PyPDF2 import PdfFileReader
+from PyPDF2.errors import PdfReadError
 
 from ricecooker.utils.pdf import PDFParser  # SIT
 
@@ -65,6 +66,68 @@ def test_split_chapters(doc1_with_toc_path, downloads_dir):
             assert chapter_path.endswith(".pdf"), "wrong extension -- expected .pdf"
             assert os.path.exists(chapter_path), "missing split PDF file"
             _check_path_matches_title_len(chapter)
+
+
+def test_split_chapters_have_no_acroform(doc1_with_toc_path, downloads_dir):
+    with PDFParser(doc1_with_toc_path, directory=downloads_dir) as pdfparser:
+        chapters = pdfparser.split_chapters()
+    for chapter in chapters:
+        with open(chapter["path"], "rb") as f:
+            reader = PdfFileReader(f)
+            assert "/AcroForm" not in reader.trailer["/Root"]
+            assert "/NeedAppearances" not in reader.trailer["/Info"]
+
+
+def _write_modified(src_path, tmp_path, startxref=None, prefix=b"", suffix=b""):
+    with open(src_path, "rb") as f:
+        data = f.read()
+    if startxref is not None:
+        match = list(re.finditer(rb"startxref\s+(\d+)", data))[-1]
+        new = str(startxref(int(match.group(1)), len(data))).encode()
+        data = data[: match.start(1)] + new + data[match.end(1) :]
+    path = str(tmp_path / "modified.pdf")
+    with open(path, "wb") as f:
+        f.write(prefix + data + suffix)
+    return path
+
+
+@pytest.mark.parametrize(
+    "modification",
+    [
+        {"startxref": lambda pos, size: pos - 1},
+        {"startxref": lambda pos, size: pos + 1},
+        {"prefix": b"\n"},
+        {"prefix": b"x"},
+        {"suffix": b"x" * 100 * 1024},
+    ],
+)
+def test_open_with_slightly_malformed_pdf(
+    doc1_with_toc_path, downloads_dir, tmp_path, modification
+):
+    path = _write_modified(doc1_with_toc_path, tmp_path, **modification)
+    with PDFParser(doc1_with_toc_path, directory=downloads_dir) as pdfparser:
+        expected_toc = pdfparser.get_toc()
+    with PDFParser(path, directory=downloads_dir) as pdfparser:
+        assert pdfparser.get_toc() == expected_toc
+
+
+def test_open_with_distant_startxref_fails(doc3_with_toc_path, downloads_dir, tmp_path):
+    path = _write_modified(
+        doc3_with_toc_path, tmp_path, startxref=lambda pos, size: size // 2
+    )
+    with pytest.raises(PdfReadError):
+        PDFParser(path, directory=downloads_dir).open()
+
+
+def test_open_with_prev_zero_fails(doc3_with_toc_path, downloads_dir, tmp_path):
+    with open(doc3_with_toc_path, "rb") as f:
+        data = f.read()
+    i = data.index(b"<<", data.rfind(b"trailer")) + 2
+    path = str(tmp_path / "prev0.pdf")
+    with open(path, "wb") as f:
+        f.write(data[:i] + b" /Prev 0 " + data[i:])
+    with pytest.raises(PdfReadError):
+        PDFParser(path, directory=downloads_dir).open()
 
 
 def test_split_chapters_alt(doc1_with_toc_path, downloads_dir):

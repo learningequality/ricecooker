@@ -9,7 +9,6 @@ build:
   jobs:
     pre_install:
       - pip install uv
-      # uv 0.13 rejects the pre-POSIX tar of the PyPDF2 1.26.0 sdist
-      - UV_LEGACY_TAR_BACKEND=1 VIRTUAL_ENV=$READTHEDOCS_VIRTUALENV_PATH uv pip install -e . --group docs
+      - VIRTUAL_ENV=$READTHEDOCS_VIRTUALENV_PATH uv pip install -e . --group docs
 sphinx:
   configuration: docs/conf.py

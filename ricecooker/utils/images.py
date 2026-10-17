@@ -174,6 +174,10 @@ def create_image_from_zip_screenshot(htmlfile, fpath_out, crop="smart"):
                     "Chromium produced no screenshot for {}.".format(htmlfile)
                 )
             img = Image.open(shot_path)
+            if img.getcolors(1) is not None:
+                raise ThumbnailGenerationError(
+                    "Chromium rendered a blank page for {}.".format(htmlfile)
+                )
             img = scale_and_crop_thumbnail(img, crop=crop)
             img.save(fpath_out)
     except ThumbnailGenerationError:

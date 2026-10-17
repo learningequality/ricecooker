@@ -237,7 +237,7 @@ def test_archive_no_compression_without_settings(video_file, audio_file):
 def test_hung_ffmpeg_fails_file(
     sample, context, binary, timeout, stub_on_path, monkeypatch
 ):
-    stub_on_path(binary)
+    calls = stub_on_path(binary)
     monkeypatch.setattr(videos, timeout, 2)
     start = time.monotonic()
     with pytest.raises(InvalidFileException):
@@ -245,6 +245,7 @@ def test_hung_ffmpeg_fails_file(
             sample_path(sample), skip_cache=True
         )
     assert time.monotonic() - start < 4
+    assert calls.read_text().count("\n") == 1
 
 
 def test_timed_out_packet_scan_reencodes(faststart_240p, stub_on_path, monkeypatch):
