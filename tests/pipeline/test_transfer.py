@@ -1724,6 +1724,23 @@ def test_catchall_download_cached_by_earlier_release(url, cached, refetched):
     assert (result[0].filename == cached) != refetched
 
 
+def test_catchall_asset_ref_cached_by_earlier_release_refetched():
+    url = "https://site.example/stale-cache-app.js"
+    with open(config.get_storage_path("stale.js"), "wb") as fh:
+        fh.write(b"<html><body>Not Found</body></html>")
+    set_cache_data(f"DOWNLOAD:{url}:asset", {"filename": "stale.js"})
+    with patch.object(
+        config.DOWNLOAD_SESSION,
+        "get",
+        return_value=_FakeGetResponse(b"var a;", "application/javascript"),
+    ) as get:
+        handler = CatchAllWebResourceDownloadHandler()
+        handler.parent = DownloadStageHandler()
+        result = handler.execute(url, context={"asset_ref": True})
+    assert get.called
+    assert result[0].filename != "stale.js"
+
+
 def test_catchall_node_file_and_archive_ref_share_one_download():
     url = "https://site.example/shared-logo.png"
     with patch.object(
@@ -1736,6 +1753,21 @@ def test_catchall_node_file_and_archive_ref_share_one_download():
         handler.execute(url, context={})
         handler.execute(url, context={"asset_ref": True})
     assert get.call_count == 1
+
+
+@pytest.mark.parametrize(
+    "chunks",
+    [[b"a" * 5000], [b"a" * 5000, b"b" * 5000, b"c" * 5000], [b"x", b"y"]],
+    ids=["one-chunk", "window-ends-mid-stream", "stream-ends-inside-window"],
+)
+def test_catchall_writes_every_chunk_once(chunks):
+    url = "https://site.example/blob.png"
+    with fake_download_session({url: chunks}, content_types={url: "image/png"}):
+        result = CatchAllWebResourceDownloadHandler().execute(
+            url, context={}, skip_cache=True
+        )
+    with open(config.get_storage_path(result[0].filename), "rb") as fh:
+        assert fh.read() == b"".join(chunks)
 
 
 def test_catchall_rejects_undeterminable_type():

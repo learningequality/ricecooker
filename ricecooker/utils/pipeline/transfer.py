@@ -263,6 +263,8 @@ _TEXT_ASSET_EXTENSIONS = STATIC_ASSET_EXTENSIONS - {
 
 
 _WHITESPACE = b" \t\r\n\f"
+# filetype's signature window (filetype/utils.py _NUM_SIGNATURE_BYTES).
+_SNIFF_BYTES = 8192
 
 
 def _is_html(head):
@@ -298,7 +300,7 @@ class CatchAllWebResourceDownloadHandler(DeclaredExtMixin, WebResourceHandler):
             if asset_ref:
                 key += ":asset"
         elif asset_ref and name_ext in STATIC_ASSET_EXTENSIONS:
-            key += ":asset"
+            key += ":asset:v2"
         return key
 
     def handle_file(
@@ -322,7 +324,11 @@ class CatchAllWebResourceDownloadHandler(DeclaredExtMixin, WebResourceHandler):
             r.close()
             raise
         chunks = r.iter_content(chunk_size=8192)
-        head = next(chunks, b"")
+        head = b""
+        for chunk in chunks:
+            head += chunk
+            if len(head) >= _SNIFF_BYTES:
+                break
         if ext:
             ext = resolve_path_ext(original_filename, declared_ext=ext)
         else:

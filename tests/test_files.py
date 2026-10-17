@@ -961,11 +961,17 @@ def test_html_response_fails_non_html_file_as_incompatible(file_class):
     assert render.call_count == 0
 
 
-def test_png_served_as_html_processes_as_thumbnail():
+_PNG_BODIES = pytest.mark.parametrize(
+    "body", [_PNG_1x1, [_PNG_1x1[:1], _PNG_1x1[1:]]], ids=["one-chunk", "split-chunks"]
+)
+
+
+@_PNG_BODIES
+def test_png_served_as_html_processes_as_thumbnail(body):
     url = "https://site.example/thumb.php?id=1"
     with (
         patch("ricecooker.config.UPDATE", True),
-        _fake_html_session(url, "text/html; charset=UTF-8", _PNG_1x1),
+        _fake_html_session(url, "text/html; charset=UTF-8", body),
     ):
         file = ThumbnailFile(url)
         filename = file.process_file()
@@ -983,10 +989,11 @@ def test_png_served_as_html_processes_as_thumbnail():
     ],
 )
 @pytest.mark.parametrize("file_class", [VideoFile, AudioFile])
-def test_png_served_as_html_fails_media_file_as_incompatible(file_class, url):
+@_PNG_BODIES
+def test_png_served_as_html_fails_media_file_as_incompatible(file_class, url, body):
     with (
         patch("ricecooker.config.UPDATE", True),
-        _fake_html_session(url, body=_PNG_1x1) as render,
+        _fake_html_session(url, body=body) as render,
     ):
         file = file_class(url)
         assert file.process_file() is None
