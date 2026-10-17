@@ -48,6 +48,7 @@ from ricecooker.classes.files import TiledThumbnailFile
 from ricecooker.classes.files import VideoFile
 from ricecooker.classes.licenses import get_license
 from ricecooker.classes.licenses import License
+from ricecooker.classes.nodes import AudioNode
 from ricecooker.classes.nodes import ChannelNode
 from ricecooker.classes.nodes import ContentNode
 from ricecooker.classes.nodes import CourseNode
@@ -55,6 +56,7 @@ from ricecooker.classes.nodes import CustomNavigationChannelNode
 from ricecooker.classes.nodes import CustomNavigationNode
 from ricecooker.classes.nodes import DocumentNode
 from ricecooker.classes.nodes import ExerciseNode
+from ricecooker.classes.nodes import H5PAppNode
 from ricecooker.classes.nodes import HTML5AppNode
 from ricecooker.classes.nodes import LessonNode
 from ricecooker.classes.nodes import METADATA_LABEL_CHOICES
@@ -3017,6 +3019,87 @@ def test_process_tree_raises_on_a_kind_mismatch_in_strict_mode(channel, node_cla
         pytest.raises(
             InvalidNodeException, match="Inferred kind document is not one of"
         ),
+    ):
+        ChannelManager(channel).process_tree()
+
+
+def _html_as(node_class, tmp_path, kwargs):
+    page = tmp_path / "page.html"
+    page.write_text("<html><body><p>Hi</p></body></html>")
+    return node_class(
+        "html",
+        "HTML",
+        license=get_license(licenses.CC_BY, copyright_holder="x"),
+        uri=str(page),
+        pipeline=FilePipeline(),
+        **kwargs,
+    )
+
+
+def _html_beside_an_epub(channel, tmp_path, node_class, kwargs):
+    channel.add_child(_html_as(node_class, tmp_path, kwargs))
+    channel.add_child(
+        DocumentNode(
+            "epub",
+            "EPUB",
+            license=get_license(licenses.CC_BY, copyright_holder="x"),
+            uri=sample_path("testdocument.epub"),
+            pipeline=FilePipeline(),
+        )
+    )
+
+
+PRESETLESS_CASES = pytest.mark.parametrize(
+    "node_class, kwargs",
+    [
+        (HTML5AppNode, {}),
+        (CustomNavigationNode, {}),
+        (VideoNode, {}),
+        (DocumentNode, {}),
+        (DocumentNode, {"derive_thumbnail": True}),
+        (AudioNode, {}),
+        (H5PAppNode, {}),
+        (ContentNode, {}),
+        (ExerciseNode, {"questions": [SingleSelectQuestion("q1", "Q", "A", ["A"])]}),
+    ],
+    ids=[
+        "html5",
+        "custom_navigation",
+        "video",
+        "document",
+        "document_derive_thumbnail",
+        "audio",
+        "h5p",
+        "untyped",
+        "exercise",
+    ],
+)
+
+
+@PRESETLESS_CASES
+def test_process_tree_drops_a_node_whose_uri_file_has_no_preset(
+    channel, tmp_path, node_class, kwargs
+):
+    _html_beside_an_epub(channel, tmp_path, node_class, kwargs)
+    with patch("ricecooker.config.STRICT", False):
+        filenames = ChannelManager(channel).process_tree()
+    assert [os.path.splitext(f)[1] for f in filenames] == [".epub"]
+
+
+@PRESETLESS_CASES
+def test_upload_tree_drops_a_node_whose_uri_file_has_no_preset(
+    channel, caplog, tmp_path, node_class, kwargs
+):
+    dropped = _html_as(node_class, tmp_path, kwargs)
+    summary = _upload_beside_a_kept_topic(channel, caplog, dropped)
+    assert summary == ["\t{}: No format preset inferred for page.html".format(dropped)]
+
+
+def test_process_tree_raises_on_a_presetless_uri_file_in_strict_mode(channel, tmp_path):
+    _html_beside_an_epub(channel, tmp_path, HTML5AppNode, {})
+    with (
+        patch("ricecooker.config.STRICT", True),
+        pytest.raises(InvalidNodeException, match="page.html"),
     ):
         ChannelManager(channel).process_tree()
 
