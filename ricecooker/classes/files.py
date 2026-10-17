@@ -30,6 +30,7 @@ from ricecooker.utils.pipeline.transfer import CatchAllWebResourceDownloadHandle
 from ricecooker.utils.pipeline.transfer import CONVERT_EXTENSIONS
 from ricecooker.utils.pipeline.transfer import path_ext_or_none
 from ricecooker.utils.pipeline.transfer import WebResourceHandler
+from ricecooker.utils.processing_run import run_once
 from ricecooker.utils.storage import copy_file_to_storage
 from ricecooker.utils.videos import extract_thumbnail_from_video
 from ricecooker.utils.youtube import get_language_with_alpha2_fallback
@@ -123,8 +124,20 @@ class File(object):
             f"object for file {self.filename} ({self.original_filename})"
         )
 
+    def _record_failure(self, err):
+        if self.error is None:
+            config.FAILED_FILES.append(self)
+        self.error = str(err)
+
+    def _clear_failure(self):
+        if self.error is not None and self in config.FAILED_FILES:
+            config.FAILED_FILES.remove(self)
+        self.error = None
+
     def get_filename(self):
-        return self.filename or self.process_file()
+        if self.filename:
+            return self.filename
+        return run_once(self, self.process_file)
 
     @property
     def checksum(self):
@@ -272,11 +285,11 @@ class DownloadFile(File):
                     # Don't overwrite the input path.
                     continue
                 setattr(self, key, metadata[key])
+            self._clear_failure()
             return super().process_file()
         except (ExpectedFileException, InvalidFileException) as err:
-            self.error = str(err)
             config.LOGGER.debug("Failed to download, error is: {}".format(err))
-            config.FAILED_FILES.append(self)
+            self._record_failure(err)
             return None
 
 
@@ -501,11 +514,11 @@ class _ExerciseGraphieFile(File):
         try:
             self.filename = self.generate_graphie_file()
             config.LOGGER.info("\t--- Generated graphie {}".format(self.filename))
+            self._clear_failure()
             return self.filename
         # Catch errors related to reading file path and handle silently
         except tuple(CatchAllWebResourceDownloadHandler.HANDLED_EXCEPTIONS) as err:
-            self.error = str(err)
-            config.FAILED_FILES.append(self)
+            self._record_failure(err)
 
     def generate_graphie_file(self):
         if self.ka_language is None:
@@ -582,11 +595,11 @@ class ExtractedThumbnailFile(ThumbnailFile):
             os.unlink(tempf.name)
             config.LOGGER.info("\t--- Extracted thumbnail {}".format(filename))
             self.filename = filename
+            self._clear_failure()
         except ThumbnailGenerationError as err:
             config.LOGGER.warning("\t    Failed to extract thumbnail {}".format(err))
             self.filename = None
-            self.error = str(err)
-            config.FAILED_FILES.append(self)
+            self._record_failure(err)
         return self.filename
 
     def extractor_fun(self, fpath_in, thumbpath_out, **kwargs):
