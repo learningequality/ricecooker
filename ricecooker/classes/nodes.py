@@ -298,11 +298,17 @@ class Node(object):
         for f in self.files:
             f.truncate_fields()
 
+        for q in self.get_questions():
+            q.truncate_fields()
+
     def to_dict(self):
         """to_dict: puts data in format CC expects
         Args: None
         Returns: dict of channel data
         """
+
+    def get_questions(self):
+        return self.questions
 
     def add_child(self, node):
         """add_child: Adds child node to node
@@ -1518,12 +1524,6 @@ class ExerciseNode(ContentNode):
         config.LOGGER.info("\t*** Images for {} have been processed".format(self.title))
         return downloaded
 
-    def truncate_fields(self):
-        for q in self.questions:
-            q.truncate_fields()
-
-        super(ExerciseNode, self).truncate_fields()
-
 
 class CustomNavigationNode(ContentNode):
     kind = content_kinds.TOPIC
@@ -1788,6 +1788,18 @@ class UnitNode(_CurriculumNode):
         self._validate_learning_objectives(learning_objectives)
         self.test_questions.append((question, variant, learning_objectives))
 
+    def get_questions(self):
+        return [q for q, _, _ in self.test_questions]
+
+    def process_files(self):
+        downloaded = super().process_files()
+        self.test_questions = [
+            (q.copy(), variant, los) for q, variant, los in self.test_questions
+        ]
+        for question in self.get_questions():
+            downloaded += question.process_question()
+        return downloaded
+
     def _validate(self):
         """Validate the unit including question balance and LO matching."""
         # Single pass: validate questions and partition by variant
@@ -1897,7 +1909,7 @@ class UnitNode(_CurriculumNode):
         result["extra_fields"] = json.dumps(extra_fields)
 
         # Serialize test questions
-        result["questions"] = [q.to_dict() for q, _, _ in self.test_questions]
+        result["questions"] = [q.to_dict() for q in self.get_questions()]
 
         return result
 

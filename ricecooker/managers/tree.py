@@ -141,7 +141,7 @@ class ChannelManager:
     def node_files(self, node, process=True):
         """Map each of ``node``'s processed filenames to its File."""
         files = list(node.files)
-        for question in getattr(node, "questions", []):
+        for question in node.get_questions():
             files.extend(question.files)
         output = {}
         for node_file in files:

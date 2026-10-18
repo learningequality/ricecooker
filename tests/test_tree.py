@@ -36,6 +36,7 @@ from test_videos import _clear_ricecookerfilecache
 
 from ricecooker import config
 from ricecooker.chefs import SushiChef
+from ricecooker.classes.curriculum import LearningObjective
 from ricecooker.classes.files import _ExerciseImageFile
 from ricecooker.classes.files import DocumentFile
 from ricecooker.classes.files import DownloadFile
@@ -67,6 +68,8 @@ from ricecooker.classes.nodes import VideoNode
 from ricecooker.classes.questions import PerseusQuestion
 from ricecooker.classes.questions import QTIQuestion
 from ricecooker.classes.questions import SingleSelectQuestion
+from ricecooker.classes.questions import VARIANT_A
+from ricecooker.classes.questions import VARIANT_B
 from ricecooker.commands import uploadchannel
 from ricecooker.exceptions import ChannelIncompleteError
 from ricecooker.exceptions import FileNotFoundException
@@ -2209,6 +2212,169 @@ def test_exercise_cloned_under_two_topics_uploads_every_placement(
             "h.png",
             "q.png",
         ]
+
+
+def _unit_with_question(source_id, question):
+    unit = UnitNode(source_id, source_id)
+    lo = LearningObjective("Understand addition")
+    unit.add_child(LessonNode(source_id + "-lesson", "Lesson"), [lo])
+    others = [
+        SingleSelectQuestion(f"{source_id}-q{i}", "Q", "a", ["a", "b"])
+        for i in range(3)
+    ]
+    for q, variant in zip(
+        [question] + others, [VARIANT_A, VARIANT_A, VARIANT_B, VARIANT_B]
+    ):
+        unit.add_question(q, variant, [lo])
+    return unit
+
+
+def _process_and_upload(manager, downloads, strict=True):
+    with (
+        patch("ricecooker.config.STRICT", strict),
+        patch("ricecooker.config.TASK_THREADS", 1),
+        fake_download_session(downloads),
+    ):
+        manager.validate()
+        filenames = manager.process_tree()
+
+    manager.root_id, manager.channel_id = "root", "chan-id"
+    posted = []
+    with patch("ricecooker.config.SESSION.post", side_effect=_fake_studio_post(posted)):
+        manager.upload_tree()
+    return filenames, [child for _, child in posted]
+
+
+def _assert_question_image_uploaded(child, question, field, filename):
+    (item,) = [
+        i for i in child["questions"] if i["assessment_id"] == question.assessment_id
+    ]
+    assert exercises.CONTENT_STORAGE_FORMAT.format(filename) in item[field]
+    assert [f["filename"] for f in item["files"]] == [filename]
+
+
+@pytest.mark.parametrize(
+    "field, posted_field",
+    [("question", "question"), ("answer", "answers"), ("hint", "hints")],
+)
+def test_unit_test_question_image_is_uploaded(
+    channel, exercise_image_file, exercise_image_filename, field, posted_field
+):
+    _clear_ricecookerfilecache()
+    image = "![](http://h/ok.png)"
+    question = SingleSelectQuestion(
+        "img",
+        image if field == "question" else "Q",
+        "a",
+        ["a", image if field == "answer" else "b"],
+        hints=[image if field == "hint" else "hint"],
+    )
+    course = CourseNode("course", "Course")
+    channel.add_child(course)
+    course.add_child(_unit_with_question("unit", question))
+    with open(exercise_image_file.path, "rb") as f:
+        png = f.read()
+
+    filenames, posted = _process_and_upload(
+        ChannelManager(channel), {"http://h/ok.png": png}
+    )
+
+    assert exercise_image_filename in filenames
+    (unit,) = [child for child in posted if child["source_id"] == "unit"]
+    _assert_question_image_uploaded(
+        unit, question, posted_field, exercise_image_filename
+    )
+
+
+def test_unit_test_question_failed_image_fails_only_the_unit(channel):
+    _clear_ricecookerfilecache()
+    question = SingleSelectQuestion("img", "![](http://h/missing.png)", "a", ["a"])
+    course = CourseNode("course", "Course")
+    channel.add_child(course)
+    unit = _unit_with_question("unit", question)
+    course.add_child(unit)
+
+    manager = ChannelManager(channel)
+    _, posted = _process_and_upload(manager, {}, strict=False)
+
+    assert [child["source_id"] for child in posted] == ["course"]
+    error = manager.failed_node_builds[unit.get_node_id().hex]["error"]
+    assert "http://h/missing.png" in error
+
+
+def test_question_shared_by_unit_and_exercise_uploads_both(
+    channel, exercise_image_file, exercise_image_filename
+):
+    _clear_ricecookerfilecache()
+    question = SingleSelectQuestion(
+        "img", "![](http://h/ok.png)", "a", ["a", "b"], hints=["hint"]
+    )
+    course = CourseNode("course", "Course")
+    channel.add_child(course)
+    course.add_child(_unit_with_question("unit", question))
+    channel.add_child(
+        ExerciseNode(
+            "ex",
+            "ex",
+            license=get_license(licenses.CC_BY, copyright_holder="x"),
+            exercise_data={"m": 1, "n": 1},
+            questions=[question],
+        )
+    )
+    with open(exercise_image_file.path, "rb") as f:
+        png = f.read()
+
+    _, posted = _process_and_upload(ChannelManager(channel), {"http://h/ok.png": png})
+
+    by_source_id = {child["source_id"]: child for child in posted}
+    for source_id in ("unit", "ex"):
+        _assert_question_image_uploaded(
+            by_source_id[source_id], question, "question", exercise_image_filename
+        )
+
+
+def test_unit_cloned_under_two_courses_uploads_every_placement(
+    channel, exercise_image_file, exercise_image_filename
+):
+    _clear_ricecookerfilecache()
+    question = SingleSelectQuestion(
+        "img", "![](http://h/ok.png)", "a", ["a", "b"], hints=["hint"]
+    )
+    unit = _unit_with_question("unit", question)
+    for source_id in ("c1", "c2"):
+        course = CourseNode(source_id, source_id)
+        channel.add_child(course)
+        course.add_child(unit)
+    with open(exercise_image_file.path, "rb") as f:
+        png = f.read()
+
+    manager = ChannelManager(channel)
+    manager.deduplicate_shared_nodes()
+    _, posted = _process_and_upload(manager, {"http://h/ok.png": png})
+
+    units = [child for child in posted if child["source_id"] == "unit"]
+    assert len(units) == 2
+    for child in units:
+        _assert_question_image_uploaded(
+            child, question, "question", exercise_image_filename
+        )
+
+
+def test_unit_test_question_source_url_is_truncated(channel):
+    question = SingleSelectQuestion(
+        "long", "Q", "a", ["a", "b"], source_url="http://h/" + "a" * 500
+    )
+    course = CourseNode("course", "Course")
+    channel.add_child(course)
+    course.add_child(_unit_with_question("unit", question))
+
+    _, posted = _process_and_upload(ChannelManager(channel), {})
+
+    (unit,) = [child for child in posted if child["source_id"] == "unit"]
+    (item,) = [
+        i for i in unit["questions"] if i["assessment_id"] == question.assessment_id
+    ]
+    assert item["source_url"] == question.source_url[: config.MAX_SOURCE_URL_LENGTH]
 
 
 @pytest.mark.parametrize(
