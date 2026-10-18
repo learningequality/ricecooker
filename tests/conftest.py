@@ -932,6 +932,13 @@ def stub_on_path(tmp_path, monkeypatch):
     return install
 
 
+@pytest.fixture
+def empty_path(tmp_path, monkeypatch):
+    empty = tmp_path / "empty-path"
+    empty.mkdir()
+    monkeypatch.setenv("PATH", str(empty))
+
+
 def hanging_stub(exe, answered="-bsfs", on_run=""):
     # Answers yt-dlp's version probe, then hangs on every other run.
     return f'case "$1" in {answered}) echo "{exe} version 7.0" ;; *) {on_run}exec sleep 30 ;; esac'

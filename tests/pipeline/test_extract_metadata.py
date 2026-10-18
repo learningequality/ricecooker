@@ -1,13 +1,18 @@
 """Tests for metadata extraction in the file pipeline."""
 
 import os
+import shutil
+import subprocess
 import tempfile
 import zipfile
 
 import pytest
+from cachecontrol.caches.file_cache import FileCache
 from le_utils.constants import content_kinds
 from le_utils.constants import format_presets
 
+from ricecooker import config
+from ricecooker.utils import caching
 from ricecooker.utils import videos
 from ricecooker.utils.pipeline import FilePipeline
 from ricecooker.utils.pipeline.exceptions import InvalidFileException
@@ -57,3 +62,29 @@ def test_hung_ffprobe_fails_file(video_file, stub_on_path, monkeypatch):
     monkeypatch.setattr(videos, "PROBE_TIMEOUT", 1)
     with pytest.raises(InvalidFileException, match="ffprobe timed out"):
         VideoMetadataExtractor().execute(video_file.path, skip_cache=True)
+
+
+@pytest.mark.parametrize("missing_tool", ["ffmpeg", "ffprobe"])
+def test_duration_skipped_without_media_tool_is_redetected_with_it(
+    monkeypatch, tmp_path, missing_tool
+):
+    monkeypatch.setattr(caching, "FILECACHE", FileCache(str(tmp_path / "cache")))
+    path = config.get_storage_path("no-{}-duration.webm".format(missing_tool))
+    # A webm muxed to a pipe has no duration header, so ffprobe reports N/A.
+    with open(path, "wb") as out:
+        subprocess.run(
+            ["ffmpeg", "-f", "lavfi", "-i", "testsrc=s=64x64:d=1"]
+            + ["-c:v", "libvpx", "-f", "webm", "pipe:1"],
+            stdout=out,
+            check=True,
+        )
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    present_tool = "ffprobe" if missing_tool == "ffmpeg" else "ffmpeg"
+    shutil.copy(shutil.which(present_tool), bin_dir)
+    with monkeypatch.context() as one_tool:
+        one_tool.setenv("PATH", str(bin_dir))
+        [result] = VideoMetadataExtractor().execute(path)
+        assert result.duration is None
+    [result] = VideoMetadataExtractor().execute(path)
+    assert result.duration is not None
