@@ -1913,11 +1913,11 @@ wheels = [
 
 [[package]]
 name = "pypdf2"
-version = "1.28.6"
+version = "3.0.1"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/0b/79/abdc2edda52463490c860232149242b693cbf6179d9863b0c7862cf9fd73/PyPDF2-1.28.6.tar.gz", hash = "sha256:c0840835d18357b077da05bdad1423f5e29419f318135b6a6542895930dc4905", size = 2848080, upload-time = "2022-09-08T11:15:30.238Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/9f/bb/18dc3062d37db6c491392007dfd1a7f524bb95886eb956569ac38a23a784/PyPDF2-3.0.1.tar.gz", hash = "sha256:a74408f69ba6271f71b9352ef4ed03dc53a31aa404d29b5d31f53bfecfee1440", size = 227419, upload-time = "2022-12-31T10:36:13.13Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ab/de/d119dd719304154e83eed74b48aec9b3db6ce1d5fd49ab7d23c07ca1f748/PyPDF2-1.28.6-py3-none-any.whl", hash = "sha256:d7118f0187153257b1f906dcfcd8236608f4987b6a9999b7c5ad49114706a1ad", size = 87076, upload-time = "2022-09-08T11:15:22.723Z" },
+    { url = "https://files.pythonhosted.org/packages/8e/5e/c86a5643653825d3c913719e788e41386bee415c2b87b4f955432f2de6b2/pypdf2-3.0.1-py3-none-any.whl", hash = "sha256:d16e4205cfee272fbdc0568b68d82be796540b1537508cef59388f839c191928", size = 232572, upload-time = "2022-12-31T10:36:10.327Z" },
 ]
 
 [[package]]
@@ -2247,7 +2247,7 @@ requires-dist = [
     { name = "lxml", specifier = ">=4.9" },
     { name = "pdf2image", specifier = "==1.17.0" },
     { name = "pillow", specifier = "==11.3.0" },
-    { name = "pypdf2", specifier = "==1.28.6" },
+    { name = "pypdf2", specifier = "==3.0.1" },
     { name = "requests", specifier = ">=2.11.1" },
     { name = "requests-file" },
     { name = "sentry-sdk", marker = "extra == 'sentry'", specifier = ">=2.32.0" },
