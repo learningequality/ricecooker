@@ -6,7 +6,6 @@ Ported from ``learningequality/imscp`` ``core.py`` to stdlib
 ``{*}`` wildcard rather than a fixed namespace map.
 """
 
-import io
 import logging
 import os
 import posixpath
@@ -17,6 +16,8 @@ from urllib.parse import unquote
 from xml.etree import ElementTree as ET
 
 from ricecooker.utils.encodings import decode_text
+from ricecooker.utils.encodings import parse_xml
+from ricecooker.utils.encodings import UnknownEncodingError
 from ricecooker.utils.references import mapper_for
 from ricecooker.utils.references import resolve_reference
 from ricecooker.utils.references import split_reference
@@ -107,14 +108,17 @@ def _default_organization(root):
 
 def _read_manifest(manifest_path):
     """Parse the manifest, falling back to detected encoding on a parse error."""
+    with open(manifest_path, "rb") as f:
+        data = f.read()
     try:
-        return ET.parse(manifest_path).getroot()
+        return parse_xml(data)
+    except UnknownEncodingError:
+        raise
     except ET.ParseError:
-        # Some manifests declare UTF-8 but contain other-encoded bytes; detect the
-        # real encoding, decode, and re-parse from re-encoded UTF-8 bytes.
-        with open(manifest_path, "rb") as f:
-            text, _encoding = decode_text(f.read())
-        return ET.parse(io.BytesIO(text.encode("utf-8", errors="replace"))).getroot()
+        # Some manifests declare UTF-8 but contain other-encoded bytes. expat
+        # rejects the lone surrogates decode_text's surrogateescape leaves.
+        text, _encoding = decode_text(data)
+        return parse_xml(text.encode("utf-8", errors="replace").decode("utf-8"))
 
 
 def _strip_ns(key):
@@ -242,7 +246,8 @@ def _resolve_metadata_elem(elem, ims_dir):
         ext_path = contained_path(ims_dir, location.text.strip())
         if ext_path and os.path.isfile(ext_path):
             try:
-                return ET.parse(ext_path).getroot()
+                with open(ext_path, "rb") as f:
+                    return parse_xml(f.read())
             except ET.ParseError:
                 LOGGER.warning(
                     "IMSCP: could not parse external metadata %s", location.text

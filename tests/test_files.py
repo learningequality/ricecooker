@@ -1,6 +1,7 @@
 """Tests for file downloading and processing"""
 
 import base64
+import codecs
 import errno
 import hashlib
 import os.path
@@ -1233,6 +1234,35 @@ def _zip_bytes(files):
     return buffer.getvalue()
 
 
+def _epub_container(encoding="utf-8"):
+    return (
+        f'<?xml version="1.0" encoding="{encoding}"?>'
+        '<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">'
+        '<rootfiles><rootfile full-path="content.opf" '
+        'media-type="application/oebps-package+xml"/></rootfiles></container>'
+    )
+
+
+def _epub_opf(encoding="utf-8", title="x"):
+    return (
+        f'<?xml version="1.0" encoding="{encoding}"?>'
+        '<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="id">'
+        '<metadata xmlns:dc="http://purl.org/dc/elements/1.1/">'
+        f"<dc:title>{title}</dc:title></metadata>"
+        '<manifest><item id="c" href="c.html" media-type="application/xhtml+xml"/></manifest>'
+        '<spine><itemref idref="c"/></spine></package>'
+    )
+
+
+def _epub_zip(container, opf=None, chapter=None):
+    entries = {"mimetype": "application/epub+zip", "META-INF/container.xml": container}
+    if opf is not None:
+        entries["content.opf"] = opf
+    if chapter is not None:
+        entries["c.html"] = chapter
+    return _zip_bytes(entries)
+
+
 @pytest.mark.parametrize(
     "file_class,name,content,reason",
     [
@@ -1262,13 +1292,41 @@ def _zip_bytes(files):
             "mimetype is incorrect",
         ),
         (
+            EPubFile,
+            "bad.epub",
+            _epub_zip(_epub_container("bogus")),
+            "container manifest is not well-formed",
+        ),
+        (
+            EPubFile,
+            "bad.epub",
+            _epub_zip(_epub_container("Shift_JIS")[:-1]),
+            "container manifest is not well-formed",
+        ),
+        (
+            EPubFile,
+            "bad.epub",
+            _epub_zip(_epub_container(), _epub_opf("bogus")),
+            "OPF file is not well-formed",
+        ),
+        (
             BloomPubFile,
             "bad.bloompub",
             _zip_bytes({"meta.json": "{}"}),
             "meta.json missing required fields",
         ),
     ],
-    ids=["html5", "html5-empty-entry", "html5-no-html", "h5p", "epub", "bloom"],
+    ids=[
+        "html5",
+        "html5-empty-entry",
+        "html5-no-html",
+        "h5p",
+        "epub",
+        "epub-container-unknown-encoding",
+        "epub-container-multibyte-malformed",
+        "epub-opf-unknown-encoding",
+        "bloom",
+    ],
 )
 def test_invalid_archive_error_omits_storage_path(
     tmp_path, file_class, name, content, reason
@@ -1279,7 +1337,34 @@ def test_invalid_archive_error_omits_storage_path(
 
     assert archive_file.process_file() is None
     assert reason in archive_file.error
+    assert "\n" not in archive_file.error
     assert os.path.abspath(config.STORAGE_DIRECTORY) not in archive_file.error
+
+
+@pytest.mark.parametrize(
+    "encoding,bom",
+    [
+        ("Shift_JIS", b""),
+        ("MS932", b""),
+        ("utf8", b""),
+        ("utf8", codecs.BOM_UTF8),
+        ("ISO-2022-JP", b""),
+    ],
+    ids=["Shift_JIS", "MS932", "utf8", "utf8-bom", "ISO-2022-JP"],
+)
+def test_epub_with_multibyte_encoded_xml_processes(tmp_path, encoding, bom):
+    path = tmp_path / "multibyte.epub"
+    path.write_bytes(
+        _epub_zip(
+            bom + _epub_container(encoding).encode(encoding),
+            bom + _epub_opf(encoding, title="日本語の本").encode(encoding),
+            "<html><body><p>hi</p></body></html>",
+        )
+    )
+    epub_file = EPubFile(str(path))
+
+    assert epub_file.process_file() is not None
+    assert epub_file.error is None
 
 
 def test_non_index_entry_htmlzip_validation(non_index_entry_zip):
