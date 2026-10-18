@@ -45,6 +45,7 @@ from .context import ContextMetadata
 from .context import FileMetadata
 from .convert import _seal_directory_to_file
 from .convert import ArchiveProcessingBaseHandler
+from .convert import AudioCompressionHandler
 from .convert import ConversionStageHandler
 from .convert import SubtitleConversionHandler
 from .convert import VideoCompressionHandler
@@ -247,7 +248,23 @@ _ARCHIVE_EXTENSIONS = frozenset(
 )
 
 
+_MEDIA_EXTENSIONS = frozenset(
+    AudioCompressionHandler.EXTENSIONS | VideoCompressionHandler.EXTENSIONS
+)
+
+
+_TEXT_ASSET_EXTENSIONS = STATIC_ASSET_EXTENSIONS - {
+    "eot",
+    "otf",
+    "ttf",
+    "woff",
+    "woff2",
+}
+
+
 _WHITESPACE = b" \t\r\n\f"
+# filetype's signature window (filetype/utils.py _NUM_SIGNATURE_BYTES).
+_SNIFF_BYTES = 8192
 
 
 def _is_html(head):
@@ -283,7 +300,7 @@ class CatchAllWebResourceDownloadHandler(DeclaredExtMixin, WebResourceHandler):
             if asset_ref:
                 key += ":asset"
         elif asset_ref and name_ext in STATIC_ASSET_EXTENSIONS:
-            key += ":asset"
+            key += ":asset:v2"
         return key
 
     def handle_file(
@@ -307,7 +324,11 @@ class CatchAllWebResourceDownloadHandler(DeclaredExtMixin, WebResourceHandler):
             r.close()
             raise
         chunks = r.iter_content(chunk_size=8192)
-        head = next(chunks, b"")
+        head = b""
+        for chunk in chunks:
+            head += chunk
+            if len(head) >= _SNIFF_BYTES:
+                break
         if ext:
             ext = resolve_path_ext(original_filename, declared_ext=ext)
         else:
@@ -331,12 +352,23 @@ class CatchAllWebResourceDownloadHandler(DeclaredExtMixin, WebResourceHandler):
     ):
         name_ext = path_ext_or_none(filename)
         mimetype = mimetype_from_content_type(content_type)
+        sniffed = filetype.guess(head)
+        if sniffed and mimetype in self.HTML_CONTENT_TYPES:
+            content_type = mimetype = None
+            if (
+                sniffed.extension not in _CONTAINER_EXTENSIONS
+                and name_ext not in _TEXT_ASSET_EXTENSIONS
+                and not {name_ext, sniffed.extension} <= _MEDIA_EXTENSIONS
+                and name_ext != sniffed.extension
+                and name_ext not in exts_from_mimetype(sniffed.mime)
+            ):
+                return sniffed.extension
         page = (
-            name_ext in STATIC_ASSET_EXTENSIONS
-            and mimetype == "text/html"
+            name_ext in NAME_KEPT_EXTENSIONS
+            and mimetype in self.HTML_CONTENT_TYPES
             and _is_html(head)
         )
-        if page and asset_ref:
+        if page and (asset_ref or name_ext not in STATIC_ASSET_EXTENSIONS):
             raise InvalidFileException(
                 f"{path} was answered with an HTML page, not a .{name_ext} file"
             )
@@ -344,11 +376,10 @@ class CatchAllWebResourceDownloadHandler(DeclaredExtMixin, WebResourceHandler):
             name_ext in NAME_KEPT_EXTENSIONS or name_ext in exts_from_mimetype(mimetype)
         ):
             return name_ext
-        if name_ext is None and default_ext:
+        html = mimetype in self.HTML_CONTENT_TYPES and _is_html(head)
+        if name_ext is None and default_ext and not html:
             return default_ext
-        ext = ext_from_content_type(content_type) or getattr(
-            filetype.guess(head), "extension", None
-        )
+        ext = ext_from_content_type(content_type) or getattr(sniffed, "extension", None)
         # Many formats (.ggb, .sb3, .jar) are containers under their own extension.
         if name_ext and ext in _CONTAINER_EXTENSIONS:
             ext = default_ext if default_ext in _ARCHIVE_EXTENSIONS else name_ext

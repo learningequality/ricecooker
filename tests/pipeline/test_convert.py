@@ -1665,7 +1665,10 @@ class TestArchiveProcessor:
         ],
         ids=["js", "css", "woff2", "svg", "json", "png", "mp3"],
     )
-    def test_asset_answered_with_html_left_unrewritten(self, url):
+    @pytest.mark.parametrize(
+        "split", [False, True], ids=["one-chunk", "leading-newline-chunk"]
+    )
+    def test_asset_answered_with_html_left_unrewritten(self, url, split):
         page = (
             f'<html><head><script src="{url}"></script>'
             f'<link rel="stylesheet" href="{url}"></head>'
@@ -1681,7 +1684,7 @@ class TestArchiveProcessor:
             patch.object(transfer, "render_page", render_page),
             _run_external_refs(
                 {"index.html": page},
-                {url: not_found.encode()},
+                {url: [b"\n", not_found.encode()] if split else not_found.encode()},
                 content_types={url: "text/html; charset=utf-8"},
             ) as (out_dir, _fetched),
         ):

@@ -880,11 +880,13 @@ def test_rejected_default_ext_keyword_fails_cached_download(tmp_path):
 
 
 @contextmanager
-def _fake_html_session(url, content_type="text/html"):
+def _fake_html_session(
+    url,
+    content_type="text/html",
+    body=b"<!doctype html><html></html>",
+):
     with (
-        fake_download_session(
-            {url: b"<!doctype html><html></html>"}, {url: content_type}
-        ),
+        fake_download_session({url: body}, {url: content_type}),
         patch(
             "ricecooker.utils.pipeline.transfer.render_page",
             side_effect=fake_render_page(),
@@ -935,6 +937,92 @@ def test_html_response_renders_despite_default_ext(
         filename = file.process_file()
     assert filename is not None, file.error
     assert filename.endswith(".zip")
+
+
+@pytest.mark.parametrize(
+    "file_class",
+    [
+        ThumbnailFile,
+        AudioFile,
+        VideoFile,
+        DocumentFile,
+        EPubFile,
+        BloomPubFile,
+        H5PFile,
+        WebVideoFile,
+    ],
+)
+def test_html_response_fails_non_html_file_as_incompatible(file_class):
+    url = "https://s.example/get?id=norender-{}".format(file_class.__name__)
+    with _fake_html_session(url) as render:
+        file = file_class(url)
+        assert file.process_file() is None
+    assert "incompatible" in file.error.lower()
+    assert render.call_count == 0
+
+
+@pytest.mark.parametrize(
+    "file_class,url",
+    [
+        (VideoFile, "https://x.example/page-at-ext/clip.mp4"),
+        (AudioFile, "https://x.example/page-at-ext/clip.mp3"),
+        (DocumentFile, "https://x.example/page-at-ext/doc.pdf"),
+        (ThumbnailFile, "https://x.example/page-at-ext/thumb.png"),
+        (EPubFile, "https://x.example/page-at-ext/book.epub"),
+        (H5PFile, "https://x.example/page-at-ext/app.h5p"),
+        (SubtitleFile, "https://x.example/page-at-ext/subs.vtt"),
+    ],
+)
+@pytest.mark.parametrize("content_type", ["text/html", "application/xhtml+xml"])
+def test_html_page_at_file_ext_fails(file_class, url, content_type):
+    kwargs = {"language": "en"} if file_class is SubtitleFile else {}
+    url += "?type=" + content_type
+    body = b"<!doctype html><html><body>Not Found</body></html>"
+    with _fake_html_session(url, content_type=content_type, body=body) as render:
+        file = file_class(url, **kwargs)
+        assert file.process_file() is None
+    assert "was answered with an HTML page" in file.error
+    assert render.call_count == 0
+
+
+_PNG_BODIES = pytest.mark.parametrize(
+    "body", [_PNG_1x1, [_PNG_1x1[:1], _PNG_1x1[1:]]], ids=["one-chunk", "split-chunks"]
+)
+
+
+@_PNG_BODIES
+def test_png_served_as_html_processes_as_thumbnail(body):
+    url = "https://site.example/thumb.php?id=1"
+    with (
+        patch("ricecooker.config.UPDATE", True),
+        _fake_html_session(url, "text/html; charset=UTF-8", body),
+    ):
+        file = ThumbnailFile(url)
+        filename = file.process_file()
+    assert file.error is None
+    assert filename.endswith(".png")
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://site.example/clip.mp4",
+        "https://site.example/clip.mp3",
+        "https://site.example/clip",
+        "https://site.example/clip?id=1",
+    ],
+)
+@pytest.mark.parametrize("file_class", [VideoFile, AudioFile])
+@_PNG_BODIES
+def test_png_served_as_html_fails_media_file_as_incompatible(file_class, url, body):
+    with (
+        patch("ricecooker.config.UPDATE", True),
+        _fake_html_session(url, body=body) as render,
+    ):
+        file = file_class(url)
+        assert file.process_file() is None
+    assert "incompatible" in file.error.lower()
+    assert render.call_count == 0
 
 
 @pytest.mark.parametrize(
