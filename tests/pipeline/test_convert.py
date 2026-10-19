@@ -91,6 +91,8 @@ from ricecooker.utils.zip import create_predictable_zip
 from ricecooker.utils.zip import directory_member_names
 
 from .helpers import _PNG_1x1
+from .helpers import _SVG
+from .helpers import _XML_SVG
 from .helpers import fake_render_page
 
 
@@ -1725,6 +1727,47 @@ class TestArchiveProcessor:
             assert sorted(os.listdir(out_dir)) == ["index.html"]
             with open(os.path.join(out_dir, "index.html")) as f:
                 assert f.read() == page
+
+    @pytest.mark.parametrize(
+        "url,body,ext",
+        [
+            ("https://site.example/img.php?id=3", _PNG_1x1, ".png"),
+            ("https://site.example/chart.php?id=3", _XML_SVG, ".svg"),
+            ("https://site.example/chart.php?id=3", b"<!-- chart -->\n" + _SVG, ".svg"),
+        ],
+        ids=["png", "xml-svg", "comment-svg"],
+    )
+    def test_file_ref_answered_as_html_is_stored_by_type(self, url, body, ext):
+        page = f'<html><body><img src="{url}"></body></html>'
+        with (
+            patch.object(config, "UPDATE", True),
+            patch.object(
+                transfer, "render_page", side_effect=AssertionError("rendered")
+            ),
+            _run_external_refs(
+                {"index.html": page}, {url: body}, content_types={url: "text/html"}
+            ) as (out_dir, _fetched),
+        ):
+            [asset] = [n for n in os.listdir(out_dir) if n != "index.html"]
+            assert asset.endswith(ext)
+            with open(os.path.join(out_dir, "index.html")) as f:
+                assert f'src="{asset}"' in f.read()
+
+    def test_html_ref_answered_as_html_is_rendered(self):
+        url = "https://site.example/img.php?id=3"
+        page = f'<html><body><img src="{url}"></body></html>'
+        with (
+            patch.object(config, "UPDATE", True),
+            patch.object(
+                transfer, "render_page", side_effect=fake_render_page()
+            ) as render,
+            _run_external_refs(
+                {"index.html": page},
+                {url: b"<!doctype html><html></html>"},
+                content_types={url: "text/html"},
+            ),
+        ):
+            assert render.call_count == 1
 
     @pytest.mark.parametrize(
         "url, content_type",

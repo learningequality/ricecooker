@@ -1,5 +1,6 @@
 """Tests for tree construction"""
 
+import io
 import json
 import logging
 import os
@@ -8,6 +9,7 @@ import tempfile
 import time
 import uuid
 import zipfile
+from contextlib import nullcontext
 from unittest.mock import MagicMock
 from unittest.mock import mock_open
 from unittest.mock import patch
@@ -31,6 +33,8 @@ from le_utils.constants.labels import resource_type
 from le_utils.constants.labels import subjects
 from le_utils.constants.languages import getlang
 from PIL import Image
+from pipeline.helpers import _PNG_1x1
+from pipeline.helpers import fake_render_page
 from pipeline.test_transfer import _http_error
 from pipeline.test_transfer import _video_info
 from pipeline.test_transfer import fake_extractors
@@ -801,6 +805,62 @@ def test_automatic_resource_node_document(document_file):
     node.process_files()
     assert node.kind == content_kinds.DOCUMENT
     assert node.learning_activities == [learning_activities.READ]
+
+
+def _html5_zip_bytes():
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        zf.writestr("index.html", "<html><body><p>Hi</p></body></html>")
+    return buf.getvalue()
+
+
+@pytest.mark.parametrize(
+    "url,body,render_count,exts,kind",
+    [
+        ("https://site.example/img.php?id=3", _PNG_1x1, 0, [], None),
+        (
+            "https://site.example/app.php?id=5",
+            _html5_zip_bytes(),
+            0,
+            [".kpub"],
+            content_kinds.DOCUMENT,
+        ),
+        (
+            "https://site.example/img.php?id=3",
+            b"<!doctype html><html></html>",
+            1,
+            [".kpub"],
+            content_kinds.DOCUMENT,
+        ),
+    ],
+    ids=["png", "zip", "html"],
+)
+def test_automatic_resource_node_html_labelled_uri(url, body, render_count, exts, kind):
+    node = ContentNode(
+        "test",
+        "test",
+        licenses.CC_BY,
+        uri=url,
+        pipeline=FilePipeline(),
+        copyright_holder="Demo Holdings",
+    )
+    with (
+        patch.object(config, "UPDATE", True),
+        fake_download_session({url: body}, {url: "text/html"}),
+        patch(
+            "ricecooker.utils.pipeline.transfer.render_page",
+            side_effect=fake_render_page(),
+        ) as render,
+        (
+            pytest.raises(InvalidNodeException, match="No format preset inferred")
+            if kind is None
+            else nullcontext()
+        ),
+    ):
+        node.process_files()
+    assert render.call_count == render_count
+    assert [os.path.splitext(f.filename)[1] for f in node.files] == exts
+    assert node.kind == kind
 
 
 @pytest.mark.parametrize("node_class", [ContentNode, DocumentNode])

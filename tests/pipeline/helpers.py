@@ -10,6 +10,9 @@ _PNG_1x1 = (
     b"\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82"
 )
 
+_SVG = b'<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"></svg>'
+_XML_SVG = b'<?xml version="1.0"?>\n' + _SVG
+
 
 def fake_render_page(**expected_kwargs):
     """Return a render_page stand-in that emits an index.html with a data: img.
