@@ -4,10 +4,15 @@ from copy import deepcopy
 from typing import Dict
 from typing import Optional
 
+from le_utils.constants import format_presets
+
+from ricecooker import config
 from ricecooker.utils.pipeline.context import _recursive_update
 from ricecooker.utils.pipeline.context import FileMetadata
 
 from .convert import ConversionStageHandler
+from .exceptions import ExpectedFileException
+from .exceptions import InvalidFileException
 from .extract_metadata import ExtractMetadataStageHandler
 from .file_handler import CompositeHandler
 from .transfer import DownloadStageHandler
@@ -94,20 +99,32 @@ class FilePipeline(CompositeHandler):
         for handler in self._children:
             updated_file_metadata_list = []
             for file_metadata in file_metadata_list:
-                if handler.should_handle(file_metadata.path):
+                if file_metadata.error is None and handler.should_handle(
+                    file_metadata.path
+                ):
                     # Pass in any context from the previous handler
                     scoped_context = deepcopy(context)
                     scoped_context.update(file_metadata.to_dict())
                     # Execute the handler and get the new list of metadata
-                    new_metadata_list = handler.execute(
-                        file_metadata.path,
-                        context=scoped_context,
-                        skip_cache=skip_cache
-                        or (
-                            skip_download_cache
-                            and isinstance(handler, DownloadStageHandler)
-                        ),
-                    )
+                    try:
+                        new_metadata_list = handler.execute(
+                            file_metadata.path,
+                            context=scoped_context,
+                            skip_cache=skip_cache
+                            or (
+                                skip_download_cache
+                                and isinstance(handler, DownloadStageHandler)
+                            ),
+                        )
+                    except (ExpectedFileException, InvalidFileException) as e:
+                        if not (
+                            file_metadata.preset == format_presets.VIDEO_SUBTITLE
+                            and len(file_metadata_list) > 1
+                        ):
+                            raise
+                        error = f"Skipping {file_metadata.language} subtitles for {path}: {e}"
+                        config.LOGGER.warning(f"\t{error}")
+                        new_metadata_list = [FileMetadata(error=error)]
                     for new_metadata in new_metadata_list:
                         # For each new metadata in the returned list
                         # make a unique copy of the existing metadata and

@@ -59,6 +59,7 @@ class FileMetadata:
     license: Optional[str] = None
     license_description: Optional[str] = None
     preset: Optional[str] = None
+    error: Optional[str] = None
     content_node_metadata: Optional[ContentNodeMetadata] = None
 
     def to_dict(self):
