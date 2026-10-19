@@ -42,6 +42,7 @@ from ricecooker.utils.audio import AudioCompressionError
 from ricecooker.utils.audio import AudioEncoding
 from ricecooker.utils.audio import compress_audio
 from ricecooker.utils.caching import generate_key
+from ricecooker.utils.encodings import parse_xml
 from ricecooker.utils.imscp import collapse_single_children
 from ricecooker.utils.imscp import contained_path
 from ricecooker.utils.imscp import IMSCP_MANIFEST
@@ -875,7 +876,7 @@ class EPUBConversionHandler(ArchiveProcessingBaseHandler):
         # Then read the container manifest to confirm it exists and get the path to the OPF file.
         container_file = self.read_file_from_archive(zf, "META-INF/container.xml")
         try:
-            container = ET.fromstring(container_file)
+            container = parse_xml(container_file)
             rootfiles = container.findall(
                 ".//ns:rootfile",
                 {"ns": "urn:oasis:names:tc:opendocument:xmlns:container"},
@@ -899,7 +900,7 @@ class EPUBConversionHandler(ArchiveProcessingBaseHandler):
         # If the container manifest is valid, read the OPF file and confirm it exists and has a manifest.
         opf_file = self.read_file_from_archive(zf, opf_path)
         try:
-            opf = ET.fromstring(opf_file)
+            opf = parse_xml(opf_file)
             manifest = opf.find(
                 ".//ns:manifest", {"ns": "http://www.idpf.org/2007/opf"}
             )

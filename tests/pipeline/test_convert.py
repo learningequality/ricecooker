@@ -2892,13 +2892,23 @@ class TestIMSCPDecomposition:
             )
         assert os.path.abspath(config.STORAGE_DIRECTORY) not in str(excinfo.value)
 
-    def test_unparseable_manifest_error_omits_storage_path(self, tmp_path):
+    @pytest.mark.parametrize(
+        "manifest",
+        [
+            "<manifest",
+            '<?xml version="1.0" encoding="bogus"?><manifest/>',
+            '<?xml version="1.0" encoding="undefined"?><manifest/>',
+        ],
+        ids=["malformed", "unknown-encoding", "unusable-codec"],
+    )
+    def test_unparseable_manifest_error_omits_storage_path(self, tmp_path, manifest):
         path = str(tmp_path / "package.zip")
-        _create_archive(path, {"imsmanifest.xml": "<manifest"})
+        _create_archive(path, {"imsmanifest.xml": manifest})
         with pytest.raises(
             InvalidNodeException, match="could not be parsed"
         ) as excinfo:
             _processed_package_node(path, get_license(licenses.PUBLIC_DOMAIN))
+        assert "\n" not in str(excinfo.value)
         assert os.path.abspath(config.STORAGE_DIRECTORY) not in str(excinfo.value)
 
     def test_gitta_has_multiple_html5_leaves(self):

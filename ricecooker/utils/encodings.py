@@ -1,6 +1,8 @@
 import base64
 import codecs
 import re
+import xml.etree.ElementTree as ET
+from xml.parsers.expat import errors as expat_errors
 
 import chardet
 from le_utils.constants import file_formats
@@ -11,6 +13,10 @@ BASE64_REGEX = re.compile(BASE64_REGEX_STR, flags=re.IGNORECASE)
 DATA_URI_BASE64_REGEX = re.compile(
     r"^data:([\w.+-]+/[\w.+-]+)?(?:;[\w-]+=[^;,]+)*;base64,([A-Za-z0-9+/=\s]+)$",
     flags=re.IGNORECASE,
+)
+
+XML_ENCODING_DECLARATION_REGEX = re.compile(
+    rb"""^(?:\xef\xbb\xbf)?\s*<\?xml\s[^>]*?\bencoding\s*=\s*["']([A-Za-z][\w.:-]*)["']"""
 )
 
 # Not from mimetypes: its table differs by OS and Python version.
@@ -168,6 +174,46 @@ def decode_text(data):
         except UnicodeDecodeError:
             # surrogateescape can't absorb a truncated UTF-16/32 code unit.
             return data.decode("latin-1"), "latin-1"
+
+
+class UnknownEncodingError(ET.ParseError):
+    pass
+
+
+def _expat_misread_encoding(error, data):
+    # expat maps non-native encodings such as "utf8" or ISO-2022-JP one
+    # byte per character, so their valid multi-byte text is an invalid token
+    return isinstance(data, bytes) and error.code in (
+        expat_errors.codes[expat_errors.XML_ERROR_INVALID_TOKEN],
+        expat_errors.codes[expat_errors.XML_ERROR_UNKNOWN_ENCODING],
+    )
+
+
+def parse_xml(data):
+    """Parse XML bytes or text into an ``xml.etree`` root; raise ``ET.ParseError`` on any failure."""
+    try:
+        return ET.fromstring(data)
+    except LookupError as e:
+        raise UnknownEncodingError(str(e)) from e
+    except ET.ParseError as e:
+        if not _expat_misread_encoding(e, data):
+            raise
+        expat_error = e
+    except ValueError as e:
+        # expat can't decode multi-byte encodings such as Shift_JIS, and
+        # raises UnicodeError for codecs such as "undefined" on some Pythons
+        expat_error = ET.ParseError(str(e))
+    declaration = isinstance(data, bytes) and XML_ENCODING_DECLARATION_REGEX.match(data)
+    if not declaration:
+        raise expat_error
+    try:
+        text = data.decode(declaration.group(1).decode("ascii"))
+    except UnicodeDecodeError as e:
+        raise ET.ParseError(str(e)) from e
+    except (LookupError, UnicodeError) as e:
+        raise UnknownEncodingError(str(e)) from e
+    # expat ignores the XML declaration's encoding when parsing a str
+    return ET.fromstring(text)
 
 
 def encode_text(text, encoding):
