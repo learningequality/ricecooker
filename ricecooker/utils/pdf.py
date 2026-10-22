@@ -1,59 +1,69 @@
 import os
 
-from PyPDF2 import PdfFileReader
-from PyPDF2 import PdfFileWriter
-from PyPDF2.generic import Destination
-from PyPDF2.generic import NullObject
-from PyPDF2.utils import PdfReadError
+from pypdf import PdfReader
+from pypdf import PdfWriter
+from pypdf.errors import LimitReachedError
+from pypdf.errors import PdfReadError
+from pypdf.generic import Destination
+from pypdf.generic import Fit
+from pypdf.generic import NullObject
 
 from ricecooker.utils.pipeline.transfer import read
 
 
-class CustomDestination(Destination):
-    def __init__(self, title, page, typ, *args):
-        try:
-            super(CustomDestination, self).__init__(title, page, typ, *args)
-        except PdfReadError:
-            pass
+class CustomPDFReader(PdfReader):
+    def _handle_encryption(self, password):
+        # PyPDF2 1.28.6 did not decrypt with the empty user password
+        raise PdfReadError("file has not been decrypted")
 
-
-class _AnyHeaderStream(object):
-    # Passes the %PDF- header check PdfReader.read makes with its first read; 1.26 had none
-    def __init__(self, stream):
-        self._stream = stream
-        self.seek = stream.seek
-        self.tell = stream.tell
-
-    def read(self, size=-1):
-        self.read = self._stream.read
-        self._stream.seek(size, 1)
-        return b"%PDF-"
-
-    def __getattr__(self, name):
-        return getattr(self._stream, name)
-
-
-class CustomPDFReader(PdfFileReader):
-    def read(self, stream):
-        super(CustomPDFReader, self).read(
-            _AnyHeaderStream(stream) if self.strict else stream
-        )
+    def _basic_validation(self, stream):
+        # PyPDF2 1.26 had no %PDF- header check
+        stream.seek(0, os.SEEK_END)
 
     @staticmethod
     def _get_xref_issues(stream, startxref):
-        # 1.26's startxref handling: no pre-check, so no full-file xref rebuild
+        # PyPDF2 1.26's startxref handling: no pre-check, so no full-file xref rebuild
         return 0
 
+    def _sanitize_pdf15_xref_stream_index_pairs(
+        self, index_pairs, entry_sizes, xref_stream
+    ):
+        try:
+            return super()._sanitize_pdf15_xref_stream_index_pairs(
+                index_pairs, entry_sizes, xref_stream
+            )
+        except LimitReachedError:
+            # PyPDF2 1.28.6 read entries past the xref stream's data as free; strict pypdf raises, non-strict clamps the count
+            self.strict = False
+            try:
+                return super()._sanitize_pdf15_xref_stream_index_pairs(
+                    index_pairs, entry_sizes, xref_stream
+                )
+            finally:
+                self.strict = True
+
     def _build_destination(self, title, array):
-        page, typ = array[0:2]
-        array = array[2:]
-        return CustomDestination(title, page, typ, *array)
+        try:
+            return super()._build_destination(title, array)
+        except PdfReadError:
+            # Strict pypdf raises on an unknown fit type; ricecooker's PyPDF2 CustomDestination kept the entry
+            return Destination(title, array[0], Fit.fit())
 
+    def _build_outline_item(self, node):
+        # PyPDF2 1.28.6 skipped outline entries without /Title; strict pypdf raises
+        if "/Title" not in node:
+            return None
+        return super()._build_outline_item(node)
 
-class CustomPDFWriter(PdfFileWriter):
-    def set_need_appearances_writer(self):
-        # PyPDF2 1.28 points /AcroForm at the Info dict; add no form at all
-        pass
+    @property
+    def outline(self):
+        # PyPDF2 1.28.6 returned an empty outline when the catalog's /Outlines object was missing
+        if "/Outlines" in self.root_object:
+            try:
+                self.root_object["/Outlines"]
+            except PdfReadError:
+                return []
+        return super().outline
 
 
 class PDFParser(object):
@@ -97,7 +107,7 @@ class PDFParser(object):
 
         self.file = open(self.path, "rb")
         try:
-            self.pdf = CustomPDFReader(self.file)
+            self.pdf = CustomPDFReader(self.file, strict=True)
         except Exception:
             self.file.close()
             raise
@@ -111,6 +121,12 @@ class PDFParser(object):
     def check_path(self):
         if not self.path:
             raise ValueError("self.path not found; call `open` first")
+
+    def _get_page_number(self, dest, default=None):
+        if not isinstance(dest, Destination) or isinstance(dest.page, NullObject):
+            return None
+        page_num = self.pdf.get_destination_page_number(dest)
+        return default if page_num is None else page_num
 
     def get_toc(self, subchapters=False):  # noqa: C901
         """
@@ -133,16 +149,14 @@ class PDFParser(object):
         chapters = []
         index = 0
 
-        for dest in self.pdf.getOutlines():
+        for dest in self.pdf.outline:
+            page_num = self._get_page_number(dest, default=0 if index == 0 else None)
             # Process chapters
-            if isinstance(dest, CustomDestination) and not isinstance(
-                dest["/Page"], NullObject
-            ):
-                page_num = self.pdf.getDestinationPageNumber(dest)
+            if page_num is not None:
                 chapter_pagerange = {
                     "title": dest["/Title"].replace("\xa0", " "),
                     "page_start": page_num if index != 0 else 0,
-                    "page_end": self.pdf.numPages,
+                    "page_end": len(self.pdf.pages),
                 }
                 if subchapters:
                     chapter_pagerange["children"] = []
@@ -159,19 +173,17 @@ class PDFParser(object):
                 index += 1
 
             # Attach subchapters (lists) as children to last chapter
-            elif subchapters and isinstance(dest, list):
+            elif subchapters and isinstance(dest, list) and chapters:
                 parent = chapters[index - 1]
                 subindex = 0
                 for subdest in dest:
-                    if isinstance(subdest, CustomDestination) and not isinstance(
-                        subdest["/Page"], NullObject
-                    ):
-                        subpage_num = self.pdf.getDestinationPageNumber(subdest)
+                    subpage_num = self._get_page_number(subdest)
+                    if subpage_num is not None:
                         parent["children"].append(
                             {
                                 "title": subdest["/Title"].replace("\xa0", " "),
                                 "page_start": subpage_num,
-                                "page_end": self.pdf.numPages,
+                                "page_end": len(self.pdf.pages),
                             }
                         )
                         if subindex > 0:
@@ -185,7 +197,7 @@ class PDFParser(object):
         Save the subset of pages specified in `pagerange` (dict) as separate PDF.
         e.g. pagerange = {'title':'First chapter', 'page_start':0, 'page_end':5}
         """
-        writer = CustomPDFWriter()
+        writer = PdfWriter()
         slug = "".join(
             [c for c in pagerange["title"].replace(" ", "-") if c.isalnum() or c == "-"]
         )
@@ -193,8 +205,7 @@ class PDFParser(object):
             [self.directory, "{}{}.pdf".format(prefix, slug)]
         )
         for page in range(pagerange["page_start"], pagerange["page_end"]):
-            writer.addPage(self.pdf.getPage(page))
-            writer.remove_links()  # must be done every page
+            writer.add_page(self.pdf.pages[page], excluded_keys=("/Annots",))
         with open(write_to_path, "wb") as outfile:
             writer.write(outfile)
         return write_to_path

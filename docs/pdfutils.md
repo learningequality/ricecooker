@@ -11,7 +11,7 @@ When importing source PDFs like books that are very long documents (100+ pages),
 it is better for the Kolibri user experience to split them into multiple shorter PDF
 content nodes.
 
-The `PDFParser` class in `ricecooker.utils.pdf` is a wrapper around the `PyPDF2`
+The `PDFParser` class in `ricecooker.utils.pdf` is a wrapper around the `pypdf`
 library that allows us to split long PDF documents into individual chapters,
 based on either the information available in the PDF's table of contents, or user-defined page ranges.
 

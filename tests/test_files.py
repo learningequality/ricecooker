@@ -36,7 +36,7 @@ from PIL import Image
 from pipeline.helpers import _SVG
 from pipeline.helpers import _XML_SVG
 from pipeline.helpers import fake_render_page
-from PyPDF2 import PdfFileWriter
+from pypdf import PdfWriter
 from requests import ConnectionError
 from requests import HTTPError
 from requests.exceptions import ChunkedEncodingError
@@ -2661,8 +2661,7 @@ def test_pdf_validation_handler_empty_pdf(tmpdir):
     handler = PDFValidationHandler()
     empty_pdf_path = os.path.join(str(tmpdir), "empty.pdf")
 
-    # Create an empty PDF file using PyPDF2
-    writer = PdfFileWriter()
+    writer = PdfWriter()
     with open(empty_pdf_path, "wb") as f:
         writer.write(f)
 
