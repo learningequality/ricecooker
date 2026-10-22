@@ -62,6 +62,8 @@ from ricecooker.utils.pipeline.transfer import YoutubeDownloadHandler
 from ricecooker.utils.youtube import YouTubeResource
 
 from .helpers import _PNG_1x1
+from .helpers import _SVG
+from .helpers import _XML_SVG
 from .helpers import fake_render_page
 
 _OGG_THEORA = b"OggS\0\x02" + b"\0" * 22 + b"\x80theora" + b"\0" * 30
@@ -478,11 +480,7 @@ def fake_extractors(results):
 @contextmanager
 def html_page(url, render_page=None):
     with (
-        patch.object(
-            config.DOWNLOAD_SESSION,
-            "head",
-            side_effect=_fake_head({url: "text/html"}),
-        ) as head,
+        _fake_probe({url: "text/html"}) as head,
         patch(
             "ricecooker.utils.pipeline.transfer.render_page",
             side_effect=render_page or AssertionError("rendered the page"),
@@ -1469,6 +1467,27 @@ class _FakeGetResponse(_FakeHeadResponse):
     def iter_content(self, chunk_size=8192):
         yield self.content
 
+    def close(self):
+        pass
+
+
+@contextmanager
+def _fake_probe(content_types_by_url, get=None):
+    with (
+        patch.object(
+            config.DOWNLOAD_SESSION,
+            "head",
+            side_effect=_fake_head(content_types_by_url),
+        ) as head,
+        patch.object(
+            config.DOWNLOAD_SESSION,
+            "get",
+            get
+            or MagicMock(return_value=_FakeGetResponse(b"<html></html>", "text/html")),
+        ),
+    ):
+        yield head
+
 
 @pytest.mark.parametrize(
     "url,content_type,content,default_ext,suffix",
@@ -1601,11 +1620,18 @@ class _FakeGetResponse(_FakeHeadResponse):
             ".zip",
         ),
         (
+            "https://s.example/scene.ggb?id=5",
+            "application/zip",
+            b"PK\x03\x04",
+            "vtt",
+            ".ggb",
+        ),
+        (
             "https://s.example/getsub.php?id=5",
             "application/zip",
             b"PK\x03\x04",
             "vtt",
-            ".php",
+            ".zip",
         ),
         ("https://s.example/stream.php?id=1", "audio/ogg", b"OggS", None, ".ogg"),
         ("https://s.example/feed.xml", "text/html", b"<data>1</data>", None, ".xml"),
@@ -1638,6 +1664,14 @@ class _FakeGetResponse(_FakeHeadResponse):
             "png",
             ".png",
         ),
+        ("https://site.example/chart.php?id=3", "text/html", _XML_SVG, None, ".svg"),
+        (
+            "https://site.example/chart?id=3",
+            "text/html",
+            b"<!-- c -->" + _SVG,
+            None,
+            ".svg",
+        ),
         ("https://site.example/clip.mp4", "text/html", _PNG_1x1, None, ".png"),
         ("https://site.example/clip.mp3", "text/html", _PNG_1x1, None, ".png"),
         ("https://site.example/clip", "text/html", _PNG_1x1, "mp4", ".png"),
@@ -1652,6 +1686,14 @@ class _FakeGetResponse(_FakeHeadResponse):
         ("https://site.example/pkg.h5p", "text/html", b"PK\x03\x04", None, ".h5p"),
         ("https://s.example/get.php?id=2", "text/html", b"PK\x03\x04", "h5p", ".h5p"),
         ("https://s.example/get?id=1", "text/html", b"PK\x03\x04", None, ".zip"),
+        ("https://s.example/app.php?id=5", "text/html", b"PK\x03\x04", None, ".zip"),
+        (
+            "https://s.example/download.ashx?id=5",
+            "text/html",
+            b"PK\x03\x04",
+            None,
+            ".zip",
+        ),
         ("https://x.example/clip.ogv", "text/html", _OGG_THEORA, None, ".ogv"),
         ("https://x.example/song.m4a", "text/html", _MP4_ISOM, None, ".m4a"),
         ("https://x.example/app.js", "text/html", b"BMap.init();\n", None, ".js"),
@@ -1678,6 +1720,7 @@ class _FakeGetResponse(_FakeHeadResponse):
         "svg-served-as-html",
         "container-type-takes-default-ext",
         "container-type-ignores-non-archive-default-ext",
+        "container-type-at-script-ext-takes-container-ext",
         "ogg-not-oga",
         "xml-served-as-html",
         "comment-first-svg-served-as-html",
@@ -1685,6 +1728,8 @@ class _FakeGetResponse(_FakeHeadResponse):
         "comment-only-css-served-as-html",
         "xhtml-page-at-asset-ext",
         "png-served-as-html-at-php",
+        "xml-svg-served-as-html-at-php",
+        "comment-svg-served-as-html-without-ext",
         "png-served-as-html-at-mp4",
         "png-served-as-html-at-mp3",
         "png-served-as-html-without-ext",
@@ -1693,6 +1738,8 @@ class _FakeGetResponse(_FakeHeadResponse):
         "zip-served-as-html-keeps-name-ext",
         "zip-served-as-html-at-php-takes-default-ext",
         "zip-served-as-html-without-ext",
+        "zip-served-as-html-at-php",
+        "zip-served-as-html-at-ashx",
         "ogg-served-as-html-keeps-ogv",
         "mp4-served-as-html-keeps-m4a",
         "bmp-like-js-served-as-html-keeps-js",
@@ -1750,17 +1797,20 @@ def test_every_pil_image_mimetype_maps_to_a_converted_ext():
 
 
 @pytest.mark.parametrize(
-    "url,cached,refetched",
+    "url,cached_key,cached,refetched",
     [
-        ("https://site.example/stale-cache.php", "stale.php", True),
-        ("https://site.example/kept-cache.png", "kept.png", False),
+        ("https://site.example/stale-cache.php", "", "stale.php", True),
+        ("https://site.example/kept-cache.png", "", "kept.png", False),
+        ("https://site.example/stale-v2-app.php?id=5", ":v2", "stale-v2.php", True),
     ],
-    ids=["renamed-ext-refetched", "kept-ext-reused"],
+    ids=["renamed-ext-refetched", "kept-ext-reused", "v2-script-ext-refetched"],
 )
-def test_catchall_download_cached_by_earlier_release(url, cached, refetched):
+def test_catchall_download_cached_by_earlier_release(
+    url, cached_key, cached, refetched
+):
     with open(config.get_storage_path(cached), "wb") as fh:
         fh.write(_PNG_1x1)
-    set_cache_data(f"DOWNLOAD:{url}", {"filename": cached})
+    set_cache_data(f"DOWNLOAD:{url}{cached_key}", {"filename": cached})
     with patch.object(
         config.DOWNLOAD_SESSION,
         "get",
@@ -1865,9 +1915,7 @@ def test_singlefile_render_handler_should_handle_detects_html():
         "https://spa.example/": "text/html; charset=utf-8",
         "https://spa.example/report.pdf": "application/pdf",
     }
-    with patch.object(
-        config.DOWNLOAD_SESSION, "head", side_effect=_fake_head(content_types)
-    ):
+    with _fake_probe(content_types):
         assert handler.should_handle("https://spa.example/") is True
         # A non-HTML resource falls through to the catch-all download handler.
         assert handler.should_handle("https://spa.example/report.pdf") is False
@@ -1876,15 +1924,51 @@ def test_singlefile_render_handler_should_handle_detects_html():
     assert handler.should_handle("data:image/png;base64,AA") is False
 
 
-def test_singlefile_render_handler_head_is_cached():
-    # should_handle is called repeatedly (composite probe + dispatch); the HEAD
-    # request must fire at most once per URL.
+@pytest.mark.parametrize(
+    "body,claims",
+    [
+        (b"<!doctype html><html></html>", True),
+        (_PNG_1x1, False),
+        (_XML_SVG, False),
+        (b"<!-- chart -->" + _SVG, False),
+        (b"<!DOCTYPE svg PUBLIC '-//W3C//DTD SVG 1.1//EN' 'x.dtd'>" + _SVG, False),
+        (
+            b'<?xml version="1.0"?><html xmlns="http://www.w3.org/1999/xhtml"></html>',
+            True,
+        ),
+    ],
+    ids=["html", "png", "xml-svg", "comment-svg", "doctype-svg", "xhtml"],
+)
+def test_singlefile_render_handler_probe_is_cached(body, claims):
     handler = SingleFileRenderHandler()
-    head = MagicMock(return_value=_FakeHeadResponse("text/html"))
-    with patch.object(config.DOWNLOAD_SESSION, "head", head):
-        assert handler.should_handle("https://spa.example/") is True
-        assert handler.should_handle("https://spa.example/") is True
+    get = MagicMock(return_value=_FakeGetResponse(body, "text/html"))
+    with _fake_probe({"https://spa.example/": "text/html"}, get) as head:
+        assert handler.should_handle("https://spa.example/") is claims
+        assert handler.should_handle("https://spa.example/") is claims
     assert head.call_count == 1
+    assert get.call_count == 1
+
+
+def test_singlefile_render_handler_claims_when_sniff_fails():
+    handler = SingleFileRenderHandler()
+    get = MagicMock(side_effect=requests.ConnectionError("refused"))
+    with _fake_probe({"https://spa.example/": "text/html"}, get):
+        assert handler.should_handle("https://spa.example/") is True
+        assert handler.should_handle("https://spa.example/") is True
+    assert get.call_count == 1
+
+
+def test_rejected_head_binary_probe_body_is_not_rendered(monkeypatch):
+    methods = _fake_http(
+        monkeypatch,
+        lambda pool, method, url, headers: (
+            _response(405)
+            if method == "HEAD"
+            else _response(200, "text/html", _PNG_1x1)
+        ),
+    )
+    assert SingleFileRenderHandler().should_handle("https://site.example/img") is False
+    assert methods == ["HEAD", "GET"]
 
 
 def test_singlefile_render_handler_produces_zip():
@@ -1976,11 +2060,7 @@ def test_singlefile_render_end_to_end_explosion():
             "ricecooker.utils.pipeline.transfer.render_page",
             side_effect=fake_render_page(),
         ),
-        patch.object(
-            config.DOWNLOAD_SESSION,
-            "head",
-            side_effect=_fake_head({"https://spa.example/": "text/html"}),
-        ),
+        _fake_probe({"https://spa.example/": "text/html"}),
     ):
         result = pipeline.execute("https://spa.example/")
 
@@ -2010,9 +2090,7 @@ def test_page_at_asset_extension_url_renders(url):
             "ricecooker.utils.pipeline.transfer.render_page",
             side_effect=fake_render_page(),
         ),
-        patch.object(
-            config.DOWNLOAD_SESSION, "head", side_effect=_fake_head({url: "text/html"})
-        ),
+        _fake_probe({url: "text/html"}),
     ):
         result = FilePipeline().execute(url)
     assert result[0].preset == format_presets.KPUB_ZIP
@@ -2026,9 +2104,7 @@ def test_default_pipeline_renders_html_and_downloads_other_sources():
         "https://spa.example/": "text/html",
         "https://example.com/x.pdf": "application/pdf",
     }
-    with patch.object(
-        config.DOWNLOAD_SESSION, "head", side_effect=_fake_head(content_types)
-    ):
+    with _fake_probe(content_types):
         # An HTML page is claimed by the render handler.
         assert pipeline.should_handle("https://spa.example/") is True
         # A non-HTML resource still routes to a default download handler.
@@ -2173,7 +2249,7 @@ def test_cached_render_survives_failing_source(monkeypatch):
         with pytest.raises(ExpectedFileException, match="503"):
             DownloadStageHandler().execute(url, skip_cache=True)
     assert second[0].path == first[0].path
-    assert cassette.play_count == 4
+    assert cassette.play_count == 5
 
 
 @pytest.mark.parametrize(
@@ -2216,7 +2292,7 @@ def test_cached_download_of_html_page_is_rendered(monkeypatch):
     ):
         result = DownloadStageHandler().execute(url)
     assert result[0].filename.endswith(".zip")
-    assert methods == ["GET", "HEAD"]
+    assert methods == ["GET", "HEAD", "GET"]
 
 
 def _failing_source(status):

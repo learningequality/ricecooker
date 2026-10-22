@@ -7,7 +7,9 @@ import os
 import re
 import subprocess
 import tempfile
+from contextlib import closing
 from contextlib import contextmanager
+from dataclasses import dataclass
 from dataclasses import field
 from sys import platform
 from typing import Dict
@@ -116,6 +118,12 @@ class DiskResourceHandler(DeclaredExtMixin, FileHandler):
         return FileMetadata(original_filename=os.path.basename(path))
 
 
+@dataclass
+class _Probe:
+    content_type: str
+    non_page: Optional[bool]
+
+
 class WebResourceHandler(FileHandler):
     """Base class for handling web URLs"""
 
@@ -125,30 +133,36 @@ class WebResourceHandler(FileHandler):
 
     def __init__(self, **context):
         super().__init__(**context)
-        self._content_type_cache = {}
+        self._probe_cache = {}
 
-    def _content_type(self, url: str) -> str:
-        if url not in self._content_type_cache:
+    def _probe(self, url: str) -> _Probe:
+        if url not in self._probe_cache:
             try:
                 response = config.DOWNLOAD_SESSION.head(
                     url, allow_redirects=True, timeout=(30, 30)
                 )
             except RequestException:
                 response = None
-            if response is None or not response.ok:
+            if response is not None and response.ok:
+                self._probe_cache[url] = _Probe(_media_type(response), None)
+            else:
                 try:
-                    response = config.DOWNLOAD_SESSION.get(
-                        url, stream=True, timeout=(30, 60)
-                    )
-                    response.close()
-                    response.raise_for_status()
+                    self._probe_cache[url] = _get_sniffed(url)
                 except RequestException as e:
                     raise ProbeError(e) from e
-            content_type = response.headers.get("content-type", "")
-            self._content_type_cache[url] = (
-                content_type.split(";", 1)[0].strip().lower()
-            )
-        return self._content_type_cache[url]
+        return self._probe_cache[url]
+
+    def _content_type(self, url: str) -> str:
+        return self._probe(url).content_type
+
+    def _is_non_page(self, url: str) -> bool:
+        probe = self._probe(url)
+        if probe.non_page is None:
+            try:
+                probe.non_page = _get_sniffed(url).non_page
+            except RequestException:
+                probe.non_page = False
+        return probe.non_page
 
     def should_handle(self, url):
         """Check if this handler should handle the given URL"""
@@ -242,6 +256,23 @@ NAME_KEPT_EXTENSIONS = CONVERT_EXTENSIONS | STATIC_ASSET_EXTENSIONS
 
 _CONTAINER_EXTENSIONS = frozenset({"7z", "bz2", "gz", "rar", "tar", "xz", "zip"})
 
+_SERVER_SCRIPT_EXTENSIONS = frozenset(
+    {
+        "action",
+        "ashx",
+        "asp",
+        "aspx",
+        "cfm",
+        "cgi",
+        "do",
+        "jsp",
+        "php",
+        "phtml",
+        "pl",
+        "py",
+    }
+)
+
 _ARCHIVE_EXTENSIONS = frozenset(
     ext
     for handler in ConversionStageHandler.DEFAULT_CHILDREN
@@ -269,15 +300,70 @@ _WHITESPACE = b" \t\r\n\f"
 _SNIFF_BYTES = 8192
 
 
-def _is_html(head):
+def _read_sniff_window(chunks):
+    head = b""
+    for chunk in chunks:
+        head += chunk
+        if len(head) >= _SNIFF_BYTES:
+            break
+    return head
+
+
+def _get_sniffed(url):
+    response = config.DOWNLOAD_SESSION.get(url, stream=True, timeout=(30, 60))
+    with closing(response):
+        response.raise_for_status()
+        try:
+            head = _read_sniff_window(response.iter_content(chunk_size=8192))
+        except RequestException:
+            head = b""
+    return _Probe(
+        _media_type(response), filetype.guess(head) is not None or _is_svg(head)
+    )
+
+
+def _media_type(response):
+    content_type = response.headers.get("content-type", "")
+    return content_type.split(";", 1)[0].strip().lower()
+
+
+def _container_ext(ext, name_ext, default_ext):
+    # Many formats (.ggb, .sb3, .jar) are containers under their own extension.
+    if not name_ext or ext not in _CONTAINER_EXTENSIONS:
+        return ext
+    if default_ext in _ARCHIVE_EXTENSIONS:
+        return default_ext
+    if name_ext in _SERVER_SCRIPT_EXTENSIONS:
+        return ext
+    return name_ext
+
+
+def _first_markup(head):
     start = head.lstrip(b"\xef\xbb\xbf" + _WHITESPACE).lower()
     while start.startswith((b"<!--", b"<?")):
         close = b"-->" if start.startswith(b"<!--") else b"?>"
         end = start.find(close)
         if end == -1:
-            return False
+            return b""
         start = start[end + len(close) :].lstrip(_WHITESPACE)
-    return start.startswith((b"<!doctype html", b"<html", b"<head", b"<body"))
+    return start
+
+
+def _is_html(head):
+    return _first_markup(head).startswith(
+        (b"<!doctype html", b"<html", b"<head", b"<body")
+    )
+
+
+def _is_svg(head):
+    start = _first_markup(head)
+    if start.startswith(b"<!doctype svg"):
+        return True
+    return start.startswith(b"<svg") and start[4:5] in (
+        b">",
+        b"/",
+        *(bytes([c]) for c in _WHITESPACE),
+    )
 
 
 class WebDownloadContextMetadata(GenericFileContextMetadata):
@@ -301,6 +387,8 @@ class CatchAllWebResourceDownloadHandler(DeclaredExtMixin, WebResourceHandler):
                 key += ":lang"
             if asset_ref:
                 key += ":asset"
+            if name_ext in _SERVER_SCRIPT_EXTENSIONS:
+                key += ":script"
         elif asset_ref and name_ext in STATIC_ASSET_EXTENSIONS:
             key += ":asset:v2"
         return key
@@ -326,11 +414,7 @@ class CatchAllWebResourceDownloadHandler(DeclaredExtMixin, WebResourceHandler):
             r.close()
             raise
         chunks = r.iter_content(chunk_size=8192)
-        head = b""
-        for chunk in chunks:
-            head += chunk
-            if len(head) >= _SNIFF_BYTES:
-                break
+        head = _read_sniff_window(chunks)
         if ext:
             ext = resolve_path_ext(original_filename, declared_ext=ext)
         else:
@@ -365,6 +449,8 @@ class CatchAllWebResourceDownloadHandler(DeclaredExtMixin, WebResourceHandler):
                 and name_ext not in exts_from_mimetype(sniffed.mime)
             ):
                 return sniffed.extension
+        if mimetype in self.HTML_CONTENT_TYPES and _is_svg(head):
+            return "svg"
         page = (
             name_ext in NAME_KEPT_EXTENSIONS
             and mimetype in self.HTML_CONTENT_TYPES
@@ -382,10 +468,7 @@ class CatchAllWebResourceDownloadHandler(DeclaredExtMixin, WebResourceHandler):
         if name_ext is None and default_ext and not html:
             return default_ext
         ext = ext_from_content_type(content_type) or getattr(sniffed, "extension", None)
-        # Many formats (.ggb, .sb3, .jar) are containers under their own extension.
-        if name_ext and ext in _CONTAINER_EXTENSIONS:
-            ext = default_ext if default_ext in _ARCHIVE_EXTENSIONS else name_ext
-        ext = ext or name_ext
+        ext = _container_ext(ext, name_ext, default_ext) or name_ext
         if not ext:
             raise InvalidFileException(f"Could not determine the file type of {path}")
         if not language and ext in SubtitleConversionHandler.EXTENSIONS:
@@ -936,7 +1019,9 @@ class SingleFileRenderHandler(WebResourceHandler):
             return False
         if parsed.scheme not in ("http", "https") or not parsed.netloc:
             return False
-        return self._content_type(url) in self.HTML_CONTENT_TYPES
+        if self._content_type(url) not in self.HTML_CONTENT_TYPES:
+            return False
+        return not self._is_non_page(url)
 
     def get_cache_key(self, path, rejected_default_ext=None, **kwargs) -> str:
         # Include the crawl settings so two depths/scopes of the same URL do
@@ -982,10 +1067,10 @@ class DownloadStageHandler(StageHandler):
 
     def __init__(self, children=None):
         super().__init__(children=children)
-        content_type_cache = {}
+        probe_cache = {}
         for child in self._children:
             if isinstance(child, WebResourceHandler):
-                child._content_type_cache = content_type_cache
+                child._probe_cache = probe_cache
 
     @staticmethod
     def _claims(handler, path):

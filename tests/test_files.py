@@ -33,6 +33,8 @@ from le_utils.constants import languages
 from le_utils.constants.exercises import GRAPHIE_DELIMITER
 from pdf2image.exceptions import PDFInfoNotInstalledError
 from PIL import Image
+from pipeline.helpers import _SVG
+from pipeline.helpers import _XML_SVG
 from pipeline.helpers import fake_render_page
 from PyPDF2 import PdfFileWriter
 from requests import ConnectionError
@@ -880,6 +882,14 @@ def test_rejected_default_ext_keyword_fails_cached_download(tmp_path):
             assert "Incompatible default_ext" in file.error
 
 
+def _zip_bytes(files):
+    buffer = BytesIO()
+    with zipfile.ZipFile(buffer, "w") as zf:
+        for name, content in files.items():
+            zf.writestr(name, content)
+    return buffer.getvalue()
+
+
 @contextmanager
 def _fake_html_session(
     url,
@@ -1024,6 +1034,70 @@ def test_png_served_as_html_fails_media_file_as_incompatible(file_class, url, bo
         assert file.process_file() is None
     assert "incompatible" in file.error.lower()
     assert render.call_count == 0
+
+
+@pytest.fixture
+def fresh_pipeline(monkeypatch):
+    monkeypatch.setattr(config, "FILE_PIPELINE", FilePipeline())
+
+
+@pytest.mark.parametrize(
+    "file_class,url,body,ext",
+    [
+        (DownloadFile, "https://site.example/img.php?id=3", _PNG_1x1, ".png"),
+        (
+            DownloadFile,
+            "https://site.example/img.php?id=3",
+            [_PNG_1x1[:1], _PNG_1x1[1:]],
+            ".png",
+        ),
+        (
+            HTMLZipFile,
+            "https://site.example/app.php?id=5",
+            _zip_bytes({"index.html": "<html><body>App</body></html>"}),
+            ".zip",
+        ),
+        (DownloadFile, "https://site.example/chart.php?id=3", _XML_SVG, ".svg"),
+        (
+            DownloadFile,
+            "https://site.example/chart.php?id=3",
+            b"<!-- chart -->\n" + _SVG,
+            ".svg",
+        ),
+    ],
+    ids=["png", "split-png", "zip", "xml-svg", "comment-svg"],
+)
+@pytest.mark.usefixtures("fresh_pipeline")
+def test_binary_served_as_html_downloads(file_class, url, body, ext):
+    with (
+        patch("ricecooker.config.UPDATE", True),
+        _fake_html_session(url, body=body) as render,
+    ):
+        file = file_class(url)
+        filename = file.process_file()
+    assert file.error is None
+    assert filename.endswith(ext)
+    assert render.call_count == 0
+
+
+@pytest.mark.parametrize(
+    "file_class,url",
+    [
+        (DownloadFile, "https://site.example/img.php?id=3"),
+        (HTMLZipFile, "https://site.example/app.php?id=5"),
+    ],
+)
+@pytest.mark.usefixtures("fresh_pipeline")
+def test_html_page_at_binary_url_renders(file_class, url):
+    with (
+        patch("ricecooker.config.UPDATE", True),
+        _fake_html_session(url) as render,
+    ):
+        file = file_class(url)
+        filename = file.process_file()
+    assert file.error is None
+    assert filename.endswith(".zip")
+    assert render.call_count == 1
 
 
 @pytest.mark.parametrize(
@@ -1312,14 +1386,6 @@ def test_truncated_utf16_member_left_unchanged(tmp_path):
     assert html_file.error is None
     with zipfile.ZipFile(config.get_storage_path(filename)) as zf:
         assert zf.read("other.html") == other
-
-
-def _zip_bytes(files):
-    buffer = BytesIO()
-    with zipfile.ZipFile(buffer, "w") as zf:
-        for name, content in files.items():
-            zf.writestr(name, content)
-    return buffer.getvalue()
 
 
 def _epub_container(encoding="utf-8"):
