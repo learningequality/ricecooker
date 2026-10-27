@@ -217,6 +217,11 @@ class SushiChef(object):
             metavar="KEY",
             help="With --remote: forward KEY from this environment (repeatable).",
         )
+        parser.add_argument(
+            "--detach",
+            action="store_true",
+            help="With --remote: start the run, or find it running, and exit without attaching.",
+        )
 
         # [OPTIONS] --- extra key=value options are supported, but do not appear in help
 
@@ -323,9 +328,11 @@ class SushiChef(object):
                 "Agruments --quiet, --warn, and --debug cannot be used together."
             )
 
-        if (args["env"] or args["env_pass"]) and args["remote"] is None:
+        if args["remote"] is None and (
+            args["env"] or args["env_pass"] or args["detach"]
+        ):
             raise InvalidUsageException(
-                "Arguments --env and --env-pass require --remote."
+                "Arguments --env, --env-pass and --detach require --remote."
             )
 
     def _resolve_token(self, args):
@@ -591,7 +598,10 @@ class SushiChef(object):
                 env = forwarded_env(args["token"], args["env"], args["env_pass"])
                 sys.exit(
                     run_remotely(
-                        chef_argv(sys.argv), env, remote=args["remote"] or None
+                        chef_argv(sys.argv),
+                        env,
+                        remote=args["remote"] or None,
+                        detach=args["detach"],
                     )
                 )
             self.config_logger(args, options)

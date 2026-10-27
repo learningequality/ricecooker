@@ -14,6 +14,7 @@ from .managers.tree import ChannelManager
 from .utils.request_utils import DomainSpecificAuth
 from .utils.slack import send_slack_notification
 
+CHANNEL_CREATED = "DONE: Channel created at"
 RESUME_REMOVED = "--resume and --step have been removed: every run starts from the beginning, reusing downloaded files from the local cache."
 
 
@@ -167,7 +168,7 @@ def uploadchannel(  # noqa: C901
         publish_tree(tree, channel_id)
 
     # Open link on web browser (if specified) and return new link
-    config.LOGGER.info("\n\nDONE: Channel created at {0}\n".format(channel_link))
+    config.LOGGER.info(f"\n\n{CHANNEL_CREATED} {channel_link}\n")
     if prompt and prompt_yes_or_no("Would you like to open your channel now?"):
         config.LOGGER.info("Opening channel... ")
         webbrowser.open_new_tab(channel_link)

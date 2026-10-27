@@ -141,7 +141,7 @@ def no_token_prompt(monkeypatch):
 def handed_off(monkeypatch, studio_token):
     calls = []
 
-    def record(argv, env, remote=None):
+    def record(argv, env, remote=None, detach=False):
         calls.append((argv, env, remote))
         return 7
 
@@ -181,9 +181,10 @@ def test_bad_env_values_are_rejected(studio_token, flag):
         chef_arg_parser(f"./chef.py --remote {flag}")
 
 
-def test_env_flags_without_remote_are_usage_errors(studio_token):
-    with pytest.raises(InvalidUsageException):
-        chef_arg_parser("./chef.py --token=t --env A=1")
+@pytest.mark.parametrize("flag", ["--env A=1", "--detach"])
+def test_client_flags_without_remote_are_usage_errors(studio_token, flag):
+    with pytest.raises(InvalidUsageException, match="require --remote"):
+        chef_arg_parser(f"./chef.py --token=t {flag}")
 
 
 @pytest.mark.parametrize(

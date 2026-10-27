@@ -9,6 +9,7 @@ import re
 import sys
 from pathlib import Path
 from shlex import quote
+from typing import Optional
 
 import ricecooker
 from ricecooker import __version__
@@ -65,12 +66,15 @@ LOGIND = (
 )
 SCOPE = ("systemd-run", "--user", "--scope")
 
+# sh fragment run in the chef dir; $d: bookkeeping dir. wc pads the byte counts with spaces.
+LOG_SIZES_FILE = "log-sizes"
+LOG_SIZES = f'wc -c logs/*.log > "$d/{LOG_SIZES_FILE}" 2>/dev/null'
+
 # sh -c script; args: <bookkeeping dir> <venv> <digest> <build> <names> <chef argv...>.
 # Box-owned env first, then the session env (client --env/--env-pass/token) over it.
 # Session env values are base64: $(tmux show-environment) would strip trailing newlines.
 # The trailing x keeps a value's trailing newlines from $(...).
 # venv.log survives only this run's failed build; the driver prints its tail.
-# chef-started exists only once this run's chef starts.
 # The { ...; echo $? > venv.rc; } | tee form: POSIX sh has no pipefail.
 RUN_CHEF = (
     'd=$1 venv=$2 digest=$3 build=$4 names=$5; shift 5; mkdir -p "$d"; '
@@ -82,7 +86,7 @@ RUN_CHEF = (
     '{ sh -c "$build" 2>&1; echo $? > "$d/venv.rc"; } | tee "$d/venv.log"; '
     'read rc < "$d/venv.rc"; [ "$rc" = 0 ] || exit "$rc"; '
     'echo "$digest" > "$venv/.ricecooker-digest"; rm -f "$d/venv.log" "$d/venv.rc"; fi; '
-    'touch "$d/chef-started"; exec "$venv/bin/python" "$@"'
+    f'{LOG_SIZES}; touch "$d/chef-started"; exec "$venv/bin/python" "$@"'
 )
 
 # sh -c script; $1: remote chef dir, $2: chef-started. Prints the newest log
@@ -121,7 +125,7 @@ def env_pair(value: str) -> tuple:
 def client_flag(name: str):
     """The client-only flag `name` spells, or None. argparse accepts unambiguous
     abbreviations (`--tok`), so those must be recognized too."""
-    flags = ("--remote", *VALUE_FLAGS)
+    flags = ("--remote", "--detach", *VALUE_FLAGS)
     if name in flags:
         return name
     matches = [f for f in flags if len(name) > 2 and f.startswith(name)]
@@ -320,7 +324,7 @@ def _reattach_hint(session) -> str:
     profile = session.transport.profile
     return (
         f"{profile.name} keeps running on {profile.ssh}. "
-        "Re-run with the same --remote to reattach."
+        "Re-run with the same --remote to reattach, or check it with `remote status`."
     )
 
 
@@ -370,6 +374,29 @@ def _start(session, argv, env) -> None:
     session.create(chef_command(session, venv, argv, env), encoded, launcher)
 
 
+def chef_log(session) -> Optional[str]:
+    """The newest chef log of this run; None before the chef starts writing one."""
+    started = posixpath.join(session.bookkeeping_dir, "chef-started")
+    latest = session.transport.ssh(
+        ["sh", "-c", LATEST_LOG, "sh", session.chef_dir, started]
+    )
+    name = latest.stdout.strip()
+    return posixpath.join(session.chef_dir, name) if name else None
+
+
+def log_lines(session, log) -> list:
+    chef = [f"chef log: {log}"] if log else []
+    return [*chef, f"session log: {session.log_path}"]
+
+
+def since(started) -> str:
+    return f"since {started:%Y-%m-%d %H:%M}"
+
+
+def ended(exit_code) -> str:
+    return "ended without an exit code" if exit_code is None else f"exited {exit_code}"
+
+
 def finish(session, code) -> int:
     if code == NOT_A_TTY:
         _say(_reattach_hint(session))
@@ -378,12 +405,8 @@ def finish(session, code) -> int:
         raise RemoteDriverError(f"remote: attach exited {code}")
     exit_code = session.exit_code()
     transport = session.transport
-    started = posixpath.join(session.bookkeeping_dir, "chef-started")
-    latest = transport.ssh(["sh", "-c", LATEST_LOG, "sh", session.chef_dir, started])
-    chef_log = latest.stdout.strip()
-    if chef_log:
-        _say(f"chef log: {posixpath.join(session.chef_dir, chef_log)}")
-    _say(f"session log: {session.log_path}")
+    for line in log_lines(session, chef_log(session)):
+        _say(line)
     if exit_code is None:
         _say(f"detached; {_reattach_hint(session)}")
         return 0
@@ -400,7 +423,13 @@ def finish(session, code) -> int:
 
 
 def run_remotely(
-    argv, env, remote=None, chef_dir=None, runner=subprocess_runner, global_path=None
+    argv,
+    env,
+    remote=None,
+    chef_dir=None,
+    runner=subprocess_runner,
+    global_path=None,
+    detach=False,
 ) -> int:
     chef_dir = Path.cwd() if chef_dir is None else Path(chef_dir)
     try:
@@ -411,20 +440,19 @@ def run_remotely(
         session = Session(transport)
         status = session.status()
         if status.state == LIVE:
+            attaching = "" if detach else "; attaching"
             _say(
-                f"{profile.name} is already running "
-                f"(since {status.started:%Y-%m-%d %H:%M}); attaching"
+                f"{profile.name} is already running ({since(status.started)}){attaching}"
             )
         else:
             if status.state == FINISHED:
-                code = status.exit_code
-                ended = (
-                    "ended without an exit code" if code is None else f"exited {code}"
-                )
-                _say(f"previous run of {profile.name} {ended}")
+                _say(f"previous run of {profile.name} {ended(status.exit_code)}")
                 session.kill()
             # Only here: a live chef must not be synced under.
             _start(session, argv, env)
+        if detach:
+            _say(_reattach_hint(session))
+            return 0
         return finish(session, session.attach())
     except RemoteError as e:
         print(e, file=sys.stderr)
