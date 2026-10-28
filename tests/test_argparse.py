@@ -187,6 +187,11 @@ def test_client_flags_without_remote_are_usage_errors(studio_token, flag):
         chef_arg_parser(f"./chef.py --token=t {flag}")
 
 
+def test_detach_refuses_prompt(studio_token):
+    with pytest.raises(InvalidUsageException, match="--prompt"):
+        chef_arg_parser("./chef.py --remote --detach --prompt")
+
+
 @pytest.mark.parametrize(
     "cli_input",
     [

@@ -334,6 +334,10 @@ class SushiChef(object):
             raise InvalidUsageException(
                 "Arguments --env, --env-pass and --detach require --remote."
             )
+        if args["detach"] and args["prompt"]:
+            raise InvalidUsageException(
+                "The --prompt argument cannot be used with --detach."
+            )
 
     def _resolve_token(self, args):
         remote = args["remote"] is not None

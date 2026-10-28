@@ -27,6 +27,7 @@ from ricecooker.utils.remote.driver import preflight
 from ricecooker.utils.remote.driver import REQUIRED_TOOLS
 from ricecooker.utils.remote.driver import run_remotely
 from ricecooker.utils.remote.driver import sync_source
+from ricecooker.utils.remote.session import FINISHED
 from ricecooker.utils.remote.session import LIVE
 from ricecooker.utils.remote.session import NOT_A_TTY
 from ricecooker.utils.remote.session import Session
@@ -515,6 +516,29 @@ def test_detach_starts_then_finds_live_run_without_attaching(
     assert wait_until(lambda: seen(chef_dir), timeout=30)
     assert len(seen(chef_dir)) == 1
     assert "# edited" not in (chef_dir / "chef.py").read_text()
+
+
+@lifecycle
+def test_detached_chef_fails_at_input_instead_of_blocking(
+    box, laptop, monkeypatch, wait_until
+):
+    monkeypatch.setattr(sys, "stdin", io.StringIO())
+    write_chef(laptop, "pyproject.toml", PYPROJECT, chef="input()\n")
+    assert run_remotely_from(laptop, box, detach=True) == 0
+    session = Session(Transport(make_profile(box, "laptop-chef")))
+    assert wait_until(lambda: session.status().state == FINISHED, timeout=30)
+    assert session.exit_code() == 1
+
+
+@lifecycle
+def test_attached_chef_reads_typed_input(laptop, remote, wait_until):
+    write_chef(
+        laptop, "pyproject.toml", PYPROJECT, chef="raise SystemExit(int(input()))\n"
+    )
+    client = remote()
+    assert wait_until(lambda: attached_clients() == 1, timeout=30)
+    os.write(client.fd, b"7\r")
+    assert client.wait() == 7
 
 
 @lifecycle

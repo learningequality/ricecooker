@@ -284,11 +284,11 @@ def plan_venv(profile, chef_dir, source_dir=None) -> Venv:
     return Venv(path, digest.hexdigest(), build)
 
 
-def chef_command(session, venv, argv, env_names=()) -> list:
+def chef_command(session, venv, argv, env_names=(), detach=False) -> list:
     return [
         "sh",
         "-c",
-        RUN_CHEF,
+        RUN_CHEF + (" < /dev/null" if detach else ""),
         "sh",
         session.bookkeeping_dir,
         venv.path,
@@ -353,7 +353,7 @@ def _refuse_shared_rewrite(transport, venv, source) -> None:
     )
 
 
-def _start(session, argv, env) -> None:
+def _start(session, argv, env, detach) -> None:
     transport = session.transport
     profile = transport.profile
     source = None
@@ -371,7 +371,7 @@ def _start(session, argv, env) -> None:
         **env,
     }
     encoded = {k: base64.b64encode(v.encode()).decode() for k, v in env.items()}
-    session.create(chef_command(session, venv, argv, env), encoded, launcher)
+    session.create(chef_command(session, venv, argv, env, detach), encoded, launcher)
 
 
 def chef_log(session) -> Optional[str]:
@@ -449,7 +449,7 @@ def run_remotely(
                 _say(f"previous run of {profile.name} {ended(status.exit_code)}")
                 session.kill()
             # Only here: a live chef must not be synced under.
-            _start(session, argv, env)
+            _start(session, argv, env, detach)
         if detach:
             _say(_reattach_hint(session))
             return 0

@@ -64,6 +64,8 @@ Run from the chef dir; the cwd is what syncs, and a chef script outside it is re
     python chef.py --remote[=NAME] [--detach] [--env KEY=VALUE] [--env-pass KEY] [chef args]
 
   - `--detach` starts the run and exits 0 without attaching, with or without a terminal.
+    The chef's stdin is `/dev/null`, so a prompt (token, Studio version) fails the run; `--prompt` is refused.
+    `getpass` reads the pane, not stdin, so it still blocks until you attach.
   - `--env KEY=VALUE` sets KEY; `--env-pass KEY` forwards KEY from your environment.
     Both override the box's `remote-env`.
   - `--token`, or else the laptop's `STUDIO_TOKEN`, is forwarded; with neither, the
