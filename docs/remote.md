@@ -61,8 +61,11 @@ Running a chef
 --------------
 Run from the chef dir; the cwd is what syncs, and a chef script outside it is refused.
 
-    python chef.py --remote[=NAME] [--env KEY=VALUE] [--env-pass KEY] [chef args]
+    python chef.py --remote[=NAME] [--detach] [--env KEY=VALUE] [--env-pass KEY] [chef args]
 
+  - `--detach` starts the run and exits 0 without attaching, with or without a terminal.
+    The chef's stdin is `/dev/null`, so a prompt (token, Studio version) fails the run; `--prompt` is refused.
+    `getpass` reads the pane, not stdin, so it still blocks until you attach.
   - `--env KEY=VALUE` sets KEY; `--env-pass KEY` forwards KEY from your environment.
     Both override the box's `remote-env`.
   - `--token`, or else the laptop's `STUDIO_TOKEN`, is forwarded; with neither, the
@@ -72,10 +75,11 @@ Run from the chef dir; the cwd is what syncs, and a chef script outside it is re
     ricecooker. It is rebuilt only when that manifest changes.
   - A start that would rebuild `.default-venv` or re-sync `.ricecooker-src` is refused
     while another chef under `remote_root` runs.
-  - Each script has one run at a time: re-running while it is live attaches instead.
+  - Each script has one run at a time: re-running while it is live attaches instead,
+    or with `--detach` exits 0 and leaves the run untouched.
   - Detach with `Ctrl-b d`; `Ctrl-C` interrupts the chef.
   - A laptop `TERM` the box has no terminfo for (e.g. Ghostty's `xterm-ghostty`) attaches as `xterm-256color`.
-  - The client prints the log paths and exits with the chef's exit code, or 0 on detach.
+  - The client prints the log paths and exits with the chef's exit code, or 0 on `Ctrl-b d`; after `--detach`, `remote status` prints them.
   - All chefs on a box share the file cache at `<remote_root>/.ricecookerfilecache` and downloads
     at `<remote_root>/.ricecooker-storage`, so a file one chef downloaded is reused by the others without a fetch.
 
@@ -86,6 +90,10 @@ Run as `python chef.py remote <command>`; `remote` must be the first argument.
 Every command takes `--remote NAME`.
 
   - `attach`: attach to the script's session.
+  - `status`: print the script's run state, Studio link and log paths; a chef run with
+    `--warn` or `--quiet` logs no link. Exits `0` finished ok,
+    `3` running, `4` finished failed (or without an exit code), `5` no run,
+    `1` an error.
   - `sync`: sync the chef dir to the script's box dir; refused while a run is live.
   - `pull <remote-path> [dest]`: copy a path relative to the script's box dir to `dest` (default `.`).
   - `shell`: open a login shell in the script's box dir.
