@@ -59,7 +59,7 @@ Homepage = "https://github.com/learningequality/ricecooker"
 
 [dependency-groups]
 test = [
-    "pytest==8.4.2",
+    "pytest==9.1.1",
     "pytest-env==1.1.5",
     "pytest-timeout==2.4.0",
     "vcrpy==8.2.1; python_version >='3.10'",
