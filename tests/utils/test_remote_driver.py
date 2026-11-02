@@ -27,11 +27,11 @@ from ricecooker.utils.remote.driver import preflight
 from ricecooker.utils.remote.driver import REQUIRED_TOOLS
 from ricecooker.utils.remote.driver import run_remotely
 from ricecooker.utils.remote.driver import sync_source
+from ricecooker.utils.remote.session import FINISHED
 from ricecooker.utils.remote.session import LIVE
 from ricecooker.utils.remote.session import NOT_A_TTY
 from ricecooker.utils.remote.session import Session
 from ricecooker.utils.remote.transport import RunResult
-from ricecooker.utils.remote.transport import subprocess_runner
 from ricecooker.utils.remote.transport import Transport
 
 needs_sh = pytest.mark.skipif(os.name == "nt", reason="ssh shim needs sh")
@@ -69,20 +69,13 @@ PYPROJECT = (
 )
 
 
+def checkout_pythonpath() -> str:
+    return os.pathsep.join([str(Path(ricecooker.__file__).parents[1]), *sys.path])
+
+
 def write_global_config(path, box, ssh="box"):
     path.write_text(f'default = "box"\n\n[box]\nssh = "{ssh}"\nremote_root = "{box}"\n')
     return path
-
-
-@pytest.fixture
-def offline_uv(monkeypatch, tmp_path):
-    monkeypatch.setenv("UV_OFFLINE", "1")
-    monkeypatch.setenv("UV_PYTHON", sys.executable)
-    monkeypatch.setenv("UV_CACHE_DIR", str(tmp_path / "uv-cache"))
-    home = tmp_path / "home"
-    home.mkdir()
-    monkeypatch.setenv("HOME", str(home))
-    return home
 
 
 def make_profile(box, name="my-chef", **kwargs):
@@ -164,10 +157,10 @@ def box_tools(box, monkeypatch, present):
     monkeypatch.setenv("PATH", f"{shim_dir}{os.pathsep}{tools}")
 
 
-def run_remotely_from(laptop, root, script=None, runner=subprocess_runner):
+def run_remotely_from(laptop, root, script=None, args=(), **kwargs):
     config = write_global_config(laptop.parent / "remote.toml", root)
-    argv = [str(script or laptop / "chef.py")]
-    return run_remotely(argv, {}, chef_dir=laptop, runner=runner, global_path=config)
+    argv = [str(script or laptop / "chef.py"), *args]
+    return run_remotely(argv, {}, chef_dir=laptop, global_path=config, **kwargs)
 
 
 def test_unreachable_box_fails_with_ssh_stderr(laptop, capsys):
@@ -462,9 +455,7 @@ def test_chef_reuses_another_chefs_download_offline(laptop, remote, tmp_path):
     )
     threading.Thread(target=server.serve_forever, daemon=True).start()
     url = f"http://127.0.0.1:{server.server_port}/doc.pdf"
-    # The box venv has no dependencies and uv is offline; this checkout stands in.
-    path = [str(Path(ricecooker.__file__).parents[1]), *sys.path]
-    env = {"PYTHONPATH": os.pathsep.join(path)}
+    env = {"PYTHONPATH": checkout_pythonpath()}
     chefs = [laptop.parent / name for name in ("dl1", "dl2")]
     for chef in chefs:
         chef.mkdir()
@@ -507,6 +498,47 @@ def test_live_session_is_attached_without_restart_or_sync(
     assert "already running" in second.output
     assert len(seen(chef_dir)) == 1
     assert "# edited" not in (chef_dir / "chef.py").read_text()
+
+
+@lifecycle
+def test_detach_starts_then_finds_live_run_without_attaching(
+    box, chef_dir, laptop, capsys, monkeypatch, wait_until
+):
+    monkeypatch.setattr(sys, "stdin", io.StringIO())
+    write_chef(laptop, "pyproject.toml", PYPROJECT)
+    start = partial(run_remotely_from, laptop, box, args=("0", "wait"), detach=True)
+    assert start() == 0
+    with open(laptop / "chef.py", "a") as f:
+        f.write("# edited\n")
+    capsys.readouterr()
+    assert start() == 0
+    assert "already running" in capsys.readouterr().err
+    assert wait_until(lambda: seen(chef_dir), timeout=30)
+    assert len(seen(chef_dir)) == 1
+    assert "# edited" not in (chef_dir / "chef.py").read_text()
+
+
+@lifecycle
+def test_detached_chef_fails_at_input_instead_of_blocking(
+    box, laptop, monkeypatch, wait_until
+):
+    monkeypatch.setattr(sys, "stdin", io.StringIO())
+    write_chef(laptop, "pyproject.toml", PYPROJECT, chef="input()\n")
+    assert run_remotely_from(laptop, box, detach=True) == 0
+    session = Session(Transport(make_profile(box, "laptop-chef")))
+    assert wait_until(lambda: session.status().state == FINISHED, timeout=30)
+    assert session.exit_code() == 1
+
+
+@lifecycle
+def test_attached_chef_reads_typed_input(laptop, remote, wait_until):
+    write_chef(
+        laptop, "pyproject.toml", PYPROJECT, chef="raise SystemExit(int(input()))\n"
+    )
+    client = remote()
+    assert wait_until(lambda: attached_clients() == 1, timeout=30)
+    os.write(client.fd, b"7\r")
+    assert client.wait() == 7
 
 
 @lifecycle

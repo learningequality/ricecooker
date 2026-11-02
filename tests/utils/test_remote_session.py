@@ -36,6 +36,11 @@ def tmux(*args):
     return subprocess.run(["tmux", *args], capture_output=True, text=True)
 
 
+def kill_pane(session):
+    pane_pid = tmux("display-message", "-p", "-t", session.target, "#{pane_pid}")
+    os.killpg(int(pane_pid.stdout), signal.SIGKILL)
+
+
 def make_session(box, name="my-chef"):
     (box / name).mkdir(exist_ok=True)
     profile = RemoteProfile(
@@ -146,8 +151,7 @@ def test_recorder_killed_after_leftover_code_finishes_without_code(
     (bookkeeping / "exitcode").write_text("3")
     s.create(["sh", "-c", "touch started; exec sleep 30"])
     assert wait_until((box / "my-chef" / "started").exists)
-    pane_pid = tmux("display-message", "-p", "-t", TARGET, "#{pane_pid}").stdout
-    os.killpg(int(pane_pid), signal.SIGKILL)
+    kill_pane(s)
     assert wait_until(lambda: s.status().state == FINISHED)
     assert s.status().exit_code is None
 

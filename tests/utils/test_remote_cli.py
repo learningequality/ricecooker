@@ -4,18 +4,24 @@ from pathlib import Path
 
 import pytest
 from test_remote_driver import attached_clients
+from test_remote_driver import box_run
 from test_remote_driver import box_tools
 from test_remote_driver import box_user
+from test_remote_driver import checkout_pythonpath
 from test_remote_driver import client_terms
 from test_remote_driver import KILL
 from test_remote_driver import needs_sh
 from test_remote_driver import needs_uv
+from test_remote_driver import PYPROJECT
 from test_remote_driver import write_global_config
+from test_remote_session import kill_pane
 from test_remote_session import make_session
 from test_remote_transport import write
 
+from ricecooker.commands import CHANNEL_CREATED
 from ricecooker.utils.remote.cli import DEPENDENCIES
 from ricecooker.utils.remote.cli import run_remote_command
+from ricecooker.utils.remote.session import FINISHED
 from ricecooker.utils.remote.transport import RunResult
 
 
@@ -239,6 +245,43 @@ def test_attach_without_session_fails(box, laptop, capsys):
     assert capsys.readouterr().err.startswith("remote:")
 
 
+@pytest.mark.usefixtures("tmux_server")
+def test_status_without_session_is_no_run(box, laptop):
+    assert run_cli(laptop, box, "status") == 5
+
+
+@pytest.mark.usefixtures("tmux_server")
+def test_status_of_live_session_is_running(box, laptop, capsys):
+    session = make_session(box, "laptop-chef")
+    session.create(["sleep", "30"])
+    assert run_cli(laptop, box, "status") == 3
+    out = capsys.readouterr().out
+    assert f"since {session.status().started:%Y-%m-%d %H:%M}" in out
+    assert session.log_path in out
+
+
+@pytest.mark.usefixtures("tmux_server")
+@pytest.mark.parametrize(
+    "command,killed,ended",
+    [
+        ("exit 3", False, "exited 3"),
+        ("touch started; exec sleep 30", True, "ended without an exit code"),
+    ],
+)
+def test_status_of_failed_run_is_failed(
+    box, laptop, capsys, wait_until, command, killed, ended
+):
+    session = make_session(box, "laptop-chef")
+    session.create(["sh", "-c", command])
+    if killed:
+        assert wait_until((box / "laptop-chef" / "started").exists)
+        kill_pane(session)
+    assert wait_until(lambda: session.status().state == FINISHED)
+    assert run_cli(laptop, box, "status") == 4
+    assert ended in capsys.readouterr().out
+    assert session.status().state == FINISHED
+
+
 def dependency_lines(out):
     return [line for line in out.splitlines() if line.endswith((": ok", ": missing"))]
 
@@ -353,10 +396,68 @@ def chef_script(box, laptop, tmp_path, monkeypatch):
     return laptop / "chef.py"
 
 
-def run_chef(*argv, cwd):
+def run_chef(*argv, cwd, **kwargs):
     return subprocess.run(
-        [sys.executable, *argv], cwd=cwd, capture_output=True, text=True
+        [sys.executable, *argv], cwd=cwd, capture_output=True, text=True, **kwargs
     )
+
+
+LINK_CHEF = f"""\
+import datetime
+from ricecooker import chefs, config
+
+class Minute(datetime.datetime):
+    @classmethod
+    def now(cls, tz=None):
+        return cls(2026, 1, 1)
+
+chefs.datetime = Minute
+
+class Chef(chefs.SushiChef):
+    def run(self, args, options):
+        config.LOGGER.info("\\n\\n{CHANNEL_CREATED} https://studio.example/c/1\\n")
+
+Chef().main()
+"""
+
+
+def start_detached(laptop, box):
+    argv = [
+        "--remote",
+        "--det",
+        "--env",
+        f"PYTHONPATH={checkout_pythonpath()}",
+        "dryrun",
+    ]
+    result = run_chef("chef.py", *argv, cwd=laptop, stdin=subprocess.DEVNULL)
+    assert result.returncode == 0, result.stderr
+    return result
+
+
+@box_run
+@pytest.mark.usefixtures("tmux_server")
+def test_detached_run_finishes_ok_with_studio_link(
+    box, laptop, chef_script, capsys, wait_until
+):
+    chef_script.write_text(LINK_CHEF)
+    (laptop / "pyproject.toml").write_text(PYPROJECT)
+    start_detached(laptop, box)
+    session = make_session(box, "laptop-chef")
+    assert wait_until(lambda: session.status().state == FINISHED, timeout=90)
+    assert run_cli(laptop, box, "status") == 0
+    out = capsys.readouterr().out.splitlines()
+    assert f"{CHANNEL_CREATED} https://studio.example/c/1" in out
+    chef_log = box / "laptop-chef" / "logs" / "2026-01-01__0000.log"
+    assert f"chef log: {chef_log}" in out
+    assert f"session log: {box}/laptop-chef/.ricecooker-remote/session.log" in out
+
+    chef_script.write_text(LINK_CHEF.replace(CHANNEL_CREATED, "Channel not created"))
+    start_detached(laptop, box)
+    assert wait_until(lambda: session.status().state == FINISHED, timeout=90)
+    assert run_cli(laptop, box, "status") == 0
+    out = capsys.readouterr().out.splitlines()
+    assert f"chef log: {chef_log}" in out
+    assert not [line for line in out if CHANNEL_CREATED in line]
 
 
 @needs_sh

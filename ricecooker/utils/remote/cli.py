@@ -3,20 +3,26 @@ import posixpath
 import sys
 from pathlib import Path
 
+from ricecooker.commands import CHANNEL_CREATED
 from ricecooker.exceptions import RemoteCliError
 from ricecooker.exceptions import RemoteError
 from ricecooker.utils.remote.config import resolve_profile
 from ricecooker.utils.remote.driver import BOX_ENV
 from ricecooker.utils.remote.driver import CHECK_BOX_ENV
+from ricecooker.utils.remote.driver import chef_log
 from ricecooker.utils.remote.driver import default_venv_dir
+from ricecooker.utils.remote.driver import ended
 from ricecooker.utils.remote.driver import filecache_dir
 from ricecooker.utils.remote.driver import finish
 from ricecooker.utils.remote.driver import kills_on_logout
+from ricecooker.utils.remote.driver import log_lines
+from ricecooker.utils.remote.driver import LOG_SIZES_FILE
 from ricecooker.utils.remote.driver import logind_state
 from ricecooker.utils.remote.driver import LOOSE_BOX_ENV
 from ricecooker.utils.remote.driver import MISSING_TOOLS
 from ricecooker.utils.remote.driver import preflight
 from ricecooker.utils.remote.driver import REQUIRED_TOOLS
+from ricecooker.utils.remote.driver import since
 from ricecooker.utils.remote.driver import storage_dir
 from ricecooker.utils.remote.driver import uses_default_venv
 from ricecooker.utils.remote.session import LIVE
@@ -40,6 +46,18 @@ CACHE_INFO = (
 CAN_SELF_LINGER = (
     "exec pkcheck --action-id org.freedesktop.login1.set-self-linger --process $$"
 )
+
+# sh -c script; $1: chef log, $2: log-sizes, $3: link prefix.
+# Chef logs are named per minute and appended to.
+CHANNEL_LINK = (
+    'n=$(awk -v f="logs/${1##*/}" \'{ n = $1; sub(/^ *[0-9]+ /, "") } $0 == f { print n }\' "$2" 2>/dev/null); '
+    'tail -c +$((${n:-0} + 1)) "$1" | '
+    "awk -v p=\"$3\" 'i = index($0, p) { link = substr($0, i) } END { if (link) print link }'"
+)
+
+STATUS_RUNNING = 3
+STATUS_FAILED = 4
+STATUS_NO_RUN = 5
 
 # Reported name -> binary on the box's PATH.
 # rsync is not in REQUIRED_TOOLS: preflight skips it, but sync runs the box's rsync.
@@ -136,6 +154,32 @@ def attach(transport, args) -> int:
     return finish(session, session.attach())
 
 
+def status(transport, args) -> int:
+    profile = transport.profile
+    session = Session(transport)
+    run = session.status()
+    if run.state == NO_SESSION:
+        print(f"{profile.name}: no run on {profile.ssh}")
+        return STATUS_NO_RUN
+    if run.state == LIVE:
+        print(f"{profile.name}: running {since(run.started)}")
+        code = STATUS_RUNNING
+    else:
+        print(f"{profile.name}: {ended(run.exit_code)}")
+        code = 0 if run.exit_code == 0 else STATUS_FAILED
+    log = chef_log(session)
+    if log:
+        sizes = posixpath.join(session.bookkeeping_dir, LOG_SIZES_FILE)
+        link = _ssh(
+            transport, "sh", "-c", CHANNEL_LINK, "sh", log, sizes, CHANNEL_CREATED
+        )
+        if link.stdout:
+            print(link.stdout.rstrip("\n"))
+    for line in log_lines(session, log):
+        print(line)
+    return code
+
+
 def _report_logout_kill(transport) -> bool:
     """Report logind's kill at logout, if it applies; True if runs would die of it."""
     state = logind_state(transport)
@@ -182,6 +226,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog=f"{Path(sys.argv[0]).name} remote")
     commands = parser.add_subparsers(required=True)
     commands.add_parser("attach", parents=[profile]).set_defaults(func=attach)
+    commands.add_parser("status", parents=[profile]).set_defaults(func=status)
     commands.add_parser("sync", parents=[profile]).set_defaults(func=sync)
     pull_parser = commands.add_parser("pull", parents=[profile])
     pull_parser.add_argument("remote_path")

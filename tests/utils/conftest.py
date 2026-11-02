@@ -2,6 +2,7 @@ import functools
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import threading
 import time
@@ -91,6 +92,17 @@ def logind(box):
 @pytest.fixture
 def ssh_log(box):
     return box.parent / "ssh.log"
+
+
+@pytest.fixture
+def offline_uv(monkeypatch, tmp_path):
+    monkeypatch.setenv("UV_OFFLINE", "1")
+    monkeypatch.setenv("UV_PYTHON", sys.executable)
+    monkeypatch.setenv("UV_CACHE_DIR", str(tmp_path / "uv-cache"))
+    home = tmp_path / "home"
+    home.mkdir(exist_ok=True)
+    monkeypatch.setenv("HOME", str(home))
+    return home
 
 
 @pytest.fixture
