@@ -1,8 +1,16 @@
+import functools
 import os
+import threading
+from http.client import RemoteDisconnected
 from urllib.parse import urlparse
 
 import requests
+from requests.adapters import HTTPAdapter
 from requests.auth import AuthBase
+from requests.utils import rewind_body
+from urllib3.exceptions import MaxRetryError
+from urllib3.exceptions import ProtocolError
+from urllib3.exceptions import ProxyError
 
 
 class DomainSpecificAuth(AuthBase):
@@ -79,3 +87,66 @@ class DomainAuthSession(requests.Session):
         auth = getattr(response.request, "domain_auth", None)
         if auth is not None:
             auth.rebuild(prepared_request, response.request)
+
+
+_last_connection = threading.local()
+
+
+def _is_remote_disconnect(error):
+    reason = error.args[0] if error.args else None
+    if isinstance(reason, MaxRetryError):
+        reason = reason.reason
+    return isinstance(reason, (ProtocolError, ProxyError)) and any(
+        isinstance(arg, RemoteDisconnected) for arg in reason.args
+    )
+
+
+class _ReuseTrackingPoolMixin:
+    def _get_conn(self, timeout=None):
+        conn = super()._get_conn(timeout)
+        _last_connection.reused = conn.sock is not None
+        return conn
+
+
+@functools.cache
+def _reuse_tracking(pool_class):
+    return type(
+        f"ReuseTracking{pool_class.__name__}", (_ReuseTrackingPoolMixin, pool_class), {}
+    )
+
+
+def _track_reuse(manager):
+    manager.pool_classes_by_scheme = {
+        scheme: _reuse_tracking(pool_class)
+        for scheme, pool_class in manager.pool_classes_by_scheme.items()
+    }
+
+
+class ReconnectingAdapter(HTTPAdapter):
+    def init_poolmanager(self, *args, **kwargs):
+        super().init_poolmanager(*args, **kwargs)
+        _track_reuse(self.poolmanager)
+
+    def proxy_manager_for(self, proxy, **proxy_kwargs):
+        fresh = proxy not in self.proxy_manager
+        manager = super().proxy_manager_for(proxy, **proxy_kwargs)
+        if fresh:
+            _track_reuse(manager)
+        return manager
+
+    def send(self, request, **kwargs):
+        rewindable = isinstance(request._body_position, int)
+        resendable = (
+            rewindable or request.body is None or isinstance(request.body, (bytes, str))
+        )
+        while True:
+            _last_connection.reused = False
+            try:
+                return super().send(request, **kwargs)
+            except requests.ConnectionError as e:
+                if not (
+                    resendable and _last_connection.reused and _is_remote_disconnect(e)
+                ):
+                    raise
+                if rewindable:
+                    rewind_body(request)
