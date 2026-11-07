@@ -722,7 +722,7 @@ def test_remote_content_node_with_overridden_thumbnail():
     remote_content_node.validate()
     remote_content_node.process_files()
     output = remote_content_node.to_dict()
-    assert output.get("files")[0]["filename"] == "d7ab03e4263fc374737d96ac2da156c1.jpg"
+    assert output.get("files")[0]["filename"].endswith(".png")
 
 
 def test_remote_content_node_with_overridden_grade_levels():

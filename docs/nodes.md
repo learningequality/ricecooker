@@ -138,7 +138,7 @@ See [languages][./languages.md] to read more about language codes.
 ### Thumbnails
 Thumbnails can be passed in as a local filesystem path to an image file (str),
 a URL (str), or a `ThumbnailFile` object.
-The recommended size for thumbnail images is 400px by 225px (aspect ratio 16:9).
+Thumbnails are converted to a 400×225 PNG, scaled down to fit and letterboxed with transparency.
 Use the command line argument `--thumbnails` to automatically generate thumbnails
 for all content node that don't have a thumbnail specified.
 

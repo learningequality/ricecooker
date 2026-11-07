@@ -2,8 +2,10 @@ import os
 
 import PIL
 import pytest
+from conftest import assert_letterboxed_png
 from le_utils.constants import format_presets
 from le_utils.constants import licenses
+from pypdf import PdfWriter
 from test_tree import thumbnail_path  # noqa F401
 from test_tree import thumbnail_path_jpg  # noqa F401
 from test_videos import _clear_ricecookerfilecache
@@ -55,12 +57,11 @@ class TestThumbnailSetting(object):
         return video_node
 
     def check_correct_thumbnail(self, node):
-        expected_thumbnail_filename = "eb79354ddd5774bb3436f9a19c282bff.png"
         thumbnail_files = [f for f in node.files if isinstance(f, ThumbnailFile)]
         assert len(thumbnail_files) == 1, "multiple thumbnails found"
-        thumbnail_file = thumbnail_files[0]
-        thumbnail_filename = thumbnail_file.get_filename()
-        assert thumbnail_filename == expected_thumbnail_filename, "Wrong thumbnail"
+        assert_letterboxed_png(
+            config.get_storage_path(thumbnail_files[0].get_filename())
+        )
 
     def assert_failed_thumbnail(self, node):
         thumbnail_files = [f for f in node.files if isinstance(f, ThumbnailFile)]
@@ -102,12 +103,7 @@ class TestThumbnailSetting(object):
         )
         video_node.validate()
         _ = video_node.process_files()
-        expected_thumbnail_filename = "d7ab03e4263fc374737d96ac2da156c1.jpg"
-        thumbnail_files = [f for f in video_node.files if isinstance(f, ThumbnailFile)]
-        assert len(thumbnail_files) == 1, "multiple thumbnails found"
-        thumbnail_file = thumbnail_files[0]
-        thumbnail_filename = thumbnail_file.get_filename()
-        assert thumbnail_filename == expected_thumbnail_filename, "Wrong thumbnail"
+        self.check_correct_thumbnail(video_node)
 
     @my_vcr.use_cassette
     def test_set_thumbnail_from_url(self, low_res_video):  # noqa F811
@@ -278,6 +274,44 @@ class TestThumbnailGeneration(object):
         filenames = topic.process_files()
         assert len(filenames) == 1, "expected one filename"
         self.check_has_thumbnail(topic)
+
+    def test_tiled_thumbnail_is_built_from_unconverted_chef_thumbnail(self, tmp_path):
+        source = str(tmp_path / "portrait.png")
+        portrait = PIL.Image.new("RGB", (1200, 1800), "red")
+        portrait.paste("blue", (0, 900, 1200, 1800))
+        portrait.save(source)
+        child = TopicNode("child", "child", thumbnail=ThumbnailFile(source))
+        tiled = TiledThumbnailFile([child])
+        expected = str(tmp_path / "expected.png")
+        images.create_tiled_image([source], expected)
+        os.remove(source)
+
+        filename = tiled.process_file()
+
+        assert config.FAILED_FILES == []
+        with (
+            PIL.Image.open(config.get_storage_path(filename)) as actual,
+            PIL.Image.open(expected) as want,
+        ):
+            assert actual.tobytes() == want.tobytes()
+
+    def test_unconverted_path_before_processing_is_source_image(self, tmp_path):
+        source = str(tmp_path / "landscape.png")
+        PIL.Image.new("RGB", (800, 300), "red").save(source)
+
+        unconverted = ThumbnailFile(source).get_unconverted_path()
+
+        with PIL.Image.open(unconverted) as img:
+            assert img.size == (800, 300)
+
+    def test_portrait_pdf_thumbnail_is_not_letterboxed(self, tmp_path):
+        pdf_path = str(tmp_path / "portrait.pdf")
+        writer = PdfWriter()
+        writer.add_blank_page(width=200, height=400)
+        writer.write(pdf_path)
+        filename = ExtractedPdfThumbnailFile(pdf_path).process_file()
+        with PIL.Image.open(config.get_storage_path(filename)) as img:
+            assert img.convert("RGBA").getchannel("A").getextrema()[0] == 255
 
     # ERROR PATHS
     ############################################################################
