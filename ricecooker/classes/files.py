@@ -17,6 +17,7 @@ from ricecooker.utils.images import create_image_from_pdf_page
 from ricecooker.utils.images import create_image_from_zip
 from ricecooker.utils.images import create_image_from_zip_screenshot
 from ricecooker.utils.images import create_tiled_image
+from ricecooker.utils.images import THUMBNAIL_RESIZE
 from ricecooker.utils.images import ThumbnailGenerationError
 from ricecooker.utils.paths import resolve_path_ext
 from ricecooker.utils.pipeline import FilePipeline
@@ -204,6 +205,7 @@ class File(object):
 
 class DownloadFile(File):
     allowed_formats = None
+    pipeline_context = {}
 
     def __init__(self, path, context=None, **kwargs):
         self.path = path.strip()
@@ -216,6 +218,7 @@ class DownloadFile(File):
             "preserve_kind": True,
             "render_html": self.allowed_formats is None
             or file_formats.HTML5 in self.allowed_formats,
+            **self.pipeline_context,
         }
         self.context.update(context or {})
 
@@ -300,7 +303,14 @@ class ImageDownloadFile(DownloadFile):
 
 
 class ThumbnailFile(ThumbnailPresetMixin, ImageDownloadFile):
+    allowed_formats = ImageConversionHandler.EXTENSIONS
     default_ext = file_formats.PNG
+    pipeline_context = THUMBNAIL_RESIZE
+    unconverted_filename = None
+
+    def get_unconverted_path(self):
+        filename = self.get_filename()
+        return config.get_storage_path(self.unconverted_filename or filename)
 
 
 def _ffmpeg_context(settings_key, ffmpeg_settings):
@@ -455,21 +465,17 @@ class SubtitleFile(DownloadFile):
 
 
 class Base64ImageFile(ThumbnailPresetMixin, DownloadFile):
+    allowed_formats = ImageConversionHandler.EXTENSIONS
     default_ext = file_formats.PNG
+    pipeline_context = THUMBNAIL_RESIZE
 
     def __init__(self, encoding, **kwargs):
         super().__init__(encoding, **kwargs)
 
 
-class _ExerciseBase64ImageFile(Base64ImageFile):
+class _ExerciseBase64ImageFile(DownloadFile):
+    default_ext = file_formats.PNG
     default_preset = format_presets.EXERCISE_IMAGE
-
-    def get_preset(self):
-        # Exercise images are attached to a question, not a node, so the
-        # ThumbnailPresetMixin.get_preset inherited from Base64ImageFile
-        # (which dereferences self.node) does not apply. Use the exercise
-        # image preset, mirroring _ExerciseImageFile.
-        return self.preset or self.default_preset
 
     def get_replacement_str(self):
         return self.get_filename() or self.path
@@ -682,10 +688,7 @@ class TiledThumbnailFile(ThumbnailPresetMixin, File):
         else:
             return None
         config.LOGGER.info("\tGenerating tiled thumbnail.")
-        images = [
-            config.get_storage_path(f.get_filename())
-            for f in self.sources[:num_pictures]
-        ]
+        images = [f.get_unconverted_path() for f in self.sources[:num_pictures]]
         with tempfile.NamedTemporaryFile(
             suffix=".{}".format(file_formats.PNG)
         ) as tempf:

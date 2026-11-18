@@ -228,7 +228,7 @@ In general it's recommended to add a thumbnail using the `thumbnail` attribute o
 rather than constructing a `ThumbnailFile` and calling `add_file()` — the `thumbnail`
 attribute accepts the same local path or URL and wraps it in a `ThumbnailFile` for you.
 
-The recommended size for thumbnail images is 400px by 225px (aspect ratio 16:9).
+Thumbnails are converted to a 400×225 PNG, scaled down to fit and letterboxed with transparency.
 
 
 File size limits

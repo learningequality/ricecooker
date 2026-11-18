@@ -14,6 +14,7 @@ from le_utils.constants import content_kinds
 from le_utils.constants import exercises
 from le_utils.constants import licenses
 from le_utils.constants import roles
+from PIL import Image
 
 try:
     from vcr.stubs import VCRHTTPResponse
@@ -41,6 +42,7 @@ from ricecooker.classes.nodes import TopicNode
 from ricecooker.classes.nodes import VideoNode
 from ricecooker.classes.questions import InputQuestion
 from ricecooker.classes.questions import SingleSelectQuestion
+from ricecooker.utils.images import THUMBNAIL_SIZE
 
 # GLOBAL TEST SETUP/TEARDOWN UTILS
 ################################################################################
@@ -790,11 +792,6 @@ def thumbnail_file():
 
 
 @pytest.fixture
-def thumbnail_filename():
-    return "eb79354ddd5774bb3436f9a19c282bff.png"
-
-
-@pytest.fixture
 def fake_thumbnail_file():
     local_path = os.path.abspath(
         os.path.join(
@@ -905,6 +902,13 @@ def exercise_graphie_filename():
 ################################################################################
 
 SAMPLES_DIR = os.path.join(os.path.dirname(__file__), "testcontent", "samples")
+
+
+def assert_letterboxed_png(path):
+    with Image.open(path) as im:
+        assert (im.format, im.mode, im.size) == ("PNG", "RGBA", THUMBNAIL_SIZE)
+        assert im.getpixel((0, 0))[3] == 0
+        assert im.getpixel((200, 112))[3] == 255
 
 
 def sample_path(*parts):

@@ -26,6 +26,7 @@ import requests
 import yt_dlp
 from bs4 import BeautifulSoup
 from cachecontrol.caches.file_cache import FileCache
+from conftest import assert_letterboxed_png
 from conftest import read_file_hash
 from conftest import sample_path
 from fake_session import fake_download_session
@@ -37,6 +38,9 @@ from le_utils.constants import modalities
 from le_utils.constants.labels import learning_activities
 from le_utils.constants.labels import resource_type
 from lxml import etree
+from PIL import ExifTags
+from PIL import Image
+from PIL.ImageCms import ImageCmsProfile
 from vcr_config import my_vcr
 
 from pipeline.test_transfer import _video_info
@@ -60,6 +64,8 @@ from ricecooker.utils import caching
 from ricecooker.utils import videos
 from ricecooker.utils.archive_dependencies import SharedAssetExtractor
 from ricecooker.utils.audio import compress_audio
+from ricecooker.utils.images import SRGB_PROFILE
+from ricecooker.utils.images import THUMBNAIL_RESIZE
 from ricecooker.utils.imscp import IMSCPPackage
 from ricecooker.utils.pipeline import FilePipeline
 from ricecooker.utils.pipeline import transfer
@@ -83,6 +89,7 @@ from ricecooker.utils.references import DEFAULT_MAPPERS
 from ricecooker.utils.references import is_data_uri
 from ricecooker.utils.references import is_external_url
 from ricecooker.utils.references import mapper_for
+from ricecooker.utils.storage import copy_file_to_storage
 from ricecooker.utils.videos import display_size
 from ricecooker.utils.videos import is_faststart
 from ricecooker.utils.videos import probe_media
@@ -4166,3 +4173,151 @@ class TestQTIIngestion:
         (question,) = leaf["questions"]
         assert question["raw_data"] == item
         assert question["files"] == []
+
+
+def _thumbnail(source):
+    return _compress(ImageConversionHandler(), source, **THUMBNAIL_RESIZE)
+
+
+SRGB_ICC = ImageCmsProfile(SRGB_PROFILE).tobytes()
+
+
+def _solid_image(path, size=(800, 450), mode="RGB", color="red", **save_kwargs):
+    Image.new(mode, size, color).save(path, **save_kwargs)
+    return str(path)
+
+
+@pytest.mark.parametrize(
+    "source_size, fitted_size",
+    [
+        ((800, 302), (400, 151)),
+        ((176, 900), (44, 225)),
+        ((100, 51), (100, 51)),
+    ],
+    ids=["landscape", "portrait", "smaller"],
+)
+def test_thumbnail_is_letterboxed_to_400x225_png(tmp_path, source_size, fitted_size):
+    source = _solid_image(tmp_path / "thumb.png", source_size)
+    output = _thumbnail(source)
+    assert_letterboxed_png(output)
+    with Image.open(output) as im:
+        width, height = fitted_size
+        left, top = (400 - width) // 2, (225 - height) // 2
+        assert im.getchannel("A").getbbox() == (left, top, left + width, top + height)
+        assert im.getpixel((left + width // 2, top + height // 2)) == (255, 0, 0, 255)
+
+
+@pytest.mark.parametrize(
+    "mode, color, save_kwargs",
+    [
+        pytest.param("RGBA", (255, 0, 0, 0), {}, id="rgba"),
+        pytest.param("P", 0, {"transparency": 0}, id="palette-trns"),
+        pytest.param(
+            "RGB",
+            (255, 255, 255),
+            {
+                "transparency": (255, 255, 255),
+                "icc_profile": SRGB_ICC,
+            },
+            id="rgb-trns-icc",
+        ),
+    ],
+)
+def test_thumbnail_keeps_source_transparency(tmp_path, mode, color, save_kwargs):
+    source = _solid_image(tmp_path / "thumb.png", mode=mode, color=color, **save_kwargs)
+    output = _thumbnail(source)
+    with Image.open(output) as im:
+        assert im.getpixel((200, 112))[3] == 0
+
+
+@pytest.mark.parametrize(
+    "mode,filename", [("I;16", "thumb.png"), ("I;16B", "thumb.tif")]
+)
+def test_thumbnail_keeps_16_bit_grayscale_levels(tmp_path, mode, filename):
+    source = _solid_image(tmp_path / filename, mode=mode, color=30000)
+    output = _thumbnail(source)
+    with Image.open(output) as im:
+        assert im.getpixel((200, 112)) == (117, 117, 117, 255)
+
+
+def _rotated_primaries_profile():
+    profile = bytearray(SRGB_ICC)
+    (tag_count,) = struct.unpack_from(">I", profile, 128)
+    xyz = {}
+    for i in range(tag_count):
+        signature, offset, _ = struct.unpack_from(">4sII", profile, 132 + 12 * i)
+        xyz[signature] = offset
+    tags = [b"rXYZ", b"gXYZ", b"bXYZ"]
+    values = [bytes(profile[xyz[tag] + 8 : xyz[tag] + 20]) for tag in tags]
+    for tag, value in zip(tags, values[1:] + values[:1]):
+        profile[xyz[tag] + 8 : xyz[tag] + 20] = value
+    return bytes(profile)
+
+
+@pytest.mark.parametrize("mode", ["RGB", "RGBA", "P"])
+def test_thumbnail_is_converted_to_srgb(tmp_path, mode):
+    source = _solid_image(
+        tmp_path / "thumb.png", mode=mode, icc_profile=_rotated_primaries_profile()
+    )
+    output = _thumbnail(source)
+    with Image.open(output) as im:
+        assert im.getpixel((200, 112)) == (0, 255, 0, 255)
+
+
+@pytest.mark.parametrize(
+    "icc_profile",
+    [SRGB_ICC, b"garbage" * 30],
+    ids=["mode-mismatch", "corrupt"],
+)
+def test_thumbnail_with_unusable_profile_is_kept(tmp_path, icc_profile):
+    source = _solid_image(
+        tmp_path / "thumb.png", mode="L", color=128, icc_profile=icc_profile
+    )
+    output = _thumbnail(source)
+    with Image.open(output) as im:
+        assert im.getpixel((200, 112)) == (128, 128, 128, 255)
+
+
+def test_thumbnail_applies_exif_orientation(tmp_path):
+    exif = Image.Exif()
+    exif[ExifTags.Base.Orientation] = 6  # rotate 90 CW
+    source = _solid_image(tmp_path / "thumb.jpg", (800, 302), exif=exif)
+    output = _thumbnail(source)
+    with Image.open(output) as im:
+        left, top, right, bottom = im.getchannel("A").getbbox()
+    assert bottom - top == 225
+    assert right - left < 100
+
+
+def test_resize_has_its_own_cache_entry(tmp_path):
+    filename = copy_file_to_storage(_solid_image(tmp_path / "image.png", (800, 302)))
+    source = config.get_storage_path(filename)
+    handler = ImageConversionHandler()
+    [plain] = handler.execute(source, skip_cache=True)
+    [thumbnail] = handler.execute(source, context=THUMBNAIL_RESIZE)
+    assert plain.path == source
+    assert_letterboxed_png(thumbnail.path)
+
+
+@pytest.mark.parametrize(
+    "resize, expected_size",
+    [
+        pytest.param(
+            {"width": 200, "height": 200, "maintain_aspect_ratio": False},
+            (200, 200),
+            id="stretch",
+        ),
+        pytest.param({"width": 200}, (200, 75), id="width-only"),
+        pytest.param({"height": 150}, (400, 150), id="height-only"),
+    ],
+)
+def test_resize_without_letterbox_fills_canvas(tmp_path, resize, expected_size):
+    source = str(tmp_path / "image.png")
+    image = Image.new("RGB", (800, 300), "red")
+    image.paste("blue", (0, 0, 100, 300))
+    image.save(source)
+    output = _compress(ImageConversionHandler(), source, **resize)
+    with Image.open(output) as im:
+        assert (im.format, im.mode, im.size) == ("PNG", "RGBA", expected_size)
+        assert im.getchannel("A").getextrema() == (255, 255)
+        assert im.getpixel((5, im.height // 2)) == (0, 0, 255, 255)

@@ -9,6 +9,8 @@ from io import BytesIO
 import ebooklib.epub
 from pdf2image import convert_from_path
 from PIL import Image
+from PIL import ImageCms
+from PIL import ImageOps
 
 from .thumbscropping import scale_and_crop
 from .zip import find_html_entrypoint
@@ -17,6 +19,12 @@ from .zip import find_html_entrypoint
 ################################################################################
 
 THUMBNAIL_SIZE = (400, 225)  # 16:9 aspect ratio
+THUMBNAIL_RESIZE = {
+    "width": THUMBNAIL_SIZE[0],
+    "height": THUMBNAIL_SIZE[1],
+    "maintain_aspect_ratio": True,
+}
+SRGB_PROFILE = ImageCms.createProfile("sRGB")
 
 
 def scale_and_crop_thumbnail(image, size=THUMBNAIL_SIZE, crop="smart", **kwargs):
@@ -32,6 +40,45 @@ def scale_and_crop_thumbnail(image, size=THUMBNAIL_SIZE, crop="smart", **kwargs)
     See the ``scale_and_crop`` docs in ``thumbscropping.py`` for more details.
     """
     return scale_and_crop(image, size, crop=crop, upscale=True, **kwargs)
+
+
+def resize_image(image, width=None, height=None, maintain_aspect_ratio=True):
+    """
+    Letterboxing with both dimensions and ``maintain_aspect_ratio`` matches
+    Studio's thumbnails (learningequality/studio#6351).
+    """
+    bound = max(width or image.width, height or image.height)
+    image.draft(None, (bound, bound))
+    icc_profile = image.info.get("icc_profile")
+    ImageOps.exif_transpose(image, in_place=True)
+    if icc_profile:
+        image = _to_srgb(image, icc_profile)
+    if image.mode.startswith("I"):
+        image = image.convert("I").point(lambda v: v / 256).convert("L")
+    image = image.convert("RGBA")
+    size = (width or image.width, height or image.height)
+    if not maintain_aspect_ratio:
+        return image.resize(size, Image.LANCZOS)
+    image.thumbnail(size, Image.LANCZOS)
+    if not (width and height):
+        return image
+    canvas = Image.new("RGBA", size, (0, 0, 0, 0))
+    canvas.paste(image, ((width - image.width) // 2, (height - image.height) // 2))
+    return canvas
+
+
+def _to_srgb(image, icc_profile):
+    if image.mode == "P" or "transparency" in image.info:
+        image = image.convert("RGBA")
+    try:
+        return ImageCms.profileToProfile(
+            image,
+            ImageCms.getOpenProfile(BytesIO(icc_profile)),
+            SRGB_PROFILE,
+            outputMode="RGBA" if image.mode == "RGBA" else "RGB",
+        )
+    except ImageCms.PyCMSError:
+        return image
 
 
 # THUMBNAILS FOR CONTENT KINDS

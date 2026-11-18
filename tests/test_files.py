@@ -25,6 +25,7 @@ from urllib.parse import urlparse
 
 import pytest
 import yt_dlp
+from conftest import assert_letterboxed_png
 from conftest import sample_path
 from fake_session import fake_download_session
 from le_utils.constants import file_formats
@@ -47,6 +48,7 @@ from yt_dlp.extractor.youtube import YoutubeIE
 from yt_dlp.extractor.youtube import YoutubeTabIE
 
 from ricecooker import config
+from ricecooker.classes.files import _ExerciseBase64ImageFile
 from ricecooker.classes.files import _ExerciseGraphieFile
 from ricecooker.classes.files import AudioFile
 from ricecooker.classes.files import Base64ImageFile
@@ -57,6 +59,7 @@ from ricecooker.classes.files import EPubFile
 from ricecooker.classes.files import File
 from ricecooker.classes.files import H5PFile
 from ricecooker.classes.files import HTMLZipFile
+from ricecooker.classes.files import ImageDownloadFile
 from ricecooker.classes.files import StudioFile
 from ricecooker.classes.files import SubtitleFile
 from ricecooker.classes.files import ThumbnailFile
@@ -214,7 +217,6 @@ def test_download_filenames(
     epub_file,
     epub_filename,
     thumbnail_file,
-    thumbnail_filename,
     subtitle_file,
     subtitle_filename,
 ):
@@ -242,9 +244,7 @@ def test_download_filenames(
     assert epub_file.process_file() == epub_filename, (
         "ePub document file should have filename {}".format(epub_filename)
     )
-    assert thumbnail_file.process_file() == thumbnail_filename, (
-        "Thumbnail file should have filename {}".format(thumbnail_filename)
-    )
+    _assert_processes_to_letterboxed_png(thumbnail_file)
     assert subtitle_file.process_file() == subtitle_filename, (
         "Subtitle file should have filename {}".format(subtitle_filename)
     )
@@ -276,7 +276,6 @@ def test_download_to_storage(
     epub_file,
     epub_filename,
     thumbnail_file,
-    thumbnail_filename,
     subtitle_file,
     subtitle_filename,
 ):
@@ -294,6 +293,7 @@ def test_download_to_storage(
     audio_path = config.get_storage_path(audio_filename)
     document_path = config.get_storage_path(document_filename)
     epub_path = config.get_storage_path(epub_filename)
+    thumbnail_filename = thumbnail_file.get_filename()
     thumbnail_path = config.get_storage_path(thumbnail_filename)
     subtitle_path = config.get_storage_path(subtitle_filename)
 
@@ -571,10 +571,20 @@ def test_valid_svg_processes(tmp_path, content):
     path = tmp_path / "thumb.svg"
     path.write_bytes(content)
 
-    thumbnail = ThumbnailFile(str(path))
+    thumbnail = ImageDownloadFile(str(path))
 
     assert thumbnail.process_file()
     assert thumbnail.error is None
+
+
+def test_svg_thumbnail_is_rejected(tmp_path):
+    path = tmp_path / "thumb.svg"
+    path.write_bytes(_SVG)
+
+    thumbnail = ThumbnailFile(str(path))
+
+    assert thumbnail.process_file() is None
+    assert thumbnail in config.FAILED_FILES
 
 
 SVG_PROLOGS = [
@@ -595,7 +605,7 @@ def test_svg_billion_laughs_is_not_expanded(tmp_path, prolog):
         + b"]><svg><text>&lol9;</text></svg>"
     )
 
-    thumbnail = ThumbnailFile(str(path))
+    thumbnail = ImageDownloadFile(str(path))
     thumbnail.process_file()
 
     # expat and libxml2 >= 2.11 reject the amplification; older libxml2 parses without expanding
@@ -613,7 +623,7 @@ def test_svg_external_entity_is_not_read(tmp_path, prolog):
         f'{prolog}<!DOCTYPE svg [<!ENTITY x SYSTEM "{secret.as_uri()}">]><svg><text>&x;</text></svg>'
     )
 
-    thumbnail = ThumbnailFile(str(path))
+    thumbnail = ImageDownloadFile(str(path))
     thumbnail.process_file()
 
     # expat rejects the entity as undefined; lxml leaves it unexpanded
@@ -821,8 +831,8 @@ def test_subtitle_default_ext_keyword_on_yt_dlp_url_processes_to_vtt():
     "file_class,sample,kwargs,ext",
     [
         (VideoFile, "low_res_sample.webm", {"default_ext": "webm"}, ".webm"),
-        (ThumbnailFile, "thumbnail.jpg", {"default_ext": "jpg"}, ".jpg"),
-        (ThumbnailFile, "thumbnail.jpg", {"default_ext": "JPG"}, ".jpg"),
+        (ImageDownloadFile, "thumbnail.jpg", {"default_ext": "jpg"}, ".jpg"),
+        (ImageDownloadFile, "thumbnail.jpg", {"default_ext": "JPG"}, ".jpg"),
         (WebVideoFile, "low_res_sample.webm", {"default_ext": "webm"}, ".webm"),
         (
             DownloadFile,
@@ -1104,7 +1114,7 @@ def test_html_page_at_binary_url_renders(file_class, url):
     "file_class,sample,default_ext,url,disposition,content_type",
     [
         (
-            ThumbnailFile,
+            ImageDownloadFile,
             "thumbnail.jpg",
             "pdf",
             "https://s.example/f.jpg?id=named-path",
@@ -1112,7 +1122,7 @@ def test_html_page_at_binary_url_renders(file_class, url):
             "image/jpeg",
         ),
         (
-            ThumbnailFile,
+            ImageDownloadFile,
             "thumbnail.jpg",
             "pdf",
             "https://s.example/get?id=named-disposition",
@@ -1173,7 +1183,7 @@ def test_declared_ext_ignores_default_ext_keyword(file_class, sample, kwargs, ex
 
 
 def test_base64_image_ignores_default_ext_keyword():
-    img = Base64ImageFile(encoding=TEST_PNG_BASE64, default_ext="vtt")
+    img = _ExerciseBase64ImageFile(TEST_PNG_BASE64, default_ext="vtt")
     filename = img.process_file()
     assert filename == f"{EXPECTED_PNG_MD5}.png", img.error
 
@@ -1231,7 +1241,7 @@ def test_base64_legacy_image_mimetype_converts_to_uploadable_ext(mimetype, fmt, 
     buf = BytesIO()
     Image.new("RGB", (1, 1)).save(buf, fmt)
     encoding = f"data:{mimetype};base64," + base64.b64encode(buf.getvalue()).decode()
-    image = Base64ImageFile(encoding)
+    image = _ExerciseBase64ImageFile(encoding)
     filename = image.process_file()
     assert image.error is None
     assert filename.endswith(suffix)
@@ -1336,10 +1346,14 @@ def test_invalid_htmlzip_validation(invalid_zip):
         (AudioFile, "bad.mp3", b"This is not a valid media file"),
         (AudioFile, "bad.wav", b"This is not a valid media file"),
         (ThumbnailFile, "bad.png", b"not an image"),
-        (ThumbnailFile, "bad.svg", b"<svg><g></svg>"),
-        (ThumbnailFile, "bogus.svg", b'<?xml version="1.0" encoding="bogus"?><svg/>'),
+        (ImageDownloadFile, "bad.svg", b"<svg><g></svg>"),
         (
-            ThumbnailFile,
+            ImageDownloadFile,
+            "bogus.svg",
+            b'<?xml version="1.0" encoding="bogus"?><svg/>',
+        ),
+        (
+            ImageDownloadFile,
             "nul.svg",
             b'<?xml version="1.0" encoding="Shift_JIS"?><svg>\x00</svg>',
         ),
@@ -2324,14 +2338,14 @@ TEST_JPG_BASE64, EXPECTED_JPG_MD5 = create_test_image(format="JPEG")
 
 def test_png_hash():
     """Test that a base64 PNG gets converted correctly"""
-    img = Base64ImageFile(encoding=TEST_PNG_BASE64)
+    img = _ExerciseBase64ImageFile(TEST_PNG_BASE64)
     filename = img.process_file()
     assert filename == f"{EXPECTED_PNG_MD5}.png"
 
 
 def test_jpeg_hash():
     """Test that a base64 JPEG gets converted correctly"""
-    img = Base64ImageFile(encoding=TEST_JPG_BASE64)
+    img = _ExerciseBase64ImageFile(TEST_JPG_BASE64)
     filename = img.process_file()
     assert filename == f"{EXPECTED_JPG_MD5}.jpg"
 
@@ -2374,11 +2388,11 @@ def test_non_image_data():
 def test_caching():
     """Test that converted files are properly cached"""
     # First conversion
-    img1 = Base64ImageFile(encoding=TEST_PNG_BASE64)
+    img1 = _ExerciseBase64ImageFile(TEST_PNG_BASE64)
     filename1 = img1.process_file()
 
     # Second conversion of same content
-    img2 = Base64ImageFile(encoding=TEST_PNG_BASE64)
+    img2 = _ExerciseBase64ImageFile(TEST_PNG_BASE64)
     filename2 = img2.process_file()
 
     # Should return same filename
@@ -2407,6 +2421,26 @@ def test_different_images():
     img2 = Base64ImageFile(encoding=base64_2)
 
     assert img1.process_file() != img2.process_file()
+
+
+def _assert_processes_to_letterboxed_png(file):
+    filename = file.process_file()
+    assert filename, file.error
+    path = config.get_storage_path(filename)
+    assert_letterboxed_png(path)
+
+
+def test_base64_image_file_is_letterboxed_png():
+    data_uri, _ = create_test_image(size=(300, 800), color="red")
+    _assert_processes_to_letterboxed_png(Base64ImageFile(data_uri))
+
+
+def test_base64_svg_thumbnail_is_rejected():
+    data_uri = "data:image/svg+xml;base64," + base64.b64encode(_SVG).decode()
+    thumbnail = Base64ImageFile(data_uri)
+
+    assert thumbnail.process_file() is None
+    assert thumbnail in config.FAILED_FILES
 
 
 # Tests for Graphie files
@@ -2760,9 +2794,10 @@ def test_base64_image_cache_keys(mock_filecache):
 
     # Hash of the base64 content
     content_hash = "8e49fd838705faf3665e6f1ec22b0e3f"  # example hash
+    decoded_hash = hashlib.md5(base64.b64decode(img_data.split(",")[1])).hexdigest()
     expected_keys = {
         f"ENCODED: {content_hash} (base64 encoded)",
-        f"CONVERT:{img.filename}",
+        f"CONVERT:{decoded_hash}.png:400x225:fit",
     }
     assert set(mock_filecache.cache.keys()) == expected_keys
 

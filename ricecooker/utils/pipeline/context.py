@@ -54,6 +54,7 @@ class FileMetadata:
     filename: Optional[str] = None
     path: Optional[str] = None
     original_filename: Optional[str] = None
+    unconverted_filename: Optional[str] = None
     language: Optional[str] = None
     duration: Optional[int] = None
     license: Optional[str] = None

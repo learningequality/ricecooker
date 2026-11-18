@@ -43,6 +43,7 @@ from ricecooker.utils.audio import AudioEncoding
 from ricecooker.utils.audio import compress_audio
 from ricecooker.utils.caching import generate_key
 from ricecooker.utils.encodings import parse_xml
+from ricecooker.utils.images import resize_image
 from ricecooker.utils.imscp import collapse_single_children
 from ricecooker.utils.imscp import contained_path
 from ricecooker.utils.imscp import IMSCP_MANIFEST
@@ -987,10 +988,18 @@ class PDFValidationHandler(ExtensionMatchingHandler):
             raise InvalidFileException("PDF has no pages")
 
 
+class ImageConversionContextMetadata(ContextMetadata):
+    width: Optional[int] = None
+    height: Optional[int] = None
+    maintain_aspect_ratio: bool = True
+
+
 class ImageConversionHandler(ExtensionMatchingHandler):
     """
     A FileHandler that converts image files to supported formats.
     """
+
+    CONTEXT_CLASS = ImageConversionContextMetadata
 
     SUPPORTED_IMAGE_EXTENSIONS = {
         file_formats.PNG,
@@ -1009,7 +1018,16 @@ class ImageConversionHandler(ExtensionMatchingHandler):
         - VideoCompressionHandler.EXTENSIONS
     )
 
-    def handle_file(self, path):
+    def get_cache_key(
+        self, path, width=None, height=None, maintain_aspect_ratio=True, **kwargs
+    ) -> str:
+        key = super().get_cache_key(path, **kwargs)
+        if width is None and height is None:
+            return key
+        return f"{key}:{width}x{height}:{'fit' if maintain_aspect_ratio else 'stretch'}"
+
+    def handle_file(self, path, width=None, height=None, maintain_aspect_ratio=True):
+        resize = width is not None or height is not None
         preferred_extension = extract_path_ext(path)
         file_type_guess = filetype.guess(path)
         extension = file_type_guess.extension if file_type_guess else None
@@ -1022,10 +1040,14 @@ class ImageConversionHandler(ExtensionMatchingHandler):
         try:
             with Image.open(path) as im:
                 im.verify()
-            if extension in self.SUPPORTED_IMAGE_EXTENSIONS:
+            if extension in self.SUPPORTED_IMAGE_EXTENSIONS and not resize:
                 return
             with Image.open(path) as im:
-                converted = im.convert("RGB")
+                converted = (
+                    resize_image(im, width, height, maintain_aspect_ratio)
+                    if resize
+                    else im.convert("RGB")
+                )
         # PIL raises these for a truncated, corrupt or oversized image.
         except (OSError, SyntaxError, ValueError, Image.DecompressionBombError):
             raise InvalidFileException(
@@ -1033,6 +1055,8 @@ class ImageConversionHandler(ExtensionMatchingHandler):
             )
         with self.write_file(file_formats.PNG) as tempf:
             converted.save(tempf, file_formats.PNG)
+        if resize:
+            return FileMetadata(unconverted_filename=os.path.basename(path))
 
 
 class SVGValidationHandler(ExtensionMatchingHandler):
