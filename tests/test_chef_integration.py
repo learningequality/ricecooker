@@ -8,8 +8,13 @@ import logging
 import os
 import random
 import socket
+import socketserver
 import string
+import struct
 import sys
+import threading
+from http.server import BaseHTTPRequestHandler
+from http.server import ThreadingHTTPServer
 from unittest.mock import MagicMock
 
 import pytest
@@ -34,6 +39,7 @@ from ricecooker.commands import uploadchannel_wrapper
 from ricecooker.exceptions import InvalidNodeException
 from ricecooker.exceptions import InvalidUsageException
 from ricecooker.utils.pipeline import FilePipeline
+from ricecooker.utils.request_utils import ReconnectingAdapter
 
 
 class TestChef(SushiChef):
@@ -393,6 +399,247 @@ def test_uploadchannel_fails_on_long_csv_new_tag_before_add_nodes_in_strict_mode
     ):
         uploadchannel(TwoTopicChef(), token="t")
     assert posted == []
+
+
+class SilentDropStudioHandler(BaseHTTPRequestHandler):
+    protocol_version = "HTTP/1.1"
+    served_in_epoch = None
+    studio_post = staticmethod(_studio_post([], [], lambda c: False))
+
+    def _read_body(self):
+        if self.headers.get("Transfer-Encoding") != "chunked":
+            return self.rfile.read(int(self.headers.get("Content-Length", 0)))
+        body = b""
+        while True:
+            size = int(self.rfile.readline(), 16)
+            body += self.rfile.read(size)
+            self.rfile.readline()
+            if size == 0:
+                return body
+
+    def do_POST(self):
+        body = self._read_body()
+        if self.path == "/drop" or (
+            self.served_in_epoch is not None
+            and self.served_in_epoch < self.server.idle_epoch
+        ):
+            self.server.dropped.append(self.path)
+            self.close_connection = True
+            if self.server.drop_with_reset:
+                # Windows' struct linger holds two u_shorts.
+                linger = struct.pack("HH" if os.name == "nt" else "ii", 1, 0)
+                self.connection.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, linger)
+                self.connection.close()
+            return
+        self.server.answered.append((self.path, body))
+        self.served_in_epoch = self.server.idle_epoch
+        response = self.studio_post(config.DOMAIN + self.path, data=body.decode())
+        self.send_response(response.status_code)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(response._content)))
+        self.end_headers()
+        self.wfile.write(response._content)
+
+    do_PUT = do_POST
+
+    def log_message(self, *args):
+        pass
+
+
+class SilentDropStudio(ThreadingHTTPServer):
+    def __init__(self):
+        super().__init__(("127.0.0.1", 0), SilentDropStudioHandler)
+        self.answered = []
+        self.dropped = []
+        self.drop_with_reset = False
+        self.idle_epoch = 0
+        self.url = f"http://127.0.0.1:{self.server_port}"
+
+    def go_idle(self):
+        self.idle_epoch += 1
+
+
+def _serve(server):
+    threading.Thread(
+        target=server.serve_forever, kwargs={"poll_interval": 0.05}, daemon=True
+    ).start()
+    yield server
+    server.shutdown()
+    server.server_close()
+
+
+@pytest.fixture
+def silent_drop_studio():
+    yield from _serve(SilentDropStudio())
+
+
+class SlowBuildChef(TwoTopicChef):
+    def __init__(self, studio):
+        super().__init__()
+        self.studio = studio
+
+    def construct_channel(self, **kwargs):
+        self.studio.go_idle()
+        return super().construct_channel(**kwargs)
+
+
+def test_uploadchannel_survives_studio_dropping_idle_connection(
+    chef_config, monkeypatch, tmp_path, silent_drop_studio
+):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(config, "DOMAIN", silent_drop_studio.url)
+    monkeypatch.setattr(config.SESSION, "headers", config.SESSION.headers.copy())
+
+    uploadchannel(SlowBuildChef(silent_drop_studio), token="t")
+
+    answered = silent_drop_studio.answered
+    assert [path.rsplit("/", 1)[-1] for path, _ in answered] == [
+        "authenticate_user_internal",
+        "check_version",
+        "create_channel",
+        "create_channel",
+        "add_nodes",
+        "finish_channel",
+    ]
+    assert [path.rsplit("/", 1)[-1] for path in silent_drop_studio.dropped] == [
+        "create_channel"
+    ]
+
+
+@pytest.fixture
+def reconnecting_session():
+    session = requests.Session()
+    session.mount("http://", ReconnectingAdapter())
+    return session
+
+
+@pytest.fixture
+def idle_reconnecting_session(reconnecting_session, silent_drop_studio):
+    url = f"{silent_drop_studio.url}/upload"
+    reconnecting_session.post(url).raise_for_status()
+    silent_drop_studio.go_idle()
+    return reconnecting_session, url
+
+
+def test_reconnecting_adapter_resends_after_connection_reset(
+    idle_reconnecting_session, silent_drop_studio
+):
+    session, url = idle_reconnecting_session
+    silent_drop_studio.drop_with_reset = True
+
+    session.post(url).raise_for_status()
+
+    assert silent_drop_studio.dropped == ["/upload"]
+    assert len(silent_drop_studio.answered) == 2
+
+
+def test_reconnecting_adapter_resends_whole_file_body_after_drop(
+    idle_reconnecting_session, silent_drop_studio, tmp_path
+):
+    session, url = idle_reconnecting_session
+    path = tmp_path / "upload.bin"
+    path.write_bytes(b"header-content")
+
+    with open(path, "rb") as f:
+        f.read(len(b"header-"))
+        session.put(url, data=f).raise_for_status()
+
+    assert silent_drop_studio.dropped == ["/upload"]
+    assert silent_drop_studio.answered[-1][1] == b"content"
+
+
+def test_reconnecting_adapter_does_not_resend_unrewindable_body(
+    idle_reconnecting_session, silent_drop_studio
+):
+    session, url = idle_reconnecting_session
+
+    with pytest.raises(requests.ConnectionError):
+        session.put(url, data=iter([b"content"]))
+
+    assert silent_drop_studio.dropped == ["/upload"]
+    assert len(silent_drop_studio.answered) == 1
+
+
+def test_reconnecting_adapter_does_not_resend_after_fresh_connection_drop(
+    reconnecting_session, silent_drop_studio
+):
+    with pytest.raises(requests.ConnectionError):
+        reconnecting_session.post(f"{silent_drop_studio.url}/drop")
+
+    assert silent_drop_studio.dropped == ["/drop"]
+
+
+class Socks5Relay(socketserver.ThreadingTCPServer):
+    daemon_threads = True
+
+    def __init__(self, target):
+        super().__init__(("127.0.0.1", 0), Socks5RelayHandler)
+        self.target = target
+        self.url = f"socks5h://127.0.0.1:{self.server_address[1]}"
+
+
+class Socks5RelayHandler(socketserver.BaseRequestHandler):
+    def handle(self):
+        client = self.request
+        client.recv(client.recv(2)[1])
+        client.sendall(b"\x05\x00")
+        request = client.recv(4)
+        address_length = {1: 4, 4: 16}.get(request[3]) or client.recv(1)[0]
+        client.recv(address_length + 2)
+        with socket.create_connection(self.server.target) as upstream:
+            client.sendall(b"\x05\x00\x00\x01" + bytes(6))
+            threading.Thread(target=_pipe, args=(upstream, client), daemon=True).start()
+            _pipe(client, upstream)
+
+
+def _pipe(source, sink):
+    try:
+        while data := source.recv(65536):
+            sink.sendall(data)
+        sink.shutdown(socket.SHUT_WR)
+    except OSError:
+        pass
+
+
+@pytest.fixture
+def socks_relay(silent_drop_studio):
+    yield from _serve(Socks5Relay(silent_drop_studio.server_address))
+
+
+@pytest.mark.parametrize(
+    "proxy_fixture,dropped_path",
+    [
+        ("silent_drop_studio", "http://studio.invalid/upload"),
+        ("socks_relay", "/upload"),
+    ],
+)
+def test_reconnecting_adapter_resends_through_proxy_after_drop(
+    reconnecting_session, silent_drop_studio, request, proxy_fixture, dropped_path
+):
+    proxies = {"http": request.getfixturevalue(proxy_fixture).url}
+    url = "http://studio.invalid/upload"
+    reconnecting_session.post(url, proxies=proxies).raise_for_status()
+    silent_drop_studio.go_idle()
+
+    reconnecting_session.post(url, proxies=proxies).raise_for_status()
+
+    assert silent_drop_studio.dropped == [dropped_path]
+    assert len(silent_drop_studio.answered) == 2
+
+
+def test_reconnecting_adapter_sends_untellable_pipe_body(
+    reconnecting_session, silent_drop_studio
+):
+    read_fd, write_fd = os.pipe()
+    os.write(write_fd, b"content")
+    os.close(write_fd)
+
+    with os.fdopen(read_fd, "rb") as pipe:
+        reconnecting_session.post(
+            f"{silent_drop_studio.url}/upload", data=pipe
+        ).raise_for_status()
+
+    assert silent_drop_studio.answered[-1][1] == b"content"
 
 
 @pytest.fixture

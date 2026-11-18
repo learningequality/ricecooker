@@ -64,6 +64,7 @@ test = [
     "pytest-timeout==2.4.0",
     "vcrpy==8.2.1; python_version >='3.10'",
     "mock==5.2.0",
+    "pysocks==1.7.1",
 ]
 dev = [
     {include-group = "test"},
